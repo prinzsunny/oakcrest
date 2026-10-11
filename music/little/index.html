@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Little Musicians · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+</head>
+<body>
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Little Musicians</b><small>Music · Foundations</small></div>
+  <select class="ap-units" data-units aria-label="Unit"></select>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-sound aria-label="Sounds on">🔔</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const $ = (selector) => document.querySelector(selector);
+const stage = $("[data-stage]");
+const panel = $("[data-panel]");
+const NS = "http://www.w3.org/2000/svg";
+
+const BARS = [
+  { midi: 72, letter: "C", color: "#e53935", name: "red" },
+  { midi: 74, letter: "D", color: "#fb8c00", name: "orange" },
+  { midi: 76, letter: "E", color: "#fdd835", name: "yellow" },
+  { midi: 77, letter: "F", color: "#43a047", name: "green" },
+  { midi: 79, letter: "G", color: "#26a69a", name: "teal" },
+  { midi: 81, letter: "A", color: "#1e88e5", name: "blue" },
+  { midi: 83, letter: "B", color: "#8e24aa", name: "purple" },
+  { midi: 84, letter: "C", color: "#ec407a", name: "pink" },
+];
+const byLetter = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6, "C'": 7 };
+
+const SONGS = [
+  { name: "Hot Cross Buns", notes: "E D C- E D C- C C C C D D D D E D C-" },
+  { name: "Mary Had a Little Lamb", notes: "E D C D E E E- D D D- E G G- E D C D E E E E D D E D C--" },
+  { name: "Twinkle Twinkle", notes: "C C G G A A G- F F E E D D C- G G F F E E D- G G F F E E D- C C G G A A G- F F E E D D C-" },
+  { name: "Ode to Joy", notes: "E E F G G F E D C C D E E. D_ D- E E F G G F E D C C D E D. C_ C-" },
+];
+const parseSong = (text) =>
+  text.split(/\s+/).map((token) => {
+    const letter = token.replace(/[-._]/g, "");
+    const beats = token.endsWith("--") ? 4 : token.endsWith("-") ? 2 : token.endsWith(".") ? 1.5 : token.endsWith("_") ? 0.5 : 1;
+    return { bar: byLetter[letter], beats };
+  });
+
+const UNITS = [
+  { id: "free", label: "Free play" },
+  { id: "u1", label: "1. Meet the xylophone" },
+  { id: "u2", label: "2. Loud and soft", soon: true },
+  { id: "u3", label: "3. Higher or lower?" },
+  { id: "u4", label: "4. Copy me" },
+  { id: "u5", label: "5. Clap the beat", soon: true },
+  { id: "u6", label: "6. First songs" },
+  { id: "u7", label: "7. Colours to letters" },
+];
+
+const W = 1000;
+const H = 520;
+const BAR_W = 92;
+const GAP = 22;
+const X0 = (W - (8 * BAR_W + 7 * GAP)) / 2;
+const MID = 262;
+const lengthOf = (i) => 430 - i * 19;
+const svg = document.createElementNS(NS, "svg");
+svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+svg.setAttribute("role", "group");
+svg.setAttribute("aria-label", "A xylophone with eight coloured wooden bars, from low C on the left to high C on the right");
+
+function el(name, attrs = {}, parent = svg) {
+  const node = document.createElementNS(NS, name);
+  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+  parent.appendChild(node);
+  return node;
+}
+
+function drawXylophone() {
+  const defs = el("defs");
+  defs.innerHTML = `
+    <linearGradient id="xy-sheen" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".22"/><stop offset=".18" stop-color="#fff" stop-opacity=".28"/><stop offset=".45" stop-color="#fff" stop-opacity=".06"/><stop offset=".8" stop-color="#000" stop-opacity=".05"/><stop offset="1" stop-color="#000" stop-opacity=".28"/></linearGradient>
+    <linearGradient id="xy-rail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6b4226"/><stop offset=".5" stop-color="#4a2c17"/><stop offset="1" stop-color="#2f1b0d"/></linearGradient>
+    <linearGradient id="xy-frame" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a5a35"/><stop offset="1" stop-color="#5b371d"/></linearGradient>
+    <radialGradient id="xy-pin" cx=".35" cy=".35" r=".7"><stop offset="0" stop-color="#fff3c4"/><stop offset=".5" stop-color="#d4a94a"/><stop offset="1" stop-color="#7a5a1a"/></radialGradient>
+    <filter id="xy-shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#3a2210" flood-opacity=".35"/></filter>
+    <filter id="xy-glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="10" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
+  el("ellipse", { cx: W / 2, cy: 500, rx: 470, ry: 14, fill: "#3a2210", opacity: 0.18 });
+  const top = (i) => MID - lengthOf(i) / 2 + lengthOf(i) * 0.224;
+  const bottom = (i) => MID + lengthOf(i) / 2 - lengthOf(i) * 0.224;
+  const x0 = X0 - 30;
+  const x1 = X0 + 8 * BAR_W + 7 * GAP + 30;
+  const slope = (fn) => [fn(0) - ((fn(1) - fn(0)) * 30) / (BAR_W + GAP), fn(7) + ((fn(7) - fn(6)) * 30) / (BAR_W + GAP)];
+  for (const fn of [top, bottom]) {
+    const [a, b] = slope(fn);
+    el("path", { d: `M${x0} ${a - 13}L${x1} ${b - 13}L${x1} ${b + 13}L${x0} ${a + 13}Z`, fill: "url(#xy-rail)", filter: "url(#xy-shadow)" });
+    el("path", { d: `M${x0} ${a - 13}L${x1} ${b - 13}`, stroke: "#8a5a35", "stroke-width": 2, opacity: 0.6 });
+  }
+  BARS.forEach((bar, i) => {
+    const x = X0 + i * (BAR_W + GAP);
+    const L = lengthOf(i);
+    const y = MID - L / 2;
+    const g = el("g", { class: "xy-bar", "data-i": i, tabindex: 0, role: "button", "aria-label": `${bar.name} bar, ${bar.letter}` });
+    g.style.transformOrigin = `${x + BAR_W / 2}px ${MID}px`;
+    el("rect", { class: "xy-halo", x: x - 8, y: y - 8, width: BAR_W + 16, height: L + 16, rx: 22, fill: bar.color, opacity: 0, filter: "url(#xy-glow)" }, g);
+    el("rect", { x, y, width: BAR_W, height: L, rx: 16, fill: bar.color, filter: "url(#xy-shadow)" }, g);
+    el("rect", { x, y, width: BAR_W, height: L, rx: 16, fill: "url(#xy-sheen)" }, g);
+    const grain = el("g", { opacity: 0.16, stroke: "#3a1a05", fill: "none", "stroke-width": 1.2, "stroke-linecap": "round" }, g);
+    for (let k = 0; k < 5; k++) {
+      const gx = x + 14 + k * 16 + ((i * 7 + k * 5) % 6);
+      el("path", { d: `M${gx} ${y + 18}C${gx + 6} ${y + L * 0.3} ${gx - 6} ${y + L * 0.62} ${gx + 3} ${y + L - 18}` }, grain);
+    }
+    el("rect", { x: x + 1.5, y: y + 1.5, width: BAR_W - 3, height: L - 3, rx: 15, fill: "none", stroke: "#fff", "stroke-opacity": 0.35, "stroke-width": 1.5 }, g);
+    el("rect", { x, y, width: BAR_W, height: L, rx: 16, fill: "none", stroke: "#2b1608", "stroke-opacity": 0.45, "stroke-width": 1.5 }, g);
+    for (const py of [top(i), bottom(i)]) {
+      el("circle", { cx: x + BAR_W / 2, cy: py, r: 7, fill: "url(#xy-pin)", stroke: "#5b4210", "stroke-width": 1 }, g);
+      el("circle", { cx: x + BAR_W / 2 - 2, cy: py - 2, r: 2, fill: "#fff", opacity: 0.8 }, g);
+    }
+    const label = el("text", { class: "xy-letter", x: x + BAR_W / 2, y: MID + 20, "text-anchor": "middle", fill: "#fff", "font-size": 54, "font-weight": 800, "font-family": "ui-rounded, ui-sans-serif, system-ui, sans-serif", stroke: "rgba(0,0,0,.35)", "stroke-width": 2, "paint-order": "stroke" }, g);
+    label.textContent = bar.letter;
+    bar.g = g;
+    bar.x = x + BAR_W / 2;
+    bar.top = y;
+  });
+  const mallet = el("g", { class: "xy-mallet", opacity: 0, "pointer-events": "none" });
+  el("rect", { x: -6, y: 22, width: 12, height: 150, rx: 6, fill: "#c9935e", stroke: "#7a4a22", "stroke-width": 1.5 }, mallet);
+  el("circle", { cx: 0, cy: 0, r: 26, fill: "#fff7ec", stroke: "#a86b4f", "stroke-width": 2 }, mallet);
+  el("circle", { cx: -8, cy: -8, r: 8, fill: "#fff", opacity: 0.8 }, mallet);
+  return mallet;
+}
+
+stage.appendChild(svg);
+const mallet = drawXylophone();
+const style = document.createElement("style");
+style.textContent = `
+.xy-bar{cursor:pointer;transition:filter .2s}
+.xy-bar:focus{outline:none}
+.xy-bar:focus-visible .xy-halo{opacity:.5}
+.xy-bar.hit{animation:xy-wobble .42s ease-out}
+.xy-bar.glow .xy-halo{animation:xy-glow 1.1s ease-in-out infinite}
+.xy-bar.flash .xy-halo{opacity:.8;transition:opacity .1s}
+svg:not(.letters) .xy-letter{display:none}
+.xy-mallet{transition:opacity .25s, transform .35s cubic-bezier(.32,.72,0,1)}
+.xy-mallet.tap{animation:xy-tap .9s ease-in-out infinite}
+.ap-strip{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;max-width:34em}
+.ap-strip span{width:20px;height:20px;border-radius:50%;box-shadow:inset 0 -3px 0 rgba(0,0,0,.18);opacity:.45;transition:transform .2s,opacity .2s}
+.ap-strip span.long{width:30px;border-radius:10px}
+.ap-strip span.done{opacity:.9}
+.ap-strip span.now{opacity:1;transform:scale(1.45)}
+.ap-target{display:inline-block;min-width:1.4em;padding:0 .2em;border-radius:12px;color:#fff;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+@keyframes xy-wobble{0%{transform:scaleY(1)}20%{transform:scaleY(.965) translateY(4px)}45%{transform:scaleY(1.012)}70%{transform:scaleY(.995)}100%{transform:none}}
+@keyframes xy-glow{0%,100%{opacity:.25}50%{opacity:.85}}
+@keyframes xy-tap{0%,100%{translate:0 -26px}45%{translate:0 0}}
+@media (max-height:460px){.ap-strip{gap:3px}.ap-strip span{width:13px;height:13px}.ap-strip span.long{width:20px}.ap-strip span.now{transform:scale(1.3)}.ap-chips button{min-height:32px;font-size:13px;padding:0 9px}}
+@media (prefers-reduced-motion:reduce){.xy-bar.hit,.xy-bar.glow .xy-halo,.xy-mallet.tap{animation:none}.xy-bar.glow .xy-halo{opacity:.7}}`;
+document.head.appendChild(style);
+
+MUSIC.preload("xylophone", BARS.map((bar) => bar.midi).concat([84, 88, 91, 96]));
+MUSIC.preload("piano", [64, 67]);
+
+const say = (html, { voice = true } = {}) => {
+  $("[data-say]").innerHTML = html;
+  if (voice) VOICE.speak(html);
+};
+const sayAsync = (html) => {
+  $("[data-say]").innerHTML = html;
+  return VOICE.speakAsync(html);
+};
+const pick = (list) => list[Math.floor(Math.random() * list.length)];
+const chip = (bar) => `<span class="ap-target" style="background:${bar.color}">${svg.classList.contains("letters") ? bar.letter : capital(bar.name)}</span>`;
+const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const PRAISE = ["Yes!", "Great!", "Well done!", "Super!", "You did it!"];
+
+let token = 0;
+let handler = null;
+let trail = [];
+
+function strike(i, { quiet = false } = {}) {
+  const bar = BARS[i];
+  MUSIC.play("xylophone", bar.midi, { gain: quiet ? 0.6 : 0.95 });
+  bar.g.classList.remove("hit");
+  void bar.g.getBBox();
+  bar.g.classList.add("hit");
+  bar.g.classList.add("flash");
+  setTimeout(() => bar.g.classList.remove("flash"), 180);
+}
+
+function glow(i, on = true) {
+  BARS.forEach((bar, k) => bar.g.classList.toggle("glow", on && k === i));
+}
+
+function pointMallet(i) {
+  if (i === null || i === undefined) {
+    mallet.setAttribute("opacity", 0);
+    mallet.classList.remove("tap");
+    return;
+  }
+  const bar = BARS[i];
+  mallet.setAttribute("transform", `translate(${bar.x} ${bar.top + 60}) rotate(-28)`);
+  mallet.setAttribute("opacity", 1);
+  mallet.classList.add("tap");
+}
+
+async function playSequence(list, { beat = 520, glowing = true, my = token } = {}) {
+  for (const item of list) {
+    if (my !== token) return false;
+    const i = typeof item === "number" ? item : item.bar;
+    const beats = typeof item === "number" ? 1 : item.beats;
+    strike(i);
+    if (glowing) BARS[i].g.classList.add("flash");
+    await wait(beat * beats);
+    BARS[i].g.classList.remove("flash");
+  }
+  return my === token;
+}
+
+function onHit(i) {
+  strike(i);
+  window.OC?.touch();
+  handler?.(i);
+}
+
+svg.addEventListener("pointerdown", (event) => {
+  const g = event.target.closest(".xy-bar");
+  if (!g) return;
+  event.preventDefault();
+  onHit(Number(g.dataset.i));
+});
+svg.addEventListener("keydown", (event) => {
+  const g = event.target.closest(".xy-bar");
+  if (g && (event.key === "Enter" || event.key === " ")) {
+    event.preventDefault();
+    onHit(Number(g.dataset.i));
+  }
+});
+const KEYMAP = { a: 0, s: 1, d: 2, f: 3, g: 4, h: 5, j: 6, k: 7 };
+addEventListener("keydown", (event) => {
+  if (event.target.closest("select, input")) return;
+  const i = KEYMAP[event.key.toLowerCase()];
+  if (i !== undefined && !event.repeat) onHit(i);
+});
+
+function setPanel(html) {
+  panel.innerHTML = `<p class="ap-say" data-say aria-live="polite"></p>${html}`;
+}
+
+function reset() {
+  token += 1;
+  handler = null;
+  glow(null, false);
+  pointMallet(null);
+  VOICE.hush();
+  svg.classList.remove("letters");
+}
+
+const units = {
+  free() {
+    setPanel(`<div class="ap-strip" data-trail aria-hidden="true"></div><div class="ap-buttons"><button type="button" data-do="song">🎵 Play me a song</button><button type="button" data-do="letters">Show letters</button></div>`);
+    say("Tap the bars and make music! The long bars sing low, the short bars sing high.");
+    trail = [];
+    handler = (i) => {
+      trail = [...trail.slice(-15), i];
+      $("[data-trail]").innerHTML = trail.map((k) => `<span class="done" style="background:${BARS[k].color}"></span>`).join("");
+    };
+    panel.onclick = async (event) => {
+      const what = event.target.closest("[data-do]")?.dataset.do;
+      if (what === "letters") {
+        svg.classList.toggle("letters");
+        event.target.textContent = svg.classList.contains("letters") ? "Hide letters" : "Show letters";
+      }
+      if (what === "song") {
+        const song = pick(SONGS);
+        say(`Listen: ${song.name}!`);
+        await wait(1400);
+        playSequence(parseSong(song.notes), { beat: 460 });
+      }
+    };
+  },
+
+  u1() {
+    let round = 0;
+    let firstTry = 0;
+    let misses = 0;
+    let target = -1;
+    const my = token;
+    setPanel(`<p class="ap-dots" data-dots></p><div class="ap-buttons"><button type="button" data-do="again">🔊 Say it again</button></div>`);
+    const ask = () => {
+      let next;
+      do next = Math.floor(Math.random() * 8);
+      while (next === target);
+      target = next;
+      misses = 0;
+      glow(null, false);
+      pointMallet(round < 2 ? target : null);
+      if (round < 2) glow(target);
+      $("[data-dots]").textContent = Array.from({ length: 8 }, (_, k) => (k < round ? "●" : "○")).join("");
+      say(`Play the ${chip(BARS[target])} one!`);
+    };
+    handler = (i) => {
+      if (my !== token || target < 0) return;
+      if (i === target) {
+        if (!misses) firstTry += 1;
+        round += 1;
+        glow(null, false);
+        pointMallet(null);
+        MUSIC.chime();
+        window.OC?.count("colours found");
+        const done = round >= 8;
+        say(`${pick(PRAISE)} That's ${BARS[i].name}!${done ? " You know all the colours!" : ""}`);
+        target = -2;
+        if (done) {
+          shell.mark("u1", { done: true, best: firstTry });
+          $("[data-dots]").textContent = "●●●●●●●●";
+          setTimeout(() => my === token && units.u1(), 4200);
+          return;
+        }
+        setTimeout(() => {
+          if (my !== token) return;
+          target = -1;
+          ask();
+        }, 1500);
+      } else {
+        misses += 1;
+        say(`That's ${BARS[i].name}. Find ${chip(BARS[target])}!`);
+        if (misses >= 1) glow(target);
+        if (misses >= 2) pointMallet(target);
+      }
+    };
+    panel.onclick = (event) => {
+      if (event.target.closest("[data-do]") && target >= 0) say(`Play the ${chip(BARS[target])} one!`);
+    };
+    say("Let's learn the colours of the bars!");
+    setTimeout(() => my === token && ask(), 2200);
+  },
+
+  u3() {
+    const my = token;
+    let round = 0;
+    let right = 0;
+    let gap = 5;
+    let pair = null;
+    let answered = false;
+    setPanel(`<p class="ap-dots" data-dots></p><div class="ap-buttons"><button type="button" class="ap-big" data-ans="up" aria-label="Higher">🐦</button><button type="button" class="ap-big" data-ans="down" aria-label="Lower">🐟</button></div><div class="ap-buttons"><button type="button" data-do="again">🔁 Hear it again</button></div>`);
+    const dots = () => ($("[data-dots]").textContent = Array.from({ length: 10 }, (_, k) => (k < round ? "●" : "○")).join(""));
+    const listen = async () => {
+      answered = false;
+      await playSequence([pair[0], pair[1]], { beat: 750, glowing: false, my });
+    };
+    const next = async () => {
+      if (my !== token) return;
+      dots();
+      const a = Math.floor(Math.random() * (8 - gap));
+      const up = Math.random() < 0.5;
+      pair = up ? [a, a + gap] : [a + gap, a];
+      await sayAsync(round === 0 ? "Listen to two sounds. Is the second one higher, like a bird? Or lower, like a fish?" : "Listen…");
+      if (my !== token) return;
+      await wait(250);
+      await listen();
+    };
+    panel.onclick = async (event) => {
+      if (my !== token || !pair) return;
+      if (event.target.closest("[data-do]")) return listen();
+      const ans = event.target.closest("[data-ans]")?.dataset.ans;
+      if (!ans || answered) return;
+      answered = true;
+      const correct = (ans === "up") === pair[1] > pair[0];
+      round += 1;
+      window.OC?.count("sounds compared");
+      if (correct) {
+        right += 1;
+        MUSIC.chime();
+        if (right >= 3 && gap > 2) gap -= 1;
+        say(`${pick(PRAISE)} It went ${pair[1] > pair[0] ? "up, like a bird 🐦" : "down, like a fish 🐟"}. Watch the bars!`);
+      } else {
+        say(`Good listening! It went ${pair[1] > pair[0] ? "up, higher" : "down, lower"}. Watch the bars and listen again.`);
+      }
+      await wait(1600);
+      await playSequence([pair[0], pair[1]], { beat: 750, my });
+      await wait(700);
+      if (my !== token) return;
+      if (round >= 10) {
+        const passed = right >= 8;
+        if (passed) shell.mark("u3", { done: true, best: right });
+        say(`${right} out of 10! ${passed ? "Super ears! 🎉" : "Great listening. Let's play again!"}`);
+        round = 0;
+        right = 0;
+        gap = 5;
+        await wait(3600);
+      }
+      next();
+    };
+    next();
+  },
+
+  u4() {
+    const my = token;
+    let length = 2;
+    let wins = 0;
+    let seq = [];
+    let at = 0;
+    let listening = false;
+    setPanel(`<p class="ap-dots" data-dots></p><div class="ap-buttons"><button type="button" data-do="again">🔁 Play it again</button></div>`);
+    const show = () => ($("[data-dots]").textContent = `${length} notes · ` + Array.from({ length: seq.length }, (_, k) => (k < at ? "●" : "○")).join(""));
+    const play = async () => {
+      listening = false;
+      at = 0;
+      show();
+      await sayAsync("Listen and watch…");
+      if (my !== token) return;
+      const ok = await playSequence(seq, { beat: 620, my });
+      if (!ok) return;
+      listening = true;
+      say("Your turn! Play the same bars.", { voice: true });
+    };
+    const fresh = () => {
+      seq = [];
+      for (let k = 0; k < length; k++) {
+        let next;
+        do next = Math.floor(Math.random() * (length <= 3 ? 5 : 8));
+        while (k && next === seq[k - 1]);
+        seq.push(next);
+      }
+      play();
+    };
+    handler = async (i) => {
+      if (my !== token || !listening) return;
+      if (i === seq[at]) {
+        at += 1;
+        show();
+        if (at < seq.length) return;
+        listening = false;
+        wins += 1;
+        MUSIC.chime();
+        window.OC?.count("patterns copied");
+        if (length >= 4) shell.mark("u4", { done: true, best: Math.max(length, shell.progress().u4?.best || 0) });
+        const grow = wins % 2 === 0 && length < 5;
+        say(`${pick(PRAISE)} You copied ${length} notes!${grow ? " Let's try one more note." : ""}`);
+        if (grow) length += 1;
+        await wait(2600);
+        if (my === token) fresh();
+      } else {
+        listening = false;
+        say("Almost! Listen again.");
+        await wait(1500);
+        if (my === token) play();
+      }
+    };
+    panel.onclick = (event) => {
+      if (event.target.closest("[data-do]")) play();
+    };
+    fresh();
+  },
+
+  u6() {
+    const my = token;
+    let song = null;
+    let notes = [];
+    let at = 0;
+    let misses = 0;
+    setPanel(`<div class="ap-chips" data-songs>${SONGS.map((s, k) => `<button type="button" data-song="${k}">${s.name}</button>`).join("")}</div><div class="ap-strip" data-strip aria-hidden="true"></div><div class="ap-buttons"><button type="button" data-do="listen">🔊 Listen first</button><button type="button" data-do="restart">↺ Start again</button></div>`);
+    const strip = () => {
+      $("[data-strip]").innerHTML = notes.map((n, k) => `<span class="${k < at ? "done" : k === at ? "now" : ""}${n.beats >= 2 ? " long" : ""}" style="background:${BARS[n.bar].color}"></span>`).join("");
+    };
+    const cue = () => {
+      if (at >= notes.length) return;
+      glow(notes[at].bar);
+      pointMallet(misses >= 1 || at === 0 ? notes[at].bar : null);
+      strip();
+    };
+    const choose = (k) => {
+      song = SONGS[k];
+      notes = parseSong(song.notes);
+      at = 0;
+      misses = 0;
+      $$chips(k);
+      say(`Let's play ${song.name}! Tap the glowing bar.`);
+      cue();
+    };
+    const $$chips = (k) => panel.querySelectorAll("[data-song]").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.song) === k)));
+    handler = async (i) => {
+      if (my !== token || !song || at >= notes.length) return;
+      if (i === notes[at].bar) {
+        at += 1;
+        misses = 0;
+        pointMallet(null);
+        if (at >= notes.length) {
+          glow(null, false);
+          strip();
+          await wait(500);
+          MUSIC.chime();
+          window.OC?.count("songs played");
+          const played = new Set([...(shell.progress().u6?.songs || []), song.name]);
+          shell.mark("u6", { done: true, songs: [...played] });
+          say(`<span class="ap-cheer">🎉</span> You played ${song.name}! ${played.size < SONGS.length ? "Pick another song!" : "You know all the songs!"}`);
+          return;
+        }
+        cue();
+      } else {
+        misses += 1;
+        if (misses === 2) say(`Find the glowing ${chip(BARS[notes[at].bar])} bar.`);
+        cue();
+      }
+    };
+    panel.onclick = async (event) => {
+      const songButton = event.target.closest("[data-song]");
+      if (songButton) return choose(Number(songButton.dataset.song));
+      const what = event.target.closest("[data-do]")?.dataset.do;
+      if (!song) return say("Pick a song first!");
+      if (what === "restart") choose(SONGS.indexOf(song));
+      if (what === "listen") {
+        glow(null, false);
+        pointMallet(null);
+        say(`Listen to ${song.name}…`, { voice: false });
+        const mine = token;
+        await playSequence(notes, { beat: 460, my: mine });
+        if (mine === token) {
+          say("Now you try! Tap the glowing bar.");
+          cue();
+        }
+      }
+    };
+    say("Pick a song to play!");
+  },
+
+  u7() {
+    svg.classList.add("letters");
+    let round = 0;
+    let target = -1;
+    let misses = 0;
+    const my = token;
+    setPanel(`<p class="ap-dots" data-dots></p><div class="ap-buttons"><button type="button" data-do="again">🔊 Say it again</button></div>`);
+    const ask = () => {
+      let next;
+      do next = Math.floor(Math.random() * 7);
+      while (next === target);
+      target = next;
+      misses = 0;
+      glow(null, false);
+      $("[data-dots]").textContent = Array.from({ length: 8 }, (_, k) => (k < round ? "●" : "○")).join("");
+      say(`Play the letter <b style="font-size:1.4em">${BARS[target].letter}</b>!`);
+    };
+    handler = (i) => {
+      if (my !== token || target < 0) return;
+      if (BARS[i].letter === BARS[target].letter) {
+        round += 1;
+        MUSIC.chime();
+        window.OC?.count("letters played");
+        const done = round >= 8;
+        say(`${pick(PRAISE)} ${BARS[i].letter} is ${BARS[i].name}!${done ? " You can read the letters!" : ""}`);
+        target = -2;
+        if (done) {
+          shell.mark("u7", { done: true });
+          setTimeout(() => my === token && units.u7(), 4200);
+          return;
+        }
+        setTimeout(() => {
+          if (my !== token) return;
+          target = -1;
+          ask();
+        }, 1500);
+      } else {
+        misses += 1;
+        say(`That's ${BARS[i].letter}. Find ${BARS[target].letter}!`);
+        if (misses >= 2) glow(target);
+      }
+    };
+    panel.onclick = (event) => {
+      if (event.target.closest("[data-do]") && target >= 0) say(`Play the letter ${BARS[target].letter}!`);
+    };
+    say("Now the bars have letters! The musical alphabet goes C, D, E, F, G, A, B.");
+    setTimeout(() => my === token && ask(), 4200);
+  },
+};
+
+const shell = SHELL({
+  units: UNITS,
+  start: "free",
+  subject: "Music",
+  activity: "Little Musicians",
+  onUnit(id) {
+    reset();
+    panel.onclick = null;
+    units[id]();
+  },
+});
+</script>
+</body>
+</html>

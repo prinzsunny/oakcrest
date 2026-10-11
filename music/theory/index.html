@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Music Theory · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Music&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+</head>
+<body>
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Music Theory</b><small>Music · Levels 3–5</small></div>
+  <select class="ap-units" data-units aria-label="Unit"></select>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-sound aria-label="Sounds on">🔔</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const $ = (selector) => document.querySelector(selector);
+const stage = $("[data-stage]");
+const panel = $("[data-panel]");
+const NS = "http://www.w3.org/2000/svg";
+const W = 1000;
+const H = 600;
+const { stepOf, midiOfStep, letterOf, isWhite } = MUSIC;
+
+const UNITS = [
+  { id: "place", label: "Placement check" },
+  { id: "t1", label: "1. Reading notes (treble clef)" },
+  { id: "t2", label: "2. Rhythm: fill the bar" },
+  { id: "t2b", label: "2. Rhythm: clap it back" },
+  { id: "t3", label: "3. Time signatures", soon: true },
+  { id: "t4", label: "4. Bass clef", soon: true },
+  { id: "t5", label: "5. Scales and keys", soon: true },
+  { id: "t6", label: "6. Intervals", soon: true },
+  { id: "t7", label: "7. Chords", soon: true },
+  { id: "t8", label: "8. Sight-reading", soon: true },
+  { id: "t9", label: "9. Compose", soon: true },
+  { id: "t10", label: "10. Composers and the orchestra", soon: true },
+];
+
+const KEY_LOW = 60;
+const KEY_HIGH = 84;
+const WHITES = [];
+for (let m = KEY_LOW; m <= KEY_HIGH; m++) if (isWhite(m)) WHITES.push(m);
+const KW = W / WHITES.length;
+const KEY_TOP = 330;
+const KEY_H = 250;
+
+const LINE_GAP = 22;
+const BOTTOM = 196;
+const E4 = stepOf(64);
+const yOf = (step) => BOTTOM - (step - E4) * (LINE_GAP / 2);
+
+const VALUES = {
+  w: { beats: 4, name: "whole note", frac: "1", tone: "#7a4520" },
+  h: { beats: 2, name: "half note", frac: "½", tone: "#a8632d" },
+  q: { beats: 1, name: "quarter note", frac: "¼", tone: "#3f7d4e" },
+  e: { beats: 0.5, name: "eighth note", frac: "⅛", tone: "#3e5f86" },
+};
+
+const svg = document.createElementNS(NS, "svg");
+svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+stage.appendChild(svg);
+const style = document.createElement("style");
+style.textContent = `
+.kb-key{cursor:pointer}
+.kb-white{fill:#fffdf8;stroke:#7d6a58;stroke-width:1.5}
+.kb-black{fill:#2a1d14;stroke:#120b06;stroke-width:1}
+.kb-key.down .kb-white,.kb-key.down.kb-w rect{fill:#f1e2cc}
+.kb-key.down .kb-black{fill:#5a4130}
+.kb-key.hint .kb-white{fill:#d9f0dd}
+.kb-key.hint .kb-black{fill:#3f7d4e}
+.kb-key.wrong .kb-white{fill:#fbe3dc}
+.kb-label{font:700 22px var(--sans);fill:#8a7764;pointer-events:none;display:none}
+svg.labels .kb-label{display:block}
+.kb-label.c{fill:#7a4520}
+.st-line{stroke:#3b2a1d;stroke-width:2}
+.st-clef{font-family:"Noto Music","Bravura","Apple Symbols","Segoe UI Symbol",serif;fill:#2b1d12}
+.st-note{fill:#2b1d12;stroke:#2b1d12}
+.st-note.hollow{fill:#fffcf6;stroke-width:3.5}
+.st-note.now{fill:#a8632d;stroke:#a8632d}
+.st-stem{stroke:#2b1d12;stroke-width:3.2;stroke-linecap:round}
+.st-time{font:800 54px/1 var(--serif);fill:#2b1d12}
+.fr-cell{stroke:#fffcf6;stroke-width:3}
+.fr-text{font:800 30px var(--sans);fill:#fff;pointer-events:none}
+.pad{cursor:pointer}
+.pad.hit circle.skin{fill:#f6e7cf}
+`;
+document.head.appendChild(style);
+
+MUSIC.preload("piano", WHITES.concat([61, 63, 66, 68, 70, 73, 75, 78, 80, 82]));
+MUSIC.preload("woodblock", [72, 79]);
+MUSIC.preload("xylophone", [84, 88, 91, 96]);
+
+function el(name, attrs = {}, parent = svg) {
+  const node = document.createElementNS(NS, name);
+  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+  parent.appendChild(node);
+  return node;
+}
+const clear = () => {
+  svg.innerHTML = "";
+  svg.classList.remove("labels");
+};
+
+function staff({ x0 = 40, x1 = 960, clef = true } = {}) {
+  const g = el("g");
+  for (let i = 0; i < 5; i++) el("line", { class: "st-line", x1: x0, x2: x1, y1: BOTTOM - i * LINE_GAP, y2: BOTTOM - i * LINE_GAP }, g);
+  el("line", { class: "st-line", x1: x0, x2: x0, y1: BOTTOM - 4 * LINE_GAP, y2: BOTTOM, "stroke-width": 2.5 }, g);
+  el("line", { class: "st-line", x1: x1, x2: x1, y1: BOTTOM - 4 * LINE_GAP, y2: BOTTOM, "stroke-width": 2.5 }, g);
+  if (clef) {
+    const c = el("text", { class: "st-clef", x: x0 + 10, y: BOTTOM - LINE_GAP + 23, "font-size": LINE_GAP * 4.1 }, g);
+    c.textContent = "𝄞";
+  }
+  return g;
+}
+
+function noteHead(x, step, { value = "q", now = false, parent = svg } = {}) {
+  const y = yOf(step);
+  const g = el("g", {}, parent);
+  const diff = step - E4;
+  for (let d = -2; d >= diff; d -= 2) el("line", { class: "st-line", x1: x - 24, x2: x + 24, y1: yOf(E4 + d), y2: yOf(E4 + d) }, g);
+  for (let d = 10; d <= diff; d += 2) el("line", { class: "st-line", x1: x - 24, x2: x + 24, y1: yOf(E4 + d), y2: yOf(E4 + d) }, g);
+  const hollow = value === "w" || value === "h";
+  el("ellipse", { class: `st-note${hollow ? " hollow" : ""}${now ? " now" : ""}`, cx: x, cy: y, rx: 13.5, ry: 10, transform: `rotate(-20 ${x} ${y})` }, g);
+  if (value !== "w") {
+    const up = step < E4 + 4;
+    const sx = up ? x + 12.5 : x - 12.5;
+    el("line", { class: "st-stem", x1: sx, x2: sx, y1: y + (up ? -3 : 3), y2: y + (up ? -72 : 72) }, g);
+    if (value === "e") {
+      const fy = y + (up ? -72 : 72);
+      const dir = up ? 1 : -1;
+      el("path", { d: `M${sx} ${fy}C${sx + 4} ${fy + 18 * dir} ${sx + 26} ${fy + 22 * dir} ${sx + 16} ${fy + 50 * dir}C${sx + 22} ${fy + 28 * dir} ${sx + 8} ${fy + 22 * dir} ${sx} ${fy + 18 * dir}Z`, fill: "#2b1d12" }, g);
+    }
+  }
+  return g;
+}
+
+function keyboard({ onKey } = {}) {
+  const g = el("g", { "aria-label": "Piano keyboard from middle C" });
+  const keys = new Map();
+  WHITES.forEach((midi, i) => {
+    const k = el("g", { class: "kb-key kb-w", "data-midi": midi }, g);
+    el("rect", { class: "kb-white", x: i * KW + 1, y: KEY_TOP, width: KW - 2, height: KEY_H, rx: 6 }, k);
+    const t = el("text", { class: `kb-label${letterOf(midi) === "C" ? " c" : ""}`, x: i * KW + KW / 2, y: KEY_TOP + KEY_H - 18, "text-anchor": "middle" }, k);
+    t.textContent = letterOf(midi) + (midi === 60 ? "·" : "");
+    keys.set(midi, k);
+  });
+  WHITES.forEach((midi, i) => {
+    if (!isWhite(midi + 1) && midi + 1 <= KEY_HIGH) {
+      const k = el("g", { class: "kb-key kb-b", "data-midi": midi + 1 }, g);
+      el("rect", { class: "kb-black", x: (i + 1) * KW - KW * 0.31, y: KEY_TOP, width: KW * 0.62, height: KEY_H * 0.6, rx: 4 }, k);
+      keys.set(midi + 1, k);
+    }
+  });
+  const middleC = WHITES.indexOf(60);
+  el("circle", { cx: middleC * KW + KW / 2, cy: KEY_TOP + KEY_H - 46, r: 5, fill: "#c98c58", "pointer-events": "none" }, g);
+  g.addEventListener("pointerdown", (event) => {
+    const key = event.target.closest(".kb-key");
+    if (!key) return;
+    event.preventDefault();
+    const midi = Number(key.dataset.midi);
+    press(midi);
+    onKey?.(midi);
+  });
+  const press = (midi) => {
+    MUSIC.play("piano", midi, { gain: 0.85, length: 1.2 });
+    const k = keys.get(midi);
+    k?.classList.add("down");
+    setTimeout(() => k?.classList.remove("down"), 220);
+    window.OC?.touch();
+  };
+  return {
+    mark(midi, kind, on = true) {
+      keys.get(midi)?.classList.toggle(kind, on);
+    },
+    unmark() {
+      keys.forEach((k) => k.classList.remove("hint", "wrong"));
+    },
+  };
+}
+
+const say = (html, { voice = true } = {}) => {
+  const box = $("[data-say]");
+  if (box) box.innerHTML = html;
+  if (voice) VOICE.speak(html);
+};
+const pick = (list) => list[Math.floor(Math.random() * list.length)];
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const PRAISE = ["Yes!", "Correct!", "Well done!", "Brilliant!", "Nice!"];
+let token = 0;
+let keyHandler = null;
+const setPanel = (html) => (panel.innerHTML = `<p class="ap-say" data-say aria-live="polite"></p>${html}`);
+
+function whereIs(midi) {
+  const diff = stepOf(midi) - E4;
+  const ordinal = ["first", "second", "third", "fourth", "fifth"];
+  if (diff === -2) return "on a little line below the staff: middle C";
+  if (diff === -1) return "just under the bottom line";
+  if (diff === 9) return "just above the top line";
+  if (diff === 10) return "on a little line above the staff";
+  if (diff > 10) return "above the staff, past the little line";
+  if (diff % 2 === 0) return `on the ${ordinal[diff / 2]} line from the bottom`;
+  return `in the ${ordinal[(diff - 1) / 2]} space from the bottom`;
+}
+function memoryHook(midi) {
+  const diff = stepOf(midi) - E4;
+  if (diff >= 0 && diff <= 8 && diff % 2 === 0) return "Lines from the bottom: Every Good Boy Does Fine (E G B D F).";
+  if (diff >= 1 && diff <= 7) return "Spaces from the bottom spell FACE.";
+  return "Count up or down the steps from a note you know.";
+}
+
+const STAGES = {
+  A: { label: "C D E", notes: [60, 62, 64] },
+  B: { label: "C to G", notes: [60, 62, 64, 65, 67] },
+  C: { label: "C to C", notes: [60, 62, 64, 65, 67, 69, 71, 72] },
+  D: { label: "Whole staff", notes: [60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81] },
+};
+
+function noteScene(midi) {
+  clear();
+  staff();
+  noteHead(560, stepOf(midi), { value: "w" });
+}
+
+const units = {
+  place() {
+    const my = token;
+    const qs = [];
+    const notePool = [60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79];
+    for (let k = 0; k < 5; k++) qs.push({ kind: "note", midi: pick(notePool) });
+    const values = ["w", "h", "q", "e"];
+    for (const v of ["h", "q", "e"]) qs.push({ kind: "value", value: v });
+    qs.push({ kind: "choice", text: "In 4/4 time, how many quarter notes fill one bar?", choices: ["2", "3", "4", "8"], answer: "4" });
+    qs.push({ kind: "choice", text: "In 3/4 time, what does the top number 3 tell you?", choices: ["3 beats in each bar", "3 bars in the song", "Play 3 times faster"], answer: "3 beats in each bar" });
+    let at = 0;
+    let locked = false;
+    const score = { notes: 0, rhythm: 0 };
+    setPanel(`<p class="ap-dots" data-dots></p><div class="ap-chips" data-choices></div>`);
+    let kb = null;
+    const show = () => {
+      locked = false;
+      $("[data-dots]").textContent = qs.map((_, k) => (k < at ? "●" : k === at ? "◉" : "○")).join("");
+      const q = qs[at];
+      $("[data-choices]").innerHTML = "";
+      keyHandler = null;
+      if (q.kind === "note") {
+        noteScene(q.midi);
+        kb = keyboard({ onKey: (midi) => answer(letterOf(midi) && stepOf(midi) === stepOf(q.midi)) });
+        say(`Question ${at + 1} of 10. Play this note on the piano.`);
+      } else if (q.kind === "value") {
+        clear();
+        staff({ x0: 300, x1: 700, clef: false });
+        noteHead(500, E4 + 4, { value: q.value });
+        $("[data-choices]").innerHTML = values.map((v) => `<button type="button" data-ans="${VALUES[v].beats}">${VALUES[v].beats === 0.5 ? "½" : VALUES[v].beats} beat${VALUES[v].beats === 1 || VALUES[v].beats === 0.5 ? "" : "s"}</button>`).join("");
+        say(`Question ${at + 1} of 10. In 4/4 time, how many beats is this note worth?`);
+      } else {
+        clear();
+        const t = el("text", { class: "st-time", x: W / 2, y: 230, "text-anchor": "middle" });
+        t.textContent = q.text.includes("3/4") ? "3/4" : "4/4";
+        $("[data-choices]").innerHTML = q.choices.map((c) => `<button type="button" data-ans="${c}">${c}</button>`).join("");
+        say(`Question ${at + 1} of 10. ${q.text}`);
+      }
+    };
+    const answer = async (correct) => {
+      if (my !== token || locked) return;
+      locked = true;
+      const q = qs[at];
+      if (q.kind === "note") score.notes += correct ? 1 : 0;
+      else score.rhythm += correct ? 1 : 0;
+      at += 1;
+      if (correct) MUSIC.chime();
+      if (at < qs.length) {
+        await wait(correct ? 700 : 300);
+        if (my === token) show();
+        return;
+      }
+      finish();
+    };
+    panel.onclick = (event) => {
+      const button = event.target.closest("[data-ans]");
+      if (!button || at >= qs.length) return;
+      const q = qs[at];
+      const correct = q.kind === "value" ? Number(button.dataset.ans) === VALUES[q.value].beats : button.dataset.ans === q.answer;
+      answer(correct);
+    };
+    const finish = () => {
+      const stage = score.notes >= 5 ? "D" : score.notes >= 4 ? "C" : score.notes >= 2 ? "B" : "A";
+      const rhythmStart = score.rhythm >= 4 ? "t2b" : "t2";
+      shell.mark("place", { done: true, notes: score.notes, rhythm: score.rhythm, stage, rhythmStart });
+      clear();
+      staff();
+      [60, 64, 67, 72, 76].forEach((m, k) => noteHead(220 + k * 140, stepOf(m), { value: "q" }));
+      $("[data-dots]").textContent = "";
+      $("[data-choices]").innerHTML = `<button type="button" data-go="t1">Reading notes → stage ${stage}</button><button type="button" data-go="${rhythmStart}">${rhythmStart === "t2" ? "Rhythm: fill the bar" : "Rhythm: clap it back"}</button>`;
+      panel.onclick = (event) => {
+        const go = event.target.closest("[data-go]");
+        if (go) shell.go(go.dataset.go);
+      };
+      window.OC?.note("placement", `notes ${score.notes}/5, rhythm ${score.rhythm}/5`);
+      say(`All done! Notes: ${score.notes} out of 5. Rhythm: ${score.rhythm} out of 5. ${score.notes >= 4 ? "You read notes well, so we'll start further along." : "We'll build up the notes step by step."} Pick where to start.`);
+    };
+    say("A quick check so we start in the right place. Ten questions!");
+    setTimeout(() => my === token && show(), 2600);
+  },
+
+  t1() {
+    const my = token;
+    const saved = shell.progress();
+    let stageKey = saved.t1?.stage || saved.place?.stage || "A";
+    let target = 0;
+    let count = 0;
+    let right = 0;
+    let missed = false;
+    let started = 0;
+    let timer = 0;
+    let kb = null;
+    setPanel(`<div class="ap-row"><div class="ap-chips" data-stages>${Object.entries(STAGES).map(([k, s]) => `<button type="button" data-stage="${k}">${k}: ${s.label}</button>`).join("")}</div><label class="ap-chips"><button type="button" data-letters aria-pressed="false">Letters on keys</button></label></div><p class="ap-status" data-dots></p><div class="ap-buttons"><button type="button" data-do="restart">↺ New round</button></div>`);
+    const chips = () => panel.querySelectorAll("[data-stage]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.stage === stageKey)));
+    const status = () => {
+      const secs = started ? Math.round((performance.now() - started) / 1000) : 0;
+      $("[data-dots]").textContent = `Note ${Math.min(count + 1, 20)} of 20 · ${right} right · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+    };
+    const next = () => {
+      let m;
+      do m = pick(STAGES[stageKey].notes);
+      while (m === target && STAGES[stageKey].notes.length > 1);
+      target = m;
+      missed = false;
+      const labelsOn = svg.classList.contains("labels");
+      noteScene(target);
+      if (labelsOn) svg.classList.add("labels");
+      kb = keyboard({ onKey });
+      status();
+    };
+    const begin = () => {
+      count = 0;
+      right = 0;
+      started = performance.now();
+      clearInterval(timer);
+      timer = setInterval(() => {
+        if (my !== token) return clearInterval(timer);
+        status();
+      }, 1000);
+      chips();
+      next();
+      say(`Stage ${stageKey}: ${STAGES[stageKey].label}. Play each note you see. 20 notes!`);
+    };
+    const onKey = async (midi) => {
+      if (my !== token || count >= 20) return;
+      const ok = letterOf(midi) && stepOf(midi) === stepOf(target);
+      if (ok) {
+        kb.unmark();
+        if (!missed) right += 1;
+        count += 1;
+        window.OC?.count("notes read");
+        if (count >= 20) return finish();
+        if (!missed) say(pick(PRAISE), { voice: false });
+        await wait(350);
+        if (my === token) next();
+      } else {
+        if (!missed) MUSIC.oops();
+        missed = true;
+        kb.unmark();
+        kb.mark(midi, "wrong");
+        kb.mark(target, "hint");
+        say(`That was ${MUSIC.prettyOf(midi)}. This note is ${whereIs(target)}. It's ${letterOf(target)}. <small>${memoryHook(target)}</small>`);
+      }
+    };
+    const finish = () => {
+      clearInterval(timer);
+      const secs = Math.round((performance.now() - started) / 1000);
+      const pct = Math.round((right / 20) * 100);
+      const best = shell.progress().t1?.best?.[stageKey];
+      const better = !best || pct > best.pct || (pct === best.pct && secs < best.secs);
+      const bests = { ...(shell.progress().t1?.best || {}) };
+      if (better) bests[stageKey] = { pct, secs };
+      const nextStage = { A: "B", B: "C", C: "D" }[stageKey];
+      const passed = pct >= 90;
+      shell.mark("t1", { stage: passed && nextStage ? nextStage : stageKey, best: bests, done: shell.progress().t1?.done || (stageKey === "D" && passed) });
+      window.OC?.note(`stage ${stageKey}`, `${pct}% in ${secs}s`);
+      MUSIC.chime();
+      say(`<span class="ap-cheer">🎉</span> ${right} out of 20 (${pct}%) in ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}.${better ? " Your best yet!" : ""} ${passed ? (nextStage ? `Ready for stage ${nextStage}!` : "You can read the whole treble staff!") : "Let's practise this stage again to reach 90%."}`);
+      if (passed && nextStage) stageKey = nextStage;
+      chips();
+    };
+    panel.onclick = (event) => {
+      const s = event.target.closest("[data-stage]");
+      if (s) {
+        stageKey = s.dataset.stage;
+        return begin();
+      }
+      const letters = event.target.closest("[data-letters]");
+      if (letters) {
+        svg.classList.toggle("labels");
+        letters.setAttribute("aria-pressed", String(svg.classList.contains("labels")));
+        return;
+      }
+      if (event.target.closest("[data-do]")) begin();
+    };
+    begin();
+  },
+
+  t2() {
+    const my = token;
+    const CHALLENGES = [
+      { text: "Fill one bar of 4/4 any way you like.", ok: () => true },
+      { text: "Fill the bar using exactly 4 notes.", ok: (list) => list.length === 4 },
+      { text: "Start with a half note, then fill the rest.", ok: (list) => list[0] === "h" },
+      { text: "Fill the bar using exactly 3 notes.", ok: (list) => list.length === 3 },
+      { text: "Fill the bar using exactly 8 notes.", ok: (list) => list.length === 8 },
+      { text: "Fill the bar using exactly 5 notes.", ok: (list) => list.length === 5 },
+      { text: "Use at least one of every note except the whole note.", ok: (list) => ["h", "q", "e"].every((v) => list.includes(v)) },
+    ];
+    let at = shell.progress().t2?.next || 0;
+    let list = [];
+    setPanel(`<p class="ap-status" data-dots></p><div class="ap-buttons" data-palette>${["w", "h", "q", "e"].map((v) => `<button type="button" data-add="${v}" aria-label="${VALUES[v].name}">${glyph(v)}<span style="font-size:13px;display:block;margin-top:2px">${VALUES[v].frac}</span></button>`).join("")}</div><div class="ap-buttons"><button type="button" data-do="undo">↶ Undo</button><button type="button" data-do="clear">Clear</button><button type="button" data-do="play">▶ Play it</button></div>`);
+    const used = () => list.reduce((sum, v) => sum + VALUES[v].beats, 0);
+    const draw = () => {
+      clear();
+      const ly = yOf(E4 + 4);
+      const t = el("text", { class: "st-time", x: 70, y: ly - 6, "text-anchor": "middle" });
+      t.innerHTML = `<tspan x="70" dy="0">4</tspan><tspan x="70" dy="48">4</tspan>`;
+      el("line", { class: "st-line", x1: 110, x2: 930, y1: ly, y2: ly });
+      el("line", { class: "st-line", x1: 930, x2: 930, y1: ly - 50, y2: ly + 50, "stroke-width": 3 });
+      let beat = 0;
+      list.forEach((v) => {
+        const x = 150 + (beat / 4) * 760 + 20;
+        noteHead(x, E4 + 4, { value: v });
+        beat += VALUES[v].beats;
+      });
+      const X0 = 110;
+      const X1 = 930;
+      const Y = 340;
+      const HH = 90;
+      el("rect", { x: X0, y: Y, width: X1 - X0, height: HH, rx: 14, fill: "#efe6d8" });
+      beat = 0;
+      list.forEach((v) => {
+        const w = (VALUES[v].beats / 4) * (X1 - X0);
+        const x = X0 + (beat / 4) * (X1 - X0);
+        el("rect", { class: "fr-cell", x, y: Y, width: w, height: HH, rx: 12, fill: VALUES[v].tone });
+        const label = el("text", { class: "fr-text", x: x + w / 2, y: Y + HH / 2 + 11, "text-anchor": "middle", "font-size": w < 70 ? 22 : 30 });
+        label.textContent = VALUES[v].frac;
+        beat += VALUES[v].beats;
+      });
+      for (let k = 1; k < 8; k++) el("line", { x1: X0 + (k / 8) * (X1 - X0), x2: X0 + (k / 8) * (X1 - X0), y1: Y + HH, y2: Y + HH + (k % 2 ? 10 : 18), stroke: "#8a7764", "stroke-width": k % 2 ? 1.5 : 2.5 });
+      [1, 2, 3, 4].forEach((b) => {
+        const t2 = el("text", { x: X0 + ((b - 0.5) / 4) * (X1 - X0), y: Y + HH + 44, "text-anchor": "middle", fill: "#8a7764", "font-size": 22, "font-weight": 700 });
+        t2.textContent = `beat ${b}`;
+      });
+      const left = 4 - used();
+      const sum = el("text", { x: W / 2, y: 560, "text-anchor": "middle", fill: "#2b1d12", "font-size": 30, "font-weight": 700 });
+      sum.textContent = list.length ? `${list.map((v) => VALUES[v].frac).join(" + ")}${left === 0 ? " = 1 whole bar" : ""}` : "Tap a note below to add it";
+      $("[data-dots]").textContent = `Challenge ${at + 1} of ${CHALLENGES.length} · ${left === 0 ? "bar full" : `${left === 0.5 ? "½" : left} beat${left === 1 || left === 0.5 ? "" : "s"} left`}`;
+    };
+    const playBar = async () => {
+      const t0 = MUSIC.now() + 0.15;
+      const b = 60 / 80;
+      let beat = 0;
+      for (const v of list) {
+        MUSIC.play("woodblock", 79, { gain: 0.8, at: t0 + beat * b });
+        beat += VALUES[v].beats;
+      }
+      for (let k = 0; k < 4; k++) MUSIC.play("woodblock", 72, { gain: 0.25, at: t0 + k * b });
+    };
+    const fresh = () => {
+      list = [];
+      draw();
+      say(`Challenge ${at + 1}: ${CHALLENGES[at].text}`);
+    };
+    panel.onclick = async (event) => {
+      if (my !== token) return;
+      const add = event.target.closest("[data-add]")?.dataset.add;
+      const what = event.target.closest("[data-do]")?.dataset.do;
+      if (add) {
+        const left = 4 - used();
+        if (VALUES[add].beats > left) {
+          MUSIC.oops();
+          say(`A ${VALUES[add].name} needs ${VALUES[add].beats === 0.5 ? "½" : VALUES[add].beats} beat${VALUES[add].beats === 1 || VALUES[add].beats === 0.5 ? "" : "s"}, but only ${left === 0.5 ? "½" : left} ${left === 1 || left === 0.5 ? "is" : "are"} left. Try a shorter note!`);
+          return;
+        }
+        list.push(add);
+        MUSIC.play("woodblock", 79, { gain: 0.6 });
+        draw();
+        if (used() === 4) {
+          if (CHALLENGES[at].ok(list)) {
+            MUSIC.chime();
+            window.OC?.count("bars filled");
+            say(`<span class="ap-cheer">✓</span> Full bar! ${list.map((v) => VALUES[v].frac).join(" + ")} = 1. Listen!`);
+            await wait(900);
+            await playBar();
+            at = (at + 1) % CHALLENGES.length;
+            shell.mark("t2", { next: at, done: shell.progress().t2?.done || at === 0 });
+            await wait(3200);
+            if (my === token) fresh();
+          } else {
+            say(`The bar is full, but the challenge was: ${CHALLENGES[at].text} Tap Undo and try again!`);
+          }
+        }
+      }
+      if (what === "undo") {
+        list.pop();
+        draw();
+      }
+      if (what === "clear") fresh();
+      if (what === "play" && list.length) playBar();
+    };
+    fresh();
+  },
+
+  t2b() {
+    const my = token;
+    const PATTERNS = [
+      ["q", "q", "q", "q"],
+      ["h", "q", "q"],
+      ["q", "q", "h"],
+      ["h", "h"],
+      ["q", "e", "e", "q", "q"],
+      ["e", "e", "q", "h"],
+      ["q", "h", "q"],
+      ["e", "e", "e", "e", "q", "q"],
+      ["q", "e", "e", "e", "e", "q"],
+    ];
+    const BPM = 70;
+    const B = 60 / BPM;
+    let level = Math.min(shell.progress().t2b?.level || 0, PATTERNS.length - 1);
+    let pattern = PATTERNS[level];
+    let taps = [];
+    let windowStart = 0;
+    let capturing = false;
+    let wins = 0;
+    setPanel(`<p class="ap-status" data-dots></p><div class="ap-buttons"><button type="button" data-do="listen">🔊 Listen</button><button type="button" class="primary" data-do="go">👏 My turn</button><button type="button" data-do="new">Next rhythm</button></div><p style="margin:0;color:var(--muted);font-size:13px">Tap the drum, or press the space bar, on each note.</p>`);
+    const onsets = () => {
+      let beat = 0;
+      return pattern.map((v) => {
+        const at = beat;
+        beat += VALUES[v].beats;
+        return at;
+      });
+    };
+    const scene = (marks = []) => {
+      clear();
+      const ly = yOf(E4 + 2);
+      const t = el("text", { class: "st-time", x: 70, y: ly - 6, "text-anchor": "middle" });
+      t.innerHTML = `<tspan x="70" dy="0">4</tspan><tspan x="70" dy="48">4</tspan>`;
+      el("line", { class: "st-line", x1: 110, x2: 930, y1: ly, y2: ly });
+      el("line", { class: "st-line", x1: 930, x2: 930, y1: ly - 50, y2: ly + 50, "stroke-width": 3 });
+      const xOf = (beat) => 150 + (beat / 4) * 760;
+      onsets().forEach((beat, k) => noteHead(xOf(beat) + 20, E4 + 2, { value: pattern[k] }));
+      el("line", { x1: 150, x2: 910, y1: 240, y2: 240, stroke: "#c9b8a1", "stroke-width": 2 });
+      [0, 1, 2, 3].forEach((b) => el("circle", { cx: xOf(b) + 20, cy: 240, r: 5, fill: "#8a7764" }));
+      marks.forEach(({ beat, ok, label }) => {
+        const x = Math.max(120, Math.min(930, xOf(beat) + 20));
+        el("path", { d: `M${x} 251l-10 18h20z`, fill: ok ? "#3f7d4e" : "#d9822b" });
+        if (label) {
+          const tl = el("text", { x, y: 292, "text-anchor": "middle", "font-size": 18, "font-weight": 700, fill: ok ? "#3f7d4e" : "#b5651d" });
+          tl.textContent = label;
+        }
+      });
+      const pad = el("g", { class: "pad" });
+      el("circle", { cx: W / 2, cy: 445, r: 120, fill: "#8a5a35" }, pad);
+      el("circle", { class: "skin", cx: W / 2, cy: 440, r: 106, fill: "#fbf3e6", stroke: "#c9b8a1", "stroke-width": 3 }, pad);
+      const tt = el("text", { x: W / 2, y: 452, "text-anchor": "middle", "font-size": 34, "font-weight": 800, fill: "#a8632d" }, pad);
+      tt.textContent = "TAP";
+      pad.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        hit();
+        pad.classList.add("hit");
+        setTimeout(() => pad.classList.remove("hit"), 120);
+      });
+      $("[data-dots]").textContent = `Rhythm ${level + 1} of ${PATTERNS.length} · ${pattern.map((v) => VALUES[v].frac).join(" + ")} = 1`;
+    };
+    const countIn = (t0) => {
+      for (let k = 0; k < 4; k++) MUSIC.tick(k === 0, t0 + k * B);
+    };
+    const listen = async () => {
+      capturing = false;
+      const t0 = MUSIC.now() + 0.2;
+      countIn(t0);
+      onsets().forEach((beat) => MUSIC.play("woodblock", 79, { gain: 0.85, at: t0 + 4 * B + beat * B }));
+      say("Listen: 1, 2, 3, 4, then the rhythm.", { voice: false });
+    };
+    const go = async () => {
+      taps = [];
+      const ctx = MUSIC.context();
+      const t0 = MUSIC.now() + 0.25;
+      countIn(t0);
+      for (let k = 0; k < 4; k++) MUSIC.play("woodblock", 72, { gain: 0.18, at: t0 + (4 + k) * B });
+      windowStart = performance.now() + (t0 + 4 * B - ctx.currentTime) * 1000;
+      capturing = true;
+      say("Get ready: 1, 2, 3, 4, then tap!", { voice: false });
+      await wait((t0 - MUSIC.now()) * 1000 + 8 * B * 1000 + 600);
+      if (my !== token || !capturing) return;
+      capturing = false;
+      judge();
+    };
+    const hit = () => {
+      MUSIC.play("woodblock", 79, { gain: 0.7 });
+      window.OC?.touch();
+      if (capturing) taps.push((performance.now() - windowStart) / 1000 / B);
+    };
+    const judge = () => {
+      const want = onsets();
+      const got = taps.filter((t) => t > -0.5 && t < 4.4);
+      if (got.length !== want.length) {
+        scene(got.map((beat) => ({ beat, ok: false })));
+        MUSIC.oops();
+        say(`I heard ${got.length} tap${got.length === 1 ? "" : "s"}, but the rhythm has ${want.length} notes. Listen again, then try!`);
+        return;
+      }
+      const tolerance = 0.18;
+      const marks = got.map((beat, k) => {
+        const err = beat - want[k];
+        const ok = Math.abs(err) <= tolerance;
+        return { beat, ok, label: ok ? "" : err < 0 ? "early" : "late" };
+      });
+      scene(marks);
+      const good = marks.every((m) => m.ok);
+      if (good) {
+        wins += 1;
+        MUSIC.chime();
+        window.OC?.count("rhythms clapped");
+        const nextLevel = Math.min(level + 1, PATTERNS.length - 1);
+        shell.mark("t2b", { level: nextLevel, done: shell.progress().t2b?.done || level >= 4 });
+        say(`<span class="ap-cheer">✓</span> Right on the beat! ${level < PATTERNS.length - 1 ? "Press Next rhythm for a harder one." : "You can clap them all!"}`);
+        level = nextLevel;
+      } else {
+        const early = marks.filter((m) => !m.ok && m.label === "early").length;
+        const late = marks.filter((m) => !m.ok && m.label === "late").length;
+        say(`So close! ${early ? `${early} tap${early > 1 ? "s were" : " was"} a little early. ` : ""}${late ? `${late} tap${late > 1 ? "s were" : " was"} a little late. ` : ""}Count the beats in your head and try again.`);
+      }
+    };
+    panel.onclick = (event) => {
+      const what = event.target.closest("[data-do]")?.dataset.do;
+      if (what === "listen") listen();
+      if (what === "go") go();
+      if (what === "new") {
+        pattern = PATTERNS[level];
+        scene();
+        say("A new rhythm! Press Listen first.");
+      }
+    };
+    keyHandler = (event) => {
+      if (event.code === "Space") {
+        event.preventDefault();
+        if (!event.repeat) hit();
+      }
+    };
+    scene();
+    say("Clap it back! Press Listen, then My turn, and tap the drum on each note.");
+  },
+};
+
+function glyph(v) {
+  const hollow = v === "w" || v === "h";
+  const stem = v !== "w" ? `<line x1="23" y1="30" x2="23" y2="4" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>` : "";
+  const flag = v === "e" ? `<path d="M23 4c1 6 9 8 6 17 2-7-3-10-6-11z" fill="currentColor"/>` : "";
+  return `<svg width="34" height="40" viewBox="0 0 34 40" aria-hidden="true"><ellipse cx="17" cy="31" rx="7" ry="5.2" transform="rotate(-20 17 31)" fill="${hollow ? "none" : "currentColor"}" stroke="currentColor" stroke-width="2.4"/>${stem}${flag}</svg>`;
+}
+
+addEventListener("keydown", (event) => keyHandler?.(event));
+
+const shell = SHELL({
+  units: UNITS,
+  start: MUSIC.progress.of((window.OC && OC.current()) || "Learner").place?.done ? "t1" : "place",
+  subject: "Music",
+  activity: "Music Theory",
+  onUnit(id) {
+    token += 1;
+    keyHandler = null;
+    panel.onclick = null;
+    VOICE.hush();
+    units[id]();
+  },
+});
+</script>
+</body>
+</html>
