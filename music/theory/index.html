@@ -208,7 +208,9 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const PRAISE = ["Yes!", "Correct!", "Well done!", "Brilliant!", "Nice!"];
 let token = 0;
 let keyHandler = null;
-const setPanel = (html) => (panel.innerHTML = `<p class="ap-say" data-say aria-live="polite"></p>${html}`);
+let currentUnit = "";
+const setPanel = (html, { explain = true } = {}) =>
+  (panel.innerHTML = `<p class="ap-say" data-say aria-live="polite"></p>${html}${explain && LESSONS[currentUnit] ? `<button type="button" class="ap-link" data-explain>📖 How it works</button>` : ""}`);
 
 function whereIs(midi) {
   const diff = stepOf(midi) - E4;
@@ -678,6 +680,308 @@ function glyph(v) {
 
 addEventListener("keydown", (event) => keyHandler?.(event));
 
+
+const at = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const SPACE = LINE_GAP / 2;
+function highlightLine(n, color = "#e0a96d") {
+  const y = yOf(E4 + 2 * (n - 1));
+  el("rect", { x: 40, y: y - 4, width: 920, height: 8, rx: 4, fill: color, opacity: 0.55 });
+}
+function highlightSpace(n, color = "#9fc9a8") {
+  const y = yOf(E4 + 2 * n - 1);
+  el("rect", { x: 40, y: y - SPACE + 2, width: 920, height: LINE_GAP - 4, rx: 4, fill: color, opacity: 0.45 });
+}
+function label(x, step, text, { color = "#7a4520", below = true } = {}) {
+  const y = below ? Math.max(yOf(step), BOTTOM) + 52 : Math.min(yOf(step), BOTTOM - 4 * LINE_GAP) - 26;
+  const t = el("text", { x, y, "text-anchor": "middle", "font-size": 30, "font-weight": 800, fill: color });
+  t.textContent = text;
+}
+function caption(text, y = 300) {
+  const t = el("text", { x: W / 2, y, "text-anchor": "middle", "font-size": 26, "font-weight": 600, fill: "#4d3c2e" });
+  t.textContent = text;
+}
+async function playNotes(list, gap = 520) {
+  const my = token;
+  for (const midi of list) {
+    if (my !== token) return;
+    MUSIC.play("piano", midi, { gain: 0.85, length: gap / 1000 + 0.25 });
+    await at(gap);
+  }
+}
+function rhythmLine(pattern, { ly = yOf(E4 + 2), blocks = false } = {}) {
+  const t = el("text", { class: "st-time", x: 70, y: ly - 6, "text-anchor": "middle" });
+  t.innerHTML = `<tspan x="70" dy="0">4</tspan><tspan x="70" dy="48">4</tspan>`;
+  el("line", { class: "st-line", x1: 110, x2: 930, y1: ly, y2: ly });
+  el("line", { class: "st-line", x1: 930, x2: 930, y1: ly - 50, y2: ly + 50, "stroke-width": 3 });
+  let beat = 0;
+  const step = E4 + Math.round((BOTTOM - ly) / SPACE);
+  for (const v of pattern) {
+    noteHead(150 + (beat / 4) * 760 + 20, step, { value: v });
+    if (blocks) {
+      const x = 110 + (beat / 4) * 820;
+      const w = (VALUES[v].beats / 4) * 820;
+      el("rect", { class: "fr-cell", x, y: 330, width: w, height: 70, rx: 12, fill: VALUES[v].tone });
+      const f = el("text", { class: "fr-text", x: x + w / 2, y: 376, "text-anchor": "middle", "font-size": w < 70 ? 22 : 30 });
+      f.textContent = VALUES[v].frac;
+    }
+    beat += VALUES[v].beats;
+  }
+}
+function playRhythm(pattern, { countIn = true, bpm = 76 } = {}) {
+  const B = 60 / bpm;
+  const t0 = MUSIC.now() + 0.15;
+  const lead = countIn ? 4 : 0;
+  for (let k = 0; k < lead; k++) MUSIC.tick(k === 0, t0 + k * B);
+  let beat = 0;
+  for (const v of pattern) {
+    MUSIC.play("woodblock", 79, { gain: 0.85, at: t0 + (lead + beat) * B });
+    beat += VALUES[v].beats;
+  }
+}
+
+const LESSONS = {
+  place: [
+    {
+      text: "This is a quick check: 10 questions about reading notes and rhythm. It isn't a test! It just helps us start in the right place, so you don't repeat what you already know. Do your best; it's fine to guess.",
+      draw() {
+        staff();
+        [60, 64, 67, 72, 76].forEach((m, k) => noteHead(260 + k * 140, stepOf(m), { value: "q" }));
+        caption("10 questions · notes and rhythm", 320);
+      },
+    },
+  ],
+  t1: [
+    {
+      text: "This is the staff: 5 lines and 4 spaces. Each note sits on a line or in a space. The higher a note sits, the higher it sounds. Listen to these notes climb!",
+      draw() {
+        staff();
+        [60, 62, 64, 65, 67, 69, 71, 72].forEach((m, k) => noteHead(220 + k * 95, stepOf(m), { value: "q" }));
+      },
+      sound: () => playNotes([60, 62, 64, 65, 67, 69, 71, 72], 450),
+    },
+    {
+      text: "The curly sign at the start is the treble clef. It's also called the G clef, because its curl wraps around the second line from the bottom. A note on that line is G.",
+      draw() {
+        staff();
+        highlightLine(2);
+        noteHead(560, stepOf(67), { value: "w" });
+        label(560, stepOf(67), "G");
+      },
+      sound: () => playNotes([67], 900),
+    },
+    {
+      text: "The five lines, from the bottom, are E, G, B, D, F. A sentence helps you remember them: Every Good Boy Does Fine.",
+      draw() {
+        staff();
+        [1, 2, 3, 4, 5].forEach((n) => highlightLine(n));
+        [64, 67, 71, 74, 77].forEach((m, k) => {
+          noteHead(260 + k * 150, stepOf(m), { value: "w" });
+          label(260 + k * 150, stepOf(m), MUSIC.letterOf(m));
+        });
+        caption("Every  Good  Boy  Does  Fine", 320);
+      },
+      sound: () => playNotes([64, 67, 71, 74, 77], 600),
+    },
+    {
+      text: "The four spaces, from the bottom, spell a word: FACE. F, A, C, E.",
+      draw() {
+        staff();
+        [1, 2, 3, 4].forEach((n) => highlightSpace(n));
+        [65, 69, 72, 76].forEach((m, k) => {
+          noteHead(300 + k * 150, stepOf(m), { value: "w" });
+          label(300 + k * 150, stepOf(m), MUSIC.letterOf(m), { color: "#3f7d4e" });
+        });
+        caption("F  A  C  E", 320);
+      },
+      sound: () => playNotes([65, 69, 72, 76], 600),
+    },
+    {
+      text: "Middle C sits on its own short line below the staff. That little line is called a ledger line. D sits just under the bottom line. Middle C is the C near the middle of the piano; it has a dot on our keyboard.",
+      draw() {
+        staff();
+        noteHead(430, stepOf(60), { value: "w" });
+        label(430, stepOf(60), "C");
+        noteHead(620, stepOf(62), { value: "w" });
+        label(620, stepOf(62), "D");
+        keyboard().mark(60, "hint");
+      },
+      sound: () => playNotes([60, 62], 800),
+    },
+    {
+      text: "Notes go up in steps: line, space, line, space. Each step up is the next letter: C, D, E, F, G. So if you know one note, you can count steps to find its neighbours. Now, see a note and play it on the piano!",
+      draw() {
+        staff();
+        [60, 62, 64, 65, 67].forEach((m, k) => {
+          noteHead(260 + k * 130, stepOf(m), { value: "q" });
+          label(260 + k * 130, stepOf(m), MUSIC.letterOf(m));
+        });
+        keyboard();
+      },
+      sound: () => playNotes([60, 62, 64, 65, 67], 500),
+    },
+  ],
+  t2: [
+    {
+      text: "Music has a steady beat, like a heartbeat or a ticking clock. Music is split into bars. The 4 over 4 at the start means 4 beats in every bar. Count along: 1, 2, 3, 4.",
+      draw() {
+        rhythmLine(["q", "q", "q", "q"]);
+        [1, 2, 3, 4].forEach((b) => {
+          const x = 150 + ((b - 1) / 4) * 760 + 20;
+          const t = el("text", { x, y: 300, "text-anchor": "middle", "font-size": 34, "font-weight": 800, fill: "#a8632d" });
+          t.textContent = b;
+        });
+      },
+      sound: () => playRhythm(["q", "q", "q", "q"]),
+    },
+    {
+      text: "Long notes last more beats. A whole note lasts 4 beats: the whole bar. A half note lasts 2 beats: half the bar. A quarter note lasts 1 beat: a quarter of the bar. An eighth note lasts half a beat: an eighth of the bar.",
+      draw() {
+        const rows = ["w", "h", "q", "e"];
+        rows.forEach((v, k) => {
+          const y = 70 + k * 125;
+          const g = el("g", { transform: `translate(0 ${y - yOf(E4 + 2)})` });
+          noteHead(110, E4 + 2, { value: v, parent: g });
+          const n = el("text", { x: 170, y: y + 10, "font-size": 26, "font-weight": 700, fill: "#2b1d12" });
+          n.textContent = `${VALUES[v].name} · ${VALUES[v].beats === 0.5 ? "½" : VALUES[v].beats} beat${VALUES[v].beats === 1 || VALUES[v].beats === 0.5 ? "" : "s"}`;
+          const w = (VALUES[v].beats / 4) * 440;
+          el("rect", { class: "fr-cell", x: 520, y: y - 28, width: w, height: 56, rx: 10, fill: VALUES[v].tone });
+          el("rect", { x: 520, y: y - 28, width: 440, height: 56, rx: 10, fill: "none", stroke: "#c9b8a1", "stroke-width": 2, "stroke-dasharray": "6 6" });
+          const f = el("text", { class: "fr-text", x: 520 + w / 2, y: y + 10, "text-anchor": "middle", "font-size": 24 });
+          f.textContent = VALUES[v].frac;
+        });
+      },
+      sound: () => playRhythm(["w"], { countIn: true }),
+    },
+    {
+      text: "To tell them apart, look at the note. A hollow head with no stem is a whole note. A hollow head with a stem is a half note. A filled head with a stem is a quarter note. Add a flag and it's an eighth note.",
+      draw() {
+        ["w", "h", "q", "e"].forEach((v, k) => {
+          const x = 200 + k * 200;
+          noteHead(x, E4 + 2, { value: v });
+          const t = el("text", { x, y: 300, "text-anchor": "middle", "font-size": 24, "font-weight": 700, fill: "#4d3c2e" });
+          t.textContent = ["whole", "half", "quarter", "eighth"][k];
+        });
+      },
+    },
+    {
+      text: "Note lengths are fractions of the bar, and they add up to one whole bar. One half, plus one quarter, plus one quarter, equals 1. Listen!",
+      draw() {
+        rhythmLine(["h", "q", "q"], { blocks: true });
+        caption("½ + ¼ + ¼ = 1 whole bar", 470);
+      },
+      sound: () => playRhythm(["h", "q", "q"]),
+    },
+    {
+      text: "Your turn! Tap notes to fill each bar exactly. If a note won't fit, try a shorter one. Each challenge asks for something a little different.",
+      draw() {
+        rhythmLine(["q", "e", "e", "h"], { blocks: true });
+        caption("¼ + ⅛ + ⅛ + ½ = 1", 470);
+      },
+      sound: () => playRhythm(["q", "e", "e", "h"]),
+    },
+  ],
+  t2b: [
+    {
+      text: "Before you play, we count in: 1, 2, 3, 4. Count along with the clicks so you can feel the beat. The first click is a little higher: that's beat 1.",
+      draw() {
+        rhythmLine(["q", "q", "q", "q"]);
+        caption("1 · 2 · 3 · 4", 330);
+      },
+      sound: () => playRhythm([], { countIn: true }),
+    },
+    {
+      text: "Tap once for each note. Quarter notes get one tap on every beat.",
+      draw() {
+        rhythmLine(["q", "q", "q", "q"], { blocks: true });
+      },
+      sound: () => playRhythm(["q", "q", "q", "q"]),
+    },
+    {
+      text: "A half note is one tap that lasts 2 beats, so you wait during its second beat.",
+      draw() {
+        rhythmLine(["h", "q", "q"], { blocks: true });
+      },
+      sound: () => playRhythm(["h", "q", "q"]),
+    },
+    {
+      text: "Eighth notes come in pairs: two quick taps inside one beat. You can say ti-ti while you tap them.",
+      draw() {
+        rhythmLine(["q", "e", "e", "q", "q"], { blocks: true });
+      },
+      sound: () => playRhythm(["q", "e", "e", "q", "q"]),
+    },
+    {
+      text: "Here's how to play: press Listen to hear the rhythm. Then press My turn. After the count-in, tap the drum, or the space bar, on each note. Green arrows mean on time. Orange means a little early or late.",
+      draw() {
+        rhythmLine(["h", "q", "q"]);
+        el("path", { d: "M290 251l-10 18h20z", fill: "#3f7d4e" });
+        el("path", { d: "M700 251l-10 18h20z", fill: "#3f7d4e" });
+        el("path", { d: "M850 251l-10 18h20z", fill: "#d9822b" });
+        const t = el("text", { x: 850, y: 292, "text-anchor": "middle", "font-size": 18, "font-weight": 700, fill: "#b5651d" });
+        t.textContent = "late";
+      },
+    },
+  ],
+};
+
+function runLesson(id, then) {
+  const my = token;
+  const slides = LESSONS[id];
+  let step = 0;
+  setPanel(`<p class="ap-status" data-dots></p><div class="ap-buttons"><button type="button" data-l="back">◀ Back</button><button type="button" data-l="hear">🔊 Hear it</button><button type="button" class="primary" data-l="next">Next ▶</button></div><button type="button" class="ap-link" data-l="skip">Skip to practice</button>`, { explain: false });
+  const show = () => {
+    const slide = slides[step];
+    clear();
+    slide.draw();
+    $("[data-dots]").textContent = slides.length > 1 ? `Lesson · step ${step + 1} of ${slides.length}` : "Before you start";
+    panel.querySelector('[data-l="back"]').disabled = step === 0;
+    panel.querySelector('[data-l="hear"]').hidden = !slide.sound;
+    panel.querySelector('[data-l="next"]').textContent = step === slides.length - 1 ? (id === "place" ? "Start the check ▶" : "Start practice ▶") : "Next ▶";
+    panel.querySelector('[data-l="skip"]').hidden = step === slides.length - 1;
+    $("[data-say]").innerHTML = slide.text;
+    VOICE.speakAsync(slide.text).then((ok) => {
+      if (ok && my === token && slides[step] === slide && slide.sound) slide.sound();
+    });
+  };
+  const finish = () => {
+    VOICE.hush();
+    shell.mark(id, { learned: true });
+    window.OC?.count("lessons read");
+    token += 1;
+    then();
+  };
+  panel.onclick = (event) => {
+    const what = event.target.closest("[data-l]")?.dataset.l;
+    if (!what || my !== token) return;
+    if (what === "back" && step > 0) {
+      step -= 1;
+      show();
+    }
+    if (what === "hear") {
+      VOICE.hush();
+      slides[step].sound?.();
+    }
+    if (what === "next") {
+      if (step < slides.length - 1) {
+        step += 1;
+        show();
+      } else finish();
+    }
+    if (what === "skip") finish();
+  };
+  show();
+}
+
+panel.addEventListener("click", (event) => {
+  if (!event.target.closest("[data-explain]")) return;
+  const id = currentUnit;
+  token += 1;
+  keyHandler = null;
+  panel.onclick = null;
+  VOICE.hush();
+  runLesson(id, () => units[id]());
+});
+
 const shell = SHELL({
   units: UNITS,
   start: MUSIC.progress.of((window.OC && OC.current()) || "Learner").place?.done ? "t1" : "place",
@@ -685,10 +989,12 @@ const shell = SHELL({
   activity: "Music Theory",
   onUnit(id) {
     token += 1;
+    currentUnit = id;
     keyHandler = null;
     panel.onclick = null;
     VOICE.hush();
-    units[id]();
+    if (LESSONS[id] && !shell.progress()[id]?.learned) runLesson(id, () => units[id]());
+    else units[id]();
   },
 });
 </script>

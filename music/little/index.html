@@ -150,6 +150,7 @@ stage.appendChild(svg);
 const mallet = drawXylophone();
 const style = document.createElement("style");
 style.textContent = `
+.ap-stage,.ap-stage svg{touch-action:none}
 .xy-bar{cursor:pointer;transition:filter .2s}
 .xy-bar:focus{outline:none}
 .xy-bar:focus-visible .xy-halo{opacity:.5}
@@ -232,18 +233,38 @@ async function playSequence(list, { beat = 520, glowing = true, my = token } = {
   return my === token;
 }
 
-function onHit(i) {
-  strike(i);
+let unitId = "free";
+function onHit(i, { swipe = false } = {}) {
+  strike(i, { quiet: swipe });
   window.OC?.touch();
-  handler?.(i);
+  if (!swipe || unitId === "free") handler?.(i);
 }
 
+const swipes = new Map();
+const barAt = (x, y) => {
+  const hit = document.elementFromPoint(x, y)?.closest?.(".xy-bar");
+  return hit && svg.contains(hit) ? Number(hit.dataset.i) : null;
+};
 svg.addEventListener("pointerdown", (event) => {
-  const g = event.target.closest(".xy-bar");
-  if (!g) return;
   event.preventDefault();
-  onHit(Number(g.dataset.i));
+  try {
+    svg.setPointerCapture(event.pointerId);
+  } catch {}
+  const i = barAt(event.clientX, event.clientY);
+  swipes.set(event.pointerId, i);
+  if (i !== null) onHit(i);
 });
+svg.addEventListener("pointermove", (event) => {
+  if (!swipes.has(event.pointerId)) return;
+  const points = event.getCoalescedEvents ? event.getCoalescedEvents() : [event];
+  for (const point of points.length ? points : [event]) {
+    const i = barAt(point.clientX, point.clientY);
+    if (i === swipes.get(event.pointerId)) continue;
+    swipes.set(event.pointerId, i);
+    if (i !== null) onHit(i, { swipe: true });
+  }
+});
+for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) svg.addEventListener(type, (event) => swipes.delete(event.pointerId));
 svg.addEventListener("keydown", (event) => {
   const g = event.target.closest(".xy-bar");
   if (g && (event.key === "Enter" || event.key === " ")) {
@@ -596,6 +617,7 @@ const shell = SHELL({
   subject: "Music",
   activity: "Little Musicians",
   onUnit(id) {
+    unitId = id;
     reset();
     panel.onclick = null;
     units[id]();
