@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Little Musicians · OakCrest Academy</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
-
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
 <link rel="stylesheet" href="../../assets/oc.css">
 <link rel="stylesheet" href="../../assets/app.css">
 <script src="../../assets/oc.js"></script>
@@ -14,21 +14,21 @@
 <script src="../../assets/shell.js"></script>
 <script src="../../assets/kit.js"></script>
 </head>
-<body>
+<body data-subject="music">
 <div class="ap">
 <header class="ap-bar">
   <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
   <div class="ap-title"><b>Little Musicians</b><small>Music · Foundations</small></div>
-  <select class="ap-units" data-units aria-label="Unit"></select>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
   <div class="ap-spacer"></div>
   <div class="ap-tools">
     <span data-chip data-home="../../"></span>
     <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
     <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
-    <button type="button" class="ap-icon" data-sound aria-label="Sounds on">🔔</button>
     <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
     <div class="ap-pop" data-pop hidden>
       <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
       <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
     </div>
   </div>
@@ -68,10 +68,10 @@ const parseSong = (text) =>
 const UNITS = [
   { id: "free", label: "Free play" },
   { id: "u1", label: "1. Meet the xylophone" },
-  { id: "u2", label: "2. Loud and soft", soon: true },
+  { id: "u2", label: "2. Loud or soft? Fast or slow?" },
   { id: "u3", label: "3. Higher or lower?" },
   { id: "u4", label: "4. Copy me" },
-  { id: "u5", label: "5. Clap the beat", soon: true },
+  { id: "u5", label: "5. Clap the beat" },
   { id: "u6", label: "6. First songs" },
   { id: "u7", label: "7. Colours to letters" },
 ];
@@ -157,6 +157,8 @@ style.textContent = `
 .xy-bar:focus{outline:none}
 .xy-bar:focus-visible .xy-halo{opacity:.5}
 .xy-bar.hit{animation:xy-wobble .42s ease-out}
+.bt-drum{cursor:pointer}
+.bt-drum.hit{animation:xy-wobble .3s ease-out;transform-origin:500px 480px}
 .xy-bar.glow .xy-halo{animation:xy-glow 1.1s ease-in-out infinite}
 .xy-bar.flash .xy-halo{opacity:.8;transition:opacity .1s}
 svg:not(.letters) .xy-letter{display:none}
@@ -287,6 +289,9 @@ function setPanel(html) {
 
 function reset() {
   token += 1;
+  stopExtras?.();
+  stopExtras = null;
+  unitKeys = null;
   handler = null;
   glow(null, false);
   pointMallet(null);
@@ -294,7 +299,182 @@ function reset() {
   svg.classList.remove("letters");
 }
 
+let stopExtras = null;
+let unitKeys = null;
+addEventListener("keydown", (event) => unitKeys?.(event));
 const units = {
+  u2() {
+    const my = token;
+    let round = 0;
+    let right = 0;
+    let q = null;
+    let answered = true;
+    setPanel(`<p class="ap-dots" data-dots></p><div class="ap-buttons" data-answers></div><div class="ap-buttons"><button type="button" data-do="again">🔁 Hear it again</button></div>`);
+    const dots = () => ($("[data-dots]").textContent = Array.from({ length: 10 }, (_, k) => (k < round ? "●" : "○")).join(""));
+    const play = async () => {
+      const mine = token;
+      if (q.kind === "loud") {
+        for (const i of [0, 2, 4, 2, 0]) {
+          if (mine !== token) return;
+          MUSIC.play("xylophone", BARS[i].midi, { gain: q.answer === "loud" ? 1.25 : 0.16 });
+          await wait(380);
+        }
+      } else {
+        const beat = q.answer === "fast" ? 190 : 620;
+        for (const i of [0, 1, 2, 3, 4, 3, 2, 1, 0]) {
+          if (mine !== token) return;
+          MUSIC.play("xylophone", BARS[i].midi, { gain: 0.8 });
+          await wait(beat);
+        }
+      }
+    };
+    const ask = async () => {
+      dots();
+      const kind = round % 2 === 0 ? "loud" : "speed";
+      q = { kind, answer: kind === "loud" ? (Math.random() < 0.5 ? "loud" : "soft") : Math.random() < 0.5 ? "fast" : "slow" };
+      $("[data-answers]").innerHTML =
+        kind === "loud"
+          ? `<button type="button" class="ap-big" data-ans="loud" aria-label="Loud">🐘</button><button type="button" class="ap-big" data-ans="soft" aria-label="Soft">🐭</button>`
+          : `<button type="button" class="ap-big" data-ans="fast" aria-label="Fast">🐇</button><button type="button" class="ap-big" data-ans="slow" aria-label="Slow">🐢</button>`;
+      await sayAsync(kind === "loud" ? "Is it loud, like an elephant? Or soft, like a mouse?" : "Is it fast, like a rabbit? Or slow, like a tortoise?");
+      if (my !== token) return;
+      answered = false;
+      await play();
+    };
+    panel.onclick = async (event) => {
+      if (my !== token || !q) return;
+      if (event.target.closest("[data-do]")) return play();
+      const ans = event.target.closest("[data-ans]")?.dataset.ans;
+      if (!ans || answered) return;
+      answered = true;
+      round += 1;
+      window.OC?.count("listening games");
+      const words = { loud: "loud, like an elephant 🐘", soft: "soft, like a mouse 🐭", fast: "fast, like a rabbit 🐇", slow: "slow, like a tortoise 🐢" };
+      if (ans === q.answer) {
+        right += 1;
+        MUSIC.chime();
+        say(`${pick(PRAISE)} It was ${words[q.answer]}.`);
+      } else say(`Good listening! It was ${words[q.answer]}. Listen again.`);
+      if (ans !== q.answer) {
+        await wait(1800);
+        await play();
+      }
+      await wait(1800);
+      if (my !== token) return;
+      if (round >= 10) {
+        if (right >= 8) shell.mark("u2", { done: true, best: right });
+        say(`${right} out of 10! ${right >= 8 ? "Super ears! 🎉" : "Great listening!"}`);
+        round = 0;
+        right = 0;
+        await wait(3400);
+      }
+      if (my === token) ask();
+    };
+    ask();
+  },
+
+  u5() {
+    const my = token;
+    const BPM = 66;
+    const B = 60 / BPM;
+    let running = false;
+    let t0 = 0;
+    let taps = [];
+    let best = 0;
+    setPanel(`<p class="ap-dots" data-dots></p><div class="ap-buttons"><button type="button" class="primary" data-do="start">▶ Start the ball</button></div>`);
+    const ball = el("g", { class: "bt-ball", opacity: 0 });
+    el("circle", { r: 34, fill: "#e53935", stroke: "#8e1c1a", "stroke-width": 3 }, ball);
+    el("circle", { cx: -10, cy: -12, r: 9, fill: "#fff", opacity: 0.7 }, ball);
+    const drum = el("g", { class: "bt-drum" });
+    el("ellipse", { cx: W / 2, cy: 470, rx: 150, ry: 34, fill: "#8a5a35" }, drum);
+    el("rect", { x: W / 2 - 150, y: 470, width: 300, height: 40, fill: "#8a5a35" }, drum);
+    el("ellipse", { cx: W / 2, cy: 470, rx: 140, ry: 28, fill: "#fbf3e6", stroke: "#c9b8a1", "stroke-width": 3 }, drum);
+    const hide = () => {
+      ball.setAttribute("opacity", 0);
+      drum.setAttribute("opacity", 0);
+    };
+    const showDrum = () => {
+      svg.querySelectorAll(".xy-bar, .xy-mallet").forEach((n) => n.setAttribute("visibility", "hidden"));
+      drum.setAttribute("opacity", 1);
+      ball.setAttribute("opacity", 1);
+    };
+    const restore = () => svg.querySelectorAll(".xy-bar, .xy-mallet").forEach((n) => n.removeAttribute("visibility"));
+    stopExtras = () => {
+      running = false;
+      hide();
+      restore();
+      ball.remove();
+      drum.remove();
+    };
+    showDrum();
+    ball.setAttribute("transform", `translate(${W / 2} 200)`);
+    const frame = () => {
+      if (my !== token || !running) return;
+      const now = (MUSIC.now() - t0) / B;
+      const phase = ((now % 1) + 1) % 1;
+      const y = 436 - Math.sin(phase * Math.PI) * 300;
+      ball.setAttribute("transform", `translate(${W / 2} ${y})`);
+      requestAnimationFrame(frame);
+    };
+    const tap = () => {
+      if (!running) return;
+      const beatPos = (MUSIC.now() - t0) / B;
+      if (beatPos < 3.5) return;
+      MUSIC.play("woodblock", 79, { gain: 0.7 });
+      drum.classList.remove("hit");
+      void drum.getBBox();
+      drum.classList.add("hit");
+      taps.push(beatPos);
+      const near = Math.round(beatPos);
+      const err = beatPos - near;
+      const ok = Math.abs(err) <= 0.22;
+      $("[data-dots]").textContent = taps.map((p) => (Math.abs(p - Math.round(p)) <= 0.22 ? "★" : "·")).join(" ");
+      if (taps.length >= 8) finish();
+      else if (!ok) say(err < 0 ? "A little early. Wait for the ball to land!" : "A little late. Tap when the ball lands!", { voice: false });
+      else say(pick(["Yes!", "Good!", "Steady!", "Nice!"]), { voice: false });
+    };
+    const finish = () => {
+      running = false;
+      const good = taps.filter((p) => Math.abs(p - Math.round(p)) <= 0.22).length;
+      best = Math.max(best, good);
+      if (good >= 6) {
+        MUSIC.chime();
+        shell.mark("u5", { done: true, best });
+        window.OC?.count("beats kept");
+      }
+      say(`${good} out of 8 on the beat! ${good >= 6 ? "You kept the beat! 🎉" : "Let's try again. Watch the ball land."}`);
+      $("[data-do='start']").hidden = false;
+    };
+    const start = async () => {
+      taps = [];
+      $("[data-dots]").textContent = "";
+      $("[data-do='start']").hidden = true;
+      await sayAsync("Watch the ball. Get ready… Tap the drum when it lands!");
+      if (my !== token) return;
+      t0 = MUSIC.now() + 0.3;
+      for (let k = 0; k < 14; k++) MUSIC.tick(k < 4, t0 + k * B);
+      running = true;
+      requestAnimationFrame(frame);
+      setTimeout(() => {
+        if (my === token && running) finish();
+      }, (14 * B + 0.5) * 1000);
+    };
+    panel.onclick = (event) => {
+      if (event.target.closest("[data-do='start']")) start();
+    };
+    drum.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      tap();
+    });
+    unitKeys = (event) => {
+      if (event.code === "Space") {
+        event.preventDefault();
+        tap();
+      }
+    };
+    say("Press Start, then tap the big drum every time the ball lands.", { voice: false });
+  },
+
   free() {
     setPanel(`<div class="ap-strip" data-trail aria-hidden="true"></div><div class="ap-buttons"><button type="button" data-do="song">🎵 Play me a song</button><button type="button" data-do="letters">Show letters</button></div>`);
     say("Tap the bars and make music! The long bars sing low, the short bars sing high.");
@@ -618,6 +798,8 @@ const shell = SHELL({
   how: {
     free: { icon: "🎶", title: "Free play", steps: ["Tap a bar to hear it.", "Slide your finger across the bars for a whoosh!"] },
     u1: { icon: "🎨", title: "Meet the colours", steps: ["Listen to the colour.", "Tap that coloured bar."] },
+    u2: { icon: "🐘", title: "Loud or soft? Fast or slow?", steps: ["Listen to the music.", "Loud? Tap the elephant 🐘. Soft? Tap the mouse 🐭.", "Fast? Tap the rabbit 🐇. Slow? Tap the tortoise 🐢."] },
+    u5: { icon: "🥁", title: "Clap the beat", steps: ["Watch the ball bounce on the drum.", "Tap the big drum every time the ball lands.", "Keep it steady, like a clock!"] },
     u3: { icon: "🐦", title: "Higher or lower?", steps: ["Listen to two sounds.", "Going up? Tap the bird 🐦.", "Going down? Tap the fish 🐟."] },
     u4: { icon: "🔁", title: "Copy me", steps: ["Watch the bars light up.", "Then tap the same bars."] },
     u6: { icon: "🎵", title: "First songs", steps: ["Pick a song.", "Tap the bar that glows.", "Keep going to the end!"] },

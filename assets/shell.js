@@ -1,25 +1,59 @@
 (() => {
   const $ = (selector) => document.querySelector(selector);
+  const strip = (label) => label.replace(/^\d+\.\s*/, "");
 
   function shell({ units, start, onUnit, onStop, subject, activity, how = {} }) {
-    const select = $("[data-units]");
     const learner = () => (window.OC ? OC.current() : "") || "Learner";
     const progress = () => MUSIC.progress.of(learner());
-    const render = () => {
-      const done = progress();
-      select.innerHTML = units
-        .map((unit) => `<option value="${unit.id}"${unit.soon ? " disabled" : ""}>${unit.label}${unit.soon ? " (coming soon)" : done[unit.id]?.done ? " ✓" : ""}</option>`)
-        .join("");
-      select.value = current;
-    };
+    const pickButton = $("[data-pick]");
+    const iconOf = (unit, index) => unit.icon || how[unit.id]?.icon || ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩", "⑪", "⑫"][index] || "🎯";
     let current = start || units.find((unit) => !unit.soon).id;
+
+    const menu = document.createElement("div");
+    menu.className = "ap-menu";
+    menu.hidden = true;
+    menu.setAttribute("role", "dialog");
+    menu.setAttribute("aria-label", "Choose a game");
+    document.body.appendChild(menu);
+
+    const render = () => {
+      const unit = units.find((u) => u.id === current);
+      const index = units.indexOf(unit);
+      if (pickButton) pickButton.innerHTML = `<span class="ap-pick-icon" aria-hidden="true">${iconOf(unit, index)}</span><span class="ap-pick-text"><small>Game ${index + 1} of ${units.length}</small><b>${strip(unit.label)}</b></span><span class="ap-pick-arrow" aria-hidden="true">▾</span>`;
+      const done = progress();
+      menu.innerHTML = `<div class="ap-menu-card"><div class="ap-menu-head"><h2>Choose a game</h2><button type="button" class="ap-menu-close" data-close aria-label="Close">✕</button></div><div class="ap-tiles">${units
+        .map((u, i) => {
+          const state = u.soon ? "soon" : done[u.id]?.done ? "done" : "";
+          return `<button type="button" class="ap-tile${u.id === current ? " current" : ""}${state ? ` ${state}` : ""}" data-unit="${u.id}"${u.soon ? " disabled" : ""}><span class="ap-tile-icon" aria-hidden="true">${iconOf(u, i)}</span><span class="ap-tile-name">${strip(u.label)}</span>${state === "done" ? `<span class="ap-badge">✓ Done</span>` : u.soon ? `<span class="ap-badge soon">Soon</span>` : ""}</button>`;
+        })
+        .join("")}</div></div>`;
+    };
+    const openMenu = () => {
+      render();
+      menu.hidden = false;
+      menu.querySelector(".ap-tile.current, .ap-tile")?.focus();
+    };
+    const closeMenu = () => (menu.hidden = true);
+    pickButton?.addEventListener("click", openMenu);
+    menu.addEventListener("click", (event) => {
+      if (event.target === menu || event.target.closest("[data-close]")) return closeMenu();
+      const tile = event.target.closest("[data-unit]");
+      if (tile && !tile.disabled) {
+        closeMenu();
+        go(tile.dataset.unit);
+      }
+    });
+    addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !menu.hidden) closeMenu();
+    });
+
     const go = (id) => {
       current = id;
       render();
       VOICE.hush();
       onStop?.();
       const unit = units.find((item) => item.id === id);
-      window.OC?.begin(subject, activity, unit.label.replace(/^\d+\.\s*/, ""));
+      window.OC?.begin(subject, activity, strip(unit.label));
       const card = how[id];
       const seen = progress()[id]?.seen;
       if (card && window.KIT && !seen) {
@@ -33,6 +67,7 @@
         });
       } else onUnit(id, unit);
     };
+
     const helpButton = $("[data-help]");
     if (helpButton) {
       helpButton.hidden = !Object.keys(how).length;
@@ -44,16 +79,17 @@
         KIT.howTo(card).then(() => go(current));
       });
     }
-    select.addEventListener("change", () => go(select.value));
 
     const voiceButton = $("[data-voice]");
     voiceButton.textContent = VOICE.state.on ? "🔊" : "🔇";
     voiceButton.setAttribute("aria-pressed", String(VOICE.state.on));
     voiceButton.addEventListener("click", () => VOICE.toggle(voiceButton));
     const soundButton = $("[data-sound]");
-    soundButton.textContent = MUSIC.audio.on ? "🔔" : "🔕";
-    soundButton.setAttribute("aria-pressed", String(MUSIC.audio.on));
-    soundButton.addEventListener("click", () => MUSIC.toggle(soundButton));
+    soundButton.textContent = MUSIC.audio.on ? "🔔 Sounds on" : "🔕 Sounds off";
+    soundButton.addEventListener("click", () => {
+      MUSIC.toggle(null);
+      soundButton.textContent = MUSIC.audio.on ? "🔔 Sounds on" : "🔕 Sounds off";
+    });
     $("[data-voice-pick]").addEventListener("change", (event) => VOICE.choose(event.target.value));
     $("[data-menu]").addEventListener("click", (event) => {
       event.stopPropagation();

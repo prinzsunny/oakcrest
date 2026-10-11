@@ -144,23 +144,23 @@
 .kt-confetti span{position:absolute;top:-16px;width:9px;height:14px;border-radius:2px;animation:kt-fall linear forwards}
 @keyframes kt-fall{to{transform:translate(var(--drift),760px) rotate(var(--spin));opacity:.9}}
 .kt-how{position:absolute;inset:0;z-index:8;display:grid;place-items:center;padding:12px;background:rgba(245,239,228,.92)}
-.kt-how-card{max-width:560px;width:100%;max-height:100%;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 22px;border-radius:22px;background:#fffcf6;box-shadow:0 0 0 1px #e3d6c2,0 14px 34px rgba(70,40,15,.18);text-align:center}
-.kt-how-icon{font-size:clamp(44px,8vw,72px);line-height:1}
-.kt-how-card h2{margin:0;color:#2b1d12;font:700 clamp(21px,3vw,28px)/1.15 Georgia,serif}
+.kt-how-card{max-width:560px;width:100%;max-height:100%;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px 24px;border-radius:28px;background:#fff;box-shadow:0 8px 0 #ece3d6,0 18px 40px rgba(70,40,15,.18);text-align:center}
+.kt-how-icon{display:grid;place-items:center;width:clamp(76px,12vw,104px);height:clamp(76px,12vw,104px);border-radius:50%;background:var(--accent-soft);font-size:clamp(42px,7vw,60px);line-height:1}
+.kt-how-card h2{margin:0;color:#2b1d12;font:900 clamp(22px,3.2vw,30px)/1.15 var(--sans)}
 .kt-how-card ol{margin:0;padding:0;list-style:none;counter-reset:s;display:grid;gap:8px;text-align:left;width:100%}
-.kt-how-card li{counter-increment:s;display:grid;grid-template-columns:34px 1fr;align-items:center;gap:10px;color:#2b1d12;font-size:clamp(16px,2.2vw,20px);line-height:1.35}
-.kt-how-card li::before{content:counter(s);display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#7a4520;color:#fff;font-weight:800}
-.kt-go{min-height:58px;min-width:200px;margin-top:6px;border:0;border-radius:16px;background:#7a4520;color:#fff;font:800 22px/1 ui-rounded,system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 0 #4f2a10}
-.kt-go:active{transform:translateY(2px);box-shadow:0 2px 0 #4f2a10}
+.kt-how-card li{counter-increment:s;display:grid;grid-template-columns:38px 1fr;align-items:center;gap:12px;color:#2b1d12;font:700 clamp(17px,2.3vw,21px)/1.35 var(--sans)}
+.kt-how-card li::before{content:counter(s);display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--accent);color:#fff;font-weight:900}
+.kt-go{min-height:60px;min-width:220px;margin-top:8px;border:0;border-radius:20px;background:var(--accent);color:#fff;font:900 23px/1 var(--sans);cursor:pointer;box-shadow:0 5px 0 var(--accent-dark)}
+.kt-go:active{transform:translateY(3px);box-shadow:0 2px 0 var(--accent-dark)}
 @media (max-height:460px){.kt-how-card{padding:10px 14px;gap:5px}.kt-how-icon{font-size:36px}.kt-how-card li{font-size:15px}.kt-go{min-height:46px;font-size:18px}}
 .kt-pad{display:flex;flex-direction:column;align-items:center;gap:6px}
-.kt-entry{min-width:4.2em;min-height:48px;padding:4px 14px;border-radius:12px;background:#fffcf6;box-shadow:0 0 0 2px var(--brown);color:var(--ink);font:800 30px/40px ui-rounded,system-ui,sans-serif;text-align:center}
+.kt-entry{min-width:4.2em;min-height:52px;padding:4px 14px;border-radius:16px;background:#fff;box-shadow:0 0 0 3px var(--accent);color:var(--ink);font:800 30px/40px ui-rounded,system-ui,sans-serif;text-align:center}
 .kt-keys{display:grid;grid-template-columns:repeat(6,minmax(44px,1fr));gap:5px}
-.kt-keys button{min-height:44px;border:0;border-radius:11px;background:var(--card);box-shadow:0 0 0 1px #c9b8a1;color:var(--ink);font:700 20px/1 ui-rounded,system-ui,sans-serif;cursor:pointer;touch-action:manipulation}
-.kt-keys button.ok{background:var(--brown);color:#fff;box-shadow:none}
+.kt-keys button{min-height:48px;border:0;border-radius:14px;background:#fff;box-shadow:0 3px 0 #e2d6c4;color:var(--ink);font:900 21px/1 var(--sans);cursor:pointer;touch-action:manipulation}
+.kt-keys button.ok{background:var(--accent);color:#fff;box-shadow:0 3px 0 var(--accent-dark)}
 .kt-keys button:active{transform:translateY(1px)}
 .kt-choices button{min-height:48px;padding:0 18px;font-size:18px}
-.kt-choices button.right{background:#3f7d4e;color:#fff;box-shadow:none}
+.kt-choices button.right{background:#22a05a;color:#fff;box-shadow:0 3px 0 #157a40}
 .kt-choices button.wrong{background:#f6dcd4;box-shadow:0 0 0 1px #d9822b}
 @media (max-height:460px),(max-width:420px) and (max-height:720px){.kt-keys button{min-height:36px;font-size:17px}.kt-entry{min-height:38px;font-size:24px;line-height:32px}.kt-keys{grid-template-columns:repeat(6,minmax(38px,1fr))}}
 `;

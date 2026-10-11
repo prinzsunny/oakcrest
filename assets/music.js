@@ -3,7 +3,21 @@
   const PRETTY = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
   const LETTERS = ["C", "D", "E", "F", "G", "A", "B"];
   const WHITE = [0, 2, 4, 5, 7, 9, 11];
-  const RANGES = { piano: [48, 84], xylophone: [72, 96], woodblock: [72, 79] };
+  const span = (low, high) => Array.from({ length: high - low + 1 }, (_, i) => low + i);
+  const ORCH = [60, 64, 67, 72, 76, 79];
+  const SAMPLES = {
+    piano: span(36, 84),
+    xylophone: span(72, 96),
+    woodblock: [72, 79],
+    violin: ORCH,
+    flute: ORCH,
+    trumpet: ORCH,
+    clarinet: ORCH,
+    horn: ORCH,
+    harp: ORCH,
+    cello: [48, 55, ...ORCH],
+    timpani: [48, 55, 60],
+  };
   const SOUNDS = new URL("sounds/", document.currentScript.src);
 
   const midiOf = (name) => {
@@ -45,9 +59,11 @@
   }
 
   function sampleFor(instrument, midi) {
-    const [low, high] = RANGES[instrument];
     if (instrument === "woodblock") return midi >= 76 ? 79 : 72;
-    return Math.max(low, Math.min(high, midi));
+    const list = SAMPLES[instrument] || SAMPLES.piano;
+    let best = list[0];
+    for (const m of list) if (Math.abs(m - midi) < Math.abs(best - midi)) best = m;
+    return best;
   }
 
   function fetchSample(instrument, midi) {
@@ -160,5 +176,5 @@
     },
   };
 
-  window.MUSIC = { audio, context, preload, play, tick, chime, oops, toggle, now, midiOf, fileOf, prettyOf, letterOf, isWhite, stepOf, midiOfStep, LETTERS, progress };
+  window.MUSIC = { SAMPLES, audio, context, preload, play, tick, chime, oops, toggle, now, midiOf, fileOf, prettyOf, letterOf, isWhite, stepOf, midiOfStep, LETTERS, progress };
 })();

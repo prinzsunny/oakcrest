@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Colour Mixing · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="arts">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Colour Mixing</b><small>Arts · Foundations–Level 2</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, wait, confetti, PRAISE } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "c1", label: "1. Mix it!" },
+  { id: "c2", label: "2. Colour wheel" },
+  { id: "c3", label: "3. Match the colour" },
+];
+const PAINTS = [
+  { key: "r", name: "red", hex: "#e8262d" },
+  { key: "y", name: "yellow", hex: "#ffd21f" },
+  { key: "b", name: "blue", hex: "#1f5fbf" },
+  { key: "w", name: "white", hex: "#ffffff" },
+  { key: "k", name: "black", hex: "#242424" },
+];
+
+function ryb(r, y, b) {
+  const C = {
+    w: [1, 1, 1],
+    r: [1, 0.07, 0.08],
+    y: [1, 0.86, 0.1],
+    b: [0.13, 0.36, 0.75],
+    ry: [1, 0.5, 0.05],
+    rb: [0.5, 0.12, 0.55],
+    yb: [0.1, 0.62, 0.25],
+    k: [0.2, 0.12, 0.08],
+  };
+  const out = [0, 0, 0];
+  for (let i = 0; i < 3; i++) {
+    const c00 = C.w[i] * (1 - r) + C.r[i] * r;
+    const c01 = C.b[i] * (1 - r) + C.rb[i] * r;
+    const c10 = C.y[i] * (1 - r) + C.ry[i] * r;
+    const c11 = C.yb[i] * (1 - r) + C.k[i] * r;
+    const c0 = c00 * (1 - y) + c10 * y;
+    const c1 = c01 * (1 - y) + c11 * y;
+    out[i] = c0 * (1 - b) + c1 * b;
+  }
+  return out;
+}
+
+function mixOf(drops) {
+  const n = Object.values(drops).reduce((s, v) => s + v, 0);
+  if (!n) return null;
+  const hues = drops.r + drops.y + drops.b;
+  let rgb;
+  if (hues) {
+    const m = Math.max(drops.r, drops.y, drops.b);
+    rgb = ryb(drops.r / m, drops.y / m, drops.b / m);
+  } else rgb = [1, 1, 1];
+  const white = drops.w / n;
+  const black = drops.k / n;
+  rgb = rgb.map((c) => c + (1 - c) * white * (hues ? 0.85 : 1));
+  rgb = rgb.map((c) => c * (1 - black * 0.92));
+  return rgb;
+}
+const hexOf = (rgb) => "#" + rgb.map((c) => Math.round(Math.max(0, Math.min(1, c)) * 255).toString(16).padStart(2, "0")).join("");
+
+function nameOf(drops) {
+  const { r, y, b, w, k } = drops;
+  const hues = r + y + b;
+  const total = hues + w + k;
+  if (!total) return "";
+  let base;
+  if (!hues) base = w && k ? "grey" : w ? "white" : "black";
+  else {
+    const parts = [["red", r], ["yellow", y], ["blue", b]].filter(([, v]) => v > 0);
+    if (parts.length === 3) base = "brown";
+    else if (parts.length === 1) base = parts[0][0];
+    else {
+      const [[n1, v1], [n2, v2]] = parts;
+      const pair = [n1, n2].sort().join("+");
+      const second = { "red+yellow": "orange", "blue+yellow": "green", "blue+red": "purple" }[pair];
+      const ratio = v1 / v2;
+      if (ratio > 1.8) base = `${n1}-${second}`;
+      else if (ratio < 0.55) base = `${n2}-${second}`;
+      else base = second;
+    }
+  }
+  if (!hues) return base;
+  if (w && k) return `greyish ${base}`;
+  if (w) return base === "red" && w >= r ? "pink" : `light ${base}`;
+  if (k) return `dark ${base}`;
+  return base;
+}
+
+function scene() {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  el("rect", { x: 0, y: 0, width: W, height: H, fill: "#fdf8ef" }, view);
+}
+
+function bowl(color, { x = 500, y = 250, r = 150, label = "" } = {}) {
+  const g = el("g", { class: "cm-bowl" }, view);
+  el("ellipse", { cx: x, cy: y + r * 0.55, rx: r * 1.05, ry: r * 0.22, fill: "#3a2210", opacity: 0.12 }, g);
+  el("path", { d: `M${x - r} ${y}A${r} ${r * 0.9} 0 0 0 ${x + r} ${y}Z`, fill: "#f4ece0", stroke: "#c9b8a1", "stroke-width": 4 }, g);
+  el("ellipse", { cx: x, cy: y, rx: r, ry: r * 0.28, fill: "#fff", stroke: "#c9b8a1", "stroke-width": 4 }, g);
+  const paint = el("ellipse", { class: "cm-paint", cx: x, cy: y + 4, rx: r * 0.86, ry: r * 0.2, fill: color || "#fff", opacity: color ? 1 : 0 }, g);
+  el("ellipse", { cx: x - r * 0.3, cy: y - 2, rx: r * 0.25, ry: r * 0.05, fill: "#fff", opacity: 0.35 }, g);
+  if (label) text(g, x, y + r * 0.95 + 40, label, { "font-size": 36, fill: "#2b1d12", "font-weight": 900 });
+  return paint;
+}
+
+function pots(onPick, keys = ["r", "y", "b", "w", "k"]) {
+  const list = PAINTS.filter((p) => keys.includes(p.key));
+  const gap = 170;
+  const x0 = W / 2 - ((list.length - 1) * gap) / 2;
+  list.forEach((p, i) => {
+    const x = x0 + i * gap;
+    const g = el("g", { class: "cm-pot", "data-key": p.key, style: "cursor:pointer" }, view);
+    el("rect", { x: x - 52, y: 440, width: 104, height: 90, rx: 18, fill: "#e9e2d6", stroke: "#bfae95", "stroke-width": 3 }, g);
+    el("ellipse", { cx: x, cy: 442, rx: 52, ry: 16, fill: p.hex, stroke: "#bfae95", "stroke-width": 3 }, g);
+    text(g, x, 500, p.name, { "font-size": 22, fill: "#4d3c2e", "font-weight": 800 });
+  });
+  view.addEventListener("pointerdown", (event) => {
+    const pot = event.target.closest(".cm-pot");
+    if (pot) onPick(pot.dataset.key, pot);
+  });
+}
+
+async function drip(key, x = 500, toY = 250) {
+  const p = PAINTS.find((q) => q.key === key);
+  const potX = Number(view.querySelector(`.cm-pot[data-key="${key}"] ellipse`)?.getAttribute("cx") || x);
+  const d = el("circle", { cx: potX, cy: 430, r: 16, fill: p.hex, stroke: key === "w" ? "#d9cdb5" : "none", "stroke-width": 2 }, view);
+  MUSIC.play("xylophone", 84 + "rybwk".indexOf(key) * 2, { gain: 0.35 });
+  for (let t = 0; t <= 1; t += 0.1) {
+    d.setAttribute("cx", potX + (x - potX) * t);
+    d.setAttribute("cy", 430 + (toY - 430) * t - Math.sin(t * Math.PI) * 120);
+    await wait(22);
+  }
+  d.remove();
+}
+
+const units = {
+  c1() {
+    const my = token;
+    const GOALS = [
+      { name: "orange", need: { r: 1, y: 1 } },
+      { name: "green", need: { y: 1, b: 1 } },
+      { name: "purple", need: { r: 1, b: 1 } },
+      { name: "pink", need: { r: 1, w: 1 } },
+      { name: "light blue", need: { b: 1, w: 1 } },
+      { name: "brown", need: { r: 1, y: 1, b: 1 } },
+    ];
+    let goal = 0;
+    let drops = { r: 0, y: 0, b: 0, w: 0, k: 0 };
+    panel(`<p class="ap-status" data-status></p><div class="ap-buttons"><button type="button" data-do="empty">🫧 Empty the bowl</button><button type="button" data-do="free">🎨 Free mixing</button></div>`);
+    let free = false;
+    const draw = () => {
+      scene();
+      const rgb = mixOf(drops);
+      bowl(rgb ? hexOf(rgb) : null, { label: rgb ? nameOf(drops) : "" });
+      pots(add);
+      if (!free) {
+        const g = GOALS[goal];
+        text(view, 140, 70, "Make:", { "font-size": 28, fill: "#8a7764" });
+        text(view, 140, 120, g.name, { "font-size": 40, fill: "#2b1d12", "font-weight": 900 });
+      }
+      $("[data-status]").textContent = free ? "Free mixing: try anything!" : `Colour ${goal + 1} of ${GOALS.length}`;
+    };
+    const add = async (key) => {
+      if (my !== token) return;
+      drops[key] += 1;
+      window.OC?.touch();
+      await drip(key);
+      if (my !== token) return;
+      draw();
+      if (free) return say(`That makes <b>${nameOf(drops)}</b>!`, { voice: true });
+      const g = GOALS[goal];
+      const made = nameOf(drops);
+      if (made === g.name) {
+        MUSIC.chime();
+        confetti();
+        window.OC?.count("colours mixed");
+        const recipe = Object.keys(g.need).map((k) => PAINTS.find((p) => p.key === k).name).join(" + ");
+        say(`${pick(PRAISE)} ${recipe} = <b>${g.name}</b>!`);
+        goal += 1;
+        if (goal >= GOALS.length) {
+          shell.mark("c1", { done: true });
+          goal = 0;
+          await wait(2600);
+          if (my === token) say("You made every colour! Try Free mixing to invent your own.");
+          return;
+        }
+        await wait(2800);
+        if (my !== token) return;
+        drops = { r: 0, y: 0, b: 0, w: 0, k: 0 };
+        draw();
+        say(`Now make <b>${GOALS[goal].name}</b>. Which two paints do you need?`);
+      } else if (Object.values(drops).reduce((s, v) => s + v, 0) >= 2) {
+        const extra = Object.keys(drops).some((k) => drops[k] && !g.need[k]);
+        if (extra) say(`That's ${made}. Hmm, that's not ${g.name}. Empty the bowl and try different paints!`);
+        else say(`That's ${made}. Add a little more to make ${g.name}!`);
+      } else say(`${PAINTS.find((p) => p.key === key).name}! Add another colour.`, { voice: false });
+    };
+    $("[data-panel]").onclick = (event) => {
+      const what = event.target.closest("[data-do]")?.dataset.do;
+      if (!what) return;
+      if (what === "empty") {
+        drops = { r: 0, y: 0, b: 0, w: 0, k: 0 };
+        draw();
+      }
+      if (what === "free") {
+        free = !free;
+        event.target.closest("button").textContent = free ? "🎯 Colour challenges" : "🎨 Free mixing";
+        drops = { r: 0, y: 0, b: 0, w: 0, k: 0 };
+        draw();
+        say(free ? "Mix any paints you like and see what you make!" : `Make <b>${GOALS[goal].name}</b>!`);
+      }
+    };
+    draw();
+    say(`Tap two paint pots to mix them. Can you make <b>${GOALS[goal].name}</b>?`);
+  },
+
+  c2() {
+    const my = token;
+    const SLOTS = [
+      { name: "red", hex: "#e8262d", fixed: true },
+      { name: "orange", hex: "#fb8c1a" },
+      { name: "yellow", hex: "#ffd21f", fixed: true },
+      { name: "green", hex: "#2e9e47" },
+      { name: "blue", hex: "#1f5fbf", fixed: true },
+      { name: "purple", hex: "#7e3fa8" },
+    ];
+    let filled = new Set();
+    let chosen = null;
+    panel(`<p class="ap-status" data-status></p><div class="ap-chips" data-swatches></div>`);
+    const draw = () => {
+      scene();
+      const cx = 380;
+      const cy = 280;
+      SLOTS.forEach((s, i) => {
+        const a0 = (i / 6) * Math.PI * 2 - Math.PI / 2 - Math.PI / 6;
+        const a1 = a0 + Math.PI / 3;
+        const r = 220;
+        const r0 = 80;
+        const p = (a, rr) => `${cx + rr * Math.cos(a)} ${cy + rr * Math.sin(a)}`;
+        const d = `M${p(a0, r0)}L${p(a0, r)}A${r} ${r} 0 0 1 ${p(a1, r)}L${p(a1, r0)}A${r0} ${r0} 0 0 0 ${p(a0, r0)}Z`;
+        const show = s.fixed || filled.has(i);
+        const g = el("g", { class: "cw-slot", "data-i": i, style: "cursor:pointer" }, view);
+        el("path", { d, fill: show ? s.hex : "#fffcf6", stroke: "#fff", "stroke-width": 6 }, g);
+        if (!show) el("path", { d, fill: "none", stroke: "#c9b8a1", "stroke-width": 3, "stroke-dasharray": "10 8" }, g);
+        const am = (a0 + a1) / 2;
+        text(g, cx + 150 * Math.cos(am), cy + 150 * Math.sin(am) + 8, show ? "" : "?", { "font-size": 40, fill: "#c9b8a1" });
+      });
+      el("circle", { cx, cy, r: 70, fill: "#fff" }, view);
+      text(view, cx, cy + 8, "🎨", { "font-size": 50 });
+      text(view, 780, 200, "Between two colours", { "font-size": 26, fill: "#8a7764" });
+      text(view, 780, 240, "goes the colour", { "font-size": 26, fill: "#8a7764" });
+      text(view, 780, 280, "they make together!", { "font-size": 26, fill: "#8a7764" });
+      $("[data-status]").textContent = `${filled.size} of 3 colours placed`;
+      $("[data-swatches]").innerHTML = SLOTS.filter((s, i) => !s.fixed && !filled.has(i))
+        .map((s) => `<button type="button" data-name="${s.name}" aria-pressed="${chosen === s.name}" style="--sw:${s.hex}"><span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${s.hex};margin-right:6px;vertical-align:-4px"></span>${s.name}</button>`)
+        .join("");
+      view.addEventListener("pointerdown", (event) => {
+        const slot = event.target.closest(".cw-slot");
+        if (slot) place(Number(slot.dataset.i));
+      });
+    };
+    const place = async (i) => {
+      if (my !== token) return;
+      const s = SLOTS[i];
+      if (s.fixed || filled.has(i)) return;
+      if (!chosen) return say("First tap a colour below, then tap where it goes on the wheel.");
+      const left = SLOTS[(i + 5) % 6].name;
+      const right = SLOTS[(i + 1) % 6].name;
+      if (chosen === s.name) {
+        filled.add(i);
+        chosen = null;
+        MUSIC.chime();
+        window.OC?.touch();
+        say(`${pick(PRAISE)} ${left} and ${right} make ${s.name}, so it goes between them.`);
+        draw();
+        if (filled.size === 3) {
+          confetti();
+          shell.mark("c2", { done: true });
+          await wait(2400);
+          if (my === token) say("🎉 You finished the colour wheel! Red, yellow and blue are primary colours. Orange, green and purple are secondary colours.");
+        }
+      } else {
+        MUSIC.oops();
+        say(`This space is between ${left} and ${right}. What do ${left} and ${right} make?`);
+      }
+    };
+    $("[data-panel]").onclick = (event) => {
+      const b = event.target.closest("[data-name]");
+      if (!b) return;
+      chosen = b.dataset.name;
+      draw();
+      say(`Now tap where ${chosen} goes on the wheel.`, { voice: false });
+    };
+    draw();
+    say("Red, yellow and blue are on the wheel. Pick a colour below, then tap the space where it belongs!");
+  },
+
+  c3() {
+    const my = token;
+    let target = null;
+    let drops = { r: 0, y: 0, b: 0, w: 0, k: 0 };
+    let round = 0;
+    panel(`<p class="ap-status" data-status></p><div class="ap-buttons"><button type="button" data-do="empty">🫧 Start again</button><button type="button" class="primary" data-do="check">Check ✓</button><button type="button" data-do="new">New colour</button></div>`);
+    const dist = (a, b) => Math.sqrt(a.reduce((s, v, i) => s + (v - b[i]) ** 2, 0));
+    const newTarget = () => {
+      const recipes = [{ r: 1, y: 2 }, { y: 2, b: 1 }, { r: 2, b: 1 }, { r: 1, w: 2 }, { b: 1, k: 1 }, { y: 1, b: 1, w: 1 }, { r: 1, y: 1, k: 1 }, { r: 1, b: 1, w: 2 }, { y: 3, r: 1 }];
+      const rec = pick(recipes);
+      const d = { r: 0, y: 0, b: 0, w: 0, k: 0, ...rec };
+      target = { drops: d, rgb: mixOf(d) };
+      drops = { r: 0, y: 0, b: 0, w: 0, k: 0 };
+    };
+    const draw = () => {
+      scene();
+      el("rect", { x: 70, y: 60, width: 220, height: 220, rx: 30, fill: hexOf(target.rgb), stroke: "#fff", "stroke-width": 8 }, view);
+      text(view, 180, 320, "Match this!", { "font-size": 30, fill: "#2b1d12", "font-weight": 900 });
+      const rgb = mixOf(drops);
+      bowl(rgb ? hexOf(rgb) : null, { x: 620, y: 200, r: 140 });
+      const close = rgb ? Math.max(0, 1 - dist(rgb, target.rgb) / 0.9) : 0;
+      el("rect", { x: 470, y: 340, width: 300, height: 26, rx: 13, fill: "#efe6d8" }, view);
+      el("rect", { x: 470, y: 340, width: 300 * close, height: 26, rx: 13, fill: close > 0.88 ? "#22a05a" : close > 0.7 ? "#f0b429" : "#f08a24" }, view);
+      text(view, 620, 400, rgb ? `${Math.round(close * 100)}% close` : "Add paint", { "font-size": 24, fill: "#4d3c2e" });
+      pots(add);
+      $("[data-status]").textContent = `Colour ${round + 1}`;
+    };
+    const add = async (key) => {
+      if (my !== token) return;
+      drops[key] += 1;
+      window.OC?.touch();
+      await drip(key, 620, 200);
+      if (my === token) draw();
+    };
+    $("[data-panel]").onclick = async (event) => {
+      const what = event.target.closest("[data-do]")?.dataset.do;
+      if (!what || my !== token) return;
+      if (what === "empty") {
+        drops = { r: 0, y: 0, b: 0, w: 0, k: 0 };
+        draw();
+      }
+      if (what === "new") {
+        newTarget();
+        draw();
+        say("A new colour to match!");
+      }
+      if (what === "check") {
+        const rgb = mixOf(drops);
+        if (!rgb) return say("Add some paint first!");
+        const close = Math.max(0, 1 - dist(rgb, target.rgb) / 0.9);
+        if (close > 0.88) {
+          MUSIC.chime();
+          confetti();
+          round += 1;
+          window.OC?.count("colours matched");
+          if (round >= 4) shell.mark("c3", { done: true });
+          say(`${pick(PRAISE)} ${Math.round(close * 100)}% match! The recipe was ${Object.entries(target.drops).filter(([, v]) => v).map(([k, v]) => `${v} ${PAINTS.find((p) => p.key === k).name}`).join(", ")}.`);
+          await wait(3200);
+          if (my !== token) return;
+          newTarget();
+          draw();
+          say("Here's another colour!");
+        } else {
+          const want = target.drops;
+          const hint = Object.keys(want).find((k) => want[k] > 0 && !drops[k]) || Object.keys(drops).find((k) => drops[k] && !want[k]);
+          const p = hint && PAINTS.find((q) => q.key === hint);
+          say(`${Math.round(close * 100)}% close. ${p ? (want[hint] ? `Try adding some ${p.name}.` : `There's too much ${p.name}. Start again without it.`) : "Try changing how much of each colour you add."}`);
+        }
+      }
+    };
+    newTarget();
+    draw();
+    say("Look at the colour in the square. Add paint drops to the bowl to match it. Then press Check!");
+  },
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    c1: { icon: "🎨", title: "Mix it!", steps: ["Tap a paint pot to drip paint in the bowl.", "Tap another pot to mix in a new colour.", "Can you make the colour on the card?"] },
+    c2: { icon: "🌈", title: "Colour wheel", steps: ["Tap a colour button below.", "Tap the empty space where it belongs.", "It goes between the two colours that make it!"] },
+    c3: { icon: "🎯", title: "Match the colour", steps: ["Look at the colour in the square.", "Tap paint pots to mix it in the bowl.", "When the bar is green, press Check!"] },
+  },
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Arts",
+  activity: "Colour Mixing",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [84, 86, 88, 90, 91, 92, 96]);
+MUSIC.preload("piano", [64, 67]);
+</script>
+</body>
+</html>

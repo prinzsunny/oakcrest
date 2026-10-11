@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Symmetry Studio · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="arts">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Symmetry Studio</b><small>Arts · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, wait, confetti, PRAISE } = KIT;
+const stage = $("[data-stage]");
+let token = 0;
+
+const UNITS = [
+  { id: "s1", label: "1. Mirror painting" },
+  { id: "s2", label: "2. Kaleidoscope" },
+  { id: "s3", label: "3. Finish the picture" },
+];
+const COLORS = ["#e53935", "#fb8c00", "#fdd835", "#43a047", "#1e88e5", "#8e24aa", "#ec407a", "#6d4c41", "#212121"];
+
+function painter({ mode, slices = 2 }) {
+  stage.innerHTML = "";
+  const canvas = document.createElement("canvas");
+  canvas.className = "sy-canvas";
+  stage.appendChild(canvas);
+  const ctx = canvas.getContext("2d");
+  const state = { color: COLORS[4], size: 14, drawing: false, last: null, slices, strokes: 0 };
+  const fit = () => {
+    const box = stage.getBoundingClientRect();
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    const snapshot = canvas.width ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
+    canvas.width = Math.round(box.width * dpr);
+    canvas.height = Math.round(box.height * dpr);
+    canvas.style.width = `${box.width}px`;
+    canvas.style.height = `${box.height}px`;
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (snapshot) ctx.putImageData(snapshot, 0, 0);
+    guides();
+  };
+  const guideCanvas = document.createElement("canvas");
+  guideCanvas.className = "sy-guides";
+  stage.appendChild(guideCanvas);
+  const gctx = guideCanvas.getContext("2d");
+  function guides() {
+    guideCanvas.width = canvas.width;
+    guideCanvas.height = canvas.height;
+    guideCanvas.style.width = canvas.style.width;
+    guideCanvas.style.height = canvas.style.height;
+    gctx.clearRect(0, 0, guideCanvas.width, guideCanvas.height);
+    gctx.strokeStyle = "rgba(122,69,32,.35)";
+    gctx.lineWidth = 3;
+    gctx.setLineDash([12, 10]);
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    if (mode === "mirror") {
+      gctx.beginPath();
+      gctx.moveTo(cx, 0);
+      gctx.lineTo(cx, canvas.height);
+      gctx.stroke();
+    } else {
+      const R = Math.hypot(cx, cy);
+      for (let i = 0; i < state.slices * 2; i++) {
+        const a = (i / (state.slices * 2)) * Math.PI * 2;
+        gctx.beginPath();
+        gctx.moveTo(cx, cy);
+        gctx.lineTo(cx + R * Math.cos(a), cy + R * Math.sin(a));
+        gctx.stroke();
+      }
+    }
+  }
+  const point = (event) => {
+    const box = canvas.getBoundingClientRect();
+    return [((event.clientX - box.left) / box.width) * canvas.width, ((event.clientY - box.top) / box.height) * canvas.height];
+  };
+  const images = ([x, y]) => {
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    if (mode === "mirror") return [[x, y], [2 * cx - x, y]];
+    const out = [];
+    const dx = x - cx;
+    const dy = y - cy;
+    for (let i = 0; i < state.slices; i++) {
+      const a = (i / state.slices) * Math.PI * 2;
+      const c = Math.cos(a);
+      const s = Math.sin(a);
+      out.push([cx + dx * c - dy * s, cy + dx * s + dy * c]);
+      out.push([cx + dx * c + dy * s, cy + dx * s - dy * c]);
+    }
+    return out;
+  };
+  const line = (a, b) => {
+    const A = images(a);
+    const B = images(b);
+    ctx.strokeStyle = state.color;
+    ctx.lineWidth = state.size * (canvas.width / 1000) * 1.6;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    for (let i = 0; i < A.length; i++) {
+      ctx.beginPath();
+      ctx.moveTo(A[i][0], A[i][1]);
+      ctx.lineTo(B[i][0], B[i][1]);
+      ctx.stroke();
+    }
+  };
+  canvas.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    canvas.setPointerCapture(event.pointerId);
+    state.drawing = true;
+    state.last = point(event);
+    line(state.last, [state.last[0] + 0.1, state.last[1]]);
+    state.strokes += 1;
+    window.OC?.touch();
+  });
+  canvas.addEventListener("pointermove", (event) => {
+    if (!state.drawing) return;
+    const pts = event.getCoalescedEvents ? event.getCoalescedEvents() : [event];
+    for (const e of pts.length ? pts : [event]) {
+      const p = point(e);
+      line(state.last, p);
+      state.last = p;
+    }
+  });
+  for (const type of ["pointerup", "pointercancel"]) canvas.addEventListener(type, () => (state.drawing = false));
+  fit();
+  const onResize = () => canvas.isConnected && fit();
+  addEventListener("resize", onResize);
+  return {
+    state,
+    clear() {
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      state.strokes = 0;
+    },
+    guides,
+    png() {
+      return canvas.toDataURL("image/png");
+    },
+    thumb() {
+      const t = document.createElement("canvas");
+      t.width = 240;
+      t.height = Math.round((240 * canvas.height) / canvas.width);
+      t.getContext("2d").drawImage(canvas, 0, 0, t.width, t.height);
+      return t.toDataURL("image/jpeg", 0.75);
+    },
+  };
+}
+
+function toolbar(p, { slices = false } = {}) {
+  return `<div class="ap-chips sy-colors">${COLORS.map((c, i) => `<button type="button" data-color="${c}" aria-label="Colour ${i + 1}" aria-pressed="${c === p.state.color}" style="width:44px;padding:0;background:${c};box-shadow:0 3px 0 rgba(0,0,0,.25)"></button>`).join("")}</div>
+  <div class="ap-buttons"><button type="button" data-size="6">✏️ Thin</button><button type="button" data-size="14">🖍️ Medium</button><button type="button" data-size="30">🖌️ Thick</button>${slices ? `<button type="button" data-slices>✨ Slices: ${p.state.slices}</button>` : ""}<button type="button" data-do="clear">🧽 Clear</button><button type="button" class="primary" data-do="save">💾 Save</button><button type="button" data-do="gallery">🖼️ Gallery</button></div>`;
+}
+
+function gallery() {
+  const items = shell.progress().gallery?.items || [];
+  const box = document.createElement("div");
+  box.className = "kt-how";
+  box.innerHTML = `<div class="kt-how-card" style="max-width:760px"><h2>🖼️ My gallery</h2>${items.length ? `<div class="sy-gallery">${items.map((src, i) => `<a href="${src}" download="oakcrest-art-${i + 1}.jpg"><img src="${src}" alt="Painting ${i + 1}"></a>`).join("")}</div><p style="margin:0;color:var(--muted)">Tap a picture to download it.</p>` : `<p>No paintings yet. Paint something and press Save!</p>`}<button type="button" class="kt-go">Close</button></div>`;
+  stage.appendChild(box);
+  box.querySelector(".kt-go").onclick = () => box.remove();
+}
+
+function studio(id, mode) {
+  const my = token;
+  const p = painter({ mode, slices: mode === "mirror" ? 1 : 6 });
+  panel(toolbar(p, { slices: mode !== "mirror" }));
+  const mark = () => {
+    $("[data-panel]").querySelectorAll("[data-color]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.color === p.state.color)));
+  };
+  $("[data-panel]").onclick = (event) => {
+    if (my !== token) return;
+    const c = event.target.closest("[data-color]");
+    if (c) {
+      p.state.color = c.dataset.color;
+      mark();
+      MUSIC.play("xylophone", 84 + COLORS.indexOf(p.state.color), { gain: 0.3 });
+    }
+    const size = event.target.closest("[data-size]");
+    if (size) p.state.size = Number(size.dataset.size);
+    const sl = event.target.closest("[data-slices]");
+    if (sl) {
+      p.state.slices = p.state.slices === 4 ? 6 : p.state.slices === 6 ? 8 : 4;
+      sl.textContent = `✨ Slices: ${p.state.slices}`;
+      p.guides();
+    }
+    const what = event.target.closest("[data-do]")?.dataset.do;
+    if (what === "clear") p.clear();
+    if (what === "gallery") gallery();
+    if (what === "save") {
+      if (!p.state.strokes) return say("Paint something first!");
+      const items = [p.thumb(), ...(shell.progress().gallery?.items || [])].slice(0, 12);
+      MUSIC.progress.mark(shell.learner(), "gallery", { items });
+      shell.mark(id, { done: true });
+      window.OC?.count("paintings");
+      MUSIC.chime();
+      confetti();
+      say("🎉 Saved to your gallery! Press Gallery to see your paintings.");
+    }
+  };
+  say(mode === "mirror" ? "Paint on one side of the dotted line. Watch the other side copy you, like a mirror!" : "Paint anywhere. Your picture is copied round and round, like a kaleidoscope!");
+}
+
+const PICTURES = [
+  {
+    name: "butterfly",
+    rows: ["..........", ".PP....PP.", "PPPP..PPPP", "PPYPBBPYPP", "PPPPBBPPPP", ".PPPBBPPP.", "..PPBBPP..", ".PP.BB.PP.", "PP..BB..PP", ".........."],
+  },
+  { name: "heart", rows: ["..........", ".RR....RR.", "RRRR..RRRR", "RRRRRRRRRR", "RRRRRRRRRR", ".RRRRRRRR.", "..RRRRRR..", "...RRRR...", "....RR....", ".........."] },
+  { name: "robot", rows: ["....BB....", "..GGGGGG..", "..GYGGYG..", "..GGGGGG..", "..GGRRGG..", "GGBBBBBBGG", "..BBBBBB..", "..BB..BB..", "..BB..BB..", ".GGG..GGG."] },
+  { name: "flower", rows: ["...PPPP...", "..PPYYPP..", "..PYYYYP..", "..PPYYPP..", "...PPPP...", "....GG....", "..G.GG.G..", "...GGGG...", "....GG....", "....GG...."] },
+  { name: "house", rows: ["....RR....", "...RRRR...", "..RRRRRR..", ".RRRRRRRR.", "..BBBBBB..", "..BYBBYB..", "..BBBBBB..", "..BBPPBB..", "..BBPPBB..", "GGGGGGGGGG"] },
+];
+const PAL = { R: "#e53935", P: "#8e24aa", Y: "#fdd835", B: "#1e88e5", G: "#43a047" };
+
+const units = {
+  s1() {
+    studio("s1", "mirror");
+  },
+  s2() {
+    studio("s2", "kaleido");
+  },
+  s3() {
+    const my = token;
+    let pic = 0;
+    let grid = [];
+    let color = "R";
+    panel(`<p class="ap-status" data-status></p><div class="ap-chips" data-pal></div><div class="ap-buttons"><button type="button" class="primary" data-do="check">Check ✓</button><button type="button" data-do="erase">🧽 Eraser</button><button type="button" data-do="next">Next picture ▶</button></div>`);
+    const view = () => {
+      stage.innerHTML = "";
+      const v = makeSvg("0 0 1000 560", stage);
+      const size = 50;
+      const x0 = 250;
+      const y0 = 30;
+      const rows = PICTURES[pic].rows;
+      rows.forEach((row, r) =>
+        [...row].forEach((ch, c) => {
+          const given = c < 5;
+          const fill = given ? (ch === "." ? "#fff" : PAL[ch]) : grid[r][c] ? PAL[grid[r][c]] : "#fff";
+          const cell = el("rect", { class: given ? "" : "sy-cell", "data-r": r, "data-c": c, x: x0 + c * size, y: y0 + r * size, width: size - 2, height: size - 2, rx: 6, fill, stroke: given ? "#e6dccd" : "#d9cdb5", "stroke-width": 2, style: given ? "" : "cursor:pointer" }, v);
+          if (given) cell.setAttribute("opacity", 0.95);
+        }),
+      );
+      el("line", { x1: x0 + 5 * size - 1, x2: x0 + 5 * size - 1, y1: y0 - 14, y2: y0 + 10 * size + 10, stroke: "#7a4520", "stroke-width": 5, "stroke-dasharray": "14 10" }, v);
+      text(v, 140, 280, "🪞", { "font-size": 70 });
+      text(v, 860, 280, "✏️", { "font-size": 70 });
+      v.addEventListener("pointerdown", (event) => {
+        const cell = event.target.closest(".sy-cell");
+        if (!cell) return;
+        const r = Number(cell.dataset.r);
+        const c = Number(cell.dataset.c);
+        grid[r][c] = color === "erase" ? "" : grid[r][c] === color ? "" : color;
+        MUSIC.play("xylophone", 84 + r, { gain: 0.3 });
+        window.OC?.touch();
+        view();
+      });
+      const colors = [...new Set(rows.join("").replace(/\./g, ""))];
+      $("[data-pal]").innerHTML = colors.map((k) => `<button type="button" data-k="${k}" aria-pressed="${color === k}" aria-label="colour" style="width:52px;padding:0;background:${PAL[k]};box-shadow:0 3px 0 rgba(0,0,0,.25)"></button>`).join("");
+      $("[data-status]").textContent = `Picture ${pic + 1} of ${PICTURES.length}`;
+    };
+    const load = (i) => {
+      pic = i;
+      grid = Array.from({ length: 10 }, () => Array(10).fill(""));
+      const colors = [...new Set(PICTURES[pic].rows.join("").replace(/\./g, ""))];
+      color = colors[0];
+      view();
+      say(`The left half of a ${PICTURES[pic].name} is drawn. Colour the squares on the right to make it a mirror image!`);
+    };
+    $("[data-panel]").onclick = async (event) => {
+      if (my !== token) return;
+      const k = event.target.closest("[data-k]");
+      if (k) {
+        color = k.dataset.k;
+        view();
+      }
+      const what = event.target.closest("[data-do]")?.dataset.do;
+      if (what === "erase") {
+        color = "erase";
+        view();
+      }
+      if (what === "next") load((pic + 1) % PICTURES.length);
+      if (what === "check") {
+        const rows = PICTURES[pic].rows;
+        let wrong = 0;
+        let firstWrong = null;
+        for (let r = 0; r < 10; r++)
+          for (let c = 5; c < 10; c++) {
+            const want = rows[r][9 - c] === "." ? "" : rows[r][9 - c];
+            if ((grid[r][c] || "") !== want) {
+              wrong += 1;
+              firstWrong ||= [r, c];
+            }
+          }
+        if (!wrong) {
+          MUSIC.chime();
+          confetti();
+          window.OC?.count("symmetry pictures");
+          const doneSet = new Set([...(shell.progress().s3?.pics || []), PICTURES[pic].name]);
+          shell.mark("s3", { pics: [...doneSet], done: doneSet.size >= 3 });
+          say(`${pick(PRAISE)} Your ${PICTURES[pic].name} is perfectly symmetrical: both sides match like a mirror!`);
+          await wait(3200);
+          if (my === token) load((pic + 1) % PICTURES.length);
+        } else {
+          MUSIC.oops();
+          const [r, c] = firstWrong;
+          say(`${wrong} square${wrong === 1 ? "" : "s"} to fix. Look at row ${r + 1}: the square ${c - 4} away from the mirror should match the square ${c - 4} away on the left.`);
+        }
+      }
+    };
+    load(0);
+  },
+};
+
+const style = document.createElement("style");
+style.textContent = `.sy-canvas,.sy-guides{position:absolute;inset:0;touch-action:none}.sy-guides{pointer-events:none}.sy-canvas{cursor:crosshair}.sy-colors button[aria-pressed="true"]{outline:4px solid #2b1d12;outline-offset:2px}.sy-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;width:100%}.sy-gallery img{width:100%;border-radius:14px;box-shadow:0 3px 0 #e2d6c4}[data-pal] button[aria-pressed="true"]{outline:4px solid #2b1d12;outline-offset:2px}`;
+document.head.appendChild(style);
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    s1: { icon: "🦋", title: "Mirror painting", steps: ["Pick a colour and a brush.", "Paint on one side of the dotted line.", "The other side copies you, like a mirror!"] },
+    s2: { icon: "✨", title: "Kaleidoscope", steps: ["Pick a colour.", "Paint anywhere: it copies round and round.", "Try Slices for 4, 6 or 8 copies!"] },
+    s3: { icon: "🪞", title: "Finish the picture", steps: ["The left half is drawn for you.", "Colour squares on the right to match it like a mirror.", "Press Check when you're done."] },
+  },
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Arts",
+  activity: "Symmetry Studio",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 96]);
+MUSIC.preload("piano", [64, 67]);
+</script>
+</body>
+</html>
