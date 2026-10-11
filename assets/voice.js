@@ -40,12 +40,20 @@
     });
   }
 
+  const FRACTION_NAMES = { 2: ["half", "halves"], 3: ["third", "thirds"], 4: ["quarter", "quarters"], 5: ["fifth", "fifths"], 6: ["sixth", "sixths"], 8: ["eighth", "eighths"], 10: ["tenth", "tenths"], 12: ["twelfth", "twelfths"] };
+  const fractionWords = (n, d) => {
+    const name = FRACTION_NAMES[d];
+    if (!name) return `${n} over ${d}`;
+    return `${n === 1 ? "one" : n} ${n === 1 ? name[0] : name[1]}`;
+  };
   const plain = (html) =>
     html
+      .replace(/<span class="fr"><sup>(\d+)<\/sup><sub>(\d+)<\/sub><\/span>/g, (_, n, d) => ` ${fractionWords(Number(n), Number(d))} `)
+      .replace(/\b(\d+)\/(\d+)\b(?!\s*(?:time|beat))/g, (_, n, d) => fractionWords(Number(n), Number(d)))
+      .replace(/\b(\d+)\/(\d+)(?=\s*(?:time|beat))/g, "$1 $2")
       .replace(/<br>/g, ". ")
       .replace(/<[^>]+>/g, " ")
       .replace(/[✓🎉⭐🌟👍☝️↻▶◀🐦🐟🔊]/gu, "")
-      .replace(/(\d)\s*\/\s*(\d)/g, "$1 over $2")
       .replace(/(\d)\s*−\s*(\d)/g, "$1 minus $2")
       .replace(/(\d)\s*\+\s*(\d)/g, "$1 plus $2")
       .replace(/=/g, " equals ")

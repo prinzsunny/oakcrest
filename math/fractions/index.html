@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fraction Kitchen · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body>
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Fraction Kitchen</b><small>Math · Levels 3–4</small></div>
+  <select class="ap-units" data-units aria-label="Unit"></select>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-sound aria-label="Sounds on">🔔</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, pickInt, wait, confetti, PRAISE, KIND, choices, numpad } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "f1", label: "1. Cut the pizza" },
+  { id: "f2", label: "2. Which is bigger?" },
+  { id: "f3", label: "3. Equal fractions" },
+  { id: "f4", label: "4. Fraction of a number" },
+];
+const fresh = () => {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+};
+const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+const fracHtml = (n, d) => `<span class="fr"><sup>${n}</sup><sub>${d}</sub></span>`;
+const fracWords = (n, d) => {
+  const names = { 2: "half", 3: "third", 4: "quarter", 5: "fifth", 6: "sixth", 8: "eighth", 10: "tenth", 12: "twelfth" };
+  return `${n} ${names[d] || `${d}th`}${n === 1 ? "" : "s"}`;
+};
+const style = document.createElement("style");
+style.textContent = `.fr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;line-height:1;margin:0 .15em;font-weight:800}.fr sup{border-bottom:2px solid currentColor;padding:0 .15em .05em}.fr sub{padding-top:.05em}.fr sup,.fr sub{font-size:.8em;vertical-align:baseline}.slice,.part{cursor:pointer}`;
+document.head.appendChild(style);
+
+function pizza(cx, cy, r, d, { shaded = new Set(), onTap, tint = "#e0603a" } = {}) {
+  const g = el("g", {}, view);
+  el("circle", { cx, cy: cy + 8, r: r + 6, fill: "#3a2210", opacity: 0.12 }, g);
+  el("circle", { cx, cy, r: r + 10, fill: "#e8b46c", stroke: "#b8823c", "stroke-width": 3 }, g);
+  for (let i = 0; i < d; i++) {
+    const a0 = (i / d) * Math.PI * 2 - Math.PI / 2;
+    const a1 = ((i + 1) / d) * Math.PI * 2 - Math.PI / 2;
+    const large = a1 - a0 > Math.PI ? 1 : 0;
+    const p = d === 1 ? `M${cx - r} ${cy}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0` : `M${cx} ${cy}L${cx + r * Math.cos(a0)} ${cy + r * Math.sin(a0)}A${r} ${r} 0 ${large} 1 ${cx + r * Math.cos(a1)} ${cy + r * Math.sin(a1)}Z`;
+    const s = el("path", { class: "slice", d: p, "data-i": i, fill: shaded.has(i) ? tint : "#fbe7b5", stroke: "#b8823c", "stroke-width": 3, "stroke-linejoin": "round" }, g);
+    if (shaded.has(i)) {
+      const am = (a0 + a1) / 2;
+      for (const [k, rr] of [[0, 0.55], [1, 0.75]]) {
+        if (d > 6 && k) continue;
+        el("circle", { cx: cx + r * rr * Math.cos(am + k * 0.18), cy: cy + r * rr * Math.sin(am + k * 0.18), r: r * 0.07, fill: "#b2342a", "pointer-events": "none" }, g);
+      }
+    }
+  }
+  if (onTap)
+    g.addEventListener("pointerdown", (event) => {
+      const s = event.target.closest(".slice");
+      if (s) onTap(Number(s.dataset.i));
+    });
+  return g;
+}
+
+function bar(x, y, w, h, d, { shaded = new Set(), onTap, tint = "#3f7d4e", label = true } = {}) {
+  const g = el("g", {}, view);
+  for (let i = 0; i < d; i++) {
+    const r = el("rect", { class: "part", "data-i": i, x: x + (i * w) / d, y, width: w / d, height: h, fill: shaded.has(i) ? tint : "#fffcf6", stroke: "#5a4130", "stroke-width": 3 }, g);
+    if (label && w / d > 44) text(g, x + (i + 0.5) * (w / d), y + h / 2 + 9, `1/${d}`, { "font-size": 22, fill: shaded.has(i) ? "#fff" : "#8a7764", "pointer-events": "none" });
+  }
+  if (onTap)
+    g.addEventListener("pointerdown", (event) => {
+      const s = event.target.closest(".part");
+      if (s) onTap(Number(s.dataset.i));
+    });
+  return g;
+}
+
+const units = {
+  f1() {
+    const my = token;
+    let round = 0;
+    let target = null;
+    let shaded = new Set();
+    panel(`<p class="ap-status" data-status></p><div class="ap-buttons"><button type="button" class="primary" data-do="check">Check ✓</button><button type="button" data-do="clear">Clear</button></div>`);
+    const draw = () => {
+      fresh();
+      pizza(360, 280, 220, target.d, { shaded, onTap: (i) => {
+        if (shaded.has(i)) shaded.delete(i);
+        else shaded.add(i);
+        MUSIC.play("xylophone", 76 + shaded.size, { gain: 0.35 });
+        window.OC?.touch();
+        draw();
+      } });
+      text(view, 790, 230, "You shaded", { "font-size": 26, fill: "#8a7764" });
+      text(view, 790, 300, shaded.size, { "font-size": 64, fill: "#e0603a" });
+      el("line", { x1: 745, x2: 835, y1: 318, y2: 318, stroke: "#2b1d12", "stroke-width": 5 }, view);
+      text(view, 790, 384, target.d, { "font-size": 64, fill: "#2b1d12" });
+    };
+    const ask = () => {
+      const d = pick(round < 3 ? [2, 3, 4] : [3, 4, 6, 8]);
+      const n = pickInt(1, d - 1);
+      target = { n, d };
+      shaded = new Set();
+      draw();
+      $("[data-status]").textContent = `Pizza ${round + 1} of 6`;
+      say(`This pizza is cut into ${d} equal slices. Each slice is 1/${d}. Tap slices to shade ${fracHtml(n, d)}: ${fracWords(n, d)}.`);
+    };
+    $("[data-panel]").onclick = async (event) => {
+      const what = event.target.closest("[data-do]")?.dataset.do;
+      if (!what || my !== token) return;
+      if (what === "clear") {
+        shaded = new Set();
+        draw();
+      }
+      if (what === "check") {
+        if (shaded.size === target.n) {
+          MUSIC.chime();
+          round += 1;
+          window.OC?.count("pizzas");
+          say(`${pick(PRAISE)} ${target.n} slice${target.n === 1 ? "" : "s"} out of ${target.d} is ${fracHtml(target.n, target.d)}.${gcd(target.n, target.d) > 1 ? ` That's the same as ${fracHtml(target.n / gcd(target.n, target.d), target.d / gcd(target.n, target.d))}!` : ""}`);
+          await wait(2600);
+          if (my !== token) return;
+          if (round >= 6) {
+            confetti();
+            shell.mark("f1", { done: true });
+            say("🎉 Pizza master! You can show fractions.");
+            round = 0;
+            await wait(2600);
+          }
+          if (my === token) ask();
+        } else {
+          MUSIC.oops();
+          say(`${pick(KIND)} You shaded ${shaded.size}. The top number, ${target.n}, says how many slices to shade.`);
+        }
+      }
+    };
+    ask();
+  },
+
+  f2() {
+    const my = token;
+    let round = 0;
+    let right = 0;
+    let pair = null;
+    panel(`<p class="ap-status" data-status></p><div data-pick></div>`);
+    const make = () => {
+      const kind = round % 3;
+      if (kind === 0) {
+        const d = pick([4, 5, 6, 8]);
+        let a = pickInt(1, d - 1);
+        let b = pickInt(1, d - 1);
+        if (a === b) b = a === 1 ? 2 : a - 1;
+        return [{ n: a, d }, { n: b, d }];
+      }
+      if (kind === 1) {
+        let d1 = pick([2, 3, 4, 6, 8]);
+        let d2 = pick([2, 3, 4, 6, 8]);
+        if (d1 === d2) d2 = d1 === 2 ? 4 : 2;
+        return [{ n: 1, d: d1 }, { n: 1, d: d2 }];
+      }
+      const pairs = [[[1, 2], [2, 4]], [[1, 2], [3, 8]], [[3, 4], [2, 3]], [[2, 3], [4, 6]], [[1, 3], [1, 4]], [[3, 8], [1, 4]], [[1, 2], [5, 8]]];
+      const [a, b] = pick(pairs);
+      return Math.random() < 0.5 ? [{ n: a[0], d: a[1] }, { n: b[0], d: b[1] }] : [{ n: b[0], d: b[1] }, { n: a[0], d: a[1] }];
+    };
+    const ask = () => {
+      pair = make();
+      fresh();
+      const [a, b] = pair;
+      bar(60, 120, 400, 110, a.d, { shaded: new Set([...Array(a.n).keys()]), tint: "#e0603a" });
+      bar(540, 120, 400, 110, b.d, { shaded: new Set([...Array(b.n).keys()]), tint: "#1e88e5" });
+      text(view, 260, 320, `${a.n}/${a.d}`, { "font-size": 58, fill: "#e0603a" });
+      text(view, 740, 320, `${b.n}/${b.d}`, { "font-size": 58, fill: "#1e88e5" });
+      text(view, W / 2, 440, "Both bars are the same size: one whole.", { "font-size": 24, fill: "#8a7764", "font-weight": 600 });
+      $("[data-status]").textContent = `Question ${round + 1} of 9`;
+      say(`Which is bigger: ${fracHtml(a.n, a.d)} or ${fracHtml(b.n, b.d)}?`);
+      choices($("[data-pick]"), [{ label: `${a.n}/${a.d}`, v: "a" }, { label: "Equal", v: "eq" }, { label: `${b.n}/${b.d}`, v: "b" }], (c, button) => answer(c.v, button));
+    };
+    const answer = async (v, button) => {
+      if (my !== token) return;
+      const [a, b] = pair;
+      const x = a.n * b.d;
+      const y = b.n * a.d;
+      const truth = x === y ? "eq" : x > y ? "a" : "b";
+      round += 1;
+      window.OC?.count("comparisons");
+      const why = a.d === b.d ? "Same size slices, so more slices is bigger." : a.n === b.n ? "Same number of slices, but fewer cuts means bigger slices!" : "Look at how much of each bar is coloured.";
+      if (v === truth) {
+        right += 1;
+        button.classList.add("right");
+        MUSIC.chime();
+        say(`${pick(PRAISE)} ${why}`);
+      } else {
+        button.classList.add("wrong");
+        say(`${pick(KIND)} ${truth === "eq" ? "They're equal!" : `${truth === "a" ? `${a.n}/${a.d}` : `${b.n}/${b.d}`} is bigger.`} ${why}`);
+      }
+      await wait(2800);
+      if (my !== token) return;
+      if (round >= 9) {
+        if (right >= 7) {
+          shell.mark("f2", { done: true });
+          confetti();
+        }
+        say(`${right} out of 9! ${right >= 7 ? "🎉" : "Let's try again."}`);
+        round = 0;
+        right = 0;
+        await wait(2600);
+      }
+      if (my === token) ask();
+    };
+    ask();
+  },
+
+  f3() {
+    const my = token;
+    let round = 0;
+    let q = null;
+    let shaded = new Set();
+    panel(`<p class="ap-status" data-status></p><div class="ap-buttons"><button type="button" class="primary" data-do="check">Check ✓</button><button type="button" data-do="clear">Clear</button></div>`);
+    const draw = () => {
+      fresh();
+      bar(100, 90, 800, 100, q.d, { shaded: new Set([...Array(q.n).keys()]), tint: "#e0603a" });
+      text(view, 50, 152, `${q.n}/${q.d}`, { "font-size": 30, fill: "#e0603a" });
+      bar(100, 280, 800, 100, q.d * q.k, {
+        shaded,
+        tint: "#3f7d4e",
+        onTap: (i) => {
+          if (shaded.has(i)) shaded.delete(i);
+          else shaded.add(i);
+          MUSIC.play("xylophone", 76 + shaded.size, { gain: 0.35 });
+          window.OC?.touch();
+          draw();
+        },
+      });
+      text(view, 50, 342, `?/${q.d * q.k}`, { "font-size": 30, fill: "#3f7d4e" });
+      text(view, W / 2, 470, `${q.n}/${q.d} = ${shaded.size}/${q.d * q.k} ?`, { "font-size": 44, fill: "#2b1d12" });
+    };
+    const ask = () => {
+      const options = [[1, 2, 2], [1, 2, 4], [1, 3, 2], [2, 3, 2], [1, 4, 2], [3, 4, 2], [1, 2, 3], [2, 5, 2], [1, 3, 3], [3, 4, 3]];
+      const [n, d, k] = pick(options);
+      q = { n, d, k };
+      shaded = new Set();
+      draw();
+      $("[data-status]").textContent = `Puzzle ${round + 1} of 6`;
+      say(`The top bar shows ${fracHtml(n, d)}. The bottom bar is cut into ${d * k} parts. Shade the same amount on the bottom bar.`);
+    };
+    $("[data-panel]").onclick = async (event) => {
+      const what = event.target.closest("[data-do]")?.dataset.do;
+      if (!what || my !== token) return;
+      if (what === "clear") {
+        shaded = new Set();
+        draw();
+      }
+      if (what === "check") {
+        const needed = q.n * q.k;
+        const contiguous = [...shaded].sort((a, b) => a - b).every((v, i) => v === i);
+        if (shaded.size === needed) {
+          MUSIC.chime();
+          round += 1;
+          window.OC?.count("equal fractions");
+          say(`${pick(PRAISE)} ${fracHtml(q.n, q.d)} = ${fracHtml(needed, q.d * q.k)}. Multiply the top and bottom by ${q.k} and the fraction stays the same size!`);
+          await wait(3200);
+          if (my !== token) return;
+          if (round >= 6) {
+            confetti();
+            shell.mark("f3", { done: true });
+            say("🎉 You found 6 pairs of equal fractions!");
+            round = 0;
+            await wait(2600);
+          }
+          if (my === token) ask();
+        } else {
+          MUSIC.oops();
+          say(`${pick(KIND)} ${shaded.size > needed ? "That's too much." : "Not enough yet."} Make the green part line up with the orange part above.${contiguous ? "" : " Tip: shade from the left."}`);
+        }
+      }
+    };
+    ask();
+  },
+
+  f4() {
+    const my = token;
+    let round = 0;
+    let q = null;
+    let pad = null;
+    panel(`<p class="ap-status" data-status></p><div class="ap-buttons"><button type="button" class="primary" data-do="share">🍪 Share them out</button></div><div data-pad></div>`);
+    const ask = () => {
+      const d = pick([2, 3, 4, 5]);
+      const each = pickInt(2, round < 3 ? 4 : 6);
+      const n = round < 3 ? 1 : pickInt(1, d - 1);
+      q = { d, each, n, total: d * each, shared: false };
+      fresh();
+      for (let i = 0; i < q.total; i++) text(view, 120 + (i % 12) * 66, 90 + Math.floor(i / 12) * 66, "🍪", { "font-size": 48, class: "ck", "data-i": i });
+      const pw = 860 / d;
+      for (let p = 0; p < d; p++) {
+        el("ellipse", { cx: 70 + pw * p + pw / 2, cy: 430, rx: Math.min(90, pw / 2 - 10), ry: 52, fill: "#fffcf6", stroke: "#c9b8a1", "stroke-width": 4 }, view);
+        if (p < q.n) el("ellipse", { cx: 70 + pw * p + pw / 2, cy: 430, rx: Math.min(98, pw / 2 - 4), ry: 60, fill: "none", stroke: "#e0a96d", "stroke-width": 5, "stroke-dasharray": "10 8" }, view);
+      }
+      $("[data-status]").textContent = `Question ${round + 1} of 6`;
+      $("[data-pad]").innerHTML = "";
+      $("[data-do='share']").hidden = false;
+      say(`What is ${fracHtml(q.n, q.d)} of ${q.total}? We have ${q.total} cookies and ${q.d} plates. Press Share to deal them out equally.`);
+    };
+    const share = async () => {
+      if (q.shared) return;
+      q.shared = true;
+      $("[data-do='share']").hidden = true;
+      const cookies = [...view.querySelectorAll(".ck")];
+      const pw = 860 / q.d;
+      for (let i = 0; i < cookies.length; i++) {
+        if (my !== token) return;
+        const p = i % q.d;
+        const k = Math.floor(i / q.d);
+        const x = 70 + pw * p + pw / 2 + ((k % 3) - 1) * 30;
+        const y = 420 + (Math.floor(k / 3) - 0.5) * 26;
+        cookies[i].setAttribute("x", x);
+        cookies[i].setAttribute("y", y);
+        cookies[i].setAttribute("font-size", 34);
+        MUSIC.play("woodblock", 79, { gain: 0.35 });
+        await wait(170);
+      }
+      say(q.n === 1 ? `How many cookies are on one plate? That's 1/${q.d} of ${q.total}.` : `Each plate has the same. How many cookies are on the ${q.n} plates with dotted rings? That's ${q.n}/${q.d} of ${q.total}.`);
+      pad = numpad($("[data-pad]"), { onEnter: check, max: 3 });
+    };
+    const check = async (v) => {
+      if (my !== token) return;
+      const answer = q.each * q.n;
+      if (v === answer) {
+        MUSIC.chime();
+        round += 1;
+        window.OC?.count("shares");
+        say(`${pick(PRAISE)} ${q.total} ÷ ${q.d} = ${q.each} on each plate${q.n > 1 ? `, and ${q.n} plates make ${answer}` : ""}. So ${fracHtml(q.n, q.d)} of ${q.total} is ${answer}.`);
+        await wait(3400);
+        if (my !== token) return;
+        if (round >= 6) {
+          confetti();
+          shell.mark("f4", { done: true });
+          say("🎉 You can find fractions of numbers!");
+          round = 0;
+          await wait(2600);
+        }
+        if (my === token) ask();
+      } else {
+        MUSIC.oops();
+        pad.clear();
+        say(`${pick(KIND)} Count the cookies on ${q.n === 1 ? "one plate" : `the ${q.n} ringed plates`} and try again.`);
+      }
+    };
+    $("[data-panel]").onclick = (event) => {
+      if (event.target.closest("[data-do='share']")) share();
+    };
+    ask();
+  },
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    f1: { icon: "🍕", title: "Cut the pizza", steps: ["The bottom number says how many slices.", "The top number says how many to colour.", "Tap slices, then press Check."] },
+    f2: { icon: "⚖️", title: "Which is bigger?", steps: ["Look at the two coloured bars.", "Which one has more colour?", "Tap the bigger fraction, or Equal."] },
+    f3: { icon: "🟰", title: "Equal fractions", steps: ["The top bar shows a fraction.", "Colour the bottom bar to match it.", "Press Check."] },
+    f4: { icon: "🍪", title: "Fraction of a number", steps: ["Press Share to put the cookies on plates.", "Count the cookies the question asks for.", "Type the number and press ✓."] },
+  },
+  start: "f1",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Math",
+  activity: "Fraction Kitchen",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    $("[data-panel]").onclick = null;
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [76, 77, 79, 81, 83, 84, 86, 88, 91, 96]);
+MUSIC.preload("woodblock", [79]);
+MUSIC.preload("piano", [64, 67]);
+</script>
+</body>
+</html>

@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Times Tables · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body>
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Times Tables</b><small>Math · Levels 3–4</small></div>
+  <select class="ap-units" data-units aria-label="Unit"></select>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-sound aria-label="Sounds on">🔔</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, pickInt, wait, confetti, PRAISE, KIND, numpad, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "x1", label: "1. Groups and arrays" },
+  { id: "x2", label: "2. Times tables practice" },
+  { id: "x3", label: "3. Soroban multiplication" },
+  { id: "x4", label: "4. Sharing (division)" },
+  { id: "x5", label: "5. Division facts" },
+];
+const fresh = () => {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+};
+const ITEMS = ["🍎", "🍓", "⭐", "🐞", "🌼", "🍪"];
+
+function array(rows, cols, { icon = "🍎", reveal = rows, y0 = 30, h = 420 } = {}) {
+  const size = Math.min(70, (W - 200) / cols, h / rows);
+  const x0 = (W - size * cols) / 2;
+  for (let r = 0; r < Math.min(reveal, rows); r++) {
+    el("rect", { x: x0 - 8, y: y0 + r * size + 2, width: size * cols + 16, height: size - 4, rx: 12, fill: r % 2 ? "#f6ecdc" : "#fbf3e4" }, view);
+    for (let c = 0; c < cols; c++) text(view, x0 + c * size + size / 2, y0 + r * size + size * 0.72, icon, { "font-size": size * 0.68 });
+    text(view, x0 - 40, y0 + r * size + size * 0.66, (r + 1) * cols, { "font-size": Math.max(18, size * 0.36), fill: "#a8632d" });
+  }
+}
+
+function miniSoroban(value, { rods = 6, x0 = 140, y0 = 60, w = 720, h = 320, labels = true } = {}) {
+  const g = el("g", {}, view);
+  const pitch = w / rods;
+  el("rect", { x: x0 - 20, y: y0 - 20, width: w + 40, height: h + 40, rx: 16, fill: "#3a281c" }, g);
+  el("rect", { x: x0, y: y0, width: w, height: h, rx: 6, fill: "#efe6d6" }, g);
+  const beamY = y0 + h * 0.3;
+  const digits = String(value).padStart(rods, "0").slice(-rods).split("").map(Number);
+  for (let i = 0; i < rods; i++) {
+    const cx = x0 + pitch * (i + 0.5);
+    el("line", { x1: cx, x2: cx, y1: y0, y2: y0 + h, stroke: "#c9b28a", "stroke-width": 5 }, g);
+    const d = digits[i];
+    const bw = pitch * 0.42;
+    const bh = h * 0.1;
+    const bead = (cy, on) => {
+      el("path", { d: `M${cx - bw} ${cy}L${cx} ${cy - bh / 2}L${cx + bw} ${cy}L${cx} ${cy + bh / 2}Z`, fill: on ? "#a8632d" : "#7a4520", stroke: "#2e1606", "stroke-width": 1.5, opacity: on ? 1 : 0.55 }, g);
+      el("path", { d: `M${cx - bw * 0.7} ${cy - 2}L${cx} ${cy - bh / 2 + 3}L${cx + bw * 0.5} ${cy - 3}`, fill: "none", stroke: "#f3cf98", "stroke-width": 2, opacity: on ? 0.8 : 0.3 }, g);
+    };
+    const heavenOn = d >= 5;
+    bead(heavenOn ? beamY - bh * 0.6 : y0 + bh * 0.8, heavenOn);
+    const earth = d % 5;
+    for (let j = 0; j < 4; j++) {
+      const on = j < earth;
+      const cy = on ? beamY + bh * 0.6 + j * bh : beamY + bh * 0.6 + (j + 1) * bh + h * 0.05;
+      bead(cy, on);
+    }
+    if (labels) text(g, cx, y0 + h + 52, d, { "font-size": 30, fill: "#2b1d12" });
+  }
+  el("rect", { x: x0, y: beamY - 4, width: w, height: 8, fill: "#3a281c" }, g);
+  return g;
+}
+
+const units = {
+  x1() {
+    const my = token;
+    let round = 0;
+    let q;
+    let pad;
+    panel(`<p class="ap-status" data-status></p><div data-pad></div>`);
+    const ask = async () => {
+      const rows = pickInt(2, round < 4 ? 5 : 8);
+      const cols = pickInt(2, round < 4 ? 5 : 8);
+      q = { rows, cols, icon: pick(ITEMS) };
+      $("[data-status]").textContent = `Array ${round + 1} of 6`;
+      $("[data-pad]").innerHTML = "";
+      say(`Watch the rows. ${rows} rows of ${cols}. Count by ${cols}s!`);
+      for (let r = 1; r <= rows; r++) {
+        if (my !== token) return;
+        fresh();
+        array(rows, cols, { icon: q.icon, reveal: r });
+        MUSIC.play("xylophone", 72 + Math.min(24, r * 2), { gain: 0.4 });
+        await wait(700);
+      }
+      if (my !== token) return;
+      say(`${rows} rows of ${cols}. What is ${rows} × ${cols}?`);
+      pad = numpad($("[data-pad]"), { onEnter: check, max: 3 });
+    };
+    const check = async (v) => {
+      if (my !== token) return;
+      if (v === q.rows * q.cols) {
+        MUSIC.chime();
+        round += 1;
+        window.OC?.count("arrays");
+        say(`${pick(PRAISE)} ${q.rows} × ${q.cols} = ${q.rows * q.cols}. And ${q.cols} × ${q.rows} is the same: just turn the array sideways!`);
+        await wait(3200);
+        if (my !== token) return;
+        if (round >= 6) {
+          confetti();
+          shell.mark("x1", { done: true });
+          say("🎉 Array expert!");
+          round = 0;
+          await wait(2400);
+        }
+        if (my === token) ask();
+      } else {
+        MUSIC.oops();
+        pad.clear();
+        say(`${pick(KIND)} Read the numbers at the end of each row: they count by ${q.cols}s. The last one is the answer.`);
+      }
+    };
+    ask();
+  },
+
+  x2() {
+    const my = token;
+    let table = shell.progress().x2?.next || 2;
+    let list = [];
+    let at = 0;
+    let right = 0;
+    let missed = false;
+    let started = 0;
+    let pad;
+    let timer;
+    panel(`<div class="ap-chips" data-tables>${[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, "Mixed"].map((t) => `<button type="button" data-t="${t}">${t === "Mixed" ? "Mixed" : `×${t}`}</button>`).join("")}</div><p class="ap-status" data-status></p><div data-pad></div>`);
+    const status = () => {
+      const secs = Math.round((performance.now() - started) / 1000);
+      $("[data-status]").textContent = `Question ${Math.min(at + 1, 12)} of 12 · ${right} right · ⏱ ${secs}s`;
+    };
+    const start = (t) => {
+      table = t;
+      document.querySelectorAll("[data-t]").forEach((b) => b.setAttribute("aria-pressed", String(String(b.dataset.t) === String(t))));
+      list = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]).map((k) => (t === "Mixed" ? [pickInt(2, 12), k] : [t, k]));
+      at = 0;
+      right = 0;
+      started = performance.now();
+      clearInterval(timer);
+      timer = setInterval(() => (my === token ? status() : clearInterval(timer)), 1000);
+      pad = numpad($("[data-pad]"), { onEnter: check, max: 3 });
+      show();
+    };
+    const show = () => {
+      missed = false;
+      const [a, b] = list[at];
+      fresh();
+      text(view, W / 2, 300, `${a} × ${b} = ?`, { "font-size": 110, fill: "#2b1d12" });
+      status();
+      say(`${a} times ${b}`, { voice: true });
+      pad.clear();
+    };
+    const check = async (v) => {
+      if (my !== token) return;
+      const [a, b] = list[at];
+      if (v === a * b) {
+        if (!missed) right += 1;
+        MUSIC.play("xylophone", 84 + (at % 8), { gain: 0.5 });
+        at += 1;
+        window.OC?.count("facts");
+        if (at >= 12) return finish();
+        show();
+      } else {
+        if (!missed) MUSIC.oops();
+        missed = true;
+        pad.clear();
+        fresh();
+        array(a, Math.min(b, 12), { icon: "⭐", y0: 20, h: 380 });
+        text(view, W / 2, 470, `${a} × ${b} = ${a * b}`, { "font-size": 50, fill: "#3f7d4e" });
+        say(`${pick(KIND)} ${a} groups of ${b} make ${a * b}. Type ${a * b} to go on.`);
+      }
+    };
+    const finish = () => {
+      clearInterval(timer);
+      const secs = Math.round((performance.now() - started) / 1000);
+      MUSIC.chime();
+      confetti();
+      const best = shell.progress().x2?.best || {};
+      const key = String(table);
+      const better = !best[key] || right > best[key].right || (right === best[key].right && secs < best[key].secs);
+      if (better) best[key] = { right, secs };
+      const doneTables = new Set(shell.progress().x2?.tables || []);
+      if (right >= 11) doneTables.add(key);
+      const nextTable = typeof table === "number" && right >= 11 ? Math.min(12, table + 1) : table;
+      shell.mark("x2", { best, tables: [...doneTables], next: nextTable === "Mixed" ? 2 : nextTable, done: doneTables.size >= 6 });
+      window.OC?.note(`×${table}`, `${right}/12 in ${secs}s`);
+      fresh();
+      text(view, W / 2, 230, `${right} / 12`, { "font-size": 110, fill: "#2b1d12" });
+      text(view, W / 2, 320, `in ${secs} seconds${better ? " · best yet!" : ""}`, { "font-size": 36, fill: "#a8632d" });
+      say(`🎉 ${right} out of 12 in ${secs} seconds!${better ? " Your best yet!" : ""} ${right >= 11 && typeof table === "number" && table < 12 ? `Ready for the ${table + 1} times table!` : "Pick a table to play again."}`);
+    };
+    $("[data-tables]").addEventListener("click", (event) => {
+      const b = event.target.closest("[data-t]");
+      if (b) start(b.dataset.t === "Mixed" ? "Mixed" : Number(b.dataset.t));
+    });
+    start(table);
+  },
+
+  x3() {
+    const my = token;
+    let round = 0;
+    let q;
+    let step = 0;
+    let total = 0;
+    let pad;
+    panel(`<p class="ap-status" data-status></p><div data-pad></div>`);
+    const draw = (note) => {
+      fresh();
+      miniSoroban(total, { y0: 40, h: 300 });
+      text(view, W / 2, 470, note, { "font-size": 34, fill: "#2b1d12" });
+    };
+    const ask = () => {
+      const a = pickInt(12, round < 3 ? 49 : 98);
+      const b = pickInt(2, 9);
+      const tens = Math.floor(a / 10);
+      const ones = a % 10;
+      q = { a, b, tens, ones };
+      step = 0;
+      total = 0;
+      $("[data-status]").textContent = `Problem ${round + 1} of 5 · ${a} × ${b}`;
+      draw(`${a} × ${b}`);
+      pad = numpad($("[data-pad]"), { onEnter: check, max: 4 });
+      say(`Let's do ${a} times ${b} on the soroban, one part at a time. First the tens: ${b} times ${tens} tens. What is ${b} × ${tens}?`);
+    };
+    const check = async (v) => {
+      if (my !== token) return;
+      const { a, b, tens, ones } = q;
+      const want = step === 0 ? b * tens : step === 1 ? b * ones : a * b;
+      if (v !== want) {
+        MUSIC.oops();
+        pad.clear();
+        say(step === 2 ? `${pick(KIND)} Read the number on the soroban.` : `${pick(KIND)} ${step === 0 ? `${b} × ${tens}` : `${b} × ${ones}`} is ${want}. Try typing ${want}.`);
+        return;
+      }
+      MUSIC.play("woodblock", 79, { gain: 0.6 });
+      pad.clear();
+      if (step === 0) {
+        total = b * tens * 10;
+        draw(`${b} × ${tens} tens = ${b * tens} tens = ${total}`);
+        step = 1;
+        say(`${pick(PRAISE)} ${b * tens} tens is ${total}. It goes on the soroban. Now the ones: what is ${b} × ${ones}?`);
+      } else if (step === 1) {
+        total += b * ones;
+        draw(`${b * tens * 10} + ${b * ones} = ?`);
+        step = 2;
+        say(`${pick(PRAISE)} Add ${b * ones} onto the soroban. What number does it show now?`);
+      } else {
+        MUSIC.chime();
+        round += 1;
+        window.OC?.count("soroban products");
+        draw(`${a} × ${b} = ${a * b}`);
+        say(`🎉 ${a} × ${b} = ${a * b}. Tens part ${b * tens * 10}, plus ones part ${b * ones}.`);
+        await wait(3600);
+        if (my !== token) return;
+        if (round >= 5) {
+          confetti();
+          shell.mark("x3", { done: true });
+          say("🎉 Soroban multiplier!");
+          round = 0;
+          await wait(2400);
+        }
+        if (my === token) ask();
+      }
+    };
+    ask();
+  },
+
+  x4() {
+    const my = token;
+    let round = 0;
+    let q;
+    let pad;
+    panel(`<p class="ap-status" data-status></p><div class="ap-buttons"><button type="button" class="primary" data-do="deal">🍪 Deal them out</button></div><div data-pad></div>`);
+    const ask = () => {
+      const k = pickInt(2, round < 3 ? 4 : 6);
+      const each = pickInt(2, round < 3 ? 4 : 7);
+      const extra = round >= 4 ? pickInt(0, k - 1) : 0;
+      q = { k, each, extra, total: k * each + extra, dealt: false };
+      fresh();
+      for (let i = 0; i < q.total; i++) text(view, 110 + (i % 13) * 60, 80 + Math.floor(i / 13) * 60, "🍪", { "font-size": 44, class: "ck" });
+      const pw = 860 / k;
+      for (let p = 0; p < k; p++) {
+        text(view, 70 + pw * p + pw / 2, 345, pick(["🐻", "🐰", "🐱", "🐶", "🐼", "🦊"]), { "font-size": 44 });
+        el("ellipse", { cx: 70 + pw * p + pw / 2, cy: 450, rx: Math.min(90, pw / 2 - 10), ry: 50, fill: "#fffcf6", stroke: "#c9b8a1", "stroke-width": 4 }, view);
+      }
+      $("[data-status]").textContent = `Question ${round + 1} of 6 · ${q.total} ÷ ${k}`;
+      $("[data-pad]").innerHTML = "";
+      $("[data-do='deal']").hidden = false;
+      say(`${q.total} cookies shared between ${k} friends. Press Deal to give them out one at a time.`);
+    };
+    const deal = async () => {
+      if (q.dealt) return;
+      q.dealt = true;
+      $("[data-do='deal']").hidden = true;
+      const cookies = [...view.querySelectorAll(".ck")];
+      const pw = 860 / q.k;
+      for (let i = 0; i < q.k * q.each; i++) {
+        if (my !== token) return;
+        const p = i % q.k;
+        const j = Math.floor(i / q.k);
+        cookies[i].setAttribute("x", 70 + pw * p + pw / 2 + ((j % 4) - 1.5) * 24);
+        cookies[i].setAttribute("y", 445 + (Math.floor(j / 4) - 0.3) * 24);
+        cookies[i].setAttribute("font-size", 28);
+        MUSIC.play("woodblock", 79, { gain: 0.3 });
+        await wait(150);
+      }
+      say(`How many cookies does each friend get?${q.extra ? ` There ${q.extra === 1 ? "is" : "are"} ${q.extra} left over that can't be shared equally.` : ""}`);
+      pad = numpad($("[data-pad]"), { onEnter: check, max: 2 });
+    };
+    const check = async (v) => {
+      if (my !== token) return;
+      if (v === q.each) {
+        MUSIC.chime();
+        round += 1;
+        window.OC?.count("shares");
+        say(`${pick(PRAISE)} ${q.total} ÷ ${q.k} = ${q.each}${q.extra ? ` remainder ${q.extra}` : ""}. Check: ${q.k} × ${q.each}${q.extra ? ` + ${q.extra}` : ""} = ${q.total}.`);
+        await wait(3400);
+        if (my !== token) return;
+        if (round >= 6) {
+          confetti();
+          shell.mark("x4", { done: true });
+          say("🎉 Great sharing!");
+          round = 0;
+          await wait(2400);
+        }
+        if (my === token) ask();
+      } else {
+        MUSIC.oops();
+        pad.clear();
+        say(`${pick(KIND)} Count the cookies on one plate.`);
+      }
+    };
+    $("[data-panel]").onclick = (event) => {
+      if (event.target.closest("[data-do='deal']")) deal();
+    };
+    ask();
+  },
+
+  x5() {
+    const my = token;
+    let list = [];
+    let at = 0;
+    let right = 0;
+    let missed = false;
+    let pad;
+    panel(`<p class="ap-status" data-status></p><div data-pad></div>`);
+    const start = () => {
+      list = Array.from({ length: 12 }, () => {
+        const b = pickInt(2, 10);
+        const c = pickInt(2, 10);
+        return [b * c, b, c];
+      });
+      at = 0;
+      right = 0;
+      pad = numpad($("[data-pad]"), { onEnter: check, max: 2 });
+      show();
+    };
+    const show = () => {
+      missed = false;
+      const [n, b] = list[at];
+      fresh();
+      text(view, W / 2, 260, `${n} ÷ ${b} = ?`, { "font-size": 110, fill: "#2b1d12" });
+      text(view, W / 2, 360, `Think: ${b} × ? = ${n}`, { "font-size": 34, fill: "#8a7764" });
+      $("[data-status]").textContent = `Question ${at + 1} of 12 · ${right} right`;
+      say(`${n} divided by ${b}`);
+      pad.clear();
+    };
+    const check = async (v) => {
+      if (my !== token) return;
+      const [n, b, c] = list[at];
+      if (v === c) {
+        if (!missed) right += 1;
+        MUSIC.play("xylophone", 84 + (at % 8), { gain: 0.5 });
+        at += 1;
+        window.OC?.count("division facts");
+        if (at < 12) return show();
+        MUSIC.chime();
+        confetti();
+        if (right >= 10) shell.mark("x5", { done: true });
+        fresh();
+        text(view, W / 2, 260, `${right} / 12`, { "font-size": 110, fill: "#2b1d12" });
+        say(`🎉 ${right} out of 12! ${right >= 10 ? "Division star!" : "Practise the times tables and try again."}`);
+        await wait(3000);
+        if (my === token) start();
+      } else {
+        if (!missed) MUSIC.oops();
+        missed = true;
+        pad.clear();
+        say(`${pick(KIND)} ${b} × ${c} = ${n}, so ${n} ÷ ${b} = ${c}. Type ${c}.`);
+      }
+    };
+    start();
+  },
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    x1: { icon: "🍎", title: "Groups and arrays", steps: ["Watch the rows of apples appear.", "Count by rows: the numbers help!", "Type how many apples, then press ✓."] },
+    x2: { icon: "✖️", title: "Times tables", steps: ["Pick a times table at the top.", "Type the answer and press ✓.", "Go as fast as you can!"] },
+    x3: { icon: "🧮", title: "Soroban multiplication", steps: ["We multiply in two parts: tens, then ones.", "Type each answer and press ✓.", "The soroban adds them up for you."] },
+    x4: { icon: "🍪", title: "Sharing", steps: ["Press Deal to share the cookies.", "Count how many one friend gets.", "Type it and press ✓."] },
+    x5: { icon: "➗", title: "Division facts", steps: ["Look at the question.", "Think: what times the small number makes the big one?", "Type it and press ✓."] },
+  },
+  start: "x1",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Math",
+  activity: "Times Tables & Division",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    $("[data-panel]").onclick = null;
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 78, 80, 82, 84, 85, 86, 87, 88, 89, 90, 91, 96]);
+MUSIC.preload("woodblock", [79]);
+MUSIC.preload("piano", [64, 67]);
+</script>
+</body>
+</html>

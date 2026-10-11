@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Number Fun · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body>
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Number Fun</b><small>Math · Foundations</small></div>
+  <select class="ap-units" data-units aria-label="Unit"></select>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-sound aria-label="Sounds on">🔔</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, pickInt, wait, confetti, PRAISE, KIND, choices } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "n1", label: "1. Hundred chart" },
+  { id: "n2", label: "2. Frog jumps (number line)" },
+  { id: "n3", label: "3. Make 10" },
+  { id: "n4", label: "4. Bigger or smaller?" },
+];
+
+function fresh() {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+}
+const nice = (n) => n;
+
+function chart({ onTap, upto = 100 }) {
+  const g = el("g", {}, view);
+  const size = 52;
+  const x0 = (W - size * 10) / 2;
+  const y0 = 18;
+  const cells = new Map();
+  for (let n = 1; n <= upto; n++) {
+    const r = Math.floor((n - 1) / 10);
+    const c = (n - 1) % 10;
+    const cell = el("g", { class: "nc-cell", "data-n": n, transform: `translate(${x0 + c * size} ${y0 + r * size})` }, g);
+    el("rect", { width: size - 4, height: size - 4, rx: 9, fill: "#fffcf6", stroke: "#d9cdb5", "stroke-width": 2 }, cell);
+    text(cell, (size - 4) / 2, size / 2 + 5, n, { "font-size": 20, fill: "#4d3c2e" });
+    cells.set(n, cell);
+  }
+  g.addEventListener("pointerdown", (event) => {
+    const cell = event.target.closest(".nc-cell");
+    if (cell) onTap(Number(cell.dataset.n), cell);
+  });
+  return {
+    paint(n, color = "#f2c94c") {
+      cells.get(n)?.querySelector("rect").setAttribute("fill", color);
+    },
+    flash(n, color = "#f6dcd4") {
+      const rect = cells.get(n)?.querySelector("rect");
+      if (!rect) return;
+      const before = rect.getAttribute("fill");
+      rect.setAttribute("fill", color);
+      setTimeout(() => rect.setAttribute("fill", before), 500);
+    },
+  };
+}
+
+const units = {
+  n1() {
+    const my = token;
+    let modeName = "count";
+    let next = 1;
+    let goal = 20;
+    let target = 0;
+    let round = 0;
+    let step = 2;
+    panel(`<div class="ap-chips" data-modes><button type="button" data-m="count" aria-pressed="true">Count to 20</button><button type="button" data-m="count100">Count to 100</button><button type="button" data-m="find">Find the number</button><button type="button" data-m="skip2">Skip by 2</button><button type="button" data-m="skip5">Skip by 5</button><button type="button" data-m="skip10">Skip by 10</button></div><p class="ap-status" data-status></p>`);
+    let grid;
+    const start = (m) => {
+      modeName = m;
+      fresh();
+      grid = chart({ onTap: tap });
+      document.querySelectorAll("[data-m]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.m === m)));
+      round = 0;
+      if (m === "count" || m === "count100") {
+        next = 1;
+        goal = m === "count" ? 20 : 100;
+        say(`Tap the numbers in order, starting with 1. Count out loud with me!`);
+      } else if (m === "find") {
+        ask();
+      } else {
+        step = Number(m.slice(4));
+        next = step;
+        say(`Skip counting by ${step}! Tap ${step}, then keep jumping by ${step}.`);
+      }
+      status();
+    };
+    const status = () => {
+      const box = $("[data-status]");
+      if (modeName.startsWith("count")) box.textContent = `Next: ${next <= goal ? next : "done!"}`;
+      else if (modeName === "find") box.textContent = `Round ${round + 1} of 8`;
+      else box.textContent = `Next: ${next <= 100 ? next : "done!"}`;
+    };
+    const ask = () => {
+      target = pickInt(round < 3 ? 1 : 11, round < 3 ? 30 : 100);
+      say(`Find <b>${target}</b>!`);
+    };
+    const tap = (n) => {
+      if (my !== token) return;
+      window.OC?.touch();
+      if (modeName.startsWith("count") || modeName.startsWith("skip")) {
+        if (n === next) {
+          grid.paint(n, modeName.startsWith("skip") ? "#9fd3a8" : "#f2c94c");
+          MUSIC.play("xylophone", 72 + [0, 2, 4, 5, 7, 9, 11, 12][(n - 1) % 8], { gain: 0.45 });
+          VOICE.speak(String(n));
+          next += modeName.startsWith("skip") ? step : 1;
+          status();
+          const end = modeName.startsWith("skip") ? 100 : goal;
+          if (next > end) {
+            MUSIC.chime();
+            confetti();
+            shell.mark("n1", { done: true });
+            window.OC?.count("counts finished");
+            say(modeName.startsWith("skip") ? `🎉 You skip counted by ${step} all the way to 100! See the pattern?` : `🎉 You counted to ${goal}!`);
+          }
+        } else grid.flash(n);
+      } else if (modeName === "find") {
+        if (n === target) {
+          grid.paint(n, "#9fd3a8");
+          MUSIC.chime();
+          round += 1;
+          status();
+          window.OC?.count("numbers found");
+          if (round >= 8) {
+            confetti();
+            shell.mark("n1", { done: true });
+            say("🎉 You found all 8 numbers!");
+            return;
+          }
+          say(`${pick(PRAISE)} That's ${n}.`);
+          setTimeout(() => my === token && ask(), 1300);
+        } else {
+          grid.flash(n);
+          const hint = Math.floor(target / 10) === Math.floor((n - (n % 10 === 0 ? 1 : 0)) / 10) ? "You're on the right row!" : target > n ? "Look further down." : "Look further up.";
+          say(`That's ${n}. ${hint} Find ${target}.`);
+        }
+      }
+    };
+    $("[data-modes]").addEventListener("click", (event) => {
+      const b = event.target.closest("[data-m]");
+      if (b) start(b.dataset.m);
+    });
+    start("count");
+  },
+
+  n2() {
+    const my = token;
+    let round = 0;
+    let right = 0;
+    let q = null;
+    let busy = false;
+    panel(`<p class="ap-status" data-status></p><div class="ap-buttons"><button type="button" data-do="again">🔁 Say it again</button></div>`);
+    const MAX = 20;
+    const xOf = (n) => 60 + (n / MAX) * 880;
+    const LY = 380;
+    let frog;
+    const draw = () => {
+      fresh();
+      el("rect", { x: 0, y: LY + 18, width: W, height: H - LY, fill: "#e3f0d6" }, view);
+      el("line", { x1: 40, x2: 960, y1: LY, y2: LY, stroke: "#5a4130", "stroke-width": 5, "stroke-linecap": "round" }, view);
+      for (let n = 0; n <= MAX; n++) {
+        const g = el("g", { class: "nl-tick", "data-n": n }, view);
+        el("rect", { x: xOf(n) - 20, y: LY - 40, width: 40, height: 110, fill: "transparent" }, g);
+        el("line", { x1: xOf(n), x2: xOf(n), y1: LY - 14, y2: LY + 14, stroke: "#5a4130", "stroke-width": 4 }, g);
+        text(g, xOf(n), LY + 48, n, { "font-size": 24, fill: "#4d3c2e" });
+      }
+      frog = el("g", {}, view);
+      text(frog, 0, 0, "🐸", { "font-size": 56 });
+      view.addEventListener("pointerdown", (event) => {
+        const tick = event.target.closest(".nl-tick");
+        if (tick) answer(Number(tick.dataset.n));
+      });
+    };
+    const place = (n, lift = 0) => frog.setAttribute("transform", `translate(${xOf(n)} ${LY - 26 - lift})`);
+    const hop = async (from, to) => {
+      const dir = Math.sign(to - from);
+      for (let n = from; n !== to; n += dir) {
+        for (let t = 0; t <= 1; t += 0.2) {
+          const x = n + dir * t;
+          frog.setAttribute("transform", `translate(${xOf(x)} ${LY - 26 - Math.sin(t * Math.PI) * 60})`);
+          await wait(28);
+        }
+        MUSIC.play("xylophone", 72 + Math.min(24, Math.abs(n + dir - from) * 2), { gain: 0.4 });
+        VOICE.speak(String(Math.abs(n + dir - from)));
+        await wait(260);
+      }
+    };
+    const ask = () => {
+      const back = round >= 4 && Math.random() < 0.5;
+      const start = back ? pickInt(5, MAX) : pickInt(0, 12);
+      const jump = back ? pickInt(1, Math.min(6, start)) : pickInt(1, Math.min(8, MAX - start));
+      q = { start, jump, back, end: back ? start - jump : start + jump };
+      place(start);
+      $("[data-status]").textContent = `Jump ${round + 1} of 8`;
+      say(`The frog is on ${start}. It jumps ${back ? "back" : ""} ${jump}. Where will it land? Tap the number!`);
+      busy = false;
+    };
+    const answer = async (n) => {
+      if (my !== token || !q || busy) return;
+      busy = true;
+      window.OC?.touch();
+      await hop(q.start, q.end);
+      if (my !== token) return;
+      const ok = n === q.end;
+      round += 1;
+      if (ok) {
+        right += 1;
+        MUSIC.chime();
+        say(`${pick(PRAISE)} ${q.start} ${q.back ? "−" : "+"} ${q.jump} = ${q.end}.`);
+      } else {
+        say(`${pick(KIND)} You picked ${n}. Count the hops: ${q.start} ${q.back ? "−" : "+"} ${q.jump} = ${q.end}.`);
+      }
+      window.OC?.count("jumps");
+      await wait(2600);
+      if (my !== token) return;
+      if (round >= 8) {
+        if (right >= 6) {
+          shell.mark("n2", { done: true });
+          confetti();
+        }
+        say(`${right} out of 8! ${right >= 6 ? "Super jumping! 🎉" : "Let's practise more jumps."}`);
+        round = 0;
+        right = 0;
+        await wait(3000);
+      }
+      if (my === token) ask();
+    };
+    $("[data-do]")?.addEventListener("click", () => q && say(`The frog is on ${q.start}. It jumps ${q.back ? "back" : ""} ${q.jump}. Where will it land?`));
+    draw();
+    ask();
+  },
+
+  n3() {
+    const my = token;
+    let have = 0;
+    let added = 0;
+    let rounds = 0;
+    panel(`<p class="ap-status" data-status></p><div class="ap-buttons"><button type="button" data-do="new">Next ▶</button></div>`);
+    const draw = () => {
+      fresh();
+      const size = 120;
+      const x0 = (W - size * 5) / 2;
+      const y0 = 110;
+      el("rect", { x: x0 - 14, y: y0 - 14, width: size * 5 + 28, height: size * 2 + 28, rx: 20, fill: "#7a4520" }, view);
+      for (let i = 0; i < 10; i++) {
+        const c = i % 5;
+        const r = Math.floor(i / 5);
+        const cell = el("g", { class: "tf-cell", "data-i": i, transform: `translate(${x0 + c * size} ${y0 + r * size})` }, view);
+        el("rect", { width: size - 8, height: size - 8, x: 4, y: 4, rx: 12, fill: "#fffcf6" }, cell);
+        el("circle", { class: "tf-dot", cx: size / 2, cy: size / 2, r: 38, fill: i < have ? "#e53935" : "transparent" }, cell);
+      }
+      text(view, W / 2, 470, "", { class: "tf-sum", "font-size": 46, fill: "#2b1d12" });
+      view.addEventListener("pointerdown", (event) => {
+        const cell = event.target.closest(".tf-cell");
+        if (cell) fill(Number(cell.dataset.i));
+      });
+    };
+    const fill = async (i) => {
+      if (my !== token) return;
+      const dots = view.querySelectorAll(".tf-dot");
+      const next = have + added;
+      if (next >= 10) return;
+      dots[next].setAttribute("fill", "#1e88e5");
+      added += 1;
+      window.OC?.touch();
+      MUSIC.play("xylophone", 72 + [0, 2, 4, 5, 7, 9, 11, 12, 14, 16][next], { gain: 0.5 });
+      VOICE.speak(String(added));
+      view.querySelector(".tf-sum").textContent = `${have} + ${added} = ${have + added}`;
+      if (have + added === 10) {
+        MUSIC.chime();
+        rounds += 1;
+        window.OC?.count("tens made");
+        if (rounds >= 5) shell.mark("n3", { done: true });
+        if (rounds % 5 === 0) confetti();
+        await wait(500);
+        say(`${pick(PRAISE)} ${have} and ${added} make 10! ${have} and ${added} are friends of 10.`);
+      }
+    };
+    const round = () => {
+      have = pickInt(1, 9);
+      added = 0;
+      draw();
+      $("[data-status]").textContent = `Round ${rounds + 1}`;
+      say(`There are ${have} red counters. Tap the empty boxes to add blue ones until it makes 10. How many do we need?`);
+    };
+    $("[data-do]").addEventListener("click", round);
+    round();
+  },
+
+  n4() {
+    const my = token;
+    let round = 0;
+    let right = 0;
+    let pair = [];
+    panel(`<p class="ap-status" data-status></p><div data-pick></div>`);
+    const blocks = (n, x0) => {
+      const tens = Math.floor(n / 10);
+      const ones = n % 10;
+      for (let t = 0; t < tens; t++) {
+        el("rect", { x: x0 + t * 26, y: 120, width: 20, height: 200, rx: 4, fill: "#e0a96d", stroke: "#a8632d", "stroke-width": 2 }, view);
+        for (let k = 1; k < 10; k++) el("line", { x1: x0 + t * 26, x2: x0 + t * 26 + 20, y1: 120 + k * 20, y2: 120 + k * 20, stroke: "#a8632d", "stroke-width": 1 }, view);
+      }
+      for (let o = 0; o < ones; o++) el("rect", { x: x0 + tens * 26 + 12 + (o % 3) * 24, y: 300 - Math.floor(o / 3) * 24, width: 20, height: 20, rx: 3, fill: "#9fd3a8", stroke: "#3f7d4e", "stroke-width": 2 }, view);
+    };
+    const ask = () => {
+      const max = round < 4 ? 20 : 99;
+      let a = pickInt(1, max);
+      let b = pickInt(1, max);
+      if (Math.random() < 0.1) b = a;
+      while (b === a && Math.random() < 0.9) b = pickInt(1, max);
+      pair = [a, b];
+      fresh();
+      text(view, 250, 80, a, { "font-size": 64, fill: "#2b1d12" });
+      text(view, 750, 80, b, { "font-size": 64, fill: "#2b1d12" });
+      blocks(a, 120);
+      blocks(b, 620);
+      el("line", { x1: 500, x2: 500, y1: 40, y2: 380, stroke: "#d9cdb5", "stroke-width": 3, "stroke-dasharray": "8 8" }, view);
+      text(view, W / 2, 470, "Orange sticks are tens · green cubes are ones", { "font-size": 22, fill: "#8a7764", "font-weight": 600 });
+      $("[data-status]").textContent = `Question ${round + 1} of 8`;
+      say(`Which number is bigger: ${a} or ${b}?`);
+      choices($("[data-pick]"), [{ label: `${a}`, v: "a" }, { label: "They're equal", v: "eq" }, { label: `${b}`, v: "b" }], (choice, button) => answer(choice.v, button));
+    };
+    const answer = async (v, button) => {
+      if (my !== token) return;
+      const [a, b] = pair;
+      const truth = a === b ? "eq" : a > b ? "a" : "b";
+      round += 1;
+      window.OC?.count("comparisons");
+      if (v === truth) {
+        right += 1;
+        button.classList.add("right");
+        MUSIC.chime();
+        say(`${pick(PRAISE)} ${a === b ? `${a} = ${b}` : `${Math.max(a, b)} is bigger than ${Math.min(a, b)}`}.${a !== b && Math.floor(a / 10) !== Math.floor(b / 10) ? " Count the tens first!" : ""}`);
+      } else {
+        button.classList.add("wrong");
+        say(`${pick(KIND)} ${a === b ? "They're the same!" : `${Math.max(a, b)} is bigger.`} Compare the tens first, then the ones.`);
+      }
+      await wait(2400);
+      if (my !== token) return;
+      if (round >= 8) {
+        if (right >= 6) {
+          shell.mark("n4", { done: true });
+          confetti();
+        }
+        say(`${right} out of 8! ${right >= 6 ? "🎉" : "Let's try again."}`);
+        round = 0;
+        right = 0;
+        await wait(2600);
+      }
+      if (my === token) ask();
+    };
+    ask();
+  },
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    n1: { icon: "🔢", title: "Hundred chart", steps: ["Tap the numbers in order: 1, 2, 3…", "Count out loud with me!", "Try the buttons below for more games."] },
+    n2: { icon: "🐸", title: "Frog jumps", steps: ["The frog sits on a number.", "Listen: how far does it jump?", "Tap the number where it will land."] },
+    n3: { icon: "🔟", title: "Make 10", steps: ["Some boxes have red dots.", "Tap the empty boxes to fill them.", "How many more make 10?"] },
+    n4: { icon: "🐊", title: "Bigger or smaller?", steps: ["Look at the two numbers.", "Tap the bigger one.", "Orange sticks are tens. Green cubes are ones."] },
+  },
+  start: "n1",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Math",
+  activity: "Number Fun",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 77, 79, 81, 83, 84, 86, 88, 91, 96]);
+</script>
+</body>
+</html>

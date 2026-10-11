@@ -1,7 +1,7 @@
 (() => {
   const $ = (selector) => document.querySelector(selector);
 
-  function shell({ units, start, onUnit, subject, activity }) {
+  function shell({ units, start, onUnit, onStop, subject, activity, how = {} }) {
     const select = $("[data-units]");
     const learner = () => (window.OC ? OC.current() : "") || "Learner";
     const progress = () => MUSIC.progress.of(learner());
@@ -17,10 +17,33 @@
       current = id;
       render();
       VOICE.hush();
+      onStop?.();
       const unit = units.find((item) => item.id === id);
       window.OC?.begin(subject, activity, unit.label.replace(/^\d+\.\s*/, ""));
-      onUnit(id, unit);
+      const card = how[id];
+      const seen = progress()[id]?.seen;
+      if (card && window.KIT && !seen) {
+        const panel = $("[data-panel]");
+        panel.onclick = null;
+        panel.innerHTML = `<p class="ap-say">Read the steps, then press <b>Let's go!</b></p>`;
+        KIT.howTo(card).then(() => {
+          if (current !== id) return;
+          MUSIC.progress.mark(learner(), id, { seen: true });
+          onUnit(id, unit);
+        });
+      } else onUnit(id, unit);
     };
+    const helpButton = $("[data-help]");
+    if (helpButton) {
+      helpButton.hidden = !Object.keys(how).length;
+      helpButton.addEventListener("click", () => {
+        const card = how[current];
+        if (!card || !window.KIT) return;
+        VOICE.hush();
+        onStop?.();
+        KIT.howTo(card).then(() => go(current));
+      });
+    }
     select.addEventListener("change", () => go(select.value));
 
     const voiceButton = $("[data-voice]");
