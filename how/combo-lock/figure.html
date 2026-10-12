@@ -1486,8 +1486,15 @@ function EXPLORE(cfg) {
 
   // Speech: inside the site the page around the figure reads aloud with its natural voice;
   // standing alone, the browser's own voice does.
+  // Call the site's voice directly, inside the tap itself: Safari and iPad only allow speech
+  // that starts during the tap, so a message to the page (which arrives later) stays silent.
+  const host = () => { try { return window.parent !== window && window.parent.VOICE ? window.parent.VOICE : null; } catch (error) { return null; } };
+  addEventListener("pointerdown", () => { try { host()?.unlock?.(); } catch (error) {} }, { capture: true });
+  addEventListener("keydown", () => { try { host()?.unlock?.(); } catch (error) {} }, { capture: true });
   function say(text) {
     try {
+      const voice = host();
+      if (voice) { voice.unlock?.(); if (text) voice.speak(text); else voice.hush(); return; }
       if (window.parent !== window) { window.parent.postMessage(text ? { type: "oc-speak", text } : { type: "oc-hush" }, "*"); return; }
       if (!("speechSynthesis" in window)) return;
       speechSynthesis.cancel();

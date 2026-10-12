@@ -282,5 +282,5 @@
   addEventListener("pagehide", hush);
   document.addEventListener("visibilitychange", () => document.hidden && hush());
 
-  window.VOICE = { state: voice, speak: (html) => void speakAsync(html), speakAsync, hush, toggle, choose, load, prepare, neural, plain };
+  window.VOICE = { state: voice, speak: (html) => void speakAsync(html), speakAsync, hush, toggle, choose, load, prepare, neural, plain, unlock };
 })();
