@@ -111,7 +111,7 @@ html{color-scheme:dark}
 body[data-theme="light"]{color-scheme:light}
 body{margin:0;background:var(--anatomy-page);color:var(--anatomy-text);font:14px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
 .iso-page{width:min(940px,100% - 32px);margin:64px auto 96px}
-</style></head><body class="iso" data-theme="light"><main class="iso-page"><style>
+</style><script src="../../assets/voice.js?v=6c1769494a"></script></head><body class="iso" data-theme="light"><main class="iso-page"><style>
 .bl-rubber{--anatomy-shade-0:#f0a8a0;--anatomy-shade-1:#f3b5ad;--anatomy-shade-2:#f6c2bb;--anatomy-shade-3:#f8cfc9;--anatomy-top:#fbe0dc;--anatomy-hi:#b4453a;--anatomy-lo:#d98a80}
 .bl-air circle{fill:#c9dcef;stroke:#7fa6cc;stroke-width:.5;vector-effect:non-scaling-stroke}
 .bl-inside{opacity:0;transition:opacity .4s}
@@ -3113,7 +3113,10 @@ function EXPLORE(cfg) {
 
   // Call the site's voice directly, inside the tap itself: Safari and iPad only allow speech
   // that starts during the tap, so a message to the page (which arrives later) stays silent.
-  const host = () => { try { return window.parent !== window && window.parent.VOICE ? window.parent.VOICE : null; } catch (error) { return null; } };
+  const host = () => {
+    try { if (window.parent !== window && window.parent.VOICE) return window.parent.VOICE; } catch (error) {}
+    return window.VOICE || null;
+  };
   addEventListener("pointerdown", () => { try { host()?.unlock?.(); } catch (error) {} }, { capture: true });
   addEventListener("keydown", () => { try { host()?.unlock?.(); } catch (error) {} }, { capture: true });
   function say(text) {
@@ -3124,9 +3127,12 @@ function EXPLORE(cfg) {
       if (!("speechSynthesis" in window)) return;
       speechSynthesis.cancel();
       if (!text) return;
-      const line = new SpeechSynthesisUtterance(text);
-      line.rate = 0.92;
-      speechSynthesis.speak(line);
+      // Chrome drops an utterance spoken in the same moment as cancel(), so wait a beat.
+      setTimeout(() => {
+        const line = new SpeechSynthesisUtterance(text);
+        line.rate = 0.92;
+        speechSynthesis.speak(line);
+      }, 80);
     } catch (error) {}
   }
   const partText = (info) => `${info.name}. ${info.job} It is made of ${info.made.replace(/\.$/, "")}. Did you know? ${info.fact}`;

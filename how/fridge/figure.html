@@ -998,7 +998,10 @@ function EXPLORE(cfg) {
   // standing alone, the browser's own voice does.
   // Call the site's voice directly, inside the tap itself: Safari and iPad only allow speech
   // that starts during the tap, so a message to the page (which arrives later) stays silent.
-  const host = () => { try { return window.parent !== window && window.parent.VOICE ? window.parent.VOICE : null; } catch (error) { return null; } };
+  const host = () => {
+    try { if (window.parent !== window && window.parent.VOICE) return window.parent.VOICE; } catch (error) {}
+    return window.VOICE || null;
+  };
   addEventListener("pointerdown", () => { try { host()?.unlock?.(); } catch (error) {} }, { capture: true });
   addEventListener("keydown", () => { try { host()?.unlock?.(); } catch (error) {} }, { capture: true });
   function say(text) {
@@ -1009,9 +1012,12 @@ function EXPLORE(cfg) {
       if (!("speechSynthesis" in window)) return;
       speechSynthesis.cancel();
       if (!text) return;
-      const line = new SpeechSynthesisUtterance(text);
-      line.rate = 0.92;
-      speechSynthesis.speak(line);
+      // Chrome drops an utterance spoken in the same moment as cancel(), so wait a beat.
+      setTimeout(() => {
+        const line = new SpeechSynthesisUtterance(text);
+        line.rate = 0.92;
+        speechSynthesis.speak(line);
+      }, 80);
     } catch (error) {}
   }
   const partText = (info) => `${info.name}. ${info.job} It is made of ${info.made.replace(/\.$/, "")}. Did you know? ${info.fact}`;
