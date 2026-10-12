@@ -18,7 +18,7 @@
 <div class="ap">
 <header class="ap-bar">
   <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
-  <div class="ap-title"><b>Number Fun</b><small>Math · Foundations</small></div>
+  <div class="ap-title"><b>Number Fun</b><small>Math · Foundations–Level 2</small></div>
   <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
   <div class="ap-spacer"></div>
   <div class="ap-tools">
@@ -35,7 +35,7 @@
 </header>
 <main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
 </div>
-<script>const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, pickInt, wait, confetti, PRAISE, KIND, choices } = KIT;
+<script>const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, pickInt, wait, confetti, PRAISE, KIND, choices, explain, everyday, emoji, shuffle } = KIT;
 const stage = $("[data-stage]");
 const W = 1000;
 const H = 560;
@@ -43,10 +43,13 @@ let token = 0;
 let view = null;
 
 const UNITS = [
-  { id: "n1", label: "1. Hundred chart" },
-  { id: "n2", label: "2. Frog jumps (number line)" },
-  { id: "n3", label: "3. Make 10" },
-  { id: "n4", label: "4. Bigger or smaller?" },
+  { id: "n0", label: "See it", icon: "👀" },
+  { id: "n5", label: "1. Count the objects", icon: "🐞" },
+  { id: "n1", label: "2. Hundred chart" },
+  { id: "n2", label: "3. Frog jumps (number line)" },
+  { id: "n3", label: "4. Make 10" },
+  { id: "n6", label: "5. Before, after, between", icon: "🚂" },
+  { id: "n4", label: "6. Bigger or smaller?" },
 ];
 
 function fresh() {
@@ -88,7 +91,434 @@ function chart({ onTap, upto = 100 }) {
   };
 }
 
+// Shared helpers for the newer units: difficulty chips, a calm tween, See it pictures.
+const LEVELS = [["easy", "🐣 Easy"], ["medium", "🦊 Medium"], ["hard", "🦁 Hard"]];
+const levelRow = (cur) => `<div class="ap-row"><div class="ap-chips" data-levels>${LEVELS.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div>`;
+const onLevels = (id, fn) =>
+  $("[data-levels]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    shell.mark(id, { level: b.dataset.lv });
+    window.OC?.touch();
+    fn(b.dataset.lv);
+  });
+const tween = (ms, fn, alive) =>
+  new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(true);
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!alive()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+const nmStyle = document.createElement("style");
+nmStyle.textContent = `.nm-pick .kt-choices button{min-height:66px;min-width:92px;font-size:32px;border-radius:22px}.nm-obj{cursor:pointer}@media (max-height:460px),(max-width:420px) and (max-height:720px){.nm-pick .kt-choices button{min-height:50px;min-width:70px;font-size:24px}}`;
+document.head.appendChild(nmStyle);
+
+// A hundred chart for the See it scenes (all cells hidden until shown).
+function seeChart(v) {
+  const size = 48;
+  const x0 = (W - size * 10) / 2;
+  const y0 = 34;
+  const cells = [];
+  for (let n = 1; n <= 100; n++) {
+    const r = Math.floor((n - 1) / 10);
+    const c = (n - 1) % 10;
+    const g = el("g", { transform: `translate(${x0 + c * size} ${y0 + r * size})`, opacity: 0 }, v);
+    const rect = el("rect", { width: size - 4, height: size - 4, rx: 8, fill: "#fffcf6", stroke: "#d9cdb5", "stroke-width": 2 }, g);
+    text(g, (size - 4) / 2, size / 2 + 6, n, { "font-size": 22, fill: "#4d3c2e" });
+    cells[n] = { g, rect };
+  }
+  return { cells, size, x0, y0 };
+}
+
 const units = {
+  n0() {
+    const my = token;
+    const lineX = (n, max, left = 70, right = 930) => left + (n / max) * (right - left);
+    const numberLine = (v, max, y, left, right) => {
+      el("line", { x1: left - 20, x2: right + 20, y1: y, y2: y, stroke: "#5a4130", "stroke-width": 5, "stroke-linecap": "round" }, v);
+      const labels = [];
+      for (let n = 0; n <= max; n++) {
+        const x = lineX(n, max, left, right);
+        el("line", { x1: x, x2: x, y1: y - 12, y2: y + 12, stroke: "#5a4130", "stroke-width": 4 }, v);
+        const dot = el("circle", { cx: x, cy: y + 42, r: 22, fill: "transparent" }, v);
+        text(v, x, y + 50, n, { "font-size": 24, fill: "#4d3c2e" });
+        labels[n] = dot;
+      }
+      return labels;
+    };
+    const hops = async (v, api, { max, by, upto, color, lift, y, left, right, roo }) => {
+      for (let n = 0; n < upto; n += by) {
+        const x1 = lineX(n, max, left, right);
+        const x2 = lineX(n + by, max, left, right);
+        const path = el("path", { d: `M${x1} ${y - 14}Q${(x1 + x2) / 2} ${y - 14 - lift * 2} ${x2} ${y - 14}`, fill: "none", stroke: color, "stroke-width": 5, "stroke-linecap": "round" }, v);
+        const len = path.getTotalLength();
+        path.setAttribute("stroke-dasharray", len);
+        await api.tween(700, (t) => {
+          path.setAttribute("stroke-dashoffset", len * (1 - t));
+          const p = path.getPointAtLength(len * t);
+          roo.setAttribute("transform", `translate(${p.x} ${p.y - 36})`);
+        });
+        MUSIC.play("xylophone", 72 + Math.min(24, (n + by) / by * 2), { gain: 0.35 });
+        await api.wait(350);
+      }
+    };
+    explain(
+      [
+        { say: "Why do we learn numbers? Numbers tell us how many, and which one. We use them every day!", draw: everyday([["🧸", "Counting toys"], ["🏠", "House numbers"], ["🎂", "Birthdays"], ["📱", "Phone numbers"]]) },
+        {
+          say: "When we count, each thing gets one number. The last number tells how many: 5 ducks!",
+          async draw(v, api) {
+            const xs = [180, 340, 500, 660, 820];
+            for (let i = 0; i < 5; i++) {
+              const g = el("g", { opacity: 0 }, v);
+              el("ellipse", { cx: xs[i], cy: 262, rx: 62, ry: 12, fill: "#9fd0e8", opacity: 0.6 }, g);
+              emoji(g, xs[i], 200, "🦆", 104);
+              el("circle", { cx: xs[i], cy: 350, r: 40, fill: "var(--accent)" }, g);
+              text(g, xs[i], 366, i + 1, { "font-size": 46, fill: "#fff" });
+              await api.tween(500, (t) => g.setAttribute("opacity", t));
+              MUSIC.play("xylophone", 72 + [0, 2, 4, 5, 7][i], { gain: 0.35 });
+              await api.wait(650);
+            }
+            const g = el("g", { opacity: 0 }, v);
+            text(g, 500, 490, "5 ducks!", { "font-size": 62, fill: "#2b1d12" });
+            await api.tween(700, (t) => g.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "This is a hundred chart. Each row has 10 numbers. Go down one row and you add 10: 4, 14, 24, 34!",
+          async draw(v, api) {
+            const { cells, size, x0, y0 } = seeChart(v);
+            for (let r = 0; r < 10; r++) {
+              await api.tween(260, (t) => {
+                for (let c = 1; c <= 10; c++) cells[r * 10 + c].g.setAttribute("opacity", t);
+              });
+            }
+            await api.wait(500);
+            for (let n = 1; n <= 10; n++) {
+              cells[n].rect.setAttribute("fill", "#f2c94c");
+              await api.wait(110);
+            }
+            text(v, x0 + size * 10 + 70, y0 + 32, "10 in a row", { "font-size": 22, fill: "#a8632d" });
+            await api.wait(700);
+            for (let n = 4; n <= 94; n += 10) {
+              cells[n].rect.setAttribute("fill", "#9fd3a8");
+              if (n > 4) text(v, x0 - 36, y0 + Math.floor(n / 10) * size + 12, "+10", { "font-size": 22, fill: "#3f7d4e" });
+              MUSIC.play("xylophone", 72 + Math.floor(n / 10) * 2, { gain: 0.35 });
+              await api.wait(520);
+            }
+          },
+        },
+        {
+          say: "Skip counting is jumping! Count by 2s: 2, 4, 6, 8, 10. Now by 5s: 5, 10, 15, 20.",
+          async draw(v, api) {
+            const y = 400;
+            numberLine(v, 20, y, 70, 930);
+            const roo = el("g", { transform: `translate(${lineX(0, 20)} ${y - 44})` }, v);
+            emoji(roo, 0, 0, "🐸", 60);
+            const top = text(v, 500, 70, "Count by 2s: 2, 4, 6, 8, 10", { "font-size": 36, fill: "#e0603a", opacity: 0 });
+            await api.tween(500, (t) => top.setAttribute("opacity", t));
+            await hops(v, api, { max: 20, by: 2, upto: 10, color: "#e0603a", lift: 40, y, left: 70, right: 930, roo });
+            await api.wait(600);
+            roo.setAttribute("transform", `translate(${lineX(0, 20)} ${y - 44})`);
+            const top2 = text(v, 500, 130, "Count by 5s: 5, 10, 15, 20", { "font-size": 36, fill: "#1e88e5", opacity: 0 });
+            await api.tween(500, (t) => top2.setAttribute("opacity", t));
+            await hops(v, api, { max: 20, by: 5, upto: 20, color: "#1e88e5", lift: 95, y, left: 70, right: 930, roo });
+          },
+        },
+        {
+          say: "Counting by 5s on the hundred chart makes two straight stripes: 5, 10, 15, 20, all the way to 100!",
+          async draw(v, api) {
+            const { cells } = seeChart(v);
+            await api.tween(700, (t) => cells.forEach((c) => c && c.g.setAttribute("opacity", t)));
+            await api.wait(400);
+            for (let n = 5; n <= 100; n += 5) {
+              cells[n].rect.setAttribute("fill", n % 10 ? "#a9d4f5" : "#9fd3a8");
+              MUSIC.play("xylophone", 72 + ((n / 5 - 1) % 8) * 2, { gain: 0.3 });
+              await api.wait(330);
+            }
+          },
+        },
+        {
+          say: "On a number line, numbers get bigger as you go right. 8 is bigger than 3, because it is further along.",
+          async draw(v, api) {
+            const y = 440;
+            const left = 100;
+            const right = 900;
+            numberLine(v, 10, y, left, right);
+            const tower = async (n, color) => {
+              const x = lineX(n, 10, left, right);
+              for (let k = 0; k < n; k++) {
+                const b = el("rect", { x: x - 26, y: y - 22 - (k + 1) * 34, width: 52, height: 30, rx: 6, fill: color, stroke: "#5a4130", "stroke-width": 2, opacity: 0 }, v);
+                await api.tween(160, (t) => b.setAttribute("opacity", t));
+              }
+              text(v, x, y - 40 - n * 34, n, { "font-size": 44, fill: "#2b1d12" });
+            };
+            await tower(3, "#f2c94c");
+            await api.wait(400);
+            await tower(8, "#9fd3a8");
+            await api.wait(400);
+            const g = el("g", { opacity: 0 }, v);
+            el("path", { d: "M150 60H800", stroke: "var(--accent)", "stroke-width": 8, "stroke-linecap": "round" }, g);
+            el("path", { d: "M780 40L820 60L780 80Z", fill: "var(--accent)" }, g);
+            text(g, 470, 108, "bigger this way", { "font-size": 30, fill: "var(--accent-dark)" });
+            await api.tween(700, (t) => g.setAttribute("opacity", t));
+          },
+        },
+      ],
+      { alive: () => my === token, onDone: () => shell.go("n5"), title: "Numbers" }
+    );
+  },
+
+  n5() {
+    const my = token;
+    let level = shell.progress().n5?.level || "easy";
+    let round = 0;
+    let right = 0;
+    let q = null;
+    let missed = false;
+    let busy = false;
+    let counted = 0;
+    panel(`${levelRow(level)}<div class="nm-pick" data-choices></div>`);
+    const ITEMS = [["🍎", "apples"], ["🐞", "ladybugs"], ["🐟", "fish"], ["🌼", "flowers"], ["⭐", "stars"], ["🚗", "cars"], ["🐤", "chicks"], ["🎈", "balloons"], ["🦋", "butterflies"], ["🍓", "strawberries"]];
+    const DICE = { 1: [[0, 0]], 2: [[-1, -1], [1, 1]], 3: [[-1, -1], [0, 0], [1, 1]], 4: [[-1, -1], [1, -1], [-1, 1], [1, 1]], 5: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]], 6: [[-1, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [1, 1]] };
+    const badge = (g, n) => {
+      const b = el("g", { class: "nm-badge", "pointer-events": "none" }, g);
+      el("circle", { cx: 0, cy: 0, r: 22, fill: "var(--accent)", stroke: "#fff", "stroke-width": 3 }, b);
+      text(b, 0, 8, n, { "font-size": 24, fill: "#fff" });
+      b.setAttribute("transform", `translate(${g.dataset.bx} ${g.dataset.by})`);
+    };
+    const tapObj = (g) => {
+      if (my !== token || busy || g.dataset.done) return;
+      g.dataset.done = "1";
+      counted += 1;
+      badge(g, counted);
+      window.OC?.touch();
+      MUSIC.play("xylophone", 72 + [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21, 23, 24][Math.min(14, counted - 1)], { gain: 0.4 });
+      VOICE.speak(String(counted));
+    };
+    const draw = () => {
+      fresh();
+      counted = 0;
+      const n = q.n;
+      const place = (x, y, size) => {
+        const g = el("g", { class: "nm-obj", "data-bx": x + size * 0.42, "data-by": y - size * 0.42 }, view);
+        el("circle", { cx: x, cy: y, r: size * 0.55, fill: "transparent" }, g);
+        if (q.glyph === "dot") el("circle", { cx: x, cy: y, r: size / 2, fill: "#e53935" }, g);
+        else emoji(g, x, y, q.glyph, size);
+      };
+      if (level === "easy") {
+        el("rect", { x: 290, y: 70, width: 420, height: 420, rx: 54, fill: "#fffcf6", stroke: "#c9b8a1", "stroke-width": 6 }, view);
+        for (const [dx, dy] of DICE[n]) place(500 + dx * 120, 280 + dy * 120, 80);
+      } else if (level === "medium") {
+        const cells = shuffle([...Array(15).keys()]).slice(0, n);
+        for (const c of cells) place(140 + (c % 5) * 180 + pickInt(-25, 25), 100 + Math.floor(c / 5) * 160 + pickInt(-15, 15), 92);
+      } else {
+        el("rect", { x: 40, y: 80, width: 920, height: 130, rx: 24, fill: "#fbf3e4", stroke: "#e0a96d", "stroke-width": 4 }, view);
+        text(view, 500, 62, "a full row is 10", { "font-size": 24, fill: "#a8632d" });
+        for (let i = 0; i < 10; i++) place(100 + i * 89, 145, 70);
+        el("rect", { x: 40, y: 265, width: 920, height: 130, rx: 24, fill: "none", stroke: "#e0a96d", "stroke-width": 3, "stroke-dasharray": "12 10" }, view);
+        for (let i = 10; i < n; i++) place(100 + (i - 10) * 89, 330, 70);
+      }
+      view.addEventListener("pointerdown", (event) => {
+        const g = event.target.closest(".nm-obj");
+        if (g) tapObj(g);
+      });
+    };
+    const ask = () => {
+      const [glyph, name] = level === "easy" ? ["dot", "dots"] : pick(ITEMS);
+      const n = level === "easy" ? pickInt(1, 6) : level === "medium" ? pickInt(3, 10) : pickInt(11, 20);
+      q = { n, glyph, name: n === 1 && name === "dots" ? "dot" : name };
+      missed = false;
+      busy = false;
+      draw();
+      $("[data-status]").textContent = `Round ${round + 1} of 10`;
+      const opts = new Set([n]);
+      const near = shuffle([n - 2, n - 1, n + 1, n + 2].filter((x) => x >= 1));
+      while (opts.size < 3) opts.add(near.shift());
+      choices($("[data-choices]"), [...opts].sort((a, b) => a - b).map((x) => ({ label: String(x), v: x })), (c, button) => answer(c.v, button));
+      say(level === "easy" ? "How many dots? Can you see it without counting? Tap the number." : `How many ${q.name}? Tap them to count. Then tap the number.`);
+    };
+    const countAll = async () => {
+      view.querySelectorAll(".nm-badge").forEach((b) => b.remove());
+      view.querySelectorAll(".nm-obj").forEach((g) => delete g.dataset.done);
+      counted = 0;
+      for (const g of view.querySelectorAll(".nm-obj")) {
+        if (my !== token) return;
+        g.dataset.done = "1";
+        counted += 1;
+        badge(g, counted);
+        MUSIC.play("xylophone", 72 + Math.min(24, counted * 2), { gain: 0.35 });
+        VOICE.speak(String(counted));
+        await wait(650);
+      }
+    };
+    const answer = async (v, button) => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      if (v === q.n) {
+        busy = true;
+        button.classList.add("right");
+        MUSIC.chime();
+        if (!missed) right += 1;
+        round += 1;
+        window.OC?.count("things counted");
+        say(`${pick(PRAISE)} ${q.n} ${q.name}!${level === "hard" ? ` That's 10 and ${q.n - 10} more.` : ""}`);
+        await wait(2200);
+        if (my !== token) return;
+        if (round >= 10) {
+          confetti();
+          if (right >= 7) shell.mark("n5", { done: true });
+          say(`🎉 ${right} out of 10 right first time! ${right >= 7 ? "Super counting!" : "Let's count some more."}`);
+          round = 0;
+          right = 0;
+          await wait(3200);
+        }
+        if (my === token) ask();
+      } else {
+        busy = true;
+        missed = true;
+        button.classList.add("wrong");
+        MUSIC.oops();
+        await KIT.sayAsync(`${pick(KIND)} That was ${v}. Let's count them together, one at a time.`);
+        if (my !== token) return;
+        await countAll();
+        if (my !== token) return;
+        say(`The last number we said is ${q.n}. So there are ${q.n}. Tap ${q.n}!`);
+        busy = false;
+      }
+    };
+    onLevels("n5", (lv) => {
+      level = lv;
+      round = 0;
+      right = 0;
+      ask();
+    });
+    ask();
+  },
+
+  n6() {
+    const my = token;
+    let level = shell.progress().n6?.level || "easy";
+    let round = 0;
+    let right = 0;
+    let q = null;
+    let missed = false;
+    let busy = false;
+    panel(`${levelRow(level)}<div class="nm-pick" data-choices></div>`);
+    const make = () => {
+      const kind = pick(level === "easy" ? ["after", "before", "after"] : ["after", "before", "between"]);
+      const hide = { before: 0, between: 1, after: 2 }[kind];
+      let a;
+      if (level === "easy") a = pickInt(1, 8);
+      else if (level === "medium") a = pickInt(1, 18);
+      else if (Math.random() < 0.55) {
+        const t = pickInt(2, 9) * 10 + pick([0, -1]);
+        a = t - hide;
+      } else a = pickInt(21, 97);
+      a = Math.max(1, Math.min(98, a));
+      const cars = [a, a + 1, a + 2];
+      return { kind, hide, cars, ans: cars[hide] };
+    };
+    const draw = async () => {
+      fresh();
+      el("rect", { x: 0, y: 400, width: W, height: H - 400, fill: "#e3f0d6" }, view);
+      el("rect", { x: 0, y: 384, width: W, height: 10, fill: "#8a6a4f" }, view);
+      for (let x = 10; x < W; x += 50) el("rect", { x, y: 394, width: 26, height: 12, rx: 3, fill: "#a8632d" }, view);
+      const train = el("g", { transform: "translate(700 0)" }, view);
+      // engine
+      el("rect", { x: 40, y: 220, width: 170, height: 130, rx: 18, fill: "var(--accent)", stroke: "#5a4130", "stroke-width": 4 }, train);
+      el("rect", { x: 120, y: 160, width: 90, height: 80, rx: 12, fill: "var(--accent-dark)", stroke: "#5a4130", "stroke-width": 4 }, train);
+      el("rect", { x: 138, y: 176, width: 54, height: 42, rx: 8, fill: "#d6ecf7" }, train);
+      el("rect", { x: 60, y: 176, width: 34, height: 50, rx: 6, fill: "#5a4130" }, train);
+      el("circle", { cx: 77, cy: 150, r: 18, fill: "#eee", opacity: 0.8 }, train);
+      for (const cx of [80, 170]) el("circle", { cx, cy: 360, r: 26, fill: "#2b1d12", stroke: "#8a7764", "stroke-width": 6 }, train);
+      q.cars.forEach((n, i) => {
+        const x = 240 + i * 245;
+        el("rect", { x: x - 30, y: 300, width: 34, height: 10, fill: "#5a4130" }, train);
+        const hidden = i === q.hide;
+        el("rect", { x, y: 190, width: 215, height: 160, rx: 20, fill: hidden ? "#fff" : ["#f2c94c", "#9fd3a8", "#a9d4f5"][i], stroke: hidden ? "var(--accent)" : "#5a4130", "stroke-width": hidden ? 6 : 4, "stroke-dasharray": hidden ? "16 10" : null }, train);
+        text(train, x + 107, 300, hidden ? "?" : n, { "font-size": 86, fill: hidden ? "var(--accent)" : "#2b1d12", class: hidden ? "nm-hidden" : null });
+        for (const cx of [x + 50, x + 165]) el("circle", { cx, cy: 360, r: 24, fill: "#2b1d12", stroke: "#8a7764", "stroke-width": 6 }, train);
+      });
+      text(view, W / 2, 80, q.kind === "between" ? `between ${q.cars[0]} and ${q.cars[2]}` : `${q.kind} ${q.cars[1]}`, { "font-size": 44, fill: "#2b1d12", class: "nm-q" });
+      MUSIC.play("woodblock", 79, { gain: 0.3 });
+      await tween(900, (t) => train.setAttribute("transform", `translate(${(1 - t) * 700} 0)`), () => my === token);
+    };
+    const ask = () => {
+      q = make();
+      missed = false;
+      busy = false;
+      $("[data-status]").textContent = `Train ${round + 1} of 10`;
+      draw();
+      const { ans } = q;
+      const near = shuffle([ans - 1, ans + 1, ans + 2, ans - 2].filter((x) => x >= 0 && x <= 100));
+      const opts = new Set([ans]);
+      const count = level === "hard" ? 4 : 3;
+      if (level === "hard") opts.add(ans + 10 <= 100 ? ans + 10 : ans - 10);
+      while (opts.size < count && near.length) opts.add(near.shift());
+      choices($("[data-choices]"), [...opts].sort((a, b) => a - b).map((x) => ({ label: String(x), v: x })), (c, button) => answer(c.v, button));
+      const [a, b, c] = q.cars;
+      say(q.kind === "after" ? `What number comes just after ${b}?` : q.kind === "before" ? `What number comes just before ${b}?` : `What number is between ${a} and ${c}?`);
+    };
+    const answer = async (v, button) => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      const [a, b, c] = q.cars;
+      if (v === q.ans) {
+        busy = true;
+        button.classList.add("right");
+        MUSIC.chime();
+        const hid = view.querySelector(".nm-hidden");
+        if (hid) {
+          hid.textContent = q.ans;
+          hid.setAttribute("fill", "#2b1d12");
+        }
+        if (!missed) right += 1;
+        round += 1;
+        window.OC?.count("numbers in order");
+        say(`${pick(PRAISE)} ${a}, ${b}, ${c}. ${q.kind === "after" ? `${q.ans} is one more than ${b}.` : q.kind === "before" ? `${q.ans} is one less than ${b}.` : `${q.ans} is in the middle.`}`);
+        await wait(2400);
+        if (my !== token) return;
+        if (round >= 10) {
+          confetti();
+          if (right >= 7) shell.mark("n6", { done: true });
+          say(`🎉 ${right} out of 10 right first time! ${right >= 7 ? "All aboard, number expert!" : "Let's ride again."}`);
+          round = 0;
+          right = 0;
+          await wait(3200);
+        }
+        if (my === token) ask();
+      } else {
+        missed = true;
+        button.classList.add("wrong");
+        MUSIC.oops();
+        say(
+          q.kind === "after"
+            ? `${pick(KIND)} After means one more. Count on from ${b}: ${b}, then…?`
+            : q.kind === "before"
+              ? `${pick(KIND)} Before means one less. Count back from ${b}: ${b}, then…?`
+              : `${pick(KIND)} Between means in the middle. Count from ${a} up to ${c}. What do you say in the middle?`
+        );
+      }
+    };
+    onLevels("n6", (lv) => {
+      level = lv;
+      round = 0;
+      right = 0;
+      ask();
+    });
+    ask();
+  },
   n1() {
     const my = token;
     let modeName = "count";
@@ -325,7 +755,7 @@ const units = {
     let round = 0;
     let right = 0;
     let pair = [];
-    panel(`<p class="ap-status" data-status></p><div data-pick></div>`);
+    panel(`<p class="ap-status" data-status></p><div data-choices></div>`);
     const blocks = (n, x0) => {
       const tens = Math.floor(n / 10);
       const ones = n % 10;
@@ -351,7 +781,7 @@ const units = {
       text(view, W / 2, 470, "Orange sticks are tens · green cubes are ones", { "font-size": 22, fill: "#8a7764", "font-weight": 600 });
       $("[data-status]").textContent = `Question ${round + 1} of 8`;
       say(`Which number is bigger: ${a} or ${b}?`);
-      choices($("[data-pick]"), [{ label: `${a}`, v: "a" }, { label: "They're equal", v: "eq" }, { label: `${b}`, v: "b" }], (choice, button) => answer(choice.v, button));
+      choices($("[data-choices]"), [{ label: `${a}`, v: "a" }, { label: "They're equal", v: "eq" }, { label: `${b}`, v: "b" }], (choice, button) => answer(choice.v, button));
     };
     const answer = async (v, button) => {
       if (my !== token) return;
@@ -389,12 +819,15 @@ const units = {
 const shell = SHELL({
   units: UNITS,
   how: {
+    n0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    n5: { icon: "🐞", title: "Count the objects", steps: ["Look at the picture.", "Tap each one to count it.", "Tap the number that says how many."] },
+    n6: { icon: "🚂", title: "Before, after, between", steps: ["Look at the numbers on the train.", "One car has a question mark.", "Tap the number that goes there."] },
     n1: { icon: "🔢", title: "Hundred chart", steps: ["Tap the numbers in order: 1, 2, 3…", "Count out loud with me!", "Try the buttons below for more games."] },
     n2: { icon: "🐸", title: "Frog jumps", steps: ["The frog sits on a number.", "Listen: how far does it jump?", "Tap the number where it will land."] },
     n3: { icon: "🔟", title: "Make 10", steps: ["Some boxes have red dots.", "Tap the empty boxes to fill them.", "How many more make 10?"] },
     n4: { icon: "🐊", title: "Bigger or smaller?", steps: ["Look at the two numbers.", "Tap the bigger one.", "Orange sticks are tens. Green cubes are ones."] },
   },
-  start: "n1",
+  start: "n0",
   onStop() {
     token += 1;
     $("[data-panel]").onclick = null;
@@ -408,6 +841,7 @@ const shell = SHELL({
   },
 });
 MUSIC.preload("xylophone", [72, 74, 76, 77, 79, 81, 83, 84, 86, 88, 91, 96]);
+MUSIC.preload("woodblock", [79]);
 </script>
 </body>
 </html>

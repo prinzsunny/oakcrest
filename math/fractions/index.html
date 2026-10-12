@@ -35,7 +35,7 @@
 </header>
 <main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
 </div>
-<script>const { $, el, svg: makeSvg, text, panel, say, pick, pickInt, wait, confetti, PRAISE, KIND, choices, numpad } = KIT;
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, pickInt, wait, confetti, PRAISE, KIND, choices, numpad, explain, everyday, emoji } = KIT;
 const stage = $("[data-stage]");
 const W = 1000;
 const H = 560;
@@ -43,10 +43,14 @@ let token = 0;
 let view = null;
 
 const UNITS = [
+  { id: "f0", label: "See it", icon: "👀" },
   { id: "f1", label: "1. Cut the pizza" },
   { id: "f2", label: "2. Which is bigger?" },
   { id: "f3", label: "3. Equal fractions" },
-  { id: "f4", label: "4. Fraction of a number" },
+  { id: "f5", label: "4. Fractions on a number line", icon: "📏" },
+  { id: "f4", label: "5. Fraction of a number" },
+  { id: "f6", label: "6. Add fractions", icon: "➕" },
+  { id: "f7", label: "7. Tenths and decimals", icon: "🔟" },
 ];
 const fresh = () => {
   stage.innerHTML = "";
@@ -103,7 +107,561 @@ function bar(x, y, w, h, d, { shaded = new Set(), onTap, tint = "#3f7d4e", label
   return g;
 }
 
+// Shared helpers for the newer units: difficulty chips, a calm tween, stacked fractions in the SVG.
+const LEVELS = [["easy", "🐣 Easy"], ["medium", "🦊 Medium"], ["hard", "🦁 Hard"]];
+const levelRow = (cur) => `<div class="ap-row"><div class="ap-chips" data-levels>${LEVELS.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div>`;
+const onLevels = (id, fn) =>
+  $("[data-levels]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    shell.mark(id, { level: b.dataset.lv });
+    window.OC?.touch();
+    fn(b.dataset.lv);
+  });
+const tween = (ms, fn, alive) =>
+  new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(true);
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!alive()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+function fracSvg(parent, x, y, n, d, size = 40, fill = "#2b1d12") {
+  const g = el("g", { "pointer-events": "none" }, parent);
+  const half = size * (0.38 + 0.28 * (Math.max(String(n).length, String(d).length) - 1));
+  text(g, x, y - size * 0.18, n, { "font-size": size, fill });
+  el("line", { x1: x - half, x2: x + half, y1: y, y2: y, stroke: fill, "stroke-width": Math.max(3, size / 11), "stroke-linecap": "round" }, g);
+  text(g, x, y + size * 0.82, d, { "font-size": size, fill });
+  return g;
+}
+// Lay out a sum like [[2, 5], "+", [1, 5], "=", "?"] centred on x.
+function eqSvg(parent, x, y, items, size = 44, fill = "#2b1d12") {
+  const widths = items.map((it) => (Array.isArray(it) ? size * 1.4 : size * (0.55 * String(it).length + 0.5)));
+  let at = x - widths.reduce((a, b) => a + b, 0) / 2;
+  const g = el("g", {}, parent);
+  items.forEach((it, i) => {
+    const cx = at + widths[i] / 2;
+    if (Array.isArray(it)) fracSvg(g, cx, y, it[0], it[1], size, fill);
+    else text(g, cx, y + size * 0.35, it, { "font-size": size * 1.1, fill: it === "?" ? "var(--accent)" : fill });
+    at += widths[i];
+  });
+  return g;
+}
+const fkStyle = document.createElement("style");
+fkStyle.textContent = `.fk-pick .kt-choices button{min-height:64px;min-width:88px;font-size:26px;border-radius:20px}.fr-tick{cursor:pointer}@media (max-height:460px),(max-width:420px) and (max-height:720px){.fk-pick .kt-choices button{min-height:50px;min-width:66px;font-size:20px}}`;
+document.head.appendChild(fkStyle);
+
 const units = {
+  f0() {
+    const my = token;
+    const label = (v, cx, cy, r, d, size) => {
+      for (let i = 0; i < d; i++) {
+        const am = ((i + 0.5) / d) * Math.PI * 2 - Math.PI / 2;
+        fracSvg(v, cx + r * 0.55 * Math.cos(am), cy + r * 0.55 * Math.sin(am) - 4, 1, d, size);
+      }
+    };
+    const fade = (api, node, ms = 600) => api.tween(ms, (t) => node.setAttribute("opacity", t));
+    explain(
+      [
+        { say: "Why do we learn fractions? A fraction is a part of a whole. We use them when we share, cook, and tell the time!", draw: everyday([["🍕", "Sharing pizza"], ["⏰", "Half an hour"], ["🥣", "A quarter cup in baking"], ["⚽", "Half time in a game"]]) },
+        {
+          say: "Here is one whole pizza. Cut it into 2 equal parts: halves. Cut again: 4 equal parts, quarters!",
+          async draw(v, api) {
+            view = v;
+            const cx = 360;
+            const cy = 275;
+            const r = 200;
+            let pz = pizza(cx, cy, r, 1);
+            const cap = text(v, 790, 290, "1 whole", { "font-size": 52, fill: "#2b1d12" });
+            await api.wait(1200);
+            const cut = async (x1, y1, x2, y2) => {
+              const knife = el("line", { x1, y1, x2: x1, y2: y1, stroke: "#5a4130", "stroke-width": 7, "stroke-linecap": "round" }, v);
+              MUSIC.play("woodblock", 79, { gain: 0.3 });
+              await api.tween(900, (t) => {
+                knife.setAttribute("x2", x1 + (x2 - x1) * t);
+                knife.setAttribute("y2", y1 + (y2 - y1) * t);
+              });
+              knife.remove();
+            };
+            await cut(cx, cy - r - 30, cx, cy + r + 30);
+            pz.remove();
+            pz = pizza(cx, cy, r, 2);
+            const l2 = el("g", { opacity: 0 }, v);
+            label(l2, cx, cy, r, 2, 40);
+            cap.textContent = "2 halves";
+            await fade(api, l2);
+            await api.wait(1600);
+            await cut(cx - r - 30, cy, cx + r + 30, cy);
+            pz.remove();
+            l2.remove();
+            pz = pizza(cx, cy, r, 4);
+            const l4 = el("g", { opacity: 0 }, v);
+            label(l4, cx, cy, r, 4, 36);
+            cap.textContent = "4 quarters";
+            await fade(api, l4);
+          },
+        },
+        {
+          say: "Fraction parts must be equal. If one piece is bigger, they are not halves. Equal pieces are fair!",
+          async draw(v, api) {
+            const cake = (x, cutAt, faces, ok) => {
+              const g = el("g", { opacity: 0 }, v);
+              el("rect", { x, y: 170, width: 360, height: 190, rx: 18, fill: "#c98c58", stroke: "#7a4520", "stroke-width": 4 }, g);
+              el("rect", { x, y: 170, width: 360, height: 44, rx: 18, fill: "#fbe7e9", stroke: "#7a4520", "stroke-width": 4 }, g);
+              const knife = el("line", { x1: x + cutAt, x2: x + cutAt, y1: 150, y2: 150, stroke: "#2b1d12", "stroke-width": 7, "stroke-linecap": "round" }, g);
+              const after = el("g", { opacity: 0 }, g);
+              emoji(after, x + cutAt / 2, 110, faces[0], 64);
+              emoji(after, x + cutAt + (360 - cutAt) / 2, 110, faces[1], 64);
+              text(after, x + 180, 440, ok ? "✓ Equal: halves" : "✗ Not equal", { "font-size": 40, fill: ok ? "#2e7d46" : "#c0392b" });
+              return { g, knife, after };
+            };
+            const left = cake(70, 255, ["😃", "😢"], false);
+            const right = cake(570, 180, ["😊", "😊"], true);
+            await fade(api, left.g);
+            await fade(api, right.g);
+            for (const c of [left, right]) {
+              await api.tween(800, (t) => c.knife.setAttribute("y2", 150 + 230 * t));
+              MUSIC.play("woodblock", 79, { gain: 0.3 });
+              await fade(api, c.after, 600);
+              await api.wait(900);
+            }
+          },
+        },
+        {
+          say: "The bottom number tells how many equal parts. The top number tells how many we have. 3 of 4 parts is three quarters.",
+          async draw(v, api) {
+            view = v;
+            const cx = 320;
+            const cy = 280;
+            const shaded = new Set();
+            let pz = pizza(cx, cy, 200, 4);
+            text(v, 760, 92, "parts we have", { "font-size": 30, fill: "#e0603a" });
+            text(v, 760, 500, "equal parts in all", { "font-size": 30, fill: "#5a4130" });
+            const top = text(v, 760, 250, "0", { "font-size": 110, fill: "#e0603a" });
+            el("line", { x1: 690, x2: 830, y1: 285, y2: 285, stroke: "#2b1d12", "stroke-width": 8, "stroke-linecap": "round" }, v);
+            text(v, 760, 410, "4", { "font-size": 110, fill: "#2b1d12" });
+            await api.wait(1200);
+            for (let i = 0; i < 3; i++) {
+              shaded.add(i);
+              const old = pz;
+              pz = pizza(cx, cy, 200, 4, { shaded });
+              v.insertBefore(pz, old);
+              old.remove();
+              top.textContent = i + 1;
+              MUSIC.play("xylophone", 76 + i * 2, { gain: 0.4 });
+              await api.wait(1000);
+            }
+          },
+        },
+        {
+          say: "One half and two quarters cover the same amount. So 1/2 = 2/4. They are equal fractions!",
+          async draw(v, api) {
+            view = v;
+            fracSvg(v, 80, 168, 1, 2, 38, "#e0603a");
+            bar(150, 110, 760, 110, 2, { shaded: new Set([0]), tint: "#e0603a" });
+            const lower = el("g", {}, v);
+            view = lower;
+            fracSvg(lower, 80, 368, 2, 4, 38, "#3f7d4e");
+            const b4 = bar(150, 310, 760, 110, 4, { shaded: new Set([0, 1]), tint: "#3f7d4e" });
+            view = v;
+            await api.wait(1500);
+            await api.tween(1300, (t) => {
+              lower.setAttribute("transform", `translate(0 ${-200 * t})`);
+              b4.setAttribute("opacity", 1 - 0.45 * t);
+            });
+            await api.wait(1400);
+            await api.tween(1100, (t) => {
+              lower.setAttribute("transform", `translate(0 ${-200 * (1 - t)})`);
+              b4.setAttribute("opacity", 0.55 + 0.45 * t);
+            });
+            const eq = el("g", { opacity: 0 }, v);
+            eqSvg(eq, 500, 480, [[1, 2], "=", [2, 4]], 40);
+            await fade(api, eq, 700);
+          },
+        },
+        {
+          say: "Fractions work with groups too. Share 12 strawberries on 4 plates. One plate is 1/4 of 12. That is 3!",
+          async draw(v, api) {
+            const plates = [170, 390, 610, 830];
+            plates.forEach((x) => el("ellipse", { cx: x, cy: 330, rx: 95, ry: 48, fill: "#fffcf6", stroke: "#c9b8a1", "stroke-width": 4 }, v));
+            const berries = [];
+            for (let i = 0; i < 12; i++) berries.push(emoji(v, 115 + i * 70, 80, "🍓", 54));
+            await api.wait(1200);
+            for (let i = 0; i < 12; i++) {
+              const p = i % 4;
+              const k = Math.floor(i / 4);
+              const sx = 115 + i * 70;
+              const tx = plates[p] + (k - 1) * 48;
+              const node = berries[i];
+              await api.tween(300, (t) => node.setAttribute("transform", `translate(${(tx - sx) * t} ${(315 - 80) * t})`));
+              MUSIC.play("woodblock", 79, { gain: 0.25 });
+            }
+            await api.wait(500);
+            const ring = el("ellipse", { cx: plates[0], cy: 330, rx: 112, ry: 64, fill: "none", stroke: "var(--accent)", "stroke-width": 6, "stroke-dasharray": "14 10", opacity: 0 }, v);
+            const eq = el("g", { opacity: 0 }, v);
+            eqSvg(eq, 500, 450, [[1, 4], "of 12 =", 3], 40);
+            await fade(api, ring);
+            await fade(api, eq);
+          },
+        },
+      ],
+      { alive: () => my === token, onDone: () => shell.go("f1"), title: "Fractions" }
+    );
+  },
+
+  f5() {
+    const my = token;
+    let level = shell.progress().f5?.level || "easy";
+    let round = 0;
+    let right = 0;
+    let q = null;
+    let missed = false;
+    let busy = false;
+    let bug = null;
+    panel(levelRow(level));
+    const L = 110;
+    const R = 890;
+    const LY = 360;
+    const xOf = (k) => L + (k / (q.d * q.wholes)) * (R - L);
+    const make = () => {
+      if (level === "easy") {
+        const d = pick([2, 4, 4]);
+        return { d, n: pickInt(1, d - 1), wholes: 1 };
+      }
+      if (level === "medium") {
+        const d = pick([3, 5, 6, 8]);
+        return { d, n: pickInt(1, d - 1), wholes: 1 };
+      }
+      const d = pick([2, 3, 4, 5, 6]);
+      let n = pickInt(1, 2 * d - 1);
+      if (n < d && Math.random() < 0.6) n += d;
+      return { d, n, wholes: 2 };
+    };
+    const draw = () => {
+      fresh();
+      const { d, wholes } = q;
+      text(view, 420, 92, "Find", { "font-size": 44, fill: "#2b1d12" });
+      fracSvg(view, 530, 78, q.n, d, 46, "#e0603a");
+      if (level !== "hard") bar(L, 170, R - L, 80, d, { label: level === "easy", tint: "#f2c94c" });
+      else for (let w = 0; w < 2; w++) bar(L + w * ((R - L) / 2), 170, (R - L) / 2, 80, d, { label: false });
+      el("line", { x1: L - 30, x2: R + 30, y1: LY, y2: LY, stroke: "#5a4130", "stroke-width": 6, "stroke-linecap": "round" }, view);
+      const total = d * wholes;
+      const step = (R - L) / total;
+      for (let k = 0; k <= total; k++) {
+        const x = xOf(k);
+        const whole = k % d === 0;
+        const g = el("g", { class: "fr-tick", "data-k": k }, view);
+        el("rect", { x: x - Math.min(36, step / 2), y: LY - 90, width: Math.min(72, step), height: 170, fill: "transparent" }, g);
+        el("line", { x1: x, x2: x, y1: LY - (whole ? 26 : 18), y2: LY + (whole ? 26 : 18), stroke: "#5a4130", "stroke-width": whole ? 6 : 4 }, g);
+        if (whole) text(g, x, LY + 70, k / d, { "font-size": 40, fill: "#2b1d12" });
+      }
+      bug = el("g", {}, view);
+      emoji(bug, 0, 0, "🐞", 52);
+      bug.setAttribute("transform", `translate(${xOf(0)} ${LY - 42})`);
+      view.addEventListener("pointerdown", (event) => {
+        const t = event.target.closest(".fr-tick");
+        if (t) tap(Number(t.dataset.k));
+      });
+    };
+    const ask = () => {
+      q = make();
+      missed = false;
+      busy = false;
+      draw();
+      $("[data-status]").textContent = `Round ${round + 1} of 8`;
+      say(`Each jump is ${fracHtml(1, q.d)}. Tap where ${fracHtml(q.n, q.d)} goes on the line.`);
+    };
+    const hopTo = async (k) => {
+      for (let j = 1; j <= k; j++) {
+        const x0 = xOf(j - 1);
+        const x1 = xOf(j);
+        const ok = await tween(Math.max(160, 320 - k * 12), (t) => bug.setAttribute("transform", `translate(${x0 + (x1 - x0) * t} ${LY - 42 - Math.sin(t * Math.PI) * 40})`), () => my === token);
+        if (!ok) return false;
+        MUSIC.play("xylophone", 72 + Math.min(24, j * 2), { gain: 0.35 });
+      }
+      return true;
+    };
+    const tap = async (k) => {
+      if (my !== token || busy) return;
+      if (k === 0) return say(`That's 0, where we start. Count ${q.n} jump${q.n === 1 ? "" : "s"} of ${fracHtml(1, q.d)}.`);
+      busy = true;
+      window.OC?.touch();
+      bug.setAttribute("transform", `translate(${xOf(0)} ${LY - 42})`);
+      if (!(await hopTo(k))) return;
+      const { n, d } = q;
+      if (k === n) {
+        MUSIC.chime();
+        fracSvg(view, xOf(k), LY + 60, n, d, 30, "#2e7d46");
+        if (!missed) right += 1;
+        round += 1;
+        window.OC?.count("fractions placed");
+        const extra = n === d ? ` ${fracHtml(n, d)} is one whole!` : n === 2 * d ? ` That's 2 wholes!` : n > d ? ` That's 1 and ${fracHtml(n - d, d)}.` : "";
+        say(`${pick(PRAISE)} ${n} jump${n === 1 ? "" : "s"} of ${fracHtml(1, d)} make ${fracHtml(n, d)}.${extra}`);
+        await wait(2800);
+        if (my !== token) return;
+        if (round >= 8) {
+          confetti();
+          if (right >= 6) shell.mark("f5", { done: true });
+          say(`🎉 ${right} out of 8 right first time! ${right >= 6 ? "Number line star!" : "Let's practise more."}`);
+          round = 0;
+          right = 0;
+          await wait(3200);
+        }
+        if (my === token) ask();
+      } else {
+        missed = true;
+        MUSIC.oops();
+        say(`${pick(KIND)} The ladybug made ${k} jump${k === 1 ? "" : "s"}: that's ${fracHtml(k, d)}. We need ${n} jump${n === 1 ? "" : "s"} of ${fracHtml(1, d)}.`);
+        await wait(1400);
+        if (my !== token) return;
+        bug.setAttribute("transform", `translate(${xOf(0)} ${LY - 42})`);
+        busy = false;
+      }
+    };
+    onLevels("f5", (lv) => {
+      level = lv;
+      round = 0;
+      right = 0;
+      ask();
+    });
+    ask();
+  },
+
+  f6() {
+    const my = token;
+    let level = shell.progress().f6?.level || "easy";
+    let round = 0;
+    let right = 0;
+    let q = null;
+    let missed = false;
+    let busy = false;
+    panel(`${levelRow(level)}<div class="fk-pick" data-choices></div>`);
+    const make = () => {
+      if (level === "easy") {
+        const d = pick([3, 4, 5]);
+        const a = pickInt(1, d - 1);
+        return { d, a, b: pickInt(1, d - a), op: "+" };
+      }
+      const sub = Math.random() < (level === "hard" ? 0.35 : 0.3);
+      const d = level === "medium" ? pick([5, 6, 8, 10]) : pick([3, 4, 5, 6, 8]);
+      if (sub) {
+        const a = pickInt(2, d);
+        return { d, a, b: pickInt(1, a - 1), op: "−" };
+      }
+      if (level === "medium") {
+        const a = pickInt(1, d - 1);
+        return { d, a, b: pickInt(1, d - a), op: "+" };
+      }
+      const a = pickInt(2, d - 1);
+      return { d, a, b: pickInt(d - a + 1, d - 1), op: "+" };
+    };
+    const ans = () => (q.op === "+" ? q.a + q.b : q.a - q.b);
+    let resultParts = [];
+    const draw = () => {
+      fresh();
+      const { a, b, d, op } = q;
+      fracSvg(view, 92, 82, a, d, 34, "#e0603a");
+      bar(130, 34, 830, 84, d, { shaded: new Set([...Array(a).keys()]), tint: "#e0603a", label: d <= 8 });
+      text(view, 30, 210, op, { "font-size": 60, fill: "#2b1d12" });
+      fracSvg(view, 92, 196, b, d, 34, op === "+" ? "#1e88e5" : "#8a7764");
+      bar(130, 148, 830, 84, d, { shaded: new Set([...Array(b).keys()]), tint: op === "+" ? "#1e88e5" : "#b9aa96", label: d <= 8 });
+      text(view, 70, 324, "=", { "font-size": 64, fill: "#2b1d12" });
+      const wholes = op === "+" && a + b > d ? 2 : 1;
+      const w = wholes === 2 ? 405 : 830;
+      resultParts = [];
+      for (let k = 0; k < wholes; k++) {
+        const g = bar(130 + k * (w + 20), 262, w, 84, d, { label: false });
+        resultParts.push(...g.querySelectorAll(".part"));
+      }
+      text(view, 130 + (wholes === 2 ? 830 + 20 : 830) / 2, 322, "?", { "font-size": 56, fill: "var(--accent)", class: "fk-q" });
+      eqSvg(view, 500, 440, [[a, d], op, [b, d], "=", "?"], 42);
+    };
+    const reveal = async () => {
+      view.querySelector(".fk-q")?.remove();
+      const { a, b, op } = q;
+      for (let i = 0; i < a; i++) {
+        resultParts[i].setAttribute("fill", "#e0603a");
+        MUSIC.play("xylophone", 72 + Math.min(24, i * 2), { gain: 0.3 });
+        await wait(160);
+        if (my !== token) return;
+      }
+      for (let i = 0; i < b; i++) {
+        const idx = op === "+" ? a + i : a - 1 - i;
+        resultParts[idx].setAttribute("fill", op === "+" ? "#1e88e5" : "#fffcf6");
+        MUSIC.play("xylophone", 84 + Math.min(12, i), { gain: 0.3 });
+        await wait(200);
+        if (my !== token) return;
+      }
+    };
+    const ask = () => {
+      q = make();
+      missed = false;
+      busy = false;
+      draw();
+      $("[data-status]").textContent = `Sum ${round + 1} of 8`;
+      const r = ans();
+      const near = r <= 1 || Math.random() < 0.5 ? r + 1 : r - 1;
+      const opts = [[r, q.d], q.op === "+" ? [q.a + q.b, q.d * 2] : [q.a + q.b, q.d], [near, q.d]];
+      const seen = new Set();
+      const uniq = opts.filter(([n, d]) => !seen.has(`${n}/${d}`) && seen.add(`${n}/${d}`));
+      choices($("[data-choices]"), KIT.shuffle(uniq).map(([n, d]) => ({ label: fracHtml(n, d), v: `${n}/${d}` })), (c, button) => answer(c.v, button));
+      say(q.op === "+" ? `What is ${fracHtml(q.a, q.d)} plus ${fracHtml(q.b, q.d)}? Tap the answer.` : `What is ${fracHtml(q.a, q.d)} take away ${fracHtml(q.b, q.d)}? Tap the answer.`);
+    };
+    const answer = async (v, button) => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      const r = ans();
+      const { a, b, d, op } = q;
+      if (v === `${r}/${d}`) {
+        busy = true;
+        button.classList.add("right");
+        MUSIC.chime();
+        if (!missed) right += 1;
+        round += 1;
+        window.OC?.count("fraction sums");
+        await reveal();
+        if (my !== token) return;
+        const extra = r === d ? ` That's one whole!` : r > d ? ` That's 1 whole and ${fracHtml(r - d, d)} more.` : "";
+        say(`${pick(PRAISE)} ${a} ${op === "+" ? "+" : "−"} ${b} = ${r} parts, and they are still ${fracWords(2, d).split(" ")[1]}. So ${fracHtml(a, d)} ${op === "+" ? "plus" : "take away"} ${fracHtml(b, d)} = ${fracHtml(r, d)}.${extra}`);
+        await wait(3600);
+        if (my !== token) return;
+        if (round >= 8) {
+          confetti();
+          if (right >= 6) shell.mark("f6", { done: true });
+          say(`🎉 ${right} out of 8 right first time! ${right >= 6 ? "Fraction chef!" : "Let's cook up some more."}`);
+          round = 0;
+          right = 0;
+          await wait(3200);
+        }
+        if (my === token) ask();
+      } else {
+        missed = true;
+        button.classList.add("wrong");
+        MUSIC.oops();
+        const [, vd] = v.split("/").map(Number);
+        say(vd !== d ? `${pick(KIND)} The bottom number stays ${d}: the parts are still the same size. Just count the coloured parts: ${a} ${op} ${b}.` : `${pick(KIND)} Count the parts: ${a} ${op === "+" ? "plus" : "take away"} ${b}. The bottom number stays ${d}.`);
+      }
+    };
+    onLevels("f6", (lv) => {
+      level = lv;
+      round = 0;
+      right = 0;
+      ask();
+    });
+    ask();
+  },
+
+  f7() {
+    const my = token;
+    let level = shell.progress().f7?.level || "easy";
+    let round = 0;
+    let right = 0;
+    let q = null;
+    let missed = false;
+    let busy = false;
+    panel(`${levelRow(level)}<div class="fk-pick" data-choices></div>`);
+    const L = 100;
+    const R = 900;
+    const draw = () => {
+      fresh();
+      const { n, wholes } = q;
+      if (wholes === 1) bar(L, 60, R - L, 110, 10, { shaded: new Set([...Array(n).keys()]), tint: "#8e24aa", label: true });
+      else {
+        bar(L, 60, 390, 110, 10, { shaded: new Set([...Array(10).keys()]), tint: "#8e24aa", label: false });
+        bar(L + 410, 60, 390, 110, 10, { shaded: new Set([...Array(n).keys()]), tint: "#8e24aa", label: false });
+        text(view, L + 195, 205, "1 whole", { "font-size": 26, fill: "#8a7764" });
+      }
+      const LY = 330;
+      const max = wholes;
+      el("line", { x1: L - 20, x2: R + 20, y1: LY, y2: LY, stroke: "#5a4130", "stroke-width": 5, "stroke-linecap": "round" }, view);
+      for (let k = 0; k <= 10 * max; k++) {
+        const x = L + (k / (10 * max)) * (R - L);
+        const big = k % 10 === 0;
+        el("line", { x1: x, x2: x, y1: LY - (big ? 22 : 13), y2: LY + (big ? 22 : 13), stroke: "#5a4130", "stroke-width": big ? 5 : 3 }, view);
+        if (big) text(view, x, LY + 60, k / 10, { "font-size": 34, fill: "#2b1d12" });
+      }
+      q.markX = L + ((10 * (wholes - 1) + n) / (10 * max)) * (R - L);
+      q.LY = LY;
+    };
+    const ask = () => {
+      const n = pickInt(1, 9);
+      q = { n, wholes: level === "hard" ? 2 : 1 };
+      missed = false;
+      busy = false;
+      draw();
+      $("[data-status]").textContent = `Round ${round + 1} of 8`;
+      let opts;
+      if (level === "easy") opts = [`${n}/10`, `${10 - n}/10`, `${n === 9 ? 8 : n + 1}/10`];
+      else if (level === "medium") opts = [`0.${n}`, `${n}.0`, `0.${10 - n}`, `0.0${n}`];
+      else opts = [`1.${n}`, `0.${n}`, `1.0${n}`, `${n}.1`];
+      q.ans = opts[0];
+      if (level === "easy") opts.push(`${n === 1 ? 2 : n - 1}/10`);
+      const uniq = [...new Set(opts)].slice(0, level === "easy" ? 3 : 4);
+      choices($("[data-choices]"), KIT.shuffle(uniq).map((o) => ({ label: o.includes("/") ? fracHtml(...o.split("/")) : o, v: o })), (c, button) => answer(c.v, button));
+      say(level === "easy" ? "The bar is cut into 10 equal parts: tenths. How many tenths are purple? Tap the fraction." : level === "medium" ? "How much of the bar is purple? Tap the decimal." : "One whole bar and some tenths are purple. Tap the decimal that shows it all.");
+    };
+    const answer = async (v, button) => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      const { n } = q;
+      if (v === q.ans) {
+        busy = true;
+        button.classList.add("right");
+        MUSIC.chime();
+        if (!missed) right += 1;
+        round += 1;
+        window.OC?.count("tenths");
+        el("circle", { cx: q.markX, cy: q.LY, r: 14, fill: "#8e24aa", stroke: "#fff", "stroke-width": 4 }, view);
+        text(view, q.markX, q.LY - 36, q.wholes === 2 ? `1.${n}` : `0.${n}`, { "font-size": 34, fill: "#8e24aa" });
+        if (q.wholes === 1) eqSvg(view, 500, 470, [[n, 10], "=", `0.${n}`], 40, "#2b1d12");
+        else eqSvg(view, 500, 470, [[10 + n, 10], "=", `1.${n}`], 40, "#2b1d12");
+        say(
+          q.wholes === 1
+            ? `${pick(PRAISE)} ${n} tenths. We can write it as ${fracHtml(n, 10)} or as 0.${n}. The digit after the dot counts tenths.`
+            : `${pick(PRAISE)} 1 whole and ${n} tenths is 1.${n}. That's ${10 + n} tenths: ${fracHtml(10 + n, 10)}!`
+        );
+        await wait(3600);
+        if (my !== token) return;
+        if (round >= 8) {
+          confetti();
+          if (right >= 6) shell.mark("f7", { done: true });
+          say(`🎉 ${right} out of 8 right first time! ${right >= 6 ? "Tenths expert!" : "Let's try a few more."}`);
+          round = 0;
+          right = 0;
+          await wait(3200);
+        }
+        if (my === token) ask();
+      } else {
+        missed = true;
+        button.classList.add("wrong");
+        MUSIC.oops();
+        let why;
+        if (v === `${10 - n}/10` || v === `0.${10 - n}`) why = "That counts the white parts. Count the purple parts.";
+        else if (v === `${n}.0`) why = `${n}.0 means ${n} whole bars! We only have part of one bar, so it starts with 0.`;
+        else if (v.includes(".0") && v !== `${n}.0`) why = "That would be hundredths: tiny parts. Our parts are tenths, so the digit goes right after the dot.";
+        else if (v === `0.${n}` && q.wholes === 2) why = "Don't forget the whole bar! The number before the dot counts wholes.";
+        else if (v === `${n}.1`) why = "The number before the dot counts whole bars. We have 1 whole bar.";
+        else why = "Count the purple parts again, one at a time.";
+        say(`${pick(KIND)} ${why}`);
+      }
+    };
+    onLevels("f7", (lv) => {
+      level = lv;
+      round = 0;
+      right = 0;
+      ask();
+    });
+    ask();
+  },
   f1() {
     const my = token;
     let round = 0;
@@ -170,7 +728,7 @@ const units = {
     let round = 0;
     let right = 0;
     let pair = null;
-    panel(`<p class="ap-status" data-status></p><div data-pick></div>`);
+    panel(`<p class="ap-status" data-status></p><div data-choices></div>`);
     const make = () => {
       const kind = round % 3;
       if (kind === 0) {
@@ -201,7 +759,7 @@ const units = {
       text(view, W / 2, 440, "Both bars are the same size: one whole.", { "font-size": 24, fill: "#8a7764", "font-weight": 600 });
       $("[data-status]").textContent = `Question ${round + 1} of 9`;
       say(`Which is bigger: ${fracHtml(a.n, a.d)} or ${fracHtml(b.n, b.d)}?`);
-      choices($("[data-pick]"), [{ label: `${a.n}/${a.d}`, v: "a" }, { label: "Equal", v: "eq" }, { label: `${b.n}/${b.d}`, v: "b" }], (c, button) => answer(c.v, button));
+      choices($("[data-choices]"), [{ label: `${a.n}/${a.d}`, v: "a" }, { label: "Equal", v: "eq" }, { label: `${b.n}/${b.d}`, v: "b" }], (c, button) => answer(c.v, button));
     };
     const answer = async (v, button) => {
       if (my !== token) return;
@@ -383,12 +941,16 @@ const units = {
 const shell = SHELL({
   units: UNITS,
   how: {
+    f0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    f5: { icon: "📏", title: "Fractions on a number line", steps: ["The line from 0 to 1 is cut into equal jumps.", "Count the jumps the fraction tells you.", "Tap that spot on the line."] },
+    f6: { icon: "➕", title: "Add fractions", steps: ["Look at the two coloured bars.", "Count all the coloured parts together.", "Tap the answer. The bottom number stays the same!"] },
+    f7: { icon: "🔟", title: "Tenths and decimals", steps: ["The bar is cut into 10 equal parts.", "Count the purple parts.", "Tap the fraction or decimal that matches."] },
     f1: { icon: "🍕", title: "Cut the pizza", steps: ["The bottom number says how many slices.", "The top number says how many to colour.", "Tap slices, then press Check."] },
     f2: { icon: "⚖️", title: "Which is bigger?", steps: ["Look at the two coloured bars.", "Which one has more colour?", "Tap the bigger fraction, or Equal."] },
     f3: { icon: "🟰", title: "Equal fractions", steps: ["The top bar shows a fraction.", "Colour the bottom bar to match it.", "Press Check."] },
     f4: { icon: "🍪", title: "Fraction of a number", steps: ["Press Share to put the cookies on plates.", "Count the cookies the question asks for.", "Type the number and press ✓."] },
   },
-  start: "f1",
+  start: "f0",
   onStop() {
     token += 1;
     $("[data-panel]").onclick = null;

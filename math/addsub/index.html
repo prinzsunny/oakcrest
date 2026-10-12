@@ -1,0 +1,1080 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Add & Subtract · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="math">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Add & Subtract</b><small>Math · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, pickInt, wait, confetti, PRAISE, KIND, choices, explain, everyday, emoji, numpad } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+const INK = "#2b1d12";
+const ROUNDS = 8;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "as0", label: "1. See it", icon: "👀" },
+  { id: "as1", label: "2. Count on", icon: "🎲" },
+  { id: "as2", label: "3. Number bonds", icon: "🔗" },
+  { id: "as3", label: "4. Column adding", icon: "➕" },
+  { id: "as4", label: "5. Column taking away", icon: "➖" },
+  { id: "as5", label: "6. Story problems", icon: "📖" },
+  { id: "as6", label: "7. Missing number", icon: "❓" },
+];
+
+const fresh = () => {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+};
+// On a tall phone screen, zoom the picture to its content so it is big enough to read.
+const fit = () => {
+  if (!view) return;
+  const r = stage.getBoundingClientRect();
+  if (r.height < r.width * 0.9) return;
+  const b = view.getBBox();
+  const pad = 30;
+  view.setAttribute("viewBox", `${b.x - pad} ${b.y - pad} ${b.width + 2 * pad} ${b.height + 2 * pad}`);
+};
+const fmt = (n) => Number(n).toLocaleString("en-US");
+const NOTES = [72, 74, 76, 77, 79, 81, 83, 84, 86, 88];
+const near = (ans, lo = 0) => {
+  const set = new Set([ans]);
+  for (const d of [...KIT.shuffle([1, -1, 2, -2]), 3, 4]) if (set.size < 3 && ans + d >= lo) set.add(ans + d);
+  return [...set].sort((x, y) => x - y);
+};
+
+// ---------- base-ten blocks ----------
+const K = {
+  tho: { name: "thousands", one: "thousand", fill: "#c6a3ee", dark: "#9f78d6", line: "#5e3596", soft: "#f1e8fc", v: 1000 },
+  hun: { name: "hundreds", one: "hundred", fill: "#86bff0", dark: "#5f9fd8", line: "#245f96", soft: "#e3f0fc", v: 100 },
+  ten: { name: "tens", one: "ten", fill: "#f4b267", dark: "#d98f3e", line: "#97541f", soft: "#fdeedb", v: 10 },
+  one: { name: "ones", one: "one", fill: "#8fd19e", dark: "#5fb274", line: "#2a6e3d", soft: "#e2f5e6", v: 1 },
+};
+const ORDER = ["tho", "hun", "ten", "one"];
+const Cap = (s) => s[0].toUpperCase() + s.slice(1);
+const many = (n, kind) => `${fmt(n)} ${n === 1 ? K[kind].one : K[kind].name}`;
+const kindsFor = (n) => ORDER.slice(4 - String(n).length);
+const digitsOf = (n, kinds) => kinds.map((k) => Math.floor(n / K[k].v) % 10);
+const describe = (n, kinds = kindsFor(n)) => {
+  const parts = kinds.map((k, i) => [k, digitsOf(n, kinds)[i]]).filter(([, d]) => d).map(([k, d]) => many(d, k));
+  return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0] || "0";
+};
+
+function block(parent, kind, x, y, sz, attrs = {}) {
+  const k = K[kind];
+  const b = el("g", { transform: `translate(${x} ${y})`, ...attrs }, parent);
+  if (kind === "one") {
+    el("rect", { width: sz.u, height: sz.u, rx: Math.min(5, sz.u * 0.2), fill: k.fill, stroke: k.line, "stroke-width": 2, class: "as-face" }, b);
+    el("rect", { x: 3, y: 3, width: sz.u * 0.35, height: sz.u * 0.18, rx: 2, fill: "#fff", opacity: 0.5 }, b);
+  } else if (kind === "ten") {
+    const w = sz.u;
+    const h = sz.rh || sz.u * 10;
+    el("rect", { width: w, height: h, rx: Math.min(5, w * 0.2), fill: k.fill, stroke: k.line, "stroke-width": 2, class: "as-face" }, b);
+    for (let i = 1; i < 10; i++) el("line", { x1: 1, x2: w - 1, y1: (h * i) / 10, y2: (h * i) / 10, stroke: k.line, "stroke-width": 1.2, opacity: 0.7 }, b);
+  } else if (kind === "hun") {
+    const f = sz.f;
+    el("rect", { width: f, height: f, rx: 4, fill: k.fill, stroke: k.line, "stroke-width": 2, class: "as-face" }, b);
+    for (let i = 1; i < 10; i++) {
+      el("line", { x1: (f * i) / 10, x2: (f * i) / 10, y1: 1, y2: f - 1, stroke: k.line, "stroke-width": 1, opacity: 0.55 }, b);
+      el("line", { y1: (f * i) / 10, y2: (f * i) / 10, x1: 1, x2: f - 1, stroke: k.line, "stroke-width": 1, opacity: 0.55 }, b);
+    }
+  } else {
+    const c = sz.c;
+    const d = c * 0.3;
+    el("polygon", { points: `0,${d} ${d},0 ${c + d},0 ${c},${d}`, fill: k.soft, stroke: k.line, "stroke-width": 2, "stroke-linejoin": "round" }, b);
+    el("polygon", { points: `${c},${d} ${c + d},0 ${c + d},${c} ${c},${c + d}`, fill: k.dark, stroke: k.line, "stroke-width": 2, "stroke-linejoin": "round" }, b);
+    el("rect", { x: 0, y: d, width: c, height: c, fill: k.fill, stroke: k.line, "stroke-width": 2, class: "as-face" }, b);
+    for (let i = 1; i < 10; i++) {
+      el("line", { x1: (c * i) / 10, x2: (c * i) / 10, y1: d, y2: d + c, stroke: k.line, "stroke-width": 0.8, opacity: 0.45 }, b);
+      el("line", { y1: d + (c * i) / 10, y2: d + (c * i) / 10, x1: 0, x2: c, stroke: k.line, "stroke-width": 0.8, opacity: 0.45 }, b);
+    }
+  }
+  return b;
+}
+const dims = (kind, sz) => (kind === "one" ? [sz.u, sz.u] : kind === "ten" ? [sz.u, sz.rh || sz.u * 10] : kind === "hun" ? [sz.f, sz.f] : [sz.c * 1.3, sz.c * 1.3]);
+
+// Lay n blocks into a box, bottom-aligned, rows centred.
+function pile(parent, kind, n, box, sz, gap = 5) {
+  const [iw, ih] = dims(kind, sz);
+  const per = Math.max(1, Math.floor((box.w + gap) / (iw + gap)));
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const r = Math.floor(i / per);
+    const inRow = Math.min(per, n - r * per);
+    const c = i % per;
+    const x = box.x + (box.w - (inRow * (iw + gap) - gap)) / 2 + c * (iw + gap);
+    const y = box.y + box.h - (r + 1) * ih - r * gap;
+    out.push({ node: block(parent, kind, x, y, sz), x, y });
+  }
+  return out;
+}
+
+function tween(ms, fn, ok) {
+  return new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(ok());
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!ok()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+}
+const move = (node, x, y, s = 1) => node.setAttribute("transform", `translate(${x} ${y})${s !== 1 ? ` scale(${s})` : ""}`);
+
+function header(parent, kind, cx, y, w, h = 40, size = 24) {
+  const k = K[kind];
+  el("rect", { x: cx - w / 2, y, width: w, height: h, rx: h / 2, fill: k.soft, stroke: k.line, "stroke-width": 2.5 }, parent);
+  text(parent, cx, y + h / 2 + size * 0.36, Cap(k.name), { "font-size": size, fill: k.line });
+}
+
+
+// ---------- game frame: level chips, status, rounds ----------
+const LV = [
+  ["e", "🐣 Easy"],
+  ["m", "🦊 Medium"],
+  ["h", "🦁 Hard"],
+];
+function game(id, ask, { thing = "rounds", done = "" } = {}) {
+  const my = token;
+  const g = { level: shell.progress()[id]?.level || "e", round: 0, right: 0, missed: false, busy: false, gen: 0 };
+  panel(`<div class="ap-row"><div class="ap-chips" data-lvs>${LV.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === g.level}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div><div class="as-ans" data-ans></div>`);
+  g.live = () => my === token;
+  g.ok = (gen = g.gen) => my === token && gen === g.gen;
+  g.status = () => {
+    const s = $("[data-status]");
+    if (s) s.textContent = `Round ${Math.min(g.round + 1, ROUNDS)} of ${ROUNDS} · ⭐ ${g.right}`;
+  };
+  g.next = () => {
+    g.gen += 1;
+    g.missed = false;
+    g.busy = false;
+    $("[data-ans]").innerHTML = "";
+    g.status();
+    ask(g, g.gen);
+  };
+  g.oops = (msg) => {
+    MUSIC.oops();
+    g.missed = true;
+    if (msg) say(msg);
+  };
+  const end = async (ok, msg, ms) => {
+    const gen = g.gen;
+    g.busy = true;
+    if (ok && !g.missed) g.right += 1;
+    g.round += 1;
+    window.OC?.count(thing);
+    say(msg);
+    g.status();
+    await wait(ms);
+    if (!g.ok(gen)) return;
+    if (g.round >= ROUNDS) {
+      confetti();
+      MUSIC.chime();
+      shell.mark(id, { done: true });
+      say(`🎉 You finished all ${ROUNDS}! ${g.right} right the first time. ${done}`);
+      await wait(4200);
+      if (!g.ok(gen)) return;
+      g.round = 0;
+      g.right = 0;
+    }
+    g.next();
+  };
+  g.win = (msg, { ms = 2800, quiet = false } = {}) => {
+    if (!quiet) MUSIC.chime();
+    return end(true, msg, ms);
+  };
+  g.skip = (msg, { ms = 3400 } = {}) => end(false, msg, ms);
+  $("[data-lvs]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b || !g.live()) return;
+    window.OC?.touch();
+    g.level = b.dataset.lv;
+    shell.mark(id, { level: g.level });
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    g.round = 0;
+    g.right = 0;
+    g.next();
+  });
+  g.status();
+  queueMicrotask(() => g.live() && g.next());
+  return g;
+}
+
+
+// ---------- column board: digits on top, block trays below ----------
+function Board(v, { a, b, op, kinds }) {
+  const n = kinds.length;
+  const colW = n === 2 ? 290 : 270;
+  const x0 = 500 - (n * colW) / 2 + 30;
+  const cx = (i) => x0 + colW * (i + 0.5);
+  const split = (num) => String(num).padStart(n, " ").split("").map((c) => (c === " " ? null : Number(c)));
+  const top = split(a);
+  const bot = split(b);
+  const st = {
+    top: [...top],
+    bot,
+    crossed: Array(n).fill(false),
+    above: Array(n).fill(""),
+    ans: Array(n).fill(null),
+    hot: -1,
+    counts: kinds.map((k, i) => (top[i] || 0) + (op === "+" ? bot[i] || 0 : 0)),
+  };
+  const SZ = { one: { u: 22 }, ten: { u: 12, rh: 100 }, hun: { f: 46 } };
+  const boxW = { one: 5 * 27, ten: 10 * 15, hun: 4 * 51 };
+  let trays = [];
+  const render = () => {
+    v.innerHTML = "";
+    if (st.hot >= 0) el("rect", { x: cx(st.hot) - colW / 2 + 6, y: 2, width: colW - 12, height: 554, rx: 22, fill: "#fff3c4", stroke: "var(--accent)", "stroke-width": 4 }, v);
+    trays = [];
+    kinds.forEach((kind, i) => {
+      const x = cx(i);
+      header(v, kind, x, 8, colW - 34, 34, 21);
+      if (st.above[i]) text(v, x + (st.crossed[i] ? 4 : 0), 80, st.above[i], { "font-size": 34, fill: "#c0392b" });
+      if (top[i] !== null) {
+        text(v, x, 150, top[i], { "font-size": 68, fill: st.crossed[i] ? "#a8998a" : INK });
+        if (st.crossed[i]) el("line", { x1: x - 30, y1: 140, x2: x + 30, y2: 112, stroke: "#c0392b", "stroke-width": 5, "stroke-linecap": "round" }, v);
+      }
+      if (bot[i] !== null) text(v, x, 222, bot[i], { "font-size": 68, fill: INK });
+      if (st.ans[i] !== null) text(v, x, 304, st.ans[i], { "font-size": 68, fill: "#2e7d46" });
+      el("rect", { x: x - colW / 2 + 14, y: 318, width: colW - 28, height: 232, rx: 16, fill: "#fbf6ee", stroke: K[kind].soft, "stroke-width": 3 }, v);
+      const g = el("g", {}, v);
+      trays.push(pile(g, kind, st.counts[i], { x: x - boxW[kind] / 2, y: 324, w: boxW[kind], h: 220 }, SZ[kind], kind === "ten" ? 3 : 5));
+    });
+    text(v, x0 - 34, 222, op === "+" ? "+" : "−", { "font-size": 68, fill: INK });
+    el("line", { x1: x0 - 66, x2: x0 + n * colW - 14, y1: 240, y2: 240, stroke: INK, "stroke-width": 5, "stroke-linecap": "round" }, v);
+  };
+  const glow = (nodes, color = "#ffd54f") => nodes.forEach(({ node }) => node.querySelector(".as-face").setAttribute("fill", color));
+  // 10 blocks snap into one bigger block and slide to the next place on the left.
+  const bundle = async (i, ok) => {
+    const kind = kinds[i];
+    const group = trays[i].slice(0, 10);
+    glow(group);
+    const [iw] = dims(kind, SZ[kind]);
+    const targets = group.map((_, j) => (kind === "one" ? [cx(i) - iw / 2, 324 + j * iw] : [cx(i) - 5 * iw + j * iw, 330]));
+    if (!(await tween(900, (t) => group.forEach((it, j) => move(it.node, it.x + (targets[j][0] - it.x) * t, it.y + (targets[j][1] - it.y) * t)), ok))) return false;
+    MUSIC.play("harp", kind === "one" ? 84 : 88, { gain: 0.5 });
+    const dx = cx(i - 1) - cx(i);
+    if (!(await tween(900, (t) => group.forEach((it, j) => move(it.node, targets[j][0] + dx * t, targets[j][1])), ok))) return false;
+    st.counts[i] -= 10;
+    st.counts[i - 1] += 1;
+    render();
+    const fresh1 = trays[i - 1][trays[i - 1].length - 1];
+    if (fresh1) glow([fresh1]);
+    return true;
+  };
+  // Break one block from the place on the left into 10 smaller ones.
+  const breakOne = async (i, ok) => {
+    const from = trays[i - 1];
+    const it = from[from.length - 1];
+    glow([it]);
+    const dx = cx(i) - cx(i - 1);
+    if (!(await tween(1000, (t) => move(it.node, it.x + dx * t, it.y), ok))) return false;
+    MUSIC.play("harp", 84, { gain: 0.5 });
+    st.counts[i - 1] -= 1;
+    st.counts[i] += 10;
+    render();
+    glow(trays[i].slice(-10));
+    return true;
+  };
+  // Take k blocks away: they float up and fade.
+  const takeAway = async (i, k, ok) => {
+    const group = trays[i].slice(trays[i].length - k);
+    group.forEach(({ node }) => node.querySelector(".as-face").setAttribute("fill", "#f6b3a8"));
+    if (!(await tween(900, (t) => group.forEach((it) => {
+      move(it.node, it.x, it.y - 50 * t);
+      it.node.setAttribute("opacity", 1 - t);
+    }), ok))) return false;
+    st.counts[i] -= k;
+    render();
+    return true;
+  };
+  return { st, render, bundle, breakOne, takeAway, kinds };
+}
+
+// Dots laid out inside a circle.
+function dotsIn(parent, x, y, k, { r = 11, per = 5, fill = "#e53935", empty = false } = {}) {
+  const pitch = r * 2 + 8;
+  const rows = Math.ceil(k / per);
+  for (let j = 0; j < k; j++) {
+    const row = Math.floor(j / per);
+    const inRow = Math.min(per, k - row * per);
+    const c = j % per;
+    el("circle", { cx: x - ((inRow - 1) * pitch) / 2 + c * pitch, cy: y - ((rows - 1) * pitch) / 2 + row * pitch, r, fill: empty ? "#fff" : fill, stroke: empty ? "#6f5c48" : "none", "stroke-width": 3, "stroke-dasharray": empty ? "4 3" : null }, parent);
+  }
+}
+
+const ITEMS = [
+  ["🍎", "apples", true],
+  ["🍪", "cookies", true],
+  ["🍓", "strawberries", true],
+  ["🧸", "teddy bears", false],
+  ["🚗", "toy cars", false],
+  ["🐟", "fish", false],
+  ["🌸", "flowers", false],
+  ["⚽", "balls", false],
+];
+
+const units = {
+  // ---------- See it ----------
+  as0() {
+    const my = token;
+    const scenes = [
+      {
+        say: "Why do we learn to add and take away? To count toys, to know how many cookies are left, to save money, and to keep score in a game.",
+        draw: everyday([
+          ["🧸", "Adding up toys"],
+          ["🍪", "Cookies left after a snack"],
+          ["🐷", "Saving money"],
+          ["⚽", "Keeping score"],
+        ]),
+      },
+      {
+        say: "Adding is putting groups together. 3 and 2 more make 5.",
+        async draw(v, api) {
+          const items = [];
+          [120, 210, 300].forEach((x) => items.push({ x, c: el("circle", { cx: 0, cy: 0, r: 36, fill: "#e53935", stroke: "#8e1c1a", "stroke-width": 3, transform: `translate(${x} 240)` }, v) }));
+          [700, 790].forEach((x) => items.push({ x, c: el("circle", { cx: 0, cy: 0, r: 36, fill: "#1e88e5", stroke: "#0d4f8b", "stroke-width": 3, transform: `translate(${x} 240)` }, v) }));
+          const l1 = text(v, 210, 340, "3", { "font-size": 52, fill: "#c0392b" });
+          const l2 = text(v, 745, 340, "2", { "font-size": 52, fill: "#1565c0" });
+          const plus = text(v, 500, 258, "+", { "font-size": 70, fill: INK });
+          await api.wait(1800);
+          [l1, l2, plus].forEach((x) => x.remove());
+          await api.tween(1400, (t) => items.forEach((it, j) => it.c.setAttribute("transform", `translate(${it.x + (320 + j * 90 - it.x) * t} 240)`)));
+          for (let j = 0; j < 5; j++) {
+            text(v, 320 + j * 90, 330, j + 1, { "font-size": 34, fill: INK });
+            MUSIC.play("xylophone", NOTES[j], { gain: 0.4 });
+            await api.wait(450);
+          }
+          text(v, 500, 450, "3 + 2 = 5", { "font-size": 68, fill: INK });
+        },
+      },
+      {
+        say: "Taking away: 5 cookies, you eat 2, and 3 are left.",
+        async draw(v, api) {
+          const cookies = [0, 1, 2, 3, 4].map((j) => emoji(v, 240 + j * 130, 220, "🍪", 100));
+          await api.wait(1800);
+          for (const j of [4, 3]) {
+            MUSIC.play("woodblock", 72, { gain: 0.5 });
+            await api.tween(800, (t) => {
+              cookies[j].setAttribute("opacity", 1 - t);
+              cookies[j].setAttribute("y", 255 - 80 * t);
+            });
+          }
+          emoji(v, 820, 120, "😋", 80);
+          await api.wait(500);
+          text(v, 500, 400, "3 left", { "font-size": 46, fill: "#2e7d46" });
+          text(v, 500, 490, "5 − 2 = 3", { "font-size": 68, fill: INK });
+        },
+      },
+      {
+        say: "A number bond shows a whole and its two parts. 7 is made of 3 and 4.",
+        async draw(v, api) {
+          const C = [[500, 112], [270, 370], [730, 370]];
+          el("line", { x1: 500, y1: 112, x2: 270, y2: 370, stroke: "#b9a68f", "stroke-width": 6 }, v);
+          el("line", { x1: 500, y1: 112, x2: 730, y2: 370, stroke: "#b9a68f", "stroke-width": 6 }, v);
+          C.forEach(([x, y], i) => el("circle", { cx: x, cy: y, r: 92, fill: i ? "#fdeedb" : "#e3f0fc", stroke: i ? K.ten.line : K.hun.line, "stroke-width": 5 }, v));
+          text(v, 650, 120, "whole", { "font-size": 26, fill: K.hun.line });
+          const dots = [];
+          for (let j = 0; j < 7; j++) {
+            const x = 500 - 3 * 34 + j * 34;
+            dots.push({ x, y: 112, c: el("circle", { cx: x, cy: 112, r: 13, fill: j < 3 ? "#e53935" : "#1e88e5" }, v) });
+          }
+          const w = text(v, 500, 182, "7", { "font-size": 44, fill: INK });
+          await api.wait(1800);
+          const to = (j) => (j < 3 ? [270 - 34 + j * 34, 350] : [730 - 51 + (j - 3) * 34, 350]);
+          await api.tween(1400, (t) => dots.forEach((d, j) => {
+            const [x, y] = to(j);
+            d.c.setAttribute("cx", d.x + (x - d.x) * t);
+            d.c.setAttribute("cy", d.y + (y - d.y) * t);
+          }));
+          w.setAttribute("y", 132);
+          w.setAttribute("font-size", 80);
+          MUSIC.play("xylophone", 79, { gain: 0.4 });
+          text(v, 270, 420, "3", { "font-size": 56, fill: INK });
+          text(v, 730, 420, "4", { "font-size": 56, fill: INK });
+          text(v, 270, 498, "part", { "font-size": 24, fill: K.ten.line });
+          text(v, 730, 498, "part", { "font-size": 24, fill: K.ten.line });
+          await api.wait(1000);
+          text(v, 330, 545, "3 + 4 = 7", { "font-size": 40, fill: INK });
+          text(v, 670, 545, "7 − 4 = 3", { "font-size": 40, fill: INK });
+        },
+      },
+      {
+        say: "Adding in columns: 7 ones and 5 ones make 12 ones. 10 ones bundle into a ten and carry over. 27 + 15 = 42.",
+        async draw(v, api) {
+          const ok = () => api.alive();
+          const bd = Board(v, { a: 27, b: 15, op: "+", kinds: ["ten", "one"] });
+          bd.render();
+          await api.wait(1800);
+          bd.st.hot = 1;
+          bd.render();
+          await api.wait(1800);
+          if (!(await bd.bundle(1, ok))) return;
+          bd.st.above[0] = "1";
+          bd.st.ans[1] = 2;
+          bd.render();
+          await api.wait(1800);
+          bd.st.hot = 0;
+          bd.render();
+          await api.wait(1400);
+          bd.st.ans[0] = 4;
+          bd.render();
+          MUSIC.play("harp", 88, { gain: 0.5 });
+        },
+      },
+      {
+        say: "Taking away in columns: we can't take 7 ones from 2, so we break a ten into 10 ones. 12 − 7 = 5 and 3 − 1 = 2. 42 − 17 = 25.",
+        async draw(v, api) {
+          const ok = () => api.alive();
+          const bd = Board(v, { a: 42, b: 17, op: "−", kinds: ["ten", "one"] });
+          bd.render();
+          await api.wait(1800);
+          bd.st.hot = 1;
+          bd.render();
+          await api.wait(1800);
+          if (!(await bd.breakOne(1, ok))) return;
+          Object.assign(bd.st, { crossed: [true, true], above: ["3", "12"] });
+          bd.st.top = [3, 12];
+          bd.render();
+          await api.wait(1600);
+          if (!(await bd.takeAway(1, 7, ok))) return;
+          bd.st.ans[1] = 5;
+          bd.render();
+          await api.wait(1400);
+          bd.st.hot = 0;
+          bd.render();
+          await api.wait(1000);
+          if (!(await bd.takeAway(0, 1, ok))) return;
+          bd.st.ans[0] = 2;
+          bd.render();
+          MUSIC.play("harp", 88, { gain: 0.5 });
+        },
+      },
+    ];
+    explain(scenes, { alive: () => my === token, onDone: () => shell.go("as1"), title: "Adding and taking away" });
+  },
+
+  // ---------- Count on (dominoes) ----------
+  as1() {
+    const PIPS = { 1: [[0, 0]], 2: [[-1, -1], [1, 1]], 3: [[-1, -1], [0, 0], [1, 1]], 4: [[-1, -1], [1, -1], [-1, 1], [1, 1]], 5: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]], 6: [[-1, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [1, 1]] };
+    let q;
+    const g = game(
+      "as1",
+      (g) => {
+        const L = g.level;
+        if (L === "e") q = { a: pickInt(1, 6), b: pickInt(1, 4), minus: false };
+        else if (L === "m") q = { a: pickInt(7, 14), b: pickInt(2, 6), minus: false };
+        else q = { a: pickInt(11, 20), b: pickInt(2, 6), minus: true };
+        q.L = L;
+        q.k = 0;
+        q.ans = q.minus ? q.a - q.b : q.a + q.b;
+        draw();
+        if (L === "e") say(`${q.a === 1 ? "Here is 1 dot" : `Here are ${q.a} dots`}. Count on: tap each blue dot!`);
+        else {
+          say(q.minus ? `What is ${q.a} − ${q.b}? Start at ${q.a} and count back. Tap the red dots to take them away.` : `What is ${q.a} + ${q.b}? Start at ${q.a} and count on. Tap the dots to help.`);
+          choices($("[data-ans]"), near(q.ans).map((v) => ({ label: String(v), v })), (o, button) => answer(o.v, button));
+        }
+      },
+      { thing: "sums counted" },
+    );
+    const draw = () => {
+      fresh();
+      el("rect", { x: 140, y: 40, width: 720, height: 360, rx: 44, fill: "#fffdf8", stroke: INK, "stroke-width": 7 }, view);
+      el("line", { x1: 500, x2: 500, y1: 74, y2: 366, stroke: INK, "stroke-width": 5 }, view);
+      el("circle", { cx: 500, cy: 220, r: 9, fill: "#c9a227" }, view);
+      if (q.L === "e") PIPS[q.a].forEach(([dx, dy]) => el("circle", { cx: 320 + dx * 92, cy: 220 + dy * 92, r: 32, fill: INK }, view));
+      else text(view, 320, 275, q.a, { "font-size": 150, fill: INK });
+      PIPS[q.b].forEach(([dx, dy], j) => {
+        const p = el("circle", { class: "as-pip", "data-j": j, cx: 680 + dx * 92, cy: 220 + dy * 92, r: 36, fill: q.minus ? "#e53935" : "#1e88e5", stroke: "#fff", "stroke-width": 4 }, view);
+        p.dataset.x = 680 + dx * 92;
+      });
+      q.cap = text(view, 500, 490, q.L === "e" ? `${q.a} + ${q.b} = ?` : `${q.a} ${q.minus ? "−" : "+"} ${q.b} = ?`, { "font-size": 64, fill: INK });
+      view.addEventListener("pointerdown", (event) => {
+        const p = event.target.closest(".as-pip");
+        if (p) tap(p);
+      });
+      fit();
+    };
+    const tap = async (p) => {
+      if (!g.live() || g.busy || p.dataset.done) return;
+      window.OC?.touch();
+      p.dataset.done = "1";
+      q.k += 1;
+      const n = q.minus ? q.a - q.k : q.a + q.k;
+      MUSIC.play("xylophone", q.minus ? NOTES[Math.max(0, 9 - q.k)] : NOTES[Math.min(9, q.k + 2)], { gain: 0.45 });
+      VOICE.speak(String(n));
+      if (q.minus) {
+        const gen = g.gen;
+        tween(500, (t) => {
+          p.setAttribute("opacity", 1 - t);
+          p.setAttribute("cy", Number(p.getAttribute("cy")) - 3);
+        }, () => g.ok(gen));
+      } else {
+        p.setAttribute("fill", "#ffd54f");
+        text(view, Number(p.dataset.x), Number(p.getAttribute("cy")) + 12, n, { "font-size": 32, fill: INK, "pointer-events": "none" });
+      }
+      if (q.L === "e" && q.k === q.b) {
+        g.busy = true;
+        q.cap.textContent = `${q.a} + ${q.b} = ${q.ans}`;
+        q.cap.setAttribute("fill", "#2e7d46");
+        await wait(700);
+        if (g.live()) g.win(`${pick(PRAISE)} ${q.a} and ${q.b} more make ${q.ans}.`);
+      }
+    };
+    const answer = (v, button) => {
+      if (!g.live() || g.busy) return;
+      window.OC?.touch();
+      if (v === q.ans) {
+        button.classList.add("right");
+        q.cap.textContent = `${q.a} ${q.minus ? "−" : "+"} ${q.b} = ${q.ans}`;
+        q.cap.setAttribute("fill", "#2e7d46");
+        g.win(`${pick(PRAISE)} ${q.a} ${q.minus ? "−" : "+"} ${q.b} = ${q.ans}.`);
+      } else {
+        button.classList.add("wrong");
+        g.oops(q.minus ? `${pick(KIND)} Start at ${q.a} and count back ${q.b}: tap the red dots and listen.` : `${pick(KIND)} Start at ${q.a} and count on ${q.b} more: tap the blue dots and listen.`);
+      }
+    };
+  },
+
+  // ---------- Number bonds ----------
+  as2() {
+    let q;
+    let pad;
+    const g = game(
+      "as2",
+      (g) => {
+        const L = g.level;
+        let whole;
+        let p1;
+        if (L === "e") whole = pickInt(3, 5);
+        else if (L === "m") whole = pickInt(6, 10);
+        else whole = Math.random() < 0.6 ? pickInt(11, 20) : 100;
+        if (whole === 100) p1 = pick([10, 20, 30, 40, 50, 60, 70, 80, 90, 25, 75]);
+        else p1 = pickInt(L === "h" ? 2 : 1, whole - (L === "h" ? 2 : 1));
+        const missing = pick(L === "e" ? [1, 2, 2] : [0, 1, 2]);
+        q = { L, whole, parts: [p1, whole - p1], missing };
+        q.ans = missing === 0 ? whole : q.parts[missing - 1];
+        draw();
+        say(missing === 0 ? `The parts are ${q.parts[0]} and ${q.parts[1]}. What is the whole?` : `The whole is ${whole}. One part is ${q.parts[2 - missing]}. What is the other part?`);
+        if (L === "h") pad = numpad($("[data-ans]"), { onEnter: (v) => answer(v, null), max: 3 });
+        else choices($("[data-ans]"), near(q.ans).map((v) => ({ label: String(v), v })), (o, button) => answer(o.v, button));
+      },
+      { thing: "number bonds" },
+    );
+    const draw = (solved = false) => {
+      fresh();
+      const C = [[500, 118], [270, 400], [730, 400]];
+      const vals = [q.whole, ...q.parts];
+      el("line", { x1: 500, y1: 118, x2: 270, y2: 400, stroke: "#b9a68f", "stroke-width": 7 }, view);
+      el("line", { x1: 500, y1: 118, x2: 730, y2: 400, stroke: "#b9a68f", "stroke-width": 7 }, view);
+      C.forEach(([x, y], i) => {
+        const hole = i === q.missing && !solved;
+        el("circle", { cx: x, cy: y, r: 104, fill: hole ? "#fff3c4" : i ? "#fdeedb" : "#e3f0fc", stroke: hole ? "var(--accent)" : i ? K.ten.line : K.hun.line, "stroke-width": 6, "stroke-dasharray": hole ? "14 9" : null }, view);
+        text(view, x, y + (q.L !== "h" ? 10 : 30), hole ? "?" : vals[i], { "font-size": hole ? 84 : 76, fill: solved && i === q.missing ? "#2e7d46" : INK });
+        if (q.L !== "h") {
+          const r = q.L === "e" ? 12 : 9;
+          if (!hole) dotsIn(view, x, y + 58, vals[i], { r, per: 5, fill: i === 2 ? "#1e88e5" : i === 1 ? "#e53935" : "#7e57c2" });
+          else if (q.L === "e" && i > 0) dotsIn(view, x, y + 58, vals[i], { r, per: 5, empty: true });
+        }
+      });
+      text(view, 500, 262, "whole", { "font-size": 24, fill: K.hun.line });
+      text(view, 270, 540, "part", { "font-size": 24, fill: K.ten.line });
+      text(view, 730, 540, "part", { "font-size": 24, fill: K.ten.line });
+      fit();
+    };
+    const answer = (v, button) => {
+      if (!g.live() || g.busy) return;
+      window.OC?.touch();
+      pad?.clear();
+      if (v === q.ans) {
+        button?.classList.add("right");
+        draw(true);
+        g.win(`${pick(PRAISE)} ${q.parts[0]} and ${q.parts[1]} make ${q.whole}.`);
+      } else {
+        button?.classList.add("wrong");
+        g.oops(q.missing === 0 ? `${pick(KIND)} The whole is both parts put together: ${q.parts[0]} + ${q.parts[1]}.` : `${pick(KIND)} The two parts must make ${q.whole} together. ${q.parts[2 - q.missing]} and how many more make ${q.whole}?`);
+      }
+    };
+  },
+
+  // ---------- Column adding with carrying ----------
+  as3() {
+    let q;
+    let bd;
+    let pad;
+    const g = game(
+      "as3",
+      (g) => {
+        const L = g.level;
+        let a;
+        let b;
+        let kinds;
+        if (L === "e") {
+          kinds = ["ten", "one"];
+          a = pickInt(3, 9);
+          b = pickInt(Math.max(2, 10 - a), 9);
+        } else if (L === "m") {
+          kinds = ["ten", "one"];
+          do {
+            a = pickInt(11, 79);
+            b = pickInt(11, 79);
+          } while (a + b > 99 || (Math.random() < 0.8 && (a % 10) + (b % 10) < 10));
+        } else {
+          kinds = ["hun", "ten", "one"];
+          do {
+            a = pickInt(101, 699);
+            b = pickInt(101, 699);
+          } while (a + b > 999 || ((a % 10) + (b % 10) < 10 && (Math.floor(a / 10) % 10) + (Math.floor(b / 10) % 10) < 10));
+        }
+        q = { a, b, kinds, col: kinds.length - 1, carry: 0, busy: false };
+        fresh();
+        bd = Board(view, { a, b, op: "+", kinds });
+        bd.st.hot = q.col;
+        bd.render();
+        pad = numpad($("[data-ans]"), { onEnter: (v) => check(v), max: 2 });
+        ask();
+      },
+      { thing: "column sums" },
+    );
+    const ask = () => {
+      const i = q.col;
+      const nm = K[q.kinds[i]].name;
+      const nums = [bd.st.top[i], bd.st.bot[i]].filter((x) => x !== null);
+      q.want = nums.reduce((s, x) => s + x, 0) + q.carry;
+      if (!nums.length) say(`Add the ${nm}: just the 1 we carried. How many ${nm}?`);
+      else say(`Add the ${nm}: ${nums.join(" + ")}${q.carry ? ", and the 1 we carried" : ""}. How many ${nm}?`);
+    };
+    const check = async (v) => {
+      if (!g.live() || g.busy || q.busy) return;
+      window.OC?.touch();
+      pad.clear();
+      const i = q.col;
+      const kind = q.kinds[i];
+      if (v !== q.want) {
+        g.oops(`${pick(KIND)} Count all the ${K[kind].name} blocks in the yellow column.`);
+        return;
+      }
+      q.busy = true;
+      const gen = g.gen;
+      const ok = () => g.ok(gen);
+      MUSIC.play("xylophone", NOTES[(q.kinds.length - i) * 2], { gain: 0.45 });
+      if (q.want >= 10 && i > 0) {
+        say(`${q.want} ${K[kind].name}! Trade 10 ${K[kind].name} for 1 ${K[q.kinds[i - 1]].one}. Write ${q.want % 10}, carry the 1.`);
+        if (!(await bd.bundle(i, ok))) return;
+        bd.st.above[i - 1] = "1";
+        q.carry = 1;
+      } else q.carry = 0;
+      bd.st.ans[i] = i === 0 ? q.want : q.want % 10;
+      if (i === 0) {
+        bd.st.hot = -1;
+        bd.render();
+        g.win(`${pick(PRAISE)} ${q.a} + ${q.b} = ${q.a + q.b}.`, { ms: 3400 });
+        return;
+      }
+      bd.render();
+      await wait(q.carry ? 2400 : 900);
+      if (!ok()) return;
+      q.col -= 1;
+      bd.st.hot = q.col;
+      bd.render();
+      q.busy = false;
+      ask();
+    };
+  },
+
+  // ---------- Column taking away with borrowing ----------
+  as4() {
+    let q;
+    let bd;
+    let pad;
+    const plan = (a, b, n) => {
+      const t = String(a).padStart(n, "0").split("").map(Number);
+      const s = String(b).padStart(n, "0").split("").map(Number);
+      let borrows = 0;
+      for (let i = n - 1; i >= 0; i--) {
+        if (t[i] < s[i]) {
+          if (i === 0 || t[i - 1] === 0) return -1;
+          t[i - 1] -= 1;
+          t[i] += 10;
+          borrows += 1;
+        }
+      }
+      return t[0] - s[0] >= 1 ? borrows : -1;
+    };
+    const g = game(
+      "as4",
+      (g) => {
+        const L = g.level;
+        let a;
+        let b;
+        let kinds = ["ten", "one"];
+        if (L === "e") {
+          a = pickInt(11, 29);
+          b = pickInt(1, a % 10 || 1);
+          if (a % 10 === 0) a += pickInt(2, 8);
+        } else if (L === "m") {
+          let r;
+          do {
+            a = pickInt(30, 99);
+            b = pickInt(11, a - 10);
+            r = plan(a, b, 2);
+          } while (r < 0 || (r === 0 && Math.random() < 0.85));
+        } else {
+          kinds = ["hun", "ten", "one"];
+          let r;
+          do {
+            a = pickInt(300, 999);
+            b = pickInt(101, a - 100);
+            r = plan(a, b, 3);
+          } while (r < 1);
+        }
+        q = { a, b, kinds, col: kinds.length - 1, busy: false };
+        fresh();
+        bd = Board(view, { a, b, op: "−", kinds });
+        bd.st.hot = q.col;
+        bd.render();
+        pad = numpad($("[data-ans]"), { onEnter: (v) => check(v), max: 2 });
+        ask();
+      },
+      { thing: "column take-aways" },
+    );
+    const ask = async () => {
+      const i = q.col;
+      const kind = q.kinds[i];
+      const nm = K[kind].name;
+      const top = bd.st.top[i];
+      const sub = bd.st.bot[i] || 0;
+      if (top < sub) {
+        q.busy = true;
+        const gen = g.gen;
+        const ok = () => g.ok(gen);
+        const up = q.kinds[i - 1];
+        await KIT.sayAsync(`We can't take ${sub} ${nm} from ${top}. Break 1 ${K[up].one} into 10 ${nm}!`);
+        if (!ok()) return;
+        if (!(await bd.breakOne(i, ok))) return;
+        bd.st.top[i - 1] -= 1;
+        bd.st.crossed[i - 1] = true;
+        bd.st.above[i - 1] = String(bd.st.top[i - 1]);
+        bd.st.top[i] += 10;
+        bd.st.crossed[i] = true;
+        bd.st.above[i] = String(bd.st.top[i]);
+        bd.render();
+        q.busy = false;
+      }
+      q.want = bd.st.top[i] - sub;
+      say(`Take away the ${nm}: ${bd.st.top[i]} − ${sub}. How many ${nm} are left?`);
+    };
+    const check = async (v) => {
+      if (!g.live() || g.busy || q.busy) return;
+      window.OC?.touch();
+      pad.clear();
+      const i = q.col;
+      const kind = q.kinds[i];
+      const sub = bd.st.bot[i] || 0;
+      if (v !== q.want) {
+        g.oops(`${pick(KIND)} Start with ${bd.st.top[i]} ${K[kind].name} and take away ${sub}. How many are left?`);
+        return;
+      }
+      q.busy = true;
+      const gen = g.gen;
+      const ok = () => g.ok(gen);
+      MUSIC.play("xylophone", NOTES[(q.kinds.length - i) * 2], { gain: 0.45 });
+      if (sub && !(await bd.takeAway(i, sub, ok))) return;
+      bd.st.ans[i] = q.want;
+      if (i === 0) {
+        bd.st.hot = -1;
+        bd.render();
+        g.win(`${pick(PRAISE)} ${q.a} − ${q.b} = ${q.a - q.b}.`, { ms: 3400 });
+        return;
+      }
+      bd.render();
+      await wait(900);
+      if (!ok()) return;
+      q.col -= 1;
+      bd.st.hot = q.col;
+      bd.render();
+      q.busy = false;
+      ask();
+    };
+  },
+
+  // ---------- Story problems ----------
+  as5() {
+    let q;
+    let pad;
+    const HARD = [
+      () => {
+        const a = pickInt(20, 60);
+        const b = pickInt(10, 30);
+        const c = pickInt(5, 20);
+        return { story: `You had ${a} stickers. You got ${b} more, then gave ${c} to a friend. How many stickers do you have now?`, sum: `${a} + ${b} − ${c}`, ans: a + b - c, cards: [["⭐", `${a}`], ["🎁", `+ ${b}`], ["🤝", `− ${c}`]] };
+      },
+      () => {
+        const a = pickInt(15, 50);
+        const b = pickInt(5, 30);
+        const c = pickInt(8, Math.min(40, a + b - 1));
+        return { story: `You saved ${a} dollars. Grandma gave you ${b} dollars. You bought a book for ${c} dollars. How many dollars are left?`, sum: `${a} + ${b} − ${c}`, ans: a + b - c, cards: [["🐷", `$${a}`], ["👵", `+ $${b}`], ["📘", `− $${c}`]] };
+      },
+      () => {
+        const a = pickInt(20, 45);
+        const b = pickInt(5, 15);
+        const c = pickInt(5, 15);
+        return { story: `There are ${a} children on a bus. At the stop, ${b} get off and ${c} get on. How many children are on the bus now?`, sum: `${a} − ${b} + ${c}`, ans: a - b + c, cards: [["🚌", `${a}`], ["🚶", `− ${b}`], ["🧒", `+ ${c}`]] };
+      },
+      () => {
+        const a = pickInt(60, 99);
+        const b = pickInt(10, 30);
+        const c = pickInt(10, 30);
+        return { story: `A book has ${a} pages. You read ${b} pages on Monday and ${c} pages on Tuesday. How many pages are left to read?`, sum: `${a} − ${b} − ${c}`, ans: a - b - c, cards: [["📖", `${a}`], ["🌙", `− ${b}`], ["☀️", `− ${c}`]] };
+      },
+      () => {
+        const a = pickInt(12, 40);
+        const b = pickInt(5, 20);
+        return { story: `You have ${a} marbles. Your friend has ${b} more than you. How many marbles do you have together?`, sum: `${a} + ${a} + ${b}`, ans: a + a + b, cards: [["🔵", `${a}`], ["🟢", `${a} + ${b}`], ["🤝", "together"]] };
+      },
+    ];
+    const g = game(
+      "as5",
+      (g) => {
+        const L = g.level;
+        fresh();
+        if (L === "h") {
+          q = pick(HARD)();
+          q.cards.forEach(([icon, label], i) => {
+            const x = 500 + (i - 1) * 300;
+            el("rect", { x: x - 130, y: 60, width: 260, height: 300, rx: 30, fill: "#fff", stroke: "var(--accent)", "stroke-width": 5 }, view);
+            el("circle", { cx: x, cy: 160, r: 74, fill: "var(--accent-soft)" }, view);
+            emoji(view, x, 158, icon, 86);
+            text(view, x, 318, label, { "font-size": label.length > 8 ? 40 : 56, fill: INK });
+          });
+          text(view, 500, 470, "= ?", { "font-size": 72, fill: INK });
+        } else {
+          const [icon, plural, food] = pick(ITEMS);
+          const add = Math.random() < 0.5;
+          let a;
+          let b;
+          if (L === "e") {
+            a = pickInt(add ? 1 : 3, add ? 6 : 9);
+            b = add ? pickInt(1, 10 - a) : pickInt(1, a - 1);
+          } else {
+            a = pickInt(add ? 6 : 10, add ? 14 : 20);
+            b = add ? pickInt(2, 20 - a) : pickInt(2, a - 2);
+          }
+          q = { sum: `${a} ${add ? "+" : "−"} ${b}`, ans: add ? a + b : a - b, story: add ? `You have ${a} ${plural}. You get ${b} more. How many ${plural} do you have now?` : `There are ${a} ${plural}. You ${food ? "eat" : "give away"} ${b}. How many ${plural} are left?` };
+          const size = L === "e" ? (add ? 80 : 84) : 54;
+          const per = L === "e" ? (add ? 3 : 5) : add ? 5 : 10;
+          const groupAt = (n, x0, w, y0, gone = 0) => {
+            const rows = Math.ceil(n / per);
+            for (let j = 0; j < n; j++) {
+              const r = Math.floor(j / per);
+              const inRow = Math.min(per, n - r * per);
+              const x = x0 + w / 2 - ((inRow - 1) * size * 1.15) / 2 + (j % per) * size * 1.15;
+              const y = y0 + 150 - ((rows - 1) * size * 1.2) / 2 + r * size * 1.2;
+              const e = emoji(view, x, y, icon, size);
+              if (j >= n - gone) {
+                e.setAttribute("opacity", 0.3);
+                el("line", { x1: x - size * 0.4, y1: y + size * 0.4, x2: x + size * 0.4, y2: y - size * 0.4, stroke: "#c0392b", "stroke-width": 6, "stroke-linecap": "round" }, view);
+              }
+            }
+          };
+          if (add) {
+            el("rect", { x: 40, y: 40, width: 400, height: 300, rx: 26, fill: "#fff8ee" }, view);
+            el("rect", { x: 560, y: 40, width: 400, height: 300, rx: 26, fill: "#f3f9ff" }, view);
+            groupAt(a, 40, 400, 40);
+            groupAt(b, 560, 400, 40);
+            text(view, 500, 214, "+", { "font-size": 80, fill: INK });
+          } else {
+            el("rect", { x: 60, y: 40, width: 880, height: 300, rx: 26, fill: "#fff8ee" }, view);
+            groupAt(a, 60, 880, 40, b);
+          }
+          text(view, 500, 450, `${a} ${add ? "+" : "−"} ${b} = ?`, { "font-size": 72, fill: INK });
+        }
+        fit();
+        say(q.story);
+        if (L === "e") choices($("[data-ans]"), near(q.ans).map((v) => ({ label: String(v), v })), (o, button) => answer(o.v, button));
+        else pad = numpad($("[data-ans]"), { onEnter: (v) => answer(v, null), max: 3 });
+      },
+      { thing: "story problems" },
+    );
+    const answer = (v, button) => {
+      if (!g.live() || g.busy) return;
+      window.OC?.touch();
+      pad?.clear();
+      if (v === q.ans) {
+        button?.classList.add("right");
+        g.win(`${pick(PRAISE)} ${q.sum} = ${q.ans}.`, { ms: 3200 });
+      } else {
+        button?.classList.add("wrong");
+        g.oops(`${pick(KIND)} Listen again and go one step at a time. ${q.story}`);
+      }
+    };
+  },
+
+  // ---------- Missing number ----------
+  as6() {
+    let q;
+    let pad;
+    const g = game(
+      "as6",
+      (g) => {
+        const L = g.level;
+        const max = L === "e" ? 10 : L === "m" ? 20 : 99;
+        const lo = L === "h" ? 11 : 1;
+        const forms = L === "e" ? ["a+?", "?+b"] : L === "m" ? ["a+?", "?+b", "c-?"] : ["a+?", "?+b", "c-?", "?-b"];
+        const form = pick(forms);
+        const c = pickInt(L === "h" ? 35 : L === "e" ? 3 : 8, max);
+        const a = pickInt(lo, c - lo);
+        const b = c - a;
+        // whole c = a + b
+        if (form === "a+?") q = { eq: [a, "+", "?", "=", c], ans: b, whole: c, parts: [a, "?"] };
+        else if (form === "?+b") q = { eq: ["?", "+", b, "=", c], ans: a, whole: c, parts: ["?", b] };
+        else if (form === "c-?") q = { eq: [c, "−", "?", "=", a], ans: b, whole: c, parts: [a, "?"] };
+        else q = { eq: ["?", "−", b, "=", a], ans: c, whole: "?", parts: [a, b] };
+        q.L = L;
+        q.a = a;
+        q.b = b;
+        q.c = c;
+        draw(false);
+        const spoken = q.eq.map((t) => (t === "?" ? "what number" : t === "−" ? "minus" : t === "+" ? "plus" : t === "=" ? "equals" : t)).join(" ");
+        say(`${spoken[0].toUpperCase()}${spoken.slice(1)}? Find the missing number.`);
+        if (L === "e") choices($("[data-ans]"), near(q.ans, 0).map((v) => ({ label: String(v), v })), (o, button) => answer(o.v, button));
+        else pad = numpad($("[data-ans]"), { onEnter: (v) => answer(v, null), max: 3 });
+      },
+      { thing: "missing numbers" },
+    );
+    const draw = (solved) => {
+      fresh();
+      const size = 84;
+      const widths = q.eq.map((t) => (t === "?" ? 150 : typeof t === "number" ? String(t).length * size * 0.62 + 24 : 80));
+      let x = 500 - widths.reduce((s, w) => s + w, 0) / 2;
+      q.eq.forEach((t, i) => {
+        const cx = x + widths[i] / 2;
+        if (t === "?") {
+          el("rect", { x: cx - 68, y: 40, width: 136, height: 112, rx: 22, fill: solved ? "#e2f5e6" : "#fff3c4", stroke: solved ? "#2e7d46" : "var(--accent)", "stroke-width": 6 }, view);
+          text(view, cx, 126, solved ? q.ans : "?", { "font-size": size, fill: solved ? "#2e7d46" : INK });
+        } else text(view, cx, 126, t, { "font-size": size, fill: INK });
+        x += widths[i];
+      });
+      if (q.L === "e") {
+        const n = q.c;
+        const pitch = Math.min(86, 860 / n);
+        for (let j = 0; j < n; j++) {
+          const filled = q.parts[0] === "?" ? j >= q.a : j < q.a;
+          el("circle", { cx: 500 - ((n - 1) * pitch) / 2 + j * pitch, cy: 320, r: Math.min(36, pitch / 2 - 4), fill: filled ? "#e53935" : solved ? "#1e88e5" : "#fff", stroke: filled ? "none" : "#9a8670", "stroke-width": 4, "stroke-dasharray": filled || solved ? null : "8 6" }, view);
+        }
+        text(view, 500, 440, `${q.c} dots in all`, { "font-size": 34, fill: "#8a7764" });
+        fit();
+        return;
+      }
+      const bar = (x0, w, y, label, unknown, fill) => {
+        el("rect", { x: x0, y, width: w, height: 96, rx: 14, fill: unknown && !solved ? "#fff3c4" : fill, stroke: unknown && !solved ? "var(--accent)" : "#8a7764", "stroke-width": 4, "stroke-dasharray": unknown && !solved ? "12 8" : null }, view);
+        text(view, x0 + w / 2, y + 66, unknown ? (solved ? q.ans : "?") : label, { "font-size": 52, fill: unknown && solved ? "#2e7d46" : INK });
+      };
+      const total = q.a + q.b;
+      const w1 = Math.max(120, Math.min(680, (800 * q.a) / total));
+      bar(100, 800, 210, q.whole, q.whole === "?", "#e3f0fc");
+      bar(100, w1, 330, q.parts[0], q.parts[0] === "?", "#fdeedb");
+      bar(100 + w1, 800 - w1, 330, q.parts[1], q.parts[1] === "?", "#e2f5e6");
+      text(view, 950, 270, "whole", { "font-size": 24, fill: "#8a7764", "text-anchor": "end" });
+      text(view, 500, 480, "The two parts make the whole.", { "font-size": 30, fill: "#8a7764" });
+      fit();
+    };
+    const answer = (v, button) => {
+      if (!g.live() || g.busy) return;
+      window.OC?.touch();
+      pad?.clear();
+      if (v === q.ans) {
+        button?.classList.add("right");
+        draw(true);
+        g.win(`${pick(PRAISE)} The missing number is ${q.ans}. ${q.eq.map((t) => (t === "?" ? q.ans : t)).join(" ")}.`, { ms: 3200 });
+      } else {
+        button?.classList.add("wrong");
+        if (q.whole === "?") g.oops(`${pick(KIND)} The missing number is the whole. Put the parts together: ${q.a} + ${q.b}.`);
+        else {
+          const known = q.parts[0] === "?" ? q.parts[1] : q.parts[0];
+          g.oops(q.L === "e" ? `${pick(KIND)} Count the empty circles. They show how many more we need.` : `${pick(KIND)} The whole is ${q.whole} and one part is ${known}. Take ${known} away from ${q.whole}.`);
+        }
+      }
+    };
+  },
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    as0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    as1: { icon: "🎲", title: "Count on", steps: ["Look at the domino.", "Tap each dot and count on.", "Tap the answer if you see buttons."] },
+    as2: { icon: "🔗", title: "Number bonds", steps: ["The top circle is the whole.", "The two bottom circles are the parts.", "Find the missing number."] },
+    as3: { icon: "➕", title: "Column adding", steps: ["Start with the yellow column.", "Add the digits and type the answer.", "10 or more? Watch them carry!"] },
+    as4: { icon: "➖", title: "Column taking away", steps: ["Start with the yellow column.", "Too few? Watch a ten break into ones.", "Take away and type what is left."] },
+    as5: { icon: "📖", title: "Story problems", steps: ["Listen to the story.", "Look at the picture.", "Tap or type the answer."] },
+    as6: { icon: "❓", title: "Missing number", steps: ["One number is hiding.", "Look at the picture to help.", "Tap or type the missing number."] },
+  },
+  start: "as0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Math",
+  activity: "Add & Subtract",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+
+const style = document.createElement("style");
+style.textContent = `
+.as-pip{cursor:pointer}
+.as-ans{display:flex;justify-content:center}
+.as-ans .kt-choices button{min-width:84px;min-height:52px;font-size:22px}
+@media (max-height:460px){.as-ans .kt-choices button{min-height:40px;font-size:18px;min-width:64px}}
+`;
+document.head.appendChild(style);
+MUSIC.preload("xylophone", NOTES);
+MUSIC.preload("harp", [84, 88]);
+MUSIC.preload("woodblock", [72]);
+</script>
+</body>
+</html>

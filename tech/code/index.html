@@ -1,0 +1,1437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code the Robot · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="tech">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Code the Robot</b><small>Coding · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, confetti, PRAISE, explain, everyday } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+const STOPPED = Symbol("stopped");
+
+// ===== ENGINE START =====
+// Pure puzzle logic (no DOM): maps, programs, running. The test file runs this part in Node.
+const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]]; // up, right, down, left
+const ABS = { U: 0, R: 1, D: 2, L: 3 };
+const FACE = { "^": 0, ">": 1, v: 2, "<": 3 };
+
+// Map letters: . floor, # rock, ~ water, * star, g gem, r red tile, b blue tile, ^ > v < robot facing.
+function parseMap(rows) {
+  const world = { w: rows[0].length, h: rows.length, tiles: [], start: null, goal: null, gems: [] };
+  rows.forEach((row, y) => {
+    const line = [];
+    [...row].forEach((c, x) => {
+      let t = ".";
+      if (c in FACE) world.start = { x, y, d: FACE[c] };
+      else if (c === "*") world.goal = { x, y };
+      else if (c === "g") world.gems.push({ x, y });
+      else t = c;
+      line.push(t);
+    });
+    world.tiles.push(line);
+  });
+  return world;
+}
+const tileAt = (world, x, y) => (x < 0 || y < 0 || x >= world.w || y >= world.h ? "edge" : world.tiles[y][x]);
+const blocked = (t) => t === "edge" || t === "#" || t === "~";
+const turn = (d, op) => (op === "TL" ? (d + 3) % 4 : op === "TR" ? (d + 1) % 4 : d);
+
+let uid = 0;
+const card = (op) => ({ id: ++uid, op });
+const loopItem = (n, body = []) => ({ id: ++uid, op: "loop", n, body });
+// "R R 3[R U] F TL S" -> items. S is the ⭐ function card.
+function parseProg(src) {
+  const toks = src.replace(/\[/g, "[ ").replace(/\]/g, " ]").split(/\s+/).filter(Boolean);
+  let i = 0;
+  const list = () => {
+    const out = [];
+    while (i < toks.length) {
+      const t = toks[i++];
+      if (t === "]") return out;
+      const m = /^(\d+)\[$/.exec(t);
+      out.push(m ? loopItem(Number(m[1]), list()) : card(t));
+    }
+    return out;
+  };
+  return list();
+}
+const countCards = (list) => list.reduce((n, it) => n + 1 + (it.op === "loop" ? countCards(it.body) : 0), 0);
+
+// Unroll loops and ⭐ calls into single steps; each step remembers which cards to light up.
+function expand(list, fn = [], ctx = { ids: [], loops: [], inFn: false }, out = []) {
+  for (const it of list) {
+    if (out.length > 300) break;
+    if (it.op === "loop") {
+      for (let i = 0; i < it.n; i++) expand(it.body, fn, { ids: [...ctx.ids, it.id], loops: [...ctx.loops, { id: it.id, i, n: it.n }], inFn: ctx.inFn }, out);
+    } else if (it.op === "S") {
+      if (!ctx.inFn) expand(fn, fn, { ids: [...ctx.ids, it.id], loops: ctx.loops, inFn: true }, out);
+    } else out.push({ op: it.op, ids: [...ctx.ids, it.id], loops: ctx.loops });
+  }
+  return out;
+}
+
+// Run steps exactly. Stops as soon as the robot stands on the star with every gem.
+function simulate(world, steps) {
+  let { x, y, d } = world.start;
+  const got = new Set();
+  const events = [];
+  const onGoal = () => world.goal && x === world.goal.x && y === world.goal.y;
+  for (let s = 0; s < steps.length; s++) {
+    const op = steps[s].op;
+    if (op === "TL" || op === "TR") {
+      d = turn(d, op);
+      events.push({ type: "turn", s, d });
+      continue;
+    }
+    if (op in ABS) {
+      if (d !== ABS[op]) events.push({ type: "face", s, d: ABS[op] });
+      d = ABS[op];
+    } else if (op !== "F") continue;
+    const nx = x + DIRS[d][0];
+    const ny = y + DIRS[d][1];
+    const t = tileAt(world, nx, ny);
+    if (blocked(t)) {
+      events.push({ type: "bump", s, d, what: t });
+      return { ok: false, reason: t, s, events, x, y, d, got };
+    }
+    x = nx;
+    y = ny;
+    events.push({ type: "move", s, x, y, d });
+    const gi = world.gems.findIndex((g) => g.x === x && g.y === y);
+    if (gi >= 0 && !got.has(gi)) {
+      got.add(gi);
+      events.push({ type: "gem", s, i: gi });
+    }
+    if (onGoal() && got.size === world.gems.length) return { ok: true, s, events, x, y, d, got };
+  }
+  return { ok: false, reason: onGoal() ? "gems" : "short", s: steps.length - 1, events, x, y, d, got };
+}
+
+// If-then world: the robot keeps going forward. Rules: { r, b, wall } -> "" | "TL" | "TR".
+function simulateIf(world, rules, max = 90) {
+  let { x, y, d } = world.start;
+  const got = new Set();
+  const seen = new Set();
+  const events = [];
+  for (let k = 0; k < max; k++) {
+    const key = `${x},${y},${d},${[...got].join("")}`;
+    if (seen.has(key)) return { ok: false, reason: "circle", events };
+    seen.add(key);
+    let fired = null;
+    const here = tileAt(world, x, y);
+    if ((here === "r" || here === "b") && rules[here]) {
+      d = turn(d, rules[here]);
+      fired = here;
+      events.push({ type: "turn", rule: here, d });
+    }
+    let ahead = tileAt(world, x + DIRS[d][0], y + DIRS[d][1]);
+    if (blocked(ahead) && rules.wall) {
+      d = turn(d, rules.wall);
+      fired = "wall";
+      events.push({ type: "turn", rule: "wall", d });
+      ahead = tileAt(world, x + DIRS[d][0], y + DIRS[d][1]);
+    }
+    if (blocked(ahead)) {
+      events.push({ type: "bump", d, what: ahead, rule: fired });
+      return { ok: false, reason: ahead, rule: fired, events };
+    }
+    x += DIRS[d][0];
+    y += DIRS[d][1];
+    events.push({ type: "move", x, y, d });
+    const gi = world.gems.findIndex((g) => g.x === x && g.y === y);
+    if (gi >= 0 && !got.has(gi)) {
+      got.add(gi);
+      events.push({ type: "gem", i: gi });
+    }
+    if (world.goal && x === world.goal.x && y === world.goal.y && got.size === world.gems.length) return { ok: true, events };
+  }
+  return { ok: false, reason: "circle", events };
+}
+
+// Shortest list of arrow cards (no loops) that collects every gem and ends on the star.
+function shortest(world) {
+  const need = (1 << world.gems.length) - 1;
+  const { x: sx, y: sy } = world.start;
+  const queue = [[sx, sy, 0, []]];
+  const seen = new Set([`${sx},${sy},0`]);
+  while (queue.length) {
+    const [x, y, m, path] = queue.shift();
+    for (const op of ["U", "R", "D", "L"]) {
+      const nx = x + DIRS[ABS[op]][0];
+      const ny = y + DIRS[ABS[op]][1];
+      if (blocked(tileAt(world, nx, ny))) continue;
+      const gi = world.gems.findIndex((g) => g.x === nx && g.y === ny);
+      const nm = gi >= 0 ? m | (1 << gi) : m;
+      const np = [...path, op];
+      if (world.goal && nx === world.goal.x && ny === world.goal.y && nm === need) return np;
+      const key = `${nx},${ny},${nm}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        queue.push([nx, ny, nm, np]);
+      }
+    }
+  }
+  return null;
+}
+
+// ----- Levels -----
+const FIRST = [
+  { map: ["....", ".>*.", "...."], say: "Help the robot get to the star! Tap the <b>right</b> arrow ➡️, then press <b>▶ Run</b>." },
+  { map: [".*..", ".^..", "...."], say: "The star is up! Tap the <b>up</b> arrow ⬆️, then press <b>▶ Run</b>." },
+  { map: ["....", "..v.", "..*."], say: "Now the star is down. Which arrow? Then press <b>▶ Run</b>." },
+  { map: ["....", ".*<.", "...."], say: "Which way is the star? Tap that arrow, then <b>▶ Run</b>." },
+  { map: [".....", ">.*..", "....."], say: "Two steps this time! Tap an arrow for each step." },
+  { map: ["....", "..*.", ".^.."], say: "Go one way, then another. Two cards!" },
+  { map: ["..*.", "....", ".^.."], say: "Up, up, and over! Three cards." },
+  { map: ["....", ">#*.", "...."], say: "A rock is in the way! Go around it." },
+];
+const SEQ = [
+  { map: ["......", ">.g..*", "......"], say: "Grab the gem 💎 on the way to the star. Fewest cards gets 3 stars!" },
+  { map: ["..g...", ">....*", "......"] },
+  { map: ["......", ">.#..*", "..#...", "..g..."] },
+  { map: [".~~...", ">.~.g*", "....~.", "..g.~."] },
+  { map: ["g....", ".###.", ">.#.*", ".....", "..g.."] },
+  { map: ["*.~...", "..~.#.", "..~...", ".....g", ">.#..."] },
+  { map: ["g..#..", ".#....", ".#.##.", ">....*", "..#g.."] },
+  { map: ["...~~*", ".#.~..", ".#...#", "g#.~..", ">..~g."] },
+  { map: ["g.#...g", "..#.#..", ">...#.*", "..#.#..", "g.#...."] },
+  { map: ["......g", ".~~~~..", ".~*.~..", ".~..~#.", ">...g.."] },
+];
+const DEBUG = [
+  { map: ["....", ">..*", "...."], bug: "R R U", fix: "R R R", pal: ["U", "D", "L", "R"] },
+  { map: [">...", "....", "..*."], bug: "R L D D", fix: "R R D D", pal: ["U", "D", "L", "R"] },
+  { map: ["....", ">#.*", "...."], bug: "R R R D R", fix: "U R R D R", pal: ["U", "D", "L", "R"] },
+  { map: [".g..", ">...", "...*"], bug: "R U D D R L", fix: "R U D D R R", pal: ["U", "D", "L", "R"] },
+  { map: ["......", ">....*", "......"], bug: "4[R]", fix: "5[R]", pal: ["U", "D", "L", "R"], say: "This program uses a repeat card 🔁. Run it. Is the number right? Tap the repeat card to change its number." },
+  { map: ["##.*", "#.g.", ".g..", ">..."], bug: "3[R D]", fix: "3[R U]", pal: ["U", "D", "L", "R"] },
+  { map: ["....", "^..*", "...."], bug: "TL F F F", fix: "TR F F F", pal: ["F", "TL", "TR"], say: "These cards turn the robot. Run it, then find the bug 🐞." },
+  { map: [">.#.", "..#.", "...*"], bug: "F TR F F TR F F", fix: "F TR F F TL F F", pal: ["F", "TL", "TR"] },
+  { map: [">.g", "#~.", "*.."], bug: "3[F F TL]", fix: "3[F F TR]", pal: ["F", "TL", "TR"] },
+];
+const LOOPS = [
+  { map: [".......", ">.....*", "......."], limit: 2, sol: "6[R]", say: "Six steps, but only 2 cards! Tap 🔁 Repeat, then ➡️. Tap the repeat card to change its number." },
+  { map: ["v..", "...", "...", "...", "...", "*.."], limit: 2, sol: "5[D]" },
+  { map: ["###*", "##..", "#...", ">..."], limit: 3, sol: "3[R U]", say: "Stairs! Put two cards inside the repeat." },
+  { map: [".....*", ".....g", ".....g", ">g...."], limit: 4, sol: "5[R] 3[U]", say: "Two repeats this time. Tap 🔁 again to close the first one." },
+  { map: [">....", "#g...", "##g..", "###g.", "####*"], limit: 3, sol: "4[R D]" },
+  { map: ["####*", "####.", "##...", "##.~~", ">..~~"], limit: 5, sol: "2[R R U U]" },
+  { map: [">..####", "##...##", "####...", "######*"], limit: 4, sol: "3[R R D]" },
+  { map: [">...g", "~~~~.", "~~~~.", "~~~~.", "*...g"], limit: 6, sol: "4[R] 4[D] 4[L]" },
+  { map: ["#####*", "####g.", "###g..", "##g...", "#g....", ">....."], limit: 3, sol: "5[R U]" },
+];
+const TURNS = [
+  { map: ["....", ">..*", "...."], sol: "F F F", say: "These cards work like the robot's own feet. ⬆️ means go forward, the way its eyes look." },
+  { map: ["....", "....", "^.*."], sol: "TR F F", say: "The robot looks up. Turn it right first, then go forward." },
+  { map: ["*...", "....", ">..."], sol: "TL F F", say: "The robot looks right. Which way should it turn?" },
+  { map: [">..#", "##.#", "##*#"], sol: "F F TR F F" },
+  { map: [".....", "..<.*", "....."], sol: "TR TR F F", say: "The robot looks the wrong way! Two turns make it turn around." },
+  { map: [".....", ">.#.*", "....."], sol: "F TL F TR F F TR F TL F" },
+  { map: [">..g", "##..", "*..g"], sol: "F F F TR F F TR F F F" },
+  { map: [">..", "#~.", "*.."], limit: 4, pal: ["F", "TL", "TR", "loop"], sol: "3[F F TR]", say: "Only 4 cards! Use 🔁 Repeat to walk around the pond." },
+  { map: ["###*", "##..", "#...", ">..."], limit: 5, pal: ["F", "TL", "TR", "loop"], sol: "3[F TL F TR]", say: "Stairs with turns! Use a repeat. Watch which way the robot looks." },
+];
+const IFS = [
+  { map: [">..r", "....", "...*"], rules: ["r"], say: "The robot walks by itself! Make the rule: <b>if on red</b>, what should it do? Tap the rule card, then <b>▶ Run</b>." },
+  { map: ["...*", "....", ">..r"], rules: ["r"] },
+  { map: [">..r..", "......", "...b.*"], rules: ["r", "b"], say: "Two colours, two rules. Set both, then run." },
+  { map: [">r....", ".br...", "..br..", "...b.*"], rules: ["r", "b"], say: "Lots of tiles, but just two rules! The robot uses them again and again." },
+  { map: ["*.r..", "..b..", ">.r.."], rules: ["r", "b"], say: "Sometimes the best rule is ⬆️ <b>keep going</b>." },
+  { map: [".*...", "###..", ">...#"], rules: ["wall"], say: "A sensor rule! <b>If the way is blocked</b>, which way should the robot turn?" },
+  { map: [">...", "#...", "..*.", "...."], rules: ["wall"], say: "One rule makes a spiral! If blocked, turn which way?" },
+  { map: [">....", ".....", "*...r", "#....", "....."], rules: ["r", "wall"], say: "A colour rule and a sensor rule together!" },
+];
+const FUNCS = [
+  { map: ["###.*", "#....", ">.###"], limit: 2, fnLimit: 3, sol: "S S", fn: "R U R", say: "Make your own ⭐ card! Put 3 arrows in the ⭐ box. Then tap the Program box and use ⭐ twice." },
+  { map: ["###*", "##..", "#...", ">..."], limit: 3, fnLimit: 2, sol: "S S S", fn: "R U" },
+  { map: [">.#####", "#...###", "###...#", "#####.*"], limit: 3, fnLimit: 3, sol: "S S S", fn: "R D R" },
+  { map: ["~~~...*", ">...~~~", "~~~~~~~"], limit: 3, fnLimit: 3, sol: "S U S", fn: "R R R" },
+  { map: [".g.g.g.", ">#.#.#*"], limit: 3, fnLimit: 4, sol: "S S S", fn: "U R R D", say: "A hopping dance! Make a ⭐ card that hops over one rock." },
+  { map: [">.......", "##g.....", "####g...", "######g*"], limit: 4, fnLimit: 3, sol: "S S S R", fn: "R R D" },
+];
+// ===== ENGINE END =====
+
+const COL = { U: "#3b82f6", D: "#3b82f6", L: "#3b82f6", R: "#3b82f6", F: "#16a34a", TL: "#ea7a12", TR: "#ea7a12", loop: "#8b5cf6", S: "#d99a06", GO: "#94a3b8" };
+const NAME = { U: "Up", D: "Down", L: "Left", R: "Right", F: "Forward", TL: "Turn left", TR: "Turn right", loop: "Repeat", S: "Star card", GO: "Keep going" };
+const TILE = { r: "#f87171", b: "#60a5fa" };
+const RULE_NAME = { r: "red", b: "blue", wall: "blocked" };
+
+function starPts(cx, cy, R, r) {
+  const pts = [];
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const rad = i % 2 ? r : R;
+    pts.push(`${(cx + rad * Math.cos(a)).toFixed(1)},${(cy + rad * Math.sin(a)).toFixed(1)}`);
+  }
+  return pts.join(" ");
+}
+
+// White picture for a card, drawn in a -40..40 box.
+function glyph(op) {
+  const fat = (rot) => `<path d="M0 -30 L25 -3 L10 -3 L10 27 L-10 27 L-10 -3 L-25 -3 Z" fill="#fff" stroke="rgba(0,0,0,.18)" stroke-width="2" stroke-linejoin="round" transform="rotate(${rot})"/>`;
+  if (op in ABS) return fat(ABS[op] * 90);
+  if (op === "F" || op === "GO") return fat(0);
+  if (op === "TL" || op === "TR")
+    return `<g transform="scale(${op === "TL" ? 1 : -1} 1)"><path d="M12 28 L12 2 Q12 -14 -6 -14" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/><path d="M-4 -30 L-28 -14 L-4 2 Z" fill="#fff" stroke="#fff" stroke-width="3" stroke-linejoin="round"/></g>`;
+  if (op === "S") return `<polygon points="${starPts(0, 2, 30, 13)}" fill="#fff" stroke="rgba(0,0,0,.15)" stroke-width="2" stroke-linejoin="round"/>`;
+  if (op === "loop")
+    return `<path d="M-22 6 A22 22 0 0 1 18 -14" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/><path d="M8 -26 L28 -16 L14 2 Z" fill="#fff"/><path d="M22 -6 A22 22 0 0 1 -18 14" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/><path d="M-8 26 L-28 16 L-14 -2 Z" fill="#fff"/>`;
+  return "";
+}
+const icon = (op, size = 40) => `<svg viewBox="-40 -40 80 80" width="${size}" height="${size}" aria-hidden="true">${glyph(op)}</svg>`;
+
+// Animation helpers that stop when the game is left (they reject with STOPPED).
+const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+function tween(ms, fn, live) {
+  return new Promise((resolve, reject) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve();
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!live()) return reject(STOPPED);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(ease(t));
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve();
+    };
+    requestAnimationFrame(frame);
+  });
+}
+const nap = (ms, live) => new Promise((resolve, reject) => setTimeout(() => (live() ? resolve() : reject(STOPPED)), ms));
+
+function fresh() {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  el("rect", { x: -1000, y: -1000, width: W + 2000, height: H + 2000, fill: "#fffaf1" }, view);
+  return view;
+}
+
+// ----- Drawing the grid world -----
+function drawRobot(parent) {
+  const g = el("g", { class: "co-bot" }, parent);
+  el("circle", { cx: 5, cy: 8, r: 42, fill: "rgba(70,40,15,.18)" }, g);
+  el("rect", { x: -48, y: -24, width: 16, height: 48, rx: 7, fill: "#334155" }, g);
+  el("rect", { x: 32, y: -24, width: 16, height: 48, rx: 7, fill: "#334155" }, g);
+  el("circle", { r: 39, fill: "#3b82f6", stroke: "#1e3a8a", "stroke-width": 4 }, g);
+  el("circle", { cy: 10, r: 21, fill: "#bfdbfe", stroke: "#1e3a8a", "stroke-width": 3 }, g);
+  el("path", { d: "M0 -2 L11 16 L-11 16 Z", fill: "#1e3a8a" }, g);
+  for (const sx of [-14, 14]) {
+    el("circle", { cx: sx, cy: -20, r: 11, fill: "#fff", stroke: "#1e3a8a", "stroke-width": 3 }, g);
+    el("circle", { cx: sx, cy: -24, r: 5.5, fill: "#0f172a" }, g);
+    el("circle", { cx: sx + 2, cy: -26, r: 1.8, fill: "#fff" }, g);
+  }
+  el("path", { d: "M-6 -42 L0 -54 L6 -42 Z", fill: "#facc15", stroke: "#a16207", "stroke-width": 2, "stroke-linejoin": "round" }, g);
+  return g;
+}
+
+function drawWorld(parent, world, box, max = 110) {
+  const cell = Math.floor(Math.min(max, box.w / world.w, box.h / world.h));
+  const gw = cell * world.w;
+  const gh = cell * world.h;
+  const x0 = box.x + (box.w - gw) / 2;
+  const y0 = box.y + (box.h - gh) / 2;
+  const cx = (x) => x0 + (x + 0.5) * cell;
+  const cy = (y) => y0 + (y + 0.5) * cell;
+  const g = el("g", { class: "co-world" }, parent);
+  el("rect", { x: x0 - 12, y: y0 - 12, width: gw + 24, height: gh + 24, rx: 24, fill: "#b98a5e" }, g);
+  el("rect", { x: x0 - 6, y: y0 - 6, width: gw + 12, height: gh + 12, rx: 18, fill: "#dcbb92" }, g);
+  const tiles = new Map();
+  for (let y = 0; y < world.h; y++)
+    for (let x = 0; x < world.w; x++) {
+      const t = world.tiles[y][x];
+      const fill = t === "~" ? "#7cc4e8" : TILE[t] || ((x + y) % 2 ? "#fbf3e2" : "#f1e2c6");
+      const rect = el("rect", { x: x0 + x * cell + 3, y: y0 + y * cell + 3, width: cell - 6, height: cell - 6, rx: cell * 0.16, fill }, g);
+      tiles.set(`${x},${y}`, rect);
+      const X = cx(x);
+      const Y = cy(y);
+      if (t === "~")
+        for (const dy of [-0.14, 0.14])
+          el("path", { d: `M${X - cell * 0.3} ${Y + dy * cell} q${cell * 0.1} ${-cell * 0.08} ${cell * 0.2} 0 t${cell * 0.2} 0 t${cell * 0.2} 0`, fill: "none", stroke: "#fff", "stroke-width": Math.max(2, cell * 0.04), "stroke-linecap": "round", opacity: 0.8 }, g);
+      if (t === "#") {
+        el("ellipse", { cx: X, cy: Y + cell * 0.1, rx: cell * 0.38, ry: cell * 0.2, fill: "rgba(70,40,15,.2)" }, g);
+        el("path", { d: `M${X - cell * 0.36} ${Y + cell * 0.12} Q${X - cell * 0.34} ${Y - cell * 0.3} ${X - cell * 0.02} ${Y - cell * 0.32} Q${X + cell * 0.36} ${Y - cell * 0.26} ${X + cell * 0.36} ${Y + cell * 0.12} Z`, fill: "#8d939b", stroke: "#5b6169", "stroke-width": 3 }, g);
+        el("path", { d: `M${X - cell * 0.18} ${Y - cell * 0.14} Q${X - cell * 0.08} ${Y - cell * 0.24} ${X + cell * 0.06} ${Y - cell * 0.22}`, fill: "none", stroke: "#c7ccd2", "stroke-width": 4, "stroke-linecap": "round" }, g);
+      }
+    }
+  let goal = null;
+  if (world.goal) {
+    goal = el("g", { transform: `translate(${cx(world.goal.x)} ${cy(world.goal.y)})` }, g);
+    el("circle", { r: cell * 0.4, fill: "#fff3c4" }, goal);
+    el("polygon", { points: starPts(0, 2, cell * 0.34, cell * 0.15), fill: "#fcd34d", stroke: "#d97706", "stroke-width": 3, "stroke-linejoin": "round" }, goal);
+  }
+  const gems = world.gems.map((gem) => {
+    const outer = el("g", { transform: `translate(${cx(gem.x)} ${cy(gem.y)})` }, g);
+    const inner = el("g", {}, outer);
+    const r = cell * 0.26;
+    el("polygon", { points: `0,${-r} ${r * 0.85},${-r * 0.25} 0,${r} ${-r * 0.85},${-r * 0.25}`, fill: "#c084fc", stroke: "#7e22ce", "stroke-width": 3, "stroke-linejoin": "round" }, inner);
+    el("path", { d: `M${-r * 0.85} ${-r * 0.25} L${r * 0.85} ${-r * 0.25} M0 ${-r} L${-r * 0.3} ${-r * 0.25} L0 ${r}`, fill: "none", stroke: "#f3e8ff", "stroke-width": 2 }, inner);
+    return inner;
+  });
+  const bot = drawRobot(g);
+  const scale = cell / 118;
+  const st = { px: 0, py: 0, ang: 0 };
+  const api = {
+    cell,
+    cx,
+    cy,
+    g,
+    tiles,
+    goal,
+    gems,
+    bot,
+    st,
+    set(px, py, ang, lift = 1) {
+      Object.assign(st, { px, py, ang });
+      bot.setAttribute("transform", `translate(${cx(px)} ${cy(py)}) rotate(${ang}) scale(${scale * lift})`);
+    },
+    home() {
+      api.set(world.start.x, world.start.y, world.start.d * 90);
+      gems.forEach((gem) => {
+        gem.setAttribute("transform", "");
+        gem.setAttribute("opacity", 1);
+      });
+    },
+    async moveTo(x, y, tw, ms = 420) {
+      const { px, py, ang } = st;
+      await tw(ms, (t) => api.set(px + (x - px) * t, py + (y - py) * t, ang, 1 + Math.sin(t * Math.PI) * 0.06));
+    },
+    async turnTo(d, tw, ms = 360) {
+      const { px, py, ang } = st;
+      const delta = ((((d * 90 - ang) % 360) + 540) % 360) - 180;
+      await tw(ms, (t) => api.set(px, py, ang + delta * t));
+    },
+    async bump(d, tw) {
+      const { px, py, ang } = st;
+      const [dx, dy] = DIRS[d];
+      await tw(170, (t) => api.set(px + dx * 0.32 * t, py + dy * 0.32 * t, ang));
+      await tw(260, (t) => api.set(px + dx * 0.32 * (1 - t), py + dy * 0.32 * (1 - t), ang + Math.sin(t * Math.PI * 3) * 8));
+    },
+    async grab(i, tw) {
+      MUSIC.play("xylophone", 84 + i * 4, { gain: 0.5 });
+      await tw(320, (t) => {
+        gems[i].setAttribute("transform", `translate(0 ${-t * api.cell * 0.4}) scale(${1 + t * 0.5})`);
+        gems[i].setAttribute("opacity", 1 - t);
+      });
+    },
+    async cheer(tw) {
+      const { px, py, ang } = st;
+      await tw(700, (t) => api.set(px, py, ang + t * 360, 1 + Math.sin(t * Math.PI) * 0.25));
+    },
+  };
+  api.home();
+  return api;
+}
+
+// Play the events from simulate()/simulateIf() for one step.
+async function playEvent(wa, ev, tw, slow = false) {
+  if (ev.type === "face") await wa.turnTo(ev.d, tw, 220);
+  else if (ev.type === "turn") await wa.turnTo(ev.d, tw, slow ? 480 : 360);
+  else if (ev.type === "move") await wa.moveTo(ev.x, ev.y, tw, slow ? 560 : 400);
+  else if (ev.type === "gem") await wa.grab(ev.i, tw);
+  else if (ev.type === "bump") {
+    MUSIC.oops();
+    await wa.bump(ev.d, tw);
+  }
+}
+
+// ----- Drawing program cards -----
+function drawCard(parent, x, y, op, C, id, n) {
+  const g = el("g", { class: "co-card", transform: `translate(${x} ${y})`, "data-id": id ?? "" }, parent);
+  const ring = el("rect", { x: -7, y: -7, width: C + 14, height: C + 14, rx: 21, fill: "none", stroke: "#facc15", "stroke-width": 7, opacity: 0 }, g);
+  el("rect", { y: 5, width: C, height: C, rx: 16, fill: "rgba(40,25,10,.25)" }, g);
+  const bg = el("rect", { width: C, height: C, rx: 16, fill: COL[op], stroke: "rgba(255,255,255,.55)", "stroke-width": 2 }, g);
+  const ic = el("g", { transform: op === "loop" ? `translate(${C / 2} ${C * 0.34}) scale(${C / 150})` : `translate(${C / 2} ${C / 2}) scale(${C / 92})` }, g);
+  ic.innerHTML = glyph(op);
+  const label = op === "loop" ? text(g, C / 2, C * 0.9, `×${n}`, { "font-size": Math.max(24, C * 0.36), fill: "#fff", "font-weight": 900 }) : null;
+  return { g, ring, bg, ic, label, op, n };
+}
+
+// Lay out a list of cards (with repeat brackets) in rows inside area {x, y, w}.
+function renderList(parent, list, area, { open = null, slot = false, C = 72, nodes = new Map() } = {}) {
+  const toks = [];
+  const walk = (items) => {
+    for (const it of items) {
+      if (it.op === "loop") {
+        toks.push({ k: "loop", it });
+        walk(it.body);
+        if (it === open && slot) toks.push({ k: "slot", it });
+        toks.push({ k: "end", it });
+      } else toks.push({ k: "card", it });
+    }
+  };
+  walk(list);
+  if (slot && !open) toks.push({ k: "slot" });
+  const gap = 10;
+  let x = 0;
+  let row = 0;
+  for (const t of toks) {
+    const w = t.k === "end" ? 22 : C;
+    if (x > 0 && x + w > area.w) {
+      x = 0;
+      row += 1;
+    }
+    t.x = area.x + x;
+    t.y = area.y + row * (C + 22);
+    t.w = w;
+    t.row = row;
+    x += w + gap;
+  }
+  const bands = el("g", {}, parent);
+  for (const t of toks.filter((t) => t.k === "loop")) {
+    const a = toks.indexOf(t);
+    const b = toks.findIndex((u, i) => i > a && u.k === "end" && u.it === t.it);
+    const span = toks.slice(a, b + 1);
+    for (const r of [...new Set(span.map((u) => u.row))]) {
+      const inRow = span.filter((u) => u.row === r);
+      const left = Math.min(...inRow.map((u) => u.x)) - 6;
+      const right = Math.max(...inRow.map((u) => u.x + u.w)) + 6;
+      el("rect", { x: left, y: inRow[0].y - 8, width: right - left, height: C + 18, rx: 20, fill: "#ede9fe", stroke: "#8b5cf6", "stroke-width": 3, "stroke-dasharray": t.it === open ? "8 6" : "" }, bands);
+    }
+  }
+  for (const t of toks) {
+    if (t.k === "card" || t.k === "loop") nodes.set(t.it.id, drawCard(parent, t.x, t.y, t.it.op, C, t.it.id, t.it.n));
+    else if (t.k === "end") el("path", { d: `M${t.x + 4} ${t.y + 6} Q${t.x + 18} ${t.y + C / 2} ${t.x + 4} ${t.y + C - 6}`, fill: "none", stroke: "#8b5cf6", "stroke-width": 6, "stroke-linecap": "round" }, parent);
+    else if (t.k === "slot") {
+      el("rect", { x: t.x + 3, y: t.y + 3, width: C - 6, height: C - 6, rx: 14, fill: "none", stroke: "#c9b79c", "stroke-width": 3, "stroke-dasharray": "7 6" }, parent);
+      text(parent, t.x + C / 2, t.y + C / 2 + 12, "+", { "font-size": 36, fill: "#c9b79c" });
+    }
+  }
+  const rows = toks.length ? toks[toks.length - 1].row + 1 : 0;
+  return { nodes, bottom: area.y + rows * (C + 22) };
+}
+
+function lightSteps(nodes, step, color = "#facc15") {
+  for (const n of nodes.values()) {
+    n.ring.setAttribute("opacity", 0);
+    if (n.label) n.label.textContent = `×${n.n}`;
+  }
+  if (!step) return;
+  for (const id of step.ids) {
+    const n = nodes.get(id);
+    if (!n) continue;
+    n.ring.setAttribute("stroke", color);
+    n.ring.setAttribute("opacity", 1);
+  }
+  for (const lp of step.loops) {
+    const n = nodes.get(lp.id);
+    if (n?.label) n.label.textContent = `${lp.i + 1}/${lp.n}`;
+  }
+}
+
+// ----- Units -----
+const UNITS = [
+  { id: "c0", label: "1. See it", icon: "👀" },
+  { id: "c1", label: "2. First steps", icon: "🐣" },
+  { id: "c2", label: "3. Sequences", icon: "💎" },
+  { id: "c3", label: "4. Debug it", icon: "🐞" },
+  { id: "c4", label: "5. Loops", icon: "🔁" },
+  { id: "c5", label: "6. Turn left, turn right", icon: "↪️" },
+  { id: "c6", label: "7. If-then rules", icon: "🚦" },
+  { id: "c7", label: "8. Functions", icon: "⭐" },
+];
+
+const GRID_BOX = { x: 22, y: 64, w: 500, h: 482 };
+const PROG_X = 552;
+const PROG_W = 430;
+
+function levelDots(parent, levels, current, solved, onPick) {
+  const g = el("g", {}, parent);
+  const step = Math.min(48, 480 / levels.length);
+  levels.forEach((_, i) => {
+    const d = el("g", { class: "co-dot", transform: `translate(${44 + i * step} 32)`, "data-l": i }, g);
+    el("circle", { r: 24, fill: "transparent" }, d);
+    el("circle", { r: 19, fill: i === current ? "var(--accent)" : solved.has(i) ? "#22a05a" : "#fff", stroke: i === current ? "var(--accent-dark)" : solved.has(i) ? "#157a40" : "#d9cdb5", "stroke-width": 3 }, d);
+    text(d, 0, 8, solved.has(i) && i !== current ? "✓" : i + 1, { "font-size": 22, fill: i === current || solved.has(i) ? "#fff" : "#6b5a48" });
+  });
+  g.addEventListener("pointerdown", (event) => {
+    const d = event.target.closest(".co-dot");
+    if (d) onPick(Number(d.dataset.l));
+  });
+}
+
+function saveLevel(id, level, solved) {
+  shell.mark(id, { level, solved: [...solved] });
+}
+
+// The main card game: build modes (first, seq, loops, turns, fn) and debug mode.
+function game(id, cfg) {
+  const my = token;
+  const alive = () => my === token;
+  const L = cfg.levels;
+  const saved = shell.progress()[id] || {};
+  const solved = new Set(saved.solved || []);
+  let li = Math.min(Math.max(0, saved.level || 0), L.length - 1);
+  let lv;
+  let world;
+  let wa;
+  let pg;
+  let prog = [];
+  let fn = [];
+  let open = null;
+  let sel = null;
+  let target = "main";
+  let busy = false;
+  let won = false;
+  let runGen = 0;
+  let nodes = new Map();
+
+  panel(`<div class="co-row"><p class="ap-status" data-status></p><div class="co-pal" data-pal></div><div class="ap-buttons co-ctl"><button type="button" class="primary co-run" data-do="run">▶ Run</button><button type="button" data-do="undo" aria-label="Remove last card">⌫</button><button type="button" data-do="reset">🔁 Reset</button></div></div>`);
+  const host = $("[data-panel]");
+  const limit = () => lv.limit || cfg.max || 16;
+  const setRun = (label, pulse = false) => {
+    const b = $('[data-do="run"]', host);
+    if (!b) return;
+    b.textContent = label;
+    if (pulse) b.setAttribute("data-pulse", "");
+    else b.removeAttribute("data-pulse");
+  };
+  const status = () => {
+    const box = $("[data-status]", host);
+    if (!box) return;
+    const n = countCards(prog);
+    box.textContent = `Level ${li + 1} of ${L.length} · ${n}${lv.limit ? ` / ${lv.limit}` : ""} card${n === 1 && !lv.limit ? "" : "s"}${cfg.fn ? ` · ⭐ ${fn.length} / ${lv.fnLimit}` : ""}`;
+  };
+  const palette = () => {
+    const ops = lv.pal || cfg.pal;
+    $("[data-pal]", host).innerHTML = ops
+      .map((op) =>
+        op === "loop"
+          ? `<button type="button" class="co-c co-wide" data-op="loop" style="--c:${COL.loop}" aria-label="Repeat">${icon("loop", 32)}<span data-loopword>${open ? "End" : "Repeat"}</span></button>`
+          : `<button type="button" class="co-c" data-op="${op}" style="--c:${COL[op]}" aria-label="${NAME[op]}">${icon(op)}</button>`,
+      )
+      .join("");
+  };
+  const find = (wanted) => {
+    for (const lists of [prog, fn]) {
+      const hit = (function search(items) {
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].id === wanted) return { list: items, index: i, item: items[i] };
+          if (items[i].op === "loop") {
+            const deeper = search(items[i].body);
+            if (deeper) return deeper;
+          }
+        }
+        return null;
+      })(lists);
+      if (hit) return hit;
+    }
+    return null;
+  };
+
+  const drawProgram = () => {
+    pg?.remove();
+    pg = el("g", {}, view);
+    nodes = new Map();
+    const editing = cfg.kind !== "debug";
+    if (cfg.fn) {
+      const fnOn = target === "fn";
+      const b1 = el("g", { class: "co-box", "data-box": "fn" }, pg);
+      el("rect", { x: PROG_X - 10, y: 52, width: PROG_W + 16, height: 116, rx: 22, fill: fnOn ? "#fff7db" : "#fffdf8", stroke: fnOn ? "#d99a06" : "#e3d6c0", "stroke-width": fnOn ? 5 : 3 }, b1);
+      text(pg, PROG_X, 40, `⭐ My card = ${fn.length} / ${lv.fnLimit}`, { "font-size": 25, fill: "#7a5a07", "text-anchor": "start" });
+      renderList(pg, fn, { x: PROG_X + 4, y: 74, w: PROG_W - 10 }, { slot: fnOn && fn.length < lv.fnLimit, nodes });
+      const b2 = el("g", { class: "co-box", "data-box": "main" }, pg);
+      el("rect", { x: PROG_X - 10, y: 222, width: PROG_W + 16, height: 326, rx: 22, fill: !fnOn ? "#eef4ff" : "#fffdf8", stroke: !fnOn ? "var(--accent)" : "#e3d6c0", "stroke-width": !fnOn ? 5 : 3 }, b2);
+      text(pg, PROG_X, 208, `Program = ${countCards(prog)} / ${lv.limit} cards`, { "font-size": 25, fill: "#1e3a8a", "text-anchor": "start" });
+      renderList(pg, prog, { x: PROG_X + 4, y: 244, w: PROG_W - 10 }, { slot: !fnOn && countCards(prog) < lv.limit, nodes });
+    } else {
+      const n = countCards(prog);
+      el("rect", { x: PROG_X - 10, y: 52, width: PROG_W + 16, height: 496, rx: 22, fill: "#f6f9ff", stroke: "#dbe5f5", "stroke-width": 3 }, pg);
+      text(pg, PROG_X, 40, cfg.kind === "debug" ? "Program 🐞" : "Program", { "font-size": 26, fill: "#1e3a8a", "text-anchor": "start" });
+      text(pg, PROG_X + PROG_W, 40, lv.limit ? `${n} / ${lv.limit} cards` : `${n} card${n === 1 ? "" : "s"}`, { "font-size": 24, fill: lv.limit && n >= lv.limit ? "#c2410c" : "#6b5a48", "text-anchor": "end" });
+      renderList(pg, prog, { x: PROG_X + 4, y: 74, w: PROG_W - 10 }, { open, slot: editing && n < limit(), nodes });
+    }
+    if (sel && nodes.get(sel)) {
+      const n = nodes.get(sel);
+      n.ring.setAttribute("stroke", "var(--accent)");
+      n.ring.setAttribute("stroke-dasharray", "10 6");
+      n.ring.setAttribute("opacity", 1);
+    }
+    status();
+    palette();
+  };
+
+  const drawAll = () => {
+    fresh();
+    levelDots(view, L, li, solved, (i) => alive() && load(i));
+    wa = drawWorld(view, world, GRID_BOX, cfg.kind === "first" ? 130 : 110);
+    drawProgram();
+    view.addEventListener("pointerdown", onStage);
+  };
+
+  const home = () => {
+    runGen += 1;
+    busy = false;
+    wa.home();
+    lightSteps(nodes, null);
+    setRun(won ? (li < L.length - 1 ? "Next ▶" : "🎉 Play again") : "▶ Run", won);
+  };
+
+  const load = (i) => {
+    runGen += 1;
+    busy = false;
+    won = false;
+    li = i;
+    lv = L[i];
+    world = parseMap(lv.map);
+    prog = cfg.kind === "debug" ? parseProg(lv.bug) : [];
+    fn = [];
+    open = null;
+    sel = null;
+    target = cfg.fn ? "fn" : "main";
+    saveLevel(id, i, solved);
+    $('[data-do="undo"]', host).hidden = cfg.kind === "debug";
+    setRun("▶ Run");
+    drawAll();
+    say(lv.say || cfg.intro(i));
+  };
+
+  const edited = () => {
+    won = false;
+    home();
+    drawProgram();
+  };
+
+  const onStage = (event) => {
+    if (!alive()) return;
+    const c = event.target.closest(".co-card");
+    const box = event.target.closest("[data-box]");
+    if (c && c.dataset.id) {
+      if (busy) return;
+      window.OC?.touch();
+      const hit = find(Number(c.dataset.id));
+      if (!hit) return;
+      if (hit.item.op === "loop") {
+        hit.item.n = hit.item.n >= 9 ? 2 : hit.item.n + 1;
+        MUSIC.tick(true);
+        say(`Repeat <b>${hit.item.n}</b> times.`);
+        edited();
+        return;
+      }
+      sel = sel === hit.item.id ? null : hit.item.id;
+      MUSIC.tick(false);
+      edited();
+      if (sel) say(cfg.kind === "debug" ? "Now tap the card it should be." : "Tap a card below to swap it, or ⌫ to take it out.");
+      return;
+    }
+    if (box && cfg.fn && !busy) {
+      target = box.dataset.box;
+      sel = null;
+      edited();
+      say(target === "fn" ? "Now the cards go in your ⭐ card." : "Now the cards go in the Program. Use ⭐ to run your star card!");
+    }
+  };
+
+  const add = (op) => {
+    if (busy) return;
+    window.OC?.touch();
+    if (sel) {
+      const hit = find(sel);
+      if (hit && op !== "loop" && !(op === "S" && hit.list === fn)) {
+        hit.list[hit.index] = card(op);
+        MUSIC.tick(true);
+        VOICE.speak(NAME[op]);
+      }
+      sel = null;
+      edited();
+      return;
+    }
+    if (cfg.kind === "debug") {
+      say("First tap the wrong card in the program. Then tap the right card here.");
+      return;
+    }
+    if (op === "loop") {
+      if (open) {
+        if (!open.body.length) {
+          prog.splice(prog.indexOf(open), 1);
+          say("A repeat needs cards inside it. Tap 🔁 Repeat, then some arrows.");
+        } else say(`Repeat closed. It will do those cards <b>${open.n}</b> times. Tap it to change the number.`);
+        open = null;
+      } else {
+        if (countCards(prog) >= limit()) return full();
+        open = loopItem(2);
+        prog.push(open);
+        say("Now tap the cards to repeat. Tap the repeat card to change the number. Tap <b>End</b> when you're done.");
+      }
+      MUSIC.tick(true);
+      edited();
+      return;
+    }
+    if (target === "fn") {
+      if (op === "S") return say("The ⭐ card goes in the Program. Tap the Program box first.");
+      if (fn.length >= lv.fnLimit) {
+        target = "main";
+        say("Your ⭐ card is full! Now tap ⭐ to put it in the Program.");
+        edited();
+        return;
+      }
+      fn.push(card(op));
+      if (fn.length >= lv.fnLimit) {
+        target = "main";
+        say("Your ⭐ card is ready! Now build the Program. Tap ⭐ to use it.");
+      }
+    } else {
+      if (countCards(prog) >= limit()) return full();
+      (open ? open.body : prog).push(card(op));
+    }
+    MUSIC.tick(false);
+    if (cfg.speak) VOICE.speak(NAME[op]);
+    edited();
+  };
+
+  const full = () => {
+    MUSIC.oops();
+    say(lv.limit ? `Only <b>${lv.limit}</b> cards fit here. ${cfg.fn ? "Use your ⭐ card to save cards!" : (lv.pal || cfg.pal).includes("loop") ? "A 🔁 repeat card can save cards!" : ""}` : "That's a lot of cards! Press ▶ Run to try them.");
+  };
+
+  const undo = () => {
+    if (busy || cfg.kind === "debug") return;
+    window.OC?.touch();
+    if (sel) {
+      const hit = find(sel);
+      if (hit) hit.list.splice(hit.index, 1);
+      sel = null;
+    } else if (target === "fn") fn.pop();
+    else if (open) {
+      if (open.body.length) open.body.pop();
+      else {
+        prog.splice(prog.indexOf(open), 1);
+        open = null;
+      }
+    } else {
+      const last = prog[prog.length - 1];
+      if (!last) return;
+      if (last.op === "loop") {
+        open = last;
+        last.body.pop();
+      } else prog.pop();
+    }
+    MUSIC.tick(false);
+    edited();
+  };
+
+  const reset = () => {
+    if (!wa) return;
+    prog = cfg.kind === "debug" ? parseProg(lv.bug) : [];
+    fn = [];
+    open = null;
+    sel = null;
+    target = cfg.fn ? "fn" : "main";
+    edited();
+    say(cfg.kind === "debug" ? "Back to the buggy program. Run it and look for the bug 🐞." : "Fresh start! Tap the cards to build a new program.");
+  };
+
+  const finish = (res, steps) => {
+    if (res.ok) {
+      won = true;
+      MUSIC.chime();
+      confetti();
+      solved.add(li);
+      const doneNow = solved.size >= Math.ceil(L.length * 0.75);
+      shell.mark(id, { level: Math.min(li + 1, L.length - 1), solved: [...solved], ...(doneNow ? { done: true } : {}) });
+      window.OC?.count("robot puzzles solved");
+      const used = countCards(prog);
+      let msg = cfg.win({ used, steps, res, lv, world, fn });
+      if (solved.size === L.length && li === L.length - 1) msg += " You finished every level! 🎉";
+      else msg += li < L.length - 1 ? " Press <b>Next ▶</b>." : "";
+      say(msg);
+      setRun(li < L.length - 1 ? "Next ▶" : "🎉 Play again", true);
+      levelDots(view, L, li, solved, (i) => alive() && load(i));
+      return;
+    }
+    MUSIC.oops();
+    const step = steps[res.s];
+    if (step && (res.reason === "#" || res.reason === "~" || res.reason === "edge")) lightSteps(nodes, step, "#ef4444");
+    const into = res.reason === "#" ? "into the rock" : res.reason === "~" ? "into the water" : "off the edge";
+    const left = world.gems.length - res.got.size;
+    let msg;
+    if (res.reason === "#" || res.reason === "~" || res.reason === "edge") {
+      const start = res.reason === "~" ? "Splash!" : "Bump!";
+      msg =
+        cfg.kind === "first"
+          ? `${start} The robot went ${into}. Look at the red card. Let's fix it!`
+          : `${start} The robot did exactly what the cards said. Which card sent it ${into}? It glows red.`;
+      if (cfg.kind !== "debug") msg += " Tap it to swap it.";
+    } else if (res.reason === "gems") msg = `The robot is on the star, but it missed ${left === 1 ? "a gem" : `${left} gems`} 💎. Get every gem first!`;
+    else if (!steps.length) msg = "Those repeat cards are empty. Put some arrows inside!";
+    else msg = `The robot ran out of cards before the star${left ? ` and still needs ${left === 1 ? "a gem" : `${left} gems`} 💎` : ""}. ${cfg.kind === "debug" ? "Watch where it goes wrong, then fix that card." : "Add more cards!"}`;
+    say(msg);
+    setRun("▶ Run");
+  };
+
+  const run = async () => {
+    if (!alive()) return;
+    window.OC?.touch();
+    if (busy) {
+      home();
+      return;
+    }
+    if (won) return load(li < L.length - 1 ? li + 1 : 0);
+    if (!prog.length) return say(cfg.fn && target === "fn" ? "Fill your ⭐ card, then tap the Program box and add cards." : "Tap some cards first, then press ▶ Run.");
+    if (open && !open.body.length) prog.splice(prog.indexOf(open), 1);
+    open = null;
+    sel = null;
+    drawProgram();
+    home();
+    busy = true;
+    setRun("⏹ Stop");
+    const g = runGen;
+    const live = () => alive() && g === runGen;
+    const tw = (ms, f) => tween(ms, f, live);
+    const steps = expand(prog, fn);
+    const res = simulate(world, steps);
+    try {
+      await nap(250, live);
+      for (let s = 0; s <= res.s && s < steps.length; s++) {
+        lightSteps(nodes, steps[s]);
+        MUSIC.tick(steps[s].loops.some((lp) => lp.i === 0));
+        if (cfg.speak) VOICE.speak(NAME[steps[s].op]);
+        for (const ev of res.events.filter((e) => e.s === s)) await playEvent(wa, ev, tw, cfg.speak);
+        await nap(cfg.speak ? 420 : 170, live);
+      }
+      if (res.ok) await wa.cheer(tw);
+    } catch (error) {
+      if (error === STOPPED) return;
+      throw error;
+    }
+    busy = false;
+    finish(res, steps);
+  };
+
+  host.onclick = (event) => {
+    if (!alive()) return;
+    const b = event.target.closest("button");
+    if (!b) return;
+    if (b.dataset.op) add(b.dataset.op);
+    else if (b.dataset.do === "run") run();
+    else if (b.dataset.do === "undo") undo();
+    else if (b.dataset.do === "reset") reset();
+  };
+  load(li);
+  return { solve: (src, fnSrc) => ((prog = parseProg(src)), (fn = fnSrc ? parseProg(fnSrc) : []), (open = null), edited(), run()), load, state: () => ({ li, won, busy, prog, fn }) };
+}
+
+// If-then rules game.
+function ifGame() {
+  const id = "c6";
+  const my = token;
+  const alive = () => my === token;
+  const L = IFS;
+  const saved = shell.progress()[id] || {};
+  const solved = new Set(saved.solved || []);
+  let li = Math.min(Math.max(0, saved.level || 0), L.length - 1);
+  let lv;
+  let world;
+  let wa;
+  let pg;
+  let rules = {};
+  let rows = {};
+  let busy = false;
+  let won = false;
+  let runGen = 0;
+  panel(`<div class="co-row"><p class="ap-status" data-status></p><div class="co-pal" data-pal></div><div class="ap-buttons co-ctl"><button type="button" class="primary co-run" data-do="run">▶ Run</button><button type="button" data-do="reset">🔁 Reset</button></div></div>`);
+  const host = $("[data-panel]");
+  const setRun = (label, pulse = false) => {
+    const b = $('[data-do="run"]', host);
+    b.textContent = label;
+    if (pulse) b.setAttribute("data-pulse", "");
+    else b.removeAttribute("data-pulse");
+  };
+  const ruleWords = (k) => `If ${k === "wall" ? "the way is blocked" : `on ${RULE_NAME[k]}`}, ${rules[k] ? NAME[rules[k]].toLowerCase() : "keep going"}.`;
+  const palette = () => {
+    $("[data-pal]", host).innerHTML = lv.rules
+      .map((k) => `<button type="button" class="co-c co-wide" data-rule="${k}" style="--c:${COL[rules[k] || "GO"]}" aria-label="${ruleWords(k)}"><span class="co-sw" style="background:${k === "wall" ? "#8d939b" : TILE[k]}">${k === "wall" ? "🪨" : ""}</span>${icon(rules[k] || "GO", 34)}</button>`)
+      .join("");
+    $("[data-status]", host).textContent = `Level ${li + 1} of ${L.length} · tap a rule to change it`;
+  };
+  const drawRules = () => {
+    pg?.remove();
+    pg = el("g", {}, view);
+    rows = {};
+    const n = lv.rules.length;
+    const top = 52;
+    const rowH = 96;
+    const hgt = 70 + (n + 1) * rowH + 6;
+    el("rect", { x: PROG_X - 10, y: top, width: PROG_W + 16, height: hgt, rx: 24, fill: "#ede9fe", stroke: "#8b5cf6", "stroke-width": 4 }, pg);
+    const ic = el("g", { transform: `translate(${PROG_X + 26} ${top + 34}) scale(.5)` }, pg);
+    ic.innerHTML = glyph("loop").replace(/#fff/g, "#8b5cf6");
+    text(pg, PROG_X + 56, top + 44, "Repeat until the ⭐:", { "font-size": 27, fill: "#5b21b6", "text-anchor": "start" });
+    const rowAt = (i, k) => {
+      const y = top + 66 + i * rowH;
+      const g = el("g", { class: k === "go" ? "" : "co-rule", "data-rule": k }, pg);
+      const ring = el("rect", { x: PROG_X + 2, y: y - 4, width: PROG_W - 8, height: rowH - 4, rx: 20, fill: "none", stroke: "#facc15", "stroke-width": 7, opacity: 0 }, g);
+      el("rect", { x: PROG_X + 6, y, width: PROG_W - 16, height: rowH - 12, rx: 18, fill: "#fff", stroke: "#d8ccf6", "stroke-width": 2 }, g);
+      const mid = y + (rowH - 12) / 2;
+      if (k === "go") {
+        text(g, PROG_X + 30, mid + 9, "Then go forward 1 step", { "font-size": 26, fill: "#2b1d12", "text-anchor": "start" });
+      } else {
+        text(g, PROG_X + 26, mid + 9, "If", { "font-size": 28, fill: "#2b1d12", "text-anchor": "start" });
+        el("rect", { x: PROG_X + 60, y: mid - 28, width: 56, height: 56, rx: 12, fill: k === "wall" ? "#efe5d2" : TILE[k], stroke: "rgba(0,0,0,.2)", "stroke-width": 3 }, g);
+        if (k === "wall") el("path", { d: `M${PROG_X + 66} ${mid + 14} Q${PROG_X + 68} ${mid - 18} ${PROG_X + 88} ${mid - 18} Q${PROG_X + 110} ${mid - 16} ${PROG_X + 110} ${mid + 14} Z`, fill: "#8d939b", stroke: "#5b6169", "stroke-width": 3 }, g);
+        text(g, PROG_X + 128, mid + 9, k === "wall" ? "ahead," : `on ${RULE_NAME[k]},`, { "font-size": 26, fill: "#2b1d12", "text-anchor": "start" });
+        text(g, PROG_X + 250, mid + 9, "then", { "font-size": 24, fill: "#6b5a48", "text-anchor": "start" });
+      }
+      const op = k === "go" ? "F" : rules[k] || "GO";
+      const c = drawCard(g, PROG_X + PROG_W - 92, mid - 36, op, 72);
+      c.g.removeAttribute("class");
+      rows[k] = { ring, card: c };
+    };
+    lv.rules.forEach((k, i) => rowAt(i, k));
+    rowAt(n, "go");
+    palette();
+  };
+  const light = (k, color = "#facc15") => {
+    for (const [key, r] of Object.entries(rows)) {
+      r.ring.setAttribute("opacity", key === k ? 1 : 0);
+      r.ring.setAttribute("stroke", color);
+    }
+  };
+  const home = () => {
+    runGen += 1;
+    busy = false;
+    wa.home();
+    light(null);
+    setRun(won ? (li < L.length - 1 ? "Next ▶" : "🎉 Play again") : "▶ Run", won);
+  };
+  const load = (i) => {
+    runGen += 1;
+    busy = false;
+    won = false;
+    li = i;
+    lv = L[i];
+    world = parseMap(lv.map);
+    rules = Object.fromEntries(lv.rules.map((k) => [k, ""]));
+    saveLevel(id, i, solved);
+    fresh();
+    levelDots(view, L, li, solved, (j) => alive() && load(j));
+    wa = drawWorld(view, world, GRID_BOX);
+    drawRules();
+    view.addEventListener("pointerdown", (event) => {
+      const r = event.target.closest(".co-rule");
+      if (r && alive()) cycle(r.dataset.rule);
+    });
+    setRun("▶ Run");
+    say(lv.say || "Set the rules so the robot walks to the star ⭐. Then press <b>▶ Run</b>.");
+  };
+  const cycle = (k) => {
+    if (busy) return;
+    window.OC?.touch();
+    rules[k] = rules[k] === "" ? "TL" : rules[k] === "TL" ? "TR" : "";
+    MUSIC.tick(true);
+    won = false;
+    home();
+    drawRules();
+    say(ruleWords(k));
+  };
+  const run = async () => {
+    if (!alive()) return;
+    window.OC?.touch();
+    if (busy) return home();
+    if (won) return load(li < L.length - 1 ? li + 1 : 0);
+    home();
+    busy = true;
+    setRun("⏹ Stop");
+    const g = runGen;
+    const live = () => alive() && g === runGen;
+    const tw = (ms, f) => tween(ms, f, live);
+    const res = simulateIf(world, rules);
+    try {
+      await nap(250, live);
+      for (const ev of res.events) {
+        if (ev.type === "turn") {
+          light(ev.rule);
+          MUSIC.tick(true);
+        } else if (ev.type === "move") {
+          light("go");
+          MUSIC.tick(false);
+        } else if (ev.type === "bump") light(ev.rule || "go", "#ef4444");
+        await playEvent(wa, ev, tw);
+        if (ev.type !== "gem") await nap(120, live);
+      }
+      if (res.ok) await wa.cheer(tw);
+    } catch (error) {
+      if (error === STOPPED) return;
+      throw error;
+    }
+    busy = false;
+    if (res.ok) {
+      won = true;
+      light(null);
+      MUSIC.chime();
+      confetti();
+      solved.add(li);
+      const doneNow = solved.size >= Math.ceil(L.length * 0.75);
+      shell.mark(id, { level: Math.min(li + 1, L.length - 1), solved: [...solved], ...(doneNow ? { done: true } : {}) });
+      window.OC?.count("robot puzzles solved");
+      say(`${pick(PRAISE)} The robot followed your rules all the way to the star!${li < L.length - 1 ? " Press <b>Next ▶</b>." : solved.size === L.length ? " You finished every level! 🎉" : ""}`);
+      setRun(li < L.length - 1 ? "Next ▶" : "🎉 Play again", true);
+      levelDots(view, L, li, solved, (j) => alive() && load(j));
+    } else {
+      MUSIC.oops();
+      setRun("▶ Run");
+      if (res.reason === "circle") say("The robot is going round and round forever! 🔄 Change a rule so it can reach the star.");
+      else say(`Bump! The robot did exactly what the rules said. ${res.rule ? `Should the <b>${RULE_NAME[res.rule]}</b> rule turn the other way?` : "It needed to turn here. Which rule should change?"}`);
+    }
+  };
+  host.onclick = (event) => {
+    if (!alive()) return;
+    const b = event.target.closest("button");
+    if (!b) return;
+    if (b.dataset.rule) cycle(b.dataset.rule);
+    else if (b.dataset.do === "run") run();
+    else if (b.dataset.do === "reset") {
+      rules = Object.fromEntries(lv.rules.map((k) => [k, ""]));
+      won = false;
+      home();
+      drawRules();
+      say("All rules are back to ⬆️ keep going. Tap a rule to change it.");
+    }
+  };
+  load(li);
+  return { set: (r) => ((rules = { ...rules, ...r }), drawRules()), run, load, state: () => ({ li, won, busy, rules }) };
+}
+
+// ----- See it -----
+async function walkCards(view, api, wa, nodes, steps, world, slow = 520) {
+  const res = simulate(world, steps);
+  for (let s = 0; s <= res.s && s < steps.length; s++) {
+    lightSteps(nodes, steps[s]);
+    MUSIC.tick(false);
+    for (const ev of res.events.filter((e) => e.s === s)) await playEvent(wa, ev, api.tween, true);
+    await api.wait(slow);
+  }
+  return res;
+}
+
+const SCENES = [
+  {
+    say: "Why learn to code? <b>Code</b> is a list of clear steps that a computer follows exactly. Traffic lights, washing machines, apps and games all follow code!",
+    draw: everyday([["🚦", "Traffic lights"], ["🧺", "Washing machines"], ["🧁", "A recipe is steps too"], ["🎮", "Apps and games"]]),
+  },
+  {
+    say: "A robot does <b>exactly</b> what the cards say, one card at a time. Watch each card light up!",
+    async draw(v, api) {
+      const world = parseMap(["...*", "....", ">..."]);
+      const wa = drawWorld(v, world, { x: 40, y: 50, w: 440, h: 460 });
+      text(v, 730, 110, "The program", { "font-size": 30, fill: "#1e3a8a" });
+      const prog = parseProg("R R R U U");
+      const { nodes } = renderList(v, prog, { x: 545, y: 160, w: 400 }, { C: 86 });
+      for (;;) {
+        wa.home();
+        lightSteps(nodes, null);
+        await api.wait(900);
+        await walkCards(v, api, wa, nodes, expand(prog), world);
+        MUSIC.chime();
+        await api.wait(2200);
+      }
+    },
+  },
+  {
+    say: "Order matters! Bread, jam, bread makes a sandwich. But jam first? Splat! The computer can't guess what you meant.",
+    async draw(v, api) {
+      const sides = [
+        { x: 40, title: "Right order ✅", color: "#157a40", steps: ["Bread", "Jam", "Bread"], plate: 360 },
+        { x: 520, title: "Mixed up ❌", color: "#c2410c", steps: ["Jam", "Bread", "Bread"], plate: 840 },
+      ];
+      const parts = [];
+      for (const side of sides) {
+        text(v, side.x + 220, 60, side.title, { "font-size": 30, fill: side.color });
+        el("ellipse", { cx: side.plate, cy: 470, rx: 100, ry: 26, fill: "#e8eef5", stroke: "#b6c2cf", "stroke-width": 4 }, v);
+        side.cards = side.steps.map((s, i) => {
+          const g = el("g", { transform: `translate(${side.x} ${110 + i * 92})` }, v);
+          const bg = el("rect", { width: 200, height: 72, rx: 18, fill: "#fff", stroke: "#e2d6c4", "stroke-width": 3 }, g);
+          text(g, 22, 46, `${i + 1}.`, { "font-size": 28, fill: "#8a7764", "text-anchor": "start" });
+          text(g, 60, 47, s === "Bread" ? "🍞 Bread" : "🍓 Jam", { "font-size": 28, fill: "#2b1d12", "text-anchor": "start" });
+          return bg;
+        });
+      }
+      const bread = (cx, y) => {
+        const g = el("g", { transform: `translate(${cx} ${y - 300})` }, v);
+        el("rect", { x: -80, y: -16, width: 160, height: 32, rx: 14, fill: "#f0c27b", stroke: "#a8692d", "stroke-width": 4 }, g);
+        el("rect", { x: -70, y: -9, width: 140, height: 16, rx: 8, fill: "#fbe3b4" }, g);
+        parts.push(g);
+        return g;
+      };
+      const jam = (cx, y, splat) => {
+        const g = el("g", { transform: `translate(${cx} ${y - 300})` }, v);
+        if (splat) el("path", { d: "M-70 0 Q-60 -14 -36 -8 Q-20 -20 0 -10 Q24 -22 40 -8 Q66 -14 72 2 Q50 12 20 8 Q0 18 -24 8 Q-56 14 -70 0 Z", fill: "#d1305a", stroke: "#8f1238", "stroke-width": 3 }, g);
+        else el("rect", { x: -74, y: -7, width: 148, height: 14, rx: 7, fill: "#d1305a" }, g);
+        parts.push(g);
+        return g;
+      };
+      const drop = async (g, cx, y) => {
+        await api.tween(800, (t) => g.setAttribute("transform", `translate(${cx} ${y - 300 * (1 - t)})`));
+        MUSIC.tick(false);
+      };
+      for (;;) {
+        parts.splice(0).forEach((p) => p.remove());
+        for (const side of sides) side.cards.forEach((c) => c.setAttribute("fill", "#fff"));
+        await api.wait(600);
+        for (const side of sides) {
+          let y = 452;
+          for (let i = 0; i < 3; i++) {
+            side.cards[i].setAttribute("fill", "#fff3c4");
+            const isJam = side.steps[i] === "Jam";
+            const g = isJam ? jam(side.plate, y + (side.plate > 500 && i === 0 ? 6 : 0), side.plate > 500 && i === 0) : bread(side.plate, y - 6);
+            await drop(g, side.plate, isJam ? y + (side.plate > 500 && i === 0 ? 6 : 0) : y - 6);
+            if (side.plate > 500 && i === 0) MUSIC.oops();
+            y -= isJam ? (side.plate > 500 && i === 0 ? 10 : 14) : 34;
+            await api.wait(500);
+          }
+          if (side.plate > 500) parts.push(text(v, side.plate, 300, "Splat! 😬", { "font-size": 34, fill: "#c2410c" }));
+          await api.wait(800);
+        }
+        await api.wait(2600);
+      }
+    },
+  },
+  {
+    say: "A mistake in code is called a <b>bug</b> 🐞. The robot bumps the rock. The second card is the bug! Swap it, and the robot gets home.",
+    async draw(v, api) {
+      const world = parseMap(["....", ">..*", ".#.."]);
+      const wa = drawWorld(v, world, { x: 40, y: 50, w: 440, h: 460 });
+      text(v, 730, 110, "The program", { "font-size": 30, fill: "#1e3a8a" });
+      const bugText = text(v, 730, 340, "", { "font-size": 32, fill: "#c2410c" });
+      for (;;) {
+        wa.home();
+        [...v.querySelectorAll(".co-card")].forEach((n) => n.remove());
+        bugText.textContent = "";
+        let prog = parseProg("R D R");
+        let { nodes } = renderList(v, prog, { x: 590, y: 170, w: 300 }, { C: 86 });
+        await api.wait(900);
+        const res = await walkCards(v, api, wa, nodes, expand(prog), world);
+        lightSteps(nodes, expand(prog)[res.s], "#ef4444");
+        bugText.textContent = "🐞 This card is the bug!";
+        await api.wait(2000);
+        const bad = nodes.get(prog[1].id);
+        await api.tween(400, (t) => bad.g.setAttribute("transform", `translate(${590 + 96 + 43 * t} ${170 + 43 * t}) scale(${1 - t})`));
+        prog[1] = card("R");
+        [...v.querySelectorAll(".co-card")].forEach((n) => n.remove());
+        ({ nodes } = renderList(v, prog, { x: 590, y: 170, w: 300 }, { C: 86 }));
+        bugText.textContent = "Fixed! ✅";
+        MUSIC.tick(true);
+        wa.home();
+        await api.wait(1000);
+        await walkCards(v, api, wa, nodes, expand(prog), world);
+        MUSIC.chime();
+        await api.wait(2400);
+      }
+    },
+  },
+  {
+    say: "Four ➡️ cards in a row? A <b>repeat</b> card 🔁 squishes them into one: repeat 4 times ➡️. Fewer cards, same walk!",
+    async draw(v, api) {
+      const world = parseMap([".....", ">...*", "....."]);
+      const wa = drawWorld(v, world, { x: 40, y: 50, w: 440, h: 300 });
+      const msg = text(v, 500, 525, "", { "font-size": 30, fill: "#5b21b6" });
+      for (;;) {
+        wa.home();
+        [...v.querySelectorAll(".co-card, .co-tmp")].forEach((n) => n.remove());
+        msg.textContent = "4 cards";
+        const four = parseProg("R R R R");
+        const { nodes } = renderList(v, four, { x: 560, y: 160, w: 420 }, { C: 86 });
+        await api.wait(1800);
+        const cards = four.map((it) => nodes.get(it.id).g);
+        await api.tween(1200, (t) => cards.forEach((g, i) => {
+          g.setAttribute("transform", `translate(${560 + 96 * i * (1 - t)} 160)`);
+          if (i) g.setAttribute("opacity", 1 - t * 0.7);
+        }));
+        cards.slice(2).forEach((g) => g.remove());
+        await api.wait(300);
+        cards.forEach((g) => g.remove());
+        const loop = parseProg("4[R]");
+        const tmp = el("g", { class: "co-tmp" }, v);
+        const res2 = renderList(tmp, loop, { x: 620, y: 160, w: 360 }, { C: 86 });
+        msg.textContent = "4 cards → 2 cards: repeat 4 × ➡️";
+        MUSIC.chime();
+        await api.wait(1400);
+        await walkCards(v, api, wa, res2.nodes, expand(loop), world);
+        MUSIC.chime();
+        await api.wait(2400);
+      }
+    },
+  },
+  {
+    say: "An <b>if</b> rule lets the robot decide by itself. <b>If</b> it stands on red, <b>then</b> it turns right.",
+    async draw(v, api) {
+      const world = parseMap([">..r", "....", "...*"]);
+      const wa = drawWorld(v, world, { x: 40, y: 50, w: 460, h: 460 });
+      const g = el("g", {}, v);
+      const ring = el("rect", { x: 544, y: 194, width: 412, height: 132, rx: 26, fill: "none", stroke: "#facc15", "stroke-width": 8, opacity: 0 }, g);
+      el("rect", { x: 550, y: 200, width: 400, height: 120, rx: 22, fill: "#fff", stroke: "#8b5cf6", "stroke-width": 4 }, g);
+      text(g, 590, 272, "If", { "font-size": 34, fill: "#2b1d12" });
+      el("rect", { x: 620, y: 226, width: 68, height: 68, rx: 14, fill: TILE.r, stroke: "rgba(0,0,0,.2)", "stroke-width": 3 }, g);
+      text(g, 760, 272, "then", { "font-size": 30, fill: "#6b5a48" });
+      drawCard(g, 836, 218, "TR", 84);
+      text(v, 750, 390, "= turn right", { "font-size": 28, fill: "#c2410c" });
+      for (;;) {
+        wa.home();
+        ring.setAttribute("opacity", 0);
+        await api.wait(900);
+        const res = simulateIf(world, { r: "TR" });
+        for (const ev of res.events) {
+          ring.setAttribute("opacity", ev.type === "turn" ? 1 : 0);
+          if (ev.type === "turn") MUSIC.tick(true);
+          else MUSIC.tick(false);
+          await playEvent(wa, ev, api.tween, true);
+          await api.wait(ev.type === "turn" ? 900 : 300);
+        }
+        MUSIC.chime();
+        await api.wait(2400);
+      }
+    },
+  },
+  {
+    say: "You can even make your <b>own</b> card! Put ➡️ ⬆️ ➡️ inside a ⭐ card, then use ⭐ twice. That's called a <b>function</b>.",
+    async draw(v, api) {
+      const world = parseMap(["###.*", "#....", ">.###"]);
+      const wa = drawWorld(v, world, { x: 30, y: 60, w: 480, h: 420 });
+      text(v, 560, 70, "⭐ My card =", { "font-size": 28, fill: "#7a5a07", "text-anchor": "start" });
+      text(v, 560, 290, "Program =", { "font-size": 28, fill: "#1e3a8a", "text-anchor": "start" });
+      const fn = parseProg("R U R");
+      const prog = parseProg("S S");
+      const nodes = new Map();
+      renderList(v, fn, { x: 570, y: 100, w: 400 }, { C: 86, nodes });
+      renderList(v, prog, { x: 570, y: 320, w: 400 }, { C: 86, nodes });
+      for (;;) {
+        wa.home();
+        lightSteps(nodes, null);
+        await api.wait(1000);
+        await walkCards(v, api, wa, nodes, expand(prog, fn), world);
+        MUSIC.chime();
+        await api.wait(2400);
+      }
+    },
+  },
+];
+
+const WIN = {
+  first: () => `${pick(PRAISE)} The robot reached the star! ⭐`,
+  seq: ({ used, world }) => {
+    const best = shortest(world).length;
+    const stars = used <= best ? 3 : used <= best + 2 ? 2 : 1;
+    return `${"⭐".repeat(stars)} You used ${used} cards. ${stars === 3 ? "That's the shortest way!" : `The shortest way uses ${best}. Can you find it?`}`;
+  },
+  debug: () => `${pick(PRAISE)} You squashed the bug! 🐞 Now the program works.`,
+  loops: ({ used, steps, res }) => {
+    const moves = res.s + 1;
+    return `${pick(PRAISE)} Without repeat you'd need ${moves} cards. You used ${used}. Repeat saved <b>${Math.max(0, moves - used)}</b> cards!`;
+  },
+  turns: ({ used, steps, res }) => `${pick(PRAISE)} Great turning! ${steps.some((s) => s.loops.length) ? `The repeat saved ${Math.max(0, res.s + 1 - used)} cards.` : ""}`,
+  fn: ({ used, res, fn }) => `${pick(PRAISE)} Your ⭐ card did ${fn.length} moves each time! ${res.s + 1} moves from only ${used + fn.length} cards.`,
+};
+
+let live = null;
+const units = {
+  c0() {
+    const my = token;
+    fresh();
+    explain(SCENES, { alive: () => my === token, onDone: () => shell.go("c1"), title: "Code the Robot" });
+  },
+  c1() {
+    live = game("c1", { kind: "first", levels: FIRST, pal: ["U", "D", "L", "R"], speak: true, max: 8, win: WIN.first, intro: () => "Help the robot get to the star! Tap the arrows, then press <b>▶ Run</b>." });
+  },
+  c2() {
+    live = game("c2", { kind: "seq", levels: SEQ, pal: ["U", "D", "L", "R"], max: 24, win: WIN.seq, intro: (i) => (i < 3 ? "Collect every gem 💎, then go to the star. Use as few cards as you can!" : "Plan the whole path, then press <b>▶ Run</b>. Fewest cards gets ⭐⭐⭐.") });
+  },
+  c3() {
+    live = game("c3", { kind: "debug", levels: DEBUG, pal: ["U", "D", "L", "R"], win: WIN.debug, intro: (i) => (i === 0 ? "A <b>bug</b> 🐞 is a mistake in the code. Press <b>▶ Run</b> to see what goes wrong. Then tap the wrong card and pick the right one." : "This program has a bug 🐞. Run it, find the wrong card, and fix it.") });
+  },
+  c4() {
+    live = game("c4", { kind: "loops", levels: LOOPS, pal: ["U", "D", "L", "R", "loop"], win: WIN.loops, intro: () => "Too few cards for every step! Use 🔁 <b>Repeat</b> to do cards again and again." });
+  },
+  c5() {
+    live = game("c5", { kind: "turns", levels: TURNS, pal: ["F", "TL", "TR"], max: 14, win: WIN.turns, intro: () => "Think like the robot! ⬆️ goes forward the way it looks. ↶ and ↷ turn it." });
+  },
+  c6() {
+    live = ifGame();
+  },
+  c7() {
+    live = game("c7", { kind: "fn", fn: true, levels: FUNCS, pal: ["U", "D", "L", "R", "S"], win: WIN.fn, intro: () => "Fill the ⭐ box with cards. Then tap the Program box and use ⭐ to run them all at once." });
+  },
+};
+window.__co = () => live;
+
+const style = document.createElement("style");
+style.textContent = `
+.co-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 12px}
+.co-pal{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.co-c{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:62px;height:58px;padding:0 8px;border:0;border-radius:16px;background:var(--c);color:#fff;box-shadow:0 4px 0 rgba(0,0,0,.28);cursor:pointer;touch-action:manipulation;font:900 17px/1 var(--sans)}
+.co-c.co-wide{padding:0 12px}
+.co-c:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.28)}
+.co-c:focus-visible{outline:4px solid #ffcf5c;outline-offset:3px}
+.co-sw{display:grid;place-items:center;width:30px;height:30px;border-radius:8px;border:3px solid rgba(255,255,255,.85);font-size:17px}
+.co-ctl{gap:8px}
+.co-ctl button{min-height:58px}
+.co-ctl button[hidden]{display:none}
+.co-card,.co-dot,.co-box,.co-rule{cursor:pointer}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){.co-c{min-width:48px;height:46px;padding:0 6px}.co-c svg{width:32px;height:32px}.co-ctl button{min-height:46px}.co-row{gap:6px 8px}}
+`;
+document.head.appendChild(style);
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    c0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    c1: { icon: "🐣", title: "First steps", steps: ["Tap an arrow to give the robot a step.", "Press ▶ Run to watch it go.", "Get the robot to the star ⭐!"] },
+    c2: { icon: "💎", title: "Sequences", steps: ["Tap arrows to plan the whole path.", "Grab every gem, then go to the star.", "Fewest cards gets three stars!"] },
+    c3: { icon: "🐞", title: "Debug it", steps: ["Press ▶ Run and watch the robot.", "Tap the card that is wrong.", "Tap the right card to swap it."] },
+    c4: { icon: "🔁", title: "Loops", steps: ["Tap 🔁 Repeat, then the cards to repeat.", "Tap the repeat card to change its number.", "Tap End, then ▶ Run."] },
+    c5: { icon: "↪️", title: "Turn left, turn right", steps: ["⬆️ moves the robot the way its eyes look.", "↶ and ↷ turn it without moving.", "Get it to the star ⭐!"] },
+    c6: { icon: "🚦", title: "If-then rules", steps: ["The robot walks forward by itself.", "Tap a rule to pick: turn left, turn right, or keep going.", "Press ▶ Run to test your rules."] },
+    c7: { icon: "⭐", title: "Functions", steps: ["Put arrows in the ⭐ box to make your own card.", "Tap the Program box and add ⭐ cards.", "Press ▶ Run!"] },
+  },
+  start: "c0",
+  onStop() {
+    token += 1;
+    live = null;
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Tech",
+  activity: "Code the Robot",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("woodblock", [72, 79]);
+MUSIC.preload("xylophone", [84, 88, 91, 96]);
+MUSIC.preload("piano", [64, 67]);
+</script>
+</body>
+</html>

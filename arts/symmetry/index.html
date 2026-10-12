@@ -35,14 +35,16 @@
 </header>
 <main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
 </div>
-<script>const { $, el, svg: makeSvg, text, panel, say, pick, wait, confetti, PRAISE } = KIT;
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, wait, confetti, PRAISE, explain, everyday, emoji, shuffle, choices } = KIT;
 const stage = $("[data-stage]");
 let token = 0;
 
 const UNITS = [
+  { id: "s0", label: "👀 See it", icon: "👀" },
   { id: "s1", label: "1. Mirror painting" },
   { id: "s2", label: "2. Kaleidoscope" },
   { id: "s3", label: "3. Finish the picture" },
+  { id: "s4", label: "4. How many lines of symmetry?" },
 ];
 const COLORS = ["#e53935", "#fb8c00", "#fdd835", "#43a047", "#1e88e5", "#8e24aa", "#ec407a", "#6d4c41", "#212121"];
 
@@ -218,6 +220,7 @@ function studio(id, mode) {
       if (!p.state.strokes) return say("Paint something first!");
       const items = [p.thumb(), ...(shell.progress().gallery?.items || [])].slice(0, 12);
       MUSIC.progress.mark(shell.learner(), "gallery", { items });
+      shell.mark("gallery", { items });
       shell.mark(id, { done: true });
       window.OC?.count("paintings");
       MUSIC.chime();
@@ -226,6 +229,46 @@ function studio(id, mode) {
     }
   };
   say(mode === "mirror" ? "Paint on one side of the dotted line. Watch the other side copy you, like a mirror!" : "Paint anywhere. Your picture is copied round and round, like a kaleidoscope!");
+}
+
+
+// Shapes for the symmetry lessons: points around (0,0), plus the angles (degrees) of every mirror line.
+const reg = (n, r, start = -90) => Array.from({ length: n }, (_, i) => {
+  const a = ((start + (i * 360) / n) * Math.PI) / 180;
+  return [r * Math.cos(a), r * Math.sin(a)];
+});
+const regLines = (n, start = -90) => Array.from({ length: n }, (_, i) => start + (i * 180) / n);
+const SHAPES = [
+  { name: "square", pts: reg(4, 150, -45), lines: [0, 45, 90, 135], color: "#1e88e5" },
+  { name: "rectangle", pts: [[-170, -95], [170, -95], [170, 95], [-170, 95]], lines: [0, 90], color: "#43a047" },
+  { name: "triangle with equal sides", short: "equal triangle", pts: reg(3, 160), lines: regLines(3), color: "#fb8c00", dy: 25 },
+  { name: "tall triangle", pts: [[0, -170], [90, 130], [-90, 130]], lines: [90], color: "#e53935" },
+  { name: "kite", pts: [[0, -170], [100, -40], [0, 170], [-100, -40]], lines: [90], color: "#8e24aa" },
+  { name: "parallelogram", pts: [[-170, 90], [-80, -90], [170, -90], [80, 90]], lines: [], color: "#6d4c41" },
+  { name: "pentagon", pts: reg(5, 160), lines: regLines(5), color: "#ec407a", dy: 10 },
+  { name: "hexagon", pts: reg(6, 160, 0), lines: regLines(6, 0), color: "#26a69a" },
+  { name: "diamond", pts: [[0, -170], [110, 0], [0, 170], [-110, 0]], lines: [0, 90], color: "#fdd835" },
+  { name: "right triangle", pts: [[-120, -120], [-120, 130], [150, 130]], lines: [], color: "#5c6bc0" },
+];
+// Capital letters as they look in a plain, rounded font. lines: "v" vertical, "h" horizontal.
+const LETTERS = { A: "v", B: "h", C: "h", D: "h", E: "h", H: "vh", I: "vh", M: "v", T: "v", U: "v", V: "v", W: "v", X: "vh", Y: "v", F: "", G: "", J: "", L: "", N: "", P: "", R: "", S: "", Z: "" };
+const polyD = (pts, cx, cy) => "M" + pts.map(([x, y]) => `${cx + x} ${cy + y}`).join("L") + "Z";
+const mirrorLine = (parent, cx, cy, deg, len = 230, attrs = {}) => {
+  const a = (deg * Math.PI) / 180;
+  const dx = Math.cos(a) * len;
+  const dy = Math.sin(a) * len;
+  return el("line", { x1: cx - dx, y1: cy - dy, x2: cx + dx, y2: cy + dy, stroke: "#7a4520", "stroke-width": 6, "stroke-dasharray": "16 11", "stroke-linecap": "round", ...attrs }, parent);
+};
+// Reflection across a line through (cx,cy) at angle deg, squashed by s (1 = no change, -1 = full mirror).
+const foldT = (cx, cy, deg, s) => `translate(${cx} ${cy}) rotate(${deg}) scale(1 ${s}) rotate(${-deg}) translate(${-cx} ${-cy})`;
+
+function butterflyWing(parent, fill) {
+  const g = el("g", {}, parent);
+  el("path", { d: "M500 270 C430 120 300 70 245 120 C190 175 260 250 330 280 C250 300 215 380 270 425 C330 470 430 400 500 300 Z", fill, stroke: "#4a2c17", "stroke-width": 5, "stroke-linejoin": "round" }, g);
+  el("circle", { cx: 330, cy: 175, r: 32, fill: "#fdd835", stroke: "#4a2c17", "stroke-width": 3 }, g);
+  el("circle", { cx: 330, cy: 175, r: 12, fill: "#1e88e5" }, g);
+  el("circle", { cx: 315, cy: 375, r: 20, fill: "#fff", opacity: 0.85 }, g);
+  return g;
 }
 
 const PICTURES = [
@@ -241,6 +284,287 @@ const PICTURES = [
 const PAL = { R: "#e53935", P: "#8e24aa", Y: "#fdd835", B: "#1e88e5", G: "#43a047" };
 
 const units = {
+  s0() {
+    const my = token;
+    const label = (parent, x, y, str, size = 34, fill = "#2b1d12") => text(parent, x, y, str, { "font-size": size, fill, "font-weight": 900 });
+    const scenes = [
+      {
+        say: "Why do we learn about symmetry? Symmetry is when one half matches the other half, like a mirror. It is everywhere!",
+        draw: everyday([["🦋", "Butterfly wings"], ["🙂", "Your face"], ["❄️", "Snowflakes"], ["🏛️", "Buildings"]]),
+      },
+      {
+        say: "Here is half a butterfly. Watch it fold over the dotted <b>mirror line</b>. Both wings match!",
+        async draw(v, api) {
+          butterflyWing(v, "#ec407a");
+          const right = butterflyWing(v, "#ec407a");
+          right.setAttribute("opacity", 0.9);
+          mirrorLine(v, 500, 275, 90, 215);
+          el("ellipse", { cx: 500, cy: 285, rx: 16, ry: 120, fill: "#4a2c17" }, v);
+          el("circle", { cx: 500, cy: 150, r: 20, fill: "#4a2c17" }, v);
+          el("path", { d: "M492 135 Q470 90 450 80 M508 135 Q530 90 550 80", stroke: "#4a2c17", "stroke-width": 5, fill: "none", "stroke-linecap": "round" }, v);
+          await api.wait(1200);
+          await api.tween(2200, (t) => {
+            const sx = 1 - 2 * t;
+            right.setAttribute("transform", `translate(500 0) scale(${sx} 1) translate(-500 0)`);
+          });
+          right.setAttribute("opacity", 1);
+          MUSIC.play("xylophone", 91, { gain: 0.35 });
+          label(v, 500, 540, "both sides match!", 34, "#7a4520");
+        },
+      },
+      {
+        say: "Letters can have mirror lines too. <b>A</b> folds down the middle. <b>B</b> folds across. <b>H</b> folds both ways. <b>F</b> has none!",
+        async draw(v, api) {
+          const list = [["A", "v"], ["B", "h"], ["H", "vh"], ["F", ""]];
+          for (const [i, [ch, lines]] of list.entries()) {
+            const x = 140 + i * 240;
+            const t = text(v, x, 330, ch, { "font-size": 260, fill: ["#1e88e5", "#43a047", "#fb8c00", "#8e24aa"][i], "font-weight": 900, opacity: 0 });
+            await api.tween(500, (k) => t.setAttribute("opacity", k));
+            const box = t.getBBox();
+            const cy = 330 - 260 * 0.36;
+            for (const dir of lines) {
+              const ln = dir === "v" ? mirrorLine(v, x, cy, 90, 1) : mirrorLine(v, x, cy, 0, 1);
+              const len = dir === "v" ? 135 : Math.min(112, box.width / 2 + 15);
+              await api.tween(700, (k) => {
+                const L = len * k;
+                if (dir === "v") (ln.setAttribute("y1", cy - L), ln.setAttribute("y2", cy + L));
+                else (ln.setAttribute("x1", x - L), ln.setAttribute("x2", x + L));
+              });
+            }
+            if (!lines) {
+              const no = label(v, x, cy + 30, "✗", 120, "#e53935");
+              no.setAttribute("opacity", 0.8);
+            }
+            label(v, x, 470, lines.length === 0 ? "no lines" : lines.length === 1 ? "1 line" : "2 lines", 32, "#7a4520");
+            MUSIC.play("xylophone", 84 + i * 3, { gain: 0.3 });
+            await api.wait(600);
+          }
+        },
+      },
+      {
+        say: "Shapes too! A square has <b>4</b> lines of symmetry. A triangle with equal sides has <b>3</b>. A heart has just <b>1</b>.",
+        async draw(v, api) {
+          const items = [[SHAPES[0], 180, 0.85], [SHAPES[2], 500, 0.85]];
+          for (const [i, [shape, x, k]] of items.entries()) {
+            const cy = 260 + (shape.dy || 0) * k;
+            el("path", { d: polyD(shape.pts.map(([a, b]) => [a * k, b * k]), x, cy), fill: shape.color, opacity: 0.85, stroke: "#4a2c17", "stroke-width": 4 }, v);
+            for (const [j, deg] of shape.lines.entries()) {
+              const ln = mirrorLine(v, x, cy, deg, 1);
+              await api.tween(600, (t) => {
+                const a = (deg * Math.PI) / 180;
+                const L = 152 * t;
+                ln.setAttribute("x1", x - Math.cos(a) * L);
+                ln.setAttribute("y1", cy - Math.sin(a) * L);
+                ln.setAttribute("x2", x + Math.cos(a) * L);
+                ln.setAttribute("y2", cy + Math.sin(a) * L);
+              });
+              MUSIC.play("xylophone", 84 + j * 2 + i * 5, { gain: 0.3 });
+            }
+            label(v, x, 500, `${shape.lines.length} lines`, 34, "#7a4520");
+            await api.wait(500);
+          }
+          emoji(v, 820, 250, "❤️", 190);
+          const ln = mirrorLine(v, 820, 260, 90, 1);
+          await api.tween(700, (t) => (ln.setAttribute("y1", 260 - 140 * t), ln.setAttribute("y2", 260 + 140 * t)));
+          MUSIC.play("xylophone", 96, { gain: 0.3 });
+          label(v, 820, 500, "1 line", 34, "#7a4520");
+        },
+      },
+      {
+        say: "A snowflake has another kind of symmetry. Turn it a little bit, and it looks <b>exactly the same</b>! Watch the red dot.",
+        async draw(v, api) {
+          const flake = el("g", {}, v);
+          for (let i = 0; i < 6; i++) {
+            const arm = el("g", { transform: `rotate(${i * 60} 500 270)` }, flake);
+            el("path", { d: "M500 270 L500 90 M500 140 L465 110 M500 140 L535 110 M500 190 L455 155 M500 190 L545 155", stroke: "#4fa3e0", "stroke-width": 14, "stroke-linecap": "round", fill: "none" }, arm);
+          }
+          el("circle", { cx: 500, cy: 270, r: 26, fill: "#4fa3e0" }, flake);
+          el("circle", { cx: 500, cy: 92, r: 18, fill: "#e53935" }, flake);
+          const tag = label(v, 830, 280, "", 40, "#7a4520");
+          for (let k = 1; k <= 6; k++) {
+            await api.wait(900);
+            await api.tween(1100, (t) => flake.setAttribute("transform", `rotate(${(k - 1 + t) * 60} 500 270)`));
+            MUSIC.play("xylophone", [84, 86, 88, 91, 93, 96][k - 1], { gain: 0.35 });
+            tag.textContent = `turn ${k}`;
+          }
+          label(v, 830, 340, "same 6 times!", 30, "#7a4520");
+        },
+      },
+    ];
+    explain(scenes, {
+      alive: () => my === token,
+      title: "Symmetry",
+      onDone: () => {
+        shell.mark("s0", { done: true });
+        shell.go("s1");
+      },
+    });
+  },
+
+  s4() {
+    const my = token;
+    const MODES = { fold: "🐣 Mirror line?", letters: "🦊 Letters", shapes: "🦁 Shapes" };
+    const ROUNDS = 8;
+    let mode = "fold";
+    let round = 0;
+    let q = null;
+    let busy = false;
+    let v = null;
+    panel(`<div class="ap-chips" data-modes>${Object.entries(MODES).map(([k, l]) => `<button type="button" data-m="${k}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p><div data-choices></div>`);
+    const CX = 500;
+    const CY = 270;
+    const fresh = () => {
+      stage.innerHTML = "";
+      v = makeSvg("0 0 1000 560", stage);
+    };
+    const drawShape = (parent, shape) => {
+      const g = el("g", {}, parent);
+      el("path", { d: polyD(shape.pts, CX, CY + (shape.dy || 0)), fill: shape.color, stroke: "#4a2c17", "stroke-width": 5, "stroke-linejoin": "round" }, g);
+      return g;
+    };
+    const drawLetter = (parent, ch) => {
+      const g = el("g", {}, parent);
+      const t = text(g, CX, CY + 135, ch, { "font-size": 380, fill: "#1e88e5", "font-weight": 900 });
+      return { g, t };
+    };
+    const letterCentre = (t) => {
+      const b = t.getBBox();
+      return [CX, CY + 135 - 380 * 0.36, b.width];
+    };
+    const status = () => ($("[data-status]").textContent = `Round ${Math.min(round + 1, ROUNDS)} of ${ROUNDS}`);
+    const offer = (opts) => choices($("[data-choices]"), opts, answer);
+    const ask = () => {
+      if (my !== token) return;
+      busy = false;
+      fresh();
+      status();
+      if (mode === "fold") {
+        // A shape or letter with one dotted line: is it a mirror line?
+        const pool = [];
+        for (const sh of SHAPES) {
+          for (const deg of sh.lines) pool.push({ shape: sh, deg, yes: true });
+          for (const deg of [0, 90, 45, 135]) if (!sh.lines.some((d) => Math.abs((((d - deg) % 180) + 180) % 180) < 1)) pool.push({ shape: sh, deg, yes: false });
+        }
+        let item;
+        do item = pick(pool);
+        while (item.yes !== (Math.random() < 0.5) && Math.random() < 0.7);
+        q = item;
+        const cy = CY + (item.shape.dy || 0);
+        q.shapeG = drawShape(v, item.shape);
+        q.line = mirrorLine(v, CX, cy, item.deg, 240);
+        offer([{ label: "✅ Yes, it matches", v: true }, { label: "❌ No", v: false }]);
+        say("Is the dotted line a <b>mirror line</b>? Would the two halves match if you folded it?");
+      } else if (mode === "letters") {
+        const keys = Object.keys(LETTERS);
+        let ch;
+        do ch = pick(keys);
+        while (ch === q?.ch);
+        q = { ch, n: LETTERS[ch].length };
+        q.letter = drawLetter(v, ch);
+        offer([0, 1, 2].map((n) => ({ label: String(n), v: n })));
+        say(`How many lines of symmetry does the letter <b>${ch}</b> have?`);
+      } else {
+        const list = round < 3 ? SHAPES.filter((s) => s.lines.length <= 4) : SHAPES;
+        let sh;
+        do sh = pick(list);
+        while (sh === q?.shape);
+        q = { shape: sh, n: sh.lines.length };
+        q.shapeG = drawShape(v, sh);
+        const n = q.n;
+        const set = new Set([n]);
+        const near = [n - 1, n + 1, n + 2, n - 2, 0, 1, 2, 4].filter((x) => x >= 0);
+        for (const x of near) if (set.size < 4) set.add(x);
+        offer([...set].sort((a, b) => a - b).map((x) => ({ label: String(x), v: x })));
+        say(`How many lines of symmetry does this <b>${sh.short || sh.name}</b> have?`);
+      }
+    };
+    const showLines = async (parent, list, cx, cy, len) => {
+      for (const deg of list) {
+        const ln = mirrorLine(parent, cx, cy, deg, len, { stroke: "#22a05a" });
+        ln.setAttribute("opacity", 0);
+        for (let k = 1; k <= 5; k++) {
+          await wait(60);
+          ln.setAttribute("opacity", k / 5);
+        }
+        MUSIC.play("xylophone", 84 + list.indexOf(deg) * 2, { gain: 0.3 });
+      }
+    };
+    const fold = async (g, cx, cy, deg) => {
+      const ghost = g.cloneNode(true);
+      ghost.setAttribute("opacity", 0.55);
+      v.appendChild(ghost);
+      const steps = 24;
+      for (let k = 0; k <= steps; k++) {
+        if (my !== token) return;
+        ghost.setAttribute("transform", foldT(cx, cy, deg, 1 - (2 * k) / steps));
+        await wait(40);
+      }
+    };
+    const answer = async (opt, button) => {
+      if (my !== token || busy || !q) return;
+      window.OC?.touch();
+      const right = mode === "fold" ? opt.v === q.yes : opt.v === q.n;
+      if (!right) {
+        MUSIC.oops();
+        button.classList.add("wrong");
+        if (mode === "fold") {
+          busy = true;
+          await fold(q.shapeG, CX, CY + (q.shape.dy || 0), q.deg);
+          busy = false;
+          say(q.yes ? "Look: when it folds over, the halves land right on top of each other. So it <b>is</b> a mirror line." : "Look: when it folds over, the halves stick out and don't match. So it is <b>not</b> a mirror line.");
+          return;
+        }
+        if (mode === "letters") say(opt.v > q.n ? "Too many. Imagine folding it: does it match both ways?" : "Look again. Try folding it down the middle, then across.");
+        else say(opt.v > q.n ? "Too many. Fold it in your mind: some of those folds won't match." : "There are more. Try folds from corner to corner and side to side.");
+        return;
+      }
+      busy = true;
+      button.classList.add("right");
+      MUSIC.chime();
+      round += 1;
+      window.OC?.count("symmetry lines");
+      if (mode === "fold") {
+        await fold(q.shapeG, CX, CY + (q.shape.dy || 0), q.deg);
+        say(`${pick(PRAISE)} ${q.yes ? "The halves match, so it <b>is</b> a mirror line." : "The halves don't match, so it's <b>not</b> a mirror line."}`);
+      } else if (mode === "letters") {
+        const [cx, cy, w] = letterCentre(q.letter.t);
+        const list = [...LETTERS[q.ch]].map((d) => (d === "v" ? 90 : 0));
+        if (list.length) {
+          for (const deg of list) mirrorLine(v, cx, cy, deg, deg === 90 ? 175 : w / 2 + 30, { stroke: "#22a05a" });
+          MUSIC.play("xylophone", 88, { gain: 0.3 });
+        }
+        say(`${pick(PRAISE)} ${q.ch} has ${q.n === 0 ? "no lines of symmetry: no fold matches" : q.n === 1 ? `1 line of symmetry, ${LETTERS[q.ch] === "v" ? "down the middle" : "across the middle"}` : "2 lines: down and across"}.`);
+      } else {
+        await showLines(v, q.shape.lines, CX, CY + (q.shape.dy || 0), 230);
+        say(`${pick(PRAISE)} A ${q.shape.name} has ${q.n === 0 ? "no lines of symmetry" : q.n === 1 ? "1 line of symmetry" : `${q.n} lines of symmetry`}.`);
+      }
+      await wait(2600);
+      if (my !== token) return;
+      if (round >= ROUNDS) {
+        confetti();
+        const modes = new Set([...(shell.progress().s4?.modes || []), mode]);
+        shell.mark("s4", { modes: [...modes], done: true });
+        say(`🎉 All ${ROUNDS} done! ${mode === "fold" ? "Try 🦊 Letters next." : mode === "letters" ? "Try 🦁 Shapes next." : "You are a symmetry expert!"}`);
+        round = 0;
+        await wait(3200);
+        if (my !== token) return;
+      }
+      ask();
+    };
+    const start = (m) => {
+      mode = m;
+      round = 0;
+      q = null;
+      document.querySelectorAll("[data-m]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.m === m)));
+      ask();
+    };
+    $("[data-modes]").onclick = (event) => {
+      const b = event.target.closest("[data-m]");
+      if (b && my === token) start(b.dataset.m);
+    };
+    start("fold");
+  },
+
   s1() {
     studio("s1", "mirror");
   },
@@ -339,16 +663,19 @@ const units = {
 };
 
 const style = document.createElement("style");
-style.textContent = `.sy-canvas,.sy-guides{position:absolute;inset:0;touch-action:none}.sy-guides{pointer-events:none}.sy-canvas{cursor:crosshair}.sy-colors button[aria-pressed="true"]{outline:4px solid #2b1d12;outline-offset:2px}.sy-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;width:100%}.sy-gallery img{width:100%;border-radius:14px;box-shadow:0 3px 0 #e2d6c4}[data-pal] button[aria-pressed="true"]{outline:4px solid #2b1d12;outline-offset:2px}`;
+style.textContent = `.sy-canvas,.sy-guides{position:absolute;inset:0;touch-action:none}.sy-guides{pointer-events:none}.sy-canvas{cursor:crosshair}.sy-colors button[aria-pressed="true"]{outline:4px solid #2b1d12;outline-offset:2px}.sy-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;width:100%}.sy-gallery img{width:100%;border-radius:14px;box-shadow:0 3px 0 #e2d6c4}[data-pal] button[aria-pressed="true"]{outline:4px solid #2b1d12;outline-offset:2px}[data-choices] .kt-choices button{min-width:64px;font-size:20px}`;
 document.head.appendChild(style);
 
 const shell = SHELL({
   units: UNITS,
   how: {
+    s0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    s4: { icon: "📏", title: "How many lines?", steps: ["Pick a game at the top.", "Imagine folding the picture.", "Tap the answer below."] },
     s1: { icon: "🦋", title: "Mirror painting", steps: ["Pick a colour and a brush.", "Paint on one side of the dotted line.", "The other side copies you, like a mirror!"] },
     s2: { icon: "✨", title: "Kaleidoscope", steps: ["Pick a colour.", "Paint anywhere: it copies round and round.", "Try Slices for 4, 6 or 8 copies!"] },
     s3: { icon: "🪞", title: "Finish the picture", steps: ["The left half is drawn for you.", "Colour squares on the right to match it like a mirror.", "Press Check when you're done."] },
   },
+  start: "s0",
   onStop() {
     token += 1;
     $("[data-panel]").onclick = null;

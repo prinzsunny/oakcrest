@@ -138,8 +138,123 @@
     });
   }
 
+  // A "See it" lesson: scenes drawn in the stage, read aloud, stepped with big Back / Next buttons.
+  // scenes: [{ say: "html", draw(view, api) }]. api: { alive(), wait(ms), tween(ms, fn(t)), W, H }.
+  function explain(scenes, { alive = () => true, onDone, doneLabel = "🎮 Let's play!", title = "" } = {}) {
+    const stage = $("[data-stage]");
+    let index = 0;
+    let gen = 0;
+    const host = panel(`<div class="kt-steps"><button type="button" class="kt-step-btn" data-back aria-label="Back">◀</button><span class="kt-step-dots" data-dots></span><button type="button" class="kt-step-btn kt-step-next" data-next>Next ▶</button></div>`);
+    const live = (g) => g === gen && alive() && stage.isConnected;
+    const show = () => {
+      const g = ++gen;
+      const scene = scenes[index];
+      stage.innerHTML = "";
+      const view = svg("0 0 1000 560", stage);
+      view.classList.add("kt-scene");
+      say(`${title && index === 0 ? `<b>${title}</b> ` : ""}${scene.say}`);
+      $("[data-dots]", host).innerHTML = scenes.map((_, i) => `<i class="${i === index ? "on" : i < index ? "seen" : ""}"></i>`).join("") + `<small>${index + 1} of ${scenes.length}</small>`;
+      $("[data-back]", host).disabled = index === 0;
+      const last = index === scenes.length - 1;
+      const next = $("[data-next]", host);
+      next.textContent = last ? doneLabel : "Next ▶";
+      next.classList.toggle("kt-step-play", last);
+      const api = {
+        W: 1000,
+        H: 560,
+        alive: () => live(g),
+        wait: (ms) => new Promise((resolve, reject) => setTimeout(() => (live(g) ? resolve() : reject(STOP)), still.matches ? Math.min(ms, 200) : ms)),
+        tween: (ms, fn, ease = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2)) =>
+          new Promise((resolve, reject) => {
+            if (still.matches) {
+              fn(1);
+              return resolve();
+            }
+            const t0 = performance.now();
+            const frame = (now) => {
+              if (!live(g)) return reject(STOP);
+              const t = Math.min(1, (now - t0) / ms);
+              fn(ease(t));
+              if (t < 1) requestAnimationFrame(frame);
+              else resolve();
+            };
+            requestAnimationFrame(frame);
+          }),
+      };
+      Promise.resolve()
+        .then(() => scene.draw(view, api))
+        .catch((error) => {
+          if (error !== STOP) console.error(error);
+        });
+    };
+    host.onclick = (event) => {
+      if (event.target.closest("[data-back]") && index > 0) {
+        index -= 1;
+        show();
+      } else if (event.target.closest("[data-next]")) {
+        if (index < scenes.length - 1) {
+          index += 1;
+          show();
+        } else {
+          gen += 1;
+          VOICE.hush();
+          onDone?.();
+        }
+      }
+    };
+    show();
+    return { stop: () => (gen += 1), again: () => ((index = 0), show()) };
+  }
+  const STOP = Symbol("stop");
+
+  // Big emoji picture inside an SVG scene.
+  function emoji(parent, x, y, glyph, size = 80, attrs = {}) {
+    return text(parent, x, y + size * 0.35, glyph, { "font-size": size, "font-family": "Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif", "font-weight": 400, ...attrs });
+  }
+
+  // "Where do we use it?" scene: up to 4 everyday picture cards that pop in one by one.
+  function everyday(items) {
+    return async (view, api) => {
+      const n = items.length;
+      const w = Math.min(230, 900 / n - 20);
+      const x0 = 500 - (n * (w + 20) - 20) / 2;
+      for (let i = 0; i < n; i++) {
+        const [glyph, label] = items[i];
+        const g = el("g", { transform: `translate(${x0 + i * (w + 20)} 120)`, opacity: 0 }, view);
+        el("rect", { width: w, height: 300, rx: 28, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, g);
+        el("circle", { cx: w / 2, cy: 115, r: 78, fill: "var(--accent-soft)" }, g);
+        emoji(g, w / 2, 112, glyph, 92);
+        const words = label.split(" ");
+        const lines = [];
+        for (const word of words) {
+          const lastLine = lines[lines.length - 1];
+          if (lastLine && (lastLine + " " + word).length <= 14) lines[lines.length - 1] = lastLine + " " + word;
+          else lines.push(word);
+        }
+        lines.slice(0, 3).forEach((line, j) => text(g, w / 2, 236 + j * 30 - (lines.length - 1) * 8, line, { "font-size": 25, fill: "#2b1d12", "font-weight": 800 }));
+        await api.tween(450, (t) => {
+          g.setAttribute("opacity", t);
+          g.setAttribute("transform", `translate(${x0 + i * (w + 20)} ${120 + (1 - t) * 40})`);
+        });
+        await api.wait(500);
+      }
+    };
+  }
+
   const style = document.createElement("style");
   style.textContent = `
+.kt-steps{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
+.kt-step-btn{min-width:64px;min-height:56px;padding:0 20px;border:0;border-radius:20px;background:#fff;color:var(--ink);box-shadow:0 4px 0 #e2d6c4;font:900 20px/1 var(--sans);cursor:pointer;touch-action:manipulation}
+.kt-step-btn:disabled{opacity:.35;cursor:default}
+.kt-step-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #e2d6c4}
+.kt-step-next{min-width:150px;background:var(--accent);color:#fff;box-shadow:0 4px 0 var(--accent-dark)}
+.kt-step-play{animation:ap-pulse 1.4s ease-in-out infinite}
+.kt-step-dots{display:flex;align-items:center;gap:6px}
+.kt-step-dots i{width:12px;height:12px;border-radius:50%;background:#e6dccd}
+.kt-step-dots i.seen{background:var(--accent-soft);box-shadow:inset 0 0 0 2px var(--accent)}
+.kt-step-dots i.on{width:26px;border-radius:6px;background:var(--accent)}
+.kt-step-dots small{margin-left:6px;color:var(--muted);font:800 13px var(--sans)}
+@media (max-height:460px){.kt-step-btn{min-height:42px;font-size:17px}}
 .kt-confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:6}
 .kt-confetti span{position:absolute;top:-16px;width:9px;height:14px;border-radius:2px;animation:kt-fall linear forwards}
 @keyframes kt-fall{to{transform:translate(var(--drift),760px) rotate(var(--spin));opacity:.9}}
@@ -166,5 +281,5 @@
 `;
   document.head.appendChild(style);
 
-  window.KIT = { howTo, NS, $, $$, pick, pickInt, wait, shuffle, PRAISE, KIND, still, svg, el, text, panel, say, sayAsync, confetti, numpad, choices };
+  window.KIT = { explain, emoji, everyday, howTo, NS, $, $$, pick, pickInt, wait, shuffle, PRAISE, KIND, still, svg, el, text, panel, say, sayAsync, confetti, numpad, choices };
 })();

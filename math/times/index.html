@@ -43,11 +43,14 @@ let token = 0;
 let view = null;
 
 const UNITS = [
+  { id: "x0", label: "See it", icon: "👀" },
   { id: "x1", label: "1. Groups and arrays" },
-  { id: "x2", label: "2. Times tables practice" },
-  { id: "x3", label: "3. Soroban multiplication" },
-  { id: "x4", label: "4. Sharing (division)" },
-  { id: "x5", label: "5. Division facts" },
+  { id: "x6", label: "2. Times stories", icon: "📖" },
+  { id: "x2", label: "3. Times tables practice" },
+  { id: "x3", label: "4. Soroban multiplication" },
+  { id: "x4", label: "5. Sharing (division)" },
+  { id: "x5", label: "6. Division facts" },
+  { id: "x7", label: "7. Missing number & fact families", icon: "🔺" },
 ];
 const fresh = () => {
   stage.innerHTML = "";
@@ -66,38 +69,520 @@ function array(rows, cols, { icon = "🍎", reveal = rows, y0 = 30, h = 420 } = 
   }
 }
 
-function miniSoroban(value, { rods = 6, x0 = 140, y0 = 60, w = 720, h = 320, labels = true } = {}) {
-  const g = el("g", {}, view);
+// A working soroban: tap beads to move them, like the real one.
+// Tap a heaven bead to add or take away 5; tap an earth bead to push it (and the ones between) to the beam or away.
+function soroban({ rods = 4, x0 = 250, y0 = 46, w = 500, h = 330, onChange } = {}) {
+  const g = el("g", { class: "ts-soroban" }, view);
   const pitch = w / rods;
-  el("rect", { x: x0 - 20, y: y0 - 20, width: w + 40, height: h + 40, rx: 16, fill: "#3a281c" }, g);
-  el("rect", { x: x0, y: y0, width: w, height: h, rx: 6, fill: "#efe6d6" }, g);
   const beamY = y0 + h * 0.3;
-  const digits = String(value).padStart(rods, "0").slice(-rods).split("").map(Number);
+  const bh = Math.min(h * 0.13, 46);
+  const bw = Math.min(pitch * 0.44, 62);
+  const defs = el("defs", {}, g);
+  const grad = el("linearGradient", { id: "ts-wood", x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  [["0", "#d9a066"], ["0.45", "#a8632d"], ["1", "#5e3214"]].forEach(([o, c]) => el("stop", { offset: o, "stop-color": c }, grad));
+  el("rect", { x: x0 - 22, y: y0 - 22, width: w + 44, height: h + 44, rx: 18, fill: "#4a2f1c" }, g);
+  el("rect", { x: x0 - 22, y: y0 - 22, width: w + 44, height: h + 44, rx: 18, fill: "none", stroke: "#2e1c10", "stroke-width": 3 }, g);
+  el("rect", { x: x0, y: y0, width: w, height: h, rx: 6, fill: "#f4ead8" }, g);
+  const digits = new Array(rods).fill(0);
+  const beads = [];
+  const rest = (b, d) => (b.kind === "h" ? (d >= 5 ? beamY - 5 - bh / 2 : y0 + 4 + bh / 2) : b.j < d % 5 ? beamY + 5 + bh / 2 + b.j * bh : y0 + h - 4 - bh / 2 - (3 - b.j) * bh);
+  const PLACES = ["ones", "tens", "hundreds", "thousands", "ten thousands"];
+  const labels = [];
   for (let i = 0; i < rods; i++) {
     const cx = x0 + pitch * (i + 0.5);
-    el("line", { x1: cx, x2: cx, y1: y0, y2: y0 + h, stroke: "#c9b28a", "stroke-width": 5 }, g);
-    const d = digits[i];
-    const bw = pitch * 0.42;
-    const bh = h * 0.1;
-    const bead = (cy, on) => {
-      el("path", { d: `M${cx - bw} ${cy}L${cx} ${cy - bh / 2}L${cx + bw} ${cy}L${cx} ${cy + bh / 2}Z`, fill: on ? "#a8632d" : "#7a4520", stroke: "#2e1606", "stroke-width": 1.5, opacity: on ? 1 : 0.55 }, g);
-      el("path", { d: `M${cx - bw * 0.7} ${cy - 2}L${cx} ${cy - bh / 2 + 3}L${cx + bw * 0.5} ${cy - 3}`, fill: "none", stroke: "#f3cf98", "stroke-width": 2, opacity: on ? 0.8 : 0.3 }, g);
+    el("rect", { x: cx - 4, y: y0, width: 8, height: h, rx: 4, fill: "#c9a46e" }, g);
+    const make = (kind, j) => {
+      const node = el("g", { class: "ts-bead", "data-col": i, "data-kind": kind, "data-j": j, style: "cursor:pointer" }, g);
+      el("path", { d: `M${-bw} 0Q${-bw * 0.55} ${-bh / 2} 0 ${-bh / 2}Q${bw * 0.55} ${-bh / 2} ${bw} 0Q${bw * 0.55} ${bh / 2} 0 ${bh / 2}Q${-bw * 0.55} ${bh / 2} ${-bw} 0Z`, fill: "url(#ts-wood)", stroke: "#3a1d0a", "stroke-width": 1.6 }, node);
+      el("path", { d: `M${-bw * 0.68} ${-3}Q0 ${-bh / 2 + 4} ${bw * 0.6} ${-4}`, fill: "none", stroke: "#f6d7a8", "stroke-width": 2.4, "stroke-linecap": "round", opacity: 0.75 }, node);
+      el("rect", { x: -bw, y: -bh / 2, width: bw * 2, height: bh, fill: "transparent" }, node);
+      const bead = { node, col: i, kind, j, x: cx, y: 0 };
+      bead.y = rest(bead, 0);
+      node.setAttribute("transform", `translate(${cx} ${bead.y})`);
+      beads.push(bead);
     };
-    const heavenOn = d >= 5;
-    bead(heavenOn ? beamY - bh * 0.6 : y0 + bh * 0.8, heavenOn);
-    const earth = d % 5;
-    for (let j = 0; j < 4; j++) {
-      const on = j < earth;
-      const cy = on ? beamY + bh * 0.6 + j * bh : beamY + bh * 0.6 + (j + 1) * bh + h * 0.05;
-      bead(cy, on);
-    }
-    if (labels) text(g, cx, y0 + h + 52, d, { "font-size": 30, fill: "#2b1d12" });
+    make("h", 0);
+    for (let j = 0; j < 4; j++) make("e", j);
+    labels.push(text(g, cx, y0 + h + 58, "0", { "font-size": 34, fill: "#2b1d12" }));
+    text(g, cx, y0 - 30, PLACES[rods - 1 - i], { "font-size": 17, fill: "#8a7258", "font-weight": 800 });
   }
-  el("rect", { x: x0, y: beamY - 4, width: w, height: 8, fill: "#3a281c" }, g);
+  el("rect", { x: x0, y: beamY - 5, width: w, height: 10, fill: "#4a2f1c" }, g);
+  for (let i = 0; i < rods; i++) if ((rods - 1 - i) % 3 === 0) el("circle", { cx: x0 + pitch * (i + 0.5), cy: beamY, r: 3.2, fill: "#f4ead8" }, g);
+  const valueOf = () => digits.reduce((v, d) => v * 10 + d, 0);
+  let anim = 0;
+  const place = (ms) => {
+    const id = ++anim;
+    const from = beads.map((b) => b.y);
+    const to = beads.map((b) => rest(b, digits[b.col]));
+    const t0 = performance.now();
+    return new Promise((resolve) => {
+      const step = (now) => {
+        if (id !== anim) return resolve();
+        const t = ms ? Math.min(1, (now - t0) / ms) : 1;
+        const e = 1 - (1 - t) ** 3;
+        beads.forEach((b, k) => {
+          b.y = from[k] + (to[k] - from[k]) * e;
+          b.node.setAttribute("transform", `translate(${b.x} ${b.y})`);
+        });
+        if (t < 1) requestAnimationFrame(step);
+        else resolve();
+      };
+      requestAnimationFrame(step);
+    });
+  };
+  const showDigits = () => digits.forEach((d, i) => (labels[i].textContent = d));
+  let locked = false;
+  g.addEventListener("pointerdown", (event) => {
+    const node = event.target.closest(".ts-bead");
+    if (!node || locked) return;
+    event.preventDefault();
+    const col = Number(node.dataset.col);
+    const j = Number(node.dataset.j);
+    const d = digits[col];
+    if (node.dataset.kind === "h") digits[col] = d >= 5 ? d - 5 : d + 5;
+    else {
+      const earth = d % 5;
+      digits[col] = d - earth + (j < earth ? j : j + 1);
+    }
+    MUSIC.bead();
+    window.OC?.touch();
+    showDigits();
+    place(170);
+    onChange?.(valueOf());
+  });
+  return {
+    value: valueOf,
+    lock: (on) => (locked = on),
+    // Move to a number; slow mode goes rod by rod, from the left, with a click per rod.
+    async set(value, slow = false, alive = () => true) {
+      const target = String(Math.max(0, value)).padStart(rods, "0").slice(-rods).split("").map(Number);
+      if (!slow) {
+        target.forEach((d, i) => (digits[i] = d));
+        showDigits();
+        return place(0);
+      }
+      for (let i = 0; i < rods; i++) {
+        if (!alive()) return;
+        if (digits[i] === target[i]) continue;
+        digits[i] = target[i];
+        showDigits();
+        MUSIC.bead();
+        await place(650);
+        await wait(350);
+      }
+    },
+  };
+}
+
+// Shared helpers for the newer units: difficulty chips, a calm tween, picture groups, the fact triangle.
+const { explain, everyday, emoji } = KIT;
+const LEVELS = [["easy", "🐣 Easy"], ["medium", "🦊 Medium"], ["hard", "🦁 Hard"]];
+const levelRow = (cur) => `<div class="ap-row"><div class="ap-chips" data-levels>${LEVELS.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div>`;
+const onLevels = (id, fn) =>
+  $("[data-levels]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    shell.mark(id, { level: b.dataset.lv });
+    window.OC?.touch();
+    fn(b.dataset.lv);
+  });
+
+// Equal groups drawn as cards: `groups` cards, each with `k` copies of `glyph` (or dots under a `head` picture).
+function groupsPic(groups, k, { glyph = "🍎", head = null, caption = null, crossLast = 0, top = 20, bottom = 470, strips = false } = {}) {
+  const rows = strips ? groups : groups <= 5 ? 1 : 2;
+  const cols = Math.ceil(groups / rows);
+  const gap = 14;
+  const cw = strips ? Math.min(900, k * 90 + 40) : Math.min(260, (940 - (cols - 1) * gap) / cols);
+  const maxH = (bottom - top - (rows - 1) * gap) / rows;
+  const ipr = strips ? k : k <= 4 ? k : k <= 6 ? 3 : k === 9 ? 3 : k === 10 ? 5 : 4;
+  const irows = Math.ceil(k / ipr);
+  const hs = head ? Math.min(cw * 0.6, maxH * 0.4, 90) : 0;
+  const capH = caption && !strips ? 34 : 0;
+  const s = Math.min(glyph === "dot" ? 50 : 90, (cw - (strips ? 110 : 16)) / ipr, (maxH - (strips ? 12 : 24) - hs - capH) / irows);
+  const ch = Math.min(maxH, (strips ? 12 : 24) + (head ? hs + 8 : 0) + irows * s + capH);
+  const x0 = (W - (cols * cw + (cols - 1) * gap)) / 2;
+  const y0 = top + (bottom - top - (rows * ch + (rows - 1) * gap)) / 2;
+  for (let gi = 0; gi < groups; gi++) {
+    const r = Math.floor(gi / cols);
+    const c = gi % cols;
+    const x = x0 + c * (cw + gap);
+    const y = y0 + r * (ch + gap);
+    el("rect", { x, y, width: cw, height: ch, rx: 18, fill: "#fbf3e4", stroke: "#e0a96d", "stroke-width": 3 }, view);
+    if (head) emoji(view, x + cw / 2, y + 12 + hs / 2, head, hs);
+    const iy = y + (strips ? 6 : 12) + (head ? hs + 8 : 0);
+    for (let i = 0; i < k; i++) {
+      const cx = x + (strips ? 50 : 0) + (cw - (strips ? 50 : 0)) / 2 + ((i % ipr) - (Math.min(ipr, k) - 1) / 2) * s;
+      const cy = iy + (Math.floor(i / ipr) + 0.5) * s;
+      if (glyph === "dot") el("circle", { cx, cy, r: s * 0.3, fill: "#7a4520" }, view);
+      else emoji(view, cx, cy, glyph, s * 0.8);
+      if (crossLast && gi * k + i >= groups * k - crossLast) {
+        el("path", { d: `M${cx - s * 0.32} ${cy - s * 0.32}L${cx + s * 0.32} ${cy + s * 0.32}M${cx + s * 0.32} ${cy - s * 0.32}L${cx - s * 0.32} ${cy + s * 0.32}`, stroke: "#c0392b", "stroke-width": 5, "stroke-linecap": "round" }, view);
+      }
+    }
+    if (caption && strips) text(view, x + 46, y + ch / 2 + 8, caption(gi), { "font-size": 22, fill: "#a8632d" });
+    else if (caption) text(view, x + cw / 2, y + ch - 12, caption(gi), { "font-size": 22, fill: "#a8632d" });
+  }
+}
+
+// A pile of things in a tidy grid (for "share" and "how many groups" stories).
+function pilePic(n, glyph, { top = 20, bottom = 300 } = {}) {
+  const per = n <= 12 ? 6 : n <= 30 ? 10 : 12;
+  const rowsN = Math.ceil(n / per);
+  const s = Math.min(80, 900 / per, (bottom - top) / rowsN);
+  const x0 = (W - per * s) / 2;
+  const y0 = top + (bottom - top - rowsN * s) / 2;
+  for (let i = 0; i < n; i++) emoji(view, x0 + (i % per + 0.5) * s, y0 + (Math.floor(i / per) + 0.5) * s, glyph, s * 0.82);
+}
+
+function triangle(v, cx, cy, { a, b, c, hide = null, scale = 1 }) {
+  const g = el("g", { transform: `translate(${cx} ${cy}) scale(${scale})` }, v);
+  el("path", { d: "M0 -150L-140 100L140 100Z", fill: "#fbf3e4", stroke: "#e0a96d", "stroke-width": 6, "stroke-linejoin": "round" }, g);
+  text(g, 0, 60, "× ÷", { "font-size": 34, fill: "#a8632d" });
+  const spot = (x, y, val, key, big) => {
+    el("circle", { cx: x, cy: y, r: big ? 58 : 50, fill: key === hide ? "#fff" : big ? "var(--accent)" : "#fff", stroke: key === hide ? "var(--accent)" : big ? "var(--accent-dark)" : "#e0a96d", "stroke-width": 5, "stroke-dasharray": key === hide ? "10 8" : null }, g);
+    text(g, x, y + (big ? 16 : 14), key === hide ? "?" : val, { "font-size": big ? 46 : 42, fill: key === hide ? "var(--accent)" : big ? "#fff" : "#2b1d12", class: key === hide ? "xt-hidden" : null });
+  };
+  spot(0, -150, c, "c", true);
+  spot(-140, 100, a, "a");
+  spot(140, 100, b, "b");
   return g;
 }
 
 const units = {
+  x0() {
+    const my = token;
+    const fade = (api, node, ms = 600) => api.tween(ms, (t) => node.setAttribute("opacity", t));
+    explain(
+      [
+        { say: "Why do we learn times tables? Times is a fast way to count equal groups. Equal groups are everywhere!", draw: everyday([["🥚", "Packs of eggs"], ["🐶", "Legs on animals"], ["💺", "Rows of seats"], ["🐷", "Saving money each week"]]) },
+        {
+          say: "These are equal groups: 3 plates with 4 strawberries on each. Count by 4s: 4, 8, 12!",
+          async draw(v, api) {
+            const xs = [200, 500, 800];
+            for (let p = 0; p < 3; p++) {
+              const g = el("g", { opacity: 0 }, v);
+              el("ellipse", { cx: xs[p], cy: 250, rx: 135, ry: 95, fill: "#fffcf6", stroke: "#c9b8a1", "stroke-width": 5 }, g);
+              [[-40, -30], [40, -30], [-40, 35], [40, 35]].forEach(([dx, dy]) => emoji(g, xs[p] + dx, 250 + dy, "🍓", 60));
+              text(g, xs[p], 420, (p + 1) * 4, { "font-size": 64, fill: "var(--accent-dark)" });
+              await fade(api, g, 600);
+              MUSIC.play("xylophone", 76 + p * 4, { gain: 0.4 });
+              await api.wait(900);
+            }
+            const eq = el("g", { opacity: 0 }, v);
+            text(eq, 500, 520, "3 groups of 4 = 12", { "font-size": 48, fill: "#2b1d12" });
+            await fade(api, eq, 700);
+          },
+        },
+        {
+          say: "Times means adding the same number again and again. 4 + 4 + 4 is three 4s. We write 3 × 4 = 12.",
+          async draw(v, api) {
+            const y = 390;
+            const xOf = (n) => 80 + n * 70;
+            el("line", { x1: 50, x2: 950, y1: y, y2: y, stroke: "#5a4130", "stroke-width": 5, "stroke-linecap": "round" }, v);
+            for (let n = 0; n <= 12; n++) {
+              el("line", { x1: xOf(n), x2: xOf(n), y1: y - 12, y2: y + 12, stroke: "#5a4130", "stroke-width": 4 }, v);
+              text(v, xOf(n), y + 50, n, { "font-size": n % 4 ? 26 : 34, fill: n % 4 ? "#8a7764" : "#2b1d12" });
+            }
+            const sum = text(v, 500, 90, "", { "font-size": 50, fill: "#e0603a" });
+            for (let h = 0; h < 3; h++) {
+              const x1 = xOf(h * 4);
+              const x2 = xOf(h * 4 + 4);
+              const path = el("path", { d: `M${x1} ${y - 14}Q${(x1 + x2) / 2} ${y - 190} ${x2} ${y - 14}`, fill: "none", stroke: "#e0603a", "stroke-width": 6, "stroke-linecap": "round" }, v);
+              const len = path.getTotalLength();
+              path.setAttribute("stroke-dasharray", len);
+              await api.tween(900, (t) => path.setAttribute("stroke-dashoffset", len * (1 - t)));
+              text(v, (x1 + x2) / 2, y - 112, "+4", { "font-size": 34, fill: "#e0603a" });
+              sum.textContent = ["4", "4 + 4", "4 + 4 + 4 = 12"][h];
+              MUSIC.play("xylophone", 76 + h * 4, { gain: 0.4 });
+              await api.wait(700);
+            }
+            const eq = el("g", { opacity: 0 }, v);
+            text(eq, 500, 160, "3 × 4 = 12", { "font-size": 54, fill: "#2b1d12" });
+            await fade(api, eq, 700);
+          },
+        },
+        {
+          say: "An array puts things in neat rows: 3 rows of 4. Turn it sideways and it is 4 rows of 3. Same dots, so 3 × 4 = 4 × 3!",
+          async draw(v, api) {
+            const cx = 500;
+            const cy = 240;
+            const g = el("g", { transform: `translate(${cx} ${cy})` }, v);
+            const s = 80;
+            for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) el("circle", { cx: (c - 1.5) * s, cy: (r - 1) * s, r: 30, fill: ["#e53935", "#1e88e5", "#43a047"][r], stroke: "#fff", "stroke-width": 3 }, g);
+            const cap = text(v, 500, 470, "3 rows of 4 = 12", { "font-size": 48, fill: "#2b1d12" });
+            await api.wait(2200);
+            await api.tween(1500, (t) => g.setAttribute("transform", `translate(${cx} ${cy}) rotate(${90 * t})`));
+            cap.textContent = "4 rows of 3 = 12";
+            MUSIC.play("xylophone", 84, { gain: 0.4 });
+            await api.wait(1400);
+            const eq = el("g", { opacity: 0 }, v);
+            text(eq, 500, 535, "3 × 4 = 4 × 3", { "font-size": 44, fill: "var(--accent-dark)" });
+            await fade(api, eq, 700);
+          },
+        },
+        {
+          say: "Division is fair sharing. Share 12 cookies with 3 friends, one at a time. Each friend gets 4. 12 ÷ 3 = 4.",
+          async draw(v, api) {
+            const plates = [200, 500, 800];
+            ["🐻", "🐰", "🐱"].forEach((f, i) => emoji(v, plates[i], 300, f, 60));
+            plates.forEach((x) => el("ellipse", { cx: x, cy: 420, rx: 138, ry: 52, fill: "#fffcf6", stroke: "#c9b8a1", "stroke-width": 4 }, v));
+            const cookies = [];
+            for (let i = 0; i < 12; i++) cookies.push(emoji(v, 115 + i * 70, 90, "🍪", 48));
+            await api.wait(1200);
+            for (let i = 0; i < 12; i++) {
+              const p = i % 3;
+              const k = Math.floor(i / 3);
+              const sx = 115 + i * 70;
+              const tx = plates[p] + (k - 1.5) * 54;
+              const node = cookies[i];
+              await api.tween(320, (t) => node.setAttribute("transform", `translate(${(tx - sx) * t} ${(410 - 90) * t})`));
+              MUSIC.play("woodblock", 79, { gain: 0.25 });
+            }
+            const eq = el("g", { opacity: 0 }, v);
+            text(eq, 500, 200, "12 ÷ 3 = 4", { "font-size": 60, fill: "#2b1d12" });
+            await fade(api, eq, 700);
+          },
+        },
+        {
+          say: "Times and sharing are one family. 3, 4 and 12 make four facts: 3 × 4, 4 × 3, 12 ÷ 3 and 12 ÷ 4.",
+          async draw(v, api) {
+            const tri = triangle(v, 300, 290, { a: 3, b: 4, c: 12, scale: 1.1 });
+            tri.setAttribute("opacity", 0);
+            await fade(api, tri, 800);
+            const facts = ["3 × 4 = 12", "4 × 3 = 12", "12 ÷ 3 = 4", "12 ÷ 4 = 3"];
+            for (let i = 0; i < 4; i++) {
+              const t = text(v, 740, 140 + i * 100, facts[i], { "font-size": 50, fill: i < 2 ? "#e0603a" : "#1e88e5", opacity: 0 });
+              await fade(api, t, 600);
+              MUSIC.play("xylophone", 76 + i * 3, { gain: 0.4 });
+              await api.wait(700);
+            }
+          },
+        },
+      ],
+      { alive: () => my === token, onDone: () => shell.go("x1"), title: "Times tables" }
+    );
+  },
+
+  x6() {
+    const my = token;
+    let level = shell.progress().x6?.level || "easy";
+    let round = 0;
+    let right = 0;
+    let q = null;
+    let tries = 0;
+    let pad;
+    panel(`${levelRow(level)}<div data-pad></div>`);
+    const ANIMALS = { dog: ["🐶", "dog", "dogs", 4, "legs"], chicken: ["🐔", "chicken", "chickens", 2, "legs"], ladybug: ["🐞", "ladybug", "ladybugs", 6, "legs"], spider: ["🕷️", "spider", "spiders", 8, "legs"], octopus: ["🐙", "octopus", "octopuses", 8, "arms"], bike: ["🚲", "bike", "bikes", 2, "wheels"], car: ["🚗", "car", "cars", 4, "wheels"] };
+    const legs = (key, g) => {
+      const [icon, one, many, k, part] = ANIMALS[key];
+      return { story: `There are ${g} ${many}. Each ${one} has ${k} ${part}. How many ${part} in all?`, ans: g * k, eq: `${g} × ${k} = ${g * k}`, hint: `${g} groups of ${k}. Count by ${k}s, one ${one} at a time.`, draw: () => groupsPic(g, k, { glyph: "dot", head: icon }) };
+    };
+    const bags = (g, k, glyph = "🍎", what = "apples", box = "bag") => ({ story: `You have ${g} ${box}s. Each ${box} has ${k} ${what}. How many ${what} are there?`, ans: g * k, eq: `${g} × ${k} = ${g * k}`, hint: `${g} ${box}s of ${k}. Count by ${k}s: ${k}, ${2 * k}…`, draw: () => groupsPic(g, k, { glyph }) });
+    const seats = (g, k) => ({ story: `A bus has ${g} rows of seats. Each row has ${k} seats. How many seats are there?`, ans: g * k, eq: `${g} × ${k} = ${g * k}`, hint: `${g} rows of ${k}. That's ${g} × ${k}.`, draw: () => groupsPic(g, k, { glyph: "💺", strips: true, caption: (i) => `row ${i + 1}` }) });
+    const share = (g, k, glyph = "🍪", what = "cookies") => ({
+      story: `${g * k} ${what} are shared equally by ${g} friends. How many does each friend get?`,
+      ans: k,
+      eq: `${g * k} ÷ ${g} = ${k}`,
+      hint: `Share ${g * k} into ${g} equal groups. Think: ${g} × ? = ${g * k}.`,
+      draw: () => {
+        pilePic(g * k, glyph, { top: 20, bottom: 330 });
+        ["🐻", "🐰", "🐱", "🐶", "🐼", "🦊", "🐨", "🐯", "🐸"].slice(0, g).forEach((f, i) => emoji(view, W / 2 + (i - (g - 1) / 2) * Math.min(105, 900 / g), 410, f, Math.min(70, 800 / g)));
+      },
+    });
+    const boxes = (g, k) => ({ story: `You have ${g * k} eggs. One egg box holds ${k} eggs. How many boxes can you fill?`, ans: g, eq: `${g * k} ÷ ${k} = ${g}`, hint: `How many groups of ${k} make ${g * k}? Count by ${k}s until you reach ${g * k}.`, draw: () => pilePic(g * k, "🥚", { top: 20, bottom: 460 }) });
+    const save = (g, k) => ({ story: `You save ${k} dollars every week. How many dollars do you have after ${g} weeks?`, ans: g * k, eq: `${g} × ${k} = ${g * k}`, hint: `${g} weeks of ${k} dollars. Count by ${k}s, one week at a time.`, draw: () => groupsPic(g, k, { glyph: "🪙", caption: (i) => `week ${i + 1}` }) });
+    const twoStep = (g, k, u) => ({
+      story: `You buy ${g} boxes with ${k} eggs in each. You use ${u} eggs to bake a cake. How many eggs are left?`,
+      ans: g * k - u,
+      eq: `${g} × ${k} = ${g * k}, ${g * k} − ${u} = ${g * k - u}`,
+      hint: `Two steps! First ${g} × ${k} eggs. Then take away the ${u} with red crosses.`,
+      draw: () => groupsPic(g, k, { glyph: "🥚", crossLast: u }),
+    });
+    const make = () => {
+      if (level === "easy") {
+        const g = pickInt(2, 5);
+        return pick([() => legs(pick(["dog", "chicken", "bike", "car"]), g), () => bags(g, pick([2, 5, 10])), () => bags(g, pick([2, 3, 5]), "🌼", "flowers", "pot"), () => seats(g, pick([2, 5]))])();
+      }
+      if (level === "medium") {
+        const g = pickInt(2, 6);
+        const k = pickInt(2, 6);
+        return pick([() => legs(pick(["dog", "chicken", "ladybug", "car"]), g), () => bags(g, k, "🥚", "eggs", "box"), () => seats(g, k), () => share(pickInt(2, 5), pickInt(2, 6)), () => share(pickInt(2, 4), pickInt(2, 5), "🍓", "strawberries")])();
+      }
+      const g = pickInt(3, 9);
+      const k = pickInt(3, 9);
+      return pick([
+        () => legs(pick(["spider", "octopus", "ladybug"]), pickInt(3, 8)),
+        () => save(pickInt(3, 8), pickInt(3, 9)),
+        () => seats(g, k),
+        () => boxes(pickInt(3, 6), pick([6, 4, 5])),
+        () => share(pickInt(3, 6), pickInt(3, 8)),
+        () => {
+          const gg = pickInt(2, 4);
+          const kk = pick([6, 6, 4, 5]);
+          return twoStep(gg, kk, pickInt(2, Math.min(kk * gg - 2, 9)));
+        },
+      ])();
+    };
+    const ask = () => {
+      q = make();
+      tries = 0;
+      fresh();
+      q.draw();
+      $("[data-status]").textContent = `Story ${round + 1} of 8`;
+      pad = numpad($("[data-pad]"), { onEnter: check, max: 3 });
+      say(q.story);
+    };
+    const check = async (v) => {
+      if (my !== token) return;
+      window.OC?.touch();
+      if (v === q.ans) {
+        MUSIC.chime();
+        if (tries === 0) right += 1;
+        round += 1;
+        window.OC?.count("word problems");
+        el("rect", { x: 150, y: 482, width: 700, height: 66, rx: 20, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, view);
+        text(view, 500, 528, q.eq, { "font-size": q.eq.length > 18 ? 30 : 40, fill: "#2b1d12" });
+        say(`${pick(PRAISE)} ${q.eq}.`);
+        await wait(3200);
+        if (my !== token) return;
+        if (round >= 8) {
+          confetti();
+          if (right >= 6) shell.mark("x6", { done: true });
+          say(`🎉 ${right} out of 8 right first time! ${right >= 6 ? "Story solver!" : "Let's read some more stories."}`);
+          round = 0;
+          right = 0;
+          await wait(3200);
+        }
+        if (my === token) ask();
+      } else {
+        tries += 1;
+        MUSIC.oops();
+        pad.clear();
+        say(tries === 1 ? `${pick(KIND)} ${q.hint}` : `${pick(KIND)} It's ${q.eq.split("= ").pop()}. ${q.eq}. Type ${q.ans}.`);
+      }
+    };
+    onLevels("x6", (lv) => {
+      level = lv;
+      round = 0;
+      right = 0;
+      ask();
+    });
+    ask();
+  },
+
+  x7() {
+    const my = token;
+    let level = shell.progress().x7?.level || "easy";
+    let round = 0;
+    let right = 0;
+    let q = null;
+    let tries = 0;
+    let pad;
+    panel(`${levelRow(level)}<div data-pad></div>`);
+    const make = () => {
+      let a;
+      let b;
+      let forms;
+      if (level === "easy") {
+        a = pick([2, 5, 10]);
+        b = pickInt(1, 10);
+        forms = ["ax"];
+      } else if (level === "medium") {
+        a = pickInt(2, 10);
+        b = pickInt(2, 10);
+        forms = ["ax", "xb", "cda"];
+      } else {
+        a = pickInt(3, 12);
+        b = pickInt(3, 12);
+        forms = ["ax", "xb", "cda", "cdx"];
+      }
+      const c = a * b;
+      const form = pick(forms);
+      const eq = { ax: `${a} × ? = ${c}`, xb: `? × ${b} = ${c}`, cda: `${c} ÷ ${a} = ?`, cdx: `${c} ÷ ? = ${b}` }[form];
+      const ans = { ax: b, xb: a, cda: b, cdx: a }[form];
+      const hide = { ax: "b", xb: "a", cda: "b", cdx: "a" }[form];
+      return { a, b, c, form, eq, ans, hide };
+    };
+    const draw = () => {
+      fresh();
+      const { a, b, c, eq, hide } = q;
+      text(view, level === "easy" ? 260 : 290, 230, eq, { "font-size": eq.length > 11 ? 62 : 72, fill: "#2b1d12", class: "xt-eq" });
+      if (level === "easy") {
+        const s = Math.min(56, 400 / b, 300 / a);
+        const x0 = 740 - (b * s) / 2;
+        const y0 = 210 - (a * s) / 2;
+        el("rect", { x: x0 - 14, y: y0 - 14, width: b * s + 28, height: a * s + 28, rx: 16, fill: "#fbf3e4", stroke: "#e0a96d", "stroke-width": 3 }, view);
+        for (let r = 0; r < a; r++) for (let col = 0; col < b; col++) el("circle", { cx: x0 + (col + 0.5) * s, cy: y0 + (r + 0.5) * s, r: s * 0.36, fill: ["#e53935", "#1e88e5"][r % 2] }, view);
+        text(view, 740, y0 + a * s + 50, `${a} rows · ${c} dots`, { "font-size": 26, fill: "#a8632d" });
+      } else triangle(view, 740, 230, { a, b, c, hide, scale: 0.95 });
+    };
+    const ask = () => {
+      q = make();
+      tries = 0;
+      draw();
+      $("[data-status]").textContent = `Puzzle ${round + 1} of 10`;
+      pad = numpad($("[data-pad]"), { onEnter: check, max: 3 });
+      const { a, b, c, form } = q;
+      say(
+        {
+          ax: level === "easy" ? `${a} rows make ${c} dots. How many dots in each row? ${a} times what makes ${c}?` : `${a} times what makes ${c}?`,
+          xb: `What times ${b} makes ${c}?`,
+          cda: `${c} divided by ${a}. Think: ${a} times what makes ${c}?`,
+          cdx: `${c} divided by what makes ${b}?`,
+        }[form]
+      );
+    };
+    const check = async (v) => {
+      if (my !== token) return;
+      window.OC?.touch();
+      const { a, b, c, form, ans } = q;
+      if (v === ans) {
+        MUSIC.chime();
+        if (tries === 0) right += 1;
+        round += 1;
+        window.OC?.count("missing factors");
+        const eqEl = view.querySelector(".xt-eq");
+        if (eqEl) eqEl.textContent = q.eq.replace("?", ans);
+        const hid = view.querySelector(".xt-hidden");
+        if (hid) hid.textContent = ans;
+        el("rect", { x: 60, y: 420, width: 880, height: 126, rx: 22, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, view);
+        text(view, 280, 470, `${a} × ${b} = ${c}`, { "font-size": 38, fill: "#e0603a" });
+        text(view, 720, 470, `${b} × ${a} = ${c}`, { "font-size": 38, fill: "#e0603a" });
+        text(view, 280, 524, `${c} ÷ ${a} = ${b}`, { "font-size": 38, fill: "#1e88e5" });
+        text(view, 720, 524, `${c} ÷ ${b} = ${a}`, { "font-size": 38, fill: "#1e88e5" });
+        say(`${pick(PRAISE)} ${q.eq.replace("?", ans)}. ${a}, ${b} and ${c} are a fact family!`);
+        await wait(3800);
+        if (my !== token) return;
+        if (round >= 10) {
+          confetti();
+          if (right >= 8) shell.mark("x7", { done: true });
+          say(`🎉 ${right} out of 10 right first time! ${right >= 8 ? "Fact family champion!" : "Let's practise more."}`);
+          round = 0;
+          right = 0;
+          await wait(3200);
+        }
+        if (my === token) ask();
+      } else {
+        tries += 1;
+        MUSIC.oops();
+        pad.clear();
+        const known = form === "ax" || form === "cda" ? a : form === "xb" ? b : b;
+        const hint =
+          form === "cdx"
+            ? `${c} ÷ ? = ${b} means ${b} times what makes ${c}? Count by ${b}s to ${c}.`
+            : `${v} × ${known} = ${v * known}, ${v * known > c ? "too many" : "not enough"}. Count by ${known}s up to ${c}: how many jumps?`;
+        say(tries === 1 ? `${pick(KIND)} ${hint}` : `${pick(KIND)} ${a} × ${b} = ${c}, so the answer is ${ans}. Type ${ans}.`);
+      }
+    };
+    onLevels("x7", (lv) => {
+      level = lv;
+      round = 0;
+      right = 0;
+      ask();
+    });
+    ask();
+  },
   x1() {
     const my = token;
     let round = 0;
@@ -232,68 +717,104 @@ const units = {
 
   x3() {
     const my = token;
+    const alive = () => my === token;
     let round = 0;
     let q;
     let step = 0;
-    let total = 0;
+    let board;
     let pad;
     panel(`<p class="ap-status" data-status></p><div data-pad></div>`);
-    const draw = (note) => {
-      fresh();
-      miniSoroban(total, { y0: 40, h: 300 });
-      text(view, W / 2, 470, note, { "font-size": 34, fill: "#2b1d12" });
+    const note = (str) => {
+      view.querySelector(".ts-note")?.remove();
+      text(view, W / 2, 530, str, { "font-size": 34, fill: "#2b1d12", class: "ts-note" });
+    };
+    // Typing step: a numpad.
+    const typeIt = () => {
+      board.lock(true);
+      pad = numpad($("[data-pad]"), { onEnter: typed, max: 3 });
+    };
+    // Bead step: the child moves beads until the soroban shows the goal.
+    const beadIt = (goal) => {
+      q.goal = goal;
+      board.lock(false);
+      $("[data-pad]").innerHTML = `<div class="ap-buttons"><button type="button" data-do="show">👀 Show me</button><button type="button" data-do="reset">↺ Clear</button></div>`;
     };
     const ask = () => {
       const a = pickInt(12, round < 3 ? 49 : 98);
       const b = pickInt(2, 9);
-      const tens = Math.floor(a / 10);
-      const ones = a % 10;
-      q = { a, b, tens, ones };
+      q = { a, b, tens: Math.floor(a / 10), ones: a % 10, goal: null };
       step = 0;
-      total = 0;
+      fresh();
+      board = soroban({ onChange: moved });
+      note(`${a} × ${b}`);
       $("[data-status]").textContent = `Problem ${round + 1} of 5 · ${a} × ${b}`;
-      draw(`${a} × ${b}`);
-      pad = numpad($("[data-pad]"), { onEnter: check, max: 4 });
-      say(`Let's do ${a} times ${b} on the soroban, one part at a time. First the tens: ${b} times ${tens} tens. What is ${b} × ${tens}?`);
+      typeIt();
+      say(`Let's do ${a} × ${b} on the soroban, one part at a time. First the tens: ${b} × ${q.tens} tens. What is ${b} × ${q.tens}?`);
     };
-    const check = async (v) => {
-      if (my !== token) return;
-      const { a, b, tens, ones } = q;
-      const want = step === 0 ? b * tens : step === 1 ? b * ones : a * b;
+    const typed = (v) => {
+      if (!alive()) return;
+      const { b, tens, ones } = q;
+      const want = step === 0 ? b * tens : b * ones;
       if (v !== want) {
         MUSIC.oops();
         pad.clear();
-        say(step === 2 ? `${pick(KIND)} Read the number on the soroban.` : `${pick(KIND)} ${step === 0 ? `${b} × ${tens}` : `${b} × ${ones}`} is ${want}. Try typing ${want}.`);
+        say(`${pick(KIND)} ${step === 0 ? `${b} × ${tens}` : `${b} × ${ones}`} is ${want}. Try typing ${want}.`);
         return;
       }
       MUSIC.play("woodblock", 79, { gain: 0.6 });
-      pad.clear();
       if (step === 0) {
-        total = b * tens * 10;
-        draw(`${b} × ${tens} tens = ${b * tens} tens = ${total}`);
         step = 1;
-        say(`${pick(PRAISE)} ${b * tens} tens is ${total}. It goes on the soroban. Now the ones: what is ${b} × ${ones}?`);
-      } else if (step === 1) {
-        total += b * ones;
-        draw(`${b * tens * 10} + ${b * ones} = ?`);
-        step = 2;
-        say(`${pick(PRAISE)} Add ${b * ones} onto the soroban. What number does it show now?`);
+        note(`${b} × ${tens} tens = ${want} tens = ${want * 10}`);
+        say(`${pick(PRAISE)} ${want} tens is ${want * 10}. Now put ${want * 10} on the soroban. Move the beads on the tens rod${want >= 10 ? " and the hundreds rod" : ""}.`);
+        beadIt(want * 10);
       } else {
-        MUSIC.chime();
-        round += 1;
-        window.OC?.count("soroban products");
-        draw(`${a} × ${b} = ${a * b}`);
-        say(`🎉 ${a} × ${b} = ${a * b}. Tens part ${b * tens * 10}, plus ones part ${b * ones}.`);
-        await wait(3600);
-        if (my !== token) return;
-        if (round >= 5) {
-          confetti();
-          shell.mark("x3", { done: true });
-          say("🎉 Soroban multiplier!");
-          round = 0;
-          await wait(2400);
-        }
-        if (my === token) ask();
+        step = 3;
+        note(`${b * tens * 10} + ${want} = ?`);
+        say(`${pick(PRAISE)} Now add ${want} onto the soroban. Move the beads until it shows ${b * tens * 10} plus ${want}.`);
+        beadIt(b * tens * 10 + want);
+      }
+    };
+    const moved = async (value) => {
+      if (!alive() || q.goal === null || value !== q.goal) return;
+      const { a, b, ones } = q;
+      q.goal = null;
+      board.lock(true);
+      $("[data-pad]").innerHTML = "";
+      MUSIC.chime();
+      if (step === 1) {
+        say(`${pick(PRAISE)} The soroban shows ${value}. Now the ones: what is ${b} × ${ones}?`);
+        step = 2;
+        await wait(900);
+        if (alive()) typeIt();
+        return;
+      }
+      round += 1;
+      window.OC?.count("soroban products");
+      note(`${a} × ${b} = ${a * b}`);
+      say(`🎉 The soroban shows ${a * b}. So ${a} × ${b} = ${a * b}!`);
+      await wait(3600);
+      if (!alive()) return;
+      if (round >= 5) {
+        confetti();
+        shell.mark("x3", { done: true });
+        say("🎉 Soroban multiplier!");
+        round = 0;
+        await wait(2400);
+      }
+      if (alive()) ask();
+    };
+    $("[data-panel]").onclick = async (event) => {
+      if (!q || q.goal === null) return;
+      if (event.target.closest("[data-do='reset']")) {
+        board.set(step === 1 ? 0 : q.b * q.tens * 10);
+        say(step === 1 ? "Cleared. Put the beads back to zero and try again." : `Back to ${q.b * q.tens * 10}. Now add ${q.b * q.ones}.`);
+      } else if (event.target.closest("[data-do='show']")) {
+        const goal = q.goal;
+        board.lock(true);
+        await KIT.sayAsync(`Watch the beads. I'll make ${goal}, one rod at a time.`);
+        if (!alive()) return;
+        await board.set(goal, true, alive);
+        if (alive()) moved(board.value());
       }
     };
     ask();
@@ -313,9 +834,10 @@ const units = {
       fresh();
       for (let i = 0; i < q.total; i++) text(view, 110 + (i % 13) * 60, 80 + Math.floor(i / 13) * 60, "🍪", { "font-size": 44, class: "ck" });
       const pw = 860 / k;
+      const friends = KIT.shuffle(["🐻", "🐰", "🐱", "🐶", "🐼", "🦊"]);
       for (let p = 0; p < k; p++) {
-        text(view, 70 + pw * p + pw / 2, 345, pick(["🐻", "🐰", "🐱", "🐶", "🐼", "🦊"]), { "font-size": 44 });
-        el("ellipse", { cx: 70 + pw * p + pw / 2, cy: 450, rx: Math.min(90, pw / 2 - 10), ry: 50, fill: "#fffcf6", stroke: "#c9b8a1", "stroke-width": 4 }, view);
+        text(view, 70 + pw * p + pw / 2, 350, friends[p], { "font-size": 64 });
+        el("ellipse", { cx: 70 + pw * p + pw / 2, cy: 455, rx: Math.min(100, pw / 2 - 8), ry: 62, fill: "#fffcf6", stroke: "#c9b8a1", "stroke-width": 4 }, view);
       }
       $("[data-status]").textContent = `Question ${round + 1} of 6 · ${q.total} ÷ ${k}`;
       $("[data-pad]").innerHTML = "";
@@ -332,11 +854,29 @@ const units = {
         if (my !== token) return;
         const p = i % q.k;
         const j = Math.floor(i / q.k);
-        cookies[i].setAttribute("x", 70 + pw * p + pw / 2 + ((j % 4) - 1.5) * 24);
-        cookies[i].setAttribute("y", 445 + (Math.floor(j / 4) - 0.3) * 24);
-        cookies[i].setAttribute("font-size", 28);
+        // Lift the cookie above the plates and slide it onto its plate.
+        const cookie = cookies[i];
+        view.appendChild(cookie);
+        const x0 = Number(cookie.getAttribute("x"));
+        const y0 = Number(cookie.getAttribute("y"));
+        const across = pw < 160 ? 3 : 4;
+        const x1 = 70 + pw * p + pw / 2 + ((j % across) - (across - 1) / 2) * 38;
+        const y1 = 468 + (Math.floor(j / across) - 0.5) * 34;
+        const t0 = performance.now();
+        await new Promise((resolve) => {
+          const step = (now) => {
+            const t = Math.min(1, (now - t0) / 260);
+            const e = t * (2 - t);
+            cookie.setAttribute("x", x0 + (x1 - x0) * e);
+            cookie.setAttribute("y", y0 + (y1 - y0) * e - Math.sin(Math.PI * t) * 40);
+            cookie.setAttribute("font-size", 44 - 12 * e);
+            if (t < 1 && my === token) requestAnimationFrame(step);
+            else resolve();
+          };
+          requestAnimationFrame(step);
+        });
         MUSIC.play("woodblock", 79, { gain: 0.3 });
-        await wait(150);
+        await wait(90);
       }
       say(`How many cookies does each friend get?${q.extra ? ` There ${q.extra === 1 ? "is" : "are"} ${q.extra} left over that can't be shared equally.` : ""}`);
       pad = numpad($("[data-pad]"), { onEnter: check, max: 2 });
@@ -430,13 +970,16 @@ const units = {
 const shell = SHELL({
   units: UNITS,
   how: {
+    x0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    x6: { icon: "📖", title: "Times stories", steps: ["Listen to the story.", "Look at the picture: find the equal groups.", "Type the answer and press ✓."] },
+    x7: { icon: "🔺", title: "Missing number", steps: ["One number is hiding: ?", "Use times or sharing to find it.", "Type it and press ✓."] },
     x1: { icon: "🍎", title: "Groups and arrays", steps: ["Watch the rows of apples appear.", "Count by rows: the numbers help!", "Type how many apples, then press ✓."] },
     x2: { icon: "✖️", title: "Times tables", steps: ["Pick a times table at the top.", "Type the answer and press ✓.", "Go as fast as you can!"] },
-    x3: { icon: "🧮", title: "Soroban multiplication", steps: ["We multiply in two parts: tens, then ones.", "Type each answer and press ✓.", "The soroban adds them up for you."] },
+    x3: { icon: "🧮", title: "Soroban multiplication", steps: ["We multiply in two parts: tens, then ones.", "Type each part, then tap the beads to put it on the soroban.", "Stuck? Press 👀 Show me and watch the beads."] },
     x4: { icon: "🍪", title: "Sharing", steps: ["Press Deal to share the cookies.", "Count how many one friend gets.", "Type it and press ✓."] },
     x5: { icon: "➗", title: "Division facts", steps: ["Look at the question.", "Think: what times the small number makes the big one?", "Type it and press ✓."] },
   },
-  start: "x1",
+  start: "x0",
   onStop() {
     token += 1;
     $("[data-panel]").onclick = null;

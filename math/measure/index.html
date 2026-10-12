@@ -1,0 +1,1247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Measure & Graphs · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="math">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Measure & Graphs</b><small>Math · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, pickInt, wait, confetti, PRAISE, KIND, choices, explain, everyday, emoji, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "g0", label: "1. See it", icon: "👀" },
+  { id: "g1", label: "2. Measure with a ruler", icon: "📏" },
+  { id: "g2", label: "3. Longer or shorter?", icon: "🐛" },
+  { id: "g3", label: "4. Balance scale", icon: "⚖️" },
+  { id: "g4", label: "5. Cups and jugs", icon: "🥛" },
+  { id: "g5", label: "6. Picture graph", icon: "🍎" },
+  { id: "g6", label: "7. Bar graph", icon: "📊" },
+];
+
+const css = document.createElement("style");
+css.textContent = `
+.mg-ans{display:flex;flex-direction:column;align-items:center;gap:8px;min-height:48px}
+.mg-tap{cursor:pointer}
+.mg-ans .ap-buttons button{min-height:50px}
+.mg-emo{font-size:30px !important;min-width:72px !important}
+@media (max-height:460px){.mg-ans .ap-buttons button{min-height:40px}.mg-ans{min-height:40px;gap:5px}.mg-emo{font-size:22px !important;min-width:56px !important}}
+`;
+document.head.appendChild(css);
+
+const INK = "#2b1d12";
+const BROWN = "#7a4520";
+const GREEN = "#2e7d46";
+
+function fresh() {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+}
+const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+function tween(ms, fn, alive) {
+  return new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(true);
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!alive()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(ease(t));
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+}
+const toSvg = (svgNode, event) => {
+  const p = svgNode.createSVGPoint();
+  p.x = event.clientX;
+  p.y = event.clientY;
+  return p.matrixTransform(svgNode.getScreenCTM().inverse());
+};
+const plural = (w) => (/[^aeiou]y$/.test(w) ? w.slice(0, -1) + "ies" : w + "s");
+const half = (v) => (v % 1 ? `${Math.floor(v)}½` : String(v));
+const halfSay = (v) => (v % 1 ? `${Math.floor(v)} and a half` : String(v));
+
+// ---------- drawing ----------
+const RULER = { cm: { ppu: 42, n: 20, name: "centimetres", short: "cm" }, in: { ppu: 105, n: 8, name: "inches", short: "in" } };
+function ruler(parent, unit = "cm", x0 = 70, y = 330) {
+  const R = RULER[unit];
+  const g = el("g", {}, parent);
+  const end = x0 + R.n * R.ppu;
+  el("rect", { x: x0 - 34, y: y + 4, width: end - x0 + 68, height: 104, rx: 10, fill: "rgba(70,40,15,.15)" }, g);
+  el("rect", { x: x0 - 34, y, width: end - x0 + 68, height: 104, rx: 10, fill: "#f6dca6", stroke: "#b98a4a", "stroke-width": 3 }, g);
+  const sub = unit === "cm" ? 10 : 8;
+  for (let i = 0; i <= R.n * sub; i++) {
+    const x = x0 + (i / sub) * R.ppu;
+    const whole = i % sub === 0;
+    const halfMark = i % (sub / 2) === 0;
+    const len = whole ? 36 : halfMark ? 24 : unit === "in" && i % 2 === 0 ? 16 : 10;
+    el("line", { x1: x, x2: x, y1: y, y2: y + len, stroke: "#4d3420", "stroke-width": whole ? 3 : halfMark ? 2 : 1.2 }, g);
+    if (whole) text(g, x, y + 72, i / sub, { "font-size": unit === "cm" && i / sub >= 10 ? 22 : 26, fill: i === 0 ? GREEN : INK });
+  }
+  text(g, end + 4, y + 98, R.short, { "font-size": 22, fill: BROWN, "text-anchor": "end" });
+  return { g, x0, ppu: R.ppu, y, xAt: (v) => x0 + v * R.ppu };
+}
+// Things to measure. Drawn from x = 0 to x = L, centred on y = 0.
+function thing(parent, kind, L, attrs = {}) {
+  const g = el("g", attrs, parent);
+  if (kind === "pencil") {
+    el("rect", { x: 0, y: -18, width: 20, height: 36, rx: 6, fill: "#f4a3b4" }, g);
+    el("rect", { x: 16, y: -18, width: 16, height: 36, fill: "#c8ccd0", stroke: "#8d949b", "stroke-width": 1.5 }, g);
+    el("rect", { x: 32, y: -18, width: L - 32 - 46, height: 36, fill: "#f7c843", stroke: "#c9971b", "stroke-width": 1.5 }, g);
+    el("rect", { x: 32, y: -6, width: L - 32 - 46, height: 8, fill: "#ffe17a" }, g);
+    el("path", { d: `M${L - 46} -18 L${L} 0 L${L - 46} 18 Z`, fill: "#f0cfa0", stroke: "#c49a63", "stroke-width": 1.5 }, g);
+    el("path", { d: `M${L - 16} -6.3 L${L} 0 L${L - 16} 6.3 Z`, fill: "#3c3c3c" }, g);
+  } else if (kind === "crayon") {
+    el("rect", { x: 0, y: -17, width: L - 34, height: 34, rx: 6, fill: "#e53935" }, g);
+    el("rect", { x: 12, y: -17, width: Math.max(10, L - 70), height: 34, fill: "#fff3e0", opacity: 0.9 }, g);
+    text(g, 12 + Math.max(10, L - 70) / 2, 8, L > 150 ? "CRAYON" : "", { "font-size": 22, fill: "#e53935", "font-weight": 900 });
+    el("path", { d: `M${L - 34} -17 L${L - 34} 17 L${L - 6} 6 Q${L} 0 ${L - 6} -6 Z`, fill: "#c62828" }, g);
+  } else if (kind === "caterpillar") {
+    const r = 19;
+    const n = Math.max(2, Math.round((L - 2 * r) / (r * 1.2)) + 1);
+    const step = (L - 2 * r) / (n - 1);
+    for (let i = 0; i < n; i++) el("circle", { cx: r + i * step, cy: (i % 2 ? -3 : 3) * (i < n - 1 ? 1 : 0), r, fill: i === n - 1 ? "#7cb342" : i % 2 ? "#9ccc65" : "#8bc34a", stroke: "#558b2f", "stroke-width": 2 }, g);
+    el("circle", { cx: L - r + 6, cy: -6, r: 4.5, fill: INK }, g);
+    el("path", { d: `M${L - r - 2} ${-r + 2} q-4 -14 -10 -16 M${L - r + 8} ${-r + 2} q2 -14 8 -16`, stroke: "#558b2f", "stroke-width": 3, fill: "none", "stroke-linecap": "round" }, g);
+  } else {
+    el("rect", { x: 0, y: -9, width: L * 0.62, height: 18, rx: 9, fill: "#8d5428" }, g);
+    el("rect", { x: L * 0.6, y: -13, width: L * 0.14, height: 26, rx: 3, fill: "#c8ccd0", stroke: "#8d949b" }, g);
+    el("path", { d: `M${L * 0.74} -14 Q${L * 0.9} -16 ${L} 0 Q${L * 0.9} 16 ${L * 0.74} 14 Z`, fill: "#2b1d12" }, g);
+    el("path", { d: `M${L * 0.9} -6 Q${L * 0.97} -3 ${L} 0`, stroke: "#1e88e5", "stroke-width": 4, fill: "none" }, g);
+  }
+  return g;
+}
+const THING_NAMES = { pencil: "pencil", crayon: "crayon", caterpillar: "caterpillar", brush: "paintbrush" };
+
+function cubeStack(parent, n, cx, baseY, size = 34, per = 4, color = "#f08a24") {
+  const g = el("g", {}, parent);
+  for (let i = 0; i < n; i++) {
+    const row = Math.floor(i / per);
+    const inRow = Math.min(per, n - row * per);
+    const col = i % per;
+    const x = cx - (inRow * size) / 2 + col * size;
+    const y = baseY - (row + 1) * size;
+    el("rect", { x: x + 1, y: y + 1, width: size - 2, height: size - 2, rx: 5, fill: color, stroke: "#9c4f0b", "stroke-width": 2 }, g);
+    el("rect", { x: x + 6, y: y + 5, width: size - 18, height: 5, rx: 2, fill: "rgba(255,255,255,.55)" }, g);
+  }
+  return g;
+}
+
+// A two-pan balance. Heavier side goes down.
+function balance(parent, cx = 500, py = 165, arm = 290) {
+  const g = el("g", {}, parent);
+  el("path", { d: `M${cx - 120} 535 L${cx + 120} 535 L${cx + 70} 495 L${cx - 70} 495 Z`, fill: "#8d5428", stroke: "#5a3417", "stroke-width": 3 }, g);
+  el("rect", { x: cx - 12, y: py, width: 24, height: 340, rx: 6, fill: "#a8632d", stroke: "#5a3417", "stroke-width": 3 }, g);
+  const beam = el("g", {}, g);
+  el("rect", { x: cx - arm - 10, y: py - 9, width: arm * 2 + 20, height: 18, rx: 9, fill: "#c98c58", stroke: "#5a3417", "stroke-width": 3 }, beam);
+  const needle = el("path", { d: `M${cx - 6} ${py} L${cx} ${py - 60} L${cx + 6} ${py} Z`, fill: "#c0392b" }, beam);
+  void needle;
+  el("circle", { cx, cy: py, r: 14, fill: "#5a3417" }, g);
+  el("circle", { cx, cy: py, r: 5, fill: "#e8c48a" }, g);
+  const pan = () => {
+    const p = el("g", {}, g);
+    el("line", { x1: 0, y1: 0, x2: -100, y2: 130, stroke: "#5a3417", "stroke-width": 2.5 }, p);
+    el("line", { x1: 0, y1: 0, x2: 100, y2: 130, stroke: "#5a3417", "stroke-width": 2.5 }, p);
+    const load = el("g", {}, p);
+    el("path", { d: "M-118 128 Q0 175 118 128 Z", fill: "#d8b37a", stroke: "#8d5428", "stroke-width": 3 }, p);
+    el("circle", { r: 7, fill: "#5a3417" }, p);
+    return { p, load };
+  };
+  const L = pan();
+  const R = pan();
+  let angle = 0;
+  const set = (a) => {
+    angle = a;
+    beam.setAttribute("transform", `rotate(${a} ${cx} ${py})`);
+    const rad = (a * Math.PI) / 180;
+    L.p.setAttribute("transform", `translate(${cx - arm * Math.cos(rad)} ${py - arm * Math.sin(rad)})`);
+    R.p.setAttribute("transform", `translate(${cx + arm * Math.cos(rad)} ${py + arm * Math.sin(rad)})`);
+  };
+  set(0);
+  // load coordinates: the pan floor is at y = 128 in pan space.
+  return { g, left: L.load, right: R.load, set, get: () => angle };
+}
+const tilt = (left, right, k = 3) => Math.max(-13, Math.min(13, (right - left) * k));
+
+// A container. Capacity is truthful: its drawn area is proportional to the cups it holds.
+const CUP_AREA = 4500;
+function vessel(parent, cx, baseY, w, h, { handle = false, label = "" } = {}) {
+  const g = el("g", {}, parent);
+  const x = cx - w / 2;
+  const y = baseY - h;
+  const id = `mg-clip-${Math.random().toString(36).slice(2, 8)}`;
+  const cp = el("clipPath", { id }, g);
+  el("rect", { x, y, width: w, height: h, rx: Math.min(18, w / 4) }, cp);
+  el("rect", { x, y, width: w, height: h, rx: Math.min(18, w / 4), fill: "rgba(214,234,248,.55)" }, g);
+  const water = el("rect", { x: x - 2, y: baseY, width: w + 4, height: 0, fill: "#4fa3e0", "clip-path": `url(#${id})` }, g);
+  const marks = el("g", {}, g);
+  if (handle) el("path", { d: `M${x + w} ${y + h * 0.2} q${Math.min(38, w * 0.4)} 0 ${Math.min(38, w * 0.4)} ${h * 0.3} t${-Math.min(38, w * 0.4)} ${h * 0.3}`, fill: "none", stroke: "#86aac0", "stroke-width": 9, "stroke-linecap": "round" }, g);
+  el("rect", { x, y, width: w, height: h, rx: Math.min(18, w / 4), fill: "none", stroke: "#86aac0", "stroke-width": 5 }, g);
+  el("line", { x1: x + 12, x2: x + 12, y1: y + 18, y2: baseY - 18, stroke: "rgba(255,255,255,.85)", "stroke-width": 6, "stroke-linecap": "round" }, g);
+  const tag = text(g, cx, baseY + 36, label, { "font-size": 26, fill: INK });
+  return {
+    g,
+    tag,
+    x,
+    y,
+    w,
+    h,
+    cx,
+    level(f) {
+      water.setAttribute("y", baseY - h * f);
+      water.setAttribute("height", h * f);
+    },
+    mark(i, n) {
+      const yy = baseY - (h * i) / n;
+      el("line", { x1: x + 3, x2: x + w - 3, y1: yy, y2: yy, stroke: "rgba(255,255,255,.75)", "stroke-width": 2, "stroke-dasharray": "6 5" }, marks);
+    },
+  };
+}
+const shapeFor = (cups, wide) => {
+  const area = cups * CUP_AREA;
+  let w = wide ? Math.sqrt(area * 1.6) : Math.sqrt(area / 3.2);
+  w = Math.max(70, Math.min(255, w));
+  let h = area / w;
+  if (h > 330) {
+    h = 330;
+    w = area / h;
+  }
+  return { w, h };
+};
+function measuringCup(parent, x, y) {
+  const g = el("g", { transform: `translate(${x} ${y})` }, parent);
+  el("path", { d: "M-26 -30 L26 -30 L20 26 Q0 32 -20 26 Z", fill: "rgba(214,234,248,.8)", stroke: "#86aac0", "stroke-width": 4 }, g);
+  el("path", { d: "M-23 -8 L23 -8 L20 26 Q0 32 -20 26 Z", fill: "#4fa3e0" }, g);
+  el("path", { d: "M26 -20 q22 0 22 18 t-24 16", fill: "none", stroke: "#86aac0", "stroke-width": 6 }, g);
+  return g;
+}
+
+// ---------- one game frame ----------
+const LEVELS = [
+  ["easy", "🐣 Easy"],
+  ["medium", "🦊 Medium"],
+  ["hard", "🦁 Hard"],
+];
+function frame(id, { rounds = 8, noun, countKey, ask, extra = "", onExtra }) {
+  const my = token;
+  const g = { id, level: "easy", round: 0, score: 0, missed: false, busy: false, gen: 0 };
+  g.live = () => my === token;
+  panel(`<div class="ap-row"><div class="ap-chips" data-lv>${LEVELS.map(([v, l]) => `<button type="button" data-l="${v}" aria-pressed="${v === "easy"}">${l}</button>`).join("")}${extra}</div><p class="ap-status" data-status></p></div><div class="mg-ans" data-ans></div>`);
+  g.ans = $("[data-ans]");
+  g.next = () => {
+    if (!g.live()) return;
+    g.gen += 1;
+    g.missed = false;
+    g.busy = false;
+    $("[data-status]").textContent = `${noun} ${g.round + 1} of ${rounds}`;
+    g.ans.innerHTML = "";
+    g.ans.onclick = null;
+    ask(g);
+  };
+  g.wrong = (msg) => {
+    if (g.busy || !g.live()) return;
+    MUSIC.oops();
+    g.missed = true;
+    window.OC?.touch();
+    say(`${pick(KIND)} ${msg}`);
+  };
+  g.win = async (msg, ms = 1200) => {
+    if (g.busy || !g.live()) return;
+    g.busy = true;
+    const gen = g.gen;
+    MUSIC.chime();
+    if (!g.missed) g.score += 1;
+    g.round += 1;
+    window.OC?.count(countKey);
+    await Promise.all([sayAsync(`${pick(PRAISE)} ${msg}`), wait(ms)]);
+    if (!g.live() || gen !== g.gen) return;
+    if (g.round >= rounds) {
+      confetti();
+      shell.mark(id, { done: true });
+      await Promise.all([sayAsync(`🎉 You finished all ${rounds}! ${g.score} right on the first try.`), wait(2200)]);
+      if (!g.live() || gen !== g.gen) return;
+      g.round = 0;
+      g.score = 0;
+    }
+    g.next();
+  };
+  $("[data-lv]").addEventListener("click", (event) => {
+    const x = event.target.closest("[data-x]");
+    if (x && g.live()) {
+      onExtra?.(x, g);
+      g.round = 0;
+      g.score = 0;
+      VOICE.hush();
+      return g.next();
+    }
+    const b = event.target.closest("[data-l]");
+    if (!b || !g.live()) return;
+    g.level = b.dataset.l;
+    document.querySelectorAll("[data-l]").forEach((y) => y.setAttribute("aria-pressed", String(y === b)));
+    g.round = 0;
+    g.score = 0;
+    VOICE.hush();
+    g.next();
+  });
+  g.next();
+  return g;
+}
+const numberChoices = (answer, cand, n, ok = (v) => v > 0) => {
+  const opts = [answer];
+  for (const c of shuffle(cand)) if (ok(c) && !opts.includes(c) && opts.length < n) opts.push(c);
+  return shuffle(opts);
+};
+
+// ---------- data for games ----------
+const THINGS = [
+  ["🍓", "strawberry", 12],
+  ["🥚", "egg", 60],
+  ["🍋", "lemon", 100],
+  ["🍌", "banana", 120],
+  ["🍊", "orange", 140],
+  ["🍎", "apple", 180],
+  ["🧸", "teddy bear", 250],
+  ["📕", "book", 400],
+  ["⚽", "soccer ball", 430],
+  ["🍍", "pineapple", 1000],
+  ["🍉", "watermelon", 4000],
+  ["🪶", "feather", 1],
+  ["🧦", "sock", 40],
+];
+const FRUITS = [
+  ["🍎", "apples", "apple"],
+  ["🍌", "bananas", "banana"],
+  ["🍇", "grapes", "grapes"],
+  ["🍓", "strawberries", "strawberry"],
+];
+const GRAPHS = [
+  { title: "Favourite pets", what: "children chose", items: [["🐶", "dog"], ["🐱", "cat"], ["🐟", "fish"], ["🐰", "rabbit"], ["🐢", "turtle"]] },
+  { title: "Favourite fruit", what: "children chose", items: [["🍎", "apple"], ["🍌", "banana"], ["🍇", "grapes"], ["🍓", "strawberry"], ["🍉", "watermelon"]] },
+  { title: "How we get to school", what: "children come by", items: [["🚶", "walking"], ["🚌", "bus"], ["🚗", "car"], ["🚲", "bike"], ["🛴", "scooter"]] },
+  { title: "Weather this month", what: "days were", items: [["☀️", "sunny"], ["🌧️", "rainy"], ["☁️", "cloudy"], ["❄️", "snowy"], ["🌬️", "windy"]] },
+];
+
+// ---------- units ----------
+const units = {
+  g0() {
+    const my = token;
+    stage.innerHTML = "";
+    const scenes = [
+      {
+        say: "Why do we measure? To see if you are taller than last year, to use cups when we bake, to find which bag is heavier, and to count our class's favourite fruits!",
+        draw: everyday([
+          ["📏", "Am I taller?"],
+          ["🧁", "Cups for baking"],
+          ["⚖️", "Which bag is heavier?"],
+          ["🍎", "Favourite fruits"],
+        ]),
+      },
+      {
+        say: "To measure, start at 0! This pencil ends at 9, so it is 9 centimetres long.",
+        async draw(v, api) {
+          const R = ruler(v, "cm", 70, 300);
+          const pen = thing(v, "pencil", 9 * R.ppu, { transform: `translate(${R.x0 + 230} 268)` });
+          const zero = el("g", { opacity: 0 }, v);
+          el("line", { x1: R.x0, x2: R.x0, y1: 160, y2: 300, stroke: GREEN, "stroke-width": 4, "stroke-dasharray": "8 6" }, zero);
+          text(zero, R.x0 + 8, 150, "Start at 0", { "font-size": 30, fill: GREEN, "text-anchor": "start" });
+          await api.wait(800);
+          await api.tween(500, (t) => zero.setAttribute("opacity", t));
+          await api.tween(1500, (t) => pen.setAttribute("transform", `translate(${R.x0 + 230 * (1 - t)} 268)`));
+          for (let i = 1; i <= 9; i++) {
+            const hop = el("path", { d: `M${R.xAt(i - 1)} 440 Q${R.xAt(i - 0.5)} 470 ${R.xAt(i)} 440`, stroke: "var(--accent)", "stroke-width": 4, fill: "none" }, v);
+            void hop;
+            text(v, R.xAt(i - 0.5), 492, i, { "font-size": 24, fill: "var(--accent-dark)" });
+            MUSIC.play("xylophone", 72 + [0, 2, 4, 5, 7, 9, 11, 12, 14][i - 1], { gain: 0.4 });
+            await api.wait(380);
+          }
+          el("line", { x1: R.xAt(9), x2: R.xAt(9), y1: 200, y2: 300, stroke: "#c0392b", "stroke-width": 4, "stroke-dasharray": "8 6" }, v);
+          text(v, R.xAt(9) + 10, 200, "9 cm", { "font-size": 40, fill: "#c0392b", "text-anchor": "start" });
+        },
+      },
+      {
+        say: "Are you taller than last year? Mark your height on a chart, and see how much you grew!",
+        async draw(v, api) {
+          const base = 520;
+          const pp = 3.6; // px per cm
+          el("rect", { x: 340, y: base - 130 * pp, width: 70, height: 130 * pp, rx: 8, fill: "#f6dca6", stroke: "#b98a4a", "stroke-width": 3 }, v);
+          for (let c = 0; c <= 130; c += 10) {
+            el("line", { x1: 340, x2: 372, y1: base - c * pp, y2: base - c * pp, stroke: "#4d3420", "stroke-width": 2 }, v);
+            if (c % 20 === 0 && c) text(v, 392, base - c * pp + 8, c, { "font-size": 22, fill: INK });
+          }
+          el("line", { x1: 150, x2: 860, y1: base, y2: base, stroke: "#8d5428", "stroke-width": 5 }, v);
+          const kid = (x, cm, lab) => {
+            const k = el("g", { opacity: 0 }, v);
+            el("rect", { x: x - 40, y: base - cm * pp, width: 80, height: cm * pp, rx: 30, fill: "var(--accent-soft)", stroke: "var(--accent)", "stroke-width": 3 }, k);
+            emoji(k, x, base - cm * pp + 38, "🧒", 64);
+            el("line", { x1: 340, x2: x + 50, y1: base - cm * pp, y2: base - cm * pp, stroke: "#c0392b", "stroke-width": 3, "stroke-dasharray": "8 6" }, k);
+            text(k, x, base - cm * pp - 50, lab, { "font-size": 26, fill: INK });
+            return k;
+          };
+          const a = kid(560, 105, "Last year: 105 cm");
+          const b = kid(760, 112, "Now: 112 cm");
+          await api.wait(700);
+          await api.tween(800, (t) => a.setAttribute("opacity", t));
+          await api.wait(600);
+          await api.tween(800, (t) => b.setAttribute("opacity", t));
+          await api.wait(400);
+          const grow = text(v, 900, base - 106 * pp, "+7 cm!", { "font-size": 40, fill: GREEN, opacity: 0 });
+          await api.tween(600, (t) => grow.setAttribute("opacity", t));
+        },
+      },
+      {
+        say: "A balance tips down on the heavier side. The apple is heavier than the strawberry, so its side goes down.",
+        async draw(v, api) {
+          const b = balance(v);
+          emoji(b.left, 0, 92, "🍎", 64);
+          emoji(b.right, 0, 100, "🍓", 44);
+          text(v, 216, 470, "heavier ⬇", { "font-size": 30, fill: "#c0392b", opacity: 0, class: "mg-h" });
+          await api.wait(1500);
+          await api.tween(1400, (t) => b.set(-12 * t));
+          const h = v.querySelector(".mg-h");
+          await api.tween(500, (t) => h.setAttribute("opacity", t));
+        },
+      },
+      {
+        say: "Which holds more? Pour in cups and count. The short wide bowl holds 6 cups. The tall thin glass holds only 4!",
+        async draw(v, api) {
+          const s1 = shapeFor(4, false);
+          const s2 = shapeFor(6, true);
+          const a = vessel(v, 300, 470, s1.w, s1.h, { label: "4 cups" });
+          const b = vessel(v, 680, 470, s2.w, s2.h, { label: "6 cups" });
+          a.tag.setAttribute("opacity", 0);
+          b.tag.setAttribute("opacity", 0);
+          const cup = measuringCup(v, 500, 80);
+          await api.wait(1200);
+          for (const [vs, n] of [
+            [a, 4],
+            [b, 6],
+          ]) {
+            for (let i = 1; i <= n; i++) {
+              cup.setAttribute("transform", `translate(${vs.cx - 40} ${vs.y - 50}) rotate(40)`);
+              await api.tween(500, (t) => vs.level(((i - 1 + t) / n)));
+              vs.mark(i, n);
+              MUSIC.play("xylophone", 76 + i * 2, { gain: 0.4 });
+              await api.wait(250);
+            }
+            vs.tag.setAttribute("opacity", 1);
+            await api.wait(500);
+          }
+          cup.setAttribute("opacity", 0);
+        },
+      },
+      {
+        say: "Let's count favourite fruits in class. Each picture is one child's vote. Stack them up in rows.",
+        async draw(v, api) {
+          const counts = [5, 3, 6, 2];
+          const xs = [250, 410, 570, 730];
+          el("line", { x1: 160, x2: 840, y1: 470, y2: 470, stroke: "#8d5428", "stroke-width": 4 }, v);
+          FRUITS.forEach((f, i) => emoji(v, xs[i], 510, f[0], 44));
+          for (let k = 0; k < 6; k++)
+            for (let i = 0; i < 4; i++) {
+              if (k >= counts[i]) continue;
+              const e = emoji(v, xs[i], 440 - k * 62, FRUITS[i][0], 48, { opacity: 0 });
+              await api.tween(320, (t) => {
+                e.setAttribute("opacity", t);
+                e.setAttribute("transform", `translate(0 ${(1 - t) * -50})`);
+              });
+              MUSIC.play("xylophone", 72 + k * 2 + i, { gain: 0.35 });
+            }
+        },
+      },
+      {
+        say: "Now the pictures turn into bars. A bar graph shows the same numbers. Read across to the side to see how many.",
+        async draw(v, api) {
+          const counts = [5, 3, 6, 2];
+          const xs = [250, 410, 570, 730];
+          const unit = 62;
+          const base = 470;
+          const axis = el("g", { opacity: 0 }, v);
+          for (let n = 0; n <= 6; n++) {
+            el("line", { x1: 160, x2: 840, y1: base - n * unit, y2: base - n * unit, stroke: "#e6dccd", "stroke-width": 2 }, axis);
+            text(axis, 130, base - n * unit + 8, n, { "font-size": 24, fill: INK });
+          }
+          el("line", { x1: 160, x2: 840, y1: base, y2: base, stroke: "#8d5428", "stroke-width": 4 }, v);
+          FRUITS.forEach((f, i) => emoji(v, xs[i], 510, f[0], 44));
+          const bars = counts.map((c, i) => el("rect", { x: xs[i] - 40, y: base, width: 80, height: 0, rx: 6, fill: ["#e53935", "#fdd835", "#8e24aa", "#ec407a"][i], opacity: 0.9 }, v));
+          const pics = [];
+          counts.forEach((c, i) => {
+            for (let k = 0; k < c; k++) pics.push(emoji(v, xs[i], 440 - k * 62, FRUITS[i][0], 48));
+          });
+          await api.wait(1200);
+          await api.tween(600, (t) => axis.setAttribute("opacity", t));
+          await api.tween(1500, (t) => {
+            bars.forEach((b, i) => {
+              b.setAttribute("y", base - counts[i] * unit * t);
+              b.setAttribute("height", counts[i] * unit * t);
+            });
+            pics.forEach((p) => p.setAttribute("opacity", 1 - t));
+          });
+          const dash = el("line", { x1: 160, x2: xs[2] - 40, y1: base - 6 * unit, y2: base - 6 * unit, stroke: "#c0392b", "stroke-width": 4, "stroke-dasharray": "10 6", opacity: 0 }, v);
+          await api.wait(500);
+          await api.tween(600, (t) => dash.setAttribute("opacity", t));
+          text(v, xs[2], base - 6 * unit - 16, "6 votes", { "font-size": 28, fill: "#c0392b" });
+        },
+      },
+    ];
+    explain(scenes, { alive: () => my === token, onDone: () => shell.go("g1"), title: "Measure & Graphs" });
+  },
+
+  // Measure with a ruler: drag to 0, read the end.
+  g1() {
+    let unit = "cm";
+    frame("g1", {
+      noun: "Thing",
+      countKey: "things measured",
+      extra: `<button type="button" data-x="unit" aria-pressed="false" aria-label="Switch centimetres and inches">📏 cm</button>`,
+      onExtra(btn) {
+        unit = unit === "cm" ? "in" : "cm";
+        btn.textContent = unit === "cm" ? "📏 cm" : "📏 inches";
+        btn.setAttribute("aria-pressed", String(unit === "in"));
+      },
+      ask(g) {
+        fresh();
+        const R = RULER[unit];
+        let len;
+        if (unit === "cm") len = g.level === "easy" ? pickInt(3, 10) : g.level === "medium" ? pickInt(8, 19) : pickInt(3, 17) + (Math.random() < 0.75 ? 0.5 : 0);
+        else len = g.level === "easy" ? pickInt(2, 5) : g.level === "medium" ? pickInt(2, 7) : pickInt(1, 6) + (Math.random() < 0.75 ? 0.5 : 0);
+        const kind = pick(len * R.ppu < 130 ? ["caterpillar", "crayon", "brush"] : ["pencil", "crayon", "caterpillar", "brush"]);
+        const rl = ruler(view, unit, 70, 330);
+        const L = len * R.ppu;
+        const room = 960 - L - rl.x0;
+        let x = rl.x0 + Math.max(40, Math.min(room, pickInt(120, 260)));
+        const Y = 296;
+        const obj = thing(view, kind, L, { class: "mg-tap", transform: `translate(${x} ${Y})` });
+        const hit = el("rect", { x: -10, y: -40, width: L + 20, height: 80, fill: "transparent" }, obj);
+        void hit;
+        const zero = el("g", {}, view);
+        el("line", { x1: rl.x0, x2: rl.x0, y1: 200, y2: 330, stroke: GREEN, "stroke-width": 4, "stroke-dasharray": "8 6" }, zero);
+        text(zero, rl.x0 - 6, 186, "0", { "font-size": 28, fill: GREEN });
+        const arrow = text(view, 500, 120, "👆 Slide it to the green 0", { "font-size": 32, fill: INK });
+        const endLine = el("line", { x1: 0, x2: 0, y1: 250, y2: 340, stroke: "#c0392b", "stroke-width": 4, "stroke-dasharray": "8 6", opacity: 0 }, view);
+        let drag = null;
+        let snapped = false;
+        const name = THING_NAMES[kind];
+        const unitWord = unit === "cm" ? "centimetres" : "inches";
+        const unitShort = unit === "cm" ? "cm" : "in";
+        const ask2 = () => {
+          arrow.textContent = "Where does the end line up?";
+          const step = len % 1 ? 0.5 : 1;
+          const cand = [len + 1, len - 1, len + step, len - step, len + 2, Math.floor(len) + 1, len + 0.5, len - 0.5];
+          const opts = numberChoices(len, cand, g.level === "easy" ? 3 : 4, (v) => v > 0 && (g.level === "hard" || v % 1 === 0));
+          choices(g.ans, opts.map((o) => ({ label: `${half(o)} ${unitShort}`, v: o })), (o, btn) => {
+            if (g.busy) return;
+            endLine.setAttribute("x1", rl.xAt(len));
+            endLine.setAttribute("x2", rl.xAt(len));
+            endLine.setAttribute("opacity", 1);
+            if (o.v === len) {
+              btn.classList.add("right");
+              g.win(`The ${name} is ${halfSay(len)} ${unitWord} long.`);
+            } else {
+              btn.classList.add("wrong");
+              g.wrong(len % 1 ? `Follow the red line down. The end is halfway between ${Math.floor(len)} and ${Math.ceil(len)}: ${halfSay(len)}.` : `Follow the red line down from the end. It lines up with ${len}, not ${half(o.v)}.`);
+            }
+          });
+          say(`Now look at the end of the ${name}. How many ${unitWord} long is it?`);
+        };
+        const snap = async () => {
+          snapped = true;
+          await tween(250, (t) => obj.setAttribute("transform", `translate(${x + (rl.x0 - x) * t} ${Y})`), g.live);
+          x = rl.x0;
+          MUSIC.play("xylophone", 84, { gain: 0.4 });
+          zero.setAttribute("opacity", 0.5);
+          ask2();
+        };
+        view.addEventListener("pointerdown", (event) => {
+          if (snapped || !g.live()) return;
+          drag = { from: toSvg(view, event).x, x0: x };
+          try {
+            view.setPointerCapture(event.pointerId);
+          } catch {}
+          window.OC?.touch();
+        });
+        view.addEventListener("pointermove", (event) => {
+          if (!drag || snapped) return;
+          x = Math.max(rl.x0 - 40, Math.min(960 - L, drag.x0 + toSvg(view, event).x - drag.from));
+          obj.setAttribute("transform", `translate(${x} ${Y})`);
+        });
+        const up = () => {
+          if (!drag) return;
+          drag = null;
+          if (Math.abs(x - rl.x0) < 24) snap();
+          else if (x < rl.x0) say("Too far! Line up the start with the green 0.");
+        };
+        view.addEventListener("pointerup", up);
+        view.addEventListener("pointercancel", up);
+        say(`Slide the ${name} so its start is on the green 0.`);
+      },
+    });
+  },
+
+  // Longer, shorter, taller
+  g2() {
+    const COLORS = ["#e53935", "#1e88e5", "#43a047", "#fb8c00", "#8e24aa"];
+    frame("g2", {
+      noun: "Puzzle",
+      countKey: "lengths compared",
+      ask(g) {
+        fresh();
+        if (g.level === "easy") {
+          const tall = Math.random() < 0.5;
+          const want = pick(tall ? ["taller", "shorter"] : ["longer", "shorter"]);
+          let a = pickInt(2, 9);
+          let b = pickInt(2, 9);
+          while (Math.abs(a - b) < 2) b = pickInt(2, 9);
+          const vals = [a, b];
+          const goal = want === "shorter" ? Math.min(a, b) : Math.max(a, b);
+          vals.forEach((n, i) => {
+            const gg = el("g", { class: "mg-tap", "data-i": i }, view);
+            if (tall) {
+              el("rect", { x: 250 + i * 420 - 80, y: 30, width: 160, height: 470, fill: "transparent" }, gg);
+              cubeStack(gg, n, 250 + i * 420, 500, 50, 1, COLORS[i]);
+              emoji(gg, 250 + i * 420, 500 - n * 50 - 34, i ? "🐻" : "🐰", 52);
+            } else {
+              const y = 170 + i * 200;
+              el("rect", { x: 60, y: y - 70, width: 880, height: 140, fill: "transparent" }, gg);
+              thing(gg, "caterpillar", n * 95, { transform: `translate(80 ${y})` });
+            }
+          });
+          if (tall) el("line", { x1: 60, x2: 940, y1: 502, y2: 502, stroke: "#8d5428", "stroke-width": 5 }, view);
+          view.addEventListener("pointerdown", (event) => {
+            const t = event.target.closest(".mg-tap");
+            if (!t || g.busy || !g.live()) return;
+            const n = vals[Number(t.dataset.i)];
+            if (n === goal) g.win(`That one is ${want}. ${Math.max(a, b)} is more than ${Math.min(a, b)}.`);
+            else g.wrong(`That one is ${want === "shorter" ? (tall ? "taller" : "longer") : "shorter"}. Look again: which one is ${want}?`);
+          });
+          say(`Which one is ${want}? Tap it.`);
+          return;
+        }
+        if (g.level === "medium") {
+          const n = 4;
+          const set = new Set();
+          while (set.size < n) set.add(pickInt(2, 9));
+          const vals = shuffle([...set]);
+          const order = [...vals].sort((p, q) => p - q);
+          let k = 0;
+          const xs = vals.map((_, i) => 160 + i * 225);
+          el("line", { x1: 40, x2: 960, y1: 512, y2: 512, stroke: "#8d5428", "stroke-width": 5 }, view);
+          vals.forEach((v, i) => {
+            const gg = el("g", { class: "mg-tap", "data-i": i }, view);
+            el("rect", { x: xs[i] - 90, y: 20, width: 180, height: 490, fill: "transparent" }, gg);
+            cubeStack(gg, v, xs[i], 510, 46, 1, COLORS[i]);
+          });
+          view.addEventListener("pointerdown", (event) => {
+            const t = event.target.closest(".mg-tap");
+            if (!t || g.busy || !g.live() || t.dataset.done) return;
+            const i = Number(t.dataset.i);
+            if (vals[i] === order[k]) {
+              t.dataset.done = "1";
+              k += 1;
+              const badge = el("g", {}, view);
+              el("circle", { cx: xs[i], cy: 510 - vals[i] * 46 - 40, r: 26, fill: "var(--accent)" }, badge);
+              text(badge, xs[i], 510 - vals[i] * 46 - 31, k, { "font-size": 28, fill: "#fff" });
+              MUSIC.play("xylophone", 72 + k * 4, { gain: 0.4 });
+              VOICE.speak(`${vals[i]} cubes`);
+              if (k === n) g.win(`Shortest to tallest: ${order.join(", ")} cubes.`);
+            } else g.wrong(`That tower has ${vals[i]} cubes. Find the shortest tower that is left: ${order[k]} cubes.`);
+          });
+          say("Tap the towers from shortest to tallest.");
+          return;
+        }
+        // hard: lengths written in m and cm; reveal true lengths after
+        const set = new Set();
+        while (set.size < 4) set.add(5 * pickInt(14, 50));
+        const vals = shuffle([...set]);
+        const order = [...vals].sort((p, q) => p - q);
+        const label = (cm) => {
+          const style = pick(["cm", "m", "m"]);
+          if (style === "cm" || cm < 100) return `${cm} cm`;
+          return cm % 100 ? `${Math.floor(cm / 100)} m ${cm % 100} cm` : `${cm / 100} m`;
+        };
+        const labels = vals.map(label);
+        let k = 0;
+        const rows = vals.map((v, i) => {
+          const y = 70 + i * 125;
+          const gg = el("g", { class: "mg-tap", "data-i": i }, view);
+          el("rect", { x: 30, y: y - 50, width: 940, height: 104, rx: 20, fill: "#fff7e8", stroke: "#e2c9a0", "stroke-width": 3 }, gg);
+          el("circle", { cx: 90, cy: y, r: 34, fill: COLORS[i], stroke: "rgba(0,0,0,.25)", "stroke-width": 3 }, gg);
+          el("circle", { cx: 90, cy: y, r: 12, fill: "#fff" }, gg);
+          text(gg, 150, y + 12, labels[i], { "font-size": 36, fill: INK, "text-anchor": "start" });
+          const bar = el("rect", { x: 140, y: y + 22, width: 0, height: 20, rx: 8, fill: COLORS[i] }, gg);
+          return { gg, bar, y };
+        });
+        view.addEventListener("pointerdown", async (event) => {
+          const t = event.target.closest(".mg-tap");
+          if (!t || g.busy || !g.live() || t.dataset.done) return;
+          const i = Number(t.dataset.i);
+          if (vals[i] === order[k]) {
+            t.dataset.done = "1";
+            k += 1;
+            const r = rows[i];
+            el("circle", { cx: 920, cy: r.y - 6, r: 26, fill: "var(--accent)" }, r.gg);
+            text(r.gg, 920, r.y + 3, k, { "font-size": 28, fill: "#fff" });
+            MUSIC.play("xylophone", 72 + k * 4, { gain: 0.4 });
+            if (k === 4) {
+              await Promise.all(rows.map((row, j) => tween(1200, (s) => row.bar.setAttribute("width", vals[j] * 3 * s), g.live)));
+              g.win(`Shortest to longest! Remember: 1 metre is 100 centimetres.`, 1600);
+            }
+          } else {
+            const shown = labels[i];
+            g.wrong(`${shown} is ${vals[i]} centimetres. That is longer than ${labels[vals.indexOf(order[k])]}. 1 metre is 100 centimetres.`);
+          }
+        });
+        say("Tap the ribbons from shortest to longest. 1 metre is 100 centimetres.");
+      },
+    });
+  },
+
+  // Balance: which is heavier, how many cubes, cube puzzles.
+  g3() {
+    frame("g3", {
+      noun: "Weigh",
+      countKey: "things weighed",
+      ask(g) {
+        fresh();
+        const b = balance(view);
+        if (g.level === "easy") {
+          let a;
+          let c;
+          do {
+            a = pick(THINGS);
+            c = pick(THINGS);
+          } while (a === c || Math.max(a[2], c[2]) / Math.min(a[2], c[2]) < 2.5);
+          const heavy = Math.random() < 0.6;
+          const goal = heavy ? (a[2] > c[2] ? 0 : 1) : a[2] > c[2] ? 1 : 0;
+          const size = (w) => Math.min(96, 46 + Math.log10(w + 1) * 14);
+          emoji(b.left, 0, 128 - size(a[2]) * 0.45, a[0], size(a[2]), { class: "mg-tap", "data-i": 0 });
+          emoji(b.right, 0, 128 - size(c[2]) * 0.45, c[0], size(c[2]), { class: "mg-tap", "data-i": 1 });
+          const lock = text(view, 500, 70, "✋ Hold on… guess first!", { "font-size": 30, fill: BROWN });
+          let released = false;
+          const pickSide = async (i) => {
+            if (g.busy || !g.live()) return;
+            window.OC?.touch();
+            if (!released) {
+              released = true;
+              g.busy = true;
+              lock.textContent = "Let go!";
+              await tween(1300, (t) => b.set(tilt(a[2], c[2], 1) > 0 ? 13 * t : -13 * t), g.live);
+              g.busy = false;
+            }
+            const heavier = a[2] > c[2] ? a : c;
+            const lighter = heavier === a ? c : a;
+            if (i === goal) g.win(`The ${heavier[1]} is heavier, so its side went down. The ${lighter[1]} is lighter.`);
+            else {
+              g.wrong(`See? The ${heavier[1]}'s side went down, so the ${heavier[1]} is heavier. ${heavy ? "" : `The ${lighter[1]} is lighter.`} Tap the ${heavy ? "heavier" : "lighter"} one.`);
+            }
+          };
+          view.addEventListener("pointerdown", (event) => {
+            const t = event.target.closest(".mg-tap");
+            if (t) pickSide(Number(t.dataset.i));
+          });
+          say(`Which is ${heavy ? "heavier" : "lighter"}, the ${a[1]} or the ${c[1]}? Tap it.`);
+          return;
+        }
+        if (g.level === "medium") {
+          const thing = pick(THINGS.filter((x) => x[2] >= 60 && x[2] <= 1000));
+          const w = pickInt(3, 11);
+          let cubes = 0;
+          emoji(b.left, 0, 70, thing[0], 96);
+          let stack = null;
+          const draw = () => {
+            stack?.remove();
+            stack = cubeStack(b.right, cubes, 0, 126, 30, 4);
+            b.set(tilt(w, cubes, 2.2));
+          };
+          draw();
+          const counter = text(view, 790, 70, "0 cubes", { "font-size": 32, fill: INK });
+          g.ans.innerHTML = `<div class="ap-buttons"><button type="button" data-b="-" aria-label="Take a cube off">➖ cube</button><button type="button" class="primary" data-b="+" aria-label="Add a cube">➕ cube</button></div>`;
+          g.ans.onclick = (event) => {
+            const btn = event.target.closest("[data-b]");
+            if (!btn || g.busy || !g.live()) return;
+            window.OC?.touch();
+            cubes = Math.max(0, Math.min(16, cubes + (btn.dataset.b === "+" ? 1 : -1)));
+            counter.textContent = `${cubes} cube${cubes === 1 ? "" : "s"}`;
+            MUSIC.play("woodblock", btn.dataset.b === "+" ? 79 : 72, { gain: 0.5 });
+            draw();
+            if (cubes === w) g.win(`The beam is level! The ${thing[1]} weighs the same as ${w} cubes.`);
+            else if (cubes > w && cubes === w + 1) say(`Too many! The cube side went down. Take one off.`);
+          };
+          say(`How many cubes weigh the same as the ${thing[1]}? Tap plus cube until the beam is level.`);
+          return;
+        }
+        // hard: cube puzzles on a level balance
+        const thing = pick(THINGS.filter((x) => x[2] >= 12 && x[2] <= 400));
+        const type = Math.random() < 0.5 ? "share" : "plus";
+        let ansV;
+        let qText;
+        let why;
+        if (type === "share") {
+          const k = pickInt(2, 4);
+          const each = pickInt(2, 6);
+          ansV = each;
+          for (let i = 0; i < k; i++) emoji(b.left, -70 + (140 / Math.max(1, k - 1)) * i, 92, thing[0], 52);
+          cubeStack(b.right, k * each, 0, 126, 26, 6);
+          qText = `${k} ${plural(thing[1])} balance ${k * each} cubes. How many cubes does 1 ${thing[1]} weigh?`;
+          why = `${k * each} cubes shared by ${k} is ${each} each, because ${k} × ${each} = ${k * each}.`;
+        } else {
+          const x = pickInt(3, 9);
+          const extra = pickInt(1, 5);
+          ansV = x;
+          emoji(b.left, -40, 80, thing[0], 72);
+          cubeStack(b.left, extra, 60, 126, 26, 2);
+          cubeStack(b.right, x + extra, 0, 126, 26, 5);
+          qText = `A ${thing[1]} and ${extra} cubes balance ${x + extra} cubes. How many cubes does the ${thing[1]} weigh?`;
+          why = `Take ${extra} cubes off both sides: ${x + extra} − ${extra} = ${x}.`;
+        }
+        text(view, 500, 60, "It's level: both sides weigh the same!", { "font-size": 28, fill: GREEN });
+        choices(g.ans, numberChoices(ansV, [ansV + 1, ansV - 1, ansV + 2, ansV * 2, ansV + 3], 4).map((o) => ({ label: `${o} cubes`, v: o })), (o, btn) => {
+          if (g.busy) return;
+          if (o.v === ansV) {
+            btn.classList.add("right");
+            g.win(`${why}`, 1600);
+          } else {
+            btn.classList.add("wrong");
+            g.wrong(`Both sides weigh the same. ${type === "share" ? "Share the cubes equally between the things." : "Take the same cubes off both sides."}`);
+          }
+        });
+        say(qText);
+      },
+    });
+  },
+
+  // Cups and jugs: capacity
+  g4() {
+    const NAMES = [["jug", true], ["vase", false], ["bowl", false], ["pot", true], ["bottle", false], ["bucket", true]];
+    frame("g4", {
+      noun: "Pour",
+      countKey: "containers filled",
+      ask(g) {
+        fresh();
+        if (g.level === "hard") {
+          // US customary: 2 cups = 1 pint, 2 pints = 1 quart, 4 quarts = 1 gallon.
+          const Q = [
+            ["How many cups fill 1 pint?", 2, "2 cups make 1 pint."],
+            ["How many cups fill 1 quart?", 4, "1 quart is 2 pints, and each pint is 2 cups: 4 cups."],
+            ["How many pints fill 1 quart?", 2, "2 pints make 1 quart."],
+            ["How many quarts fill 1 gallon?", 4, "4 quarts make 1 gallon."],
+            ["How many pints fill 1 gallon?", 8, "4 quarts, each 2 pints: 4 × 2 = 8 pints."],
+            ["How many cups fill 1 gallon?", 16, "4 quarts × 4 cups = 16 cups."],
+            ["How many cups fill 3 pints?", 6, "Each pint is 2 cups: 3 × 2 = 6 cups."],
+            ["How many cups fill 2 quarts?", 8, "Each quart is 4 cups: 2 × 4 = 8 cups."],
+            ["How many cups fill half a gallon?", 8, "A gallon is 16 cups. Half of 16 is 8."],
+          ];
+          const [q, ansV, why] = pick(Q);
+          const items = [
+            ["cup", 1],
+            ["pint", 2],
+            ["quart", 4],
+            ["gallon", 16],
+          ];
+          const xs = [110, 260, 450, 760];
+          items.forEach(([n, c], i) => {
+            const s = { w: [62, 80, 112, 230][i], h: 0 };
+            s.h = (c * 2550) / s.w;
+            const vs = vessel(view, xs[i], 470, s.w, s.h, { handle: i > 1, label: n });
+            vs.level(1);
+            for (let k = 1; k < c; k++) vs.mark(k, c);
+            text(view, xs[i], 545, `${c} cup${c > 1 ? "s" : ""}`, { "font-size": 22, fill: BROWN, opacity: 0, class: "mg-cups" });
+          });
+          text(view, 500, 60, "Each dashed line is 1 cup", { "font-size": 26, fill: BROWN });
+          choices(g.ans, numberChoices(ansV, [ansV + 1, ansV - 1, ansV * 2, ansV / 2, ansV + 2, 4, 8, 2], 4, (v) => v > 0 && v % 1 === 0).map((o) => ({ label: String(o), v: o })), (o, btn) => {
+            if (g.busy) return;
+            view.querySelectorAll(".mg-cups").forEach((t) => t.setAttribute("opacity", 1));
+            if (o.v === ansV) {
+              btn.classList.add("right");
+              g.win(why, 1600);
+            } else {
+              btn.classList.add("wrong");
+              g.wrong(`Count the cup lines. 2 cups make a pint, 2 pints make a quart, 4 quarts make a gallon.`);
+            }
+          });
+          say(q);
+          return;
+        }
+        const n = g.level === "easy" ? 2 : 3;
+        const caps = new Set();
+        while (caps.size < n) caps.add(pickInt(g.level === "easy" ? 2 : 3, g.level === "easy" ? 7 : 10));
+        const capList = shuffle([...caps]);
+        const names = shuffle(NAMES).slice(0, n);
+        const xs = n === 2 ? [290, 710] : [200, 500, 800];
+        // the tallest one often holds less: make shapes alternate wide/thin
+        const vsWide = [];
+        const vs = capList.map((c, i) => {
+          const s = shapeFor(c, i === 0 ? Math.random() < 0.5 : !vsWide[i - 1]);
+          vsWide[i] = s.w > s.h;
+          const v = vessel(view, xs[i], 470, s.w, s.h, { handle: names[i][1], label: names[i][0] });
+          const hit = el("rect", { x: xs[i] - 150, y: 60, width: 300, height: 480, fill: "transparent", class: "mg-tap", "data-i": i }, view);
+          void hit;
+          return v;
+        });
+        const filled = capList.map(() => 0);
+        const cup = measuringCup(view, 470, 70);
+        const cupLab = text(view, 560, 80, "= 1 cup", { "font-size": 26, fill: BROWN, "text-anchor": "start" });
+        const counts = capList.map((_, i) => text(view, xs[i], 545, "", { "font-size": 24, fill: "#1565c0" }));
+        let phase = "fill";
+        const ask2 = () => {
+          phase = "ask";
+          cup.setAttribute("opacity", 0);
+          cupLab.setAttribute("opacity", 0);
+          const qType = g.level === "easy" ? pick(["more", "less"]) : pick(["most", "least", "diff"]);
+          if (qType === "diff") {
+            const [i, j] = shuffle([0, 1, 2]);
+            const big = capList[i] > capList[j] ? i : j;
+            const small = big === i ? j : i;
+            const d = capList[big] - capList[small];
+            choices(g.ans, numberChoices(d, [d + 1, d - 1, d + 2, capList[big]], 4).map((o) => ({ label: `${o} cups`, v: o })), (o, btn) => {
+              if (g.busy) return;
+              if (o.v === d) {
+                btn.classList.add("right");
+                g.win(`${capList[big]} − ${capList[small]} = ${d}. The ${names[big][0]} holds ${d} more cups.`);
+              } else {
+                btn.classList.add("wrong");
+                g.wrong(`The ${names[big][0]} holds ${capList[big]} cups, the ${names[small][0]} holds ${capList[small]}. Take away to find the difference.`);
+              }
+            });
+            say(`How many more cups does the ${names[big][0]} hold than the ${names[small][0]}?`);
+            return;
+          }
+          const wantBig = qType === "more" || qType === "most";
+          const goal = capList.indexOf(wantBig ? Math.max(...capList) : Math.min(...capList));
+          view.addEventListener("pointerdown", (event) => {
+            const t = event.target.closest(".mg-tap");
+            if (!t || phase !== "ask" || g.busy || !g.live()) return;
+            const i = Number(t.dataset.i);
+            if (i === goal) g.win(`The ${names[i][0]} holds ${capList[i]} cups. That's the ${wantBig ? "most" : "least"}!`);
+            else g.wrong(`The ${names[i][0]} holds ${capList[i]} cups. Compare the cup numbers: which is ${wantBig ? "biggest" : "smallest"}?`);
+          });
+          say(`Which holds the ${wantBig ? "most" : "least"}? Tap it.${g.level === "easy" ? "" : " Tall does not always mean more!"}`);
+        };
+        const pour = async (i) => {
+          if (filled[i] >= capList[i] || g.busy) return;
+          g.busy = true;
+          const v = vs[i];
+          cup.setAttribute("transform", `translate(${v.cx - 40} ${Math.max(60, v.y - 50)}) rotate(40)`);
+          const c = capList[i];
+          const f = filled[i];
+          await tween(350, (t) => v.level((f + t) / c), g.live);
+          filled[i] += 1;
+          v.mark(filled[i], c);
+          counts[i].textContent = filled[i] === c ? `Full! ${c} cups` : `${filled[i]} cup${filled[i] > 1 ? "s" : ""}`;
+          MUSIC.play("xylophone", 72 + filled[i] * 2, { gain: 0.4 });
+          VOICE.speak(String(filled[i]));
+          g.busy = false;
+          if (filled.every((x, k) => x === capList[k])) {
+            await wait(700);
+            if (g.live()) ask2();
+          }
+        };
+        view.addEventListener("pointerdown", async (event) => {
+          const t = event.target.closest(".mg-tap");
+          if (!t || phase !== "fill" || !g.live()) return;
+          window.OC?.touch();
+          const i = Number(t.dataset.i);
+          if (g.level === "easy") pour(i);
+          else
+            while (filled[i] < capList[i] && g.live() && phase === "fill") {
+              if (g.busy) await wait(120);
+              else await pour(i);
+            }
+        });
+        say(g.level === "easy" ? "Tap each one to pour in cups. Count until it is full!" : "Tap each container to fill it with cups. Count the cups!");
+      },
+    });
+  },
+
+  // Picture graph: tap to sort the pile, then read it.
+  g5() {
+    frame("g5", {
+      noun: "Graph",
+      countKey: "picture graphs made",
+      ask(g) {
+        fresh();
+        const k = g.level === "easy" ? 3 : 4;
+        const max = g.level === "easy" ? 5 : g.level === "medium" ? 7 : 9;
+        const kinds = shuffle(FRUITS).slice(0, k);
+        let counts;
+        do counts = kinds.map(() => pickInt(1, max));
+        while (new Set(counts).size < k);
+        const pile = shuffle(counts.flatMap((c, i) => Array(c).fill(i)));
+        // pile area
+        el("rect", { x: 20, y: 30, width: 360, height: 500, rx: 28, fill: "#f3e3c8", stroke: "#d8bf96", "stroke-width": 4, class: "mg-pile" }, view);
+        text(view, 200, 70, "Tap a fruit", { "font-size": 26, fill: BROWN });
+        // graph
+        const gx = 470;
+        const cell = 54;
+        const rowH = Math.min(110, 440 / k);
+        const top = 70 + (440 - rowH * k) / 2;
+        el("rect", { x: 400, y: 30, width: 580, height: 500, rx: 28, fill: "#fff", stroke: "#e2c9a0", "stroke-width": 4 }, view);
+        text(view, 690, 70, "Our favourite fruits", { "font-size": 26, fill: INK });
+        kinds.forEach((f, i) => {
+          const y = top + i * rowH + rowH / 2;
+          el("rect", { x: 410, y: y - rowH / 2 + 4, width: 560, height: rowH - 8, rx: 12, fill: i % 2 ? "#fbf3e4" : "#f6ecdc" }, view);
+          emoji(view, 438, y - 2, f[0], 40);
+          el("line", { x1: gx - 4, x2: gx - 4, y1: y - rowH / 2 + 8, y2: y + rowH / 2 - 8, stroke: "#c9a679", "stroke-width": 3 }, view);
+        });
+        const cols = 6;
+        const placed = kinds.map(() => 0);
+        let left = pile.length;
+        const slots = pile.map((_, j) => ({ x: 55 + (j % cols) * 52 + (Math.floor(j / cols) % 2 ? 22 : 0), y: 110 + Math.floor(j / cols) * 64 }));
+        const nodes = pile.map((i, j) => emoji(view, slots[j].x, slots[j].y, kinds[i][0], 46, { class: "mg-tap", "data-j": j }));
+        const qs = () => {
+          const most = counts.indexOf(Math.max(...counts));
+          const least = counts.indexOf(Math.min(...counts));
+          const total = counts.reduce((s, c) => s + c, 0);
+          const types = g.level === "easy" ? ["most", "least", "count"] : g.level === "medium" ? ["count", "more", "most", "fewer"] : ["more", "total", "double", "fewer"];
+          const type = pick(types);
+          if (type === "most" || type === "least") {
+            const goal = type === "most" ? most : least;
+            g.ans.innerHTML = `<div class="ap-chips kt-choices">${kinds.map((f, i) => `<button type="button" class="mg-emo" data-f="${i}" aria-label="${f[1]}">${f[0]}</button>`).join("")}</div>`;
+            g.ans.onclick = (event) => {
+              const b = event.target.closest("[data-f]");
+              if (!b || g.busy) return;
+              const i = Number(b.dataset.f);
+              b.classList.add(i === goal ? "right" : "wrong");
+              if (i === goal) g.win(`The ${kinds[i][1]} row is the ${type === "most" ? "longest" : "shortest"}: ${counts[i]}.`);
+              else g.wrong(`There are ${counts[i]} ${kinds[i][1]}. Look for the ${type === "most" ? "longest" : "shortest"} row.`);
+            };
+            say(`Which fruit has the ${type}? Tap it.`);
+            return;
+          }
+          let ansV;
+          let q;
+          let why;
+          const [a, b] = shuffle(kinds.map((_, i) => i)).slice(0, 2);
+          const big = counts[a] > counts[b] ? a : b;
+          const small = big === a ? b : a;
+          if (type === "count") {
+            ansV = counts[a];
+            q = `How many ${kinds[a][1]}?`;
+            why = `Count the row: ${ansV} ${kinds[a][1]}.`;
+          } else if (type === "more") {
+            ansV = counts[big] - counts[small];
+            q = `How many more ${kinds[big][1]} than ${kinds[small][1]}?`;
+            why = `${counts[big]} − ${counts[small]} = ${ansV}. Look at the extra pictures sticking out!`;
+          } else if (type === "fewer") {
+            ansV = counts[big] - counts[small];
+            q = `How many fewer ${kinds[small][1]} than ${kinds[big][1]}?`;
+            why = `${counts[big]} − ${counts[small]} = ${ansV} fewer.`;
+          } else if (type === "total") {
+            ansV = total;
+            q = "How many fruits altogether?";
+            why = `${counts.join(" + ")} = ${total}.`;
+          } else {
+            ansV = counts[a] * 2;
+            q = `If each picture stood for 2 ${kinds[a][1]}, how many ${kinds[a][1]} would there be?`;
+            why = `${counts[a]} pictures × 2 = ${ansV}. Count by twos!`;
+          }
+          choices(g.ans, numberChoices(ansV, [ansV + 1, ansV - 1, ansV + 2, ansV - 2, ansV + 10], 4).map((o) => ({ label: String(o), v: o })), (o, btn) => {
+            if (g.busy) return;
+            if (o.v === ansV) {
+              btn.classList.add("right");
+              g.win(why, 1500);
+            } else {
+              btn.classList.add("wrong");
+              g.wrong(type === "count" ? "Count the pictures in that row one by one." : type === "total" ? "Add up all the rows." : type === "double" ? "Count the row by twos: 2, 4, 6…" : "Line up the two rows. Count the pictures in the longer row that have no partner.");
+            }
+          });
+          say(q);
+        };
+        view.addEventListener("pointerdown", async (event) => {
+          // Tapping a fruit sorts it; tapping anywhere on the pile sorts the next one (easier on small screens).
+          let t = event.target.closest(".mg-tap");
+          if (!t && event.target.closest(".mg-pile")) t = view.querySelector(".mg-tap:not([data-done])");
+          if (!t || t.dataset.done || !g.live()) return;
+          t.dataset.done = "1";
+          window.OC?.touch();
+          const j = Number(t.dataset.j);
+          const i = pile[j];
+          const tx = gx + 24 + placed[i] * cell;
+          const ty = top + i * rowH + rowH / 2;
+          placed[i] += 1;
+          left -= 1;
+          MUSIC.play("xylophone", 72 + i * 3 + placed[i], { gain: 0.35 });
+          VOICE.speak(String(placed[i]));
+          const sx = slots[j].x;
+          const sy = slots[j].y;
+          await tween(450, (s) => t.setAttribute("transform", `translate(${(tx - sx) * s} ${(ty - sy) * s})`), g.live);
+          if (left === 0 && g.live()) {
+            await wait(500);
+            if (g.live()) qs();
+          }
+        });
+        void nodes;
+        say(g.level === "easy" ? "Tap each fruit to put it in its row." : "Sort the pile: tap each fruit to put it in its row. Then answer the question.");
+      },
+    });
+  },
+
+  // Read a bar graph
+  g6() {
+    const BAR_COLORS = ["#e53935", "#1e88e5", "#43a047", "#fb8c00", "#8e24aa"];
+    frame("g6", {
+      noun: "Graph",
+      countKey: "bar graphs read",
+      ask(g) {
+        fresh();
+        const G = pick(GRAPHS);
+        const k = g.level === "easy" ? 3 : 4;
+        const scale = g.level === "hard" ? pick([2, 5]) : 1;
+        const items = shuffle(G.items).slice(0, k);
+        const maxV = g.level === "easy" ? 6 : g.level === "medium" ? 10 : scale * 10;
+        let vals;
+        do vals = items.map(() => (scale === 5 ? 5 * pickInt(1, 10) : scale === 2 ? pickInt(2, 20) : pickInt(1, maxV)));
+        while (new Set(vals).size < k);
+        const top = Math.ceil(Math.max(...vals) / scale) * scale + (Math.max(...vals) % scale ? 0 : scale);
+        const lines = top / scale;
+        const base = 460;
+        const y0 = 90;
+        const yOf = (v) => base - ((base - y0) * v) / top;
+        text(view, 530, 50, G.title, { "font-size": 32, fill: INK });
+        for (let i = 0; i <= lines; i++) {
+          const v = i * scale;
+          el("line", { x1: 150, x2: 940, y1: yOf(v), y2: yOf(v), stroke: i ? "#e6dccd" : "#8d5428", "stroke-width": i ? 2 : 4 }, view);
+          text(view, 128, yOf(v) + 8, v, { "font-size": 24, fill: INK, "text-anchor": "end" });
+        }
+        el("line", { x1: 150, x2: 150, y1: y0 - 10, y2: base, stroke: "#8d5428", "stroke-width": 4 }, view);
+        const slot = 790 / k;
+        const xs = items.map((_, i) => 150 + slot * (i + 0.5));
+        const bw = Math.min(110, slot * 0.6);
+        const bars = items.map((it, i) => {
+          const gg = el("g", { class: "mg-tap", "data-i": i }, view);
+          el("rect", { x: xs[i] - slot / 2 + 6, y: y0 - 20, width: slot - 12, height: base - y0 + 90, fill: "transparent" }, gg);
+          const r = el("rect", { x: xs[i] - bw / 2, y: base, width: bw, height: 0, rx: 8, fill: BAR_COLORS[i] }, gg);
+          emoji(gg, xs[i], 505, it[0], 48);
+          return r;
+        });
+        tween(900, (t) => bars.forEach((r, i) => {
+          r.setAttribute("y", yOf(vals[i] * t));
+          r.setAttribute("height", base - yOf(vals[i] * t));
+        }), g.live);
+        const guide = el("line", { x1: 150, x2: 150, y1: 0, y2: 0, stroke: "#c0392b", "stroke-width": 4, "stroke-dasharray": "10 6", opacity: 0 }, view);
+        const show = (i) => {
+          guide.setAttribute("x2", xs[i]);
+          guide.setAttribute("y1", yOf(vals[i]));
+          guide.setAttribute("y2", yOf(vals[i]));
+          guide.setAttribute("opacity", 1);
+        };
+        const types = g.level === "easy" ? ["most", "least"] : g.level === "medium" ? ["count", "more", "most", "least", "count"] : ["count", "more", "total", "count", "more"];
+        const type = pick(types);
+        if (type === "most" || type === "least") {
+          const goal = vals.indexOf(type === "most" ? Math.max(...vals) : Math.min(...vals));
+          view.addEventListener("pointerdown", (event) => {
+            const t = event.target.closest(".mg-tap");
+            if (!t || g.busy || !g.live()) return;
+            const i = Number(t.dataset.i);
+            window.OC?.touch();
+            if (i === goal) g.win(`The ${items[i][1]} bar is the ${type === "most" ? "tallest" : "shortest"}: ${vals[i]}.`);
+            else g.wrong(`Look for the ${type === "most" ? "tallest" : "shortest"} bar.`);
+          });
+          say(`Which got the ${type}? Tap the ${type === "most" ? "tallest" : "shortest"} bar.`);
+          return;
+        }
+        const [a, b] = shuffle(items.map((_, i) => i)).slice(0, 2);
+        const big = vals[a] > vals[b] ? a : b;
+        const small = big === a ? b : a;
+        let ansV;
+        let q;
+        let why;
+        if (type === "count") {
+          ansV = vals[a];
+          q = `How many ${G.what} ${items[a][1]}?`;
+          why = ansV % scale ? `The bar stops halfway between ${ansV - scale / 2} and ${ansV + scale / 2}: ${ansV}.` : `Read across from the top of the bar: ${ansV}.`;
+        } else if (type === "more") {
+          ansV = vals[big] - vals[small];
+          q = `How many more ${items[big][1]} than ${items[small][1]}?`;
+          why = `${vals[big]} − ${vals[small]} = ${ansV}.`;
+        } else {
+          ansV = vals.reduce((s, v) => s + v, 0);
+          q = "How many altogether?";
+          why = `${vals.join(" + ")} = ${ansV}.`;
+        }
+        const st = scale === 1 ? 1 : scale;
+        choices(g.ans, numberChoices(ansV, [ansV + st, ansV - st, ansV + 1, ansV - 1, ansV + 2 * st], 4).map((o) => ({ label: String(o), v: o })), (o, btn) => {
+          if (g.busy) return;
+          show(a);
+          if (type === "more") show(big);
+          if (o.v === ansV) {
+            btn.classList.add("right");
+            g.win(why, 1500);
+          } else {
+            btn.classList.add("wrong");
+            g.wrong(scale > 1 ? `Each line counts by ${scale}. Follow the red line from the top of the bar to the numbers.` : "Follow the red line from the top of the bar across to the numbers.");
+          }
+        });
+        say(scale > 1 ? `Careful: the lines count by ${scale}s! ${q}` : q);
+      },
+    });
+  },
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    g0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    g1: { icon: "📏", title: "Measure with a ruler", steps: ["Drag the thing to the green 0.", "Look where its end lines up.", "Tap that number."] },
+    g2: { icon: "🐛", title: "Longer or shorter?", steps: ["Look at the sizes.", "Tap the one Ollie asks for.", "Some games: tap shortest first."] },
+    g3: { icon: "⚖️", title: "Balance scale", steps: ["The heavier side goes down.", "Tap the heavier or lighter thing.", "Add cubes to make it level."] },
+    g4: { icon: "🥛", title: "Cups and jugs", steps: ["Tap a container to pour in cups.", "Count the cups until it is full.", "Tap the one that holds more."] },
+    g5: { icon: "🍎", title: "Picture graph", steps: ["Tap the fruits in the pile.", "It jumps into its row.", "Answer Ollie's question."] },
+    g6: { icon: "📊", title: "Bar graph", steps: ["Look at the bars.", "Read across to the numbers.", "Tap a bar or the answer."] },
+  },
+  start: "g0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Math",
+  activity: "Measure & Graphs",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 86, 88, 90, 92]);
+MUSIC.preload("woodblock", [72, 79]);
+MUSIC.preload("piano", [64, 67]);
+</script>
+</body>
+</html>

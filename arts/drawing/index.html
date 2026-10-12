@@ -1,0 +1,1273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drawing Lab · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="arts">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Drawing Lab</b><small>Arts · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, wait, confetti, PRAISE, KIND, explain, everyday, emoji, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "d0", label: "1. See it", icon: "👀" },
+  { id: "d1", label: "2. Trace the lines", icon: "✏️" },
+  { id: "d2", label: "3. Draw with shapes", icon: "🦉" },
+  { id: "d3", label: "4. Pixel art", icon: "🟥" },
+  { id: "d4", label: "5. Pattern tiles", icon: "🧩" },
+  { id: "d5", label: "6. Free draw", icon: "🖌️" },
+];
+
+const PAINT = ["#e53935", "#fb8c00", "#fdd835", "#43a047", "#1e88e5", "#8e24aa", "#f48fb1", "#8d5a34", "#2b1d12", "#ffffff"];
+const PAINT_NAMES = ["red", "orange", "yellow", "green", "blue", "purple", "pink", "brown", "black", "white"];
+
+// ---------- helpers ----------
+function fresh(bg = "#fdf8ef", vw = W, vh = H) {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${vw} ${vh}`, stage);
+  el("rect", { width: vw, height: vh, fill: bg }, view);
+  return view;
+}
+function svgPoint(event, v = view) {
+  const m = v.getScreenCTM();
+  if (!m) return [0, 0];
+  const p = new DOMPoint(event.clientX, event.clientY).matrixTransform(m.inverse());
+  return [p.x, p.y];
+}
+// Finger / mouse drawing on an SVG: begin(p), move(p), end().
+function ink(v, h) {
+  v.classList.add("dl-ink");
+  let on = false;
+  v.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    on = true;
+    try {
+      v.setPointerCapture(event.pointerId);
+    } catch {}
+    window.OC?.touch();
+    h.begin?.(svgPoint(event, v), event);
+  });
+  v.addEventListener("pointermove", (event) => {
+    if (!on) return;
+    const list = event.getCoalescedEvents ? event.getCoalescedEvents() : [];
+    for (const e of list.length ? list : [event]) h.move?.(svgPoint(e, v), e);
+  });
+  const stop = () => {
+    if (!on) return;
+    on = false;
+    h.end?.();
+  };
+  v.addEventListener("pointerup", stop);
+  v.addEventListener("pointercancel", stop);
+}
+const gen = (fn, n = 160) => "M" + Array.from({ length: n + 1 }, (_, i) => fn(i / n).map((v) => v.toFixed(1)).join(" ")).join(" L");
+const an = (w) => (/^[aeiou]/i.test(w) ? `an ${w}` : `a ${w}`);
+const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+function samplePath(node, step = 10) {
+  const len = node.getTotalLength();
+  const out = [];
+  for (let s = 0; s <= len; s += step) {
+    const p = node.getPointAtLength(s);
+    out.push([p.x, p.y]);
+  }
+  return out;
+}
+function nearest(p, list) {
+  let best = Infinity;
+  for (const q of list) {
+    const d = (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2;
+    if (d < best) best = d;
+  }
+  return Math.sqrt(best);
+}
+function coverage(target, drawn, tol) {
+  if (!drawn.length) return 0;
+  let hit = 0;
+  for (const t of target) if (nearest(t, drawn) <= tol) hit += 1;
+  return hit / target.length;
+}
+function meanAway(drawn, target) {
+  if (!drawn.length) return Infinity;
+  let s = 0;
+  for (const p of drawn) s += nearest(p, target);
+  return s / drawn.length;
+}
+const chipRow = (list, cur, attr) => `<div class="ap-chips">${list.map(([k, label]) => `<button type="button" data-${attr}="${k}" aria-pressed="${k === cur}">${label}</button>`).join("")}</div>`;
+const palRow = (cur, list = PAINT) => `<div class="ap-chips dl-pal">${list.map((c) => `<button type="button" data-paint="${c}" aria-pressed="${c === cur}" aria-label="${PAINT_NAMES[PAINT.indexOf(c)] || "colour"}" style="background:${c}"></button>`).join("")}</div>`;
+const markPal = (cur) => document.querySelectorAll("[data-paint]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.paint === cur)));
+
+// ---------- gallery (localStorage, shared with Famous Artists) ----------
+const GKEY = "oc-drawing-gallery";
+const galleryItems = () => {
+  try {
+    const list = JSON.parse(localStorage.getItem(GKEY) || "[]");
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+};
+function galleryAdd(src, title) {
+  let items = [{ src, title, at: Date.now() }, ...galleryItems()].slice(0, 12);
+  while (items.length) {
+    try {
+      localStorage.setItem(GKEY, JSON.stringify(items));
+      return true;
+    } catch {
+      items = items.slice(0, -1);
+    }
+  }
+  return false;
+}
+function snapshot(v) {
+  return new Promise((resolve) => {
+    try {
+      const clone = v.cloneNode(true);
+      clone.querySelectorAll(".no-save").forEach((n) => n.remove());
+      clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      const vb = v.viewBox.baseVal;
+      clone.setAttribute("width", vb.width);
+      clone.setAttribute("height", vb.height);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const c = document.createElement("canvas");
+          c.width = 500;
+          c.height = Math.round((500 * vb.height) / vb.width);
+          const x = c.getContext("2d");
+          x.fillStyle = "#ffffff";
+          x.fillRect(0, 0, c.width, c.height);
+          x.drawImage(img, 0, 0, c.width, c.height);
+          resolve(c.toDataURL("image/jpeg", 0.82));
+        } catch {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(clone));
+    } catch {
+      resolve(null);
+    }
+  });
+}
+async function saveArt(v, title, id) {
+  const src = await snapshot(v);
+  if (!src || !galleryAdd(src, title)) {
+    MUSIC.oops();
+    say("Oh no, I could not save this picture on this device.");
+    return false;
+  }
+  MUSIC.chime();
+  confetti();
+  shell.mark(id, { done: true });
+  window.OC?.count("drawings saved");
+  say("🎉 Saved to your gallery! Press 🖼️ to see all your pictures.");
+  return true;
+}
+function showGallery() {
+  stage.querySelector(".dl-gal")?.remove();
+  const items = galleryItems();
+  const box = document.createElement("div");
+  box.className = "kt-how dl-gal";
+  box.innerHTML = `<div class="kt-how-card" style="max-width:780px"><h2>🖼️ My gallery</h2>${
+    items.length
+      ? `<div class="dl-gallery">${items.map((it, i) => `<a href="${it.src}" download="oakcrest-drawing-${i + 1}.jpg"><img src="${it.src}" alt="${it.title || "Drawing"}"></a>`).join("")}</div><p style="margin:0;color:var(--muted)">Tap a picture to download it.</p>`
+      : `<p>No pictures yet. Make something and press 💾 Save!</p>`
+  }<button type="button" class="kt-go">Close</button></div>`;
+  stage.appendChild(box);
+  box.querySelector(".kt-go").onclick = () => box.remove();
+  VOICE.speak(items.length ? `You have ${items.length} picture${items.length === 1 ? "" : "s"} in your gallery.` : "No pictures yet.");
+}
+
+// ---------- See it helpers ----------
+async function drawLine(parent, d, api, { color = "#2b1d12", width = 10, ms = 1400, pencil = true } = {}) {
+  const path = el("path", { d, fill: "none", stroke: color, "stroke-width": width, "stroke-linecap": "round", "stroke-linejoin": "round", pathLength: 1, "stroke-dasharray": "1 1", "stroke-dashoffset": 1 }, parent);
+  const len = path.getTotalLength();
+  const tip = pencil ? emoji(parent, 0, 0, "✏️", 48) : null;
+  await api.tween(ms, (t) => {
+    path.setAttribute("stroke-dashoffset", 1 - t);
+    if (tip) {
+      const p = path.getPointAtLength(len * t);
+      tip.setAttribute("x", p.x + 18);
+      tip.setAttribute("y", p.y - 2);
+    }
+  }, (t) => t);
+  tip?.remove();
+  path.removeAttribute("stroke-dasharray");
+  return path;
+}
+const label = (parent, x, y, s, size = 34, fill = "#2b1d12") => text(parent, x, y, s, { "font-size": size, fill, "font-weight": 900 });
+async function pop(node, api, ms = 450) {
+  node.setAttribute("opacity", 0);
+  await api.tween(ms, (t) => node.setAttribute("opacity", t));
+}
+
+// ---------- shape pictures (Draw with shapes + See it cat) ----------
+const tri = (a, b, c) => ({ t: "poly", pts: [a, b, c] });
+const PICS = {
+  owl: {
+    icon: "🦉",
+    name: "owl",
+    steps: [
+      { t: "ellipse", cx: 500, cy: 320, rx: 150, ry: 180, part: "body" },
+      { t: "circle", cx: 445, cy: 265, r: 50, part: "eye" },
+      { t: "circle", cx: 555, cy: 265, r: 50, part: "eye" },
+      { ...tri([476, 322], [524, 322], [500, 366]), part: "beak" },
+      { ...tri([385, 205], [392, 105], [455, 158]), part: "ear" },
+      { ...tri([615, 205], [608, 105], [545, 158]), part: "ear" },
+    ],
+    details(g) {
+      for (const x of [445, 555]) {
+        el("circle", { cx: x, cy: 268, r: 20, fill: "#2b1d12" }, g);
+        el("circle", { cx: x + 7, cy: 260, r: 6, fill: "#fff" }, g);
+      }
+      for (const [x, y] of [[470, 410], [530, 410], [500, 445], [440, 445], [560, 445]]) el("path", { d: `M${x - 14} ${y} Q${x} ${y + 16} ${x + 14} ${y}`, fill: "none", stroke: "#5a4130", "stroke-width": 4, "stroke-linecap": "round" }, g);
+      for (const x of [460, 540]) el("path", { d: `M${x - 22} 500 l10 -16 l12 16 l12 -16 l10 16`, fill: "none", stroke: "#e07b00", "stroke-width": 6, "stroke-linejoin": "round", "stroke-linecap": "round" }, g);
+    },
+  },
+  cat: {
+    icon: "🐱",
+    name: "cat",
+    steps: [
+      { t: "circle", cx: 500, cy: 190, r: 95, part: "head", z: 3 },
+      { ...tri([425, 140], [430, 50], [485, 100]), part: "ear", z: 2 },
+      { ...tri([575, 140], [570, 50], [515, 100]), part: "ear", z: 2 },
+      { t: "ellipse", cx: 500, cy: 405, rx: 130, ry: 108, part: "body", z: 1 },
+      { t: "ellipse", cx: 690, cy: 380, rx: 90, ry: 26, rot: -40, part: "tail", z: 0 },
+    ],
+    details(g) {
+      for (const x of [465, 535]) {
+        el("ellipse", { cx: x, cy: 180, rx: 13, ry: 20, fill: "#2b1d12" }, g);
+        el("circle", { cx: x + 4, cy: 172, r: 4, fill: "#fff" }, g);
+      }
+      el("path", { d: "M490 212 L510 212 L500 224 Z", fill: "#f06292" }, g);
+      el("path", { d: "M500 224 Q490 240 478 234 M500 224 Q510 240 522 234", fill: "none", stroke: "#2b1d12", "stroke-width": 4, "stroke-linecap": "round" }, g);
+      for (const s of [-1, 1]) for (const dy of [-8, 8]) el("line", { x1: 500 + s * 30, y1: 222 + dy / 2, x2: 500 + s * 110, y2: 214 + dy * 2, stroke: "#2b1d12", "stroke-width": 3, "stroke-linecap": "round" }, g);
+    },
+  },
+  fish: {
+    icon: "🐟",
+    name: "fish",
+    steps: [
+      { t: "ellipse", cx: 450, cy: 290, rx: 210, ry: 130, part: "body", z: 2 },
+      { ...tri([640, 290], [820, 170], [820, 410]), part: "tail", z: 0 },
+      { ...tri([395, 175], [480, 95], [545, 175]), part: "fin", z: 1 },
+      { t: "circle", cx: 340, cy: 260, r: 30, part: "eye", z: 3 },
+    ],
+    details(g) {
+      el("circle", { cx: 334, cy: 262, r: 13, fill: "#2b1d12" }, g);
+      el("circle", { cx: 330, cy: 256, r: 4, fill: "#fff" }, g);
+      el("path", { d: "M262 318 Q285 334 306 316", fill: "none", stroke: "#2b1d12", "stroke-width": 5, "stroke-linecap": "round" }, g);
+      for (const [x, y] of [[470, 270], [530, 300], [470, 330], [590, 270], [590, 330], [530, 240]]) el("path", { d: `M${x} ${y - 18} Q${x + 18} ${y} ${x} ${y + 18}`, fill: "none", stroke: "#5a4130", "stroke-width": 4, "stroke-linecap": "round", opacity: 0.7 }, g);
+      for (const [x, y, r] of [[200, 200, 14], [170, 150, 10], [190, 100, 7]]) el("circle", { cx: x, cy: y, r, fill: "none", stroke: "#4fa3d9", "stroke-width": 4 }, g);
+    },
+  },
+  house: {
+    icon: "🏠",
+    name: "house",
+    steps: [
+      { t: "rect", x: 320, y: 250, w: 360, h: 230, part: "walls" },
+      { ...tri([290, 255], [500, 85], [710, 255]), part: "roof" },
+      { t: "rect", x: 465, y: 370, w: 70, h: 110, part: "door" },
+      { t: "rect", x: 360, y: 295, w: 70, h: 70, part: "window" },
+      { t: "rect", x: 570, y: 295, w: 70, h: 70, part: "window" },
+    ],
+    details(g) {
+      el("circle", { cx: 522, cy: 428, r: 6, fill: "#2b1d12" }, g);
+      for (const x of [360, 570]) {
+        el("line", { x1: x + 35, y1: 295, x2: x + 35, y2: 365, stroke: "#5a4130", "stroke-width": 4 }, g);
+        el("line", { x1: x, y1: 330, x2: x + 70, y2: 330, stroke: "#5a4130", "stroke-width": 4 }, g);
+      }
+      el("path", { d: "M120 482 Q500 470 880 482", fill: "none", stroke: "#43a047", "stroke-width": 8, "stroke-linecap": "round" }, g);
+      for (let x = 140; x < 880; x += 44) el("path", { d: `M${x} 482 l6 -18 l6 18`, fill: "none", stroke: "#43a047", "stroke-width": 4, "stroke-linecap": "round" }, g);
+    },
+  },
+  rocket: {
+    icon: "🚀",
+    name: "rocket",
+    steps: [
+      { t: "rect", x: 430, y: 150, w: 140, h: 270, part: "body", z: 2 },
+      { ...tri([430, 150], [500, 45], [570, 150]), part: "nose", z: 3 },
+      { t: "circle", cx: 500, cy: 235, r: 38, part: "window", z: 4 },
+      { ...tri([430, 330], [355, 445], [430, 420]), part: "fin", z: 1 },
+      { ...tri([570, 330], [645, 445], [570, 420]), part: "fin", z: 1 },
+    ],
+    details(g) {
+      el("path", { d: "M450 425 Q500 560 550 425 Z", fill: "#fb8c00" }, g);
+      el("path", { d: "M472 425 Q500 510 528 425 Z", fill: "#fdd835" }, g);
+      el("circle", { cx: 488, cy: 223, r: 9, fill: "#fff", opacity: 0.8 }, g);
+      for (const [x, y] of [[200, 120], [800, 90], [760, 300], [230, 380], [860, 450]]) text(g, x, y, "★", { "font-size": 40, fill: "#f2b705" });
+    },
+  },
+};
+const PIC_ORDER = ["owl", "cat", "fish", "house", "rocket"];
+function shapeEl(s, attrs, parent) {
+  const rot = s.rot ? `rotate(${s.rot} ${s.cx} ${s.cy})` : null;
+  if (s.t === "circle") return el("circle", { cx: s.cx, cy: s.cy, r: s.r, ...attrs }, parent);
+  if (s.t === "ellipse") return el("ellipse", { cx: s.cx, cy: s.cy, rx: s.rx, ry: s.ry, transform: rot, ...attrs }, parent);
+  if (s.t === "rect") return el("rect", { x: s.x, y: s.y, width: s.w, height: s.h, ...attrs }, parent);
+  return el("polygon", { points: s.pts.map((p) => p.join(",")).join(" "), ...attrs }, parent);
+}
+function shapeOutline(s, step = 10) {
+  const tmp = shapeEl(s, { fill: "none", stroke: "none" }, view);
+  const pts = samplePath(tmp, step);
+  tmp.remove();
+  if (!s.rot) return pts;
+  const a = (s.rot * Math.PI) / 180;
+  return pts.map(([x, y]) => [s.cx + (x - s.cx) * Math.cos(a) - (y - s.cy) * Math.sin(a), s.cy + (x - s.cx) * Math.sin(a) + (y - s.cy) * Math.cos(a)]);
+}
+function shapeWord(s) {
+  if (s.t === "circle") return ["circle", "A circle is round. It has no corners."];
+  if (s.t === "ellipse") return ["oval", "An oval is a stretched circle, like an egg."];
+  if (s.t === "poly") return ["triangle", "A triangle has 3 sides and 3 corners."];
+  if (s.w === s.h) return ["square", "A square has 4 sides, all the same length."];
+  return ["rectangle", "A rectangle has 4 sides and 4 corners."];
+}
+
+// ---------- pixel art pictures ----------
+const PIX = {
+  R: "#e53935",
+  P: "#f48fb1",
+  Y: "#fdd835",
+  K: "#2b1d12",
+  W: "#ffffff",
+  T: "#e0b98a",
+  G: "#43a047",
+  B: "#1e88e5",
+  O: "#fb8c00",
+  U: "#8e24aa",
+};
+const PIXEL_PICS = {
+  heart: { icon: "❤️", rows: ["............", ".RRR....RRR.", "RRRRR..RRRRR", "RRPRRRRRRRRR", "RPRRRRRRRRRR", "RRRRRRRRRRRR", ".RRRRRRRRRR.", "..RRRRRRRR..", "...RRRRRR...", "....RRRR....", ".....RR.....", "............"] },
+  smiley: { icon: "😊", rows: ["....YYYY....", "..YYYYYYYY..", ".YYYYYYYYYY.", ".YYKYYYYKYY.", "YYYKYYYYKYYY", "YYYYYYYYYYYY", "YYYYYYYYYYYY", "YYKYYYYYYKYY", ".YYKYYYYKYY.", ".YYYKKKKYYY.", "..YYYYYYYY..", "....YYYY...."] },
+  mushroom: { icon: "🍄", rows: ["....RRRR....", "..RRRRRRRR..", ".RWWRRRRWWR.", ".RWWRRRRWWR.", "RRRRRWWRRRRR", "RRRRRWWRRRRR", "RRRRRRRRRRRR", "...TTTTTT...", "...TKTTKT...", "...TTTTTT...", "..GTTTTTTG..", "GGGGGGGGGGGG"] },
+};
+const EMPTY = "#efe7da";
+
+// ---------- pattern tiles ----------
+const flipH = (t) => t.map((row) => [...row].reverse().map((c) => ({ ...c, s: [0, 2, 1, 4, 3][c.s] })));
+const flipV = (t) => [...t].reverse().map((row) => row.map((c) => ({ ...c, s: [0, 4, 3, 2, 1][c.s] })));
+const rot90 = (t) => t.map((row, r) => row.map((_, c) => ({ ...t[3 - c][r], s: [0, 2, 3, 4, 1][t[3 - c][r].s] })));
+const sig = (t) => t.map((row) => row.map((c) => (c.c ? c.c + c.s : "-")).join(",")).join("|");
+function cellShape(g, x, y, size, cell) {
+  if (!cell.c) return;
+  const [a, b, c, d] = [[x, y], [x + size, y], [x + size, y + size], [x, y + size]];
+  const pts = [null, [a, b, d], [a, b, c], [b, c, d], [a, c, d]][cell.s];
+  if (!pts) el("rect", { x, y, width: size, height: size, fill: cell.c }, g);
+  else el("polygon", { points: pts.map((p) => p.join(",")).join(" "), fill: cell.c }, g);
+}
+
+// ---------- units ----------
+const units = {
+  d0() {
+    const my = token;
+    explain(
+      [
+        {
+          say: "Why do we learn to draw? Pictures help us share ideas, without any words at all.",
+          draw: everyday([
+            ["💌", "A card for grandma"],
+            ["🗺️", "Maps to find the way"],
+            ["🏗️", "Plans for building"],
+            ["📖", "Stories in pictures"],
+          ]),
+        },
+        {
+          say: "Every drawing starts with a line. This is a <b>straight</b> line. It never bends.",
+          async draw(v, api) {
+            el("rect", { width: W, height: H, fill: "#fdf8ef" }, v);
+            await api.wait(500);
+            await drawLine(v, "M150 260 L850 260", api, { ms: 1800 });
+            label(v, 500, 360, "straight", 52);
+            emoji(v, 500, 450, "📏", 70);
+          },
+        },
+        {
+          say: "A <b>curved</b> line bends, like a rainbow. A <b>zigzag</b> line goes up and down with sharp points.",
+          async draw(v, api) {
+            el("rect", { width: W, height: H, fill: "#fdf8ef" }, v);
+            await api.wait(400);
+            await drawLine(v, "M90 330 Q270 40 450 330", api, { color: "#e53935", ms: 1600 });
+            label(v, 270, 420, "curved 🌈", 40);
+            await api.wait(500);
+            await drawLine(v, "M550 330 L612 150 L675 330 L737 150 L800 330 L862 150 L925 330", api, { color: "#1e88e5", ms: 1800 });
+            label(v, 737, 420, "zigzag ⚡", 40);
+          },
+        },
+        {
+          say: "A <b>wavy</b> line goes up and down smoothly, like the sea. A <b>spiral</b> goes round and round, like a snail.",
+          async draw(v, api) {
+            el("rect", { width: W, height: H, fill: "#fdf8ef" }, v);
+            await api.wait(400);
+            await drawLine(v, gen((t) => [70 + 400 * t, 250 + 70 * Math.sin(t * Math.PI * 4)]), api, { color: "#43a047", ms: 1800 });
+            label(v, 270, 420, "wavy 🌊", 40);
+            await api.wait(500);
+            await drawLine(v, gen((t) => [740 + (8 + 150 * t) * Math.cos(t * Math.PI * 6), 250 + (8 + 150 * t) * Math.sin(t * Math.PI * 6)]), api, { color: "#8e24aa", ms: 2400 });
+            label(v, 740, 470, "spiral 🐌", 40);
+          },
+        },
+        {
+          say: "When a line joins up, it makes a <b>shape</b>. A circle has no corners. A triangle has 3 sides. An oval is a stretched circle.",
+          async draw(v, api) {
+            el("rect", { width: W, height: H, fill: "#fdf8ef" }, v);
+            const shapes = [
+              ["M200 140 A110 110 0 1 1 199.9 140", 200, "circle", "0 corners"],
+              ["M500 140 L620 360 L380 360 Z", 500, "triangle", "3 sides"],
+              ["M800 160 A90 110 0 1 1 799.9 160", 800, "oval", "stretched circle"],
+            ];
+            for (const [d, x, name, note] of shapes) {
+              await api.wait(300);
+              const p = await drawLine(v, d, api, { color: "#5a4130", ms: 1300 });
+              p.setAttribute("fill", "#fff3d6");
+              v.insertBefore(p, v.children[1]);
+              label(v, x, 430, name, 40);
+              text(v, x, 475, note, { "font-size": 26, fill: "#8a7764" });
+            }
+          },
+        },
+        {
+          say: "Artists build pictures from simple shapes. Watch! A circle head, two triangle ears, and an oval body make a cat.",
+          async draw(v, api) {
+            el("rect", { width: W, height: H, fill: "#fdf8ef" }, v);
+            const pic = PICS.cat;
+            const order = [0, 1, 2, 3, 4];
+            const g = el("g", { transform: "translate(170 20) scale(0.92)" }, v);
+            const words = el("g", {}, v);
+            for (const i of order) {
+              const s = pic.steps[i];
+              const node = shapeEl(s, { fill: "none", stroke: "#5a4130", "stroke-width": 7, "stroke-linejoin": "round", pathLength: 1, "stroke-dasharray": "1 1", "stroke-dashoffset": 1 }, g);
+              words.innerHTML = "";
+              label(words, 160, 260, shapeWord(s)[0], 42, "#b8620f");
+              await api.tween(1100, (t) => node.setAttribute("stroke-dashoffset", 1 - t));
+              await api.wait(500);
+            }
+            words.innerHTML = "";
+            label(words, 160, 260, "a cat!", 46, "#b8620f");
+            await api.wait(400);
+            const kids = [...g.children];
+            kids.forEach((n) => n.setAttribute("fill", "#f6b26b"));
+            order.map((i) => [kids[i], pic.steps[i].z ?? i]).sort((a, b) => a[1] - b[1]).forEach(([n]) => g.appendChild(n));
+          },
+        },
+        {
+          say: "Start big and simple. Then add small details, like eyes and whiskers. Now it's your turn to draw!",
+          async draw(v, api) {
+            el("rect", { width: W, height: H, fill: "#fdf8ef" }, v);
+            const pic = PICS.cat;
+            const g = el("g", { transform: "translate(170 20) scale(0.92)" }, v);
+            [...pic.steps].map((s, i) => ({ s, z: s.z ?? i })).sort((a, b) => a.z - b.z).forEach(({ s }) => shapeEl(s, { fill: "#f6b26b", stroke: "#5a4130", "stroke-width": 7, "stroke-linejoin": "round" }, g));
+            await api.wait(900);
+            const d = el("g", { opacity: 0 }, g);
+            pic.details(d);
+            await api.tween(1200, (t) => d.setAttribute("opacity", t));
+            emoji(v, 860, 120, "✏️", 80);
+          },
+        },
+      ],
+      { alive: () => my === token, onDone: () => shell.go("d1"), title: "Drawing Lab" },
+    );
+  },
+
+  // ----- Trace the lines -----
+  d1() {
+    const my = token;
+    const POOLS = {
+      easy: [
+        ["straight line", "M160 300 L840 300"],
+        ["line going down", "M500 80 L500 480"],
+        ["slanted line", "M200 460 L800 120"],
+        ["curved line", "M150 420 Q500 -20 850 420"],
+        ["smile curve", "M200 180 Q500 640 800 180"],
+        ["zigzag line", "M150 400 L325 160 L500 400 L675 160 L850 400"],
+      ],
+      medium: [
+        ["wavy line", gen((t) => [140 + 720 * t, 290 + 110 * Math.sin(t * Math.PI * 4)])],
+        ["circle", gen((t) => [500 + 190 * Math.cos(t * Math.PI * 2 - Math.PI / 2), 290 + 190 * Math.sin(t * Math.PI * 2 - Math.PI / 2)])],
+        ["bumpy line", gen((t) => [140 + 720 * t, 380 - 190 * Math.abs(Math.sin(t * Math.PI * 3))])],
+        ["square", "M330 120 L670 120 L670 460 L330 460 Z"],
+        ["S curve", "M300 120 C700 120 700 290 500 290 C300 290 300 460 700 460"],
+        ["mountain zigzag", "M120 440 L240 200 L330 330 L500 100 L670 330 L760 200 L880 440"],
+      ],
+      hard: [
+        ["spiral", gen((t) => [500 + (14 + 200 * t) * Math.cos(t * Math.PI * 6), 290 + (14 + 200 * t) * Math.sin(t * Math.PI * 6)], 240)],
+        ["loopy line", gen((t) => { const u = t * Math.PI * 8; return [190 + 26 * u - 70 * Math.sin(u), 300 + 90 * Math.cos(u)]; }, 240)],
+        ["figure eight", gen((t) => { const s = t * Math.PI * 2; const d = 1 + Math.sin(s) ** 2; return [500 + 340 * Math.cos(s) / d, 290 + 340 * Math.sin(s) * Math.cos(s) / d]; }, 200)],
+        ["star", gen((t) => { const k = Math.floor(t * 5 * 0.9999); const f = t * 5 - k; const p = (i) => [500 + 220 * Math.cos(-Math.PI / 2 + (i * 4 * Math.PI) / 5), 300 + 220 * Math.sin(-Math.PI / 2 + (i * 4 * Math.PI) / 5)]; const a = p(k); const b = p(k + 1); return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; }, 200)],
+        ["heart", gen((t) => { const s = t * Math.PI * 2; return [500 + 13 * 16 * Math.sin(s) ** 3, 280 - 13 * (13 * Math.cos(s) - 5 * Math.cos(2 * s) - 2 * Math.cos(3 * s) - Math.cos(4 * s))]; }, 200)],
+        ["wave of loops", gen((t) => { const u = t * Math.PI * 6; return [180 + 34 * u - 60 * Math.sin(u), 290 + 60 * Math.cos(u) + 80 * Math.sin(t * Math.PI * 2)]; }, 240)],
+      ],
+    };
+    const TOL = { easy: 50, medium: 42, hard: 36 };
+    let level = shell.progress().d1?.level || "easy";
+    let list = [];
+    let round = 0;
+    let stars = 0;
+    let target = [];
+    let drawn = [];
+    let inkLayer;
+    let pathNode;
+    let busy = false;
+    let cur = null;
+    panel(`${chipRow([["easy", "🐣 Easy"], ["medium", "🦊 Medium"], ["hard", "🦁 Hard"]], level, "lv")}<div class="ap-buttons"><span class="ap-status" data-status></span><button type="button" data-do="show">👀 Show me</button><button type="button" data-do="again">🧽 Try again</button></div>`);
+    const demo = async () => {
+      if (!pathNode) return;
+      const len = pathNode.getTotalLength();
+      const hand = emoji(view, 0, 0, "👆", 60, { class: "no-save", "pointer-events": "none" });
+      const t0 = performance.now();
+      const ms = Math.max(1600, len * 2.2);
+      while (my === token && hand.isConnected) {
+        const t = Math.min(1, (performance.now() - t0) / ms);
+        const p = pathNode.getPointAtLength(len * t);
+        hand.setAttribute("x", p.x + 6);
+        hand.setAttribute("y", p.y + 46);
+        if (t >= 1) break;
+        await new Promise((r) => requestAnimationFrame(r));
+      }
+      await wait(300);
+      hand.remove();
+    };
+    const draw = () => {
+      fresh();
+      const [name, d] = cur;
+      pathNode = el("path", { d, fill: "none", stroke: "#e6d8c2", "stroke-width": 40, "stroke-linecap": "round", "stroke-linejoin": "round" }, view);
+      el("path", { d, fill: "none", stroke: "#a8916f", "stroke-width": 12, "stroke-linecap": "round", "stroke-dasharray": "0.1 24" }, view);
+      target = samplePath(pathNode, 8);
+      const a = target[0];
+      const b = target[target.length - 1];
+      const closed = dist(a, b) < 20;
+      el("circle", { cx: a[0], cy: a[1], r: 24, fill: "#22a05a" }, view);
+      text(view, a[0], a[1] + 9, "▶", { "font-size": 24, fill: "#fff", "pointer-events": "none" });
+      if (!closed) emoji(view, b[0], b[1], "⭐", 48, { "pointer-events": "none" });
+      text(view, 500, 545, name, { "font-size": 26, fill: "#8a7764", class: "no-save" });
+      inkLayer = el("g", { "pointer-events": "none" }, view);
+      drawn = [];
+      let line = null;
+      let near = null;
+      ink(view, {
+        begin(p) {
+          if (busy) return;
+          line = null;
+          near = null;
+          this.move(p);
+        },
+        move(p) {
+          if (busy) return;
+          const ok = nearest(p, target) <= TOL[level];
+          if (!line || ok !== near) {
+            const last = line ? line.dataset.last : null;
+            line = el("polyline", { points: last ? `${last} ${p[0]},${p[1]}` : `${p[0]},${p[1]} ${p[0] + 0.1},${p[1]}`, fill: "none", stroke: ok ? "#22a05a" : "#f08a24", "stroke-width": 14, "stroke-linecap": "round", "stroke-linejoin": "round" }, inkLayer);
+            near = ok;
+          } else line.setAttribute("points", `${line.getAttribute("points")} ${p[0]},${p[1]}`);
+          line.dataset.last = `${p[0]},${p[1]}`;
+          drawn.push(p);
+        },
+        end: () => judge(),
+      });
+      $("[data-status]").textContent = `Line ${round + 1} of 8 · ⭐ ${stars}`;
+    };
+    const next = () => {
+      if (my !== token) return;
+      busy = false;
+      cur = list[round % list.length];
+      draw();
+      say(`Trace the <b>${cur[0]}</b>. Start at the green dot and follow the dots with your finger.`);
+      demo();
+    };
+    const judge = async () => {
+      if (my !== token || busy || drawn.length < 3) return;
+      const tol = TOL[level];
+      const cov = coverage(target, drawn, tol);
+      const away = meanAway(drawn, target);
+      if (away > tol * 0.8 && drawn.length > 8) {
+        busy = true;
+        MUSIC.oops();
+        say(`${pick(KIND)} Your line went away from the dots, so let's try again. Go slowly and keep your finger on the dots.`);
+        await wait(1600);
+        if (my !== token) return;
+        busy = false;
+        inkLayer.innerHTML = "";
+        drawn = [];
+        return;
+      }
+      if (cov < 0.85) return say("Good! Keep going along the dots, all the way to the end.", { voice: cov > 0.3 });
+      busy = true;
+      const got = away < tol * 0.3 ? 3 : away < tol * 0.5 ? 2 : 1;
+      stars += got;
+      round += 1;
+      MUSIC.chime();
+      window.OC?.count("lines traced");
+      text(view, 500, 80, "⭐".repeat(got), { "font-size": 64, class: "no-save" });
+      say(`${pick(PRAISE)} ${got === 3 ? "Super close to the dots!" : got === 2 ? "Nice and close!" : "You did it! Next time, try to stay right on the dots."}`);
+      $("[data-status]").textContent = `Line ${round} of 8 · ⭐ ${stars}`;
+      await wait(2300);
+      if (my !== token) return;
+      if (round >= 8) {
+        confetti();
+        shell.mark("d1", { done: true, level });
+        say(`🎉 You traced 8 lines and won ${stars} stars! ${level === "hard" ? "You are a tracing champion!" : "Try a harder level next!"}`);
+        round = 0;
+        stars = 0;
+        list = shuffle(POOLS[level]);
+        await wait(3600);
+      }
+      next();
+    };
+    const start = (lv) => {
+      level = lv;
+      round = 0;
+      stars = 0;
+      list = shuffle(POOLS[level]);
+      document.querySelectorAll("[data-lv]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lv === lv)));
+      next();
+    };
+    $("[data-panel]").onclick = (event) => {
+      if (my !== token) return;
+      const lv = event.target.closest("[data-lv]")?.dataset.lv;
+      if (lv) return start(lv);
+      const what = event.target.closest("[data-do]")?.dataset.do;
+      if (what === "show") demo();
+      if (what === "again" && !busy) {
+        inkLayer.innerHTML = "";
+        drawn = [];
+        say("Fresh start! Begin at the green dot.");
+      }
+    };
+    start(level);
+  },
+
+  // ----- Draw with shapes -----
+  d2() {
+    const my = token;
+    let picKey = "owl";
+    let step = 0;
+    let phase = "draw";
+    let color = PAINT[0];
+    let tries = 0;
+    let strokes = [];
+    let layers;
+    let outline = [];
+    let busy = false;
+    const colored = new Set();
+    let celebrated = false;
+    const drawPanel = () => {
+      panel(`${chipRow(PIC_ORDER.map((k) => [k, `${PICS[k].icon} ${PICS[k].name}`]), picKey, "pic")}<div class="ap-buttons"><span class="ap-status" data-status></span><button type="button" data-do="undo">↩️ Undo</button><button type="button" data-do="skip">⏭️ Next shape</button></div>`);
+      status();
+    };
+    const colourPanel = () => {
+      panel(`${palRow(color, PAINT.slice(0, 9))}<div class="ap-buttons"><span class="ap-status" data-status></span><button type="button" class="primary" data-do="save">💾 Save</button><button type="button" data-do="gallery" aria-label="Gallery">🖼️</button><button type="button" data-do="new">🔁 New picture</button></div>`);
+      status();
+    };
+    const status = () => {
+      const box = $("[data-status]");
+      if (!box) return;
+      const pic = PICS[picKey];
+      box.textContent = phase === "draw" ? `Shape ${Math.min(step + 1, pic.steps.length)} of ${pic.steps.length}` : `Coloured ${colored.size} of ${pic.steps.length}`;
+    };
+    const build = () => {
+      fresh("#fffdf8");
+      layers = { fills: el("g", {}, view), guide: el("g", { class: "no-save", "pointer-events": "none" }, view), strokes: el("g", { "pointer-events": "none" }, view), details: el("g", { "pointer-events": "none" }, view) };
+      render();
+      ink(view, {
+        begin(p) {
+          if (phase !== "draw" || busy) return;
+          const line = el("polyline", { points: `${p[0]},${p[1]} ${p[0] + 0.1},${p[1]}`, fill: "none", stroke: "#3b2a1c", "stroke-width": 9, "stroke-linecap": "round", "stroke-linejoin": "round" }, layers.strokes);
+          strokes.push({ line, pts: [p], step });
+        },
+        move(p) {
+          if (phase !== "draw" || busy) return;
+          const s = strokes[strokes.length - 1];
+          if (!s) return;
+          s.pts.push(p);
+          s.line.setAttribute("points", `${s.line.getAttribute("points")} ${p[0]},${p[1]}`);
+        },
+        end: () => phase === "draw" && checkStep(),
+      });
+      view.addEventListener("pointerdown", (event) => {
+        if (phase !== "colour" || my !== token) return;
+        const part = event.target.closest(".dl-part");
+        if (!part) return;
+        part.setAttribute("fill", color);
+        colored.add(part.dataset.i);
+        MUSIC.play("xylophone", 72 + PAINT.indexOf(color) * 2, { gain: 0.35 });
+        status();
+        if (colored.size === PICS[picKey].steps.length && !celebrated) {
+          celebrated = true;
+          MUSIC.chime();
+          confetti();
+          window.OC?.count("shape pictures");
+          shell.mark("d2", { done: true, [picKey]: true });
+          say(`🎉 What a beautiful ${PICS[picKey].name}! Press 💾 Save to keep it in your gallery.`);
+        }
+      });
+    };
+    const render = () => {
+      const pic = PICS[picKey];
+      layers.fills.innerHTML = "";
+      layers.guide.innerHTML = "";
+      pic.steps
+        .map((s, i) => ({ s, i, z: s.z ?? i }))
+        .filter(({ i }) => i < step)
+        .sort((a, b) => a.z - b.z)
+        .forEach(({ s, i }) => shapeEl(s, { class: "dl-part", "data-i": i, fill: "#fffdf8", stroke: "#c9b8a1", "stroke-width": 3, "stroke-linejoin": "round" }, layers.fills));
+      if (phase === "draw" && step < pic.steps.length) {
+        const s = pic.steps[step];
+        shapeEl(s, { fill: "rgba(240,138,36,.10)", stroke: "#f08a24", "stroke-width": 8, "stroke-dasharray": "4 16", "stroke-linecap": "round", "stroke-linejoin": "round", class: "dl-ghost" }, layers.guide);
+        outline = shapeOutline(s, 8);
+      }
+    };
+    const ask = () => {
+      const s = PICS[picKey].steps[step];
+      const [word, fact] = shapeWord(s);
+      say(`Draw ${an(word).replace(word, `<b>${word}</b>`)} for the ${s.part}. Go over the orange dots. ${step === 0 ? fact : ""}`);
+    };
+    const accept = async (helped) => {
+      busy = true;
+      const s = PICS[picKey].steps[step];
+      MUSIC.play("xylophone", 76 + step * 2, { gain: 0.45 });
+      if (!helped) MUSIC.chime();
+      say(helped ? `Good try! I'll help with this ${shapeWord(s)[0]}.` : `${pick(PRAISE)} ${shapeWord(s)[1]}`);
+      step += 1;
+      tries = 0;
+      render();
+      status();
+      await wait(helped ? 1500 : 2200);
+      if (my !== token) return;
+      busy = false;
+      if (step >= PICS[picKey].steps.length) return finishDrawing();
+      ask();
+    };
+    const checkStep = () => {
+      if (my !== token || busy) return;
+      const pts = strokes.filter((s) => s.step === step).flatMap((s) => s.pts);
+      const cov = coverage(outline, pts, 38);
+      if (cov >= 0.6) return accept(false);
+      tries += 1;
+      if (tries >= 4) return accept(true);
+      const last = strokes[strokes.length - 1]?.pts || [];
+      if (meanAway(last, outline) > 70) {
+        MUSIC.oops();
+        say(`${pick(KIND)} Draw right on top of the orange dots, so your shape lands in the right place.`);
+        const bad = strokes.pop();
+        setTimeout(() => bad?.line.remove(), 900);
+      } else say(`Keep going! Go all the way round the ${shapeWord(PICS[picKey].steps[step])[0]}.`);
+    };
+    const finishDrawing = async () => {
+      phase = "colour";
+      PICS[picKey].details(layers.details);
+      render();
+      colourPanel();
+      MUSIC.chime();
+      window.OC?.touch();
+      say(`You drew a ${PICS[picKey].name} from shapes! Now pick a paint and tap each part to colour it in.`);
+    };
+    const load = (key) => {
+      picKey = key;
+      step = 0;
+      phase = "draw";
+      tries = 0;
+      strokes = [];
+      colored.clear();
+      celebrated = false;
+      busy = false;
+      drawPanel();
+      build();
+      say(`Let's draw ${an(PICS[key].name)} ${PICS[key].icon} from ${PICS[key].steps.length} shapes. ${(() => {
+        const s = PICS[key].steps[0];
+        const [word, fact] = shapeWord(s);
+        return `First, ${an(word).replace(word, `<b>${word}</b>`)} for the ${s.part}. ${fact} Draw over the orange dots.`;
+      })()}`);
+    };
+    $("[data-panel]").onclick = async (event) => {
+      if (my !== token) return;
+      const k = event.target.closest("[data-pic]")?.dataset.pic;
+      if (k) return load(k);
+      const c = event.target.closest("[data-paint]")?.dataset.paint;
+      if (c) {
+        color = c;
+        markPal(c);
+        MUSIC.play("xylophone", 72 + PAINT.indexOf(c) * 2, { gain: 0.3 });
+        return;
+      }
+      const what = event.target.closest("[data-do]")?.dataset.do;
+      if (what === "undo") {
+        const s = strokes.pop();
+        if (s && s.step === step) s.line.remove();
+        else if (s) strokes.push(s);
+      }
+      if (what === "skip" && !busy && phase === "draw") accept(true);
+      if (what === "save") saveArt(view, PICS[picKey].name, "d2");
+      if (what === "gallery") showGallery();
+      if (what === "new") load(PIC_ORDER[(PIC_ORDER.indexOf(picKey) + 1) % PIC_ORDER.length]);
+    };
+    load(picKey);
+  },
+
+  // ----- Pixel art -----
+  d3() {
+    const my = token;
+    let mode = "heart";
+    let color = PIX.R;
+    let grid = [];
+    let cells = [];
+    const N = 12;
+    let S = 42;
+    let X0 = 330;
+    let Y0 = 28;
+    const keys = () => (mode === "free" ? Object.keys(PIX) : [...new Set(PIXEL_PICS[mode].rows.join("").replace(/\./g, ""))]);
+    const build = () => {
+      panel(`${chipRow([["heart", "❤️ Heart"], ["smiley", "😊 Smiley"], ["mushroom", "🍄 Mushroom"], ["free", "✨ Free"]], mode, "mode")}<div class="ap-chips dl-pal">${keys().map((k) => `<button type="button" data-paint="${PIX[k]}" aria-pressed="${PIX[k] === color}" aria-label="colour" style="background:${PIX[k]}"></button>`).join("")}<button type="button" data-paint="" aria-pressed="${color === ""}" aria-label="Eraser" style="background:#fff;font-size:22px">🧽</button></div><div class="ap-buttons">${mode === "free" ? "" : `<button type="button" class="primary" data-do="check">Check ✓</button>`}<button type="button" data-do="clear">🗑️ Clear</button><button type="button" data-do="save">💾 Save</button><button type="button" data-do="gallery" aria-label="Gallery">🖼️</button></div>`);
+      // A compact view: the grid fills most of the stage, so the squares stay big enough to tap on phones.
+      [S, X0, Y0] = [42, 250, 12];
+      fresh("#fdf8ef", 770, 530);
+      const T = { x: 22, y: 170, cell: 14, label: [106, 140], note: [106, 370] };
+      if (mode !== "free") {
+        const rows = PIXEL_PICS[mode].rows;
+        el("rect", { x: T.x - 6, y: T.y - 6, width: T.cell * 12 + 12, height: T.cell * 12 + 12, rx: 12, fill: "#fff", stroke: "#d9cdb5", "stroke-width": 3, class: "no-save" }, view);
+        rows.forEach((row, r) => [...row].forEach((ch, c) => el("rect", { x: T.x + c * T.cell, y: T.y + r * T.cell, width: T.cell, height: T.cell, fill: ch === "." ? EMPTY : PIX[ch], stroke: "#fff", "stroke-width": 1, class: "no-save" }, view)));
+        text(view, T.label[0], T.label[1], "Copy me!", { "font-size": 30, fill: "#2b1d12", class: "no-save" });
+        text(view, T.note[0], T.note[1], "12 × 12 =", { "font-size": 22, fill: "#8a7764", class: "no-save" });
+        text(view, T.note[0], T.note[1] + 28, "144 squares", { "font-size": 22, fill: "#8a7764", class: "no-save" });
+      } else {
+        text(view, 116, 240, "✨", { "font-size": 70, class: "no-save" });
+        text(view, 116, 300, "Make", { "font-size": 28, fill: "#2b1d12", class: "no-save" });
+        text(view, 116, 334, "your own!", { "font-size": 28, fill: "#2b1d12", class: "no-save" });
+      }
+      const g = el("g", {}, view);
+      cells = [];
+      for (let r = 0; r < N; r++) {
+        cells.push([]);
+        for (let c = 0; c < N; c++) cells[r].push(el("rect", { x: X0 + c * S, y: Y0 + r * S, width: S - 2, height: S - 2, rx: 5, fill: grid[r][c] || EMPTY }, g));
+      }
+      for (let i = 0; i <= N; i += 4) {
+        el("line", { x1: X0 - 1 + i * S, y1: Y0 - 1, x2: X0 - 1 + i * S, y2: Y0 + N * S, stroke: "#c9b8a1", "stroke-width": 2, class: "no-save", "pointer-events": "none" }, view);
+        el("line", { x1: X0 - 1, y1: Y0 - 1 + i * S, x2: X0 + N * S, y2: Y0 - 1 + i * S, stroke: "#c9b8a1", "stroke-width": 2, class: "no-save", "pointer-events": "none" }, view);
+      }
+      let last = "";
+      const paintAt = (p) => {
+        const c = Math.floor((p[0] - X0) / S);
+        const r = Math.floor((p[1] - Y0) / S);
+        if (r < 0 || c < 0 || r >= N || c >= N || last === `${r},${c}`) return;
+        last = `${r},${c}`;
+        grid[r][c] = color;
+        cells[r][c].setAttribute("fill", color || EMPTY);
+        MUSIC.play("xylophone", 72 + ((r + c) % 12) * 2, { gain: 0.22 });
+      };
+      ink(view, { begin: (p) => ((last = ""), paintAt(p)), move: paintAt, end: () => (last = "") });
+    };
+    const clear = () => (grid = Array.from({ length: N }, () => Array(N).fill("")));
+    const start = (m) => {
+      mode = m;
+      clear();
+      color = PIX[keys()[0]];
+      build();
+      say(m === "free" ? "Pick a colour and tap or drag on the squares to make your own pixel picture!" : `Copy the ${m}! Pick a colour, then tap the squares in the same places.`);
+    };
+    const check = async () => {
+      const rows = PIXEL_PICS[mode].rows;
+      let wrong = 0;
+      let first = null;
+      for (let r = 0; r < N; r++)
+        for (let c = 0; c < N; c++) {
+          const want = rows[r][c] === "." ? "" : PIX[rows[r][c]];
+          if ((grid[r][c] || "") !== want) {
+            wrong += 1;
+            first ||= [r, c, want];
+          }
+        }
+      if (!wrong) {
+        MUSIC.chime();
+        confetti();
+        window.OC?.count("pixel pictures");
+        const done = new Set([...(shell.progress().d3?.pics || []), mode]);
+        shell.mark("d3", { pics: [...done], done: true });
+        say(`${pick(PRAISE)} Your ${mode} matches, square for square! Press 💾 Save to keep it.`);
+        return;
+      }
+      MUSIC.oops();
+      const [r, c, want] = first;
+      const name = want ? Object.keys(PIX).find((k) => PIX[k] === want) : "";
+      const word = { R: "red", P: "pink", Y: "yellow", K: "black", W: "white", T: "tan", G: "green", B: "blue", O: "orange", U: "purple" }[name] || "empty";
+      const hl = el("rect", { x: X0 + c * S - 4, y: Y0 + r * S - 4, width: S + 6, height: S + 6, rx: 8, fill: "none", stroke: "#f08a24", "stroke-width": 6, class: "no-save", "pointer-events": "none" }, view);
+      setTimeout(() => hl.remove(), 2600);
+      say(`${wrong} square${wrong === 1 ? "" : "s"} to fix. Look at row ${r + 1}, square ${c + 1} from the left: it should be ${word}.`);
+    };
+    $("[data-panel]").onclick = (event) => {
+      if (my !== token) return;
+      const m = event.target.closest("[data-mode]")?.dataset.mode;
+      if (m) return start(m);
+      const p = event.target.closest("[data-paint]");
+      if (p) {
+        color = p.dataset.paint;
+        markPal(color);
+        return;
+      }
+      const what = event.target.closest("[data-do]")?.dataset.do;
+      if (what === "check") check();
+      if (what === "clear") {
+        clear();
+        cells.forEach((row) => row.forEach((n) => n.setAttribute("fill", EMPTY)));
+      }
+      if (what === "save") {
+        if (!grid.flat().some(Boolean)) return say("Colour some squares first!");
+        saveArt(view, "pixel art", "d3");
+      }
+      if (what === "gallery") showGallery();
+    };
+    start(mode);
+  },
+
+  // ----- Pattern tiles -----
+  d4() {
+    const my = token;
+    const COLS = ["#e53935", "#fdd835", "#1e88e5", "#43a047", "#2b1d12"];
+    let mode = "slide";
+    let color = COLS[0];
+    let tile = [];
+    let quiz = null;
+    let round = 0;
+    let right = 0;
+    const blank = () => Array.from({ length: 4 }, () => Array.from({ length: 4 }, () => ({ c: "", s: 0 })));
+    const starter = () => {
+      const t = blank();
+      t[0][0] = { c: "#e53935", s: 1 };
+      t[0][1] = { c: "#fdd835", s: 0 };
+      t[1][0] = { c: "#1e88e5", s: 0 };
+      t[1][1] = { c: "#e53935", s: 3 };
+      t[3][3] = { c: "#43a047", s: 0 };
+      return t;
+    };
+    const tileAt = (t, i, j, how) => {
+      if (how === "flip") {
+        let out = t;
+        if (i % 2) out = flipH(out);
+        if (j % 2) out = flipV(out);
+        return out;
+      }
+      if (how === "turn") {
+        let out = t;
+        const turns = [[0, 1], [3, 2]][j % 2][i % 2];
+        for (let k = 0; k < turns; k++) out = rot90(out);
+        return out;
+      }
+      return t;
+    };
+    const wallpaper = (t, how, { x0 = 330, y0 = 40, size = 20, cols = 8, rows = 6, animate = true } = {}) => {
+      const g = el("g", {}, view);
+      el("rect", { x: x0, y: y0, width: cols * size * 4, height: rows * size * 4, fill: "#fff" }, g);
+      const tiles = [];
+      for (let j = 0; j < rows; j++)
+        for (let i = 0; i < cols; i++) {
+          const tg = el("g", { opacity: animate ? 0 : 1 }, g);
+          const tt = tileAt(t, i, j, how);
+          tt.forEach((row, r) => row.forEach((cell, c) => cellShape(tg, x0 + i * size * 4 + c * size, y0 + j * size * 4 + r * size, size, cell)));
+          el("rect", { x: x0 + i * size * 4, y: y0 + j * size * 4, width: size * 4, height: size * 4, fill: "none", stroke: "#e6dccd", "stroke-width": 1, class: "no-save" }, tg);
+          tiles.push(tg);
+        }
+      if (animate) {
+        const mine = token;
+        tiles.forEach((tg, k) => setTimeout(() => mine === token && tg.setAttribute("opacity", 1), k * 18));
+      }
+      return g;
+    };
+    const build = (animate = true) => {
+      fresh();
+      if (mode === "quiz") {
+        wallpaper(quiz.tile, quiz.how, { x0: 180, y0: 40, size: 20, cols: 8, rows: 6, animate });
+        el("rect", { x: 337, y: 197, width: 166, height: 166, rx: 6, fill: "none", stroke: "#f08a24", "stroke-width": 7, "stroke-dasharray": "16 9" }, view);
+        return;
+      }
+      text(view, 160, 60, "Your tile", { "font-size": 30, fill: "#2b1d12", class: "no-save" });
+      el("rect", { x: 34, y: 94, width: 252, height: 252, rx: 14, fill: "#fff", stroke: "#a8916f", "stroke-width": 4, class: "no-save" }, view);
+      const tg = el("g", {}, view);
+      tile.forEach((row, r) =>
+        row.forEach((cell, c) => {
+          const x = 40 + c * 60;
+          const y = 100 + r * 60;
+          el("rect", { x, y, width: 60, height: 60, fill: "#fffcf6", stroke: "#e6dccd", "stroke-width": 2, class: "dl-tcell no-save", "data-r": r, "data-c": c, style: "cursor:pointer" }, tg);
+        }),
+      );
+      const shapes = el("g", { "pointer-events": "none" }, tg);
+      tile.forEach((row, r) => row.forEach((cell, c) => cellShape(shapes, 40 + c * 60, 100 + r * 60, 60, cell)));
+      const how = { slide: "🔁 slide", flip: "🪞 flip", turn: "🔄 turn" }[mode];
+      text(view, 160, 395, `repeat: ${how}`, { "font-size": 28, fill: "#b8620f", class: "no-save" });
+      text(view, 160, 435, "Tap again for a triangle", { "font-size": 22, fill: "#8a7764", class: "no-save" });
+      wallpaper(tile, mode, { animate });
+      view.addEventListener("pointerdown", (event) => {
+        const cellNode = event.target.closest(".dl-tcell");
+        if (!cellNode || my !== token) return;
+        const r = Number(cellNode.dataset.r);
+        const c = Number(cellNode.dataset.c);
+        const cell = tile[r][c];
+        if (cell.c !== color) tile[r][c] = { c: color, s: 0 };
+        else if (cell.s < 4) tile[r][c] = { c: color, s: cell.s + 1 };
+        else tile[r][c] = { c: "", s: 0 };
+        MUSIC.play("xylophone", 72 + (r * 4 + c), { gain: 0.3 });
+        window.OC?.touch();
+        build(false);
+      });
+    };
+    const makePanel = () => {
+      const modes = chipRow([["slide", "🔁 Slide"], ["flip", "🪞 Flip"], ["turn", "🔄 Turn"], ["quiz", "❓ Which move?"]], mode, "mode");
+      if (mode === "quiz") panel(`${chipRow([["slide", "✏️ Make my tile"], ["quiz", "❓ Which move?"]], mode, "mode")}<div class="ap-buttons"><span class="ap-status" data-status></span><button type="button" data-ans="slide">🔁 Slide</button><button type="button" data-ans="flip">🪞 Flip</button><button type="button" data-ans="turn">🔄 Turn</button></div>`);
+      else panel(`${modes}<div class="ap-chips dl-pal">${COLS.map((c) => `<button type="button" data-paint="${c}" aria-pressed="${c === color}" aria-label="colour" style="background:${c}"></button>`).join("")}<button type="button" data-do="clear" aria-label="Clear" style="font-size:20px">🗑️</button><button type="button" data-do="save" aria-label="Save" style="font-size:20px">💾</button><button type="button" data-do="gallery" aria-label="Gallery" style="font-size:20px">🖼️</button></div>`);
+    };
+    const randomTile = () => {
+      for (;;) {
+        const t = blank();
+        const n = 5 + Math.floor(Math.random() * 4);
+        for (let k = 0; k < n; k++) t[Math.floor(Math.random() * 4)][Math.floor(Math.random() * 4)] = { c: pick(COLS.slice(0, 4)), s: Math.floor(Math.random() * 5) };
+        const s = sig(t);
+        if (s !== sig(flipH(t)) && s !== sig(flipV(t)) && s !== sig(rot90(t)) && s !== sig(rot90(rot90(t))) && sig(flipH(t)) !== sig(flipV(t))) return t;
+      }
+    };
+    const ask = () => {
+      quiz = { tile: randomTile(), how: pick(["slide", "flip", "turn"]) };
+      build();
+      $("[data-status]").textContent = `${round + 1} of 8`;
+      say("Look at the 4 tiles in the orange box. Did the tile <b>slide</b>, <b>flip</b> or <b>turn</b>?");
+    };
+    const WHY = {
+      slide: "Every tile is exactly the same, just slid along. That's a slide.",
+      flip: "Tiles next to each other are mirror images, flipped over. That's a flip.",
+      turn: "Each tile is turned a quarter turn, like a clock hand. That's a turn.",
+    };
+    const answer = async (a, button) => {
+      if (!quiz || quiz.done) return;
+      quiz.done = true;
+      round += 1;
+      if (a === quiz.how) {
+        right += 1;
+        MUSIC.chime();
+        button.classList.add("right");
+        say(`${pick(PRAISE)} ${WHY[quiz.how]}`);
+      } else {
+        MUSIC.oops();
+        button.classList.add("wrong");
+        say(`${pick(KIND)} ${WHY[quiz.how]}`);
+      }
+      window.OC?.count("patterns spotted");
+      await wait(3000);
+      if (my !== token || mode !== "quiz") return;
+      if (round >= 8) {
+        if (right >= 6) {
+          confetti();
+          shell.mark("d4", { done: true });
+        }
+        say(`${right} out of 8! ${right >= 6 ? "🎉 You can spot slides, flips and turns!" : "Let's practise more. Look at one corner of a tile."}`);
+        round = 0;
+        right = 0;
+        await wait(3200);
+        if (my !== token || mode !== "quiz") return;
+      }
+      makePanel();
+      ask();
+    };
+    const setMode = (m) => {
+      mode = m;
+      makePanel();
+      if (m === "quiz") {
+        round = 0;
+        right = 0;
+        return ask();
+      }
+      build();
+      say(
+        {
+          slide: "Tap the squares on your tile to colour it. Watch it repeat across the wall, like wallpaper!",
+          flip: "Flip! Every other tile is a mirror image. Look how new shapes appear where they meet.",
+          turn: "Turn! Each tile turns a quarter turn. Four turns make a pinwheel.",
+        }[m],
+      );
+    };
+    $("[data-panel]").onclick = (event) => {
+      if (my !== token) return;
+      const m = event.target.closest("[data-mode]")?.dataset.mode;
+      if (m) return setMode(m);
+      const a = event.target.closest("[data-ans]");
+      if (a) return answer(a.dataset.ans, a);
+      const p = event.target.closest("[data-paint]");
+      if (p) {
+        color = p.dataset.paint;
+        markPal(color);
+        return;
+      }
+      const what = event.target.closest("[data-do]")?.dataset.do;
+      if (what === "clear") {
+        tile = blank();
+        build(false);
+      }
+      if (what === "save") saveArt(view, "pattern", "d4");
+      if (what === "gallery") showGallery();
+    };
+    tile = starter();
+    setMode("slide");
+  },
+
+  // ----- Free draw -----
+  d5() {
+    const my = token;
+    const STAMPS = ["⭐", "❤️", "🌸", "🐞", "☀️", "🐟", "🌈", "🦋"];
+    let tool = "pen";
+    let color = PAINT[4];
+    let stamp = STAMPS[0];
+    let hue = 0;
+    let made = 0;
+    const SIZES = { pencil: 6, pen: 14, brush: 34, rainbow: 20 };
+    const strokes = [];
+    const makePanel = () => {
+      const tools = chipRow([["pencil", "✏️ Pencil"], ["pen", "🖍️ Crayon"], ["brush", "🖌️ Brush"], ["rainbow", "🌈 Rainbow"], ["stamp", "⭐ Stamps"]], tool, "tool");
+      const row2 =
+        tool === "stamp"
+          ? `<div class="ap-chips dl-pal">${STAMPS.map((s) => `<button type="button" data-stamp="${s}" aria-pressed="${s === stamp}" style="background:#fff;font-size:24px">${s}</button>`).join("")}</div>`
+          : tool === "rainbow"
+            ? ""
+            : palRow(color);
+      panel(`${tools}${row2}<div class="ap-buttons"><button type="button" data-do="undo">↩️ Undo</button><button type="button" data-do="clear">🗑️ Clear</button><button type="button" class="primary" data-do="save">💾 Save</button><button type="button" data-do="gallery" aria-label="Gallery">🖼️</button></div>`);
+    };
+    const box = stage.getBoundingClientRect();
+    fresh("#ffffff", W, Math.round(Math.max(420, Math.min(1600, (W * box.height) / Math.max(1, box.width)))));
+    const layer = el("g", {}, view);
+    let cur = null;
+    let last = null;
+    ink(view, {
+      begin(p) {
+        made += 1;
+        if (tool === "stamp") {
+          const g = emoji(layer, p[0], p[1], stamp, 70);
+          strokes.push(g);
+          MUSIC.play("xylophone", 84 + STAMPS.indexOf(stamp), { gain: 0.3 });
+          cur = null;
+          return;
+        }
+        cur = el("g", {}, layer);
+        strokes.push(cur);
+        last = p;
+        this.move([p[0] + 0.1, p[1]]);
+      },
+      move(p) {
+        if (!cur) return;
+        if (tool === "rainbow") {
+          if (dist(p, last) < 6) return;
+          hue = (hue + 7) % 360;
+          el("line", { x1: last[0], y1: last[1], x2: p[0], y2: p[1], stroke: `hsl(${hue} 85% 55%)`, "stroke-width": SIZES.rainbow, "stroke-linecap": "round" }, cur);
+          last = p;
+          return;
+        }
+        let line = cur.lastChild;
+        if (!line) line = el("polyline", { points: `${last[0]},${last[1]}`, fill: "none", stroke: color, "stroke-width": SIZES[tool], "stroke-linecap": "round", "stroke-linejoin": "round", opacity: tool === "pen" ? 0.92 : 1 }, cur);
+        line.setAttribute("points", `${line.getAttribute("points")} ${p[0].toFixed(1)},${p[1].toFixed(1)}`);
+        last = p;
+      },
+      end() {
+        cur = null;
+      },
+    });
+    makePanel();
+    say("Pick a brush and a colour, then draw anything you like! Try the stamps too.");
+    $("[data-panel]").onclick = (event) => {
+      if (my !== token) return;
+      const t = event.target.closest("[data-tool]")?.dataset.tool;
+      if (t) {
+        tool = t;
+        makePanel();
+        return;
+      }
+      const c = event.target.closest("[data-paint]")?.dataset.paint;
+      if (c) {
+        color = c;
+        markPal(c);
+        MUSIC.play("xylophone", 72 + PAINT.indexOf(c) * 2, { gain: 0.3 });
+        return;
+      }
+      const s = event.target.closest("[data-stamp]")?.dataset.stamp;
+      if (s) {
+        stamp = s;
+        document.querySelectorAll("[data-stamp]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.stamp === s)));
+        return;
+      }
+      const what = event.target.closest("[data-do]")?.dataset.do;
+      if (what === "undo") strokes.pop()?.remove();
+      if (what === "clear") {
+        strokes.length = 0;
+        layer.innerHTML = "";
+      }
+      if (what === "save") {
+        if (!layer.childNodes.length) return say("Draw something first!");
+        saveArt(view, "free drawing", "d5");
+      }
+      if (what === "gallery") showGallery();
+    };
+  },
+};
+
+const style = document.createElement("style");
+style.textContent = `.dl-ink{touch-action:none;cursor:crosshair}
+.dl-pal button{width:44px;min-width:44px;padding:0 !important;box-shadow:0 3px 0 rgba(0,0,0,.22) !important;border:2px solid rgba(0,0,0,.08) !important}
+.dl-pal button[aria-pressed="true"]{outline:4px solid #2b1d12;outline-offset:2px}
+.dl-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;width:100%}
+.dl-gallery img{width:100%;border-radius:14px;box-shadow:0 3px 0 #e2d6c4;display:block}
+.dl-part{cursor:pointer}
+.ap-buttons .ap-status{align-self:center}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){.dl-pal button{width:36px;min-width:36px}}`;
+document.head.appendChild(style);
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    d0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    d1: { icon: "✏️", title: "Trace the lines", steps: ["Put your finger on the green dot.", "Follow the dots all the way to the end.", "Green line means close. Orange means too far."] },
+    d2: { icon: "🦉", title: "Draw with shapes", steps: ["Draw over the orange dotted shape.", "Each shape adds a part to the picture.", "Then pick a paint and tap the parts to colour them."] },
+    d3: { icon: "🟥", title: "Pixel art", steps: ["Pick a colour below.", "Tap or drag on the squares to colour them.", "Copy the picture, then press Check."] },
+    d4: { icon: "🧩", title: "Pattern tiles", steps: ["Tap the squares on your tile to colour them.", "Watch your tile repeat like wallpaper.", "Try Flip and Turn, then play Which move?"] },
+    d5: { icon: "🖌️", title: "Free draw", steps: ["Pick a brush or a stamp.", "Draw with your finger.", "Press 💾 Save to keep your picture."] },
+  },
+  start: "d0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Arts",
+  activity: "Drawing Lab",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 91, 92, 94, 96]);
+MUSIC.preload("piano", [64, 67]);
+</script>
+</body>
+</html>

@@ -1,0 +1,1031 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Place Value · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="math">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Place Value</b><small>Math · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, pickInt, wait, confetti, PRAISE, KIND, choices, explain, everyday, emoji, numpad } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+const INK = "#2b1d12";
+const ROUNDS = 8;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "pv0", label: "1. See it", icon: "👀" },
+  { id: "pv1", label: "2. Build a number", icon: "🧱" },
+  { id: "pv2", label: "3. What is it worth?", icon: "🔍" },
+  { id: "pv3", label: "4. Break it apart", icon: "✂️" },
+  { id: "pv4", label: "5. Trade 10 for 1", icon: "🔁" },
+  { id: "pv5", label: "6. Round it", icon: "⛰️" },
+  { id: "pv6", label: "7. Which is bigger?", icon: "⚖️" },
+];
+
+const fresh = () => {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+};
+// On a tall phone screen, zoom the picture to its content so it is big enough to read.
+const fit = () => {
+  if (!view) return;
+  const r = stage.getBoundingClientRect();
+  if (r.height < r.width * 0.9) return;
+  const b = view.getBBox();
+  const pad = 30;
+  view.setAttribute("viewBox", `${b.x - pad} ${b.y - pad} ${b.width + 2 * pad} ${b.height + 2 * pad}`);
+};
+const fmt = (n) => Number(n).toLocaleString("en-US");
+const NOTES = [72, 74, 76, 77, 79, 81, 83, 84, 86, 88];
+
+// ---------- base-ten blocks ----------
+const K = {
+  tho: { name: "thousands", one: "thousand", fill: "#c6a3ee", dark: "#9f78d6", line: "#5e3596", soft: "#f1e8fc", v: 1000 },
+  hun: { name: "hundreds", one: "hundred", fill: "#86bff0", dark: "#5f9fd8", line: "#245f96", soft: "#e3f0fc", v: 100 },
+  ten: { name: "tens", one: "ten", fill: "#f4b267", dark: "#d98f3e", line: "#97541f", soft: "#fdeedb", v: 10 },
+  one: { name: "ones", one: "one", fill: "#8fd19e", dark: "#5fb274", line: "#2a6e3d", soft: "#e2f5e6", v: 1 },
+};
+const ORDER = ["tho", "hun", "ten", "one"];
+const Cap = (s) => s[0].toUpperCase() + s.slice(1);
+const many = (n, kind) => `${fmt(n)} ${n === 1 ? K[kind].one : K[kind].name}`;
+const kindsFor = (n) => ORDER.slice(4 - String(n).length);
+const digitsOf = (n, kinds) => kinds.map((k) => Math.floor(n / K[k].v) % 10);
+const describe = (n, kinds = kindsFor(n)) => {
+  const parts = kinds.map((k, i) => [k, digitsOf(n, kinds)[i]]).filter(([, d]) => d).map(([k, d]) => many(d, k));
+  return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0] || "0";
+};
+
+function block(parent, kind, x, y, sz, attrs = {}) {
+  const k = K[kind];
+  const b = el("g", { transform: `translate(${x} ${y})`, ...attrs }, parent);
+  if (kind === "one") {
+    el("rect", { width: sz.u, height: sz.u, rx: Math.min(5, sz.u * 0.2), fill: k.fill, stroke: k.line, "stroke-width": 2, class: "pv-face" }, b);
+    el("rect", { x: 3, y: 3, width: sz.u * 0.35, height: sz.u * 0.18, rx: 2, fill: "#fff", opacity: 0.5 }, b);
+  } else if (kind === "ten") {
+    const w = sz.u;
+    const h = sz.rh || sz.u * 10;
+    el("rect", { width: w, height: h, rx: Math.min(5, w * 0.2), fill: k.fill, stroke: k.line, "stroke-width": 2, class: "pv-face" }, b);
+    for (let i = 1; i < 10; i++) el("line", { x1: 1, x2: w - 1, y1: (h * i) / 10, y2: (h * i) / 10, stroke: k.line, "stroke-width": 1.2, opacity: 0.7 }, b);
+  } else if (kind === "hun") {
+    const f = sz.f;
+    el("rect", { width: f, height: f, rx: 4, fill: k.fill, stroke: k.line, "stroke-width": 2, class: "pv-face" }, b);
+    for (let i = 1; i < 10; i++) {
+      el("line", { x1: (f * i) / 10, x2: (f * i) / 10, y1: 1, y2: f - 1, stroke: k.line, "stroke-width": 1, opacity: 0.55 }, b);
+      el("line", { y1: (f * i) / 10, y2: (f * i) / 10, x1: 1, x2: f - 1, stroke: k.line, "stroke-width": 1, opacity: 0.55 }, b);
+    }
+  } else {
+    const c = sz.c;
+    const d = c * 0.3;
+    el("polygon", { points: `0,${d} ${d},0 ${c + d},0 ${c},${d}`, fill: k.soft, stroke: k.line, "stroke-width": 2, "stroke-linejoin": "round" }, b);
+    el("polygon", { points: `${c},${d} ${c + d},0 ${c + d},${c} ${c},${c + d}`, fill: k.dark, stroke: k.line, "stroke-width": 2, "stroke-linejoin": "round" }, b);
+    el("rect", { x: 0, y: d, width: c, height: c, fill: k.fill, stroke: k.line, "stroke-width": 2, class: "pv-face" }, b);
+    for (let i = 1; i < 10; i++) {
+      el("line", { x1: (c * i) / 10, x2: (c * i) / 10, y1: d, y2: d + c, stroke: k.line, "stroke-width": 0.8, opacity: 0.45 }, b);
+      el("line", { y1: d + (c * i) / 10, y2: d + (c * i) / 10, x1: 0, x2: c, stroke: k.line, "stroke-width": 0.8, opacity: 0.45 }, b);
+    }
+  }
+  return b;
+}
+const dims = (kind, sz) => (kind === "one" ? [sz.u, sz.u] : kind === "ten" ? [sz.u, sz.rh || sz.u * 10] : kind === "hun" ? [sz.f, sz.f] : [sz.c * 1.3, sz.c * 1.3]);
+
+// Lay n blocks into a box, bottom-aligned, rows centred.
+function pile(parent, kind, n, box, sz, gap = 5) {
+  const [iw, ih] = dims(kind, sz);
+  const per = Math.max(1, Math.floor((box.w + gap) / (iw + gap)));
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const r = Math.floor(i / per);
+    const inRow = Math.min(per, n - r * per);
+    const c = i % per;
+    const x = box.x + (box.w - (inRow * (iw + gap) - gap)) / 2 + c * (iw + gap);
+    const y = box.y + box.h - (r + 1) * ih - r * gap;
+    out.push({ node: block(parent, kind, x, y, sz), x, y });
+  }
+  return out;
+}
+
+function tween(ms, fn, ok) {
+  return new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(ok());
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!ok()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+}
+const move = (node, x, y, s = 1) => node.setAttribute("transform", `translate(${x} ${y})${s !== 1 ? ` scale(${s})` : ""}`);
+
+function header(parent, kind, cx, y, w, h = 40, size = 24) {
+  const k = K[kind];
+  el("rect", { x: cx - w / 2, y, width: w, height: h, rx: h / 2, fill: k.soft, stroke: k.line, "stroke-width": 2.5 }, parent);
+  text(parent, cx, y + h / 2 + size * 0.36, Cap(k.name), { "font-size": size, fill: k.line });
+}
+
+// ---------- number words ----------
+const W1 = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
+const W10 = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+const under100 = (n) => (n < 20 ? W1[n] : W10[Math.floor(n / 10)] + (n % 10 ? `-${W1[n % 10]}` : ""));
+function words(n) {
+  const out = [];
+  const th = Math.floor(n / 1000);
+  const h = Math.floor(n / 100) % 10;
+  const r = n % 100;
+  if (th) out.push(`${W1[th]} thousand`);
+  if (h) out.push(`${W1[h]} hundred`);
+  if (r || !out.length) out.push(under100(r));
+  return out.join(" ");
+}
+
+// ---------- game frame: level chips, status, rounds ----------
+const LV = [
+  ["e", "🐣 Easy"],
+  ["m", "🦊 Medium"],
+  ["h", "🦁 Hard"],
+];
+function game(id, ask, { thing = "rounds", done = "" } = {}) {
+  const my = token;
+  const g = { level: shell.progress()[id]?.level || "e", round: 0, right: 0, missed: false, busy: false, gen: 0 };
+  panel(`<div class="ap-row"><div class="ap-chips" data-lvs>${LV.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === g.level}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div><div class="pv-ans" data-ans></div>`);
+  g.live = () => my === token;
+  g.ok = (gen = g.gen) => my === token && gen === g.gen;
+  g.status = () => {
+    const s = $("[data-status]");
+    if (s) s.textContent = `Round ${Math.min(g.round + 1, ROUNDS)} of ${ROUNDS} · ⭐ ${g.right}`;
+  };
+  g.next = () => {
+    g.gen += 1;
+    g.missed = false;
+    g.busy = false;
+    $("[data-ans]").innerHTML = "";
+    g.status();
+    ask(g, g.gen);
+  };
+  g.oops = (msg) => {
+    MUSIC.oops();
+    g.missed = true;
+    if (msg) say(msg);
+  };
+  const end = async (ok, msg, ms) => {
+    const gen = g.gen;
+    g.busy = true;
+    if (ok && !g.missed) g.right += 1;
+    g.round += 1;
+    window.OC?.count(thing);
+    say(msg);
+    g.status();
+    await wait(ms);
+    if (!g.ok(gen)) return;
+    if (g.round >= ROUNDS) {
+      confetti();
+      MUSIC.chime();
+      shell.mark(id, { done: true });
+      say(`🎉 You finished all ${ROUNDS}! ${g.right} right the first time. ${done}`);
+      await wait(4200);
+      if (!g.ok(gen)) return;
+      g.round = 0;
+      g.right = 0;
+    }
+    g.next();
+  };
+  g.win = (msg, { ms = 2800, quiet = false } = {}) => {
+    if (!quiet) MUSIC.chime();
+    return end(true, msg, ms);
+  };
+  g.skip = (msg, { ms = 3400 } = {}) => end(false, msg, ms);
+  $("[data-lvs]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b || !g.live()) return;
+    window.OC?.touch();
+    g.level = b.dataset.lv;
+    shell.mark(id, { level: g.level });
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    g.round = 0;
+    g.right = 0;
+    g.next();
+  });
+  g.status();
+  queueMicrotask(() => g.live() && g.next());
+  return g;
+}
+
+const units = {
+  // ---------- See it ----------
+  pv0() {
+    const my = token;
+    const scenes = [
+      {
+        say: "Why do we learn place value? It helps us read big numbers: prices, phone numbers, and how many people fill a stadium.",
+        draw: everyday([
+          ["🏷️", "Reading prices"],
+          ["📞", "Phone numbers"],
+          ["🏟️", "Counting big crowds"],
+          ["🐷", "Saving money"],
+        ]),
+      },
+      {
+        say: "Here are 10 little ones cubes. Watch them snap together into 1 ten!",
+        async draw(v, api) {
+          const u = 34;
+          const title = text(v, 500, 62, "10 ones", { "font-size": 44, fill: K.one.line });
+          const cubes = [];
+          const labels = el("g", {}, v);
+          for (let i = 0; i < 10; i++) {
+            const x = 500 - 5 * 80 + i * 80 + 23;
+            const c = block(v, "one", x, 420, { u }, { opacity: 0 });
+            cubes.push({ c, x, y: 420 });
+          }
+          for (let i = 0; i < 10; i++) {
+            await api.tween(220, (t) => cubes[i].c.setAttribute("opacity", t));
+            text(labels, cubes[i].x + u / 2, 500, i + 1, { "font-size": 28, fill: INK });
+            MUSIC.play("xylophone", NOTES[i], { gain: 0.4 });
+            await api.wait(260);
+          }
+          await api.wait(700);
+          await api.tween(500, (t) => labels.setAttribute("opacity", 1 - t));
+          await api.tween(1500, (t) => cubes.forEach(({ c, x, y }, i) => move(c, x + (483 - x) * t, y + (100 + (9 - i) * u - y) * t)));
+          const rod = block(v, "ten", 483, 100, { u }, { opacity: 0 });
+          MUSIC.play("harp", 84, { gain: 0.5 });
+          await api.tween(700, (t) => rod.setAttribute("opacity", t));
+          cubes.forEach(({ c }) => c.remove());
+          await api.tween(900, (t) => move(rod, 483 + 177 * t, 100));
+          const left = el("g", { opacity: 0 }, v);
+          for (let i = 0; i < 10; i++) block(left, "one", 323, 100 + i * u, { u });
+          text(left, 340, 500, "10 ones", { "font-size": 40, fill: K.one.line });
+          text(left, 500, 310, "=", { "font-size": 80, fill: INK });
+          text(left, 677, 500, "1 ten", { "font-size": 40, fill: K.ten.line });
+          await api.tween(700, (t) => left.setAttribute("opacity", t));
+          title.textContent = "10 ones = 1 ten";
+          title.setAttribute("fill", K.ten.line);
+        },
+      },
+      {
+        say: "Now 10 tens slide together. 10 tens make 1 hundred. We call it a flat.",
+        async draw(v, api) {
+          const u = 24;
+          const title = text(v, 500, 62, "10 tens", { "font-size": 44, fill: K.ten.line });
+          const rods = [];
+          for (let i = 0; i < 10; i++) {
+            const x = 500 - 5 * 84 + i * 84 + 30;
+            rods.push({ r: block(v, "ten", x, 150, { u }, { opacity: 0 }), x });
+          }
+          const counts = el("g", {}, v);
+          for (let i = 0; i < 10; i++) {
+            await api.tween(220, (t) => rods[i].r.setAttribute("opacity", t));
+            text(counts, rods[i].x + u / 2, 440, (i + 1) * 10, { "font-size": 26, fill: INK });
+            MUSIC.play("xylophone", NOTES[i], { gain: 0.4 });
+            await api.wait(300);
+          }
+          await api.wait(700);
+          await api.tween(500, (t) => counts.setAttribute("opacity", 1 - t));
+          await api.tween(1500, (t) => rods.forEach(({ r, x }, i) => move(r, x + (380 + i * u - x) * t, 150)));
+          const flat = block(v, "hun", 380, 150, { f: 240 }, { opacity: 0 });
+          MUSIC.play("harp", 88, { gain: 0.5 });
+          await api.tween(800, (t) => flat.setAttribute("opacity", t));
+          title.textContent = "10 tens = 1 hundred";
+          title.setAttribute("fill", K.hun.line);
+          text(v, 500, 450, "1 hundred = 100", { "font-size": 40, fill: K.hun.line });
+        },
+      },
+      {
+        say: "Stack 10 hundreds up high. 10 hundreds make 1 thousand: a big cube!",
+        async draw(v, api) {
+          const f = 170;
+          const th = 17;
+          const D = [62, -46];
+          const slab = (parent) => {
+            const g = el("g", {}, parent);
+            const k = K.hun;
+            el("polygon", { points: `0,0 ${D[0]},${D[1]} ${f + D[0]},${D[1]} ${f},0`, fill: k.fill, stroke: k.line, "stroke-width": 2, "stroke-linejoin": "round" }, g);
+            for (let i = 1; i < 10; i++) {
+              el("line", { x1: (f * i) / 10, y1: 0, x2: (f * i) / 10 + D[0], y2: D[1], stroke: k.line, "stroke-width": 1, opacity: 0.5 }, g);
+              el("line", { x1: (D[0] * i) / 10, y1: (D[1] * i) / 10, x2: f + (D[0] * i) / 10, y2: (D[1] * i) / 10, stroke: k.line, "stroke-width": 1, opacity: 0.5 }, g);
+            }
+            el("rect", { x: 0, y: 0, width: f, height: th, fill: k.dark, stroke: k.line, "stroke-width": 2 }, g);
+            el("polygon", { points: `${f},0 ${f + D[0]},${D[1]} ${f + D[0]},${D[1] + th} ${f},${th}`, fill: "#4f86bd", stroke: k.line, "stroke-width": 2, "stroke-linejoin": "round" }, g);
+            return g;
+          };
+          const title = text(v, 500, 50, "10 hundreds", { "font-size": 42, fill: K.hun.line });
+          const s0 = 0.4;
+          const slabs = [];
+          for (let i = 0; i < 10; i++) {
+            const x = 52 + i * 92;
+            const y = 110;
+            const g = slab(v);
+            move(g, x, y, s0);
+            g.setAttribute("opacity", 0);
+            slabs.push({ g, x, y });
+          }
+          for (const s of slabs) await api.tween(150, (t) => s.g.setAttribute("opacity", t));
+          const total = text(v, 830, 360, "", { "font-size": 52, fill: K.hun.line });
+          await api.wait(500);
+          for (let i = 0; i < 10; i++) {
+            const { g, x, y } = slabs[i];
+            v.appendChild(g);
+            const tx = 330;
+            const ty = 500 - (i + 1) * th;
+            await api.tween(520, (t) => move(g, x + (tx - x) * t, y + (ty - y) * t, s0 + (1 - s0) * t));
+            total.textContent = fmt((i + 1) * 100);
+            MUSIC.play("xylophone", NOTES[i], { gain: 0.4 });
+            await api.wait(140);
+          }
+          MUSIC.play("harp", 91, { gain: 0.5 });
+          await api.wait(600);
+          const paint = [[K.hun.fill, K.tho.fill], [K.hun.dark, K.tho.dark], ["#4f86bd", "#7d55b8"], [K.hun.line, K.tho.line]];
+          await api.tween(900, (t) => {
+            if (t < 0.5) return;
+            for (const { g } of slabs) for (const node of g.children) for (const attr of ["fill", "stroke"]) {
+              const from = node.dataset[attr] || node.getAttribute(attr);
+              node.dataset[attr] = from;
+              const hit = paint.find(([a]) => a === from);
+              if (hit) node.setAttribute(attr, hit[1]);
+            }
+          });
+          title.textContent = "10 hundreds = 1 thousand";
+          title.setAttribute("fill", K.tho.line);
+          total.setAttribute("fill", K.tho.line);
+          text(v, 830, 420, "1 thousand", { "font-size": 34, fill: K.tho.line });
+        },
+      },
+      {
+        say: "The same 3 can be worth 3, 30 or 300. It depends on its place!",
+        async draw(v, api) {
+          const xs = { hun: 280, ten: 500, one: 720 };
+          for (const k of ["hun", "ten", "one"]) {
+            header(v, k, xs[k], 24, 190, 44, 26);
+            el("rect", { x: xs[k] - 95, y: 80, width: 190, height: 150, rx: 22, fill: "#fffaf1", stroke: "#e2d6c4", "stroke-width": 3 }, v);
+          }
+          const zeros = el("g", {}, v);
+          const blocks = el("g", {}, v);
+          const digit = text(v, xs.one, 196, "3", { "font-size": 120, fill: INK });
+          const cap = text(v, 500, 535, "", { "font-size": 40, fill: INK });
+          const show = (kind) => {
+            blocks.innerHTML = "";
+            const box = { x: xs[kind] - 160, y: 250, w: 320, h: 200 };
+            const sz = { u: 30, rh: 200, f: 92 };
+            pile(blocks, kind, 3, box, kind === "ten" ? { u: 22, rh: 220 } : sz, 10);
+            cap.textContent = `3 ${K[kind].name} = ${3 * K[kind].v}`;
+            cap.setAttribute("fill", K[kind].line);
+          };
+          show("one");
+          await api.wait(2600);
+          for (const [kind, from] of [["ten", "one"], ["hun", "ten"]]) {
+            await api.tween(1000, (t) => digit.setAttribute("x", xs[from] + (xs[kind] - xs[from]) * t));
+            text(zeros, xs[from], 196, "0", { "font-size": 120, fill: "#9a8670" });
+            MUSIC.play("xylophone", kind === "ten" ? 79 : 84, { gain: 0.45 });
+            show(kind);
+            await api.wait(2600);
+          }
+        },
+      },
+      {
+        say: "Put it all together: 2 thousands, 3 hundreds, 4 tens and 5 ones make 2,345.",
+        async draw(v, api) {
+          const n = 2345;
+          const colW = 235;
+          const sz = { u: 20, f: 70, c: 52 };
+          const ds = digitsOf(n, ORDER);
+          for (let i = 0; i < 4; i++) {
+            const kind = ORDER[i];
+            const cx = 30 + colW * (i + 0.5);
+            const g = el("g", { opacity: 0 }, v);
+            header(g, kind, cx, 16, colW - 20);
+            text(g, cx, 124, ds[i], { "font-size": 72, fill: K[kind].line });
+            pile(g, kind, ds[i], { x: cx - colW / 2 + 14, y: 146, w: colW - 28, h: 320 }, sz);
+            await api.tween(700, (t) => g.setAttribute("opacity", t));
+            MUSIC.play("xylophone", NOTES[i * 2], { gain: 0.45 });
+            await api.wait(900);
+          }
+          const line = text(v, 500, 530, "2,345 = 2000 + 300 + 40 + 5", { "font-size": 40, fill: INK, opacity: 0 });
+          await api.tween(700, (t) => line.setAttribute("opacity", t));
+        },
+      },
+    ];
+    explain(scenes, { alive: () => my === token, onDone: () => shell.go("pv1"), title: "Place value" });
+  },
+
+  // ---------- Build a number ----------
+  pv1() {
+    const SZ = { 2: { u: 24 }, 3: { u: 22, f: 86 }, 4: { u: 17, f: 62, c: 44 } };
+    let kinds;
+    let have;
+    let target;
+    let piles;
+    let digits;
+    let top;
+    const colW = () => 940 / kinds.length;
+    const cxOf = (i) => 30 + colW() * (i + 0.5);
+    const total = () => kinds.reduce((s, k, i) => s + have[i] * K[k].v, 0);
+    const drawCol = (i) => {
+      piles[i].innerHTML = "";
+      pile(piles[i], kinds[i], have[i], { x: cxOf(i) - colW() / 2 + 18, y: 136, w: colW() - 36, h: 272 }, SZ[kinds.length]);
+      digits[i].textContent = have[i];
+    };
+    const g = game(
+      "pv1",
+      (g) => {
+        const L = g.level;
+        kinds = L === "e" ? ["ten", "one"] : L === "m" ? ["hun", "ten", "one"] : ORDER;
+        target = L === "e" ? (g.round < 3 ? pickInt(2, 9) : pickInt(10, 20)) : L === "m" ? pickInt(101, 999) : pickInt(1001, 9999);
+        have = kinds.map(() => 0);
+        fresh();
+        top = text(view, 500, 56, L === "h" ? words(target) : `Make ${fmt(target)}`, { "font-size": L === "h" ? 32 : 46, fill: INK });
+        piles = [];
+        digits = [];
+        kinds.forEach((kind, i) => {
+          const cx = cxOf(i);
+          header(view, kind, cx, 78, colW() - 18);
+          el("rect", { x: cx - colW() / 2 + 9, y: 126, width: colW() - 18, height: 292, rx: 18, fill: "#fbf6ee" }, view);
+          piles.push(el("g", {}, view));
+          for (const d of [-1, 1]) {
+            const b = el("g", { class: "pv-btn", "data-i": i, "data-d": d, role: "button", "aria-label": `${d > 0 ? "Add" : "Take away"} one of the ${K[kind].name}` }, view);
+            el("circle", { cx: cx + d * 74, cy: 482, r: 34, fill: d > 0 ? K[kind].fill : "#fff", stroke: K[kind].line, "stroke-width": 3 }, b);
+            text(b, cx + d * 74, 497, d > 0 ? "+" : "−", { "font-size": 46, fill: K[kind].line });
+          }
+          digits.push(text(view, cx, 500, "0", { "font-size": 52, fill: INK }));
+          drawCol(i);
+        });
+        view.addEventListener("pointerdown", (event) => {
+          const b = event.target.closest(".pv-btn");
+          if (b) change(Number(b.dataset.i), Number(b.dataset.d));
+        });
+        say(L === "h" ? `Make <b>${words(target)}</b>. Tap + to add blocks.` : `Make <b>${fmt(target)}</b>. Tap + to add blocks, − to take one away.`);
+      },
+      { thing: "numbers built" },
+    );
+    const change = (i, d) => {
+      if (!g.live() || g.busy) return;
+      window.OC?.touch();
+      const nv = have[i] + d;
+      if (nv < 0) return;
+      if (nv > 9) {
+        say(i > 0 ? `9 is the most one place can hold. 10 ${K[kinds[i]].name} make 1 ${K[kinds[i - 1]].one}, so add a ${K[kinds[i - 1]].one} instead!` : "9 is the most one place can hold!");
+        return;
+      }
+      have[i] = nv;
+      drawCol(i);
+      MUSIC.play("xylophone", d > 0 ? NOTES[Math.min(9, nv)] : 72, { gain: 0.4 });
+      if (total() === target) {
+        g.busy = true;
+        top.textContent = `${fmt(target)} ✓`;
+        top.setAttribute("fill", "#2e7d46");
+        top.setAttribute("font-size", 46);
+        g.win(`${pick(PRAISE)} ${describe(target, kinds)} make ${fmt(target)}.`, { ms: 3400 });
+      } else VOICE.speak(many(nv, kinds[i]));
+    };
+  },
+
+  // ---------- What is the digit worth? ----------
+  pv2() {
+    let q;
+    game(
+      "pv2",
+      (g) => {
+        const L = g.level;
+        const n = L === "e" ? 2 : L === "m" ? 3 : 4;
+        const num = pickInt(10 ** (n - 1), 10 ** n - 1);
+        const kinds = ORDER.slice(4 - n);
+        const ds = digitsOf(num, kinds);
+        const spots = ds.map((d, i) => i).filter((i) => ds[i] > 0);
+        const at = pick(spots);
+        q = { num, kinds, ds, at, d: ds[at], kind: kinds[at], value: ds[at] * K[kinds[at]].v };
+        fresh();
+        const colW = n === 2 ? 220 : n === 3 ? 200 : 190;
+        const x0 = 500 - (n * colW) / 2;
+        kinds.forEach((kind, i) => {
+          const cx = x0 + colW * (i + 0.5);
+          header(view, kind, cx, 20, colW - 14);
+          const hot = i === at;
+          el("rect", { x: cx - colW / 2 + 8, y: 74, width: colW - 16, height: 170, rx: 24, fill: hot ? "#fff3c4" : "#fffaf1", stroke: hot ? "var(--accent)" : "#e2d6c4", "stroke-width": hot ? 7 : 3 }, view);
+          text(view, cx, 210, ds[i], { "font-size": 120, fill: hot ? INK : "#8a7764" });
+          if (hot) text(view, cx, 290, "▲", { "font-size": 40, fill: "var(--accent)" });
+          if (L === "e") pile(view, kind, ds[i], { x: cx - colW / 2 + 14, y: 310, w: colW - 28, h: 200 }, kind === "ten" ? { u: 15, rh: 170 } : { u: 22 });
+        });
+        if (L !== "e") q.reveal = text(view, 500, 380, `What is the ${q.d} worth?`, { "font-size": 44, fill: INK });
+        else q.reveal = text(view, 500, 548, "", { "font-size": 30, fill: "#2e7d46" });
+        fit();
+        say(`What is the <b>${q.d}</b> worth? Look at its place.`);
+        const opts = kinds.map((k) => q.d * K[k].v).reverse();
+        choices($("[data-ans]"), opts.map((v) => ({ label: fmt(v), v })), (o, button) => answer(g, o.v, button));
+      },
+      { thing: "digits read" },
+    );
+    const answer = (g, v, button) => {
+      if (!g.live() || g.busy) return;
+      window.OC?.touch();
+      if (v === q.value) {
+        button.classList.add("right");
+        q.reveal.textContent = `${many(q.d, q.kind)} = ${fmt(q.value)}`;
+        q.reveal.setAttribute("fill", "#2e7d46");
+        g.win(`${pick(PRAISE)} The ${q.d} is in the ${K[q.kind].name} place, so it is worth ${fmt(q.value)}.`);
+      } else {
+        button.classList.add("wrong");
+        g.oops(`${pick(KIND)} Look at the name above the ${q.d}: it is in the ${K[q.kind].name} place. How much are ${q.d} ${q.d === 1 ? K[q.kind].one : K[q.kind].name}?`);
+      }
+    };
+  },
+
+  // ---------- Expanded form ----------
+  pv3() {
+    let q;
+    let pad;
+    const draw = () => {
+      fresh();
+      const L = q.level;
+      const box = (cx, y, label, w, state) => {
+        el("rect", { x: cx - w / 2, y, width: w, height: 84, rx: 18, fill: state === "now" ? "#fff3c4" : state === "done" ? "#e2f5e6" : "#fffaf1", stroke: state === "now" ? "var(--accent)" : state === "done" ? "#2e7d46" : "#e2d6c4", "stroke-width": state === "now" ? 6 : 3 }, view);
+        text(view, cx, y + 60, label, { "font-size": 50, fill: state === "done" ? "#2e7d46" : INK });
+      };
+      const row = (items, y) => {
+        // items: [{ label, w, state }] joined by "+"
+        const plusW = 54;
+        const totalW = items.reduce((s, it) => s + it.w, 0) + plusW * (items.length - 1);
+        let x = 500 - totalW / 2;
+        items.forEach((it, i) => {
+          if (it.state === "plain") text(view, x + it.w / 2, y + 60, it.label, { "font-size": 50, fill: INK });
+          else box(x + it.w / 2, y, it.label, it.w, it.state);
+          x += it.w;
+          if (i < items.length - 1) {
+            text(view, x + plusW / 2, y + 58, "+", { "font-size": 50, fill: "#8a7764" });
+            x += plusW;
+          }
+        });
+      };
+      if (q.mode === "apart") {
+        text(view, 500, 100, `${fmt(q.num)} =`, { "font-size": 66, fill: INK });
+        row(q.parts.map((p, i) => ({ label: i < q.idx ? fmt(p) : "?", w: 46 + 30 * String(p).length, state: i < q.idx ? "done" : i === q.idx ? "now" : "" })), 140);
+      } else {
+        row(q.parts.map((p) => ({ label: String(p), w: 30 * String(p).length + 10, state: "plain" })), 30);
+        text(view, 400, 196, "=", { "font-size": 66, fill: INK });
+        box(560, 140, q.solved ? fmt(q.num) : "?", 230, q.solved ? "done" : "now");
+      }
+      if (L !== "h") {
+        const n = q.kinds.length;
+        const colW = n === 2 ? 300 : 280;
+        const x0 = 500 - (n * colW) / 2;
+        q.kinds.forEach((kind, i) => {
+          const cx = x0 + colW * (i + 0.5);
+          header(view, kind, cx, 254, colW - 24, 34, 21);
+          pile(view, kind, q.ds[i], { x: cx - colW / 2 + 16, y: 300, w: colW - 32, h: 245 }, n === 2 ? { u: 22 } : { u: 20, f: 72 });
+        });
+      } else {
+        q.kinds.forEach((kind, i) => {
+          const cx = 500 + (i - 1.5) * 200;
+          header(view, kind, cx, 300, 184, 42, 24);
+          el("rect", { x: cx - 80, y: 356, width: 160, height: 130, rx: 20, fill: "#fffaf1", stroke: "#e2d6c4", "stroke-width": 3 }, view);
+          text(view, cx, 452, q.mode === "apart" || q.solved ? q.ds[i] : "?", { "font-size": 84, fill: q.mode === "apart" || q.solved ? K[kind].line : "#c9b8a2" });
+        });
+      }
+      fit();
+    };
+    const prompt = () => {
+      if (q.mode === "together") return say(`Put the parts together. What number is ${q.parts.join(" + ")}?`);
+      const kind = q.pk[q.idx];
+      const d = q.parts[q.idx] / K[kind].v;
+      say(q.idx === 0 ? `Break <b>${fmt(q.num)}</b> into parts. What is the <b>${d}</b> worth?` : `Now the <b>${d}</b>. What is it worth?`);
+    };
+    const g = game(
+      "pv3",
+      (g) => {
+        const L = g.level;
+        const n = L === "e" ? 2 : L === "m" ? 3 : 4;
+        let num;
+        do {
+          num = pickInt(10 ** (n - 1), 10 ** n - 1);
+          const zeros = String(num).slice(1).split("").filter((c) => c === "0").length;
+          if (L === "h" && Math.random() < 0.35 && zeros === 0) {
+            const s = String(num).split("");
+            s[pickInt(1, 2)] = "0";
+            num = Number(s.join(""));
+          }
+          var z = String(num).slice(1).split("").filter((c) => c === "0").length;
+        } while (num % 10 === 0 || (L !== "h" && z > 0) || z > 1);
+        const kinds = ORDER.slice(4 - n);
+        const ds = digitsOf(num, kinds);
+        const pk = kinds.filter((k, i) => ds[i] > 0);
+        q = { level: L, num, kinds, ds, pk, parts: pk.map((k) => ds[kinds.indexOf(k)] * K[k].v), idx: 0, mode: g.round % 2 === 0 ? "apart" : "together", solved: false };
+        draw();
+        prompt();
+        pad = numpad($("[data-ans]"), { onEnter: (v) => check(v), max: 5 });
+      },
+      { thing: "numbers broken apart" },
+    );
+    const check = (v) => {
+      if (!g.live() || g.busy) return;
+      window.OC?.touch();
+      pad.clear();
+      if (q.mode === "together") {
+        if (v === q.num) {
+          q.solved = true;
+          draw();
+          g.win(`${pick(PRAISE)} ${q.parts.join(" + ")} = ${fmt(q.num)}.`);
+        } else g.oops(`${pick(KIND)} Put each part in its place: ${describe(q.num, q.kinds)}. Write those digits in order.`);
+        return;
+      }
+      const want = q.parts[q.idx];
+      const kind = q.pk[q.idx];
+      const d = want / K[kind].v;
+      if (v === want) {
+        q.idx += 1;
+        MUSIC.play("xylophone", NOTES[q.idx * 2], { gain: 0.45 });
+        draw();
+        if (q.idx >= q.parts.length) {
+          const skipped = q.kinds.length - q.parts.length;
+          g.win(`${pick(PRAISE)} ${fmt(q.num)} = ${q.parts.join(" + ")}.${skipped ? " The 0 means there is nothing in that place, so we skip it." : ""}`, { ms: 3400 });
+        } else prompt();
+      } else if (v === d && kind !== "one") g.oops(`${pick(KIND)} The ${d} is in the ${K[kind].name} place, so it is worth ${many(d, kind)}. Add the zeros!`);
+      else g.oops(`${pick(KIND)} The ${d} sits in the ${K[kind].name} place. How much are ${many(d, kind)}?`);
+    };
+  },
+
+  // ---------- Trade 10 for 1 ----------
+  pv4() {
+    let q;
+    const g = game(
+      "pv4",
+      (g) => {
+        const L = g.level;
+        if (L === "e") q = { c: { hun: 0, ten: pickInt(0, 3), one: pickInt(11, 16) } };
+        else if (L === "m") q = { c: { hun: 0, ten: pickInt(1, 6), one: pickInt(20, 27) } };
+        else q = { c: { hun: pickInt(1, 3), ten: pickInt(10, 13), one: pickInt(10, 16) } };
+        q.kinds = L === "h" ? ["hun", "ten", "one"] : ["ten", "one"];
+        q.start = { ...q.c };
+        q.lit = 0;
+        q.litKind = null;
+        q.asked = false;
+        draw();
+        say(L === "h" ? "Too many tens and ones! Tap a pile with 10 or more to count 10 and trade." : "Too many ones! Tap the ones to count 10. Then they snap into a ten.");
+      },
+      { thing: "trades" },
+    );
+    const colW = () => 940 / q.kinds.length;
+    const cxOf = (kind) => 30 + colW() * (q.kinds.indexOf(kind) + 0.5);
+    const sz = () => (q.kinds.length === 2 ? { one: { u: 30 }, ten: { u: 24 }, hun: {} } : { one: { u: 22 }, ten: { u: 16 }, hun: { f: 88 } });
+    const boxOf = (kind) => {
+      const cx = cxOf(kind);
+      const w = kind === "one" ? (q.kinds.length === 2 ? 7 * 35 : 6 * 27) : colW() - 30;
+      return { x: cx - w / 2, y: 84, w, h: 380 };
+    };
+    const draw = () => {
+      fresh();
+      q.nodes = {};
+      q.labels = {};
+      for (const kind of q.kinds) {
+        const cx = cxOf(kind);
+        header(view, kind, cx, 18, colW() - 18);
+        const tray = el("g", { class: "pv-tray", "data-k": kind }, view);
+        el("rect", { x: cx - colW() / 2 + 9, y: 70, width: colW() - 18, height: 410, rx: 18, fill: q.c[kind] >= 10 ? "#fff3c4" : "#fbf6ee", stroke: q.c[kind] >= 10 ? "var(--accent)" : "none", "stroke-width": 4, "stroke-dasharray": "12 8" }, tray);
+        q.nodes[kind] = pile(tray, kind, q.c[kind], boxOf(kind), sz()[kind], kind === "ten" && q.kinds.length === 3 ? 3 : 5);
+        q.labels[kind] = text(view, cx, 526, many(q.c[kind], kind), { "font-size": 34, fill: q.c[kind] >= 10 ? "#c0392b" : K[kind].line });
+      }
+      view.addEventListener("pointerdown", (event) => {
+        const tray = event.target.closest(".pv-tray");
+        if (tray) tap(tray.dataset.k);
+      });
+    };
+    const tap = async (kind) => {
+      if (!g.live() || g.busy || q.asked) return;
+      window.OC?.touch();
+      const n = q.c[kind];
+      if (n < 10) {
+        say(`There ${n === 1 ? "is" : "are"} only ${many(n, kind)} here. You need 10 to trade.`);
+        return;
+      }
+      if (q.litKind && q.litKind !== kind) {
+        q.nodes[q.litKind].forEach(({ node }) => node.querySelector(".pv-face").setAttribute("fill", K[q.litKind].fill));
+        q.lit = 0;
+      }
+      q.litKind = kind;
+      const item = q.nodes[kind][q.lit];
+      item.node.querySelector(".pv-face").setAttribute("fill", "#ffd54f");
+      q.lit += 1;
+      MUSIC.play("xylophone", NOTES[q.lit - 1], { gain: 0.45 });
+      VOICE.speak(String(q.lit));
+      if (q.lit < 10) return;
+      g.busy = true;
+      const gen = g.gen;
+      const ok = () => g.ok(gen);
+      const up = kind === "one" ? "ten" : "hun";
+      const s = sz()[kind];
+      const group = q.nodes[kind].slice(0, 10);
+      const cx = cxOf(kind);
+      const [iw, ih] = dims(kind, s);
+      const targets = group.map((_, i) => (kind === "one" ? [cx - iw / 2, 100 + i * iw] : [cx - 5 * iw + i * iw, 100]));
+      if (!(await tween(1000, (t) => group.forEach((it, i) => move(it.node, it.x + (targets[i][0] - it.x) * t, it.y + (targets[i][1] - it.y) * t)), ok))) return;
+      MUSIC.play("harp", kind === "one" ? 84 : 88, { gain: 0.5 });
+      say(kind === "one" ? "10 ones make 1 ten!" : "10 tens make 1 hundred!");
+      if (!(await tween(300, () => {}, ok))) return;
+      const dx = cxOf(up) - cx;
+      if (!(await tween(900, (t) => group.forEach((it, i) => move(it.node, targets[i][0] + dx * t, targets[i][1])), ok))) return;
+      q.c[kind] -= 10;
+      q.c[up] += 1;
+      q.lit = 0;
+      q.litKind = null;
+      draw();
+      const fresh1 = q.nodes[up][q.nodes[up].length - 1];
+      fresh1?.node.querySelector(".pv-face").setAttribute("fill", "#ffd54f");
+      await wait(1000);
+      if (!ok()) return;
+      fresh1?.node.querySelector(".pv-face").setAttribute("fill", K[up].fill);
+      if (q.kinds.some((k) => q.c[k] >= 10)) {
+        g.busy = false;
+        say(`Now the ${K[q.kinds.find((k) => q.c[k] >= 10)].name} have 10 or more. Tap them to trade again!`);
+        return;
+      }
+      g.busy = false;
+      ask();
+    };
+    const ask = () => {
+      q.asked = true;
+      const N = q.c.hun * 100 + q.c.ten * 10 + q.c.one;
+      const naive = Number(`${q.start.hun || ""}${q.start.ten}${q.start.one}`);
+      const opts = new Set([N]);
+      for (const v of [naive, N + 10, N - 10, N + 1, N + 100]) if (opts.size < 3 && v > 0 && v !== N && v < 10000) opts.add(v);
+      const list = [...opts].sort((a, b) => a - b);
+      say("Now every place has 9 or fewer. How many is it in all?");
+      choices($("[data-ans]"), list.map((v) => ({ label: fmt(v), v })), (o, button) => {
+        if (!g.live() || g.busy) return;
+        window.OC?.touch();
+        if (o.v === N) {
+          button.classList.add("right");
+          g.win(`${pick(PRAISE)} ${describe(N, q.kinds)} make ${fmt(N)}.`, { ms: 3200 });
+        } else {
+          button.classList.add("wrong");
+          g.oops(`${pick(KIND)} Read each place: ${describe(N, q.kinds)}. Which number is that?`);
+        }
+      });
+    };
+  },
+
+  // ---------- Round it ----------
+  pv5() {
+    let q;
+    const X = (t) => 120 + 760 * t;
+    const Y = (t) => 420 - 230 * ((1 - Math.cos(2 * Math.PI * t)) / 2);
+    const g = game(
+      "pv5",
+      (g) => {
+        const L = g.level;
+        const step = L === "h" ? 100 : 10;
+        let N;
+        if (L === "e") N = pickInt(11, 99);
+        else if (L === "m") N = pickInt(101, 999);
+        else N = pickInt(L === "h" && g.round < 3 ? 101 : 1001, 9999);
+        if (Math.random() < 0.15) N = Math.floor(N / step) * step + step / 2;
+        if (N % step === 0) N += step === 10 ? pickInt(1, 9) : pickInt(1, 99);
+        const lo = Math.floor(N / step) * step;
+        const hi = lo + step;
+        const t = (N - lo) / step;
+        q = { N, lo, hi, t, step, ans: t >= 0.5 ? hi : lo };
+        draw();
+        say(`Is <b>${fmt(N)}</b> closer to ${fmt(lo)} or ${fmt(hi)}? Tap the valley where the ball will roll.`);
+        choices($("[data-ans]"), [lo, hi].map((v) => ({ label: `⛳ ${fmt(v)}`, v })), (o, button) => answer(o.v, button));
+      },
+      { thing: "numbers rounded" },
+    );
+    const draw = () => {
+      fresh();
+      el("rect", { x: -600, y: -200, width: W + 1200, height: H + 400, fill: "#eef7fd" }, view);
+      let d = `M${X(-0.9)} ${H + 200}`;
+      for (let t = -0.9; t <= 1.9; t += 0.01) d += ` L${X(t).toFixed(1)} ${Y(t).toFixed(1)}`;
+      d += ` L${X(1.9)} ${H + 200} Z`;
+      el("path", { d, fill: "#bfe3a5", stroke: "#5e9b48", "stroke-width": 6, "stroke-linejoin": "round" }, view);
+      el("line", { x1: X(0.5), x2: X(0.5), y1: Y(0.5) - 10, y2: 470, stroke: "#5e9b48", "stroke-width": 3, "stroke-dasharray": "8 8" }, view);
+      text(view, X(0.5), Y(0.5) - 24, `halfway: ${fmt(q.lo + q.step / 2)}`, { "font-size": 26, fill: "#3f6e2e" });
+      el("line", { x1: X(0), x2: X(1), y1: 470, y2: 470, stroke: "#5a4130", "stroke-width": 4 }, view);
+      for (let k = 0; k <= 10; k++) {
+        el("line", { x1: X(k / 10), x2: X(k / 10), y1: 460, y2: 480, stroke: "#5a4130", "stroke-width": 3 }, view);
+        if (q.step === 10 && k > 0 && k < 10) text(view, X(k / 10), 452, fmt(q.lo + k), { "font-size": 22, fill: "#3d2c1f" });
+      }
+      for (const [t, v] of [[0, q.lo], [1, q.hi]]) {
+        const b = el("g", { class: "pv-pick", "data-v": v }, view);
+        el("rect", { x: X(t) - 76, y: 486, width: 152, height: 56, rx: 18, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, b);
+        text(b, X(t), 525, `⛳ ${fmt(v)}`, { "font-size": 30, fill: INK });
+      }
+      q.ball = el("g", {}, view);
+      el("circle", { r: 28, fill: "#e53935", stroke: "#8e1c1a", "stroke-width": 3 }, q.ball);
+      q.stripe = el("path", { d: "M-28 0 A28 28 0 0 0 28 0", fill: "none", stroke: "#fff", "stroke-width": 5, opacity: 0.8 }, q.ball);
+      q.tag = el("g", {}, view);
+      el("rect", { x: -64, y: -42, width: 128, height: 50, rx: 16, fill: INK }, q.tag);
+      text(q.tag, 0, -6, fmt(q.N), { "font-size": 32, fill: "#fff" });
+      el("line", { x1: 0, x2: 0, y1: 8, y2: 26, stroke: INK, "stroke-width": 3 }, q.tag);
+      el("line", { x1: X(q.t), x2: X(q.t), y1: 458, y2: 482, stroke: "#c0392b", "stroke-width": 6 }, view);
+      place(q.t, 0);
+      view.addEventListener("pointerdown", (event) => {
+        const b = event.target.closest(".pv-pick");
+        if (b) answer(Number(b.dataset.v), null);
+      });
+    };
+    const place = (t, spin) => {
+      const x = X(t);
+      const y = Y(t) - 30;
+      q.ball.setAttribute("transform", `translate(${x} ${y}) rotate(${spin})`);
+      q.tag.setAttribute("transform", `translate(${x} ${y - 66})`);
+    };
+    const answer = async (v, button) => {
+      if (!g.live() || g.busy) return;
+      window.OC?.touch();
+      g.busy = true;
+      const gen = g.gen;
+      const right = v === q.ans;
+      if (button) button.classList.add(right ? "right" : "wrong");
+      else document.querySelectorAll("[data-ans] [data-c]").forEach((b, i) => i === (v === q.lo ? 0 : 1) && b.classList.add(right ? "right" : "wrong"));
+      if (!right) g.oops();
+      const to = q.ans === q.hi ? 1 : 0;
+      const t0 = q.t;
+      const ok = await tween(1300, (t) => place(t0 + (to - t0) * t, (to - t0) * t * 600), () => g.ok(gen));
+      if (!ok) return;
+      MUSIC.play("timpani", 48, { gain: 0.5 });
+      const half = q.t === 0.5 ? ` ${fmt(q.N)} is exactly halfway, and halfway numbers round up.` : "";
+      const msg = `${fmt(q.N)} is closer to ${fmt(q.ans)}, so it rounds to ${fmt(q.ans)}.${half}`;
+      if (right) g.win(`${pick(PRAISE)} ${msg}`, { ms: 3400 });
+      else g.skip(`${pick(KIND)} See where the ball rolled? ${msg}`, { ms: 4200 });
+    };
+  },
+
+  // ---------- Which is bigger? ----------
+  pv6() {
+    let q;
+    const g = game(
+      "pv6",
+      (g) => {
+        const L = g.level;
+        let a;
+        let b;
+        if (L === "e") {
+          a = pickInt(1, 20);
+          do b = pickInt(1, 20);
+          while (b === a && Math.random() < 0.85);
+        } else if (L === "m") {
+          a = pickInt(100, 999);
+          b = Math.random() < 0.5 ? Math.floor(a / 100) * 100 + pickInt(0, 99) : pickInt(100, 999);
+        } else {
+          a = pickInt(1000, 9999);
+          const r = Math.random();
+          if (r < 0.15) b = pickInt(100, 999);
+          else if (r < 0.55) b = Math.floor(a / 100) * 100 + pickInt(0, 99);
+          else b = Math.floor(a / 1000) * 1000 + pickInt(0, 999);
+          if (Math.random() < 0.5) [a, b] = [b, a];
+        }
+        if (L !== "e" && a === b && Math.random() < 0.6) b = Math.min(L === "m" ? 999 : 9999, b + pickInt(1, 9));
+        q = { a, b, level: L };
+        draw();
+        say(`Which number is bigger: ${fmt(a)} or ${fmt(b)}?`);
+        choices($("[data-ans]"), [{ label: fmt(a), v: "a" }, { label: "Same", v: "eq" }, { label: fmt(b), v: "b" }], (o, button) => answer(o.v, button));
+      },
+      { thing: "comparisons" },
+    );
+    const draw = () => {
+      fresh();
+      if (q.level === "e") {
+        [q.a, q.b].forEach((n, r) => {
+          const y = r === 0 ? 20 : 290;
+          el("rect", { x: 30, y, width: 940, height: 250, rx: 22, fill: r ? "#f3f9ff" : "#fff8ee" }, view);
+          text(view, 130, y + 160, n, { "font-size": 96, fill: INK });
+          const tens = Math.floor(n / 10);
+          pile(view, "ten", tens, { x: 260, y: y + 15, w: tens * 26, h: 220 }, { u: 21 });
+          pile(view, "one", n % 10, { x: 280 + tens * 26, y: y + 15, w: 5 * 32, h: 220 }, { u: 26 });
+        });
+        return fit();
+      }
+      const n = q.level === "m" ? 3 : 4;
+      const kinds = ORDER.slice(4 - n);
+      const colW = 160;
+      const x0 = 500 - (n * colW) / 2;
+      q.cols = [];
+      kinds.forEach((kind, i) => {
+        const cx = x0 + colW * (i + 0.5);
+        q.cols.push(el("rect", { x: cx - colW / 2 + 4, y: 12, width: colW - 8, height: 410, rx: 20, fill: "transparent" }, view));
+        header(view, kind, cx, 22, colW - 16, 38, 21);
+        [q.a, q.b].forEach((num, r) => {
+          const s = String(num).padStart(n, " ");
+          el("rect", { x: cx - colW / 2 + 12, y: 76 + r * 170, width: colW - 24, height: 150, rx: 20, fill: r ? "#f3f9ff" : "#fff8ee", stroke: "#e2d6c4", "stroke-width": 3 }, view);
+          if (s[i] !== " ") text(view, cx, 190 + r * 170, s[i], { "font-size": 100, fill: INK });
+        });
+      });
+      q.kinds = kinds;
+      q.sym = text(view, 500, 505, " ", { "font-size": 56, fill: "#2e7d46" });
+      fit();
+    };
+    const answer = async (v, button) => {
+      if (!g.live() || g.busy) return;
+      window.OC?.touch();
+      g.busy = true;
+      const gen = g.gen;
+      const { a, b } = q;
+      const truth = a === b ? "eq" : a > b ? "a" : "b";
+      const right = v === truth;
+      button.classList.add(right ? "right" : "wrong");
+      if (right) MUSIC.chime();
+      else g.oops();
+      const big = Math.max(a, b);
+      const small = Math.min(a, b);
+      const sym = a === b ? `${fmt(a)} = ${fmt(b)}` : `${fmt(a)} ${a > b ? ">" : "<"} ${fmt(b)}`;
+      let why = a === b ? "They are the same number." : `${fmt(big)} is bigger than ${fmt(small)}.`;
+      if (q.level === "e") why += a !== b && Math.floor(a / 10) !== Math.floor(b / 10) ? " Count the tens first!" : a !== b ? " Same tens, so look at the ones." : "";
+      else {
+        const n = q.kinds.length;
+        const sa = String(a).padStart(n, "0");
+        const sb = String(b).padStart(n, "0");
+        for (let i = 0; i < n; i++) {
+          q.cols[i].setAttribute("fill", "#fff3c4");
+          q.cols[i].setAttribute("stroke", "var(--accent)");
+          q.cols[i].setAttribute("stroke-width", 5);
+          if (sa[i] !== sb[i]) {
+            why = `Start at the biggest place. In the ${K[q.kinds[i]].name}, ${sa[i]} is more than ${sb[i]}${i ? ", and everything before was the same" : ""}. So ${fmt(big)} is bigger.`;
+            if (!(await KIT.sayAsync(`${Cap(K[q.kinds[i]].name)}: ${sa[i]} and ${sb[i]}. Different!`)) || !g.ok(gen)) return;
+            break;
+          }
+          if (!(await KIT.sayAsync(`${Cap(K[q.kinds[i]].name)}: ${sa[i]} and ${sb[i]}. The same, so look right.`)) || !g.ok(gen)) return;
+          q.cols[i].setAttribute("fill", "#eef0e8");
+          q.cols[i].setAttribute("stroke", "none");
+        }
+        q.sym.textContent = sym;
+      }
+      if (!g.ok(gen)) return;
+      if (q.level === "e") text(view, 500, 545, sym, { "font-size": 30, fill: "#2e7d46" });
+      if (right) g.win(`${pick(PRAISE)} ${why}`, { ms: 3600, quiet: true });
+      else g.skip(`${pick(KIND)} ${why}`, { ms: 4400 });
+    };
+  },
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    pv0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    pv1: { icon: "🧱", title: "Build a number", steps: ["Look at the number at the top.", "Tap + to add blocks, − to take one away.", "Make the same number!"] },
+    pv2: { icon: "🔍", title: "What is it worth?", steps: ["One digit has a yellow box.", "Look at its place name.", "Tap what that digit is worth."] },
+    pv3: { icon: "✂️", title: "Break it apart", steps: ["Look at the big number.", "Type what each digit is worth.", "Then put parts back together."] },
+    pv4: { icon: "🔁", title: "Trade 10 for 1", steps: ["A yellow pile has 10 or more.", "Tap it to count 10 blocks.", "They trade for 1 bigger block!"] },
+    pv5: { icon: "⛰️", title: "Round it", steps: ["The ball sits on a hill.", "Which valley is closer?", "Tap that number. Watch it roll!"] },
+    pv6: { icon: "⚖️", title: "Which is bigger?", steps: ["Look at the two numbers.", "Check the biggest place first.", "Tap the bigger number."] },
+  },
+  start: "pv0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Math",
+  activity: "Place Value",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+
+const style = document.createElement("style");
+style.textContent = `
+.pv-btn,.pv-tray,.pv-pick{cursor:pointer}
+.pv-ans{display:flex;justify-content:center}
+.pv-ans .kt-choices button{min-width:84px;min-height:52px;font-size:22px}
+@media (max-height:460px){.pv-ans .kt-choices button{min-height:40px;font-size:18px;min-width:64px}}
+`;
+document.head.appendChild(style);
+MUSIC.preload("xylophone", NOTES);
+MUSIC.preload("harp", [84, 88, 91]);
+MUSIC.preload("timpani", [48]);
+</script>
+</body>
+</html>

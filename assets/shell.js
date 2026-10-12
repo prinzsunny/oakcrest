@@ -4,7 +4,16 @@
 
   function shell({ units, start, onUnit, onStop, subject, activity, how = {} }) {
     const learner = () => (window.OC ? OC.current() : "") || "Learner";
-    const progress = () => MUSIC.progress.of(learner());
+    // Unit ids repeat across apps (c0, g1 ...), so progress outside Music is kept per activity.
+    const scope = subject === "Music" ? "" : `${activity}:`;
+    const progress = () => {
+      const all = MUSIC.progress.of(learner());
+      if (!scope) return all;
+      const mine = all.gallery ? { gallery: all.gallery } : {};
+      for (const [key, value] of Object.entries(all)) if (key.startsWith(scope)) mine[key.slice(scope.length)] = value;
+      return mine;
+    };
+    const markUnit = (id, data) => MUSIC.progress.mark(learner(), scope + id, data);
     const pickButton = $("[data-pick]");
     const iconOf = (unit, index) => unit.icon || how[unit.id]?.icon || ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩", "⑪", "⑫"][index] || "🎯";
     let current = start || units.find((unit) => !unit.soon).id;
@@ -56,13 +65,13 @@
       window.OC?.begin(subject, activity, strip(unit.label));
       const card = how[id];
       const seen = progress()[id]?.seen;
-      if (card && window.KIT && !seen) {
+      if (card && window.KIT && !seen && !/See it/.test(unit.label)) {
         const panel = $("[data-panel]");
         panel.onclick = null;
         panel.innerHTML = `<p class="ap-say">Read the steps, then press <b>Let's go!</b></p>`;
         KIT.howTo(card).then(() => {
           if (current !== id) return;
-          MUSIC.progress.mark(learner(), id, { seen: true });
+          markUnit(id, { seen: true });
           onUnit(id, unit);
         });
       } else onUnit(id, unit);
@@ -104,12 +113,22 @@
     }
     render();
     setTimeout(() => go(current), 0);
+    const upright = matchMedia("(orientation: portrait) and (max-width: 600px)");
+    if (upright.matches) {
+      const tip = document.createElement("div");
+      tip.className = "ap-turn";
+      tip.innerHTML = `<span aria-hidden="true">📱↻</span> Turn sideways for bigger pictures`;
+      document.body.appendChild(tip);
+      setTimeout(() => tip.classList.add("gone"), 5000);
+      setTimeout(() => tip.remove(), 6000);
+      upright.addEventListener("change", () => tip.remove(), { once: true });
+    }
     return {
       go,
       learner,
       progress,
       mark: (id, data) => {
-        MUSIC.progress.mark(learner(), id, data);
+        markUnit(id, data);
         render();
       },
       current: () => current,

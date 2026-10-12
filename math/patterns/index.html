@@ -1,0 +1,1280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patterns & Puzzles · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="math">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Patterns & Puzzles</b><small>Math · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, pickInt, wait, confetti, PRAISE, KIND, choices, explain, everyday, emoji, numpad, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+const LV = {};
+
+const UNITS = [
+  { id: "pt0", label: "1. See it", icon: "👀" },
+  { id: "pt1", label: "2. Finish the pattern", icon: "🔴" },
+  { id: "pt2", label: "3. Odd or even", icon: "🧦" },
+  { id: "pt3", label: "4. Balance the scale", icon: "⚖️" },
+  { id: "pt4", label: "5. Function machine", icon: "⚙️" },
+  { id: "pt5", label: "6. Pet puzzle", icon: "🐶" },
+];
+
+const css = document.createElement("style");
+css.textContent = `.pt-tap{cursor:pointer}.pt-drag{cursor:grab;touch-action:none}.pt-big{font-size:1.5em;vertical-align:-0.15em}`;
+document.head.appendChild(css);
+
+const fresh = () => {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  view.style.background = "#fdf8ef";
+  return view;
+};
+const status = (s) => {
+  const b = $("[data-status]");
+  if (b) b.textContent = s;
+};
+const LV3 = [
+  ["easy", "🐣 Easy"],
+  ["medium", "🦊 Medium"],
+  ["hard", "🦁 Hard"],
+];
+const chipsHtml = (cur, list = LV3) => `<div class="ap-chips" data-lvls>${list.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div>`;
+const bindLevels = (onPick) => {
+  const host = $("[data-lvls]");
+  host.onclick = (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    host.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    window.OC?.touch();
+    onPick(b.dataset.lv);
+  };
+};
+const toSvg = (event) => {
+  const p = view.createSVGPoint();
+  p.x = event.clientX;
+  p.y = event.clientY;
+  return p.matrixTransform(view.getScreenCTM().inverse());
+};
+const NOTES = [72, 74, 76, 77, 79, 81, 83, 84, 86, 88, 89, 91];
+const note = (i, gain = 0.4) => MUSIC.play("xylophone", NOTES[Math.min(NOTES.length - 1, Math.max(0, i))], { gain });
+const tween = (my, ms, fn) =>
+  new Promise((resolve) => {
+    const t0 = performance.now();
+    const step = (now) => {
+      if (my !== token) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+      if (t < 1) requestAnimationFrame(step);
+      else resolve(true);
+    };
+    requestAnimationFrame(step);
+  });
+const card = (parent, x, y, w, h, attrs = {}) => el("rect", { x, y, width: w, height: h, rx: 20, fill: "#fff", stroke: "#e2d6c4", "stroke-width": 4, ...attrs }, parent);
+
+async function finish(my, id, right, total, what) {
+  MUSIC.chime();
+  confetti();
+  window.OC?.count("games finished");
+  if (right >= Math.ceil(total * 0.6)) shell.mark(id, { done: true });
+  say(`🎉 All ${total} done! You got ${right} right first time. ${right >= total - 1 ? `Super ${what}!` : "Let's play again!"}`);
+  await wait(3600);
+  return my === token;
+}
+
+// ---------- balance scale ----------
+const PIV = { x: 500, y: 130 };
+const ARM = 320;
+const DROP = 175;
+function scale(parent) {
+  const g = el("g", {}, parent);
+  el("rect", { x: 470, y: 470, width: 60, height: 22, rx: 8, fill: "#7a4a24" }, g);
+  el("path", { d: `M500 ${PIV.y}L470 470H530Z`, fill: "#a0663a", stroke: "#7a4a24", "stroke-width": 4, "stroke-linejoin": "round" }, g);
+  const beam = el("g", {}, g);
+  el("rect", { x: PIV.x - ARM - 12, y: PIV.y - 9, width: ARM * 2 + 24, height: 18, rx: 9, fill: "#c98c58", stroke: "#7a4a24", "stroke-width": 4 }, beam);
+  el("circle", { cx: PIV.x, cy: PIV.y, r: 16, fill: "#ffcf3a", stroke: "#b06a14", "stroke-width": 4 }, g);
+  const needle = el("path", { d: `M${PIV.x} ${PIV.y - 14}L${PIV.x - 8} ${PIV.y - 70}H${PIV.x + 8}Z`, fill: "#e5533d" }, g);
+  const pans = [-1, 1].map((side) => {
+    const p = el("g", {}, g);
+    el("path", { d: `M0 0L-100 ${DROP}M0 0L100 ${DROP}`, stroke: "#8a7764", "stroke-width": 3, fill: "none" }, p);
+    el("path", { d: `M-125 ${DROP}H125L105 ${DROP + 22}H-105Z`, fill: "#e9b928", stroke: "#a07b0c", "stroke-width": 4, "stroke-linejoin": "round" }, p);
+    const load = el("g", {}, p);
+    return { g: p, load, side };
+  });
+  let angle = 0;
+  let gen = 0;
+  const set = (a) => {
+    angle = a;
+    beam.setAttribute("transform", `rotate(${a} ${PIV.x} ${PIV.y})`);
+    needle.setAttribute("transform", `rotate(${a} ${PIV.x} ${PIV.y})`);
+    const r = (a * Math.PI) / 180;
+    for (const pan of pans) pan.g.setAttribute("transform", `translate(${PIV.x + pan.side * ARM * Math.cos(r)} ${PIV.y + pan.side * ARM * Math.sin(r)})`);
+  };
+  set(0);
+  return {
+    g,
+    left: pans[0],
+    right: pans[1],
+    get angle() {
+      return angle;
+    },
+    set,
+    async tilt(my, to, ms = 700) {
+      const from = angle;
+      const mine = ++gen;
+      return tween(my, ms, (t) => mine === gen && set(from + (to - from) * t));
+    },
+    panX: (side) => PIV.x + side * ARM * Math.cos((angle * Math.PI) / 180),
+  };
+}
+const tiltFor = (L, R) => (L === R ? 0 : Math.max(-14, Math.min(14, ((R - L) / Math.max(L, R, 1)) * 30 + Math.sign(R - L) * 4)));
+function cubes(load, n, color = "#3d8bd9", cls = "") {
+  load.innerHTML = "";
+  for (let i = 0; i < n; i++) {
+    const row = Math.floor(i / 5);
+    const inRow = Math.min(5, n - row * 5);
+    const col = i % 5;
+    const x = -((inRow - 1) * 42) / 2 + col * 42 - 19;
+    const y = DROP - 40 - row * 40;
+    el("rect", { class: cls, "data-i": i, x, y, width: 38, height: 38, rx: 7, fill: color, stroke: "#22344d", "stroke-width": 3 }, load);
+  }
+}
+function weights(load, list, cls = "") {
+  load.innerHTML = "";
+  list.forEach((v, i) => {
+    const row = Math.floor(i / 3);
+    const inRow = Math.min(3, list.length - row * 3);
+    const col = i % 3;
+    const x = -((inRow - 1) * 72) / 2 + col * 72;
+    const y = DROP - 34 - row * 62;
+    const g = el("g", { class: cls, "data-i": i, transform: `translate(${x} ${y})` }, load);
+    el("path", { d: "M-30 28H30L22 -26H-22Z", fill: "#6b6f7a", stroke: "#3c3f47", "stroke-width": 3, "stroke-linejoin": "round" }, g);
+    el("rect", { x: -9, y: -36, width: 18, height: 12, rx: 5, fill: "none", stroke: "#3c3f47", "stroke-width": 4 }, g);
+    text(g, 0, 12, v, { "font-size": 30, fill: "#fff" });
+  });
+}
+
+// ---------- function machine ----------
+function machine(parent, rule) {
+  const g = el("g", {}, parent);
+  el("path", { d: "M150 230H270V300H150Z", fill: "#d9cdb5" }, g);
+  el("path", { d: "M530 300H650V370H530Z", fill: "#d9cdb5" }, g);
+  el("rect", { x: 260, y: 140, width: 280, height: 290, rx: 30, fill: "#8e5bd0", stroke: "#5e3594", "stroke-width": 6 }, g);
+  const gears = [];
+  for (const [cx, cy, r] of [[330, 200, 34], [395, 188, 24]]) {
+    const gear = el("g", {}, g);
+    const teeth = Array.from({ length: 16 }, (_, i) => {
+      const rr = i % 2 ? r : r + 9;
+      const a = (i * Math.PI) / 8;
+      return `${(rr * Math.cos(a)).toFixed(1)},${(rr * Math.sin(a)).toFixed(1)}`;
+    }).join(" ");
+    el("polygon", { points: teeth, fill: "#ffcf3a", stroke: "#b06a14", "stroke-width": 3 }, gear);
+    el("circle", { r: r * 0.35, fill: "#b06a14" }, gear);
+    gears.push({ gear, cx, cy });
+    gear.setAttribute("transform", `translate(${cx} ${cy})`);
+  }
+  el("circle", { cx: 480, cy: 192, r: 14, fill: "#4caf6a", class: "pt-lamp" }, g);
+  el("rect", { x: 290, y: 250, width: 220, height: 110, rx: 18, fill: "#fff", stroke: "#5e3594", "stroke-width": 4 }, g);
+  const label = text(g, 400, 328, rule, { "font-size": 58, fill: "#5e3594" });
+  return {
+    g,
+    label,
+    spin(a) {
+      gears.forEach(({ gear, cx, cy }, i) => gear.setAttribute("transform", `translate(${cx} ${cy}) rotate(${i ? -a * 1.4 : a})`));
+      g.setAttribute("transform", `translate(${Math.sin(a / 9) * 3} 0)`);
+    },
+  };
+}
+function ball(parent, n, x, y, color = "#f2a03d") {
+  const g = el("g", { transform: `translate(${x} ${y})` }, parent);
+  el("circle", { r: 44, fill: color, stroke: "#7a4a24", "stroke-width": 4 }, g);
+  text(g, 0, 15, n, { "font-size": String(n).length > 2 ? 32 : 42, fill: "#2b1d12" });
+  return g;
+}
+
+// ---------- logic puzzle ----------
+const FRIENDS = [["🐻", "Bear"], ["🐰", "Bunny"], ["🦊", "Fox"], ["🐸", "Frog"]];
+const PETS = [["🐶", "dog"], ["🐱", "cat"], ["🐟", "fish"], ["🐦", "bird"]];
+const perms = (n) => {
+  const out = [];
+  const go = (a, rest) => (rest.length ? rest.forEach((x, i) => go([...a, x], rest.filter((_, j) => j !== i))) : out.push(a));
+  go([], [...Array(n).keys()]);
+  return out;
+};
+const fits = (perm, clue) => (clue.yes ? perm[clue.f] === clue.p : perm[clue.f] !== clue.p);
+function makeClues(n, answer, { negOnly = false, max = 6, maxYes = 9 }) {
+  const all = [];
+  for (let f = 0; f < n; f++)
+    for (let p = 0; p < n; p++) {
+      if (answer[f] === p) {
+        if (!negOnly) all.push({ f, p, yes: true });
+      } else all.push({ f, p, yes: false });
+    }
+  const P = perms(n);
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const pool = shuffle(all);
+    const clues = [];
+    let left = P;
+    for (const c of pool) {
+      if (c.yes && clues.filter((x) => x.yes).length >= maxYes) continue;
+      const next = left.filter((p) => fits(p, c));
+      if (next.length < left.length) {
+        clues.push(c);
+        left = next;
+      }
+      if (left.length === 1) break;
+    }
+    if (left.length === 1 && clues.length <= max) {
+      // drop clues that are not needed
+      for (let i = clues.length - 1; i >= 0; i--) {
+        const rest = clues.filter((_, j) => j !== i);
+        if (P.filter((p) => rest.every((c) => fits(p, c))).length === 1) clues.splice(i, 1);
+      }
+      return clues;
+    }
+  }
+  return answer.map((p, f) => ({ f, p, yes: true })).slice(0, n - 1);
+}
+
+const units = {
+  pt0() {
+    const my = token;
+    const scenes = [
+      {
+        say: "Why do we learn patterns? Patterns help us guess what comes next. Songs repeat, shirts have stripes, the days of the week come round again, and floors have tile patterns.",
+        draw: everyday([["🎵", "Songs repeat"], ["👕", "Stripes on shirts"], ["📅", "Days of the week"], ["🧱", "Tiles on floors"]]),
+      },
+      {
+        say: "A pattern repeats. Red, blue, red, blue, red, blue. What comes next? Red!",
+        draw: async (v, api) => {
+          const seq = ["🔴", "🔵", "🔴", "🔵", "🔴", "🔵"];
+          for (let i = 0; i < seq.length; i++) {
+            const g = el("g", { opacity: 0 }, v);
+            card(g, 40 + i * 132, 190, 116, 130);
+            emoji(g, 98 + i * 132, 255, seq[i], 80);
+            MUSIC.play("xylophone", i % 2 ? 76 : 72, { gain: 0.45 });
+            await api.tween(500, (t) => g.setAttribute("opacity", t));
+            await api.wait(450);
+          }
+          const q = el("g", {}, v);
+          card(q, 40 + 6 * 132, 190, 116, 130, { stroke: "var(--accent)", "stroke-dasharray": "12 8" });
+          const mark = text(q, 98 + 6 * 132, 275, "?", { "font-size": 70, fill: "var(--accent)" });
+          await api.wait(1800);
+          mark.remove();
+          emoji(q, 98 + 6 * 132, 255, "🔴", 80);
+          MUSIC.play("xylophone", 72, { gain: 0.5 });
+          text(v, 500, 420, "The part that repeats: 🔴🔵", { "font-size": 36, fill: "#2b1d12" });
+        },
+      },
+      {
+        say: "Some patterns grow. Each step adds 2 more dots: 2, 4, 6, 8. Next comes 10!",
+        draw: async (v, api) => {
+          for (let s = 0; s < 5; s++) {
+            const n = (s + 1) * 2;
+            const x = 130 + s * 185;
+            const g = el("g", { opacity: 0 }, v);
+            for (let i = 0; i < n; i++) el("circle", { cx: x - 22 + (i % 2) * 44, cy: 400 - Math.floor(i / 2) * 50, r: 19, fill: s === 4 ? "#f2a03d" : "#3d8bd9" }, g);
+            text(g, x, 480, n, { "font-size": 44, fill: "#2b1d12" });
+            if (s) text(g, x - 92, 140, "+2", { "font-size": 32, fill: "#2c7a44" });
+            note(s * 2);
+            await api.tween(600, (t) => g.setAttribute("opacity", t));
+            await api.wait(s === 3 ? 1600 : 900);
+          }
+        },
+      },
+      {
+        say: "Odd or even? Pair up the socks. 7 socks make 3 pairs, and one sock is left alone. So 7 is odd.",
+        draw: async (v, api) => {
+          const socks = Array.from({ length: 7 }, (_, i) => emoji(v, 110 + i * 130, 130, "🧦", 72));
+          await api.wait(1200);
+          for (let i = 0; i < 7; i++) {
+            const tx = 200 + Math.floor(i / 2) * 170 + (i % 2) * 70;
+            const ty = 380;
+            const sx = 110 + i * 130;
+            const node = socks[i];
+            note(i);
+            await api.tween(500, (t) => node.setAttribute("transform", `translate(${(tx - sx) * t} ${(ty - 130) * t})`));
+            if (i % 2) el("rect", { x: tx - 120, y: ty - 60, width: 160, height: 120, rx: 22, fill: "none", stroke: "#4caf6a", "stroke-width": 5 }, v);
+            await api.wait(200);
+          }
+          el("circle", { cx: 200 + 3 * 170, cy: 380, r: 66, fill: "none", stroke: "#e5533d", "stroke-width": 5, "stroke-dasharray": "12 8" }, v);
+          text(v, 500, 525, "3 pairs + 1 left over = odd", { "font-size": 34, fill: "#2b1d12" });
+        },
+      },
+      {
+        say: "A balance scale tips down on the heavier side. 3 blocks against 1 block tips left. Add 2 more, and it is level: 3 equals 1 plus 2.",
+        draw: async (v, api) => {
+          const s = scale(v);
+          cubes(s.left.load, 3, "#3d8bd9");
+          cubes(s.right.load, 1, "#e5533d");
+          await api.tween(900, (t) => s.set(tiltFor(3, 1) * t));
+          await api.wait(1400);
+          for (let k = 2; k <= 3; k++) {
+            cubes(s.right.load, k, "#e5533d");
+            note(k * 2);
+            const from = s.angle;
+            const to = tiltFor(3, k);
+            await api.tween(700, (t) => s.set(from + (to - from) * t));
+            await api.wait(800);
+          }
+          MUSIC.chime();
+          text(v, 500, 540, "3 = 1 + 2", { "font-size": 40, fill: "#2b1d12" });
+        },
+      },
+      {
+        say: "A function machine follows a rule. 4 goes in, and 7 comes out. 5 goes in, and 8 comes out. The rule is add 3.",
+        draw: async (v, api) => {
+          const m = machine(v, "?");
+          const rows = [];
+          text(v, 860, 120, "In → Out", { "font-size": 32, fill: "#8a7764" });
+          for (const [k, x] of [[0, 4], [1, 5], [2, 10]]) {
+            const b = ball(v, x, 80, 265);
+            await api.tween(800, (t) => b.setAttribute("transform", `translate(${80 + 250 * t} 265)`));
+            b.setAttribute("opacity", 0);
+            let a = 0;
+            await api.tween(900, (t) => m.spin((a = t * 360)));
+            const out = ball(v, x + 3, 560, 335, "#7cc98f");
+            await api.tween(700, (t) => out.setAttribute("transform", `translate(${560 + 120 * t} 335)`));
+            note(k * 3 + 2);
+            rows.push(text(v, 860, 180 + k * 55, `${x} → ${x + 3}`, { "font-size": 36, fill: "#2b1d12" }));
+            await api.wait(700);
+            out.remove();
+            b.remove();
+          }
+          m.label.textContent = "+3";
+          MUSIC.chime();
+        },
+      },
+    ];
+    explain(scenes, { alive: () => my === token, onDone: () => shell.go("pt1"), title: "Patterns & Puzzles" });
+  },
+
+  // ---- Finish the pattern ----
+  pt1() {
+    const my = token;
+    let lv = LV.pt1 || "easy";
+    let round = 0;
+    let right = 0;
+    let missed = false;
+    let q = null;
+    let busy = false;
+    const TOTAL = 8;
+    const SETS = [["🔴", "🔵", "🟡", "🟢"], ["🍎", "🍌", "🍇", "🍊"], ["🐶", "🐱", "🐭", "🐰"], ["⭐", "🌙", "☀️", "☁️"], ["🟥", "🟦", "🟨", "🟩"]];
+    const ARROWS = ["⬆️", "➡️", "⬇️", "⬅️"];
+    panel(`${chipsHtml(lv)}<p class="ap-status" data-status></p>`);
+    bindLevels((v) => {
+      LV.pt1 = lv = v;
+      round = right = 0;
+      ask();
+    });
+    const makeRepeat = () => {
+      const cores = lv === "easy" ? ["AB", "AB", "AAB", "ABB"] : ["ABC", "AABB", "ABCC", "AABC", "ABAC", "ARROW"];
+      const core = pick(cores);
+      if (core === "ARROW") {
+        const seq = Array.from({ length: 7 }, (_, i) => ARROWS[i % 4]);
+        return { core: "ABCD", tokens: ARROWS, seq: [...seq, ARROWS[3]], miss: 7, set: ARROWS, turn: true };
+      }
+      const set = shuffle(pick(SETS));
+      const len = Math.max(7, Math.min(8, core.length * 2 + 2));
+      const seq = Array.from({ length: len }, (_, i) => set["ABCD".indexOf(core[i % core.length])]);
+      const miss = lv === "easy" ? len - 1 : pickInt(core.length, len - 1);
+      return { core, seq, miss, set };
+    };
+    const makeNumbers = () => {
+      const kind = pick(["add", "add", "sub", "double", "grow", "squares", "big"]);
+      let seq;
+      let rule;
+      if (kind === "add") {
+        const k = pickInt(2, 9);
+        const a = pickInt(1, 20);
+        seq = Array.from({ length: 6 }, (_, i) => a + i * k);
+        rule = `It adds ${k} each time.`;
+      } else if (kind === "sub") {
+        const k = pickInt(3, 9);
+        const a = pickInt(50, 99);
+        seq = Array.from({ length: 6 }, (_, i) => a - i * k);
+        rule = `It takes away ${k} each time.`;
+      } else if (kind === "double") {
+        const a = pickInt(1, 5);
+        seq = Array.from({ length: 6 }, (_, i) => a * 2 ** i);
+        rule = "Each number is double the one before.";
+      } else if (kind === "grow") {
+        const a = pickInt(1, 10);
+        seq = [a];
+        for (let i = 1; i < 6; i++) seq.push(seq[i - 1] + i);
+        rule = "The jumps grow: add 1, then 2, then 3, then 4, then 5.";
+      } else if (kind === "squares") {
+        seq = [1, 4, 9, 16, 25, 36];
+        rule = "These are square numbers: 1×1, 2×2, 3×3, 4×4, 5×5, 6×6.";
+      } else {
+        const k = pick([25, 50, 100, 250]);
+        const a = k * pickInt(1, 6);
+        seq = Array.from({ length: 6 }, (_, i) => a + i * k);
+        rule = `It counts on by ${k} each time.`;
+      }
+      const miss = Math.random() < 0.7 ? 5 : pickInt(2, 4);
+      return { numbers: true, seq, miss, rule };
+    };
+    const slotX = (i, n, size) => W / 2 - ((n - 1) * (size + 14)) / 2 + i * (size + 14);
+    let slots = [];
+    const draw = () => {
+      fresh();
+      slots = [];
+      const n = q.seq.length;
+      const size = q.numbers ? 130 : 104;
+      q.seq.forEach((tok, i) => {
+        const x = slotX(i, n, size);
+        const g = el("g", {}, view);
+        const missing = i === q.miss;
+        card(g, x - size / 2, 110, size, 120, missing ? { stroke: "var(--accent)", "stroke-dasharray": "12 8", fill: "#fff7e8" } : {});
+        if (missing) text(g, x, 195, "?", { "font-size": 68, fill: "var(--accent)" });
+        else if (q.numbers) text(g, x, 188, tok, { "font-size": String(tok).length > 3 ? 40 : 52, fill: "#2b1d12" });
+        else emoji(g, x, 170, tok, 70);
+        slots.push({ g, x });
+      });
+      text(view, W / 2, 300, "Which one goes in the ? box", { "font-size": 30, fill: "#8a7764" });
+      q.opts.forEach((o, i) => {
+        const w = q.numbers ? 170 : 150;
+        const x = W / 2 - ((q.opts.length - 1) * (w + 30)) / 2 + i * (w + 30);
+        const g = el("g", { class: "pt-tap pt-opt", "data-i": i }, view);
+        card(g, x - w / 2, 340, w, 150, { fill: "#fff", stroke: "var(--accent)" });
+        if (q.numbers) text(g, x, 435, o, { "font-size": String(o).length > 3 ? 44 : 56, fill: "#2b1d12" });
+        else emoji(g, x, 412, o, 86);
+      });
+    };
+    const playRow = async (upto = q.seq.length) => {
+      for (let i = 0; i < upto; i++) {
+        if (my !== token) return;
+        const idx = q.numbers ? i : q.set.indexOf(q.seq[i]);
+        note(q.numbers ? i * 2 : idx * 2, 0.4);
+        slots[i]?.g.setAttribute("transform", `translate(0 -10)`);
+        await wait(260);
+        slots[i]?.g.removeAttribute("transform");
+      }
+    };
+    const ask = () => {
+      busy = false;
+      missed = false;
+      q = lv === "hard" ? makeNumbers() : makeRepeat();
+      const answer = q.seq[q.miss];
+      if (q.numbers) {
+        const set = new Set([answer]);
+        const step = Math.abs(q.seq[1] - q.seq[0]) || 2;
+        const cands = [answer + 1, answer - 1, answer + step, answer - step, answer + 2, answer + 10, answer - 10].filter((x) => x > 0);
+        for (const c of shuffle(cands)) if (set.size < 4) set.add(c);
+        q.opts = shuffle([...set]);
+      } else {
+        const pool = [...new Set(q.seq)];
+        const extra = q.set.filter((t) => !pool.includes(t));
+        const opts = new Set([answer, ...shuffle(pool.filter((t) => t !== answer)).slice(0, 2)]);
+        while (opts.size < 3 && extra.length) opts.add(extra.shift());
+        q.opts = shuffle([...opts]);
+      }
+      draw();
+      status(`Pattern ${round + 1} of ${TOTAL}`);
+      say(q.numbers ? `What number goes in the <b>?</b> box? Look at how the numbers change.` : `What comes in the <b>?</b> box? Say the pattern out loud, then tap the answer.`);
+      playRow(q.miss);
+    };
+    const choose = async (i) => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      const pickd = q.opts[i];
+      const answer = q.seq[q.miss];
+      const optG = view.querySelector(`.pt-opt[data-i="${i}"] rect`);
+      if (pickd === answer) {
+        busy = true;
+        optG.setAttribute("fill", "#d9f2df");
+        optG.setAttribute("stroke", "#22a05a");
+        MUSIC.chime();
+        round += 1;
+        if (!missed) right += 1;
+        window.OC?.count("patterns finished");
+        const slot = slots[q.miss];
+        slot.g.querySelector("text")?.remove();
+        slot.g.querySelector("rect").setAttribute("stroke-dasharray", "");
+        slot.g.querySelector("rect").setAttribute("stroke", "#22a05a");
+        if (q.numbers) {
+          text(slot.g, slot.x, 188, answer, { "font-size": String(answer).length > 3 ? 40 : 52, fill: "#22a05a" });
+          for (let k = 1; k < q.seq.length; k++) {
+            const d = q.seq[k] - q.seq[k - 1];
+            const x0 = slots[k - 1].x;
+            const x1 = slots[k].x;
+            el("path", { d: `M${x0 + 10} 104Q${(x0 + x1) / 2} 50 ${x1 - 10} 104`, fill: "none", stroke: "#2c7a44", "stroke-width": 4 }, view);
+            text(view, (x0 + x1) / 2, 62, `${d > 0 ? "+" : "−"}${Math.abs(d)}`, { "font-size": 26, fill: "#2c7a44" });
+          }
+        } else emoji(slot.g, slot.x, 170, answer, 70);
+        await wait(500);
+        await playRow();
+        if (my !== token) return;
+        const coreStr = q.numbers ? "" : q.seq.slice(0, q.core.length).join("");
+        say(q.numbers ? `${pick(PRAISE)} ${answer}! ${q.rule}` : q.turn ? `${pick(PRAISE)} The arrow turns a quarter turn each time, round and round.` : `${pick(PRAISE)} The part that repeats is ${coreStr}. That is an ${q.core} pattern.`);
+        await wait(3800);
+        if (my !== token) return;
+        if (round >= TOTAL) {
+          if (!(await finish(my, "pt1", right, TOTAL, "pattern spotting"))) return;
+          round = right = 0;
+        }
+        ask();
+      } else {
+        missed = true;
+        MUSIC.oops();
+        optG.setAttribute("fill", "#f6dcd4");
+        if (q.numbers) {
+          const d1 = q.seq[1] - q.seq[0];
+          const d2 = q.seq[2] - q.seq[1];
+          say(`${pick(KIND)} Not ${pickd}. Find the jump from each number to the next. ${q.seq[0]} to ${q.seq[1]} is ${d1 > 0 ? "+" : "−"}${Math.abs(d1)}, ${q.seq[1]} to ${q.seq[2]} is ${d2 > 0 ? "+" : "−"}${Math.abs(d2)}.`);
+        } else {
+          say(`${pick(KIND)} Listen to the pattern again and find the part that repeats.`);
+          await playRow();
+        }
+      }
+    };
+    stage.onpointerdown = (event) => {
+      const g = event.target.closest?.(".pt-opt");
+      if (g) choose(Number(g.dataset.i));
+    };
+    ask();
+  },
+
+  // ---- Odd or even ----
+  pt2() {
+    const my = token;
+    let lv = LV.pt2 || "easy";
+    let round = 0;
+    let right = 0;
+    let missed = false;
+    let q = null;
+    let busy = false;
+    const TOTAL = 8;
+    panel(`${chipsHtml(lv)}<p class="ap-status" data-status></p><div data-ans></div>`);
+    bindLevels((v) => {
+      LV.pt2 = lv = v;
+      round = right = 0;
+      ask();
+    });
+    const slotXY = (s, n) => {
+      const cols = Math.ceil(n / 2);
+      const x0 = W / 2 - ((cols - 1) * 160) / 2;
+      return [x0 + Math.floor(s / 2) * 160 + (s % 2 ? 32 : -32), 410];
+    };
+    const ask = () => {
+      busy = false;
+      missed = false;
+      fresh();
+      status(`Number ${round + 1} of ${TOTAL}`);
+      if (lv === "easy") {
+        const n = pickInt(2, 11);
+        q = { n, odd: n % 2 === 1, placed: 0, socks: [] };
+        const sp = Math.min(150, 900 / n);
+        for (let i = 0; i < n; i++) {
+          const x = W / 2 - ((n - 1) * sp) / 2 + i * sp;
+          const y = 120 + (i % 2) * 50;
+          const g = el("g", { class: "pt-tap pt-sock", "data-i": i }, view);
+          el("circle", { cx: x, cy: y, r: 46, fill: "transparent" }, g);
+          emoji(g, x, y - 6, "🧦", 72, { "pointer-events": "none" });
+          q.socks.push({ g, x, y, done: false });
+        }
+        el("line", { x1: 60, x2: 940, y1: 270, y2: 270, stroke: "#e2d6c4", "stroke-width": 3, "stroke-dasharray": "10 10" }, view);
+        say(`Tap the socks to put them in pairs. Is ${n} <b>odd</b> or <b>even</b>?`);
+      } else if (lv === "medium") {
+        const n = pickInt(10, 30);
+        q = { n, odd: n % 2 === 1 };
+        text(view, W / 2, 140, n, { "font-size": 110, fill: "#2b1d12" });
+        const cols = Math.ceil(n / 2);
+        const sp = Math.min(56, 900 / cols);
+        for (let i = 0; i < n; i++) {
+          const c = Math.floor(i / 2);
+          el("circle", { cx: W / 2 - ((cols - 1) * sp) / 2 + c * sp, cy: 290 + (i % 2) * 60, r: Math.min(22, sp * 0.4), fill: "#3d8bd9" }, view);
+        }
+        text(view, W / 2, 440, "Dots in pairs: is one left alone?", { "font-size": 30, fill: "#8a7764" });
+        say(`Is <b>${n}</b> odd or even? Look at the pairs of dots.`);
+      } else {
+        if (round % 2 === 0) {
+          const digits = pickInt(3, 6);
+          const n = pickInt(10 ** (digits - 1), 10 ** digits - 1);
+          q = { n, odd: n % 2 === 1, big: true };
+          const s = n.toLocaleString("en-US");
+          q.text = text(view, W / 2, 260, s, { "font-size": 110, fill: "#2b1d12" });
+          say(`Is <b>${s}</b> odd or even?`);
+        } else {
+          const a = pickInt(11, 99);
+          const b = pickInt(11, 99);
+          q = { a, b, n: a + b, odd: (a + b) % 2 === 1, sum: true };
+          text(view, W / 2, 230, `${a} + ${b}`, { "font-size": 100, fill: "#2b1d12" });
+          text(view, W / 2, 350, "Is the answer odd or even?", { "font-size": 34, fill: "#8a7764" });
+          text(view, W / 2, 420, "(You don't have to add it up!)", { "font-size": 28, fill: "#8a7764" });
+          say(`Is <b>${a} + ${b}</b> odd or even? Think about odd and even parts.`);
+        }
+      }
+      choices($("[data-ans]"), [{ label: "✌️ Even", v: false }, { label: "☝️ Odd", v: true }], (c, button) => answer(c.v, button));
+    };
+    const reveal = async () => {
+      if (lv !== "easy") return;
+      for (const s of q.socks) if (!s.done) await place(s, true);
+    };
+    const place = async (s, fast) => {
+      s.done = true;
+      const slot = q.placed++;
+      const [tx, ty] = slotXY(slot, q.n);
+      note(slot);
+      if (!fast) VOICE.speak(String(slot + 1));
+      await tween(my, fast ? 250 : 450, (t) => s.g.setAttribute("transform", `translate(${(tx - s.x) * t} ${(ty - s.y) * t})`));
+      if (my !== token) return;
+      if (slot % 2 === 1) el("rect", { x: tx - 32 - 74, y: ty - 62, width: 148, height: 124, rx: 22, fill: "none", stroke: "#4caf6a", "stroke-width": 5 }, view);
+      const last = slot === q.n - 1;
+      if (last && q.n % 2 === 1) {
+        el("circle", { cx: tx + 64, cy: ty, r: 42, fill: "none", stroke: "#e5533d", "stroke-width": 5, "stroke-dasharray": "10 8" }, view);
+        text(view, tx + 64, ty + 16, "?", { "font-size": 44, fill: "#e5533d" });
+      }
+      if (last && !fast && !busy) say(q.n % 2 ? `One sock has no buddy! Is ${q.n} odd or even?` : `Every sock has a buddy! Is ${q.n} odd or even?`);
+    };
+    const answer = async (v, button) => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      const word = q.odd ? "odd" : "even";
+      if (v === q.odd) {
+        busy = true;
+        button.classList.add("right");
+        MUSIC.chime();
+        round += 1;
+        if (!missed) right += 1;
+        window.OC?.count("odd or even");
+        await reveal();
+        if (my !== token) return;
+        let why;
+        if (lv === "easy") why = q.odd ? `${q.n} socks make ${(q.n - 1) / 2} pairs and one left over, so ${q.n} is odd.` : `${q.n} socks make ${q.n / 2} pairs, nobody left over, so ${q.n} is even.`;
+        else if (lv === "medium") why = q.odd ? `One dot is left alone, so ${q.n} is odd.` : `All the dots are in pairs, so ${q.n} is even.`;
+        else if (q.big) {
+          const last = q.n % 10;
+          q.text.textContent = "";
+          const s = q.n.toLocaleString("en-US");
+          q.text.innerHTML = "";
+          const a = document.createElementNS(KIT.NS, "tspan");
+          a.textContent = s.slice(0, -1);
+          const b = document.createElementNS(KIT.NS, "tspan");
+          b.textContent = s.slice(-1);
+          b.setAttribute("fill", "#e5533d");
+          q.text.append(a, b);
+          why = `Only the last digit matters. It ends in ${last}, and ${last} is ${word}, so the whole number is ${word}.`;
+        } else {
+          const pa = q.a % 2 ? "odd" : "even";
+          const pb = q.b % 2 ? "odd" : "even";
+          why = `${q.a} is ${pa} and ${q.b} is ${pb}. ${pa[0].toUpperCase() + pa.slice(1)} + ${pb} = ${word}. (${q.a} + ${q.b} = ${q.n})`;
+        }
+        say(`${pick(PRAISE)} ${why}`);
+        await wait(lv === "hard" ? 5200 : 4000);
+        if (my !== token) return;
+        if (round >= TOTAL) {
+          if (!(await finish(my, "pt2", right, TOTAL, "number sense"))) return;
+          round = right = 0;
+        }
+        ask();
+      } else {
+        missed = true;
+        button.classList.add("wrong");
+        MUSIC.oops();
+        if (lv === "easy") say(`${pick(KIND)} Put every sock with a buddy. If one is left alone, it is odd. If they all have buddies, it is even.`);
+        else if (lv === "medium") say(`${pick(KIND)} Look at the end of the dot pairs. Is a dot left alone without a partner?`);
+        else if (q.big) say(`${pick(KIND)} Look only at the last digit, ${q.n % 10}. Even numbers end in 0, 2, 4, 6 or 8.`);
+        else say(`${pick(KIND)} Even + even = even. Odd + odd = even. Odd + even = odd. Is each number odd or even?`);
+      }
+    };
+    stage.onpointerdown = (event) => {
+      if (my !== token || lv !== "easy" || !q?.socks) return;
+      const g = event.target.closest?.(".pt-sock");
+      if (!g) return;
+      const s = q.socks[Number(g.dataset.i)];
+      if (s.done) return;
+      window.OC?.touch();
+      place(s, false);
+    };
+    ask();
+  },
+
+  // ---- Balance the scale ----
+  pt3() {
+    const my = token;
+    let lv = LV.pt3 || "easy";
+    let round = 0;
+    let right = 0;
+    let missed = false;
+    let q = null;
+    let busy = false;
+    let sc = null;
+    let drag = null;
+    let pad = null;
+    const TOTAL = 8;
+    panel(`${chipsHtml(lv)}<p class="ap-status" data-status></p><div data-ans></div>`);
+    bindLevels((v) => {
+      LV.pt3 = lv = v;
+      round = right = 0;
+      ask();
+    });
+    const sum = (a) => a.reduce((s, x) => s + x, 0);
+    const TRAY = [1, 2, 3, 5];
+    const drawLoads = () => {
+      if (lv === "easy") {
+        cubes(sc.left.load, q.left, "#3d8bd9");
+        cubes(sc.right.load, q.right.length, "#e5533d", "pt-tap pt-on");
+      } else if (lv === "medium") {
+        weights(sc.left.load, q.left);
+        weights(sc.right.load, q.right, "pt-tap pt-on");
+      }
+    };
+    const totals = () => (lv === "easy" ? [q.left, q.right.length] : [sum(q.left), sum(q.right)]);
+    const settle = async () => {
+      const [L, R] = totals();
+      await sc.tilt(my, tiltFor(L, R));
+    };
+    const tray = () => {
+      const g = el("g", {}, view);
+      el("rect", { x: 20, y: 470, width: 400, height: 80, rx: 20, fill: "#efe4d2" }, g);
+      el("rect", { x: 580, y: 470, width: 400, height: 80, rx: 20, fill: "#efe4d2" }, g);
+      if (lv === "easy") {
+        for (let i = 0; i < 4; i++) {
+          const x = 640 + i * 90;
+          const t = el("g", { class: "pt-drag pt-src", "data-v": 1 }, g);
+          el("rect", { x: x - 22, y: 488, width: 44, height: 44, rx: 8, fill: "#e5533d", stroke: "#22344d", "stroke-width": 3 }, t);
+        }
+        text(g, 220, 522, "Drag red blocks ➜", { "font-size": 28, fill: "#8a7764" });
+      } else {
+        TRAY.forEach((v, i) => {
+          const t = el("g", { class: "pt-drag pt-src", "data-v": v, transform: `translate(${640 + i * 92} 512)` }, g);
+          el("path", { d: "M-34 32H34L26 -26H-26Z", fill: "#6b6f7a", stroke: "#3c3f47", "stroke-width": 3, "stroke-linejoin": "round" }, t);
+          text(t, 0, 14, v, { "font-size": 32, fill: "#fff" });
+        });
+        text(g, 220, 522, "Drag weights ➜", { "font-size": 28, fill: "#8a7764" });
+      }
+    };
+    const ask = () => {
+      busy = false;
+      missed = false;
+      fresh();
+      $("[data-ans]").innerHTML = "";
+      pad = null;
+      sc = scale(view);
+      status(`Scale ${round + 1} of ${TOTAL}`);
+      if (lv === "easy") {
+        q = { left: pickInt(1, 7), right: [] };
+        drawLoads();
+        tray();
+        sc.set(tiltFor(q.left, 0));
+        say(`Make the scale level! Drag red blocks onto the empty side until both sides match.`);
+      } else if (lv === "medium") {
+        const n = pickInt(2, 3);
+        q = { left: Array.from({ length: n }, () => pickInt(1, 6)), right: [] };
+        if (Math.random() < 0.5) q.right.push(pickInt(1, 3));
+        if (sum(q.right) >= sum(q.left)) q.right = [];
+        drawLoads();
+        tray();
+        sc.set(tiltFor(sum(q.left), sum(q.right)));
+        say(`Make it level! The left side weighs ${q.left.join(" + ")}. Drag weights to the right side. Tap a weight on the scale to take it off.`);
+      } else {
+        const kind = pick(["a+?", "?+b", "a+b=?+d", "ax?", "a+?"]);
+        let L;
+        let R;
+        let ans;
+        if (kind === "a+?" || kind === "?+b") {
+          const a = pickInt(2, 15);
+          ans = pickInt(2, 15);
+          L = kind === "a+?" ? `${a} + ?` : `? + ${a}`;
+          R = `${a + ans}`;
+          q = { L, R, ans, val: (x) => [a + x, a + ans] };
+        } else if (kind === "a+b=?+d") {
+          const a = pickInt(4, 12);
+          const b = pickInt(3, 12);
+          const d = pickInt(2, a + b - 2);
+          ans = a + b - d;
+          L = `${a} + ${b}`;
+          R = `? + ${d}`;
+          q = { L, R, ans, val: (x) => [a + b, x + d] };
+        } else {
+          const a = pickInt(2, 9);
+          ans = pickInt(2, 9);
+          L = `${a} × ?`;
+          R = `${a * ans}`;
+          q = { L, R, ans, val: (x) => [a * x, a * ans] };
+        }
+        for (const [pan, str] of [[sc.left, L], [sc.right, R]]) {
+          pan.load.innerHTML = "";
+          const w = Math.max(120, str.length * 34 + 40);
+          el("rect", { x: -w / 2, y: DROP - 92, width: w, height: 88, rx: 18, fill: "#fff", stroke: "#3c3f47", "stroke-width": 4 }, pan.load);
+          const t = text(pan.load, 0, DROP - 30, "", { "font-size": 52, fill: "#2b1d12" });
+          str.split(/(\?)/).forEach((part) => {
+            const s = document.createElementNS(KIT.NS, "tspan");
+            s.textContent = part;
+            if (part === "?") {
+              s.setAttribute("fill", "#e5533d");
+              s.classList.add("pt-q");
+            }
+            t.appendChild(s);
+          });
+        }
+        sc.set(0);
+        text(view, 500, 535, "Level means both sides are equal", { "font-size": 30, fill: "#8a7764" });
+        say(`The scale is level. What number is hiding under the <b>?</b>`);
+        pad = numpad($("[data-ans]"), { onEnter: (n) => answerHard(n), max: 3 });
+      }
+    };
+    const success = async () => {
+      busy = true;
+      MUSIC.chime();
+      round += 1;
+      if (!missed) right += 1;
+      window.OC?.count("scales balanced");
+    };
+    const next = async (ms) => {
+      await wait(ms);
+      if (my !== token) return;
+      if (round >= TOTAL) {
+        if (!(await finish(my, "pt3", right, TOTAL, "balancing"))) return;
+        round = right = 0;
+      }
+      ask();
+    };
+    const changed = async () => {
+      drawLoads();
+      await settle();
+      if (my !== token) return;
+      const [L, R] = totals();
+      if (L === R) {
+        await success();
+        say(lv === "easy" ? `${pick(PRAISE)} Level! ${L} blocks and ${R} blocks are equal.` : `${pick(PRAISE)} Level! ${q.left.join(" + ")} = ${q.right.join(" + ")}. Both sides weigh ${L}.`);
+        next(3600);
+      } else if (R > L) {
+        missed = true;
+        MUSIC.oops();
+        say(`Too heavy! The right side went down. Tap a ${lv === "easy" ? "block" : "weight"} on the scale to take it off.`);
+      } else if (lv !== "easy") say(`Left ${L}, right ${R}. ${L - R} more to go!`, { voice: false });
+    };
+    const answerHard = async (n) => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      const [L, R] = q.val(n);
+      view.querySelectorAll(".pt-q").forEach((s) => (s.textContent = n));
+      if (n === q.ans) {
+        await success();
+        await sc.tilt(my, 0, 300);
+        say(`${pick(PRAISE)} ${q.L.replace("?", n)} = ${q.R.replace("?", n)}. Both sides are ${L}, so the scale stays level.`);
+        next(4600);
+      } else {
+        missed = true;
+        MUSIC.oops();
+        pad.clear();
+        await sc.tilt(my, tiltFor(L, R));
+        say(`${pick(KIND)} With ${n}, the left is ${L} and the right is ${R}. The ${L > R ? "left" : "right"} side is heavier. Try ${L > R === q.L.includes("?") ? "a smaller" : "a bigger"} number.`);
+        await wait(2200);
+        if (my !== token || busy) return;
+        view.querySelectorAll(".pt-q").forEach((s) => (s.textContent = "?"));
+        await sc.tilt(my, 0);
+      }
+    };
+    const add = (v) => {
+      if (lv === "easy") {
+        if (q.right.length >= 10) return;
+        q.right.push(1);
+        note(q.right.length);
+        VOICE.speak(String(q.right.length));
+      } else {
+        if (q.right.length >= 6) return say("The pan is full! Take a weight off first.", { voice: true });
+        q.right.push(v);
+        note(v * 2);
+      }
+      changed();
+    };
+    stage.onpointerdown = (event) => {
+      if (my !== token || busy || lv === "hard" || !q) return;
+      window.OC?.touch();
+      const on = event.target.closest?.(".pt-on");
+      if (on) {
+        q.right.splice(Number(on.dataset.i), 1);
+        note(0, 0.3);
+        changed();
+        return;
+      }
+      const src = event.target.closest?.(".pt-src");
+      if (!src) return;
+      const p = toSvg(event);
+      const ghost = src.cloneNode(true);
+      ghost.classList.remove("pt-src");
+      ghost.setAttribute("opacity", 0.85);
+      ghost.setAttribute("pointer-events", "none");
+      view.appendChild(ghost);
+      drag = { v: Number(src.dataset.v), ghost, x: p.x, y: p.y, base: ghost.getAttribute("transform") || "", moved: false };
+      try {
+        stage.setPointerCapture(event.pointerId);
+      } catch {}
+    };
+    stage.onpointermove = (event) => {
+      if (!drag) return;
+      const p = toSvg(event);
+      if (Math.hypot(p.x - drag.x, p.y - drag.y) > 8) drag.moved = true;
+      drag.ghost.setAttribute("transform", `translate(${p.x - drag.x} ${p.y - drag.y}) ${drag.base}`);
+    };
+    stage.onpointerup = stage.onpointercancel = (event) => {
+      if (!drag) return;
+      const d = drag;
+      drag = null;
+      d.ghost.remove();
+      if (my !== token || busy) return;
+      const p = toSvg(event);
+      const overRight = p.x > 560 && p.y < 460;
+      if (!d.moved || overRight) add(d.v);
+    };
+    ask();
+  },
+
+  // ---- Function machine ----
+  pt4() {
+    const my = token;
+    let lv = LV.pt4 || "easy";
+    let round = 0;
+    let right = 0;
+    let missed = false;
+    let q = null;
+    let busy = false;
+    let m = null;
+    let tableN = 0;
+    const TOTAL = 8;
+    const RULES = {
+      easy: [["+1", "add 1", (x) => x + 1], ["+2", "add 2", (x) => x + 2], ["−1", "take away 1", (x) => x - 1]],
+      medium: [["+2", "add 2", (x) => x + 2], ["+3", "add 3", (x) => x + 3], ["+5", "add 5", (x) => x + 5], ["+10", "add 10", (x) => x + 10], ["−2", "take away 2", (x) => x - 2], ["−3", "take away 3", (x) => x - 3], ["×2", "double it", (x) => x * 2]],
+      hard: [["×2", "times 2", (x) => x * 2], ["×3", "times 3", (x) => x * 3], ["×4", "times 4", (x) => x * 4], ["×5", "times 5", (x) => x * 5], ["×10", "times 10", (x) => x * 10], ["−4", "take away 4", (x) => x - 4], ["+9", "add 9", (x) => x + 9], ["×2 +1", "double it, then add 1", (x) => x * 2 + 1], ["×3 −1", "times 3, then take away 1", (x) => x * 3 - 1]],
+    };
+    panel(`${chipsHtml(lv)}<p class="ap-status" data-status></p><div data-ans></div>`);
+    bindLevels((v) => {
+      LV.pt4 = lv = v;
+      round = right = 0;
+      ask();
+    });
+    const run = async (x, { show = true } = {}) => {
+      const b = ball(view, x, 70, 265);
+      if (!(await tween(my, 700, (t) => b.setAttribute("transform", `translate(${70 + 260 * t} 265)`)))) return false;
+      b.remove();
+      MUSIC.play("woodblock", 72, { gain: 0.4 });
+      if (!(await tween(my, 800, (t) => m.spin(t * 360)))) return false;
+      const y = q.rule[2](x);
+      const out = ball(view, y, 560, 335, "#7cc98f");
+      note(3);
+      if (!(await tween(my, 600, (t) => out.setAttribute("transform", `translate(${560 + 115 * t} 335)`)))) return false;
+      if (show) {
+        text(view, 860, 205 + tableN * 55, `${x} → ${y}`, { "font-size": 36, fill: "#2b1d12" });
+        tableN += 1;
+      }
+      await wait(500);
+      out.remove();
+      return my === token;
+    };
+    const ask = async () => {
+      busy = true;
+      missed = false;
+      tableN = 0;
+      fresh();
+      $("[data-ans]").innerHTML = "";
+      const rule = pick(RULES[lv]);
+      q = { rule };
+      m = machine(view, lv === "easy" ? rule[0] : "?");
+      el("rect", { x: 740, y: 110, width: 240, height: 340, rx: 20, fill: "#fff", stroke: "#e2d6c4", "stroke-width": 4 }, view);
+      text(view, 860, 150, "In → Out", { "font-size": 30, fill: "#8a7764" });
+      status(`Machine ${round + 1} of ${TOTAL}`);
+      const low = rule[2](0) < 0 ? 5 : 1;
+      if (lv === "easy") {
+        const x = pickInt(Math.max(low, 2), 8);
+        q.x = x;
+        q.ans = rule[2](x);
+        q.inBall = ball(view, x, 70, 265);
+        say(`${x} goes in. The machine says <b>${rule[1]}</b>. What comes out?`);
+        const set = new Set([q.ans]);
+        while (set.size < 3) set.add(Math.max(0, q.ans + pick([-2, -1, 1, 2])));
+        busy = false;
+        choices($("[data-ans]"), shuffle([...set]).map((v) => ({ label: String(v), v })), (c, b) => answer(c.v, b));
+        return;
+      }
+      const count = lv === "medium" ? 2 : 3;
+      const ins = shuffle(Array.from({ length: 9 }, (_, i) => i + low + 1)).slice(0, count + 1);
+      say(`Watch the machine. Can you find its secret rule?`);
+      for (let i = 0; i < count; i++) if (!(await run(ins[i]))) return;
+      busy = false;
+      if (lv === "medium") {
+        const x = ins[count];
+        q.x = x;
+        q.ans = rule[2](x);
+        q.inBall = ball(view, x, 70, 265);
+        say(`Now ${x} goes in. What will come out?`);
+        const set = new Set([q.ans]);
+        while (set.size < 4) set.add(Math.max(0, q.ans + pick([-3, -2, -1, 1, 2, 3, 5])));
+        choices($("[data-ans]"), shuffle([...set]).map((v) => ({ label: String(v), v })), (c, b) => answer(c.v, b));
+      } else {
+        q.ans = rule[0];
+        const seen = ins.slice(0, count);
+        q.seen = seen;
+        const d = rule[2](seen[0]) - seen[0];
+        const near = [d > 0 ? `+${d}` : `−${-d}`, "", (x) => x + d];
+        const pool = [near, ...RULES.hard].filter((r) => r[0] !== rule[0] && seen.some((x) => r[2](x) !== rule[2](x)));
+        const wrong = [];
+        for (const r of [pool[0], ...shuffle(pool.slice(1))]) if (wrong.length < 3 && !wrong.some((w) => w[0] === r[0])) wrong.push(r);
+        q.opts = [rule, ...wrong];
+        say(`What is the secret rule? Check it works for every pair.`);
+        choices($("[data-ans]"), shuffle(q.opts).map((r) => ({ label: r[0], v: r[0] })), (c, b) => answer(c.v, b));
+      }
+    };
+    const answer = async (v, button) => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      if (v === q.ans) {
+        busy = true;
+        button.classList.add("right");
+        MUSIC.chime();
+        round += 1;
+        if (!missed) right += 1;
+        window.OC?.count("machine rules");
+        m.label.textContent = q.rule[0];
+        if (q.x !== undefined) {
+          q.inBall?.remove();
+          if (!(await run(q.x))) return;
+        }
+        say(`${pick(PRAISE)} The rule is <b>${q.rule[1]}</b>${q.x !== undefined ? `: ${q.x} → ${q.ans}` : ""}.`);
+        await wait(3400);
+        if (my !== token) return;
+        if (round >= TOTAL) {
+          if (!(await finish(my, "pt4", right, TOTAL, "rule finding"))) return;
+          round = right = 0;
+        }
+        ask();
+      } else {
+        missed = true;
+        button.classList.add("wrong");
+        MUSIC.oops();
+        if (lv === "easy") say(`${pick(KIND)} Start at ${q.x} and ${q.rule[1]}. ${q.rule[0].startsWith("+") ? "Count on" : "Count back"} with your fingers.`);
+        else if (lv === "medium") say(`${pick(KIND)} Look at the pairs in the table. How did each In number change into its Out number?`);
+        else {
+          const f = q.opts.find((r) => r[0] === v)[2];
+          const x = q.seen.find((n) => f(n) !== q.rule[2](n));
+          say(`${pick(KIND)} If the rule were ${v}, then ${x} would come out as ${f(x)}. But the machine made ${q.rule[2](x)}. Try another rule.`);
+        }
+      }
+    };
+    ask();
+  },
+
+  // ---- Pet puzzle (logic grid) ----
+  pt5() {
+    const my = token;
+    let lv = LV.pt5 || "easy";
+    let round = 0;
+    let right = 0;
+    let missed = false;
+    let q = null;
+    let busy = false;
+    const TOTAL = 6;
+    panel(`${chipsHtml(lv)}<p class="ap-status" data-status></p><div class="ap-buttons"><button type="button" data-do="hear">🔊 Hear the clues</button><button type="button" data-do="clear">🧽 Clear</button></div>`);
+    bindLevels((v) => {
+      LV.pt5 = lv = v;
+      round = right = 0;
+      ask();
+    });
+    const clueWords = (c) => `${FRIENDS[c.f][1]} ${c.yes ? "has" : "does not have"} the ${PETS[c.p][1]}.`;
+    let cellSize;
+    let gx;
+    let gy;
+    const draw = () => {
+      fresh();
+      const n = q.n;
+      cellSize = n === 4 ? 82 : n === 3 ? 100 : 120;
+      gx = 960 - cellSize * (n + 1);
+      gy = Math.max(20, (H - cellSize * (n + 1)) / 2);
+      // clues
+      const ch = Math.min(96, (H - 40) / q.clues.length - 12);
+      q.clues.forEach((c, i) => {
+        const y = 20 + i * (ch + 12) + ((H - 40) - q.clues.length * (ch + 12)) / 2;
+        const g = el("g", { class: "pt-tap pt-clue", "data-i": i }, view);
+        card(g, 30, y, gx - 70, ch, { fill: c.yes ? "#eef8f0" : "#fdf0ec", stroke: c.yes ? "#9fd3a8" : "#efb7a6" });
+        text(g, 62, y + ch / 2 + 10, i + 1, { "font-size": 28, fill: "#8a7764" });
+        const size = Math.min(56, ch * 0.62);
+        emoji(g, 125, y + ch / 2 - 4, FRIENDS[c.f][0], size);
+        text(g, 205, y + ch / 2 + 14, c.yes ? "✔" : "✘", { "font-size": 44, fill: c.yes ? "#22a05a" : "#e5533d", "font-family": "system-ui, sans-serif" });
+        emoji(g, 285, y + ch / 2 - 4, PETS[c.p][0], size);
+        text(g, Math.min(gx - 120, 420), y + ch / 2 + 10, c.yes ? "has" : "not", { "font-size": 26, fill: c.yes ? "#22a05a" : "#e5533d" });
+      });
+      // grid headers
+      for (let p = 0; p < n; p++) {
+        el("rect", { x: gx + (p + 1) * cellSize, y: gy, width: cellSize, height: cellSize, fill: "#f5ecdc", stroke: "#d9cdb5", "stroke-width": 3 }, view);
+        emoji(view, gx + (p + 1.5) * cellSize, gy + cellSize / 2 - 4, PETS[p][0], cellSize * 0.55);
+      }
+      for (let f = 0; f < n; f++) {
+        el("rect", { x: gx, y: gy + (f + 1) * cellSize, width: cellSize, height: cellSize, fill: "#f5ecdc", stroke: "#d9cdb5", "stroke-width": 3 }, view);
+        emoji(view, gx + cellSize / 2, gy + (f + 1.5) * cellSize - 4, FRIENDS[f][0], cellSize * 0.55);
+        for (let p = 0; p < n; p++) {
+          const g = el("g", { class: "pt-tap pt-cell", "data-f": f, "data-p": p }, view);
+          el("rect", { x: gx + (p + 1) * cellSize, y: gy + (f + 1) * cellSize, width: cellSize, height: cellSize, fill: "#fff", stroke: "#d9cdb5", "stroke-width": 3 }, g);
+          text(g, gx + (p + 1.5) * cellSize, gy + (f + 1.5) * cellSize + cellSize * 0.18, "", { "font-size": cellSize * 0.55, "font-family": "system-ui, sans-serif", class: "pt-mark" });
+        }
+      }
+      paint();
+    };
+    const paint = () => {
+      view.querySelectorAll(".pt-cell").forEach((g) => {
+        const f = Number(g.dataset.f);
+        const p = Number(g.dataset.p);
+        const v = q.marks[f][p];
+        const auto = v === 0 && (q.marks[f].some((x) => x === 1) || q.marks.some((row) => row[p] === 1));
+        const t = g.querySelector(".pt-mark");
+        t.textContent = v === 1 ? "✔" : v === 2 || auto ? "✘" : "";
+        t.setAttribute("fill", v === 1 ? "#22a05a" : "#e5533d");
+        t.setAttribute("opacity", v === 0 && auto ? 0.3 : 1);
+        g.querySelector("rect").setAttribute("fill", v === 1 ? "#e3f4e7" : "#fff");
+      });
+    };
+    const readClues = async () => {
+      const my2 = token;
+      for (let i = 0; i < q.clues.length; i++) {
+        if (my2 !== token) return;
+        const g = view.querySelector(`.pt-clue[data-i="${i}"] rect`);
+        g?.setAttribute("stroke-width", 8);
+        await sayAsync(`Clue ${i + 1}: ${clueWords(q.clues[i])}`);
+        g?.setAttribute("stroke-width", 4);
+      }
+      if (my2 === token && !busy) say(`Tap a box to put a ✔ for who has each pet. Tap again for ✘.`);
+    };
+    const ask = () => {
+      busy = false;
+      missed = false;
+      const n = lv === "easy" ? 2 : lv === "medium" ? 3 : round % 2 ? 4 : 3;
+      const answer = shuffle([...Array(n).keys()]);
+      const clues = makeClues(n, answer, { negOnly: lv === "hard" && n === 3, max: n === 4 ? 7 : 4, maxYes: 1 });
+      q = { n, answer, clues, marks: Array.from({ length: n }, () => Array(n).fill(0)) };
+      draw();
+      status(`Puzzle ${round + 1} of ${TOTAL}`);
+      readClues();
+    };
+    const check = async () => {
+      const rows = q.marks.map((row) => row.indexOf(1));
+      if (rows.some((x) => x < 0) || new Set(rows).size < q.n) return;
+      const broken = q.clues.findIndex((c) => !fits(rows, c));
+      if (broken < 0 && rows.every((p, f) => p === q.answer[f])) {
+        busy = true;
+        MUSIC.chime();
+        round += 1;
+        if (!missed) right += 1;
+        window.OC?.count("logic puzzles");
+        say(`${pick(PRAISE)} ${rows.map((p, f) => `${FRIENDS[f][1]} has the ${PETS[p][1]}`).join(", ")}. You used the clues like a detective! 🔎`);
+        await wait(5200);
+        if (my !== token) return;
+        if (round >= TOTAL) {
+          if (!(await finish(my, "pt5", right, TOTAL, "detective work"))) return;
+          round = right = 0;
+        }
+        ask();
+      } else {
+        missed = true;
+        MUSIC.oops();
+        if (broken >= 0) {
+          view.querySelector(`.pt-clue[data-i="${broken}"] rect`)?.setAttribute("stroke-width", 8);
+          say(`${pick(KIND)} Look at clue ${broken + 1}: ${clueWords(q.clues[broken])} Your grid does not match it yet.`);
+        } else say(`${pick(KIND)} That fits the clues, but another answer fits too. Which clue tells you more?`);
+      }
+    };
+    stage.onpointerdown = (event) => {
+      if (my !== token || busy || !q) return;
+      const clue = event.target.closest?.(".pt-clue");
+      if (clue) {
+        const c = q.clues[Number(clue.dataset.i)];
+        say(`Clue ${Number(clue.dataset.i) + 1}: ${clueWords(c)}`);
+        return;
+      }
+      const cell = event.target.closest?.(".pt-cell");
+      if (!cell) return;
+      window.OC?.touch();
+      const f = Number(cell.dataset.f);
+      const p = Number(cell.dataset.p);
+      const v = (q.marks[f][p] + 1) % 3;
+      if (v === 1) {
+        q.marks[f] = q.marks[f].map((x) => (x === 1 ? 0 : x));
+        q.marks.forEach((row) => row[p] === 1 && (row[p] = 0));
+      }
+      q.marks[f][p] = v;
+      note(v === 1 ? 7 : v === 2 ? 2 : 0, 0.35);
+      if (v === 1) VOICE.speak(`${FRIENDS[f][1]} has the ${PETS[p][1]}`);
+      paint();
+      check();
+    };
+    $("[data-panel]").onclick = (event) => {
+      const what = event.target.closest("[data-do]")?.dataset.do;
+      if (!what || my !== token || !q) return;
+      if (what === "hear") {
+        VOICE.hush();
+        readClues();
+      } else if (what === "clear" && !busy) {
+        q.marks = Array.from({ length: q.n }, () => Array(q.n).fill(0));
+        paint();
+      }
+    };
+    ask();
+  },
+};
+
+const clearStage = () => {
+  stage.onpointerdown = stage.onpointermove = stage.onpointerup = stage.onpointercancel = null;
+};
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    pt0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    pt1: { icon: "🔴", title: "Finish the pattern", steps: ["Look at the row and say it out loud.", "Find the part that repeats.", "Tap what goes in the ? box."] },
+    pt2: { icon: "🧦", title: "Odd or even", steps: ["Put things in pairs.", "One left alone means odd.", "Tap Even or Odd."] },
+    pt3: { icon: "⚖️", title: "Balance the scale", steps: ["The heavy side goes down.", "Drag weights on, or tap to take them off.", "Make the scale level!"] },
+    pt4: { icon: "⚙️", title: "Function machine", steps: ["A number goes in the machine.", "The machine follows a secret rule.", "Tap what comes out, or the rule."] },
+    pt5: { icon: "🐶", title: "Pet puzzle", steps: ["Listen to the clues.", "Tap a box: ✔ means yes, tap again for ✘.", "Find who has each pet."] },
+  },
+  start: "pt0",
+  onStop() {
+    token += 1;
+    clearStage();
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Math",
+  activity: "Patterns & Puzzles",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    clearStage();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", NOTES);
+MUSIC.preload("woodblock", [72, 79]);
+</script>
+</body>
+</html>

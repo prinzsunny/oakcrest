@@ -1,0 +1,1445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rhythm Studio · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="music">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Rhythm Studio</b><small>Music · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, pickInt, wait, confetti, PRAISE, KIND, explain, everyday, emoji, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+let cleanup = [];
+let onSpace = null;
+const debug = (window.__rh = {});
+const level = { r1: 0, r2: 0, r3: 0, r4: 0, r5: 0 };
+const LEVELS = ["🐣 Easy", "🦊 Medium", "🦁 Hard"];
+const INK = "#2b1d12";
+
+const UNITS = [
+  { id: "r0", label: "1. See it", icon: "👀" },
+  { id: "r1", label: "2. Keep the beat", icon: "🏀" },
+  { id: "r2", label: "3. Tap the rhythm", icon: "👏" },
+  { id: "r3", label: "4. Copy my rhythm", icon: "🔁" },
+  { id: "r4", label: "5. Which rhythm?", icon: "👂" },
+  { id: "r5", label: "6. Fill the bar", icon: "🧩" },
+  { id: "r6", label: "7. Beat maker", icon: "🎛️" },
+];
+
+const style = document.createElement("style");
+style.textContent = `
+.rh-tap{cursor:pointer}
+.rh-card,.rh-tile,.rh-cell,.rh-pal{cursor:pointer}
+.rh-tempo{display:flex;align-items:center;gap:10px;font:800 17px/1 var(--sans);color:var(--ink)}
+.rh-tempo input{width:min(220px,40vw);height:36px;accent-color:var(--accent)}
+.rh-tempo b{min-width:3.2em;text-align:left;font-variant-numeric:tabular-nums}
+.rh-cell.hit rect.rh-on{animation:rh-pop .22s ease-out}
+@keyframes rh-pop{0%{transform:scale(1.12)}100%{transform:scale(1)}}
+.rh-cell rect.rh-on{transform-box:fill-box;transform-origin:center}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){.rh-tempo{font-size:14px}.rh-tempo input{height:28px}}
+@media (prefers-reduced-motion:reduce){.rh-cell.hit rect.rh-on{animation:none}}
+`;
+document.head.appendChild(style);
+
+function fresh(bg = "#fffaf2") {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  el("rect", { x: -2000, y: -2000, width: 5000, height: 5000, fill: bg }, view);
+  return view;
+}
+const stopAll = () => {
+  cleanup.splice(0).forEach((fn) => {
+    try {
+      fn();
+    } catch {}
+  });
+  onSpace = null;
+};
+addEventListener("keydown", (event) => {
+  if (event.code === "Space" && onSpace && !event.target.closest?.("input, select, textarea, button")) {
+    event.preventDefault();
+    onSpace();
+  }
+});
+const chipsHtml = (cur) => `<div class="ap-chips" data-levels>${LEVELS.map((l, i) => `<button type="button" data-lv="${i}" aria-pressed="${i === cur}">${l}</button>`).join("")}</div>`;
+const setChips = (cur) => document.querySelectorAll("[data-lv]").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.lv) === cur)));
+const status = (s) => {
+  const box = $("[data-status]");
+  if (box) box.textContent = s;
+};
+
+// ---------- clock + scheduler (uses the audio clock when it is running, otherwise performance.now) ----------
+function makeClock() {
+  const ctx = MUSIC.context();
+  if (ctx && ctx.state === "running") return { now: () => ctx.currentTime, audio: true };
+  return { now: () => performance.now() / 1000, audio: false };
+}
+function schedule(clk, events, my) {
+  const list = [...events].sort((a, b) => a.t - b.t);
+  let i = 0;
+  const id = setInterval(() => {
+    if (my !== token) return clearInterval(id);
+    const now = clk.now();
+    while (i < list.length && list[i].t <= now + (clk.audio ? 0.12 : 0.004)) {
+      const e = list[i++];
+      e.fn(clk.audio ? e.t : 0);
+    }
+    if (i >= list.length) clearInterval(id);
+  }, 15);
+  cleanup.push(() => clearInterval(id));
+  return () => clearInterval(id);
+}
+function loop(fn, my) {
+  let alive = true;
+  const frame = () => {
+    if (!alive || my !== token) return;
+    if (fn() !== false) requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+  const stop = () => (alive = false);
+  cleanup.push(stop);
+  return stop;
+}
+const soft = (at) => MUSIC.play("woodblock", 72, { gain: 0.28, at });
+const pianoNote = (beats, B, at, midi = 72) => MUSIC.play("piano", midi, { gain: 0.8, at, length: Math.max(0.18, beats * B * 0.88) });
+
+// ---------- notes ----------
+const NOTE = {
+  w: { beats: 4, on: [0], word: "ta-a-a-a", name: "whole note" },
+  dh: { beats: 3, on: [0], word: "ta-a-a", name: "dotted half note" },
+  h: { beats: 2, on: [0], word: "ta-a", name: "half note" },
+  q: { beats: 1, on: [0], word: "ta", name: "quarter note" },
+  e: { beats: 1, on: [0, 0.5], word: "ti-ti", name: "two eighth notes" },
+  r: { beats: 1, on: [], word: "sh", name: "rest" },
+};
+function spans(tokens) {
+  let b = 0;
+  return tokens.map((k) => {
+    const s = { k, start: b, beats: NOTE[k].beats };
+    b += NOTE[k].beats;
+    return s;
+  });
+}
+const onsets = (tokens) => spans(tokens).flatMap((s) => NOTE[s.k].on.map((o) => s.start + o));
+const total = (tokens) => tokens.reduce((a, k) => a + NOTE[k].beats, 0);
+const keyOf = (tokens) => tokens.join(" ");
+
+// One note symbol. x = first head, gap = distance to the second eighth head.
+function glyph(g, k, x, y, s = 1, { ink = INK, gap = 40 * s, color = null } = {}) {
+  const parts = [];
+  const head = (cx, hollow, big = false) => {
+    const rx = (big ? 17 : 14) * s;
+    const ry = (big ? 11.5 : 10) * s;
+    parts.push(el("ellipse", { cx, cy: y, rx, ry, transform: `rotate(-22 ${cx} ${y})`, fill: hollow ? "#fff" : color || ink, stroke: color || ink, "stroke-width": hollow ? 4.5 * s : 1 }, g));
+  };
+  const stem = (cx) => el("line", { x1: cx + 12.5 * s, x2: cx + 12.5 * s, y1: y - 3 * s, y2: y - 72 * s, stroke: color || ink, "stroke-width": 4 * s, "stroke-linecap": "round" }, g);
+  if (k === "w") head(x, true, true);
+  else if (k === "h" || k === "dh") {
+    head(x, true);
+    stem(x);
+    if (k === "dh") el("circle", { cx: x + 27 * s, cy: y - 4 * s, r: 5 * s, fill: color || ink }, g);
+  } else if (k === "q") {
+    head(x, false);
+    stem(x);
+  } else if (k === "e") {
+    head(x, false);
+    head(x + gap, false);
+    stem(x);
+    stem(x + gap);
+    el("path", { d: `M${x + 10.5 * s} ${y - 72 * s}h${gap + 4 * s}v${11 * s}h${-gap - 4 * s}Z`, fill: color || ink }, g);
+  } else if (k === "r") {
+    const p = el("path", { d: "M-5 -40 L9 -24 L-3 -11 L9 4 C0 0 -8 4 -1 15", fill: "none", stroke: color || ink, "stroke-width": 6, "stroke-linecap": "round", "stroke-linejoin": "round", transform: `translate(${x} ${y - 14 * s}) scale(${s})` }, g);
+    parts.push(p);
+  }
+  return parts;
+}
+
+// A bar (or two) of rhythm on one line. Notes sit where their beat is, so a playhead lines up with them.
+function drawBar(parent, tokens, { x, y, w, s = 1, words = true, time = 0, ink = INK } = {}) {
+  const g = el("g", {}, parent);
+  const beats = total(tokens);
+  const per = time || 4;
+  const bw = w / beats;
+  const xOf = (b) => x + (b + 0.3) * bw;
+  el("line", { x1: x, x2: x + w, y1: y, y2: y, stroke: "#b9a68f", "stroke-width": 3 }, g);
+  for (let b = 0; b <= beats; b += per) el("line", { x1: x + b * bw, x2: x + b * bw, y1: y - 44 * s, y2: y + 44 * s, stroke: ink, "stroke-width": b === beats ? 6 : 4 }, g);
+  if (time) {
+    text(g, x - 34 * s, y - 6 * s, time, { "font-size": 44 * s, fill: ink, "font-family": "Georgia, serif", "font-weight": 900 });
+    text(g, x - 34 * s, y + 34 * s, 4, { "font-size": 44 * s, fill: ink, "font-family": "Georgia, serif", "font-weight": 900 });
+  }
+  const notes = [];
+  for (const sp of spans(tokens)) {
+    const gx = xOf(sp.start);
+    const parts = glyph(g, sp.k, gx, y, s, { ink, gap: 0.5 * bw });
+    const wordX = sp.k === "e" ? gx + 0.25 * bw : gx;
+    let word = null;
+    if (words) word = text(g, wordX + 4, y + 50 * s + 10, NOTE[sp.k].word, { "font-size": Math.max(22, 25 * s), fill: "#7a5a3e" });
+    notes.push({ ...sp, parts, word });
+  }
+  return { g, xOf, notes, bw, beats };
+}
+const paintNote = (note, color) => note.parts.forEach((p) => (p.getAttribute("fill") === "#fff" ? p.setAttribute("stroke", color) : (p.setAttribute("fill", p.getAttribute("fill") === "none" ? "none" : color), p.setAttribute("stroke", color))));
+
+function woodblock(parent, cx, cy, s = 1) {
+  const g = el("g", { transform: `translate(${cx} ${cy}) scale(${s})` }, parent);
+  el("ellipse", { cx: 0, cy: 58, rx: 160, ry: 16, fill: "#3a2210", opacity: 0.12 }, g);
+  el("rect", { x: -150, y: -40, width: 300, height: 92, rx: 26, fill: "#a8632d" }, g);
+  el("rect", { x: -150, y: -46, width: 300, height: 84, rx: 26, fill: "#d39256" }, g);
+  el("rect", { x: -120, y: -8, width: 240, height: 14, rx: 7, fill: "#5a3418" }, g);
+  el("path", { d: "M-128 -34 Q0 -48 128 -34", stroke: "#efc08e", "stroke-width": 6, fill: "none", "stroke-linecap": "round" }, g);
+  for (const lx of [-90, -30, 40, 100]) el("path", { d: `M${lx} 14 q10 8 22 0`, stroke: "#b47440", "stroke-width": 3, fill: "none" }, g);
+  return g;
+}
+function ballShape(parent) {
+  const g = el("g", {}, parent);
+  el("circle", { r: 36, fill: "#e8553d", stroke: "#9c2d1e", "stroke-width": 3 }, g);
+  el("path", { d: "M-36 0 Q0 -18 36 0 M-36 0 Q0 18 36 0", stroke: "#ffd1c4", "stroke-width": 3, fill: "none", opacity: 0.8 }, g);
+  el("circle", { cx: -12, cy: -14, r: 9, fill: "#fff", opacity: 0.7 }, g);
+  return g;
+}
+
+function pizza(parent, cx, cy, r, sizes, { lit = [], rest = [] } = {}) {
+  const g = el("g", {}, parent);
+  el("circle", { cx, cy: cy + 8, r: r + 10, fill: "#3a2210", opacity: 0.1 }, g);
+  el("circle", { cx, cy, r: r + 12, fill: "#e8b46c", stroke: "#b8823c", "stroke-width": 3 }, g);
+  const sum = sizes.reduce((a, b) => a + b, 0);
+  let a = -Math.PI / 2;
+  const slices = sizes.map((size, i) => {
+    const a1 = a + (size / sum) * Math.PI * 2;
+    const large = a1 - a > Math.PI ? 1 : 0;
+    const d = sizes.length === 1 ? `M${cx - r} ${cy}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0Z` : `M${cx} ${cy}L${cx + r * Math.cos(a)} ${cy + r * Math.sin(a)}A${r} ${r} 0 ${large} 1 ${cx + r * Math.cos(a1)} ${cy + r * Math.sin(a1)}Z`;
+    const sg = el("g", {}, g);
+    const path = el("path", { d, fill: "#f8ecd2", stroke: "#b8823c", "stroke-width": 3, "stroke-linejoin": "round" }, sg);
+    const mid = (a + a1) / 2;
+    const tops = el("g", { opacity: 0 }, sg);
+    const n = Math.max(1, Math.round((size / sum) * 8));
+    for (let k = 0; k < n; k++) {
+      const am = a + ((k + 0.5) / n) * (a1 - a);
+      const rr = r * (k % 2 ? 0.45 : 0.72);
+      el("circle", { cx: cx + rr * Math.cos(am), cy: cy + rr * Math.sin(am), r: r * 0.085, fill: "#c0392b" }, tops);
+    }
+    const quiet = rest.includes(i) ? emoji(sg, cx + r * 0.58 * Math.cos(mid), cy + r * 0.58 * Math.sin(mid), "🤫", r * 0.24, { opacity: 0 }) : null;
+    const slice = { path, tops, quiet, on() {
+      if (quiet) {
+        path.setAttribute("fill", "#ece6f6");
+        quiet.setAttribute("opacity", 1);
+      } else {
+        path.setAttribute("fill", "#ffd66b");
+        tops.setAttribute("opacity", 1);
+      }
+    } };
+    a = a1;
+    return slice;
+  });
+  lit.forEach((i) => slices[i].on());
+  return slices;
+}
+
+// ---------- See it ----------
+function beatNumbers(parent, x, w, y, beats = 4) {
+  return Array.from({ length: beats }, (_, i) => text(parent, x + (i + 0.3) * (w / beats) + 4, y, i + 1, { "font-size": 30, fill: "#c9b8a1" }));
+}
+function noteLesson(tokens, caption, midi = 72) {
+  return async (v, api) => {
+    const sizes = tokens.flatMap((k) => (k === "e" ? [0.5, 0.5] : [NOTE[k].beats]));
+    const restIdx = [];
+    let idx = 0;
+    tokens.forEach((k) => {
+      if (k === "r") restIdx.push(idx);
+      idx += k === "e" ? 2 : 1;
+    });
+    const slices = pizza(v, 215, 255, 150, sizes, { rest: restIdx });
+    const barX = 450;
+    const barW = 500;
+    const bar = drawBar(v, tokens, { x: barX, y: 240, w: barW, s: 1.25 });
+    const nums = beatNumbers(v, barX, barW, 380);
+    const cap = text(v, 690, 470, caption, { "font-size": 40, fill: "var(--accent-dark)" });
+    cap.setAttribute("opacity", 0);
+    const head = el("line", { x1: 0, x2: 0, y1: 150, y2: 400, stroke: "var(--accent)", "stroke-width": 6, "stroke-linecap": "round", opacity: 0 }, v);
+    await api.wait(1400);
+    const B = 0.95;
+    const starts = [];
+    let b = 0;
+    tokens.forEach((k, ti) => {
+      NOTE[k].on.forEach((o) => starts.push({ beat: b + o, ti, len: k === "e" ? 0.5 : NOTE[k].beats, sound: k !== "r" }));
+      if (k === "r") starts.push({ beat: b, ti, len: 1, sound: false });
+      b += NOTE[k].beats;
+    });
+    for (let rep = 0; rep < 2; rep++) {
+      slices.forEach((s) => {
+        s.path.setAttribute("fill", "#f8ecd2");
+        s.tops.setAttribute("opacity", 0);
+        s.quiet?.setAttribute("opacity", 0);
+      });
+      nums.forEach((n) => n.setAttribute("fill", "#c9b8a1"));
+      bar.notes.forEach((n) => paintNote(n, INK));
+      head.setAttribute("opacity", 1);
+      let next = 0;
+      let beat = -1;
+      await api.tween(
+        4 * B * 1000 + 250,
+        (t) => {
+          const p = t * (4 + 0.25 / B) - 0.25 / B;
+          head.setAttribute("x1", bar.xOf(Math.max(-0.3, p)));
+          head.setAttribute("x2", bar.xOf(Math.max(-0.3, p)));
+          if (Math.floor(p) > beat && p < 4) {
+            beat = Math.floor(p);
+            if (beat >= 0) {
+              soft();
+              nums[beat].setAttribute("fill", "var(--accent-dark)");
+            }
+          }
+          while (next < starts.length && p >= starts[next].beat) {
+            const s = starts[next++];
+            const slice = slices[sliceIndex(tokens, s)];
+            slice?.on();
+            paintNote(bar.notes[s.ti], s.sound ? "var(--accent)" : "#9a8fb0");
+            if (s.sound) pianoNote(s.len, B, 0, midi);
+          }
+        },
+        (t) => t,
+      );
+      head.setAttribute("opacity", 0);
+      cap.setAttribute("opacity", 1);
+      await api.wait(1300);
+    }
+  };
+}
+function sliceIndex(tokens, s) {
+  let idx = 0;
+  let b = 0;
+  for (const k of tokens) {
+    if (k === "e") {
+      if (s.beat === b) return idx;
+      if (s.beat === b + 0.5) return idx + 1;
+      idx += 2;
+    } else {
+      if (s.beat === b) return idx;
+      idx += 1;
+    }
+    b += NOTE[k].beats;
+  }
+  return -1;
+}
+
+function seeIt(my) {
+  const scenes = [
+    {
+      say: "Why learn rhythm? Rhythm is the steady pattern of beats in music. You have rhythm in walking, in your heartbeat, in clapping games and when you dance!",
+      draw: everyday([["🚶", "Walking: left, right"], ["❤️", "Your heartbeat"], ["👏", "Clapping games"], ["💃", "Dancing to music"]]),
+    },
+    {
+      say: "Music has a steady beat, like a ball bouncing. Each time it lands: tock! Count with me: 1, 2, 3, 4.",
+      async draw(v, api) {
+        woodblock(v, 500, 455, 0.95);
+        const nums = [1, 2, 3, 4].map((n, i) => text(v, 320 + i * 120, 100, n, { "font-size": 64, fill: "#e6dccd" }));
+        const ball = ballShape(v);
+        ball.setAttribute("transform", "translate(500 380)");
+        await api.wait(900);
+        const B = 0.85;
+        for (let k = 0; k < 12; k++) {
+          MUSIC.tick(k % 4 === 0);
+          nums.forEach((n, i) => n.setAttribute("fill", i === k % 4 ? "var(--accent)" : "#e6dccd"));
+          await api.tween(B * 1000, (t) => ball.setAttribute("transform", `translate(500 ${380 - Math.sin(t * Math.PI) * 210})`), (t) => t);
+        }
+      },
+    },
+    {
+      say: "We group beats into a bar. This bar has 4 beats, like a pizza cut into 4 equal slices.",
+      async draw(v, api) {
+        const slices = pizza(v, 215, 255, 150, [1, 1, 1, 1]);
+        const boxes = [0, 1, 2, 3].map((i) => {
+          const g = el("g", {}, v);
+          el("rect", { x: 470 + i * 120, y: 180, width: 104, height: 130, rx: 18, fill: "#fff", stroke: "#c9b8a1", "stroke-width": 4 }, g);
+          return { rect: g.firstChild, num: text(g, 522 + i * 120, 262, i + 1, { "font-size": 54, fill: "#c9b8a1" }) };
+        });
+        text(v, 690, 400, "1 bar = 4 beats", { "font-size": 40, fill: "var(--accent-dark)" });
+        await api.wait(1200);
+        for (let rep = 0; rep < 2; rep++) {
+          for (let i = 0; i < 4; i++) {
+            MUSIC.tick(i === 0);
+            slices[i].on();
+            boxes[i].rect.setAttribute("fill", "#ffe9a8");
+            boxes[i].num.setAttribute("fill", INK);
+            await api.wait(850);
+          }
+          await api.wait(500);
+          if (rep === 0) {
+            slices.forEach((s) => {
+              s.path.setAttribute("fill", "#f8ecd2");
+              s.tops.setAttribute("opacity", 0);
+            });
+            boxes.forEach((b) => {
+              b.rect.setAttribute("fill", "#fff");
+              b.num.setAttribute("fill", "#c9b8a1");
+            });
+          }
+        }
+      },
+    },
+    { say: "A whole note lasts 4 beats: the whole pizza! Hold it: ta-a-a-a.", draw: noteLesson(["w"], "4 beats = 1 whole bar") },
+    { say: "A half note lasts 2 beats: half a pizza. Two half notes fill the bar: ta-a, ta-a.", draw: noteLesson(["h", "h"], "2 + 2 = 4 beats") },
+    { say: "A quarter note lasts 1 beat: one slice. Four of them fill the bar: ta, ta, ta, ta.", draw: noteLesson(["q", "q", "q", "q"], "1 + 1 + 1 + 1 = 4 beats") },
+    { say: "Eighth notes last half a beat each, so two fit in one beat: ti-ti. Eight of them fill the bar.", draw: noteLesson(["e", "e", "e", "e"], "8 halves = 4 beats") },
+    { say: "A rest is a silent beat. We count it, but we don't play: ta, ta, sh, ta.", draw: noteLesson(["q", "q", "r", "q"], "1 + 1 + 1 rest + 1 = 4") },
+  ];
+  explain(scenes, { alive: () => my === token, onDone: () => shell.go("r1"), title: "Rhythm" });
+}
+
+// ---------- 2. Keep the beat ----------
+function keepBeat() {
+  const my = token;
+  let lv = level.r1;
+  let runs = 0;
+  let best = 0;
+  let running = false;
+  panel(`<div class="ap-row"><p class="ap-status" data-status></p>${chipsHtml(lv)}</div><div class="ap-buttons"><button type="button" class="primary" data-do="go" data-pulse>▶ Start the ball</button></div>`);
+  let ball;
+  let dots;
+  let words;
+  let countText;
+  const BPM = [60, 80, 100];
+  const TOL = [0.27, 0.22, 0.18];
+  const draw = () => {
+    fresh();
+    el("rect", { class: "rh-tap", x: -2000, y: -2000, width: 5000, height: 5000, fill: "transparent" }, view);
+    text(view, 500, 528, "Tap anywhere when the ball lands", { "font-size": 24, fill: "#a8957f", "pointer-events": "none" });
+    dots = Array.from({ length: 8 }, (_, i) => el("circle", { cx: 290 + i * 60, cy: 48, r: 20, fill: "#f1e9dc", stroke: "#d8cbb6", "stroke-width": 3, "pointer-events": "none" }, view));
+    woodblock(view, 500, 440, 1).setAttribute("pointer-events", "none");
+    ball = ballShape(view);
+    ball.setAttribute("pointer-events", "none");
+    ball.setAttribute("transform", "translate(500 357)");
+    words = text(view, 820, 300, "", { "font-size": 34, fill: "var(--accent-dark)", "pointer-events": "none" });
+    countText = text(view, 180, 300, "", { "font-size": 84, fill: "var(--accent)", "pointer-events": "none" });
+    view.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      tap();
+    });
+  };
+  let clk;
+  let t0 = 0;
+  let B = 1;
+  let hits = [];
+  let flags = [];
+  const tap = () => {
+    if (my !== token) return;
+    window.OC?.touch();
+    MUSIC.play("woodblock", 79, { gain: 0.75 });
+    if (!running) return;
+    const p = (clk.now() - t0) / B;
+    if (p < 3.5) return;
+    const k = Math.round(p);
+    const err = p - k;
+    if (k >= 4 && k < 12 && !hits[k - 4] && Math.abs(err) <= TOL[lv]) {
+      hits[k - 4] = true;
+      dots[k - 4].setAttribute("fill", "#ffcf3f");
+      dots[k - 4].setAttribute("stroke", "#c99a12");
+      words.textContent = pick(["On the beat!", "Yes!", "Steady!", "Great!"]);
+      words.setAttribute("fill", "#22894f");
+    } else if (k >= 4 && k < 12 && !hits[k - 4]) {
+      flags[k - 4] = err < 0 ? "early" : "late";
+      words.textContent = err < 0 ? "A bit early" : "A bit late";
+      words.setAttribute("fill", "#c0702a");
+    }
+  };
+  const finish = () => {
+    running = false;
+    const good = hits.filter(Boolean).length;
+    runs += 1;
+    best = Math.max(best, good);
+    dots.forEach((d, i) => !hits[i] && d.setAttribute("fill", "#f6dcd4"));
+    countText.textContent = "";
+    window.OC?.count("beats kept");
+    const early = flags.filter((f) => f === "early").length;
+    const late = flags.filter((f) => f === "late").length;
+    let msg;
+    if (good >= 6) {
+      MUSIC.chime();
+      confetti();
+      shell.mark("r1", { done: true, best });
+      msg = `${good} out of 8 on the beat! ${lv < 2 ? "You kept a steady beat! 🎉 Try a faster one?" : "Wow, a real drummer! 🎉"}`;
+    } else {
+      MUSIC.oops();
+      msg = `${good} out of 8. ${early > late ? "Lots of taps came a little early. Wait for the ball to touch the block." : late > early ? "Lots of taps came a little late. Tap just as the ball lands." : "Watch the ball and tap just as it lands."} Let's try again!`;
+    }
+    say(msg);
+    status(`Try ${runs} · best ${best} of 8`);
+    const go = $("[data-do='go']");
+    go.hidden = false;
+    go.textContent = "▶ Again";
+  };
+  const start = async () => {
+    if (running) return;
+    $("[data-do='go']").hidden = true;
+    draw();
+    hits = [];
+    flags = [];
+    await sayAsync(lv === 2 ? "Watch the ball. Listen for the strong beat 1. Near the end the ticks go quiet: keep going!" : "Watch the ball. 1, 2, 3, 4, then you tap when it lands!");
+    if (my !== token) return;
+    clk = makeClock();
+    B = 60 / BPM[lv];
+    t0 = clk.now() + 0.5;
+    const ev = [];
+    for (let k = 0; k < 12; k++) {
+      const silent = lv === 2 && k >= 8;
+      if (!silent) ev.push({ t: t0 + k * B, fn: (at) => MUSIC.tick(k < 4 || (lv === 2 && k % 4 === 0), at) });
+    }
+    schedule(clk, ev, my);
+    running = true;
+    loop(() => {
+      const p = (clk.now() - t0) / B;
+      if (p < 0) return;
+      const phase = ((p % 1) + 1) % 1;
+      const big = lv === 2 && Math.floor(p + 0.5) % 4 === 0 ? 1.18 : 1;
+      ball.setAttribute("transform", `translate(500 ${357 - Math.sin(phase * Math.PI) * 230}) scale(${big})`);
+      countText.textContent = p < 4 ? String(Math.floor(p) + 1) : p >= 8 && lv === 2 ? "🤫" : "";
+      if (p >= 12.3) {
+        ball.setAttribute("transform", "translate(500 357)");
+        finish();
+        return false;
+      }
+    }, my);
+  };
+  $("[data-panel]").onclick = (event) => {
+    const lvBtn = event.target.closest("[data-lv]");
+    if (lvBtn && !running) {
+      lv = level.r1 = Number(lvBtn.dataset.lv);
+      setChips(lv);
+      say(["Slow and steady. Tap with the ball.", "A bit faster now!", "Fast, with a strong beat 1, and a quiet part at the end!"][lv]);
+      return;
+    }
+    if (event.target.closest("[data-do='go']")) start();
+  };
+  onSpace = tap;
+  draw();
+  status("8 beats to catch");
+  say("Press Start. Then tap the screen every time the ball lands on the wood block.");
+}
+
+// ---------- 3 & 4. Tap / copy a rhythm ----------
+function makeRhythm(lv, bars = 1) {
+  const pool = [["q", "q", "q", "h", "h"], ["q", "q", "h", "e", "e", "r"], ["q", "h", "e", "e", "r", "q", "w"]][lv];
+  for (;;) {
+    const out = [];
+    for (let b = 0; b < bars; b++) {
+      let left = 4;
+      while (left > 0) {
+        const k = pick(pool.filter((x) => NOTE[x].beats <= left));
+        out.push(k);
+        left -= NOTE[k].beats;
+      }
+    }
+    if (out[0] !== "r" && onsets(out).length >= 2 && !out.every((k) => k === out[0])) return out;
+  }
+}
+function tapPad(parent, y = 330) {
+  const g = el("g", { "pointer-events": "none" }, parent);
+  el("rect", { x: 250, y, width: 500, height: 200, rx: 40, fill: "var(--accent-soft)", stroke: "var(--accent)", "stroke-width": 5, "stroke-dasharray": "14 10" }, g);
+  const big = emoji(g, 500, y + 80, "👏", 84);
+  const label = text(g, 500, y + 172, "Tap here", { "font-size": 30, fill: "var(--accent-dark)" });
+  return { g, big, label };
+}
+function judgeTaps(tokens, taps, tol) {
+  const exp = onsets(tokens);
+  const used = new Set();
+  const hit = exp.map((b) => {
+    let best = -1;
+    let bd = 9;
+    taps.forEach((t, i) => {
+      if (!used.has(i) && Math.abs(t - b) < bd) {
+        bd = Math.abs(t - b);
+        best = i;
+      }
+    });
+    if (best >= 0 && bd <= tol) {
+      used.add(best);
+      return true;
+    }
+    return false;
+  });
+  const extras = taps.filter((_, i) => !used.has(i));
+  return { exp, hit, extras };
+}
+function why(tokens, res, hidden) {
+  const sp = spans(tokens);
+  const at = (b) => sp.find((s) => b >= s.start - 0.25 && b < s.start + s.beats - 0.25) || sp[sp.length - 1];
+  const miss = res.exp.findIndex((_, i) => !res.hit[i]);
+  if (miss >= 0) {
+    const b = res.exp[miss];
+    const near = res.extras.reduce((m, t) => (Math.abs(t - b) < Math.abs(m - b) ? t : m), 99);
+    const which = res.exp.length > 2 ? `Note ${miss + 1} was missed. ` : "";
+    if (Math.abs(near - b) < 0.6) return near < b ? `One tap came a little early. ${hidden ? "Wait a tiny bit longer." : "Wait for the line to reach the note."}` : `One tap came a little late. ${hidden ? "Tap a tiny bit sooner." : "Tap right when the line reaches the note."}`;
+    const k = at(b).k;
+    if (k === "e") return `${which}Ti-ti is two quick taps in one beat: ti-ti!`;
+    if (k === "h") return `${which}Ta-a is one tap, then hold for 2 beats.`;
+    if (k === "w") return `${which}Ta-a-a-a is one tap, then hold for 4 beats.`;
+    return `${which}Ta is one tap on one beat. Every note gets a tap.`;
+  }
+  const extra = res.extras[0];
+  const k = at(extra).k;
+  if (k === "r") return "The rest 🤫 is a silent beat. No tap there!";
+  if (k === "h" || k === "w") return `${NOTE[k].word} is one tap, then hold. Don't tap again while it lasts.`;
+  return "There was one extra tap. Only tap when there is a note.";
+}
+
+function tapGame(id, hidden) {
+  const my = token;
+  let lv = level[id];
+  let round = 0;
+  let right = 0;
+  let q = null;
+  let retry = false;
+  let busy = false;
+  let heard = false;
+  let taps = [];
+  let clk;
+  let t0 = 0;
+  let B = 1;
+  let live = false;
+  let bar;
+  let head;
+  let pad;
+  let marks;
+  let curtain;
+  const BPM = [60, 72, 84];
+  const TOL = [0.3, 0.24, 0.2];
+  panel(`<div class="ap-row"><p class="ap-status" data-status></p>${chipsHtml(lv)}</div><div class="ap-buttons"><button type="button" data-do="hear">${hidden ? "🔊 Listen" : "🔊 Hear it"}</button><button type="button" class="primary" data-do="go" data-pulse>▶ Start</button></div>`);
+  const draw = () => {
+    fresh();
+    el("rect", { class: "rh-tap", x: -2000, y: -2000, width: 5000, height: 5000, fill: "transparent" }, view);
+    const bars = total(q.tokens) / 4;
+    const x = bars > 1 ? 110 : 190;
+    const w = bars > 1 ? 820 : 680;
+    bar = drawBar(view, q.tokens, { x, y: 175, w, s: bars > 1 ? 1.05 : 1.25, time: 4 });
+    bar.g.setAttribute("pointer-events", "none");
+    marks = el("g", { "pointer-events": "none" }, view);
+    head = el("line", { x1: 0, x2: 0, y1: 70, y2: 270, stroke: "var(--accent)", "stroke-width": 6, "stroke-linecap": "round", opacity: 0, "pointer-events": "none" }, view);
+    curtain = null;
+    if (hidden) {
+      curtain = el("g", { "pointer-events": "none" }, view);
+      el("rect", { x: 60, y: 40, width: 880, height: 270, rx: 30, fill: "#f3ecff", stroke: "var(--accent)", "stroke-width": 4 }, curtain);
+      emoji(curtain, 500, 150, "🎧", 100);
+      text(curtain, 500, 270, "Listen, then copy me!", { "font-size": 32, fill: "var(--accent-dark)" });
+    }
+    pad = tapPad(view, 335);
+    view.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      tap();
+    });
+  };
+  const newRound = () => {
+    if (!retry) q = { tokens: makeRhythm(lv, lv === 2 ? 2 : 1) };
+    debug.tokens = q.tokens;
+    heard = false;
+    draw();
+    status(`Rhythm ${round + 1} of 8`);
+    const go = $("[data-do='go']");
+    go.hidden = false;
+    go.textContent = retry ? "▶ Try again" : "▶ Start";
+    if (hidden) say(retry ? "Let's try that one again. Press Start to listen, then copy it." : "Press Start. Listen to my rhythm, then tap it back the same way.");
+    else say(retry ? "Let's try that one again. Press Start." : "Press Start. After 1, 2, 3, 4, tap each note when the line reaches it.");
+  };
+  const playIt = (withHead) =>
+    new Promise((resolve) => {
+      const c = makeClock();
+      const b = 60 / BPM[lv];
+      const s0 = c.now() + 0.35;
+      const ev = [];
+      for (const sp of spans(q.tokens)) NOTE[sp.k].on.forEach((o) => ev.push({ t: s0 + (sp.start + o) * b, fn: (at) => pianoNote(sp.k === "e" ? 0.5 : sp.beats, b, at) }));
+      for (let k = 0; k < total(q.tokens); k++) ev.push({ t: s0 + k * b, fn: (at) => soft(at) });
+      schedule(c, ev, my);
+      const end = total(q.tokens);
+      loop(() => {
+        const p = (c.now() - s0) / b;
+        if (withHead && p >= 0) {
+          head.setAttribute("opacity", 1);
+          head.setAttribute("x1", bar.xOf(Math.min(p, end - 0.3)));
+          head.setAttribute("x2", bar.xOf(Math.min(p, end - 0.3)));
+        }
+        if (p >= end + 0.2) {
+          head.setAttribute("opacity", 0);
+          resolve();
+          return false;
+        }
+      }, my);
+    });
+  const tap = () => {
+    if (my !== token) return;
+    window.OC?.touch();
+    MUSIC.play("woodblock", 79, { gain: 0.7 });
+    if (!live) return;
+    const p = (clk.now() - t0) / B;
+    if (p < -0.45) return;
+    taps.push(p);
+    const x = bar.xOf(Math.max(-0.3, Math.min(p, total(q.tokens) - 0.1)));
+    el("circle", { cx: x, cy: 292, r: 9, fill: "var(--accent)" }, marks);
+  };
+  const run = async () => {
+    if (busy) return;
+    busy = true;
+    $("[data-do='go']").hidden = true;
+    marks.innerHTML = "";
+    bar.notes.forEach((n) => paintNote(n, INK));
+    if (hidden) {
+      say("Listen… 🎧");
+      await wait(600);
+      if (my !== token) return;
+      await playIt(false);
+      heard = true;
+      if (my !== token) return;
+      await wait(400);
+    }
+    say("Get ready: 1, 2, 3, 4… then tap!", { voice: false });
+    clk = makeClock();
+    B = 60 / BPM[lv];
+    t0 = clk.now() + 0.4 + 4 * B;
+    Object.assign(debug, { clk, t0, B });
+    taps = [];
+    const end = total(q.tokens);
+    const ev = [];
+    for (let k = -4; k < end; k++) ev.push({ t: t0 + k * B, fn: (at) => (k < 0 ? MUSIC.tick(k === -4, at) : soft(at)) });
+    schedule(clk, ev, my);
+    live = true;
+    loop(() => {
+      const p = (clk.now() - t0) / B;
+      if (p < 0) {
+        const n = Math.floor(p) + 5;
+        pad.big.textContent = n >= 1 ? String(n) : "👏";
+        pad.big.setAttribute("font-family", n >= 1 ? "ui-rounded, system-ui, sans-serif" : "Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif");
+        return;
+      }
+      pad.big.textContent = "👏";
+      pad.big.setAttribute("font-family", "Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif");
+      if (!hidden) {
+        head.setAttribute("opacity", 1);
+        head.setAttribute("x1", bar.xOf(Math.min(p, end - 0.3)));
+        head.setAttribute("x2", bar.xOf(Math.min(p, end - 0.3)));
+      }
+      if (p >= end - 0.3 + TOL[lv] + 0.15) {
+        live = false;
+        head.setAttribute("opacity", 0);
+        finish();
+        return false;
+      }
+    }, my);
+  };
+  const finish = async () => {
+    const res = judgeTaps(q.tokens, taps, TOL[lv]);
+    if (curtain) curtain.remove();
+    let i = 0;
+    for (const n of bar.notes) {
+      const k = NOTE[n.k].on.length;
+      if (k) paintNote(n, res.hit.slice(i, i + k).every(Boolean) ? "#1f9d55" : "#e07b2c");
+      i += k;
+    }
+    const ok = res.hit.every(Boolean) && res.extras.length <= (lv === 0 ? 1 : 0);
+    round += 1;
+    window.OC?.count("rhythms tapped");
+    if (ok) {
+      right += 1;
+      retry = false;
+      MUSIC.chime();
+      say(`${pick(PRAISE)} You tapped ${hidden ? "my rhythm back" : "every note"}: ${q.tokens.map((k) => NOTE[k].word).join(", ")}.`);
+    } else {
+      retry = !retry;
+      MUSIC.oops();
+      say(`${pick(KIND)} ${why(q.tokens, res, hidden)}`);
+    }
+    await wait(900);
+    if (my !== token) return;
+    if (hidden) await playIt(true);
+    await wait(ok ? 1400 : 2600);
+    if (my !== token) return;
+    busy = false;
+    if (round >= 8) {
+      if (right >= 6) {
+        shell.mark(id, { done: true, best: right });
+        confetti();
+      }
+      say(`${right} out of 8! ${right >= 6 ? "Super rhythm! 🎉" : "Let's practise some more."}`);
+      round = 0;
+      right = 0;
+      retry = false;
+      await wait(2600);
+      if (my !== token) return;
+    }
+    newRound();
+  };
+  $("[data-panel]").onclick = async (event) => {
+    if (my !== token) return;
+    const lvBtn = event.target.closest("[data-lv]");
+    if (lvBtn && !busy) {
+      lv = level[id] = Number(lvBtn.dataset.lv);
+      setChips(lv);
+      retry = false;
+      round = 0;
+      right = 0;
+      newRound();
+      return;
+    }
+    if (event.target.closest("[data-do='hear']") && !busy) {
+      busy = true;
+      await playIt(!hidden);
+      heard = true;
+      busy = false;
+      return;
+    }
+    if (event.target.closest("[data-do='go']")) run();
+  };
+  onSpace = tap;
+  newRound();
+}
+
+// ---------- 5. Which rhythm did you hear? ----------
+function mutate(tokens, lv) {
+  const out = [...tokens];
+  const i = pickInt(0, out.length - 1);
+  const k = out[i];
+  const swaps = { q: ["e", "r"], e: ["q", "r"], r: ["q", "e"], h: [["q", "q"], ["e", "q"]], w: [["h", "h"]] };
+  const s = pick(swaps[k] || ["q"]);
+  out.splice(i, 1, ...(Array.isArray(s) ? s : [s]));
+  if (lv < 2 && i < out.length - 1 && out[i] === "q" && out[i + 1] === "q" && Math.random() < 0.4) out.splice(i, 2, "h");
+  return out;
+}
+function whichRhythm() {
+  const my = token;
+  let lv = level.r4;
+  let round = 0;
+  let right = 0;
+  let q = null;
+  let busy = false;
+  const EASY = [["w"], ["q", "q", "q", "q"], ["e", "e", "e", "e"], ["h", "h"], ["q", "r", "q", "r"]];
+  panel(`<div class="ap-row"><p class="ap-status" data-status></p>${chipsHtml(lv)}</div><div class="ap-buttons"><button type="button" class="primary" data-do="hear">🔁 Hear it again</button></div>`);
+  const BPM = [66, 72, 80];
+  let cards = [];
+  let hush = null;
+  const play = (tokens, card) =>
+    new Promise((resolve) => {
+      const c = makeClock();
+      const b = 60 / BPM[lv];
+      const s0 = c.now() + 0.35;
+      const ev = [];
+      for (const sp of spans(tokens)) NOTE[sp.k].on.forEach((o) => ev.push({ t: s0 + (sp.start + o) * b, fn: (at) => pianoNote(sp.k === "e" ? 0.5 : sp.beats, b, at) }));
+      for (let k = 0; k < 4; k++) ev.push({ t: s0 + k * b, fn: (at) => soft(at) });
+      const stopSound = schedule(c, ev, my);
+      let cut = false;
+      hush = () => {
+        cut = true;
+        stopSound();
+      };
+      loop(() => {
+        const p = (c.now() - s0) / b;
+        if (cut) {
+          resolve();
+          return false;
+        }
+        if (card && p >= 0) {
+          card.head.setAttribute("opacity", 1);
+          const x = card.bar.xOf(Math.min(p, 3.7));
+          card.head.setAttribute("x1", x);
+          card.head.setAttribute("x2", x);
+        }
+        if (p >= 4.2) {
+          card?.head.setAttribute("opacity", 0);
+          resolve();
+          return false;
+        }
+      }, my);
+    });
+  const ask = async () => {
+    let answer;
+    let options;
+    if (lv === 0) {
+      options = shuffle(EASY).slice(0, 3);
+      answer = pick(options);
+    } else {
+      answer = makeRhythm(lv === 1 ? 1 : 2, 1);
+      const seen = new Set([keyOf(answer)]);
+      options = [answer];
+      let guard = 0;
+      while (options.length < 3 && guard++ < 200) {
+        const m = lv === 1 && Math.random() < 0.5 ? makeRhythm(1, 1) : mutate(answer, lv);
+        if (total(m) === 4 && !seen.has(keyOf(m))) {
+          seen.add(keyOf(m));
+          options.push(m);
+        }
+      }
+      options = shuffle(options);
+    }
+    q = { answer, options };
+    debug.answer = options.indexOf(answer);
+    fresh();
+    cards = options.map((tokens, i) => {
+      const g = el("g", { class: "rh-card", "data-i": i }, view);
+      const bg = el("rect", { x: 70, y: 18 + i * 180, width: 860, height: 165, rx: 24, fill: "#fff", stroke: "#e2d6c4", "stroke-width": 4 }, g);
+      text(g, 125, 18 + i * 180 + 100, "ABC"[i], { "font-size": 40, fill: "var(--accent)" });
+      const bar = drawBar(g, tokens, { x: 220, y: 18 + i * 180 + 96, w: 660, s: 0.85 });
+      const head = el("line", { x1: 0, x2: 0, y1: 18 + i * 180 + 20, y2: 18 + i * 180 + 125, stroke: "var(--accent)", "stroke-width": 5, opacity: 0 }, g);
+      return { g, bg, bar, head, tokens };
+    });
+    view.addEventListener("pointerdown", (event) => {
+      const c = event.target.closest(".rh-card");
+      if (c) answerIt(Number(c.dataset.i));
+    });
+    status(`Question ${round + 1} of 10`);
+    busy = false;
+    listening = true;
+    const mine = q;
+    await sayAsync("Listen. Which rhythm did you hear? Tap it.");
+    if (my !== token || q !== mine || mine.answered) return;
+    await play(q.answer);
+    if (q === mine) listening = false;
+  };
+  let listening = false;
+  const answerIt = async (i) => {
+    if (busy || my !== token) return;
+    busy = true;
+    q.answered = true;
+    if (listening) hush?.();
+    listening = false;
+    window.OC?.touch();
+    const pickd = q.options[i];
+    const ok = keyOf(pickd) === keyOf(q.answer);
+    const ci = q.options.findIndex((o) => keyOf(o) === keyOf(q.answer));
+    round += 1;
+    window.OC?.count("rhythms heard");
+    cards[ci].bg.setAttribute("fill", "#e3f6e8");
+    cards[ci].bg.setAttribute("stroke", "#22a05a");
+    if (ok) {
+      right += 1;
+      MUSIC.chime();
+      say(`${pick(PRAISE)} It was ${q.answer.map((k) => NOTE[k].word).join(", ")}.`);
+    } else {
+      cards[i].bg.setAttribute("fill", "#fbe5da");
+      MUSIC.oops();
+      say(`${pick(KIND)} It was ${"ABC"[ci]}: ${q.answer.map((k) => NOTE[k].word).join(", ")}. Listen to it again with the line.`);
+    }
+    await wait(900);
+    if (my !== token) return;
+    await play(q.answer, cards[ci]);
+    await wait(1500);
+    if (my !== token) return;
+    if (round >= 10) {
+      if (right >= 7) {
+        shell.mark("r4", { done: true, best: right });
+        confetti();
+      }
+      say(`${right} out of 10! ${right >= 7 ? "Great listening! 🎉" : "Let's listen some more."}`);
+      round = 0;
+      right = 0;
+      await wait(2800);
+      if (my !== token) return;
+    }
+    ask();
+  };
+  $("[data-panel]").onclick = async (event) => {
+    if (my !== token) return;
+    const lvBtn = event.target.closest("[data-lv]");
+    if (lvBtn && !busy) {
+      hush?.();
+      lv = level.r4 = Number(lvBtn.dataset.lv);
+      setChips(lv);
+      round = 0;
+      right = 0;
+      ask();
+      return;
+    }
+    if (event.target.closest("[data-do='hear']") && q && !busy && !listening) {
+      listening = true;
+      await play(q.answer);
+      listening = false;
+    }
+  };
+  ask();
+}
+
+// ---------- 6. Fill the bar ----------
+const TILE = { w: "#f6c1c1", dh: "#f7d6a8", h: "#ffe08a", q: "#bfe3c4", e: "#bcd9f5", r: "#e2dbf3" };
+function fillBar() {
+  const my = token;
+  let lv = level.r5;
+  let round = 0;
+  let placed = [];
+  let fixed = 0;
+  let beats = 4;
+  let busy = false;
+  let barG;
+  let tilesG;
+  let sumText;
+  let ghost = null;
+  const BX = 130;
+  const BW = 740;
+  const BY = 60;
+  const BH = 170;
+  panel(`<div class="ap-row"><p class="ap-status" data-status></p>${chipsHtml(lv)}</div><div class="ap-buttons"><button type="button" data-do="play">🔊 Play</button><button type="button" data-do="undo">↩ Take back</button></div>`);
+  const palette = () => (lv === 2 ? ["w", "dh", "h", "q", "e", "r"] : lv === 1 ? ["w", "h", "q", "e", "r"] : ["w", "h", "q"]);
+  const used = () => placed.reduce((a, k) => a + NOTE[k].beats, 0);
+  const svgPoint = (event) => {
+    const pt = view.createSVGPoint();
+    pt.x = event.clientX;
+    pt.y = event.clientY;
+    return pt.matrixTransform(view.getScreenCTM().inverse());
+  };
+  const draw = () => {
+    fresh();
+    el("rect", { x: BX - 20, y: BY - 20, width: BW + 40, height: BH + 40, rx: 26, fill: "#fff", stroke: "#e2d6c4", "stroke-width": 3 }, view);
+    barG = el("g", {}, view);
+    const bw = BW / beats;
+    for (let i = 0; i < beats; i++) {
+      el("rect", { x: BX + i * bw + 4, y: BY, width: bw - 8, height: BH, rx: 16, fill: "#faf5ec", stroke: "#d8cbb6", "stroke-width": 3, "stroke-dasharray": "10 8" }, barG);
+      text(barG, BX + (i + 0.5) * bw, BY + BH - 18, i + 1, { "font-size": 26, fill: "#c9b8a1" });
+    }
+    text(view, BX - 50, BY + 74, beats, { "font-size": 50, fill: INK, "font-family": "Georgia, serif", "font-weight": 900 });
+    text(view, BX - 50, BY + 120, 4, { "font-size": 50, fill: INK, "font-family": "Georgia, serif", "font-weight": 900 });
+    tilesG = el("g", {}, view);
+    sumText = text(view, 500, 300, "", { "font-size": 36, fill: "var(--accent-dark)" });
+    const pal = palette();
+    const cw = Math.min(150, 880 / pal.length - 12);
+    const x0 = 500 - (pal.length * (cw + 12) - 12) / 2;
+    pal.forEach((k, i) => {
+      const g = el("g", { class: "rh-pal", "data-k": k, transform: `translate(${x0 + i * (cw + 12)} 340)` }, view);
+      el("rect", { width: cw, height: 200, rx: 22, fill: TILE[k], stroke: "#fff", "stroke-width": 4 }, g);
+      el("rect", { width: cw, height: 200, rx: 22, fill: "none", stroke: "rgba(0,0,0,.08)", "stroke-width": 2 }, g);
+      const gx = k === "e" ? cw / 2 - 26 : k === "dh" ? cw / 2 - 18 : cw / 2 - 6;
+      glyph(g, k, gx, 112, 0.95, { gap: 44 });
+      const n = NOTE[k].beats;
+      text(g, cw / 2, 168, `${n} ${n === 1 ? "beat" : "beats"}`, { "font-size": 24, fill: INK });
+    });
+    view.addEventListener("pointerdown", down);
+    view.addEventListener("pointermove", move);
+    view.addEventListener("pointerup", up);
+    view.addEventListener("pointercancel", () => {
+      ghost?.g.remove();
+      ghost = null;
+    });
+    renderTiles();
+  };
+  const renderTiles = () => {
+    tilesG.innerHTML = "";
+    const bw = BW / beats;
+    let b = 0;
+    placed.forEach((k, i) => {
+      const n = NOTE[k].beats;
+      const g = el("g", { class: "rh-tile", "data-i": i }, tilesG);
+      el("rect", { x: BX + b * bw + 6, y: BY + 6, width: n * bw - 12, height: BH - 12, rx: 16, fill: TILE[k], stroke: i < fixed ? "#b9a68f" : "var(--accent)", "stroke-width": 4 }, g);
+      const gx = BX + (b + 0.3) * bw;
+      glyph(g, k, k === "e" ? BX + (b + 0.22) * bw : gx, BY + 108, 1, { gap: 0.5 * bw });
+      if (i < fixed) emoji(g, BX + (b + n) * bw - 26, BY + 30, "🔒", 22);
+      b += n;
+    });
+    const parts = placed.map((k) => NOTE[k].beats);
+    const u = used();
+    sumText.textContent = parts.length ? `${parts.join(" + ")} = ${u}${u < beats ? `   (${beats - u} more)` : " ✓"}` : `Fill ${beats} beats`;
+    status(`Bar ${round + 1} of 8 · ${u} of ${beats} beats`);
+  };
+  const add = async (k) => {
+    if (busy || my !== token) return;
+    window.OC?.touch();
+    const left = beats - used();
+    const n = NOTE[k].beats;
+    if (n > left) {
+      MUSIC.oops();
+      say(`A ${NOTE[k].name} needs ${n} beats, but only ${left} ${left === 1 ? "beat is" : "beats are"} left. Try a shorter note!`);
+      return;
+    }
+    placed.push(k);
+    renderTiles();
+    MUSIC.play(k === "r" ? "woodblock" : "piano", k === "r" ? 72 : 72, { gain: k === "r" ? 0.3 : 0.7, length: k === "r" ? 0 : 0.35 });
+    if (used() === beats) {
+      busy = true;
+      MUSIC.chime();
+      const parts = placed.map((x) => NOTE[x].beats);
+      await sayAsync(`${pick(PRAISE)} ${parts.join(" plus ")} makes ${beats}. The bar is full!`);
+      if (my !== token) return;
+      await playBar();
+      if (my !== token) return;
+      round += 1;
+      window.OC?.count("bars filled");
+      await wait(700);
+      if (my !== token) return;
+      if (round >= 8) {
+        shell.mark("r5", { done: true });
+        confetti();
+        say("You filled 8 bars! 🎉 You're a rhythm builder.");
+        round = 0;
+        await wait(3000);
+        if (my !== token) return;
+      }
+      busy = false;
+      newRound();
+    } else say(`${used()} of ${beats} beats. ${beats - used()} more ${beats - used() === 1 ? "beat" : "beats"} to fill.`);
+  };
+  const playBar = () =>
+    new Promise((resolve) => {
+      const c = makeClock();
+      const b = 0.7;
+      const s0 = c.now() + 0.3;
+      const ev = [];
+      for (const sp of spans(placed)) NOTE[sp.k].on.forEach((o) => ev.push({ t: s0 + (sp.start + o) * b, fn: (at) => pianoNote(sp.k === "e" ? 0.5 : sp.beats, b, at) }));
+      for (let k = 0; k < beats; k++) ev.push({ t: s0 + k * b, fn: (at) => soft(at) });
+      schedule(c, ev, my);
+      const line = el("line", { y1: BY - 10, y2: BY + BH + 10, stroke: "var(--accent)", "stroke-width": 6, "stroke-linecap": "round" }, view);
+      const end = used();
+      loop(() => {
+        const p = (c.now() - s0) / b;
+        const x = BX + Math.max(0, Math.min(p, beats)) * (BW / beats);
+        line.setAttribute("x1", x);
+        line.setAttribute("x2", x);
+        if (p >= Math.max(end, 1) + 0.2) {
+          line.remove();
+          resolve();
+          return false;
+        }
+      }, my);
+    });
+  const newRound = () => {
+    beats = lv === 2 ? 3 : 4;
+    placed = [];
+    fixed = 0;
+    if (lv === 0 || (lv === 2 && round % 2 === 1)) {
+      const starts = lv === 0 ? [["q"], ["h"], ["q", "q"], ["h", "q"], ["q", "q", "q"]] : [["q"], ["e"], ["h"], ["e", "q"], ["r"]];
+      placed = [...pick(starts)];
+      fixed = placed.length;
+    }
+    draw();
+    const left = beats - used();
+    say(lv === 2 ? `This bar has ${beats} beats. Fill it! ${left < beats ? `${left} ${left === 1 ? "beat is" : "beats are"} left.` : ""}` : fixed ? `This bar needs ${left} more ${left === 1 ? "beat" : "beats"}. Drag a note into the bar!` : "Drag notes into the bar until it has 4 beats.");
+  };
+  const down = (event) => {
+    if (busy || my !== token) return;
+    const tile = event.target.closest(".rh-tile");
+    if (tile) {
+      const i = Number(tile.dataset.i);
+      if (i >= fixed) {
+        placed.splice(i, 1);
+        renderTiles();
+        say("Taken out. Try another note.");
+      } else say("That note is locked 🔒. Add notes after it.");
+      return;
+    }
+    const pal = event.target.closest(".rh-pal");
+    if (!pal) return;
+    event.preventDefault();
+    try {
+      view.setPointerCapture(event.pointerId);
+    } catch {}
+    const p = svgPoint(event);
+    const g = el("g", { opacity: 0.85, "pointer-events": "none" }, view);
+    el("rect", { x: -60, y: -60, width: 120, height: 120, rx: 20, fill: TILE[pal.dataset.k], stroke: "var(--accent)", "stroke-width": 4 }, g);
+    glyph(g, pal.dataset.k, pal.dataset.k === "e" ? -24 : -6, 26, 0.85, { gap: 40 });
+    g.setAttribute("transform", `translate(${p.x} ${p.y})`);
+    ghost = { g, k: pal.dataset.k, x0: p.x, y0: p.y, moved: false };
+  };
+  const move = (event) => {
+    if (!ghost) return;
+    const p = svgPoint(event);
+    if (Math.hypot(p.x - ghost.x0, p.y - ghost.y0) > 12) ghost.moved = true;
+    ghost.g.setAttribute("transform", `translate(${p.x} ${p.y})`);
+  };
+  const up = (event) => {
+    if (!ghost) return;
+    const p = svgPoint(event);
+    const g = ghost;
+    ghost = null;
+    g.g.remove();
+    if (!g.moved || (p.y < BY + BH + 60 && p.y > BY - 60)) add(g.k);
+    else say("Drop the note inside the bar at the top.");
+  };
+  $("[data-panel]").onclick = async (event) => {
+    if (my !== token) return;
+    const lvBtn = event.target.closest("[data-lv]");
+    if (lvBtn && !busy) {
+      lv = level.r5 = Number(lvBtn.dataset.lv);
+      setChips(lv);
+      round = 0;
+      newRound();
+      return;
+    }
+    if (event.target.closest("[data-do='play']") && !busy && placed.length) {
+      busy = true;
+      await playBar();
+      busy = false;
+    }
+    if (event.target.closest("[data-do='undo']") && !busy && placed.length > fixed) {
+      placed.pop();
+      renderTiles();
+    }
+  };
+  newRound();
+}
+
+// ---------- 7. Beat maker ----------
+const ROWS = [
+  { name: "Xylophone", color: "#ec407a", dark: "#b8236d" },
+  { name: "Piano", color: "#8b5cf6", dark: "#6234cf" },
+  { name: "Wood block", color: "#d39256", dark: "#a8632d" },
+  { name: "Timpani", color: "#e0803a", dark: "#a8551c" },
+];
+const PRESETS = [
+  { name: "Heartbeat", rows: ["................", "x...............", "................", "x.x.....x.x....."] },
+  { name: "March", rows: ["x...x...x.x.x...", "x.......x.......", "..x...x...x...x.", "x...x...x...x..."] },
+  { name: "Rock", rows: ["x.x.x.x.x.x.x.x.", "x.......x.......", "....x.......x...", "x.....x.x......."] },
+  { name: "Rain dance", rows: ["x..x..x...x.x...", "....x.......x...", "x.x.x.x.x.x.x.x.", "x.......x......."] },
+];
+const XY = [84, 88, 91, 88, 93, 91, 88, 86];
+function beatMaker() {
+  const my = token;
+  let steps = 8;
+  let bpm = 90;
+  let grid = ROWS.map(() => Array(16).fill(false));
+  let playing = false;
+  let preset = -1;
+  let loops = 0;
+  let cells = [];
+  let col = null;
+  panel(`<div class="ap-buttons"><button type="button" class="primary" data-do="play">▶ Play</button><button type="button" data-do="clear">🧹 Clear</button><button type="button" data-do="idea">💡 Idea</button><button type="button" data-do="size">16 steps</button></div><label class="rh-tempo">🐢<input type="range" min="60" max="140" step="5" value="${bpm}" data-tempo aria-label="Speed">🐇<b data-bpm>${bpm}</b></label>`);
+  const X0 = 190;
+  const Y0 = 64;
+  const GW = 790;
+  const RH = 116;
+  const draw = () => {
+    fresh();
+    const cw = GW / steps;
+    const per = steps / 4;
+    for (let b = 0; b < 4; b++) {
+      el("rect", { x: X0 + b * per * cw, y: Y0 - 8, width: per * cw, height: RH * 4 + 16, rx: 14, fill: b % 2 ? "#fbf6ee" : "#f4ecdf" }, view);
+      text(view, X0 + (b * per + 0.5) * cw, Y0 - 18, b + 1, { "font-size": 26, fill: "#a8957f" });
+    }
+    col = el("rect", { x: X0, y: Y0 - 8, width: cw, height: RH * 4 + 16, rx: 10, fill: "var(--accent)", opacity: 0 }, view);
+    ROWS.forEach((row, r) => {
+      const y = Y0 + r * RH;
+      rowIcon(view, r, 52, y + RH / 2 - 8);
+      text(view, 125, y + RH / 2 + 46, row.name, { "font-size": 22, fill: row.dark });
+    });
+    cells = ROWS.map((row, r) =>
+      Array.from({ length: steps }, (_, c) => {
+        const g = el("g", { class: "rh-cell", "data-r": r, "data-c": c }, view);
+        const pad = steps > 8 ? 4 : 7;
+        el("rect", { x: X0 + c * cw + pad, y: Y0 + r * RH + pad, width: cw - 2 * pad, height: RH - 2 * pad, rx: 14, fill: "#fff", stroke: "#e2d6c4", "stroke-width": 3 }, g);
+        const on = el("rect", { class: "rh-on", x: X0 + c * cw + pad + 3, y: Y0 + r * RH + pad + 3, width: cw - 2 * pad - 6, height: RH - 2 * pad - 6, rx: 11, fill: row.color, opacity: 0 }, g);
+        return { g, on };
+      }),
+    );
+    view.addEventListener("pointerdown", (event) => {
+      const cell = event.target.closest(".rh-cell");
+      if (!cell) return;
+      event.preventDefault();
+      toggle(Number(cell.dataset.r), Number(cell.dataset.c));
+    });
+    paint();
+  };
+  const idx = (c) => (steps === 8 ? c * 2 : c);
+  const paint = () => cells.forEach((row, r) => row.forEach((cell, c) => cell.on.setAttribute("opacity", grid[r][idx(c)] ? 1 : 0)));
+  const sound = (r, c, at) => {
+    const beat = Math.floor((c / steps) * 4);
+    if (r === 0) MUSIC.play("xylophone", XY[Math.floor((c / steps) * 8)], { gain: 0.5, at });
+    if (r === 1) [[60, 64, 67], [60, 64, 67], [60, 65, 69], [59, 62, 67]][beat].forEach((m) => MUSIC.play("piano", m, { gain: 0.38, at, length: 0.5 }));
+    if (r === 2) MUSIC.play("woodblock", c % (steps / 4) === 0 ? 79 : 72, { gain: 0.6, at });
+    if (r === 3) MUSIC.play("timpani", beat === 3 ? 43 : 48, { gain: 0.85, at, length: 0.9 });
+  };
+  const toggle = (r, c) => {
+    if (my !== token) return;
+    window.OC?.touch();
+    grid[r][idx(c)] = !grid[r][idx(c)];
+    if (steps === 8) grid[r][idx(c) + 1] = false;
+    paint();
+    if (grid[r][idx(c)]) sound(r, c, 0);
+  };
+  let stopPlay = null;
+  const start = () => {
+    if (playing) return;
+    playing = true;
+    loops = 0;
+    $("[data-do='play']").textContent = "⏹ Stop";
+    const clk = makeClock();
+    let step = 0;
+    let next = clk.now() + 0.15;
+    const queue = [];
+    const id = setInterval(() => {
+      if (my !== token || !playing) return clearInterval(id);
+      const now = clk.now();
+      while (next <= now + (clk.audio ? 0.12 : 0.004)) {
+        const c = step % steps;
+        const at = clk.audio ? next : 0;
+        ROWS.forEach((_, r) => grid[r][idx(c)] && sound(r, c, at));
+        queue.push({ c, t: next });
+        if (c === steps - 1) {
+          loops += 1;
+          const count = grid.flat().filter(Boolean).length;
+          if (loops === 2 && count >= 4) {
+            shell.mark("r6", { done: true });
+            window.OC?.count("beats made");
+          }
+        }
+        step += 1;
+        next += 60 / bpm / (steps / 4);
+      }
+    }, 15);
+    const stopLoop = loop(() => {
+      const now = clk.now();
+      let cur = null;
+      while (queue.length && queue[0].t <= now) cur = queue.shift();
+      if (cur) {
+        const cw = GW / steps;
+        col.setAttribute("x", X0 + cur.c * cw);
+        col.setAttribute("width", cw);
+        col.setAttribute("opacity", 0.18);
+        cells.forEach((row, r) => {
+          const cell = row[cur.c];
+          if (grid[r][idx(cur.c)]) {
+            cell.g.classList.remove("hit");
+            void cell.g.getBBox();
+            cell.g.classList.add("hit");
+          }
+        });
+      }
+    }, my);
+    stopPlay = () => {
+      clearInterval(id);
+      stopLoop();
+      playing = false;
+      col?.setAttribute("opacity", 0);
+      const b = $("[data-do='play']");
+      if (b) b.textContent = "▶ Play";
+    };
+    cleanup.push(stopPlay);
+  };
+  $("[data-panel]").onclick = (event) => {
+    if (my !== token) return;
+    const b = event.target.closest("[data-do]");
+    if (!b) return;
+    window.OC?.touch();
+    const d = b.dataset.do;
+    if (d === "play") {
+      if (playing) {
+        stopPlay();
+        say("Stopped. Tap squares to change your beat.");
+      } else {
+        start();
+        say("Your beat is playing! Tap squares to add or take away sounds.");
+      }
+    } else if (d === "clear") {
+      grid = ROWS.map(() => Array(16).fill(false));
+      paint();
+      say("All clear! Tap squares to make a new beat.");
+    } else if (d === "idea") {
+      preset = (preset + 1) % PRESETS.length;
+      grid = PRESETS[preset].rows.map((s) => [...s].map((ch) => ch === "x"));
+      if (steps === 8) grid = grid.map((row) => row.map((v, i) => (i % 2 ? false : v)));
+      paint();
+      say(`Here is an idea: <b>${PRESETS[preset].name}</b>. Press Play, then change it!`);
+      if (!playing) start();
+    } else if (d === "size") {
+      steps = steps === 8 ? 16 : 8;
+      b.textContent = steps === 8 ? "16 steps" : "8 steps";
+      if (steps === 8) grid = grid.map((row) => row.map((v, i) => (i % 2 ? false : v)));
+      const was = playing;
+      if (playing) stopPlay();
+      draw();
+      if (was) start();
+      say(steps === 16 ? "16 steps: four squares for every beat. Now you can play quicker notes!" : "8 steps: two squares for every beat.");
+    }
+  };
+  $("[data-tempo]").addEventListener("input", (event) => {
+    bpm = Number(event.target.value);
+    $("[data-bpm]").textContent = bpm;
+  });
+  draw();
+  say("Tap squares to turn sounds on. Then press Play! The light shows which step is playing.");
+}
+function rowIcon(parent, r, cx, cy) {
+  const g = el("g", { transform: `translate(${cx} ${cy})`, "pointer-events": "none" }, parent);
+  if (r === 0) {
+    el("rect", { x: -40, y: 10, width: 80, height: 6, rx: 3, fill: "#7a4520" }, g);
+    ["#e53935", "#fb8c00", "#fdd835", "#43a047", "#1e88e5"].forEach((c, i) => el("rect", { x: -38 + i * 16, y: -22 + i * 4, width: 12, height: 40 - i * 7, rx: 3, fill: c }, g));
+  } else if (r === 1) {
+    el("rect", { x: -40, y: -22, width: 80, height: 44, rx: 6, fill: "#fff", stroke: INK, "stroke-width": 3 }, g);
+    for (let i = 1; i < 5; i++) el("line", { x1: -40 + i * 16, x2: -40 + i * 16, y1: -22, y2: 22, stroke: INK, "stroke-width": 2 }, g);
+    [1, 2, 4].forEach((i) => el("rect", { x: -40 + i * 16 - 5, y: -22, width: 10, height: 26, fill: INK }, g));
+  } else if (r === 2) {
+    el("rect", { x: -40, y: -16, width: 80, height: 36, rx: 12, fill: "#d39256", stroke: "#a8632d", "stroke-width": 3 }, g);
+    el("rect", { x: -28, y: 0, width: 56, height: 6, rx: 3, fill: "#5a3418" }, g);
+  } else {
+    el("path", { d: "M-38 -10 Q-34 30 0 30 Q34 30 38 -10Z", fill: "#c87533", stroke: "#8a4a1c", "stroke-width": 3 }, g);
+    el("ellipse", { cx: 0, cy: -10, rx: 38, ry: 10, fill: "#f6efe2", stroke: "#8a4a1c", "stroke-width": 3 }, g);
+  }
+}
+
+// ---------- shell ----------
+const units = {
+  r0() {
+    seeIt(token);
+  },
+  r1: keepBeat,
+  r2: () => tapGame("r2", false),
+  r3: () => tapGame("r3", true),
+  r4: whichRhythm,
+  r5: fillBar,
+  r6: beatMaker,
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    r0: { icon: "👀", title: "See it", steps: ["Watch the pictures and listen.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    r1: { icon: "🏀", title: "Keep the beat", steps: ["Press Start and watch the ball bounce.", "Tap the screen each time it lands.", "Catch 6 of 8 beats to win a star!"] },
+    r2: { icon: "👏", title: "Tap the rhythm", steps: ["Look at the notes. Press 🔊 to hear them.", "Press Start. Wait for 1, 2, 3, 4.", "Tap each note when the line reaches it."] },
+    r3: { icon: "🔁", title: "Copy my rhythm", steps: ["Press Start and listen to my rhythm.", "After 1, 2, 3, 4, tap it back.", "Then you'll see the notes you played."] },
+    r4: { icon: "👂", title: "Which rhythm?", steps: ["Listen to the rhythm.", "Look at the three cards.", "Tap the card you heard."] },
+    r5: { icon: "🧩", title: "Fill the bar", steps: ["Drag a note into the bar at the top.", "Each note fills some beats.", "Fill all the beats, no more, no less!"] },
+    r6: { icon: "🎛️", title: "Beat maker", steps: ["Tap squares to turn sounds on.", "Press ▶ Play to hear your beat.", "Try 💡 Idea, or change the speed."] },
+  },
+  start: "r0",
+  onStop() {
+    token += 1;
+    stopAll();
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Music",
+  activity: "Rhythm Studio",
+  onUnit(id) {
+    token += 1;
+    stopAll();
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("woodblock", [72, 79]);
+MUSIC.preload("piano", [59, 60, 62, 64, 65, 67, 69, 72]);
+MUSIC.preload("xylophone", [84, 86, 88, 91, 93, 96]);
+MUSIC.preload("timpani", [48]);
+</script>
+</body>
+</html>

@@ -35,7 +35,7 @@
 </header>
 <main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
 </div>
-<script>const { $, el, svg: makeSvg, text, panel, say, pick, wait, confetti, PRAISE } = KIT;
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, wait, confetti, PRAISE, explain, everyday, emoji, shuffle } = KIT;
 const stage = $("[data-stage]");
 const W = 1000;
 const H = 560;
@@ -43,9 +43,11 @@ let token = 0;
 let view = null;
 
 const UNITS = [
+  { id: "c0", label: "👀 See it", icon: "👀" },
   { id: "c1", label: "1. Mix it!" },
   { id: "c2", label: "2. Colour wheel" },
   { id: "c3", label: "3. Match the colour" },
+  { id: "c4", label: "4. Warm, cool, light, dark" },
 ];
 const PAINTS = [
   { key: "r", name: "red", hex: "#e8262d" },
@@ -171,7 +173,346 @@ async function drip(key, x = 500, toY = 250) {
   d.remove();
 }
 
+// A soft, wobbly paint blob path.
+function blobPath(cx, cy, r, seed = 1) {
+  const pts = [];
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    const rr = r * (1 + 0.05 * Math.sin(a * 3 + seed) + 0.03 * Math.cos(a * 5 + seed * 2));
+    pts.push([cx + rr * Math.cos(a), cy + rr * Math.sin(a)]);
+  }
+  let d = `M${(pts[15][0] + pts[0][0]) / 2} ${(pts[15][1] + pts[0][1]) / 2}`;
+  for (let i = 0; i < 16; i++) {
+    const p1 = pts[(i + 1) % 16];
+    const p0 = pts[i];
+    d += `Q${p0[0]} ${p0[1]} ${(p0[0] + p1[0]) / 2} ${(p0[1] + p1[1]) / 2}`;
+  }
+  return d + "Z";
+}
+const HUE = { red: "#e8262d", yellow: "#ffd21f", blue: "#1f5fbf", orange: "#fb8c1a", green: "#2e9e47", purple: "#7e3fa8", brown: "#7a4a26" };
+const swatchTxt = (name) => `<span style="display:inline-block;width:.9em;height:.9em;border-radius:50%;background:${HUE[name]};vertical-align:-.1em;box-shadow:inset 0 0 0 2px rgba(0,0,0,.12)"></span> ${name}`;
+
 const units = {
+  c0() {
+    const my = token;
+    const label = (parent, x, y, str, size = 34) => text(parent, x, y, str, { "font-size": size, fill: "#2b1d12", "font-weight": 900 });
+    const scenes = [
+      {
+        say: "Why do we learn about colours? Colours tell us things, and mixing them lets us make new ones!",
+        draw: everyday([["🚦", "Traffic lights say stop or go"], ["🍌", "A yellow banana is ripe"], ["🎨", "Mixing paint for pictures"], ["👕", "Clothes that go together"]]),
+      },
+      {
+        say: "Red, yellow and blue are the <b>primary colours</b>. We can't make them by mixing. All the other colours begin with them!",
+        async draw(v, api) {
+          const names = ["red", "yellow", "blue"];
+          for (let i = 0; i < 3; i++) {
+            const x = 220 + i * 280;
+            const g = el("g", { opacity: 0 }, v);
+            el("path", { d: blobPath(x, 250, 110, i + 1), fill: HUE[names[i]], stroke: "#fff", "stroke-width": 6 }, g);
+            el("ellipse", { cx: x - 40, cy: 205, rx: 30, ry: 16, fill: "#fff", opacity: 0.35 }, g);
+            label(g, x, 430, names[i], 44);
+            await api.tween(700, (t) => {
+              g.setAttribute("opacity", Math.min(1, t * 2));
+              g.setAttribute("transform", `translate(0 ${-(1 - t) * 160})`);
+            }, (t) => 1 - (1 - t) * (1 - t) * Math.cos(t * 4) ** 2);
+            MUSIC.play("xylophone", 84 + i * 4, { gain: 0.35 });
+            await api.wait(500);
+          }
+          label(v, 500, 520, "3 primary colours", 32).setAttribute("fill", "#8a7764");
+        },
+      },
+      {
+        say: "Mix red and yellow paint together, and you get <b>orange</b>!",
+        async draw(v, api) {
+          const id = `cm-clip-${Math.random().toString(36).slice(2, 7)}`;
+          const defs = el("defs", {}, v);
+          const clip = el("clipPath", { id }, defs);
+          const a = el("g", {}, v);
+          el("path", { d: blobPath(0, 0, 150, 1), fill: HUE.red }, a);
+          const b = el("g", {}, v);
+          el("path", { d: blobPath(0, 0, 150, 2), fill: HUE.yellow }, b);
+          await api.tween(1400, (t) => {
+            a.setAttribute("transform", `translate(${160 + t * 230} 250)`);
+            b.setAttribute("transform", `translate(${840 - t * 230} 250)`);
+          });
+          el("path", { d: blobPath(390, 250, 150, 1) }, clip);
+          const lens = el("path", { d: blobPath(610, 250, 150, 2), fill: HUE.orange, "clip-path": `url(#${id})`, opacity: 0 }, v);
+          await api.tween(1200, (t) => lens.setAttribute("opacity", t));
+          MUSIC.play("xylophone", 88, { gain: 0.35 });
+          const eq = el("g", { opacity: 0 }, v);
+          label(eq, 500, 490, "red + yellow = orange", 42);
+          await api.tween(600, (t) => eq.setAttribute("opacity", t));
+        },
+      },
+      {
+        say: "Yellow and blue make <b>green</b>. Red and blue make <b>purple</b>. These are the <b>secondary colours</b>.",
+        async draw(v, api) {
+          const C = [
+            { name: "red", x: 500, y: 185, from: [500, -150] },
+            { name: "yellow", x: 420, y: 320, from: [-150, 420] },
+            { name: "blue", x: 580, y: 320, from: [1150, 420] },
+          ];
+          const R = 135;
+          const groups = C.map((c) => {
+            const g = el("g", { opacity: 0.92 }, v);
+            el("circle", { r: R, fill: HUE[c.name] }, g);
+            g.setAttribute("transform", `translate(${c.from[0]} ${c.from[1]})`);
+            return g;
+          });
+          for (let i = 0; i < 3; i++) {
+            const c = C[i];
+            await api.tween(900, (t) => groups[i].setAttribute("transform", `translate(${c.from[0] + (c.x - c.from[0]) * t} ${c.from[1] + (c.y - c.from[1]) * t})`));
+          }
+          const defs = el("defs", {}, v);
+          const key = Math.random().toString(36).slice(2, 7);
+          C.forEach((c, i) => el("circle", { cx: c.x, cy: c.y, r: R }, el("clipPath", { id: `cv-${key}-${i}` }, defs)));
+          const lens = (i, j, color, tag) => {
+            const g = el("g", { "clip-path": `url(#cv-${key}-${i})`, opacity: 0 }, v);
+            el("circle", { cx: C[j].x, cy: C[j].y, r: R, fill: color }, g);
+            return { g, tag };
+          };
+          const parts = [lens(0, 1, HUE.orange, "orange"), lens(1, 2, HUE.green, "green"), lens(0, 2, HUE.purple, "purple")];
+          const tags = { orange: [330, 220], green: [500, 470], purple: [670, 220] };
+          for (const [k, p] of parts.entries()) {
+            await api.tween(800, (t) => p.g.setAttribute("opacity", t));
+            const [x, y] = tags[p.tag];
+            el("line", { x1: x, y1: y + 8, x2: x + (500 - x) * 0.45, y2: y + (290 - y) * 0.45, stroke: "#2b1d12", "stroke-width": 3, opacity: 0.4 }, v);
+            const t = label(v, x + (k === 0 ? -80 : k === 2 ? 80 : 0), y + (k === 1 ? 50 : 0), p.tag, 32);
+            t.setAttribute("fill", HUE[p.tag]);
+            t.setAttribute("stroke", "#fff");
+            t.setAttribute("stroke-width", 6);
+            t.setAttribute("paint-order", "stroke");
+            MUSIC.play("xylophone", 86 + k * 3, { gain: 0.3 });
+            await api.wait(700);
+          }
+          const mid = el("g", { "clip-path": `url(#cv-${key}-0)`, opacity: 0 }, v);
+          el("circle", { cx: C[2].x, cy: C[2].y, r: R, fill: HUE.brown }, el("g", { "clip-path": `url(#cv-${key}-1)` }, mid));
+          await api.wait(300);
+          await api.tween(800, (t) => mid.setAttribute("opacity", t));
+          text(v, 500, 285, "brown", { "font-size": 22, fill: "#fff", "font-weight": 900 });
+        },
+      },
+      {
+        say: "Red, orange and yellow are <b>warm</b> colours, like the sun and fire. Blue, green and purple are <b>cool</b>, like water and leaves.",
+        async draw(v, api) {
+          el("rect", { x: 40, y: 30, width: 440, height: 500, rx: 34, fill: "#fff1e0", stroke: "#f6c48f", "stroke-width": 4 }, v);
+          el("rect", { x: 520, y: 30, width: 440, height: 500, rx: 34, fill: "#e6f1fb", stroke: "#9cc3e8", "stroke-width": 4 }, v);
+          emoji(v, 260, 95, "☀️", 80);
+          emoji(v, 740, 95, "❄️", 80);
+          label(v, 260, 200, "warm", 40);
+          label(v, 740, 200, "cool", 40);
+          const warm = ["red", "orange", "yellow"];
+          const cool = ["blue", "green", "purple"];
+          for (let i = 0; i < 3; i++) {
+            for (const [side, list] of [[0, warm], [1, cool]]) {
+              const tx = 120 + side * 480 + i * 140;
+              const g = el("g", {}, v);
+              el("path", { d: blobPath(0, 0, 56, i + side * 3), fill: HUE[list[i]], stroke: "#fff", "stroke-width": 4 }, g);
+              const t = text(g, 0, 100, list[i], { "font-size": 26, fill: "#2b1d12", "font-weight": 800 });
+              t.setAttribute("opacity", 0);
+              await api.tween(650, (k) => g.setAttribute("transform", `translate(${500 + (tx - 500) * k} ${560 + (360 - 560) * k})`));
+              t.setAttribute("opacity", 1);
+              MUSIC.play("xylophone", side ? 84 + i * 2 : 91 + i * 2, { gain: 0.3 });
+            }
+          }
+        },
+      },
+      {
+        say: "Add <b>white</b> to make a colour lighter. Add <b>black</b> to make it darker. Same blue, five ways!",
+        async draw(v, api) {
+          const row = [{ b: 1, w: 3 }, { b: 1, w: 1 }, { b: 1 }, { b: 2, k: 1 }, { b: 1, k: 1 }];
+          const xs = [140, 320, 500, 680, 860];
+          const order = [2, 1, 3, 0, 4];
+          const pot = (x, color, name) => {
+            el("rect", { x: x - 60, y: 420, width: 120, height: 100, rx: 20, fill: "#e9e2d6", stroke: "#bfae95", "stroke-width": 3 }, v);
+            el("ellipse", { cx: x, cy: 422, rx: 60, ry: 18, fill: color, stroke: "#bfae95", "stroke-width": 3 }, v);
+            text(v, x, 485, name, { "font-size": 26, fill: "#4d3c2e", "font-weight": 800 });
+          };
+          pot(140, "#ffffff", "white");
+          pot(860, "#242424", "black");
+          label(v, 500, 480, "lighter ◀   ▶ darker", 30).setAttribute("fill", "#8a7764");
+          for (const i of order) {
+            const d = { r: 0, y: 0, b: 0, w: 0, k: 0, ...row[i] };
+            const g = el("g", { opacity: 0 }, v);
+            el("path", { d: blobPath(xs[i], 230, i === 2 ? 95 : 78, i), fill: hexOf(mixOf(d)), stroke: "#fff", "stroke-width": 5 }, g);
+            if (i !== 2) {
+              const drop = el("circle", { cx: i < 2 ? 140 : 860, cy: 410, r: 16, fill: i < 2 ? "#fff" : "#242424", stroke: "#bfae95", "stroke-width": 2 }, v);
+              await api.tween(700, (t) => {
+                drop.setAttribute("cx", (i < 2 ? 140 : 860) + (xs[i] - (i < 2 ? 140 : 860)) * t);
+                drop.setAttribute("cy", 410 - Math.sin(t * Math.PI) * 220 + (230 - 410) * t);
+              });
+              drop.remove();
+            }
+            await api.tween(600, (t) => g.setAttribute("opacity", t));
+            MUSIC.play("xylophone", 84 + i * 2, { gain: 0.3 });
+            await api.wait(350);
+          }
+        },
+      },
+    ];
+    explain(scenes, {
+      alive: () => my === token,
+      title: "Colours",
+      onDone: () => {
+        shell.mark("c0", { done: true });
+        shell.go("c1");
+      },
+    });
+  },
+
+  c4() {
+    const my = token;
+    const MODES = { warm: "🐣 Warm or cool", light: "🦊 White or black?", order: "🦁 Light to dark" };
+    const ROUNDS = 8;
+    let mode = "warm";
+    let round = 0;
+    let q = null;
+    let busy = false;
+    let v = null;
+    panel(`<div class="ap-chips" data-modes>${Object.entries(MODES).map(([k, l]) => `<button type="button" data-m="${k}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p>`);
+    const THINGS = [
+      ["🍓", "red", "warm"], ["🍊", "orange", "warm"], ["🌻", "yellow", "warm"], ["🔥", "orange", "warm"], ["🚒", "red", "warm"], ["🍋", "yellow", "warm"],
+      ["🫐", "blue", "cool"], ["🥦", "green", "cool"], ["🍇", "purple", "cool"], ["🌊", "blue", "cool"], ["🐸", "green", "cool"], ["🔮", "purple", "cool"],
+    ];
+    const BASES = [{ r: 1 }, { y: 1 }, { b: 1 }, { r: 1, y: 1 }, { y: 1, b: 1 }, { r: 1, b: 1 }];
+    const baseName = (d) => nameOf({ r: 0, y: 0, b: 0, w: 0, k: 0, ...d });
+    const full = (d) => ({ r: 0, y: 0, b: 0, w: 0, k: 0, ...d });
+    const lum = (rgb) => 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+    const fresh = () => {
+      stage.innerHTML = "";
+      v = makeSvg(`0 0 ${W} ${H}`, stage);
+      el("rect", { width: W, height: H, fill: "#fdf8ef" }, v);
+    };
+    const status = () => ($("[data-status]").textContent = `Round ${Math.min(round + 1, ROUNDS)} of ${ROUNDS}`);
+    const tapZone = (g, value) => {
+      g.classList.add("cm-tap");
+      g.dataset.v = value;
+    };
+    const ask = () => {
+      if (my !== token) return;
+      busy = false;
+      fresh();
+      status();
+      if (mode === "warm") {
+        const [glyph, colour, kind] = pick(THINGS.filter((t) => t !== q?.thing));
+        q = { thing: [glyph, colour, kind], answer: kind };
+        el("circle", { cx: 500, cy: 140, r: 110, fill: HUE[colour], opacity: 0.25 }, v);
+        el("path", { d: blobPath(500, 140, 92, round), fill: HUE[colour], stroke: "#fff", "stroke-width": 5 }, v);
+        emoji(v, 500, 138, glyph, 100);
+        [["warm", "☀️", "#fff1e0", "#f6c48f", 60], ["cool", "❄️", "#e6f1fb", "#9cc3e8", 520]].forEach(([val, icon, fill, stroke, x]) => {
+          const g = el("g", { style: "cursor:pointer" }, v);
+          el("rect", { x, y: 290, width: 420, height: 240, rx: 34, fill, stroke, "stroke-width": 5 }, g);
+          emoji(g, x + 210, 370, icon, 100);
+          text(g, x + 210, 500, val, { "font-size": 44, fill: "#2b1d12", "font-weight": 900 });
+          tapZone(g, val);
+        });
+        say(`Is this <b>${colour}</b> a warm colour ☀️ or a cool colour ❄️?`);
+      } else if (mode === "light") {
+        const base = pick(BASES);
+        const add = Math.random() < 0.5 ? "w" : "k";
+        const before = mixOf(full(base));
+        const after = mixOf(full({ ...base, [add]: Object.values(base).reduce((s, n) => s + n, 0) }));
+        q = { answer: add, base };
+        el("path", { d: blobPath(250, 150, 100, round), fill: hexOf(before), stroke: "#fff", "stroke-width": 5 }, v);
+        text(v, 500, 172, "➜ ?", { "font-size": 70, fill: "#8a7764", "font-weight": 900 });
+        el("path", { d: blobPath(750, 150, 100, round + 3), fill: hexOf(after), stroke: "#e2d6c4", "stroke-width": 5 }, v);
+        [["w", "#ffffff", "white", 120], ["k", "#242424", "black", 560]].forEach(([val, color, name, x]) => {
+          const g = el("g", { style: "cursor:pointer" }, v);
+          el("rect", { x, y: 300, width: 320, height: 230, rx: 34, fill: "#fff", stroke: "#e2d6c4", "stroke-width": 5 }, g);
+          el("rect", { x: x + 90, y: 345, width: 140, height: 110, rx: 22, fill: "#e9e2d6", stroke: "#bfae95", "stroke-width": 3 }, g);
+          el("ellipse", { cx: x + 160, cy: 347, rx: 70, ry: 20, fill: color, stroke: "#bfae95", "stroke-width": 3 }, g);
+          text(g, x + 160, 505, name, { "font-size": 40, fill: "#2b1d12", "font-weight": 900 });
+          tapZone(g, val);
+        });
+        say(`The ${baseName(base)} paint changed. Did we add <b>white</b> or <b>black</b>?`);
+      } else {
+        const base = pick(BASES);
+        const n = Object.values(base).reduce((s, x) => s + x, 0);
+        const steps = round < 4 ? [{ w: 3 * n }, {}, { k: n }] : [{ w: 3 * n }, { w: n }, {}, { k: n }];
+        const cards = steps.map((extra) => mixOf(full({ ...base, ...extra })));
+        const order = cards.map((c, i) => i).sort((a, b) => lum(cards[b]) - lum(cards[a]));
+        q = { next: 0, order, cards, slots: shuffle(cards.map((_, i) => i)) };
+        const w = q.slots.length === 3 ? 240 : 200;
+        const gap = 30;
+        const x0 = 500 - (q.slots.length * (w + gap) - gap) / 2;
+        q.slots.forEach((ci, k) => {
+          const g = el("g", { style: "cursor:pointer" }, v);
+          el("rect", { x: x0 + k * (w + gap), y: 120, width: w, height: 280, rx: 30, fill: hexOf(cards[ci]), stroke: "#e2d6c4", "stroke-width": 5 }, g);
+          tapZone(g, ci);
+        });
+        text(v, 500, 80, "lightest first ➜ darkest last", { "font-size": 34, fill: "#8a7764", "font-weight": 800 });
+        say("Tap the colours from the <b>lightest</b> to the <b>darkest</b>.");
+      }
+    };
+    const finishRound = async (msg) => {
+      busy = true;
+      MUSIC.chime();
+      round += 1;
+      window.OC?.count("colour sorts");
+      say(msg);
+      await wait(2200);
+      if (my !== token) return;
+      if (round >= ROUNDS) {
+        confetti();
+        const modes = new Set([...(shell.progress().c4?.modes || []), mode]);
+        shell.mark("c4", { modes: [...modes], done: true });
+        say(`🎉 You did all ${ROUNDS}! ${mode === "warm" ? "Try 🦊 White or black next." : mode === "light" ? "Try 🦁 Light to dark next." : "You are a colour expert!"}`);
+        round = 0;
+        await wait(3200);
+        if (my !== token) return;
+      }
+      ask();
+    };
+    stage.onpointerdown = async (event) => {
+      const g = event.target.closest(".cm-tap");
+      if (!g || my !== token || busy || !q) return;
+      window.OC?.touch();
+      const val = g.dataset.v;
+      if (mode === "warm") {
+        const [, colour, kind] = q.thing;
+        if (val === q.answer) finishRound(`${pick(PRAISE)} ${swatchTxt(colour)} is ${kind === "warm" ? "warm, like the sun ☀️" : "cool, like water ❄️"}.`);
+        else {
+          MUSIC.oops();
+          say(kind === "warm" ? `Red, orange and yellow feel warm, like fire. Is ${colour} one of them?` : `Blue, green and purple feel cool, like water and leaves. Is ${colour} one of them?`);
+        }
+      } else if (mode === "light") {
+        if (val === q.answer) finishRound(`${pick(PRAISE)} ${q.answer === "w" ? "White makes a colour <b>lighter</b>." : "Black makes a colour <b>darker</b>."}`);
+        else {
+          MUSIC.oops();
+          say(`Look again: is the new colour lighter or darker? White makes it lighter, black makes it darker.`);
+        }
+      } else {
+        const ci = Number(val);
+        if (ci === q.order[q.next]) {
+          const rect = g.querySelector("rect");
+          rect.setAttribute("stroke", "#22a05a");
+          rect.setAttribute("stroke-width", 10);
+          text(g, Number(rect.getAttribute("x")) + Number(rect.getAttribute("width")) / 2, 470, String(q.next + 1), { "font-size": 54, fill: "#22a05a", "font-weight": 900 });
+          g.classList.remove("cm-tap");
+          MUSIC.play("xylophone", 96 - q.next * 3, { gain: 0.4 });
+          q.next += 1;
+          if (q.next >= q.order.length) finishRound(`${pick(PRAISE)} More white makes it lighter, more black makes it darker.`);
+          else say(q.next === 1 ? "Yes, that's the lightest! Now the next lightest." : "Good! Keep going, lighter to darker.", { voice: q.next === 1 });
+        } else {
+          MUSIC.oops();
+          say("Not that one yet. Find the lightest colour that's left: the one with the most white.");
+        }
+      }
+    };
+    const start = (m) => {
+      mode = m;
+      round = 0;
+      q = null;
+      document.querySelectorAll("[data-m]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.m === m)));
+      ask();
+    };
+    $("[data-panel]").onclick = (event) => {
+      const b = event.target.closest("[data-m]");
+      if (b && my === token) start(b.dataset.m);
+    };
+    start("warm");
+  },
+
   c1() {
     const my = token;
     const GOALS = [
@@ -412,13 +753,17 @@ const units = {
 const shell = SHELL({
   units: UNITS,
   how: {
+    c0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    c4: { icon: "☀️", title: "Warm, cool, light, dark", steps: ["Pick a game at the top.", "Look at the colour.", "Tap the right big card."] },
     c1: { icon: "🎨", title: "Mix it!", steps: ["Tap a paint pot to drip paint in the bowl.", "Tap another pot to mix in a new colour.", "Can you make the colour on the card?"] },
     c2: { icon: "🌈", title: "Colour wheel", steps: ["Tap a colour button below.", "Tap the empty space where it belongs.", "It goes between the two colours that make it!"] },
     c3: { icon: "🎯", title: "Match the colour", steps: ["Look at the colour in the square.", "Tap paint pots to mix it in the bowl.", "When the bar is green, press Check!"] },
   },
+  start: "c0",
   onStop() {
     token += 1;
     $("[data-panel]").onclick = null;
+    stage.onpointerdown = null;
   },
   subject: "Arts",
   activity: "Colour Mixing",

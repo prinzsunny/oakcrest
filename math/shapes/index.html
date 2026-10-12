@@ -1,0 +1,1321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shapes & Angles · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="math">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Shapes & Angles</b><small>Math · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, pickInt, wait, confetti, PRAISE, KIND, choices, explain, everyday, emoji, numpad, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+const LV = {};
+
+const UNITS = [
+  { id: "sh0", label: "1. See it", icon: "👀" },
+  { id: "sh1", label: "2. Shape hunt", icon: "🔍" },
+  { id: "sh2", label: "3. Sides & corners", icon: "📐" },
+  { id: "sh3", label: "4. Solid shapes", icon: "🧊" },
+  { id: "sh4", label: "5. Angles", icon: "📏" },
+  { id: "sh5", label: "6. Fence & tiles", icon: "🌷" },
+];
+
+const css = document.createElement("style");
+css.textContent = `.sh-tap{cursor:pointer}.sh-ico{width:1.6em;height:1.6em;vertical-align:-0.45em;margin:0 .1em}.sh-drag{cursor:grab;touch-action:none}`;
+document.head.appendChild(css);
+
+const fresh = () => {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  view.style.background = "#fdf8ef";
+  return view;
+};
+const status = (s) => {
+  const b = $("[data-status]");
+  if (b) b.textContent = s;
+};
+const LV3 = [
+  ["easy", "🐣 Easy"],
+  ["medium", "🦊 Medium"],
+  ["hard", "🦁 Hard"],
+];
+const chipsHtml = (cur, list = LV3) => `<div class="ap-chips" data-lvls>${list.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div>`;
+const bindLevels = (onPick) => {
+  const host = $("[data-lvls]");
+  host.onclick = (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    host.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    window.OC?.touch();
+    onPick(b.dataset.lv);
+  };
+};
+const toSvg = (event) => {
+  const p = view.createSVGPoint();
+  p.x = event.clientX;
+  p.y = event.clientY;
+  return p.matrixTransform(view.getScreenCTM().inverse());
+};
+const NOTES = [72, 74, 76, 77, 79, 81, 83, 84, 86, 88, 89, 91];
+const note = (i, gain = 0.4) => MUSIC.play("xylophone", NOTES[Math.min(NOTES.length - 1, Math.max(0, i))], { gain });
+const COLORS = ["#e5533d", "#f2a03d", "#e9b928", "#4caf6a", "#3d8bd9", "#8e5bd0", "#e46fa1", "#2bb3a6"];
+const darker = { "#e5533d": "#a5321f", "#f2a03d": "#b06a14", "#e9b928": "#a07b0c", "#4caf6a": "#2c7a44", "#3d8bd9": "#22609e", "#8e5bd0": "#5e3594", "#e46fa1": "#a63f6c", "#2bb3a6": "#1a7a71" };
+
+// ---------- flat shapes ----------
+const TAU = Math.PI * 2;
+const reg = (n, r, start = -Math.PI / 2) => Array.from({ length: n }, (_, i) => [r * Math.cos(start + (i * TAU) / n), r * Math.sin(start + (i * TAU) / n)]);
+function shapePts(kind, s, v = 0) {
+  switch (kind) {
+    case "triangle":
+      return [reg(3, s * 1.1).map(([x, y]) => [x, y + s * 0.18]), [[-s, s * 0.8], [s, s * 0.8], [-s, -s * 0.8]], [[-s * 0.7, s * 0.9], [s * 0.7, s * 0.9], [0, -s * 1.05]]][v % 3];
+    case "square":
+      return [[-s * 0.85, -s * 0.85], [s * 0.85, -s * 0.85], [s * 0.85, s * 0.85], [-s * 0.85, s * 0.85]];
+    case "rectangle":
+      return [[-s * 1.15, -s * 0.6], [s * 1.15, -s * 0.6], [s * 1.15, s * 0.6], [-s * 1.15, s * 0.6]];
+    case "pentagon":
+      return reg(5, s).map(([x, y]) => [x, y + s * 0.08]);
+    case "hexagon":
+      return reg(6, s, 0);
+    case "heptagon":
+      return reg(7, s).map(([x, y]) => [x, y + s * 0.05]);
+    case "octagon":
+      return reg(8, s, Math.PI / 8);
+    case "rhombus":
+      return [[0, -s * 1.05], [s * 0.65, 0], [0, s * 1.05], [-s * 0.65, 0]];
+    case "trapezoid":
+      return [[-s * 0.55, -s * 0.6], [s * 0.55, -s * 0.6], [s * 1.15, s * 0.6], [-s * 1.15, s * 0.6]];
+    case "house":
+      return [[0, -s], [s * 0.85, -s * 0.2], [s * 0.85, s * 0.9], [-s * 0.85, s * 0.9], [-s * 0.85, -s * 0.2]];
+    case "arrow":
+      return [[-s, -s * 0.3], [s * 0.2, -s * 0.3], [s * 0.2, -s * 0.75], [s, 0], [s * 0.2, s * 0.75], [s * 0.2, s * 0.3], [-s, s * 0.3]];
+    case "lshape":
+      return [[-s * 0.8, -s], [-s * 0.15, -s], [-s * 0.15, s * 0.3], [s * 0.8, s * 0.3], [s * 0.8, s * 0.95], [-s * 0.8, s * 0.95]];
+    case "star":
+      return Array.from({ length: 10 }, (_, i) => {
+        const r = i % 2 ? s * 0.45 : s * 1.05;
+        const a = -Math.PI / 2 + (i * Math.PI) / 5;
+        return [r * Math.cos(a), r * Math.sin(a) + s * 0.08];
+      });
+    default:
+      return null;
+  }
+}
+const SIDES = { circle: 0, oval: 0, triangle: 3, square: 4, rectangle: 4, rhombus: 4, trapezoid: 4, pentagon: 5, house: 5, hexagon: 6, lshape: 6, heptagon: 7, arrow: 7, octagon: 8, star: 10 };
+const NAME = { circle: "circle", oval: "oval", triangle: "triangle", square: "square", rectangle: "rectangle", rhombus: "rhombus", trapezoid: "trapezoid", pentagon: "pentagon", house: "pentagon", hexagon: "hexagon", lshape: "hexagon", heptagon: "heptagon", arrow: "heptagon", octagon: "octagon", star: "decagon" };
+const PLURAL = { rhombus: "rhombuses" };
+const plural = (k) => PLURAL[k] || `${NAME[k]}s`;
+const DESC = {
+  circle: "A circle is perfectly round, with no corners.",
+  oval: "An oval is a stretched circle, like an egg.",
+  triangle: "A triangle has 3 sides.",
+  square: "A square has 4 sides that are all the same length.",
+  rectangle: "A rectangle has 4 square corners: two long sides and two short sides.",
+  pentagon: "A pentagon has 5 sides.",
+  hexagon: "A hexagon has 6 sides, like a honeycomb cell.",
+  octagon: "An octagon has 8 sides, like a stop sign.",
+  rhombus: "A rhombus has 4 sides all the same length, like a diamond.",
+  trapezoid: "A trapezoid has 4 sides: a long bottom and a shorter top that runs the same way.",
+};
+const rot = (pts, a) => pts.map(([x, y]) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)]);
+const ptsStr = (pts, cx = 0, cy = 0) => pts.map(([x, y]) => `${(cx + x).toFixed(1)},${(cy + y).toFixed(1)}`).join(" ");
+function drawShape(parent, kind, cx, cy, s, { fill = "#f2a03d", stroke, angle = 0, v = 0, attrs = {} } = {}) {
+  const line = stroke || darker[fill] || "#5a4130";
+  const common = { fill, stroke: line, "stroke-width": 5, "stroke-linejoin": "round", ...attrs };
+  if (kind === "circle") return el("circle", { cx, cy, r: s * 0.95, ...common }, parent);
+  if (kind === "oval") return el("ellipse", { cx, cy, rx: s * 1.15, ry: s * 0.7, transform: `rotate(${(angle * 180) / Math.PI} ${cx} ${cy})`, ...common }, parent);
+  return el("polygon", { points: ptsStr(rot(shapePts(kind, s, v), angle), cx, cy), ...common }, parent);
+}
+function ico(kind, fill = "#f2a03d") {
+  const pts = shapePts(kind, 38, 0);
+  const shape = kind === "circle" ? `<circle r="38"` : kind === "oval" ? `<ellipse rx="44" ry="28"` : `<polygon points="${ptsStr(pts)}"`;
+  return `<svg class="sh-ico" viewBox="-50 -50 100 100" aria-hidden="true">${shape} fill="${fill}" stroke="${darker[fill] || "#5a4130"}" stroke-width="6" stroke-linejoin="round"/></svg>`;
+}
+
+// ---------- 3D solids ----------
+function ring(n, y, r) {
+  return Array.from({ length: n }, (_, i) => [r * Math.cos((i * TAU) / n), y, r * Math.sin((i * TAU) / n)]);
+}
+function box(a, b, c) {
+  const v = [];
+  for (const x of [-a, a]) for (const y of [-b, b]) for (const z of [-c, c]) v.push([x, y, z]);
+  // index = xi*4 + yi*2 + zi
+  return { v, f: [[0, 1, 3, 2], [4, 6, 7, 5], [0, 4, 5, 1], [2, 3, 7, 6], [0, 2, 6, 4], [1, 5, 7, 3]].map((idx) => ({ idx })) };
+}
+const SOLIDS = {
+  cube: { name: "cube", hue: 28, faces: 6, edges: 12, verts: 8, things: [["🎲", "dice"], ["🧊", "an ice cube"]], make: () => box(0.95, 0.95, 0.95) },
+  cuboid: { name: "cuboid", hue: 205, faces: 6, edges: 12, verts: 8, things: [["📦", "a box"], ["🧱", "a brick"]], make: () => box(1.35, 0.7, 0.85) },
+  pyramid: {
+    name: "pyramid", hue: 45, faces: 5, edges: 8, verts: 5, things: [["🏜️", "the pyramids in Egypt"]],
+    make: () => ({ v: [[-1, -0.75, -1], [1, -0.75, -1], [1, -0.75, 1], [-1, -0.75, 1], [0, 1.15, 0]], f: [[0, 1, 2, 3], [0, 4, 1], [1, 4, 2], [2, 4, 3], [3, 4, 0]].map((idx) => ({ idx })) }),
+  },
+  prism: {
+    name: "triangular prism", hue: 140, faces: 5, edges: 9, verts: 6, things: [["⛺", "a tent"], ["🧀", "a cheese wedge"]],
+    make: () => ({ v: [[-1.05, -0.8, -1.15], [1.05, -0.8, -1.15], [0, 0.95, -1.15], [-1.05, -0.8, 1.15], [1.05, -0.8, 1.15], [0, 0.95, 1.15]], f: [[0, 1, 2], [3, 4, 5], [0, 1, 4, 3], [1, 2, 5, 4], [2, 0, 3, 5]].map((idx) => ({ idx })) }),
+  },
+  cylinder: {
+    name: "cylinder", hue: 0, flat: 2, things: [["🥫", "a can"], ["🔋", "a battery"]],
+    make: () => {
+      const n = 28;
+      const v = [...ring(n, 1, 0.85), ...ring(n, -1, 0.85)];
+      const f = [{ idx: [...Array(n).keys()] }, { idx: [...Array(n).keys()].map((i) => n + i) }];
+      for (let i = 0; i < n; i++) f.push({ idx: [i, (i + 1) % n, n + ((i + 1) % n), n + i], curved: true });
+      return { v, f };
+    },
+  },
+  cone: {
+    name: "cone", hue: 300, flat: 1, things: [["🍦", "an ice-cream cone"], ["🥳", "a party hat"]],
+    make: () => {
+      const n = 28;
+      const v = [...ring(n, -0.85, 1), [0, 1.2, 0]];
+      const f = [{ idx: [...Array(n).keys()] }];
+      for (let i = 0; i < n; i++) f.push({ idx: [i, n, (i + 1) % n], curved: true });
+      return { v, f };
+    },
+  },
+  sphere: { name: "sphere", hue: 120, flat: 0, things: [["⚽", "a ball"], ["🌍", "the Earth"]], make: () => ({ v: [], f: [], sphere: true }) },
+};
+for (const s of Object.values(SOLIDS)) {
+  s.mesh = s.make();
+  const edges = new Set();
+  if (!s.flat && s.flat !== 0)
+    for (const f of s.mesh.f) f.idx.forEach((a, i) => {
+      const b = f.idx[(i + 1) % f.idx.length];
+      edges.add(a < b ? `${a}-${b}` : `${b}-${a}`);
+    });
+  s.edgeList = [...edges].map((k) => k.split("-").map(Number));
+}
+function turn([x, y, z], yaw, pitch) {
+  const x1 = x * Math.cos(yaw) + z * Math.sin(yaw);
+  const z1 = -x * Math.sin(yaw) + z * Math.cos(yaw);
+  return [x1, y * Math.cos(pitch) - z1 * Math.sin(pitch), y * Math.sin(pitch) + z1 * Math.cos(pitch)];
+}
+const LIGHT = (() => {
+  const l = [-0.45, 0.75, 0.6];
+  const m = Math.hypot(...l);
+  return l.map((c) => c / m);
+})();
+function drawSolid(parent, solid, { cx, cy, size, yaw, pitch, reveal = null }) {
+  parent.innerHTML = "";
+  const mesh = solid.mesh;
+  if (mesh.sphere) {
+    let defs = view.querySelector("#sh-ball");
+    if (!defs) {
+      const d = el("defs", {}, view);
+      const g = el("radialGradient", { id: "sh-ball", cx: "0.35", cy: "0.3", r: "0.75" }, d);
+      el("stop", { offset: "0", "stop-color": "#c8f0c4" }, g);
+      el("stop", { offset: "0.55", "stop-color": "#4caf6a" }, g);
+      el("stop", { offset: "1", "stop-color": "#22663a" }, g);
+    }
+    el("ellipse", { cx, cy: cy + size * 1.08, rx: size * 0.8, ry: size * 0.12, fill: "#3a2210", opacity: 0.12 }, parent);
+    el("circle", { cx, cy, r: size, fill: "url(#sh-ball)", stroke: "#22663a", "stroke-width": 3 }, parent);
+    for (const plane of [0, 1]) {
+      const pts = Array.from({ length: 73 }, (_, i) => {
+        const a = (i * TAU) / 72;
+        const p = plane ? [0, Math.cos(a), Math.sin(a)] : [Math.cos(a), 0, Math.sin(a)];
+        return turn(p, yaw, pitch);
+      });
+      let d = "";
+      pts.forEach(([x, y, z], i) => {
+        if (z < 0) return;
+        const prev = pts[i - 1];
+        d += `${prev && prev[2] >= 0 ? "L" : "M"}${(cx + x * size).toFixed(1)} ${(cy - y * size).toFixed(1)}`;
+      });
+      el("path", { d, fill: "none", stroke: "#fff", "stroke-width": 4, opacity: 0.7, "stroke-linecap": "round" }, parent);
+    }
+    return;
+  }
+  const P = mesh.v.map((p) => turn(p, yaw, pitch));
+  const S = P.map(([x, y]) => [cx + x * size, cy - y * size]);
+  el("ellipse", { cx, cy: cy + size * 1.15, rx: size * 1.1, ry: size * 0.14, fill: "#3a2210", opacity: 0.1 }, parent);
+  const hue = solid.hue;
+  const curvedSolid = solid.flat !== undefined;
+  for (const face of mesh.f) {
+    const pts = face.idx.map((i) => P[i]);
+    const [a, b, c] = [pts[0], pts[1], pts[2]];
+    const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    const w = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    let n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+    const m = Math.hypot(...n) || 1;
+    n = n.map((q) => q / m);
+    const cen = pts.reduce((s, p) => [s[0] + p[0] / pts.length, s[1] + p[1] / pts.length, s[2] + p[2] / pts.length], [0, 0, 0]);
+    if (n[0] * cen[0] + n[1] * cen[1] + n[2] * cen[2] < 0) n = n.map((q) => -q);
+    if (n[2] <= 0.0005) continue;
+    const lit = Math.max(0, n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2]);
+    const fill = `hsl(${hue} ${curvedSolid ? 62 : 66}% ${32 + lit * 38}%)`;
+    el("polygon", {
+      points: face.idx.map((i) => `${S[i][0].toFixed(1)},${S[i][1].toFixed(1)}`).join(" "),
+      fill,
+      stroke: face.curved ? fill : "#3b2a1c",
+      "stroke-width": face.curved ? 1.4 : 3.5,
+      "stroke-linejoin": "round",
+    }, parent);
+  }
+  if (reveal === "edges")
+    for (const [a, b] of solid.edgeList) {
+      const front = P[a][2] + P[b][2] > -0.05;
+      el("line", { x1: S[a][0], y1: S[a][1], x2: S[b][0], y2: S[b][1], stroke: "#ffcf3a", "stroke-width": front ? 8 : 4, "stroke-dasharray": front ? null : "10 9", "stroke-linecap": "round", opacity: front ? 1 : 0.8 }, parent);
+    }
+  if (reveal === "verts")
+    mesh.v.forEach((_, i) => {
+      const front = P[i][2] > -0.2;
+      el("circle", { cx: S[i][0], cy: S[i][1], r: front ? 13 : 10, fill: front ? "#ffcf3a" : "#fff", stroke: "#b06a14", "stroke-width": 4, "stroke-dasharray": front ? null : "5 4" }, parent);
+    });
+}
+
+// ---------- angle helpers ----------
+const arcPath = (px, py, r, deg) => {
+  const a = (deg * Math.PI) / 180;
+  return `M${px} ${py}L${px + r} ${py}A${r} ${r} 0 0 0 ${(px + r * Math.cos(a)).toFixed(1)} ${(py - r * Math.sin(a)).toFixed(1)}Z`;
+};
+const kindOf = (deg) => (Math.abs(deg - 90) < 0.5 ? "right" : deg < 90 ? "acute" : "obtuse");
+const KCOL = { acute: "#4caf6a", right: "#3d8bd9", obtuse: "#f2a03d" };
+function angleRig(parent, { px = 330, py = 430, len = 330, deg = 40, protractor = false, tester = false }) {
+  const g = el("g", {}, parent);
+  if (protractor) {
+    el("path", { d: `M${px - 300} ${py}A300 300 0 0 1 ${px + 300} ${py}Z`, fill: "#fff7e3", stroke: "#e2c98f", "stroke-width": 3 }, g);
+    for (let d = 0; d <= 180; d += 10) {
+      const a = (d * Math.PI) / 180;
+      const r1 = d % 30 === 0 ? 268 : 282;
+      el("line", { x1: px + 300 * Math.cos(a), y1: py - 300 * Math.sin(a), x2: px + r1 * Math.cos(a), y2: py - r1 * Math.sin(a), stroke: "#b8913c", "stroke-width": 3 }, g);
+      if (d % 30 === 0) text(g, px + 238 * Math.cos(a) + (d === 0 ? -14 : d === 180 ? 14 : 0), py - 238 * Math.sin(a) + 9 - (d % 180 === 0 ? 34 : 0), d, { "font-size": 24, fill: "#8a6a24" });
+    }
+  }
+  if (tester) el("path", { d: `M${px + 150} ${py}L${px + 150} ${py - 150}L${px} ${py - 150}`, fill: "none", stroke: "#3d8bd9", "stroke-width": 3, "stroke-dasharray": "10 8", opacity: 0.45 }, g);
+  const sector = el("path", { fill: "#4caf6a", opacity: 0.28 }, g);
+  const square = el("path", { fill: "none", stroke: "#3d8bd9", "stroke-width": 5 }, g);
+  el("line", { x1: px, y1: py, x2: px + len, y2: py, stroke: "#7a4a24", "stroke-width": 18, "stroke-linecap": "round" }, g);
+  const arm = el("line", { x1: px, y1: py, stroke: "#c56a2d", "stroke-width": 18, "stroke-linecap": "round" }, g);
+  const knob = el("circle", { r: 26, fill: "#ffcf3a", stroke: "#b06a14", "stroke-width": 4 }, g);
+  el("circle", { cx: px, cy: py, r: 16, fill: "#5a4130" }, g);
+  const set = (d) => {
+    const a = (d * Math.PI) / 180;
+    const x = px + len * Math.cos(a);
+    const y = py - len * Math.sin(a);
+    arm.setAttribute("x2", x);
+    arm.setAttribute("y2", y);
+    knob.setAttribute("cx", x);
+    knob.setAttribute("cy", y);
+    const k = kindOf(d);
+    const right = k === "right";
+    sector.setAttribute("d", right ? "" : arcPath(px, py, 90, d));
+    sector.setAttribute("fill", KCOL[k]);
+    square.setAttribute("d", right ? `M${px + 56} ${py}L${px + 56} ${py - 56}L${px} ${py - 56}` : "");
+  };
+  set(deg);
+  return { set, g, px, py, knob };
+}
+
+const angIco = (d) => {
+  const a = (d * Math.PI) / 180;
+  return `<svg class="sh-ico" viewBox="0 0 60 50" aria-hidden="true"><path d="M8 42H54M8 42L${(8 + 40 * Math.cos(a)).toFixed(1)} ${(42 - 40 * Math.sin(a)).toFixed(1)}" stroke="${KCOL[kindOf(d)]}" stroke-width="7" stroke-linecap="round" fill="none"/></svg>`;
+};
+
+// ---------- garden grid ----------
+const GU = 50;
+const GX = 60;
+const GY = 60;
+const GC = 14;
+const GR = 9;
+function gardenGrid(parent) {
+  el("rect", { x: GX - 6, y: GY - 6, width: GC * GU + 12, height: GR * GU + 12, rx: 14, fill: "#eef6e2" }, parent);
+  for (let c = 0; c <= GC; c++) el("line", { x1: GX + c * GU, x2: GX + c * GU, y1: GY, y2: GY + GR * GU, stroke: "#cfe0b8", "stroke-width": 2 }, parent);
+  for (let r = 0; r <= GR; r++) el("line", { y1: GY + r * GU, y2: GY + r * GU, x1: GX, x2: GX + GC * GU, stroke: "#cfe0b8", "stroke-width": 2 }, parent);
+}
+function perimeterSteps(c0, r0, w, h) {
+  const out = [];
+  for (let i = 0; i < w; i++) out.push([c0 + i, r0, c0 + i + 1, r0]);
+  for (let i = 0; i < h; i++) out.push([c0 + w, r0 + i, c0 + w, r0 + i + 1]);
+  for (let i = w; i > 0; i--) out.push([c0 + i, r0 + h, c0 + i - 1, r0 + h]);
+  for (let i = h; i > 0; i--) out.push([c0, r0 + i, c0, r0 + i - 1]);
+  return out;
+}
+function fence(parent, c0, r0, w, h, color = "#8a5a2b") {
+  const g = el("g", {}, parent);
+  el("rect", { x: GX + c0 * GU, y: GY + r0 * GU, width: w * GU, height: h * GU, fill: "none", stroke: color, "stroke-width": 8, "stroke-linejoin": "round" }, g);
+  for (let c = 0; c <= w; c++)
+    for (let r = 0; r <= h; r++) if (c === 0 || r === 0 || c === w || r === h) el("circle", { cx: GX + (c0 + c) * GU, cy: GY + (r0 + r) * GU, r: 7, fill: "#5a3a1a" }, g);
+  return g;
+}
+
+// ---------- units ----------
+async function finish(my, id, right, total, what) {
+  MUSIC.chime();
+  confetti();
+  window.OC?.count("games finished");
+  if (right >= Math.ceil(total * 0.6)) shell.mark(id, { done: true });
+  say(`🎉 All ${total} done! You got ${right} right first time. ${right >= total - 1 ? "Super " + what + "!" : "Let's play again!"}`);
+  await wait(3600);
+  return my === token;
+}
+
+const units = {
+  sh0() {
+    const my = token;
+    const regular = (n, cx, cy, r) => reg(n, r, n === 4 ? -Math.PI / 4 : -Math.PI / 2).map(([x, y]) => [cx + x, cy + y + (n === 3 ? r * 0.18 : 0)]);
+    const countUp = async (v, api, pts, color) => {
+      el("polygon", { points: ptsStr(pts), fill: "#fff3dc", stroke: "#e2d6c4", "stroke-width": 6, "stroke-linejoin": "round" }, v);
+      const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+      const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+      for (let i = 0; i < pts.length; i++) {
+        const [a, b] = [pts[i], pts[(i + 1) % pts.length]];
+        const line = el("line", { x1: a[0], y1: a[1], x2: a[0], y2: a[1], stroke: color, "stroke-width": 14, "stroke-linecap": "round" }, v);
+        note(i * 2);
+        await api.tween(800, (t) => {
+          line.setAttribute("x2", a[0] + (b[0] - a[0]) * t);
+          line.setAttribute("y2", a[1] + (b[1] - a[1]) * t);
+        });
+        const mx = (a[0] + b[0]) / 2;
+        const my2 = (a[1] + b[1]) / 2;
+        const d = Math.hypot(mx - cx, my2 - cy) || 1;
+        el("circle", { cx: mx + ((mx - cx) / d) * 44, cy: my2 + ((my2 - cy) / d) * 44, r: 24, fill: color }, v);
+        text(v, mx + ((mx - cx) / d) * 44, my2 + ((my2 - cy) / d) * 44 + 10, i + 1, { "font-size": 28, fill: "#fff" });
+        await api.wait(450);
+      }
+      await api.wait(500);
+      for (let i = 0; i < pts.length; i++) {
+        const dot = el("circle", { cx: pts[i][0], cy: pts[i][1], r: 0, fill: "#ffcf3a", stroke: "#b06a14", "stroke-width": 4 }, v);
+        note(i * 2 + 1, 0.3);
+        await api.tween(400, (t) => dot.setAttribute("r", 16 * t));
+        await api.wait(250);
+      }
+    };
+    const scenes = [
+      {
+        say: "Why do we learn shapes? Shapes are everywhere! Wheels are round so they roll. Boxes stack. Triangle roofs stay strong. Stop signs have 8 sides.",
+        draw: everyday([["🚲", "Round wheels roll"], ["📦", "Boxes stack up"], ["🏠", "Triangle roofs are strong"], ["🛑", "Stop signs have 8 sides"]]),
+      },
+      {
+        say: "Watch the triangle. Its sides light up: 1, 2, 3. Then its corners get dots: 3 corners!",
+        draw: async (v, api) => {
+          text(v, 500, 60, "Triangle: 3 sides, 3 corners", { "font-size": 34, fill: "#2b1d12" });
+          await api.wait(600);
+          await countUp(v, api, regular(3, 500, 300, 200), "#e5533d");
+        },
+      },
+      {
+        say: "A square has 4 sides, all the same length, and 4 square corners.",
+        draw: async (v, api) => {
+          text(v, 500, 60, "Square: 4 sides, 4 corners", { "font-size": 34, fill: "#2b1d12" });
+          await api.wait(600);
+          await countUp(v, api, regular(4, 500, 300, 210), "#3d8bd9");
+        },
+      },
+      {
+        say: "More sides, new names! 5 sides is a pentagon. 6 is a hexagon. 8 is an octagon.",
+        draw: async (v, api) => {
+          const list = [["triangle", 3], ["square", 4], ["pentagon", 5], ["hexagon", 6], ["octagon", 8]];
+          for (let i = 0; i < list.length; i++) {
+            const [k, n] = list[i];
+            const g = el("g", { opacity: 0 }, v);
+            const x = 110 + i * 195;
+            drawShape(g, k, x, 250, 72, { fill: COLORS[i * 2 % 8] });
+            text(g, x, 380, n, { "font-size": 54, fill: "#2b1d12" });
+            text(g, x, 425, "sides", { "font-size": 24, fill: "#8a7764" });
+            text(g, x, 475, NAME[k], { "font-size": 27, fill: "#2b1d12" });
+            note(i * 2);
+            await api.tween(600, (t) => g.setAttribute("opacity", t));
+            await api.wait(1100);
+          }
+        },
+      },
+      {
+        say: "A flat square can lift up and become a solid cube. A cube has 6 square faces, like a dice.",
+        draw: async (v, api) => {
+          const x = 380;
+          const y = 200;
+          const s = 220;
+          const top = el("polygon", { fill: "#f7c27a", stroke: "#7a4a24", "stroke-width": 5, "stroke-linejoin": "round" }, v);
+          const side = el("polygon", { fill: "#c97a2e", stroke: "#7a4a24", "stroke-width": 5, "stroke-linejoin": "round" }, v);
+          el("rect", { x, y, width: s, height: s, fill: "#f2a03d", stroke: "#7a4a24", "stroke-width": 5, "stroke-linejoin": "round" }, v);
+          const label = text(v, 500, 520, "A flat square", { "font-size": 34, fill: "#2b1d12" });
+          await api.wait(1500);
+          await api.tween(1800, (t) => {
+            const dx = 110 * t;
+            const dy = -90 * t;
+            top.setAttribute("points", ptsStr([[x, y], [x + s, y], [x + s + dx, y + dy], [x + dx, y + dy]]));
+            side.setAttribute("points", ptsStr([[x + s, y], [x + s + dx, y + dy], [x + s + dx, y + s + dy], [x + s, y + s]]));
+          });
+          MUSIC.chime();
+          label.textContent = "A solid cube: 6 faces 🎲";
+          await api.wait(800);
+          const verts = [[x, y], [x + s, y], [x, y + s], [x + s, y + s], [x + 110, y - 90], [x + s + 110, y - 90], [x + s + 110, y + s - 90]];
+          for (let i = 0; i < verts.length; i++) {
+            el("circle", { cx: verts[i][0], cy: verts[i][1], r: 13, fill: "#ffcf3a", stroke: "#b06a14", "stroke-width": 4 }, v);
+            note(i, 0.3);
+            await api.wait(250);
+          }
+        },
+      },
+      {
+        say: "An angle is how far something turns. Small turns are acute. A square corner is a right angle. Big turns are obtuse.",
+        draw: async (v, api) => {
+          const rig = angleRig(v, { px: 330, py: 450, len: 320, deg: 10 });
+          const label = text(v, 760, 120, "", { "font-size": 40, fill: "#2b1d12" });
+          const sub = text(v, 760, 170, "", { "font-size": 26, fill: "#8a7764" });
+          const go = async (from, to, word, small, col) => {
+            await api.tween(1400, (t) => rig.set(from + (to - from) * t));
+            label.textContent = word;
+            label.setAttribute("fill", col);
+            sub.textContent = small;
+            note(to === 90 ? 7 : to < 90 ? 4 : 9);
+            await api.wait(1800);
+          };
+          await api.wait(500);
+          await go(10, 45, "acute", "smaller than a square corner", KCOL.acute);
+          await go(45, 90, "right angle", "a square corner ⌐", KCOL.right);
+          await go(90, 140, "obtuse", "wider than a square corner", KCOL.obtuse);
+        },
+      },
+      {
+        say: "The fence all the way around a garden is its perimeter. The tiles inside are its area.",
+        draw: async (v, api) => {
+          gardenGrid(v);
+          const [c0, r0, w, h] = [2, 2, 5, 3];
+          const peri = text(v, 870, 160, "Fence: 0", { "font-size": 34, fill: "#8a5a2b" });
+          const area = text(v, 870, 260, "Tiles: 0", { "font-size": 34, fill: "#2c7a44" });
+          await api.wait(800);
+          const steps = perimeterSteps(c0, r0, w, h);
+          for (let i = 0; i < steps.length; i++) {
+            const [a, b, c, d] = steps[i];
+            el("line", { x1: GX + a * GU, y1: GY + b * GU, x2: GX + c * GU, y2: GY + d * GU, stroke: "#8a5a2b", "stroke-width": 10, "stroke-linecap": "round" }, v);
+            peri.textContent = `Fence: ${i + 1}`;
+            MUSIC.tick(i % 4 === 0);
+            await api.wait(230);
+          }
+          await api.wait(1000);
+          let n = 0;
+          for (let r = 0; r < h; r++)
+            for (let c = 0; c < w; c++) {
+              el("rect", { x: GX + (c0 + c) * GU + 4, y: GY + (r0 + r) * GU + 4, width: GU - 8, height: GU - 8, rx: 6, fill: "#7cc98f" }, v);
+              n += 1;
+              area.textContent = `Tiles: ${n}`;
+              note(n % 12, 0.3);
+              await api.wait(220);
+            }
+          text(v, 870, 360, "5 × 3 = 15", { "font-size": 30, fill: "#2b1d12" });
+        },
+      },
+    ];
+    explain(scenes, { alive: () => my === token, onDone: () => shell.go("sh1"), title: "Shapes & Angles" });
+  },
+
+  // ---- Shape hunt ----
+  sh1() {
+    const my = token;
+    let lv = LV.sh1 || "easy";
+    let round = 0;
+    let right = 0;
+    let missed = false;
+    let target = "";
+    let left = 0;
+    let found = 0;
+    let busy = false;
+    const TOTAL = 8;
+    const POOLS = { easy: ["circle", "square", "triangle", "rectangle"], medium: ["circle", "square", "triangle", "rectangle", "oval", "pentagon", "hexagon"], hard: ["pentagon", "hexagon", "octagon", "rhombus", "trapezoid"] };
+    const NOT = { rectangle: ["square"], rhombus: ["square"], trapezoid: ["square", "rectangle", "rhombus"] };
+    panel(`${chipsHtml(lv)}<p class="ap-status" data-status></p>`);
+    bindLevels((v) => {
+      LV.sh1 = lv = v;
+      round = right = 0;
+      ask();
+    });
+    const ask = () => {
+      busy = false;
+      missed = false;
+      const pool = POOLS[lv];
+      let t = pick(pool);
+      if (t === target) t = pick(pool);
+      target = t;
+      const count = lv === "easy" ? pickInt(2, 3) : pickInt(2, 4);
+      const others = (lv === "hard" ? [...POOLS.hard, "square", "rectangle", "triangle", "circle"] : pool).filter((k) => k !== target && !(NOT[target] || []).includes(k));
+      const kinds = shuffle([...Array(count).fill(target), ...Array.from({ length: 10 - count }, () => pick(others))]);
+      left = count;
+      found = 0;
+      fresh();
+      kinds.forEach((k, i) => {
+        const c = i % 5;
+        const r = Math.floor(i / 5);
+        const g = el("g", { class: "sh-tap sh-shape", "data-kind": k }, view);
+        const cx = 100 + c * 200 + pickInt(-14, 14);
+        const cy = 145 + r * 270 + pickInt(-14, 14);
+        const s = pickInt(58, 72);
+        drawShape(g, k, cx, cy, s, { fill: pick(COLORS), angle: ((pickInt(-14, 14) * Math.PI) / 180), v: pickInt(0, 2) });
+        g.dataset.cx = cx;
+        g.dataset.cy = cy;
+      });
+      status(`Hunt ${round + 1} of ${TOTAL} · find ${count}`);
+      say(`Tap all the <b>${plural(target)}</b> ${ico(target)}! There are ${count}.`);
+    };
+    stage.onpointerdown = null;
+    const tap = async (g) => {
+      if (my !== token || busy || g.dataset.done) return;
+      window.OC?.touch();
+      const k = g.dataset.kind;
+      if (k === target) {
+        g.dataset.done = "1";
+        found += 1;
+        left -= 1;
+        note(found * 2);
+        const cx = Number(g.dataset.cx);
+        const cy = Number(g.dataset.cy);
+        el("circle", { cx: cx + 52, cy: cy - 58, r: 24, fill: "#22a05a", stroke: "#fff", "stroke-width": 4 }, g);
+        text(g, cx + 52, cy - 49, "✓", { "font-size": 28, fill: "#fff" });
+        VOICE.speak(String(found));
+        if (left === 0) {
+          busy = true;
+          round += 1;
+          if (!missed) right += 1;
+          window.OC?.count("shapes found");
+          await wait(700);
+          if (my !== token) return;
+          MUSIC.chime();
+          say(`${pick(PRAISE)} You found all the ${plural(target)}. ${DESC[target]}`);
+          await wait(3200);
+          if (my !== token) return;
+          if (round >= TOTAL) {
+            if (!(await finish(my, "sh1", right, TOTAL, "shape hunter"))) return;
+            round = right = 0;
+          }
+          ask();
+        }
+      } else {
+        missed = true;
+        MUSIC.oops();
+        const sh = g.querySelector("polygon,circle,ellipse");
+        sh.setAttribute("opacity", 0.35);
+        setTimeout(() => sh.setAttribute("opacity", 1), 700);
+        const why = SIDES[k] ? `That one has ${SIDES[k]} sides, so it is a ${NAME[k]}.` : `That one is round, so it is a ${NAME[k]}.`;
+        say(`${pick(KIND)} ${why} ${DESC[target]}`);
+      }
+    };
+    stage.onpointerdown = (event) => {
+      const g = event.target.closest?.(".sh-shape");
+      if (g) tap(g);
+    };
+    ask();
+  },
+
+  // ---- Sides & corners ----
+  sh2() {
+    const my = token;
+    let lv = LV.sh2 || "easy";
+    let round = 0;
+    let right = 0;
+    let missed = false;
+    let q = null;
+    let busy = false;
+    const TOTAL = 8;
+    const POOLS = { easy: ["triangle", "square", "rectangle", "pentagon", "hexagon"], medium: ["triangle", "rhombus", "trapezoid", "house", "hexagon", "heptagon", "octagon", "pentagon"], hard: ["arrow", "lshape", "star", "octagon", "heptagon", "house", "circle"] };
+    panel(`${chipsHtml(lv)}<p class="ap-status" data-status></p><div data-ans></div>`);
+    bindLevels((v) => {
+      LV.sh2 = lv = v;
+      round = right = 0;
+      ask();
+    });
+    let sidesOn;
+    let cornersOn;
+    let tally;
+    const draw = () => {
+      fresh();
+      const { kind, angle, v } = q;
+      const cx = 360;
+      const cy = 290;
+      const s = kind === "rectangle" ? 160 : kind === "star" ? 225 : 195;
+      drawShape(view, kind, cx, cy, s, { fill: q.fill, angle, v });
+      sidesOn = new Set();
+      cornersOn = new Set();
+      tally = [text(view, 830, 200, "", { "font-size": 38, fill: "#3d8bd9" }), text(view, 830, 270, "", { "font-size": 38, fill: "#b06a14" })];
+      text(view, 830, 470, "Tap the sides", { "font-size": 26, fill: "#8a7764" });
+      text(view, 830, 505, "and corners to count", { "font-size": 26, fill: "#8a7764" });
+      if (kind === "circle") return;
+      const pts = rot(shapePts(kind, s, v), angle).map(([x, y]) => [cx + x, cy + y]);
+      q.pts = pts;
+      pts.forEach((a, i) => {
+        const b = pts[(i + 1) % pts.length];
+        const g = el("g", { class: "sh-tap sh-side", "data-i": i }, view);
+        el("line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: "transparent", "stroke-width": 44, "stroke-linecap": "butt" }, g);
+        el("line", { class: "sh-mark", x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: "transparent", "stroke-width": 12, "stroke-linecap": "round" }, g);
+      });
+      pts.forEach((a, i) => {
+        const g = el("g", { class: "sh-tap sh-corner", "data-i": i }, view);
+        el("circle", { cx: a[0], cy: a[1], r: 28, fill: "transparent" }, g);
+        el("circle", { class: "sh-mark", cx: a[0], cy: a[1], r: 0, fill: "#ffcf3a", stroke: "#b06a14", "stroke-width": 4 }, g);
+      });
+    };
+    const showTally = () => {
+      tally[0].textContent = sidesOn.size ? `Sides: ${sidesOn.size}` : "";
+      tally[1].textContent = cornersOn.size ? `Corners: ${cornersOn.size}` : "";
+    };
+    const lightSide = (i) => {
+      if (sidesOn.has(i)) return false;
+      sidesOn.add(i);
+      const g = view.querySelector(`.sh-side[data-i="${i}"]`);
+      g.querySelector(".sh-mark").setAttribute("stroke", "#3d8bd9");
+      const [a, b] = [q.pts[i], q.pts[(i + 1) % q.pts.length]];
+      const mx = (a[0] + b[0]) / 2;
+      const my2 = (a[1] + b[1]) / 2;
+      const dx = mx - 360;
+      const dy = my2 - 290;
+      const d = Math.hypot(dx, dy) || 1;
+      el("circle", { cx: mx + (dx / d) * 34, cy: my2 + (dy / d) * 34, r: 20, fill: "#3d8bd9" }, view);
+      text(view, mx + (dx / d) * 34, my2 + (dy / d) * 34 + 9, sidesOn.size, { "font-size": 24, fill: "#fff" });
+      note(sidesOn.size);
+      showTally();
+      return true;
+    };
+    const lightCorner = (i) => {
+      if (cornersOn.has(i)) return false;
+      cornersOn.add(i);
+      view.querySelector(`.sh-corner[data-i="${i}"] .sh-mark`).setAttribute("r", 15);
+      note(cornersOn.size + 1, 0.3);
+      showTally();
+      return true;
+    };
+    const ask = () => {
+      busy = false;
+      missed = false;
+      const kind = pick(POOLS[lv]);
+      const askWhat = lv === "easy" ? "sides" : pick(["sides", "corners"]);
+      q = { kind, askWhat, n: SIDES[kind], fill: pick(COLORS), angle: lv === "easy" ? 0 : (pickInt(-20, 20) * Math.PI) / 180, v: pickInt(0, 2) };
+      draw();
+      status(`Shape ${round + 1} of ${TOTAL}`);
+      say(`How many <b>${askWhat}</b> does this shape have? Tap them to count, then pick the number.`);
+      const n = q.n;
+      let opts;
+      if (lv === "easy") opts = [3, 4, 5, 6];
+      else {
+        const set = new Set([n]);
+        while (set.size < 4) set.add(Math.max(0, n + pickInt(-3, 3)));
+        opts = [...set].sort((a, b) => a - b);
+      }
+      choices($("[data-ans]"), opts.map((x) => ({ label: String(x), v: x })), (c, button) => answer(c.v, button));
+    };
+    const answer = async (v, button) => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      if (v === q.n) {
+        busy = true;
+        button.classList.add("right");
+        MUSIC.chime();
+        round += 1;
+        if (!missed) right += 1;
+        window.OC?.count("shapes counted");
+        if (q.n) {
+          for (let i = 0; i < q.n; i++) {
+            if (q.askWhat === "sides" ? lightSide(i) : lightCorner(i)) await wait(380);
+            if (my !== token) return;
+          }
+        }
+        const nm = NAME[q.kind];
+        const extra = q.kind === "circle" ? "A circle is one curved line, so it has no sides and no corners!" : q.kind === "star" ? "A star outline has 10 sides, so it is a decagon. Deca means 10." : q.kind === "lshape" ? "Any shape with 6 straight sides is a hexagon, even this L shape!" : q.kind === "arrow" ? "Any shape with 7 straight sides is a heptagon, even an arrow!" : q.kind === "house" ? "Any shape with 5 straight sides is a pentagon, even a house!" : `Sides and corners always match: ${q.n} sides, ${q.n} corners.`;
+        say(`${pick(PRAISE)} ${q.n} ${q.askWhat}. It is a <b>${nm}</b>. ${extra}`);
+        await wait(3800);
+        if (my !== token) return;
+        if (round >= TOTAL) {
+          if (!(await finish(my, "sh2", right, TOTAL, "counting"))) return;
+          round = right = 0;
+        }
+        ask();
+      } else {
+        missed = true;
+        button.classList.add("wrong");
+        MUSIC.oops();
+        say(`${pick(KIND)} Not ${v}. Tap each ${q.askWhat === "sides" ? "straight side" : "corner"} one at a time, and count as you go.`);
+      }
+    };
+    stage.onpointerdown = (event) => {
+      if (my !== token || busy || !q?.pts) return;
+      const side = event.target.closest?.(".sh-side");
+      const corner = event.target.closest?.(".sh-corner");
+      window.OC?.touch();
+      if (corner) {
+        if (lightCorner(Number(corner.dataset.i))) VOICE.speak(String(cornersOn.size));
+      } else if (side) {
+        if (lightSide(Number(side.dataset.i))) VOICE.speak(String(sidesOn.size));
+      }
+    };
+    ask();
+  },
+
+  // ---- Solid shapes ----
+  sh3() {
+    const my = token;
+    let lv = LV.sh3 || "easy";
+    let round = 0;
+    let right = 0;
+    let missed = false;
+    let q = null;
+    let busy = false;
+    let yaw = 0.6;
+    let pitch = 0.42;
+    let drag = null;
+    let idle = 0;
+    let reveal = null;
+    let holder;
+    let label;
+    const TOTAL = 8;
+    panel(`${chipsHtml(lv)}<p class="ap-status" data-status></p><div data-ans></div>`);
+    bindLevels((v) => {
+      LV.sh3 = lv = v;
+      round = right = 0;
+      ask();
+    });
+    const frame = () => {
+      if (my !== token || !holder?.isConnected) return;
+      if (!drag && performance.now() - idle > 1800) yaw += 0.006;
+      drawSolid(holder, q.solid, { cx: 340, cy: 270, size: 125, yaw, pitch, reveal });
+      requestAnimationFrame(frame);
+    };
+    const ask = () => {
+      busy = false;
+      missed = false;
+      reveal = null;
+      let key;
+      if (lv === "easy") key = pick(["cube", "cuboid", "prism", "cylinder", "cone", "sphere"]);
+      else if (lv === "medium") key = pick(Object.keys(SOLIDS));
+      else key = pick(["cube", "cuboid", "pyramid", "prism", "pyramid", "prism", "cylinder", "cone"]);
+      if (q?.key === key) key = pick(Object.keys(SOLIDS));
+      const solid = SOLIDS[key];
+      q = { key, solid };
+      fresh();
+      holder = el("g", { class: "sh-drag" }, view);
+      label = text(view, 830, 200, "", { "font-size": 36, fill: "#2b1d12" });
+      text(view, 830, 520, "👆 Drag to spin it", { "font-size": 26, fill: "#8a7764", "font-weight": 700 });
+      status(`Solid ${round + 1} of ${TOTAL}`);
+      let opts;
+      if (lv === "easy") {
+        q.answer = solid.things[0][1];
+        const others = shuffle(Object.keys(SOLIDS).filter((k) => k !== key && k !== "pyramid" && !(key === "cube" && k === "cuboid") && !(key === "cuboid" && k === "cube"))).slice(0, 2);
+        opts = shuffle([solid.things[0], ...others.map((k) => SOLIDS[k].things[0])]).map(([e, w]) => ({ label: `<span style="font-size:1.6em;vertical-align:middle">${e}</span> ${w.replace(/^(a|an|the) /, "")}`, v: w }));
+        say(`Spin the shape! Which thing has this shape?`);
+      } else if (lv === "medium") {
+        q.answer = solid.name;
+        const others = shuffle(Object.keys(SOLIDS).filter((k) => k !== key)).slice(0, 3);
+        opts = shuffle([key, ...others]).map((k) => ({ label: SOLIDS[k].name, v: SOLIDS[k].name }));
+        say(`Spin the shape! What is it called?`);
+      } else {
+        label.textContent = solid.name;
+        let what;
+        if (solid.flat !== undefined) what = "flat";
+        else what = pick(["faces", "edges", "verts"]);
+        q.what = what;
+        q.answer = what === "flat" ? solid.flat : solid[what];
+        const set = new Set([q.answer]);
+        while (set.size < 4) set.add(Math.max(0, q.answer + pickInt(-3, 3)));
+        opts = [...set].sort((a, b) => a - b).map((x) => ({ label: String(x), v: x }));
+        const words = { faces: "faces (flat sides)", edges: "edges (where two faces meet)", verts: "vertices (corners)", flat: "flat faces" };
+        say(`A ${solid.name}. How many <b>${words[what]}</b> does it have? Spin it to see the back!`);
+      }
+      choices($("[data-ans]"), opts, (c, button) => answer(c.v, button));
+      requestAnimationFrame(frame);
+    };
+    const answer = async (v, button) => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      const s = q.solid;
+      if (v === q.answer) {
+        busy = true;
+        button.classList.add("right");
+        MUSIC.chime();
+        round += 1;
+        if (!missed) right += 1;
+        window.OC?.count("solids");
+        label.textContent = s.name;
+        if (q.what === "edges") reveal = "edges";
+        if (q.what === "verts") reveal = "verts";
+        const where = s.things.map(([e, w]) => `${w} ${e}`).join(" or ");
+        const fact = s.flat === undefined ? `It has ${s.faces} faces, ${s.edges} edges and ${s.verts} vertices.` : s.flat === 0 ? "It is curved all over, so it rolls." : `It has ${s.flat} flat face${s.flat > 1 ? "s" : ""} and a curved side, so it can roll.`;
+        say(`${pick(PRAISE)} It is a <b>${s.name}</b>. ${fact} It is shaped like ${where}.`);
+        await wait(4600);
+        if (my !== token) return;
+        if (round >= TOTAL) {
+          if (!(await finish(my, "sh3", right, TOTAL, "shape spotting"))) return;
+          round = right = 0;
+        }
+        ask();
+      } else {
+        missed = true;
+        button.classList.add("wrong");
+        MUSIC.oops();
+        if (lv === "hard") {
+          reveal = q.what === "edges" ? "edges" : q.what === "verts" ? "verts" : null;
+          say(`${pick(KIND)} Spin it slowly and count. ${q.what === "edges" ? "The yellow lines are edges. Dashed ones hide at the back." : q.what === "verts" ? "The yellow dots are vertices. Dashed ones hide at the back." : q.what === "flat" ? "Look for the flat parts that could sit on a table." : "Count every flat side, top, bottom and back."}`);
+        } else say(`${pick(KIND)} Spin it and look again. ${lv === "easy" ? "Which thing has the same shape?" : "Does it have flat faces, a point, or is it round?"}`);
+      }
+    };
+    stage.onpointerdown = (event) => {
+      if (my !== token || !view) return;
+      const p = toSvg(event);
+      if (p.x > 690) return;
+      drag = { x: p.x, y: p.y, yaw, pitch };
+      window.OC?.touch();
+      try {
+        stage.setPointerCapture(event.pointerId);
+      } catch {}
+    };
+    stage.onpointermove = (event) => {
+      if (!drag || my !== token) return;
+      const p = toSvg(event);
+      yaw = drag.yaw + (p.x - drag.x) * 0.012;
+      pitch = Math.max(-1.2, Math.min(1.2, drag.pitch + (p.y - drag.y) * 0.012));
+    };
+    stage.onpointerup = stage.onpointercancel = () => {
+      drag = null;
+      idle = performance.now();
+    };
+    ask();
+  },
+
+  // ---- Angles ----
+  sh4() {
+    const my = token;
+    let lv = LV.sh4 || "easy";
+    let round = 0;
+    let right = 0;
+    let missed = false;
+    let deg = 40;
+    let target = 90;
+    let rig = null;
+    let busy = false;
+    let dragging = false;
+    let readout;
+    const TOTAL = 8;
+    panel(`${chipsHtml(lv)}<p class="ap-status" data-status></p><div data-ans></div>`);
+    bindLevels((v) => {
+      LV.sh4 = lv = v;
+      round = right = 0;
+      ask();
+    });
+    const ask = () => {
+      busy = false;
+      missed = false;
+      fresh();
+      $("[data-ans]").innerHTML = "";
+      const hard = lv === "hard";
+      rig = angleRig(view, { px: hard ? 380 : 300, py: hard ? 470 : 450, len: hard ? 300 : 320, deg: 40, protractor: hard, tester: lv === "easy" });
+      readout = text(view, hard ? 860 : 820, 120, "", { "font-size": 40, fill: "#2b1d12" });
+      status(`Angle ${round + 1} of ${TOTAL}`);
+      if (lv === "easy") {
+        target = 90;
+        deg = pick([25, 40, 140, 160]);
+        rig.set(deg);
+        rig.knob.classList.add("sh-drag");
+        text(view, 820, 300, "📖", { "font-size": 90 });
+        text(view, 820, 380, "square corner", { "font-size": 28, fill: "#8a7764" });
+        say(`Drag the yellow knob to make a <b>square corner</b>, like the corner of a book.`);
+      } else if (lv === "medium") {
+        const kind = pick(["acute", "right", "obtuse", "acute", "obtuse"]);
+        deg = kind === "right" ? 90 : kind === "acute" ? pickInt(4, 15) * 5 : pickInt(21, 33) * 5;
+        target = kind;
+        rig.set(deg);
+        say(`Is this angle <b>acute</b> (smaller than a square corner), <b>right</b>, or <b>obtuse</b> (wider)?`);
+        choices($("[data-ans]"), [["acute", 45], ["right", 90], ["obtuse", 135]].map(([v, d]) => ({ label: `${angIco(d)} ${v[0].toUpperCase() + v.slice(1)}`, v })), (c, button) => answerKind(c.v, button));
+      } else {
+        const before = target;
+        do target = pickInt(2, 34) * 5;
+        while (target === before || (target === 90 && Math.random() < 0.6));
+        deg = target > 90 ? pickInt(2, 6) * 5 : pickInt(26, 34) * 5;
+        rig.set(deg);
+        rig.knob.classList.add("sh-drag");
+        readout.textContent = `${deg}°`;
+        text(view, 860, 230, "Make", { "font-size": 28, fill: "#8a7764" });
+        text(view, 860, 290, `${target}°`, { "font-size": 56, fill: "#c56a2d" });
+        say(`Drag the knob to make an angle of <b>${target} degrees</b>. Read the numbers on the protractor.`);
+      }
+    };
+    const check = async () => {
+      if (my !== token || busy) return;
+      if (lv === "easy") {
+        if (Math.abs(deg - 90) <= 8) {
+          deg = 90;
+          rig.set(90);
+          busy = true;
+          MUSIC.chime();
+          round += 1;
+          if (!missed) right += 1;
+          window.OC?.count("angles made");
+          say(`${pick(PRAISE)} That's a square corner. We call it a <b>right angle</b>. See the little square?`);
+        } else {
+          missed = true;
+          MUSIC.oops();
+          say(deg < 90 ? `${pick(KIND)} That corner is too pointy. Open it wider, like a book corner 📖.` : `${pick(KIND)} That corner is too wide. Close it a little, to match the dashed square.`);
+          return;
+        }
+      } else {
+        if (Math.abs(deg - target) <= 3) {
+          deg = target;
+          rig.set(target);
+          busy = true;
+          MUSIC.chime();
+          round += 1;
+          if (!missed) right += 1;
+          readout.textContent = `${target}°`;
+          window.OC?.count("angles made");
+          const k = kindOf(target);
+          say(`${pick(PRAISE)} ${target}° is ${k === "right" ? "a right angle: a square corner" : k === "acute" ? "an acute angle: less than 90°" : "an obtuse angle: more than 90°"}.`);
+        } else {
+          missed = true;
+          MUSIC.oops();
+          say(`${pick(KIND)} That is ${deg}°. ${deg < target ? "Open it wider" : "Close it a bit"} to reach ${target}°. Follow the numbers on the edge.`);
+          return;
+        }
+      }
+      await wait(3200);
+      if (my !== token) return;
+      if (round >= TOTAL) {
+        if (!(await finish(my, "sh4", right, TOTAL, "angle making"))) return;
+        round = right = 0;
+      }
+      ask();
+    };
+    const answerKind = async (v, button) => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      if (v === target) {
+        busy = true;
+        button.classList.add("right");
+        MUSIC.chime();
+        round += 1;
+        if (!missed) right += 1;
+        window.OC?.count("angles sorted");
+        say(`${pick(PRAISE)} ${v === "right" ? "It is exactly a square corner: a right angle, 90°." : v === "acute" ? "It is smaller than a square corner, so it is acute." : "It is wider than a square corner, so it is obtuse."}`);
+        await wait(3000);
+        if (my !== token) return;
+        if (round >= TOTAL) {
+          if (!(await finish(my, "sh4", right, TOTAL, "angle sorting"))) return;
+          round = right = 0;
+        }
+        ask();
+      } else {
+        missed = true;
+        button.classList.add("wrong");
+        MUSIC.oops();
+        el("path", { d: `M${rig.px + 150} ${rig.py}L${rig.px + 150} ${rig.py - 150}L${rig.px} ${rig.py - 150}`, fill: "none", stroke: "#3d8bd9", "stroke-width": 4, "stroke-dasharray": "10 8" }, view);
+        say(`${pick(KIND)} Compare it with the dashed square corner. Is the arm inside it (acute), on it (right), or outside it (obtuse)?`);
+      }
+    };
+    const aim = (event) => {
+      const p = toSvg(event);
+      let a = (Math.atan2(rig.py - p.y, p.x - rig.px) * 180) / Math.PI;
+      if (a < -90) a = 180;
+      a = Math.max(0, Math.min(180, a));
+      deg = Math.round(a);
+      rig.set(deg);
+      if (lv === "hard") readout.textContent = `${deg}°`;
+    };
+    stage.onpointerdown = (event) => {
+      if (my !== token || busy || lv === "medium" || !rig) return;
+      window.OC?.touch();
+      dragging = true;
+      try {
+        stage.setPointerCapture(event.pointerId);
+      } catch {}
+      aim(event);
+    };
+    stage.onpointermove = (event) => {
+      if (dragging && my === token && !busy) aim(event);
+    };
+    stage.onpointerup = stage.onpointercancel = () => {
+      if (!dragging) return;
+      dragging = false;
+      check();
+    };
+    ask();
+  },
+
+  // ---- Fence & tiles: perimeter and area ----
+  sh5() {
+    const my = token;
+    let lv = LV.sh5 || "easy";
+    let round = 0;
+    let right = 0;
+    let missed = false;
+    let q = null;
+    let busy = false;
+    let pad = null;
+    let drawRect = null;
+    let dragStart = null;
+    const TOTAL = 8;
+    panel(`${chipsHtml(lv)}<p class="ap-status" data-status></p><div data-pad></div>`);
+    bindLevels((v) => {
+      LV.sh5 = lv = v;
+      round = right = 0;
+      ask();
+    });
+    const side = (lines) => lines.forEach(([str, y, size = 32, fill = "#2b1d12"]) => text(view, 870, y, str, { "font-size": size, fill }));
+    const tilesG = () => el("g", {}, view);
+    const plant = (c, r, n, g) => {
+      el("rect", { x: GX + c * GU + 4, y: GY + r * GU + 4, width: GU - 8, height: GU - 8, rx: 6, fill: "#7cc98f" }, g);
+      text(g, GX + c * GU + GU / 2, GY + r * GU + GU / 2 + 9, lv === "easy" ? "🌷" : n, { "font-size": lv === "easy" ? 30 : 24, fill: "#1d5a32" });
+    };
+    const ask = () => {
+      busy = false;
+      missed = false;
+      fresh();
+      gardenGrid(view);
+      drawRect = null;
+      const host = $("[data-pad]");
+      host.innerHTML = "";
+      pad = null;
+      status(`Garden ${round + 1} of ${TOTAL}`);
+      if (lv === "easy") {
+        const w = pickInt(2, 4);
+        const h = pickInt(1, 3);
+        q = { mode: "plant", w, h, c0: pickInt(1, GC - w - 1), r0: pickInt(1, GR - h - 1), done: new Set() };
+        q.g = tilesG();
+        el("rect", { x: GX + q.c0 * GU, y: GY + q.r0 * GU, width: w * GU, height: h * GU, fill: "#d9b48a" }, q.g);
+        fence(view, q.c0, q.r0, w, h);
+        q.counter = text(view, 870, 200, "🌷 0", { "font-size": 44, fill: "#2c7a44" });
+        say(`Tap every brown tile to plant a flower. Count with me!`);
+      } else if (lv === "medium" || (lv === "hard" && round % 2 === 1)) {
+        const big = lv === "hard";
+        const w = pickInt(2, big ? 8 : 6);
+        const h = pickInt(2, big ? 6 : 4);
+        const what = round % 2 === 0 || big ? pick(["area", "perimeter"]) : pick(["perimeter", "area"]);
+        q = { mode: "count", w, h, what, c0: pickInt(0, GC - w), r0: pickInt(0, GR - h), done: new Set(), n: 0 };
+        q.answer = what === "area" ? w * h : 2 * (w + h);
+        q.g = tilesG();
+        el("rect", { x: GX + q.c0 * GU, y: GY + q.r0 * GU, width: w * GU, height: h * GU, fill: "#d9b48a", opacity: 0.6 }, q.g);
+        fence(view, q.c0, q.r0, w, h);
+        if (big) {
+          side([[`${w} across`, 170, 30], [`${h} down`, 215, 30]]);
+          say(what === "area" ? `How many tiles fit inside? Multiply across times down!` : `How long is the fence all the way around? Add up all four sides.`);
+        } else say(what === "area" ? `How many tiles are inside the garden? Tap tiles to count them.` : `How many steps long is the fence all the way around? Count the gaps between posts.`);
+        side([[what === "area" ? "Tiles inside?" : "Fence around?", 320, 30, what === "area" ? "#2c7a44" : "#8a5a2b"]]);
+        pad = numpad(host, { onEnter: (n) => answerCount(n), max: 3 });
+      } else {
+        const opts = [[2, 3], [3, 4], [2, 6], [4, 4], [3, 5], [2, 5], [4, 5], [3, 6], [4, 6], [2, 7], [5, 5], [3, 8]];
+        const [a, b] = pick(opts);
+        const withP = round >= 4;
+        q = { mode: "draw", area: a * b, per: withP ? 2 * (a + b) : null };
+        q.readout = text(view, 870, 360, "", { "font-size": 28, fill: "#2b1d12" });
+        side([["Make a garden", 140, 28, "#8a7764"], [`area ${q.area}`, 190, 36, "#2c7a44"]]);
+        if (withP) side([[`fence ${q.per}`, 240, 36, "#8a5a2b"]]);
+        say(withP ? `Drag on the grid to draw a garden with <b>${q.area} tiles</b> and a fence of <b>${q.per}</b>.` : `Drag on the grid to draw a rectangle garden with exactly <b>${q.area} tiles</b>.`);
+      }
+    };
+    const next = async (ms = 3400) => {
+      await wait(ms);
+      if (my !== token) return;
+      if (round >= TOTAL) {
+        if (!(await finish(my, "sh5", right, TOTAL, "gardening"))) return;
+        round = right = 0;
+      }
+      ask();
+    };
+    const showFence = async () => {
+      const steps = perimeterSteps(q.c0, q.r0, q.w, q.h);
+      for (let i = 0; i < steps.length; i++) {
+        const [a, b, c, d] = steps[i];
+        const mx = GX + ((a + c) / 2) * GU;
+        const my2 = GY + ((b + d) / 2) * GU;
+        el("circle", { cx: mx, cy: my2, r: 18, fill: "#8a5a2b" }, view);
+        text(view, mx, my2 + 8, i + 1, { "font-size": 22, fill: "#fff" });
+        MUSIC.tick(i % 4 === 0);
+        await wait(200);
+        if (my !== token) return;
+      }
+    };
+    const showTiles = async () => {
+      q.g.innerHTML = "";
+      let n = 0;
+      for (let r = 0; r < q.h; r++)
+        for (let c = 0; c < q.w; c++) {
+          n += 1;
+          plant(q.c0 + c, q.r0 + r, n, q.g);
+          await wait(120);
+          if (my !== token) return;
+        }
+    };
+    const answerCount = async (n) => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      const { w, h, what } = q;
+      if (n === q.answer) {
+        busy = true;
+        MUSIC.chime();
+        round += 1;
+        if (!missed) right += 1;
+        window.OC?.count("gardens measured");
+        if (what === "area") await showTiles();
+        else await showFence();
+        if (my !== token) return;
+        say(what === "area" ? `${pick(PRAISE)} ${h} rows of ${w} tiles: ${w} × ${h} = ${q.answer}. The area is ${q.answer} squares.` : `${pick(PRAISE)} ${w} + ${h} + ${w} + ${h} = ${q.answer}. The perimeter is ${q.answer}.`);
+        next(4200);
+      } else {
+        MUSIC.oops();
+        pad.clear();
+        if (!missed) {
+          missed = true;
+          say(what === "area" ? `${pick(KIND)} Not ${n}. Count the rows: ${h} rows, each with ${w} tiles.` : `${pick(KIND)} Not ${n}. Walk all the way around: top ${w}, right side ${h}, bottom ${w}, left side ${h}.`);
+        } else {
+          busy = true;
+          round += 1;
+          say(`Let's count it together.`);
+          if (what === "area") await showTiles();
+          else await showFence();
+          if (my !== token) return;
+          say(what === "area" ? `${w} × ${h} = ${q.answer} tiles inside.` : `${w} + ${h} + ${w} + ${h} = ${q.answer} steps of fence.`);
+          next(4200);
+        }
+      }
+    };
+    const cellAt = (event) => {
+      const p = toSvg(event);
+      const c = Math.floor((p.x - GX) / GU);
+      const r = Math.floor((p.y - GY) / GU);
+      return { c: Math.max(0, Math.min(GC - 1, c)), r: Math.max(0, Math.min(GR - 1, r)), inside: c >= 0 && c < GC && r >= 0 && r < GR };
+    };
+    const paintRect = (a, b) => {
+      drawRect?.remove();
+      const c0 = Math.min(a.c, b.c);
+      const r0 = Math.min(a.r, b.r);
+      const w = Math.abs(a.c - b.c) + 1;
+      const h = Math.abs(a.r - b.r) + 1;
+      drawRect = el("g", {}, view);
+      el("rect", { x: GX + c0 * GU, y: GY + r0 * GU, width: w * GU, height: h * GU, fill: "#7cc98f", opacity: 0.85 }, drawRect);
+      fence(drawRect, c0, r0, w, h);
+      q.cur = { w, h, c0, r0 };
+      q.readout.textContent = `${w} × ${h} = ${w * h} tiles`;
+      return q.cur;
+    };
+    const checkDraw = async () => {
+      const { w, h } = q.cur;
+      const area = w * h;
+      const per = 2 * (w + h);
+      if (area === q.area && (!q.per || per === q.per)) {
+        busy = true;
+        MUSIC.chime();
+        round += 1;
+        if (!missed) right += 1;
+        window.OC?.count("gardens drawn");
+        say(`${pick(PRAISE)} ${w} × ${h} = ${area} tiles${q.per ? `, and the fence is ${w} + ${h} + ${w} + ${h} = ${per}` : ""}.`);
+        next(4000);
+      } else {
+        missed = true;
+        MUSIC.oops();
+        if (area !== q.area) say(`${pick(KIND)} Your garden has ${w} × ${h} = ${area} tiles. We need ${q.area}. ${area < q.area ? "Make it bigger." : "Make it smaller."}`);
+        else say(`${pick(KIND)} ${area} tiles is right, but the fence is ${per}. We need ${q.per}. Try a different long and wide.`);
+      }
+    };
+    stage.onpointerdown = (event) => {
+      if (my !== token || busy || !q) return;
+      window.OC?.touch();
+      const cell = cellAt(event);
+      if (q.mode === "plant") {
+        const { c0, r0, w, h } = q;
+        if (!cell.inside || cell.c < c0 || cell.c >= c0 + w || cell.r < r0 || cell.r >= r0 + h) return;
+        const key = `${cell.c},${cell.r}`;
+        if (q.done.has(key)) return;
+        q.done.add(key);
+        plant(cell.c, cell.r, q.done.size, q.g);
+        note(q.done.size);
+        VOICE.speak(String(q.done.size));
+        q.counter.textContent = `🌷 ${q.done.size}`;
+        if (q.done.size === w * h) {
+          busy = true;
+          round += 1;
+          right += 1;
+          window.OC?.count("gardens planted");
+          setTimeout(() => {
+            if (my !== token) return;
+            MUSIC.chime();
+            say(`${pick(PRAISE)} You planted ${w * h} flowers. The garden's <b>area</b> is ${w * h} tiles.`);
+            next(3400);
+          }, 700);
+        }
+      } else if (q.mode === "count") {
+        const { c0, r0, w, h } = q;
+        if (!cell.inside || cell.c < c0 || cell.c >= c0 + w || cell.r < r0 || cell.r >= r0 + h) return;
+        const key = `${cell.c},${cell.r}`;
+        if (q.done.has(key)) return;
+        q.done.add(key);
+        plant(cell.c, cell.r, q.done.size, q.g);
+        note(q.done.size % 12, 0.3);
+      } else if (q.mode === "draw") {
+        if (!cell.inside) return;
+        dragStart = cell;
+        try {
+          stage.setPointerCapture(event.pointerId);
+        } catch {}
+        paintRect(cell, cell);
+      }
+    };
+    stage.onpointermove = (event) => {
+      if (!dragStart || my !== token || busy) return;
+      paintRect(dragStart, cellAt(event));
+    };
+    stage.onpointerup = stage.onpointercancel = () => {
+      if (!dragStart) return;
+      dragStart = null;
+      if (my === token && !busy && q?.mode === "draw") checkDraw();
+    };
+    ask();
+  },
+};
+
+const clearStage = () => {
+  stage.onpointerdown = stage.onpointermove = stage.onpointerup = stage.onpointercancel = null;
+};
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    sh0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    sh1: { icon: "🔍", title: "Shape hunt", steps: ["Listen for the shape to find.", "Tap every one you can see.", "Find them all to win!"] },
+    sh2: { icon: "📐", title: "Sides & corners", steps: ["Tap each side or corner to count it.", "Count out loud with me.", "Tap the right number below."] },
+    sh3: { icon: "🧊", title: "Solid shapes", steps: ["Drag the shape to spin it.", "Look at every side.", "Tap the right answer below."] },
+    sh4: { icon: "📏", title: "Angles", steps: ["Drag the yellow knob to turn the arm.", "A square corner is a right angle.", "Let go to check your angle."] },
+    sh5: { icon: "🌷", title: "Fence & tiles", steps: ["Tiles inside are the area.", "The fence around is the perimeter.", "Tap, drag or type to answer."] },
+  },
+  start: "sh0",
+  onStop() {
+    token += 1;
+    clearStage();
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Math",
+  activity: "Shapes & Angles",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    clearStage();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", NOTES);
+MUSIC.preload("woodblock", [72, 79]);
+</script>
+</body>
+</html>

@@ -1,0 +1,1243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orchestra & Sound · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="music">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Orchestra & Sound</b><small>Music · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, pickInt, wait, confetti, PRAISE, KIND, explain, everyday, emoji, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+let cleanup = [];
+const debug = (window.__or = {});
+const level = { o3: 0, o4: 0, o5: 0 };
+const LEVELS = ["🐣 Easy", "🦊 Medium", "🦁 Hard"];
+const INK = "#2b1d12";
+
+const UNITS = [
+  { id: "o0", label: "1. See it", icon: "👀" },
+  { id: "o1", label: "2. Sound wave lab", icon: "🌊" },
+  { id: "o2", label: "3. Meet the orchestra", icon: "🎻" },
+  { id: "o3", label: "4. Guess the instrument", icon: "🎧" },
+  { id: "o4", label: "5. Higher or lower?", icon: "🐦" },
+  { id: "o5", label: "6. Sort the families", icon: "🗂️" },
+];
+
+const style = document.createElement("style");
+style.textContent = `
+.or-inst,.or-card,.or-box,.or-slider{cursor:pointer}
+.or-inst.glow .or-halo{opacity:1}
+.or-halo{opacity:0;transition:opacity .25s}
+.or-shake{animation:or-shake .5s ease-in-out}
+@keyframes or-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.or-play{animation:or-bob .9s ease-in-out}
+@keyframes or-bob{0%,100%{transform:translateY(0)}40%{transform:translateY(-8px)}}
+.or-shake,.or-play{transform-box:fill-box;transform-origin:center}
+@media (prefers-reduced-motion:reduce){.or-shake,.or-play{animation:none}}
+`;
+document.head.appendChild(style);
+
+// ---------- families + instruments (facts checked) ----------
+const FAM = {
+  strings: { name: "Strings", color: "#c8642a", soft: "#fbe3d3", how: "Strings: a string shakes when you pull a bow across it or pluck it.", verb: "Bow or pluck" },
+  woodwinds: { name: "Woodwinds", color: "#2f9a62", soft: "#d9f2e4", how: "Woodwinds: you blow air into them or across a hole.", verb: "Blow" },
+  brass: { name: "Brass", color: "#c99213", soft: "#fbefc8", how: "Brass: you buzz your lips into a metal mouthpiece.", verb: "Buzz your lips" },
+  percussion: { name: "Percussion", color: "#d0473a", soft: "#fadcd8", how: "Percussion: you hit, shake or scrape them.", verb: "Hit" },
+};
+const FAMS = ["strings", "woodwinds", "brass", "percussion"];
+const INST = {
+  violin: { name: "violin", fam: "strings", lo: 60, hi: 84, tune: [76, 79, 84], how: "You pull a bow across 4 strings to make them shake. It is the smallest bowed string instrument in the orchestra, so it plays the highest." },
+  cello: { name: "cello", fam: "strings", lo: 43, hi: 69, tune: [48, 55, 60], how: "Like a giant violin, played sitting down. You bow its 4 long, thick strings, so it plays low." },
+  harp: { name: "harp", fam: "strings", lo: 48, hi: 84, tune: [60, 64, 67, 72], how: "You pluck its strings with your fingers. Short strings play high, long strings play low." },
+  flute: { name: "flute", fam: "woodwinds", lo: 62, hi: 84, tune: [79, 76, 84], how: "You blow across a hole, like blowing over a bottle. It is made of metal, but it is still a woodwind!" },
+  clarinet: { name: "clarinet", fam: "woodwinds", lo: 55, hi: 76, tune: [60, 64, 67], how: "You blow on a thin reed made of cane. The reed buzzes against the mouthpiece." },
+  trumpet: { name: "trumpet", fam: "brass", lo: 58, hi: 77, tune: [67, 72, 76], how: "You buzz your lips into the mouthpiece. Three valves change the notes." },
+  horn: { name: "French horn", fam: "brass", lo: 53, hi: 70, tune: [55, 60, 64], how: "A long brass tube coiled in a circle. Unrolled, it is about 3.7 metres long: taller than two grown-ups! You buzz your lips into it." },
+  timpani: { name: "timpani", fam: "percussion", lo: 43, hi: 55, tune: [48, 55, 48], how: "Big kettle drums, often made of copper. You hit the drum skin with soft mallets, and a foot pedal changes the note." },
+  xylophone: { name: "xylophone", fam: "percussion", lo: 72, hi: 96, tune: [84, 88, 91, 96], how: "You hit wooden bars with mallets. Short bars play high, long bars play low." },
+  piano: { name: "piano", fam: "percussion", lo: 40, hi: 84, tune: [60, 64, 67, 72], how: "When you press a key, a felt hammer hits strings inside. Hammers hitting is why it counts as percussion (a keyboard instrument)." },
+};
+const KEYS = Object.keys(INST);
+const SAMPLE = { horn: "horn" };
+function playInst(key, midi, { at = 0, gain = 0.9, length = 0.9 } = {}) {
+  const inst = SAMPLE[key] || key;
+  if (key === "piano") return MUSIC.play("piano", midi, { at, gain: gain * 0.8, length });
+  if (key === "xylophone") return MUSIC.play("xylophone", midi, { at, gain: gain * 0.6 });
+  if (key === "timpani") return MUSIC.play("timpani", midi, { at, gain, length: Math.max(length, 1.2) });
+  MUSIC.play(inst, midi, { at, gain, length });
+}
+function playTune(key, { gap = 0.42 } = {}) {
+  const t0 = MUSIC.now() + 0.05;
+  const notes = INST[key].tune;
+  notes.forEach((m, i) => playInst(key, m, { at: t0 + i * gap, length: i === notes.length - 1 ? 1.1 : gap * 0.95 }));
+  return (notes.length - 1) * gap * 1000 + 1100;
+}
+
+// ---------- drawings ----------
+function defs(root) {
+  if (root.querySelector("#or-gold")) return;
+  const d = el("defs", {}, root);
+  const lin = (id, stops, x2 = 0, y2 = 1) => {
+    const g = el("linearGradient", { id, x1: 0, y1: 0, x2, y2 }, d);
+    stops.forEach(([o, c]) => el("stop", { offset: o, "stop-color": c }, g));
+  };
+  lin("or-gold", [[0, "#fbe39a"], [0.45, "#e3b23c"], [1, "#a8780f"]]);
+  lin("or-silver", [[0, "#f6f8fb"], [0.5, "#c9d0d9"], [1, "#8b95a3"]]);
+  lin("or-wood", [[0, "#e08a3c"], [0.6, "#b85a1c"], [1, "#7e3a10"]], 1, 1);
+  lin("or-dark", [[0, "#b5562a"], [1, "#5e2508"]], 1, 1);
+  lin("or-copper", [[0, "#e9a36a"], [0.5, "#c06a2c"], [1, "#7c3d14"]], 1, 0);
+  lin("or-black", [[0, "#4a4440"], [1, "#151210"]], 1, 0);
+}
+const BODY = "M0 -32 C20 -32 36 -24 36 -8 C36 4 24 10 22 22 C20 34 42 40 42 62 C42 84 22 92 0 92 C-22 92 -42 84 -42 62 C-42 40 -20 34 -22 22 C-24 10 -36 4 -36 -8 C-36 -24 -20 -32 0 -32 Z";
+function fiddle(g, { fill, scroll = true, endpin = false, bow = false }) {
+  if (endpin) el("line", { x1: 0, y1: 90, x2: 0, y2: 122, stroke: "#6d6d6d", "stroke-width": 4, "stroke-linecap": "round" }, g);
+  el("path", { d: BODY, fill, stroke: "#5a260a", "stroke-width": 3 }, g);
+  el("path", { d: "M-26 -14 C-24 -24 -10 -27 0 -27", stroke: "#f6c08a", "stroke-width": 3, fill: "none", opacity: 0.6, "stroke-linecap": "round" }, g);
+  for (const sx of [-1, 1]) el("path", { d: `M${sx * 15} 30 c${sx * -6} 4 ${sx * 4} 10 ${sx * -1} 14 c${sx * -5} 4 ${sx * 5} 10 ${sx * -1} 16`, stroke: "#2a1206", "stroke-width": 3, fill: "none", "stroke-linecap": "round" }, g);
+  el("path", { d: "M-6 62 L6 62 L9 88 L-9 88 Z", fill: "#1d1410" }, g);
+  el("path", { d: "M-7 -100 L7 -100 L8 40 L-8 40 Z", fill: "#1d1410" }, g);
+  el("rect", { x: -13, y: 50, width: 26, height: 4, rx: 1.5, fill: "#f1d3a1" }, g);
+  for (const x of [-4.5, -1.5, 1.5, 4.5]) el("line", { x1: x, x2: x * 1.4, y1: -100, y2: 64, stroke: "#e9e4dc", "stroke-width": 1 }, g);
+  if (scroll) {
+    el("path", { d: "M-6 -100 L-7 -118 L7 -118 L6 -100 Z", fill: "#8a4316" }, g);
+    el("circle", { cx: 0, cy: -124, r: 9, fill: "#a6511c", stroke: "#5a260a", "stroke-width": 2 }, g);
+    el("path", { d: "M0 -124 m-4 0 a4 4 0 1 1 4 4", stroke: "#5a260a", "stroke-width": 2, fill: "none" }, g);
+    for (const [y, s] of [[-104, -1], [-112, 1], [-108, 1], [-116, -1]]) el("rect", { x: s < 0 ? -15 : 7, y: y - 2, width: 8, height: 4, rx: 2, fill: "#1d1410" }, g);
+  }
+  if (bow) {
+    el("line", { x1: -78, y1: 108, x2: 84, y2: -6, stroke: "#5a3418", "stroke-width": 4, "stroke-linecap": "round" }, g);
+    el("line", { x1: -72, y1: 116, x2: 86, y2: 4, stroke: "#f3ead8", "stroke-width": 2.5 }, g);
+    el("rect", { x: -82, y: 104, width: 14, height: 10, rx: 2, fill: "#1d1410", transform: "rotate(-35 -75 109)" }, g);
+  }
+}
+const DRAW = {
+  violin(g) {
+    const inner = el("g", { transform: "translate(0 6) scale(0.86)" }, g);
+    fiddle(inner, { fill: "url(#or-wood)", bow: true });
+  },
+  cello(g) {
+    const inner = el("g", { transform: "translate(0 -4) scale(1.08 0.96)" }, g);
+    fiddle(inner, { fill: "url(#or-dark)", endpin: true });
+  },
+  harp(g) {
+    el("path", { d: "M-60 96 L-28 96 L66 -42 L54 -48 Z", fill: "url(#or-wood)", stroke: "#5a260a", "stroke-width": 3 }, g);
+    const curve = (t) => {
+      const [p0, p1, p2, p3] = [[-56, -92], [-18, -122], [16, -52], [62, -50]];
+      const u = 1 - t;
+      return [u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0], u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]];
+    };
+    const pts = Array.from({ length: 60 }, (_, i) => curve(i / 59));
+    const topAt = (x) => pts.reduce((b, p) => (Math.abs(p[0] - x) < Math.abs(b[0] - x) ? p : b))[1];
+    const boardAt = (x) => 96 + ((x + 44) / (60 + 44)) * (-45 - 96);
+    for (let i = 0, x = -42; x <= 52; x += 7.5, i++) el("line", { x1: x, x2: x, y1: topAt(x) + 6, y2: boardAt(x), stroke: i % 7 === 0 ? "#d63b2f" : i % 7 === 3 ? "#2b4fa3" : "#efe6d2", "stroke-width": 1.8 }, g);
+    el("path", { d: "M-56 -92 C-18 -122 16 -52 62 -50", stroke: "url(#or-gold)", "stroke-width": 13, fill: "none", "stroke-linecap": "round" }, g);
+    el("path", { d: "M-56 -92 C-18 -122 16 -52 62 -50", stroke: "#8a6510", "stroke-width": 1.5, fill: "none", opacity: 0.5 }, g);
+    el("rect", { x: -66, y: -96, width: 16, height: 196, rx: 7, fill: "url(#or-gold)", stroke: "#8a6510", "stroke-width": 2 }, g);
+    el("circle", { cx: -58, cy: -100, r: 11, fill: "url(#or-gold)", stroke: "#8a6510", "stroke-width": 2 }, g);
+    el("rect", { x: -72, y: 94, width: 54, height: 14, rx: 5, fill: "#8a6510" }, g);
+  },
+  flute(g) {
+    const inner = el("g", { transform: "rotate(-18)" }, g);
+    el("rect", { x: -108, y: -7, width: 214, height: 14, rx: 7, fill: "url(#or-silver)", stroke: "#6f7885", "stroke-width": 2 }, inner);
+    el("rect", { x: -112, y: -8, width: 10, height: 16, rx: 3, fill: "#aab3bf", stroke: "#6f7885", "stroke-width": 1.5 }, inner);
+    el("ellipse", { cx: -78, cy: -8, rx: 9, ry: 5, fill: "#c9d0d9", stroke: "#6f7885", "stroke-width": 1.5 }, inner);
+    el("ellipse", { cx: -78, cy: -8, rx: 3.5, ry: 2, fill: "#2b2f36" }, inner);
+    for (const x of [-46, 46]) el("rect", { x: x - 3, y: -8, width: 6, height: 16, fill: "#aab3bf" }, inner);
+    el("line", { x1: -30, x2: 96, y1: 9, y2: 9, stroke: "#8b95a3", "stroke-width": 2.5 }, inner);
+    for (const x of [-26, -12, 2, 22, 36, 50, 70, 86]) {
+      el("circle", { cx: x, cy: 0, r: 5.5, fill: "#eef1f5", stroke: "#6f7885", "stroke-width": 1.8 }, inner);
+      el("circle", { cx: x, cy: 0, r: 1.8, fill: "#6f7885" }, inner);
+    }
+  },
+  clarinet(g) {
+    const inner = el("g", { transform: "rotate(12)" }, g);
+    el("path", { d: "M-5 -112 L5 -112 L8 -84 L-8 -84 Z", fill: "#1a1716" }, inner);
+    el("path", { d: "M-3 -110 L3 -110 L4 -88 L-1 -88 Z", fill: "#e6c98f" }, inner);
+    el("rect", { x: -9.5, y: -96, width: 19, height: 6, rx: 2, fill: "url(#or-silver)" }, inner);
+    el("path", { d: "M-9 -84 L9 -84 L10 74 L-10 74 Z", fill: "url(#or-black)" }, inner);
+    for (const y of [-84, -60, 14]) el("rect", { x: -11, y: y - 3, width: 22, height: 6, rx: 2, fill: "url(#or-silver)" }, inner);
+    el("path", { d: "M-10 72 C-12 90 -26 100 -30 112 L30 112 C26 100 12 90 10 72 Z", fill: "url(#or-black)" }, inner);
+    el("rect", { x: -31, y: 108, width: 62, height: 6, rx: 3, fill: "url(#or-silver)" }, inner);
+    el("line", { x1: 7, x2: 7, y1: -50, y2: 64, stroke: "#c9d0d9", "stroke-width": 2 }, inner);
+    for (const y of [-44, -30, -16, 26, 40, 54]) {
+      el("circle", { cx: 0, cy: y, r: 4.5, fill: "#0c0a09", stroke: "#c9d0d9", "stroke-width": 2 }, inner);
+    }
+    for (const y of [-6, 4, 62]) el("rect", { x: 3, y, width: 10, height: 5, rx: 2, fill: "#d8dde4" }, inner);
+  },
+  trumpet(g) {
+    const tube = (d, w = 9) => {
+      el("path", { d, stroke: "#8a6510", "stroke-width": w + 3, fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round" }, g);
+      el("path", { d, stroke: "url(#or-gold)", "stroke-width": w, fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round" }, g);
+    };
+    tube("M-6 26 L-62 26 C-84 26 -84 -6 -62 -6 L-44 -6");
+    tube("M-90 -6 L-30 -6");
+    tube("M30 26 L52 26 C70 26 70 -6 52 -6 L40 -6");
+    tube("M-30 -6 L46 -6", 10);
+    el("path", { d: "M44 -12 C70 -14 86 -26 108 -40 L108 28 C86 14 70 2 44 0 Z", fill: "url(#or-gold)", stroke: "#8a6510", "stroke-width": 2.5 }, g);
+    el("ellipse", { cx: 108, cy: -6, rx: 8, ry: 34, fill: "#f4d277", stroke: "#8a6510", "stroke-width": 2.5 }, g);
+    el("ellipse", { cx: 109, cy: -6, rx: 4, ry: 26, fill: "#a8780f", opacity: 0.6 }, g);
+    for (const x of [-20, -2, 16]) {
+      el("rect", { x: x - 6, y: -24, width: 12, height: 58, rx: 3, fill: "url(#or-gold)", stroke: "#8a6510", "stroke-width": 2 }, g);
+      el("line", { x1: x, x2: x, y1: -24, y2: -36, stroke: "#b48a20", "stroke-width": 3 }, g);
+      el("ellipse", { cx: x, cy: -38, rx: 8, ry: 3.5, fill: "#fbf6ea", stroke: "#8a6510", "stroke-width": 1.5 }, g);
+      el("rect", { x: x - 7, y: 32, width: 14, height: 6, rx: 2, fill: "#b48a20" }, g);
+    }
+    el("path", { d: "M-106 -12 L-96 -9 L-96 -3 L-106 0 Z", fill: "url(#or-silver)", stroke: "#6f7885", "stroke-width": 1.5 }, g);
+  },
+  horn(g) {
+    const tube = (d, w) => {
+      el("path", { d, stroke: "#8a6510", "stroke-width": w + 3, fill: "none", "stroke-linecap": "round" }, g);
+      el("path", { d, stroke: "url(#or-gold)", "stroke-width": w, fill: "none", "stroke-linecap": "round" }, g);
+    };
+    tube("M-20 -72 A62 62 0 1 0 -19.9 -72", 9);
+    tube("M-20 -54 A44 44 0 1 0 -19.9 -54", 7);
+    tube("M-20 -36 A26 26 0 1 1 -19.9 -36", 6);
+    tube("M-96 -88 L-62 -54", 5);
+    el("path", { d: "M-104 -96 L-96 -94 L-92 -86 Z", fill: "url(#or-silver)", stroke: "#6f7885", "stroke-width": 1.5 }, g);
+    el("path", { d: "M26 34 C46 50 58 64 66 86 L112 48 C90 44 70 34 42 16 Z", fill: "url(#or-gold)", stroke: "#8a6510", "stroke-width": 2.5 }, g);
+    el("ellipse", { cx: 89, cy: 67, rx: 32, ry: 11, transform: "rotate(-40 89 67)", fill: "#f4d277", stroke: "#8a6510", "stroke-width": 2.5 }, g);
+    el("ellipse", { cx: 90, cy: 66, rx: 22, ry: 6, transform: "rotate(-40 90 66)", fill: "#a8780f", opacity: 0.55 }, g);
+    for (const x of [-44, -30, -16]) {
+      el("circle", { cx: x, cy: -10, r: 7, fill: "url(#or-gold)", stroke: "#8a6510", "stroke-width": 2 }, g);
+      el("line", { x1: x, x2: x - 8, y1: -10, y2: -26, stroke: "#b48a20", "stroke-width": 3, "stroke-linecap": "round" }, g);
+    }
+  },
+  timpani(g) {
+    for (const [x1, x2] of [[-46, -60], [46, 60], [0, 0]]) el("line", { x1, x2, y1: 70, y2: 104, stroke: "#5e5a55", "stroke-width": 5, "stroke-linecap": "round" }, g);
+    el("rect", { x: -16, y: 100, width: 32, height: 8, rx: 3, fill: "#3d3935" }, g);
+    el("path", { d: "M-86 -14 C-86 56 -44 82 0 82 C44 82 86 56 86 -14 Z", fill: "url(#or-copper)", stroke: "#6b3410", "stroke-width": 3 }, g);
+    el("path", { d: "M-66 6 C-62 40 -40 60 -20 66", stroke: "#f6c79a", "stroke-width": 5, fill: "none", opacity: 0.5, "stroke-linecap": "round" }, g);
+    for (const x of [-74, -40, 0, 40, 74]) el("line", { x1: x, x2: x * 0.98, y1: -14, y2: 6, stroke: "#55504a", "stroke-width": 4 }, g);
+    el("ellipse", { cx: 0, cy: -14, rx: 90, ry: 22, fill: "#5e5a55" }, g);
+    el("ellipse", { cx: 0, cy: -16, rx: 84, ry: 18, fill: "#f4ecdc", stroke: "#cfc3ad", "stroke-width": 2 }, g);
+    for (const [x1, y1, x2, y2] of [[-40, -96, 6, -26], [44, -98, 14, -28]]) {
+      el("line", { x1, y1, x2, y2, stroke: "#8a5a35", "stroke-width": 4, "stroke-linecap": "round" }, g);
+      el("circle", { cx: x2, cy: y2 - 4, r: 9, fill: "#f2efe9", stroke: "#a49a8c", "stroke-width": 2 }, g);
+    }
+  },
+  xylophone(g) {
+    el("path", { d: "M-100 34 L100 14", stroke: "#5a3418", "stroke-width": 8, "stroke-linecap": "round" }, g);
+    el("path", { d: "M-100 64 L100 44", stroke: "#5a3418", "stroke-width": 8, "stroke-linecap": "round" }, g);
+    for (const [x1, x2] of [[-92, -96], [92, 96]]) el("line", { x1, x2, y1: 50, y2: 104, stroke: "#5a3418", "stroke-width": 6, "stroke-linecap": "round" }, g);
+    for (let i = 0; i < 9; i++) {
+      const x = -96 + i * 21.5;
+      const h = 108 - i * 7;
+      const cy = 49 - i * 2.2;
+      el("rect", { x, y: cy - h / 2, width: 18, height: h, rx: 4, fill: i % 2 ? "#b8622c" : "#c9733a", stroke: "#6b3410", "stroke-width": 2 }, g);
+      el("circle", { cx: x + 9, cy: cy - h / 2 + 10, r: 2, fill: "#5a3418" }, g);
+      el("circle", { cx: x + 9, cy: cy + h / 2 - 10, r: 2, fill: "#5a3418" }, g);
+    }
+    for (const [x1, y1, x2, y2] of [[-60, -96, -14, -30], [70, -98, 30, -36]]) {
+      el("line", { x1, y1, x2, y2, stroke: "#d9b98c", "stroke-width": 4, "stroke-linecap": "round" }, g);
+      el("circle", { cx: x2, cy: y2, r: 10, fill: "#e53935", stroke: "#8e1c1a", "stroke-width": 2 }, g);
+    }
+  },
+  piano(g) {
+    el("rect", { x: -96, y: -96, width: 192, height: 120, rx: 10, fill: "url(#or-black)", stroke: "#0c0a09", "stroke-width": 2 }, g);
+    el("rect", { x: -60, y: -82, width: 120, height: 44, rx: 4, fill: "#3a332f" }, g);
+    el("rect", { x: -40, y: -78, width: 80, height: 36, rx: 2, fill: "#fbf8f1" }, g);
+    for (let i = 0; i < 4; i++) el("line", { x1: -34, x2: 34, y1: -72 + i * 8, y2: -72 + i * 8, stroke: "#9a9187", "stroke-width": 1.2 }, g);
+    el("rect", { x: -104, y: 18, width: 208, height: 10, rx: 3, fill: "#2a2320" }, g);
+    el("rect", { x: -100, y: 28, width: 200, height: 34, fill: "#fffdf8", stroke: "#2a2320", "stroke-width": 2 }, g);
+    for (let i = 1; i < 14; i++) el("line", { x1: -100 + i * (200 / 14), x2: -100 + i * (200 / 14), y1: 28, y2: 62, stroke: "#8f857a", "stroke-width": 1.3 }, g);
+    [0, 1, 3, 4, 5, 7, 8, 10, 11, 12].forEach((i) => el("rect", { x: -100 + (i + 1) * (200 / 14) - 4.5, y: 28, width: 9, height: 21, rx: 1.5, fill: "#151210" }, g));
+    el("rect", { x: -96, y: 62, width: 192, height: 40, fill: "url(#or-black)" }, g);
+    for (const x of [-12, 0, 12]) el("rect", { x: x - 3, y: 90, width: 6, height: 10, rx: 2, fill: "#d9b44a" }, g);
+    for (const x of [-92, 76]) el("rect", { x, y: 62, width: 16, height: 46, rx: 3, fill: "#151210" }, g);
+  },
+};
+// Draw an instrument at (x, y), about `size` tall.
+function drawInst(parent, key, x, y, size = 200, attrs = {}) {
+  defs(parent.ownerSVGElement || parent);
+  const g = el("g", { transform: `translate(${x} ${y})`, ...attrs }, parent);
+  const mid = el("g", {}, g);
+  const inner = el("g", { transform: `scale(${size / 240})` }, mid);
+  DRAW[key](inner);
+  g.bumpTarget = mid;
+  return g;
+}
+
+function fresh(bg = "#fffaf2") {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  defs(view);
+  el("rect", { x: -2000, y: -2000, width: 5000, height: 5000, fill: bg }, view);
+  return view;
+}
+const stopAll = () =>
+  cleanup.splice(0).forEach((fn) => {
+    try {
+      fn();
+    } catch {}
+  });
+const chipsHtml = (cur) => `<div class="ap-chips" data-levels>${LEVELS.map((l, i) => `<button type="button" data-lv="${i}" aria-pressed="${i === cur}">${l}</button>`).join("")}</div>`;
+const setChips = (cur) => document.querySelectorAll("[data-lv]").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.lv) === cur)));
+const status = (s) => {
+  const box = $("[data-status]");
+  if (box) box.textContent = s;
+};
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+const article = (name) => (/^[aeiou]/i.test(name) ? "an" : "a");
+const svgPoint = (event) => {
+  const pt = view.createSVGPoint();
+  pt.x = event.clientX;
+  pt.y = event.clientY;
+  return pt.matrixTransform(view.getScreenCTM().inverse());
+};
+function bump(target) {
+  const g = target.bumpTarget || target;
+  g.classList.remove("or-play");
+  void g.getBBox();
+  g.classList.add("or-play");
+}
+
+// A picture card with an instrument, used by several games.
+function card(parent, key, x, y, w, h, { label = true, tint = "#fff" } = {}) {
+  const g = el("g", { class: "or-card", "data-k": key }, parent);
+  const bg = el("rect", { x, y, width: w, height: h, rx: 24, fill: tint, stroke: "#e2d6c4", "stroke-width": 4 }, g);
+  const size = Math.min(w * 0.9, (h - (label ? 40 : 10)) * 0.95);
+  const pic = drawInst(g, key, x + w / 2, y + (h - (label ? 34 : 0)) / 2 + 2, size);
+  if (label) text(g, x + w / 2, y + h - 16, cap(INST[key].name), { "font-size": 24, fill: INK });
+  return { g, bg, pic };
+}
+
+// ---------- waves ----------
+function wavePath(x0, x1, y, amp, cycles, phase = 0) {
+  const pts = [];
+  const n = Math.max(80, Math.round(cycles * 24));
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    pts.push(`${(x0 + (x1 - x0) * t).toFixed(1)} ${(y - amp * Math.sin(2 * Math.PI * (cycles * t - phase))).toFixed(1)}`);
+  }
+  return `M${pts.join(" L")}`;
+}
+const hz = (midi) => Math.round(440 * 2 ** ((midi - 69) / 12));
+const noteName = (midi) => `${MUSIC.prettyOf(midi)}${Math.floor(midi / 12) - 1}`;
+
+// ---------- See it ----------
+function stagePlan(parent, { labels = true } = {}) {
+  const g = el("g", {}, parent);
+  const cx = 500;
+  const cy = 1500;
+  const bands = [
+    ["percussion", 10, 150],
+    ["brass", 150, 262],
+    ["woodwinds", 262, 375],
+    ["strings", 375, 640],
+  ];
+  const ring = (r0, r1) => {
+    const a0 = Math.asin(Math.min(1, 640 / r0));
+    const a1 = Math.asin(Math.min(1, 640 / r1));
+    const p = (r, a) => `${(cx + r * Math.sin(a)).toFixed(1)} ${(cy - r * Math.cos(a)).toFixed(1)}`;
+    return `M${p(r0, -a0)} A${r0} ${r0} 0 0 1 ${p(r0, a0)} L${p(r1, a1)} A${r1} ${r1} 0 0 0 ${p(r1, -a1)} Z`;
+  };
+  for (const [fam, y0, y1] of bands) el("path", { d: ring(cy - y0, cy - y1), fill: FAM[fam].soft, stroke: "#fff", "stroke-width": 6 }, g);
+  el("ellipse", { cx, cy: 560, rx: 130, ry: 46, fill: "#d9b98c" }, g);
+  el("rect", { x: cx - 34, y: 520, width: 68, height: 26, rx: 8, fill: "#8a5a35" }, g);
+  emoji(g, cx, 500, "🎼", 30);
+  if (labels)
+    for (const [fam, y] of [["percussion", 150], ["brass", 282], ["woodwinds", 404], ["strings", 515]]) text(g, 920, y, FAM[fam].name, { "font-size": 22, fill: FAM[fam].color, class: "or-famlabel" });
+  return g;
+}
+const SEAT = {
+  xylophone: [270, 98],
+  timpani: [500, 80],
+  piano: [730, 98],
+  horn: [330, 212],
+  trumpet: [670, 205],
+  flute: [405, 318],
+  clarinet: [595, 318],
+  harp: [105, 440],
+  violin: [295, 440],
+  cello: [705, 440],
+};
+function seat(parent, key, { size = 112, cls = "or-inst" } = {}) {
+  const [x, y] = SEAT[key];
+  const g = el("g", { class: cls, "data-k": key }, parent);
+  el("ellipse", { class: "or-halo", cx: x, cy: y + 4, rx: 66, ry: 62, fill: "#fff6c2", stroke: "#ffcf3f", "stroke-width": 4 }, g);
+  el("ellipse", { cx: x, cy: y + 4, rx: 62, ry: 58, fill: "transparent" }, g);
+  const big = key === "cello" ? 1.3 : key === "violin" ? 0.9 : 1;
+  const pic = drawInst(g, key, x, y - 6 - (big > 1 ? 14 : 0), size * big);
+  const label = text(g, x, y + 66, cap(INST[key].name), { "font-size": 22, fill: INK });
+  return { g, pic, label };
+}
+
+function seeIt(my) {
+  const scenes = [
+    {
+      say: "Why learn about sound? Sounds tell us things! A doorbell says someone is here. A siren says move out of the way. Music and voices tell us how people feel.",
+      draw: everyday([["🔔", "Doorbell: someone's here!"], ["🚑", "Siren: make way!"], ["🎵", "Music makes us feel"], ["🗣️", "Voices: talking with friends"]]),
+    },
+    {
+      say: "Sound is a vibration. Pluck a string and it wobbles very fast. The wobble pushes the air, and a wave travels to your ear.",
+      async draw(v, api) {
+        defs(v);
+        el("rect", { x: 50, y: 230, width: 22, height: 100, rx: 8, fill: "#8a5a35" }, v);
+        el("rect", { x: 398, y: 230, width: 22, height: 100, rx: 8, fill: "#8a5a35" }, v);
+        el("rect", { x: 36, y: 322, width: 398, height: 30, rx: 10, fill: "url(#or-wood)" }, v);
+        const str = el("path", { d: "M72 260 L398 260", stroke: "#6b6259", "stroke-width": 6, fill: "none" }, v);
+        const hand = emoji(v, 235, 170, "👆", 72);
+        emoji(v, 900, 280, "👂", 120);
+        const waves = el("g", {}, v);
+        await api.wait(1200);
+        for (let rep = 0; rep < 3; rep++) {
+          await api.tween(500, (t) => hand.setAttribute("transform", `translate(0 ${t * 60})`));
+          hand.setAttribute("transform", "translate(0 0)");
+          playInst("harp", 67, { gain: 0.95, length: 2 });
+          waves.innerHTML = "";
+          const arcs = [0, 1, 2, 3, 4].map(() => el("path", { fill: "none", stroke: "var(--accent)", "stroke-width": 5, "stroke-linecap": "round" }, waves));
+          await api.tween(
+            2600,
+            (t) => {
+              const amp = 22 * (1 - t) * Math.sin(t * 120);
+              str.setAttribute("d", `M72 260 Q235 ${260 + amp * 3} 398 260`);
+              arcs.forEach((a, i) => {
+                const r = (t * 600 + i * 120) % 600;
+                const o = Math.max(0, 1 - r / 600) * Math.min(1, t * 4);
+                a.setAttribute("d", `M${450 + r * 0.7} ${260 - 30 - r * 0.25} Q${480 + r * 0.7} 260 ${450 + r * 0.7} ${260 + 30 + r * 0.25}`);
+                a.setAttribute("opacity", o);
+              });
+            },
+            (t) => t,
+          );
+          await api.wait(400);
+        }
+      },
+    },
+    {
+      say: "High sounds wobble fast, so the waves are close together. Low sounds wobble slowly, so the waves are far apart.",
+      async draw(v, api) {
+        drawInst(v, "flute", 110, 150, 170);
+        drawInst(v, "cello", 110, 410, 190);
+        text(v, 600, 60, "High: waves close together 🐦", { "font-size": 30, fill: INK });
+        text(v, 600, 315, "Low: waves far apart 🐻", { "font-size": 30, fill: INK });
+        const hi = el("path", { stroke: "#2f9a62", "stroke-width": 5, fill: "none" }, v);
+        const lo = el("path", { stroke: "#c8642a", "stroke-width": 5, fill: "none" }, v);
+        hi.setAttribute("d", wavePath(230, 960, 160, 50, 14));
+        lo.setAttribute("d", wavePath(230, 960, 420, 50, 3));
+        await api.wait(900);
+        for (let rep = 0; rep < 2; rep++) {
+          playInst("flute", 79, { length: 1.6 });
+          await api.tween(2000, (t) => hi.setAttribute("d", wavePath(230, 960, 160, 50, 14, t * 6)), (t) => t);
+          playInst("cello", 48, { length: 1.6 });
+          await api.tween(2000, (t) => lo.setAttribute("d", wavePath(230, 960, 420, 50, 3, t * 1.3)), (t) => t);
+        }
+      },
+    },
+    {
+      say: "Loud sounds make tall waves. Soft sounds make small waves. Listen: loud, then soft.",
+      async draw(v, api) {
+        text(v, 500, 60, "Loud: tall waves 🦁", { "font-size": 30, fill: INK });
+        text(v, 500, 330, "Soft: small waves 🐭", { "font-size": 30, fill: INK });
+        drawInst(v, "harp", 90, 175, 150);
+        drawInst(v, "harp", 90, 440, 150);
+        const loud = el("path", { stroke: "var(--accent)", "stroke-width": 6, fill: "none", d: wavePath(200, 960, 180, 95, 6) }, v);
+        const soft = el("path", { stroke: "var(--accent)", "stroke-width": 6, fill: "none", d: wavePath(200, 960, 445, 20, 6) }, v);
+        await api.wait(1000);
+        for (let rep = 0; rep < 2; rep++) {
+          playInst("harp", 67, { gain: 1, length: 1.5 });
+          await api.tween(1900, (t) => loud.setAttribute("d", wavePath(200, 960, 180, 95 * (1 - t * 0.4), 6, t * 3)), (t) => t);
+          playInst("harp", 67, { gain: 0.18, length: 1.5 });
+          await api.tween(1900, (t) => soft.setAttribute("d", wavePath(200, 960, 445, 20 * (1 - t * 0.4), 6, t * 3)), (t) => t);
+        }
+      },
+    },
+    {
+      say: "An orchestra has four families. Strings sit at the front, then woodwinds, then brass, and percussion at the back.",
+      async draw(v, api) {
+        defs(v);
+        stagePlan(v, { labels: false });
+        const order = [["strings", ["violin", "harp", "cello"]], ["woodwinds", ["flute", "clarinet"]], ["brass", ["horn", "trumpet"]], ["percussion", ["xylophone", "timpani", "piano"]]];
+        await api.wait(800);
+        for (const [fam, keys] of order) {
+          const gs = keys.map((k) => {
+            const s = seat(v, k, { cls: "or-seat" });
+            s.g.setAttribute("opacity", 0);
+            return s.g;
+          });
+          const lab = text(v, 920, { strings: 515, woodwinds: 404, brass: 282, percussion: 150 }[fam], FAM[fam].name, { "font-size": 24, fill: FAM[fam].color, opacity: 0 });
+          playTune(keys[0], { gap: 0.3 });
+          await api.tween(900, (t) => {
+            gs.forEach((g) => g.setAttribute("opacity", t));
+            lab.setAttribute("opacity", t);
+          });
+          await api.wait(1300);
+        }
+      },
+    },
+    {
+      say: "Each family makes sound its own way. Strings: bow or pluck. Woodwinds: blow. Brass: buzz your lips. Percussion: hit!",
+      async draw(v, api) {
+        const list = [["strings", "violin"], ["woodwinds", "flute"], ["brass", "trumpet"], ["percussion", "timpani"]];
+        for (let i = 0; i < 4; i++) {
+          const [fam, key] = list[i];
+          const x = 30 + i * 240;
+          const g = el("g", { opacity: 0 }, v);
+          el("rect", { x, y: 70, width: 220, height: 400, rx: 28, fill: FAM[fam].soft, stroke: FAM[fam].color, "stroke-width": 4 }, g);
+          text(g, x + 110, 120, FAM[fam].name, { "font-size": 30, fill: FAM[fam].color });
+          drawInst(g, key, x + 110, 265, 190);
+          text(g, x + 110, 420, FAM[fam].verb, { "font-size": 26, fill: INK });
+          await api.tween(500, (t) => g.setAttribute("opacity", t));
+          playTune(key, { gap: 0.3 });
+          await api.wait(1500);
+        }
+      },
+    },
+  ];
+  explain(scenes, { alive: () => my === token, onDone: () => shell.go("o1"), title: "Orchestra & Sound" });
+}
+
+// ---------- 2. Sound wave lab ----------
+const LAB = { harp: [48, 84], flute: [60, 84], cello: [36, 69] };
+function waveLab() {
+  const my = token;
+  let inst = "harp";
+  let pitch = 0.5;
+  let loud = 0.6;
+  let mode = "free";
+  let task = null;
+  let tasks = 0;
+  let plays = 0;
+  let phase = 0;
+  let pulse = 0;
+  panel(`<div class="ap-row"><p class="ap-status" data-status></p><div class="ap-chips" data-insts>${Object.keys(LAB).map((k) => `<button type="button" data-i="${k}" aria-pressed="${k === inst}">${cap(k)}</button>`).join("")}</div><div class="ap-chips" data-modes><button type="button" data-m="free" aria-pressed="true">🧪 Explore</button><button type="button" data-m="task" aria-pressed="false">🎯 Challenge</button></div></div><div class="ap-buttons"><button type="button" class="primary" data-do="play" data-pulse>▶ Play</button></div>`);
+  const midiOf = () => Math.round(LAB[inst][0] + pitch * (LAB[inst][1] - LAB[inst][0]));
+  const gainOf = () => 0.06 + loud * 0.94;
+  let wave;
+  let readout;
+  let picG;
+  const sliders = {};
+  const draw = () => {
+    fresh();
+    el("rect", { x: 190, y: 26, width: 660, height: 280, rx: 26, fill: "#fff", stroke: "#e2d6c4", "stroke-width": 3 }, view);
+    el("line", { x1: 210, x2: 830, y1: 166, y2: 166, stroke: "#eee4d4", "stroke-width": 3, "stroke-dasharray": "8 8" }, view);
+    picG = drawInst(view, inst, 100, 166, 180);
+    emoji(view, 920, 166, "👂", 90);
+    wave = el("path", { stroke: "var(--accent)", "stroke-width": 6, fill: "none", "stroke-linejoin": "round" }, view);
+    readout = text(view, 520, 292, "", { "font-size": 23, fill: "#7a5a3e" });
+    slider("pitch", 380, "🐻 Low", "High 🐦", "#2f9a62");
+    slider("loud", 480, "🐭 Soft", "Loud 🦁", "#c8642a");
+    view.addEventListener("pointerdown", down);
+    view.addEventListener("pointermove", moveDrag);
+    view.addEventListener("pointerup", upDrag);
+    update();
+  };
+  const X0 = 300;
+  const X1 = 820;
+  function slider(name, y, left, right, color) {
+    const g = el("g", { class: "or-slider", "data-s": name }, view);
+    el("rect", { x: X0 - 40, y: y - 40, width: X1 - X0 + 80, height: 80, fill: "transparent" }, g);
+    el("rect", { x: X0, y: y - 9, width: X1 - X0, height: 18, rx: 9, fill: "#efe6d6" }, g);
+    const fill = el("rect", { x: X0, y: y - 9, width: 10, height: 18, rx: 9, fill: color }, g);
+    const knob = el("circle", { cx: X0, cy: y, r: 30, fill: "#fff", stroke: color, "stroke-width": 7 }, g);
+    text(view, 200, y + 9, left, { "font-size": 26, fill: INK });
+    text(view, 910, y + 9, right, { "font-size": 26, fill: INK });
+    sliders[name] = { fill, knob };
+  }
+  const update = () => {
+    for (const [name, v] of [["pitch", pitch], ["loud", loud]]) {
+      const x = X0 + v * (X1 - X0);
+      sliders[name].knob.setAttribute("cx", x);
+      sliders[name].fill.setAttribute("width", Math.max(18, x - X0));
+    }
+    const m = midiOf();
+    readout.textContent = `${noteName(m)} · ${hz(m)} wobbles every second · ${loud > 0.66 ? "loud" : loud < 0.34 ? "soft" : "medium"}`;
+  };
+  const cyclesOf = () => 1.4 * 2 ** ((midiOf() - 36) / 12);
+  loop(() => {
+    phase += 0.004 * cyclesOf();
+    pulse = Math.max(0, pulse - 0.012);
+    const amp = (10 + loud * 105) * (0.55 + pulse * 0.45);
+    wave?.setAttribute("d", wavePath(210, 830, 166, amp, cyclesOf(), phase));
+  }, my);
+  let drag = null;
+  const setFrom = (event) => {
+    const p = svgPoint(event);
+    const v = Math.max(0, Math.min(1, (p.x - X0) / (X1 - X0)));
+    if (drag === "pitch") pitch = v;
+    else loud = v;
+    update();
+  };
+  function down(event) {
+    const s = event.target.closest(".or-slider");
+    if (!s) {
+      if (event.target.closest("g") === picG || picG.contains(event.target)) playIt();
+      return;
+    }
+    event.preventDefault();
+    window.OC?.touch();
+    drag = s.dataset.s;
+    try {
+      view.setPointerCapture(event.pointerId);
+    } catch {}
+    setFrom(event);
+  }
+  function moveDrag(event) {
+    if (drag) setFrom(event);
+  }
+  function upDrag() {
+    if (!drag) return;
+    drag = null;
+    playIt(false);
+  }
+  const zone = (v) => (v > 0.66 ? "high" : v < 0.34 ? "low" : "mid");
+  const lzone = (v) => (v > 0.66 ? "loud" : v < 0.34 ? "soft" : "mid");
+  const TASKS = [
+    { p: "high", say: "Make a <b>high</b> sound! 🐦" },
+    { p: "low", say: "Make a <b>low</b> sound! 🐻" },
+    { l: "soft", say: "Make a <b>soft</b> sound! 🐭" },
+    { l: "loud", say: "Make a <b>loud</b> sound! 🦁" },
+    { p: "low", l: "loud", say: "Make a <b>low, loud</b> sound! 🐻🦁" },
+    { p: "high", l: "soft", say: "Make a <b>high, soft</b> sound! 🐦🐭" },
+    { p: "high", l: "loud", say: "Make a <b>high, loud</b> sound! 🐦🦁" },
+    { p: "low", l: "soft", say: "Make a <b>low, soft</b> sound! 🐻🐭" },
+  ];
+  const nextTask = () => {
+    task = TASKS[tasks % TASKS.length];
+    status(`Challenge ${tasks + 1} of 8`);
+    say(`${task.say} Move the knobs, then press ▶ Play.`);
+  };
+  const playIt = async (check = true) => {
+    if (my !== token) return;
+    window.OC?.touch();
+    const m = midiOf();
+    playInst(inst, m, { gain: gainOf(), length: 1.4 });
+    bump(picG);
+    pulse = 1;
+    plays += 1;
+    window.OC?.count("sounds made");
+    const t = task;
+    if (mode === "task" && t && check) {
+      const okP = !t.p || zone(pitch) === t.p;
+      const okL = !t.l || lzone(loud) === t.l;
+      if (okP && okL) {
+        task = null;
+        tasks += 1;
+        await wait(900);
+        if (my !== token) return;
+        MUSIC.chime();
+        if (tasks >= 8) {
+          confetti();
+          shell.mark("o1", { done: true });
+          say("🎉 You did all 8 challenges! You can control pitch and loudness.");
+          tasks = 0;
+          task = null;
+          await wait(3000);
+          if (my === token && mode === "task") nextTask();
+          return;
+        }
+        say(`${pick(PRAISE)} ${t.p ? `The waves are ${t.p === "high" ? "close together" : "far apart"}. ` : ""}${t.l ? `The waves are ${t.l === "loud" ? "tall" : "small"}.` : ""}`);
+        await wait(2200);
+        if (my === token && mode === "task") nextTask();
+      } else {
+        await wait(700);
+        if (my !== token) return;
+        MUSIC.oops();
+        const hint = !okP ? (t.p === "high" ? "Slide the green knob right, toward the bird 🐦." : "Slide the green knob left, toward the bear 🐻.") : t.l === "loud" ? "Slide the orange knob right, toward the lion 🦁." : "Slide the orange knob left, toward the mouse 🐭.";
+        say(`${pick(KIND)} ${hint}`);
+      }
+    } else if (plays === 6) {
+      shell.mark("o1", { done: true });
+    }
+  };
+  $("[data-panel]").onclick = (event) => {
+    if (my !== token) return;
+    const i = event.target.closest("[data-i]");
+    if (i) {
+      inst = i.dataset.i;
+      document.querySelectorAll("[data-i]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.i === inst)));
+      draw();
+      playIt(false);
+      return;
+    }
+    const m = event.target.closest("[data-m]");
+    if (m) {
+      mode = m.dataset.m;
+      document.querySelectorAll("[data-m]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.m === mode)));
+      if (mode === "task") nextTask();
+      else {
+        status("");
+        say("Slide the knobs and press Play. Watch the wave change!");
+      }
+      return;
+    }
+    if (event.target.closest("[data-do='play']")) playIt();
+  };
+  draw();
+  say("Slide the green knob for high or low. Slide the orange knob for loud or soft. Then press Play!");
+}
+function loop(fn, my) {
+  let alive = true;
+  const frame = () => {
+    if (!alive || my !== token) return;
+    if (fn() !== false) requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+  const stop = () => (alive = false);
+  cleanup.push(stop);
+  return stop;
+}
+
+// ---------- 3. Meet the orchestra ----------
+function meet() {
+  const my = token;
+  let mode = "explore";
+  const seen = new Set();
+  let target = null;
+  let round = 0;
+  let right = 0;
+  let busy = false;
+  panel(`<div class="ap-row"><p class="ap-status" data-status></p><div class="ap-chips"><button type="button" data-m="explore" aria-pressed="true">👀 Explore</button><button type="button" data-m="find" aria-pressed="false">🔎 Find the family</button></div></div>`);
+  const seats = {};
+  const draw = () => {
+    fresh("#fbf3e4");
+    stagePlan(view);
+    for (const k of KEYS) seats[k] = seat(view, k);
+    view.addEventListener("pointerdown", (event) => {
+      const g = event.target.closest(".or-inst");
+      if (g) tap(g.dataset.k);
+    });
+  };
+  const tap = async (k) => {
+    if (my !== token || busy) return;
+    window.OC?.touch();
+    const s = seats[k];
+    Object.values(seats).forEach((o) => o.g.classList.toggle("glow", o === s));
+    bump(s.pic);
+    playTune(k, { gap: 0.32 });
+    const fam = FAM[INST[k].fam];
+    if (mode === "explore") {
+      say(`<b>${cap(INST[k].name)}</b> · ${fam.name} family. ${INST[k].how}`);
+      if (!seen.has(k)) {
+        seen.add(k);
+        el("circle", { cx: SEAT[k][0] + 48, cy: SEAT[k][1] - 44, r: 14, fill: "#22a05a", "pointer-events": "none" }, view);
+        text(view, SEAT[k][0] + 48, SEAT[k][1] - 37, "✓", { "font-size": 20, fill: "#fff", "pointer-events": "none" });
+        window.OC?.count("instruments met");
+      }
+      status(`${seen.size} of 10 met`);
+      if (seen.size === 10) {
+        shell.mark("o2", { done: true });
+        confetti();
+        await wait(4500);
+        if (my === token && mode === "explore") say("🎉 You met the whole orchestra! Now try 🔎 Find the family.");
+      }
+      return;
+    }
+    if (!target) return;
+    busy = true;
+    const ok = INST[k].fam === target;
+    round += 1;
+    if (ok) {
+      right += 1;
+      MUSIC.chime();
+      say(`${pick(PRAISE)} The ${INST[k].name} is ${target === "percussion" ? "" : "in the "}${FAM[target].name.toLowerCase()}${target === "percussion" ? "" : " family"}${target === "percussion" ? " too" : ""}. ${INST[k].how}`);
+    } else {
+      MUSIC.oops();
+      say(`${pick(KIND)} The ${INST[k].name} is in the ${fam.name.toLowerCase()} family. ${INST[k].how}`);
+    }
+    window.OC?.count("families found");
+    await wait(ok ? 3800 : 5200);
+    busy = false;
+    if (my !== token || mode !== "find") return;
+    if (round >= 8) {
+      if (right >= 6) {
+        shell.mark("o2", { done: true });
+        confetti();
+      }
+      say(`${right} out of 8! ${right >= 6 ? "You know the orchestra! 🎉" : "Let's explore some more."}`);
+      round = 0;
+      right = 0;
+      await wait(3000);
+      if (my !== token || mode !== "find") return;
+    }
+    ask();
+  };
+  const FIND = { strings: "Find an instrument from the <b>strings</b> family. Strings are bowed or plucked.", woodwinds: "Find a <b>woodwind</b>. You blow into it or across it.", brass: "Find a <b>brass</b> instrument. You buzz your lips into it.", percussion: "Find a <b>percussion</b> instrument. You hit it!" };
+  const ask = () => {
+    let next = pick(FAMS);
+    while (next === target) next = pick(FAMS);
+    target = next;
+    Object.values(seats).forEach((o) => o.g.classList.remove("glow"));
+    status(`Find ${round + 1} of 8`);
+    say(FIND[target]);
+  };
+  $("[data-panel]").onclick = (event) => {
+    if (my !== token) return;
+    const m = event.target.closest("[data-m]");
+    if (!m || busy) return;
+    mode = m.dataset.m;
+    document.querySelectorAll("[data-m]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.m === mode)));
+    if (mode === "find") {
+      round = 0;
+      right = 0;
+      target = null;
+      ask();
+    } else {
+      target = null;
+      status(`${seen.size} of 10 met`);
+      say("Tap any instrument to hear it and find out how it makes its sound.");
+    }
+  };
+  draw();
+  status("0 of 10 met");
+  say("This is where everyone sits in an orchestra. Tap each instrument to hear it!");
+}
+
+// ---------- 4. Guess the instrument ----------
+const NEAR = { strings: ["percussion", "woodwinds"], woodwinds: ["brass", "strings"], brass: ["woodwinds", "strings"], percussion: ["strings", "brass"] };
+function guess() {
+  const my = token;
+  let lv = level.o3;
+  let round = 0;
+  let right = 0;
+  let q = null;
+  let busy = false;
+  let cards = [];
+  panel(`<div class="ap-row"><p class="ap-status" data-status></p>${chipsHtml(lv)}</div><div class="ap-buttons"><button type="button" class="primary" data-do="hear">🔁 Hear it again</button></div>`);
+  const make = () => {
+    const answer = pick(KEYS);
+    const fam = INST[answer].fam;
+    let options;
+    if (lv === 0) {
+      const other = pick(KEYS.filter((k) => INST[k].fam !== fam && Math.abs(INST[k].tune[0] - INST[answer].tune[0]) >= 12));
+      options = [answer, other];
+    } else if (lv === 1) {
+      options = [answer, ...shuffle(KEYS.filter((k) => k !== answer)).slice(0, 2)];
+    } else {
+      const same = shuffle(KEYS.filter((k) => k !== answer && INST[k].fam === fam));
+      const near = shuffle(KEYS.filter((k) => INST[k].fam === NEAR[fam][0]));
+      const rest = shuffle(KEYS.filter((k) => k !== answer && !same.includes(k) && !near.includes(k)));
+      options = [answer, ...same, ...near, ...rest].slice(0, 4);
+    }
+    return { answer, options: shuffle(options) };
+  };
+  const ask = async () => {
+    q = make();
+    debug.answer = q.options.indexOf(q.answer);
+    fresh();
+    const n = q.options.length;
+    const w = Math.min(280, 900 / n - 20);
+    const x0 = 500 - (n * (w + 20) - 20) / 2;
+    cards = q.options.map((k, i) => card(view, k, x0 + i * (w + 20), 120, w, 330));
+    emoji(view, 500, 58, "🎧", 54);
+    view.addEventListener("pointerdown", (event) => {
+      const c = event.target.closest(".or-card");
+      if (c) answer(c.dataset.k);
+    });
+    status(`Question ${round + 1} of 10`);
+    busy = false;
+    const mine = q;
+    await sayAsync("Listen! Which instrument is playing?");
+    if (my !== token || q !== mine || mine.done) return;
+    playTune(q.answer);
+  };
+  const answer = async (k) => {
+    if (busy || my !== token || !q) return;
+    busy = true;
+    q.done = true;
+    window.OC?.touch();
+    const ok = k === q.answer;
+    round += 1;
+    window.OC?.count("instruments guessed");
+    const ci = q.options.indexOf(q.answer);
+    cards[ci].bg.setAttribute("fill", "#e3f6e8");
+    cards[ci].bg.setAttribute("stroke", "#22a05a");
+    if (ok) {
+      right += 1;
+      MUSIC.chime();
+      say(`${pick(PRAISE)} It was the ${INST[k].name}. ${INST[k].how}`);
+    } else {
+      const c = cards[q.options.indexOf(k)];
+      c.bg.setAttribute("fill", "#fbe5da");
+      c.g.classList.add("or-shake");
+      MUSIC.oops();
+      say(`${pick(KIND)} That was the ${INST[q.answer].name}, not the ${INST[k].name}. Listen to the ${INST[q.answer].name} again.`);
+    }
+    await wait(1000);
+    if (my !== token) return;
+    bump(cards[ci].pic);
+    await wait(playTune(q.answer) + (ok ? 1800 : 2200));
+    if (my !== token) return;
+    if (round >= 10) {
+      if (right >= 7) {
+        shell.mark("o3", { done: true, best: right });
+        confetti();
+      }
+      say(`${right} out of 10! ${right >= 7 ? "Super ears! 🎉" : "Let's listen some more."}`);
+      round = 0;
+      right = 0;
+      await wait(3000);
+      if (my !== token) return;
+    }
+    ask();
+  };
+  $("[data-panel]").onclick = (event) => {
+    if (my !== token) return;
+    const lvBtn = event.target.closest("[data-lv]");
+    if (lvBtn && !busy) {
+      lv = level.o3 = Number(lvBtn.dataset.lv);
+      setChips(lv);
+      round = 0;
+      right = 0;
+      ask();
+      return;
+    }
+    if (event.target.closest("[data-do='hear']") && q && !busy) playTune(q.answer);
+  };
+  ask();
+}
+
+// ---------- 5. Higher or lower? ----------
+// Where each instrument usually plays (bigger = higher). Piano and harp cover almost everything, so no claim.
+const TYP = { violin: 3, flute: 3, xylophone: 3, trumpet: 2, clarinet: 2, horn: 1, cello: 1, timpani: 1, piano: null, harp: null };
+function highLow() {
+  const my = token;
+  let lv = level.o4;
+  let round = 0;
+  let right = 0;
+  let q = null;
+  let busy = false;
+  let cards = [];
+  panel(`<div class="ap-row"><p class="ap-status" data-status></p>${chipsHtml(lv)}</div><div class="ap-buttons"><button type="button" class="primary" data-do="hear">🔁 Hear them again</button></div>`);
+  const EASY = [["flute", 79, "cello", 48], ["violin", 79, "timpani", 48], ["xylophone", 91, "cello", 43], ["flute", 84, "horn", 55], ["violin", 84, "piano", 41], ["xylophone", 88, "timpani", 45], ["trumpet", 76, "cello", 45], ["harp", 84, "timpani", 48]];
+  const make = () => {
+    if (lv === 0) {
+      const [a, ma, b, mb] = pick(EASY);
+      return Math.random() < 0.5 ? { a, ma, b, mb } : { a: b, ma: mb, b: a, mb: ma };
+    }
+    const gap = lv === 1 ? pickInt(5, 9) : pickInt(2, 4);
+    for (;;) {
+      const [a, b] = shuffle(KEYS).slice(0, 2);
+      const A = INST[a];
+      const B = INST[b];
+      const ma = pickInt(A.lo, A.hi);
+      const mb = Math.random() < 0.5 ? ma + gap : ma - gap;
+      if (mb >= B.lo && mb <= B.hi) return { a, ma, b, mb };
+    }
+  };
+  const playBoth = async (mine) => {
+    for (const [i, k, m] of [[0, q.a, q.ma], [1, q.b, q.mb]]) {
+      if (my !== token || q !== mine) return;
+      cards[i].bg.setAttribute("stroke", "var(--accent)");
+      bump(cards[i].pic);
+      playInst(k, m, { length: 1.1, gain: 0.95 });
+      await wait(1500);
+      cards[i].bg.setAttribute("stroke", "#e2d6c4");
+    }
+  };
+  const ask = async () => {
+    q = make();
+    debug.higher = q.ma > q.mb ? 0 : 1;
+    fresh();
+    cards = [card(view, q.a, 150, 70, 300, 380), card(view, q.b, 550, 70, 300, 380)];
+    text(view, 300, 500, "1st", { "font-size": 30, fill: "#a8957f" });
+    text(view, 700, 500, "2nd", { "font-size": 30, fill: "#a8957f" });
+    view.addEventListener("pointerdown", (event) => {
+      const c = event.target.closest(".or-card");
+      if (c) answer(cards.findIndex((x) => x.g === c));
+    });
+    status(`Question ${round + 1} of 10`);
+    busy = false;
+    const mine = q;
+    await sayAsync("Listen to both. Which one plays the higher note?");
+    if (my !== token || q !== mine || mine.done) return;
+    playBoth(mine);
+  };
+  const answer = async (i) => {
+    if (busy || my !== token || !q) return;
+    busy = true;
+    q.done = true;
+    window.OC?.touch();
+    const hi = q.ma > q.mb ? 0 : 1;
+    const ok = i === hi;
+    round += 1;
+    window.OC?.count("pitches compared");
+    const hk = hi === 0 ? q.a : q.b;
+    const lk = hi === 0 ? q.b : q.a;
+    cards[hi].bg.setAttribute("fill", "#e3f6e8");
+    emoji(view, hi === 0 ? 300 : 700, 40, "🐦", 50);
+    const surprise = TYP[hk] != null && TYP[lk] != null && TYP[hk] < TYP[lk];
+    const extra = surprise ? ` Surprise! The ${INST[hk].name} usually plays lower than the ${INST[lk].name}, but this note was higher. Listen, don't guess!` : ` This time the ${INST[hk].name}'s note was ${q.ma > q.mb ? q.ma - q.mb : q.mb - q.ma} piano keys higher.`;
+    if (ok) {
+      right += 1;
+      MUSIC.chime();
+      say(`${pick(PRAISE)} The ${INST[hk].name} was higher.${lv > 0 ? extra : ""}`);
+    } else {
+      cards[i].bg.setAttribute("fill", "#fbe5da");
+      MUSIC.oops();
+      say(`${pick(KIND)} The ${INST[hk].name} was higher, like a bird 🐦. The ${INST[lk].name} was lower, like a bear 🐻. Listen again.`);
+    }
+    await wait(1100);
+    if (my !== token) return;
+    const mine = q;
+    q.done = false;
+    await playBoth(mine);
+    q.done = true;
+    await wait(ok ? 1000 : 1600);
+    if (my !== token) return;
+    if (round >= 10) {
+      if (right >= 7) {
+        shell.mark("o4", { done: true, best: right });
+        confetti();
+      }
+      say(`${right} out of 10! ${right >= 7 ? "Great listening! 🎉" : "Let's listen some more."}`);
+      round = 0;
+      right = 0;
+      await wait(3000);
+      if (my !== token) return;
+    }
+    ask();
+  };
+  $("[data-panel]").onclick = (event) => {
+    if (my !== token) return;
+    const lvBtn = event.target.closest("[data-lv]");
+    if (lvBtn && !busy) {
+      lv = level.o4 = Number(lvBtn.dataset.lv);
+      setChips(lv);
+      round = 0;
+      right = 0;
+      ask();
+      return;
+    }
+    if (event.target.closest("[data-do='hear']") && q && !busy) playBoth(q);
+  };
+  ask();
+}
+
+// ---------- 6. Sort the families ----------
+function sortGame() {
+  const my = token;
+  let lv = level.o5;
+  let busy = false;
+  let left = [];
+  let rounds = 0;
+  let mistakes = 0;
+  let boxes = {};
+  let items = {};
+  let ghost = null;
+  let picked = null;
+  panel(`<div class="ap-row"><p class="ap-status" data-status></p>${chipsHtml(lv)}</div>`);
+  const famsFor = () => (lv === 0 ? ["strings", "percussion"] : FAMS);
+  const itemsFor = () => {
+    if (lv === 0) return shuffle(["violin", "cello", "timpani", "xylophone"]);
+    if (lv === 1) return shuffle(["violin", "clarinet", "trumpet", "timpani", "cello", "flute"]);
+    return shuffle(KEYS);
+  };
+  const draw = () => {
+    fresh();
+    const fams = famsFor();
+    const bw = Math.min(330, 960 / fams.length - 14);
+    const bx0 = 500 - (fams.length * (bw + 14) - 14) / 2;
+    boxes = {};
+    fams.forEach((f, i) => {
+      const g = el("g", { class: "or-box", "data-f": f }, view);
+      const x = bx0 + i * (bw + 14);
+      const r = el("rect", { x, y: 330, width: bw, height: 215, rx: 24, fill: FAM[f].soft, stroke: FAM[f].color, "stroke-width": 4, "stroke-dasharray": "12 8" }, g);
+      text(g, x + bw / 2, 368, FAM[f].name, { "font-size": 26, fill: FAM[f].color });
+      text(g, x + bw / 2, 398, FAM[f].verb, { "font-size": 22, fill: "#7a5a3e" });
+      boxes[f] = { g, r, x, w: bw, n: 0 };
+    });
+    const list = left;
+    const n = list.length;
+    const iw = Math.min(150, 960 / Math.min(n, 5) - 12);
+    const rows = n > 5 ? 2 : 1;
+    const ih = rows === 2 ? 148 : 290;
+    items = {};
+    list.forEach((k, i) => {
+      const row = rows === 2 ? Math.floor(i / Math.ceil(n / 2)) : 0;
+      const per = rows === 2 ? Math.ceil(n / 2) : n;
+      const col = i - row * per;
+      const cnt = rows === 2 && row === 1 ? n - per : per;
+      const x = 500 - (cnt * (iw + 12) - 12) / 2 + col * (iw + 12);
+      const y = 12 + row * (ih + 8);
+      items[k] = card(view, k, x, y, iw, ih, { label: true });
+      items[k].home = [x, y];
+    });
+    view.addEventListener("pointerdown", down);
+    view.addEventListener("pointermove", move);
+    view.addEventListener("pointerup", up);
+    view.addEventListener("pointercancel", cancel);
+    status(`${n} to sort`);
+  };
+  let gen = 0;
+  const start = () => {
+    gen += 1;
+    left = itemsFor();
+    mistakes = 0;
+    picked = null;
+    draw();
+    say(lv === 0 ? "Drag each instrument into its family box. Strings are bowed or plucked. Percussion you hit." : "Drag each instrument into its family box. Or tap it, then tap the box.");
+  };
+  const boxAt = (p) => Object.entries(boxes).find(([, b]) => p.x >= b.x && p.x <= b.x + b.w && p.y >= 320)?.[0];
+  function down(event) {
+    if (busy || my !== token) return;
+    const box = event.target.closest(".or-box");
+    if (box && picked) {
+      drop(picked, box.dataset.f);
+      return;
+    }
+    const c = event.target.closest(".or-card");
+    if (!c) return;
+    event.preventDefault();
+    window.OC?.touch();
+    try {
+      view.setPointerCapture(event.pointerId);
+    } catch {}
+    const p = svgPoint(event);
+    ghost = { k: c.dataset.k, x0: p.x, y0: p.y, moved: false };
+  }
+  function move(event) {
+    if (!ghost) return;
+    const p = svgPoint(event);
+    if (!ghost.moved && Math.hypot(p.x - ghost.x0, p.y - ghost.y0) > 10) ghost.moved = true;
+    if (ghost.moved) items[ghost.k].g.setAttribute("transform", `translate(${p.x - ghost.x0} ${p.y - ghost.y0})`);
+  }
+  function up(event) {
+    if (!ghost) return;
+    const g = ghost;
+    ghost = null;
+    const p = svgPoint(event);
+    if (!g.moved) {
+      if (picked) items[picked]?.bg.setAttribute("stroke", "#e2d6c4");
+      picked = g.k;
+      items[g.k].bg.setAttribute("stroke", "var(--accent)");
+      playTune(g.k, { gap: 0.3 });
+      say(`The ${INST[g.k].name}. Now tap its family box.`);
+      return;
+    }
+    const f = boxAt(p);
+    if (f) drop(g.k, f);
+    else items[g.k].g.removeAttribute("transform");
+  }
+  function cancel() {
+    if (ghost) items[ghost.k].g.removeAttribute("transform");
+    ghost = null;
+  }
+  const drop = async (k, f) => {
+    picked = null;
+    const it = items[k];
+    it.bg.setAttribute("stroke", "#e2d6c4");
+    if (INST[k].fam === f) {
+      MUSIC.chime();
+      playTune(k, { gap: 0.3 });
+      left = left.filter((x) => x !== k);
+      const b = boxes[f];
+      const slot = b.n++;
+      it.g.remove();
+      const per = Math.max(1, Math.min(3, Math.floor((b.w - 6) / 68)));
+      const x0 = b.x + (b.w - per * 68) / 2 + 34;
+      bump(drawInst(view, k, x0 + (slot % per) * 68, 480 + Math.floor(slot / per) * 40, 66));
+      say(`${pick(PRAISE)} The ${INST[k].name} is ${f === "percussion" ? "percussion" : `in the ${FAM[f].name.toLowerCase()}`}. ${k === "flute" ? "It's metal, but you blow across it, so it's a woodwind!" : k === "piano" ? "Hammers hit its strings, so it counts as percussion." : k === "horn" ? "You buzz your lips into it, so it's brass." : k === "harp" ? "You pluck its strings." : ""}`);
+      window.OC?.count("instruments sorted");
+      status(`${left.length} to sort`);
+      if (!left.length) {
+        rounds += 1;
+        const g = gen;
+        await wait(1600);
+        if (my !== token || g !== gen) return;
+        confetti();
+        if (lv > 0 || rounds >= 2) shell.mark("o5", { done: true });
+        say(`🎉 All sorted${mistakes ? "" : " with no mistakes"}! ${lv < 2 ? "Try the next level up!" : "Let's sort again!"}`);
+        await wait(3800);
+        if (my === token && g === gen) start();
+      }
+    } else {
+      mistakes += 1;
+      MUSIC.oops();
+      it.g.removeAttribute("transform");
+      it.g.classList.remove("or-shake");
+      void it.g.getBBox();
+      it.g.classList.add("or-shake");
+      say(`${pick(KIND)} The ${INST[k].name} is not ${FAM[f].name.toLowerCase()}. ${INST[k].how}`);
+    }
+  };
+  $("[data-panel]").onclick = (event) => {
+    if (my !== token) return;
+    const lvBtn = event.target.closest("[data-lv]");
+    if (lvBtn) {
+      lv = level.o5 = Number(lvBtn.dataset.lv);
+      setChips(lv);
+      start();
+    }
+  };
+  start();
+}
+
+// ---------- shell ----------
+const units = {
+  o0() {
+    seeIt(token);
+  },
+  o1: waveLab,
+  o2: meet,
+  o3: guess,
+  o4: highLow,
+  o5: sortGame,
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    o0: { icon: "👀", title: "See it", steps: ["Watch the pictures and listen.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    o1: { icon: "🌊", title: "Sound wave lab", steps: ["Slide the green knob: low or high.", "Slide the orange knob: soft or loud.", "Press Play. Watch the wave change!"] },
+    o2: { icon: "🎻", title: "Meet the orchestra", steps: ["Tap an instrument to hear it.", "Ollie tells you how it makes sound.", "Try 🔎 Find the family!"] },
+    o3: { icon: "🎧", title: "Guess the instrument", steps: ["Listen to the music.", "Which instrument is playing?", "Tap its picture."] },
+    o4: { icon: "🐦", title: "Higher or lower?", steps: ["Listen to two instruments.", "Which one played the higher note?", "Tap it. High like a bird 🐦!"] },
+    o5: { icon: "🗂️", title: "Sort the families", steps: ["Drag an instrument to a box.", "Or tap it, then tap the box.", "Put every instrument in its family."] },
+  },
+  start: "o0",
+  onStop() {
+    token += 1;
+    stopAll();
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Music",
+  activity: "Orchestra & Sound",
+  onUnit(id) {
+    token += 1;
+    stopAll();
+    VOICE.hush();
+    units[id]();
+  },
+});
+for (const k of KEYS) MUSIC.preload(k === "horn" ? "horn" : k, INST[k].tune);
+MUSIC.preload("harp", [48, 60, 67, 72, 79]);
+MUSIC.preload("flute", [60, 72, 79]);
+MUSIC.preload("cello", [48, 55, 60]);
+MUSIC.preload("xylophone", [84, 88, 91, 96]);
+</script>
+</body>
+</html>

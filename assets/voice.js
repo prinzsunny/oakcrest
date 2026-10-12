@@ -56,6 +56,8 @@
       .replace(/[✓🎉⭐🌟👍☝️↻▶◀🐦🐟🔊]/gu, "")
       .replace(/(\d)\s*−\s*(\d)/g, "$1 minus $2")
       .replace(/(\d)\s*\+\s*(\d)/g, "$1 plus $2")
+      .replace(/\s*×\s*/g, " times ")
+      .replace(/\s*÷\s*/g, " divided by ")
       .replace(/=/g, " equals ")
       .replace(/·/g, ".")
       .replace(/\b([A-G])♯/g, "$1 sharp")

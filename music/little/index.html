@@ -66,6 +66,7 @@ const parseSong = (text) =>
   });
 
 const UNITS = [
+  { id: "u0", label: "👀 See it", icon: "👀" },
   { id: "free", label: "Free play" },
   { id: "u1", label: "1. Meet the xylophone" },
   { id: "u2", label: "2. Loud or soft? Fast or slow?" },
@@ -74,6 +75,7 @@ const UNITS = [
   { id: "u5", label: "5. Clap the beat" },
   { id: "u6", label: "6. First songs" },
   { id: "u7", label: "7. Colours to letters" },
+  { id: "u8", label: "8. Animal sounds: high or low?" },
 ];
 
 const W = 1000;
@@ -178,7 +180,7 @@ svg:not(.letters) .xy-letter{display:none}
 document.head.appendChild(style);
 
 MUSIC.preload("xylophone", BARS.map((bar) => bar.midi).concat([84, 88, 91, 96]));
-MUSIC.preload("piano", [64, 67]);
+MUSIC.preload("piano", [40, 41, 43, 53, 55, 60, 62, 64, 67]);
 
 const say = (html, { voice = true } = {}) => {
   $("[data-say]").innerHTML = html;
@@ -289,6 +291,11 @@ function setPanel(html) {
 
 function reset() {
   token += 1;
+  // "See it" and the animal game draw their own pictures; put the xylophone back for everything else.
+  if (!svg.isConnected) {
+    stage.innerHTML = "";
+    stage.appendChild(svg);
+  }
   stopExtras?.();
   stopExtras = null;
   unitKeys = null;
@@ -303,6 +310,283 @@ let stopExtras = null;
 let unitKeys = null;
 addEventListener("keydown", (event) => unitKeys?.(event));
 const units = {
+  u0() {
+    const my = token;
+    const K = KIT;
+    const label = (parent, x, y, str, size = 32, fill = "#7a4520") => K.text(parent, x, y, str, { "font-size": size, fill, "font-weight": 900 });
+    const talk = async (api, html) => {
+      await K.sayAsync(html);
+      await api.wait(250);
+    };
+    // A simple wooden xylophone for the pictures: bar i is long (low) on the left, short (high) on the right.
+    const mini = (v, { y = 300, scale = 0.8 } = {}) => {
+      const bars = BARS.map((bar, i) => {
+        const L = lengthOf(i) * scale;
+        const x = 120 + i * 100;
+        const g = K.el("g", {}, v);
+        K.el("rect", { x: x - 40, y: y - L / 2, width: 80, height: L, rx: 14, fill: bar.color, stroke: "rgba(0,0,0,.3)", "stroke-width": 2 }, g);
+        K.el("circle", { cx: x, cy: y - L / 2 + L * 0.22, r: 6, fill: "#d4a94a" }, g);
+        K.el("circle", { cx: x, cy: y + L / 2 - L * 0.22, r: 6, fill: "#d4a94a" }, g);
+        return { g, x, top: y - L / 2, L };
+      });
+      return bars;
+    };
+    const bonk = async (api, bars, i, gain = 0.9) => {
+      MUSIC.play("xylophone", BARS[i].midi, { gain });
+      const b = bars[i];
+      await api.tween(260, (t) => b.g.setAttribute("transform", `translate(0 ${Math.sin(t * Math.PI) * 8})`), (t) => t);
+    };
+    const rings = async (api, v, x, y, big) => {
+      const r0 = big ? 70 : 30;
+      const ring = K.el("circle", { cx: x, cy: y, r: r0, fill: "none", stroke: "var(--accent)", "stroke-width": big ? 10 : 3 }, v);
+      await api.tween(700, (t) => {
+        ring.setAttribute("r", r0 + t * (big ? 150 : 40));
+        ring.setAttribute("opacity", 1 - t);
+      }, (t) => t);
+      ring.remove();
+    };
+    const scenes = [
+      {
+        say: "Why do we make music? Music lets us sing, dance and share feelings together!",
+        draw: K.everyday([["🎵", "Singing songs"], ["💃", "Dancing"], ["🥁", "Playing instruments"], ["🌙", "Lullabies at bedtime"]]),
+      },
+      {
+        say: "Look at the xylophone. <b>Long</b> bars sing <b>low</b>. <b>Short</b> bars sing <b>high</b>.",
+        async draw(v, api) {
+          const bars = mini(v);
+          await talk(api, this.say);
+          const longTag = label(v, 120, 520, "");
+          const shortTag = label(v, 820, 520, "");
+          for (let k = 0; k < 2; k++) {
+            longTag.textContent = "long = low";
+            await bonk(api, bars, 0);
+            await api.wait(900);
+            shortTag.textContent = "short = high";
+            await bonk(api, bars, 7);
+            await api.wait(900);
+          }
+        },
+      },
+      {
+        say: "Now play them all, from the longest bar to the shortest. Hear the sound climb up, up, up!",
+        async draw(v, api) {
+          const bars = mini(v);
+          const arrow = label(v, 500, 70, "", 36);
+          await talk(api, this.say);
+          arrow.textContent = "up ⬆️ higher";
+          for (let i = 0; i < 8; i++) {
+            await bonk(api, bars, i);
+            await api.wait(200);
+          }
+          await api.wait(600);
+          arrow.textContent = "down ⬇️ lower";
+          for (let i = 7; i >= 0; i--) {
+            await bonk(api, bars, i);
+            await api.wait(200);
+          }
+        },
+      },
+      {
+        say: "Music can be <b>loud</b>, like a big elephant stomp. Or <b>soft</b>, like a tiny mouse tiptoe.",
+        async draw(v, api) {
+          K.emoji(v, 270, 250, "🐘", 170);
+          K.emoji(v, 730, 280, "🐭", 90);
+          label(v, 270, 470, "loud", 40);
+          label(v, 730, 470, "soft", 40);
+          await talk(api, this.say);
+          for (let k = 0; k < 2; k++) {
+            for (const i of [0, 2, 4]) {
+              MUSIC.play("xylophone", BARS[i].midi, { gain: 1.25 });
+              await rings(api, v, 270, 250, true);
+            }
+            await api.wait(500);
+            for (const i of [0, 2, 4]) {
+              MUSIC.play("xylophone", BARS[i].midi, { gain: 0.12 });
+              await rings(api, v, 730, 280, false);
+            }
+            await api.wait(700);
+          }
+        },
+      },
+      {
+        say: "Music can be <b>fast</b>, like a hopping rabbit. Or <b>slow</b>, like a sleepy tortoise.",
+        async draw(v, api) {
+          K.el("path", { d: "M60 300 L940 300 M60 500 L940 500", stroke: "#e2d6c4", "stroke-width": 4 }, v);
+          const rabbit = K.el("g", {}, v);
+          K.emoji(rabbit, 0, -45, "🐇", 80);
+          const tortoise = K.el("g", {}, v);
+          K.emoji(tortoise, 0, -40, "🐢", 80);
+          rabbit.setAttribute("transform", "translate(120 300)");
+          tortoise.setAttribute("transform", "translate(120 500)");
+          label(v, 860, 250, "fast", 36);
+          label(v, 860, 450, "slow", 36);
+          await talk(api, this.say);
+          const notes = [0, 1, 2, 3, 4, 3, 2, 1, 0];
+          for (const [k, i] of notes.entries()) {
+            MUSIC.play("xylophone", BARS[i].midi, { gain: 0.8 });
+            await api.tween(190, (t) => rabbit.setAttribute("transform", `translate(${120 + (k + t) * 60} ${300 - Math.sin(t * Math.PI) * 40})`), (t) => t);
+          }
+          await api.wait(600);
+          for (const [k, i] of notes.entries()) {
+            MUSIC.play("xylophone", BARS[i].midi, { gain: 0.8 });
+            await api.tween(650, (t) => tortoise.setAttribute("transform", `translate(${120 + (k + t) * 60} 500)`), (t) => t);
+          }
+        },
+      },
+      {
+        say: "Music has a steady <b>beat</b>, like your heartbeat. Pat your knees with the heart: one, two, three, four!",
+        async draw(v, api) {
+          const heart = K.el("g", { transform: "translate(500 260)" }, v);
+          K.emoji(heart, 0, 0, "❤️", 200);
+          const count = label(v, 500, 500, "", 54);
+          await talk(api, this.say);
+          for (let k = 0; k < 12; k++) {
+            MUSIC.tick(k % 4 === 0);
+            count.textContent = String((k % 4) + 1);
+            await api.tween(300, (t) => heart.setAttribute("transform", `translate(500 260) scale(${1 + Math.sin(t * Math.PI) * 0.15})`), (t) => t);
+            await api.wait(560);
+          }
+        },
+      },
+    ];
+    K.explain(scenes, {
+      alive: () => my === token,
+      title: "Making music",
+      onDone: () => {
+        shell.mark("u0", { done: true });
+        shell.go("free");
+      },
+    });
+  },
+
+  u8() {
+    const my = token;
+    const K = KIT;
+    const ROUNDS = 8;
+    // Bigger animals have bigger voices, which sound lower. Little animals sound higher.
+    const LOW = [["🐻", "bear"], ["🐘", "elephant"], ["🐄", "cow"], ["🦁", "lion"]];
+    const MID = [["🐶", "dog"], ["🐷", "pig"], ["🐑", "sheep"]];
+    const HIGH = [["🐦", "bird"], ["🐭", "mouse"], ["🐤", "chick"], ["🐱", "kitten"]];
+    const LEVELS = { easy: "🐣 Easy", medium: "🦊 Closer", hard: "🦁 Three animals" };
+    const SOUNDS = {
+      easy: { low: ["piano", [41, 40, 41]], high: ["xylophone", [96, 93, 96]] },
+      medium: { low: ["piano", [55, 53, 55]], high: ["xylophone", [76, 74, 76]] },
+      hard: { low: ["piano", [43, 41, 43]], mid: ["piano", [62, 60, 62]], high: ["xylophone", [91, 88, 91]] },
+    };
+    let level = "easy";
+    let round = 0;
+    let q = null;
+    let open = false;
+    setPanel(`<div class="ap-chips" data-levels>${Object.entries(LEVELS).map(([k, l]) => `<button type="button" data-l="${k}">${l}</button>`).join("")}</div><p class="ap-dots" data-dots></p><div class="ap-buttons"><button type="button" data-again>🔁 Hear it again</button></div>`);
+    const dots = () => ($("[data-dots]").textContent = Array.from({ length: ROUNDS }, (_, k) => (k < round ? "●" : "○")).join(""));
+    const sound = async (pitch, mine = token) => {
+      const [inst, notes] = SOUNDS[level][pitch];
+      const t0 = MUSIC.now() + 0.05;
+      notes.forEach((m, i) => MUSIC.play(inst, m, { gain: inst === "piano" ? 0.95 : 0.7, at: t0 + i * (pitch === "low" ? 0.42 : 0.2), length: pitch === "low" ? 0.5 : 0 }));
+      await wait(pitch === "low" ? 1500 : 900);
+      return mine === token;
+    };
+    let v = null;
+    const draw = () => {
+      stage.innerHTML = "";
+      v = K.svg("0 0 1000 560", stage);
+      const n = q.animals.length;
+      q.animals.forEach((a, k) => {
+        const x = n === 2 ? 270 + k * 460 : 180 + k * 320;
+        const size = a.pitch === "low" ? 200 : a.pitch === "mid" ? 155 : 120;
+        const g = K.el("g", { class: "an-pick", "data-p": a.pitch, style: "cursor:pointer" }, v);
+        K.el("rect", { x: x - (n === 2 ? 200 : 145), y: 60, width: n === 2 ? 400 : 290, height: 440, rx: 36, fill: "#fff", stroke: "#e2d6c4", "stroke-width": 5 }, g);
+        const pic = K.el("g", { transform: `translate(${x} 260)` }, g);
+        K.emoji(pic, 0, 0, a.glyph, size);
+        K.text(g, x, 460, a.name, { "font-size": 40, fill: "#2b1d12", "font-weight": 900 });
+        a.g = g;
+        a.pic = pic;
+        a.x = x;
+      });
+    };
+    const ask = async () => {
+      if (my !== token) return;
+      open = false;
+      dots();
+      const pitches = level === "hard" ? ["low", "mid", "high"] : ["low", "high"];
+      const pickOne = (list) => list[Math.floor(Math.random() * list.length)];
+      const from = { low: LOW, mid: MID, high: HIGH };
+      let animals = pitches.map((p) => {
+        const [glyph, name] = pickOne(from[p]);
+        return { pitch: p, glyph, name };
+      });
+      if (level !== "hard" && Math.random() < 0.5) animals = animals.reverse();
+      if (level === "hard") animals.sort(() => Math.random() - 0.5);
+      q = { animals, answer: pickOne(pitches) };
+      draw();
+      const names = animals.map((a) => `the ${a.name}`);
+      const ok = await sayAsync(`Listen! Who made this sound: ${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}?`);
+      if (my !== token || !ok) return;
+      open = true;
+      sound(q.answer);
+    };
+    const bounce = async (a) => {
+      for (let k = 0; k <= 10; k++) {
+        if (my !== token) return;
+        a.pic.setAttribute("transform", `translate(${a.x} ${260 - Math.sin((k / 10) * Math.PI) * 40})`);
+        await wait(30);
+      }
+    };
+    stage.onpointerdown = async (event) => {
+      const g = event.target.closest?.(".an-pick");
+      if (!g || my !== token || !open || !q) return;
+      window.OC?.touch();
+      const a = q.animals.find((x) => x.g === g);
+      if (a.pitch === q.answer) {
+        open = false;
+        g.querySelector("rect").setAttribute("stroke", "#22a05a");
+        g.querySelector("rect").setAttribute("stroke-width", 12);
+        MUSIC.chime();
+        round += 1;
+        window.OC?.count("animal sounds");
+        bounce(a);
+        const why = a.pitch === "low" ? `The big ${a.name} has a big, <b>low</b> voice.` : a.pitch === "high" ? `The little ${a.name} has a tiny, <b>high</b> voice.` : `The ${a.name} is in the <b>middle</b>: not too low, not too high.`;
+        const heard = await sayAsync(`${pick(PRAISE)} ${why}`);
+        if (my !== token || !heard) return;
+        if (round >= ROUNDS) {
+          dots();
+          KIT.confetti();
+          const levels = new Set([...(shell.progress().u8?.levels || []), level]);
+          shell.mark("u8", { done: true, levels: [...levels] });
+          const next = level === "easy" ? " Try 🦊 Closer next!" : level === "medium" ? " Try 🦁 Three animals!" : "";
+          if (!(await sayAsync(`🎉 You found all ${ROUNDS}!${next}`))) return;
+          round = 0;
+        }
+        if (my === token) ask();
+      } else {
+        MUSIC.oops();
+        g.querySelector("rect").setAttribute("stroke", "#f0a37a");
+        const hint = q.answer === "low" ? "That sound was <b>low</b> and deep. Which animal is big?" : q.answer === "high" ? "That sound was <b>high</b> and squeaky. Which animal is little?" : "That sound was in the <b>middle</b>. Not the biggest, not the smallest.";
+        open = false;
+        if (!(await sayAsync(`Good try! ${hint} Listen again.`)) || my !== token) return;
+        open = true;
+        sound(q.answer);
+      }
+    };
+    stopExtras = () => {
+      stage.onpointerdown = null;
+    };
+    panel.onclick = (event) => {
+      if (my !== token) return;
+      const lv = event.target.closest("[data-l]");
+      if (lv) {
+        level = lv.dataset.l;
+        panel.querySelectorAll("[data-l]").forEach((b) => b.setAttribute("aria-pressed", String(b === lv)));
+        round = 0;
+        VOICE.hush();
+        return ask();
+      }
+      if (event.target.closest("[data-again]") && q) sound(q.answer);
+    };
+    panel.querySelector('[data-l="easy"]').setAttribute("aria-pressed", "true");
+    ask();
+  },
+
   u2() {
     const my = token;
     let round = 0;
@@ -796,6 +1080,8 @@ const units = {
 const shell = SHELL({
   units: UNITS,
   how: {
+    u0: { icon: "👀", title: "See it", steps: ["Watch the pictures and listen.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    u8: { icon: "🐻", title: "Animal sounds", steps: ["Listen to the sound.", "Low and deep? Tap the big animal.", "High and squeaky? Tap the little animal."] },
     free: { icon: "🎶", title: "Free play", steps: ["Tap a bar to hear it.", "Slide your finger across the bars for a whoosh!"] },
     u1: { icon: "🎨", title: "Meet the colours", steps: ["Listen to the colour.", "Tap that coloured bar."] },
     u2: { icon: "🐘", title: "Loud or soft? Fast or slow?", steps: ["Listen to the music.", "Loud? Tap the elephant 🐘. Soft? Tap the mouse 🐭.", "Fast? Tap the rabbit 🐇. Slow? Tap the tortoise 🐢."] },
@@ -805,7 +1091,7 @@ const shell = SHELL({
     u6: { icon: "🎵", title: "First songs", steps: ["Pick a song.", "Tap the bar that glows.", "Keep going to the end!"] },
     u7: { icon: "🔤", title: "Colours to letters", steps: ["Each bar has a letter now.", "Listen for the letter, then tap it."] },
   },
-  start: "free",
+  start: "u0",
   onStop() {
     reset();
     panel.onclick = null;

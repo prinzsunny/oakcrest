@@ -35,11 +35,15 @@
 </header>
 <main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
 </div>
-<script>const { $, el, svg: makeSvg, text, panel, say, pick, wait, confetti, PRAISE } = KIT;
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, wait, confetti, PRAISE, explain, everyday, emoji } = KIT;
 const stage = $("[data-stage]");
 let token = 0;
 
-const UNITS = [{ id: "g1", label: "1. Tangram puzzles" }];
+const UNITS = [
+  { id: "g0", label: "👀 See it", icon: "👀" },
+  { id: "g1", label: "1. Tangram puzzles" },
+  { id: "g2", label: "2. Cat, fish and rocket" },
+];
 const TYPES = {
   L: { name: "big triangle", color: "#ef6c4a" },
   M: { name: "middle triangle", color: "#f5b82e" },
@@ -83,7 +87,49 @@ const PUZZLES = [
       ["L", [[4, 0], [8, 0], [6, 2]]],
       ["L", [[4, 0], [6, 2], [4, 4]]],
     ],
-  }
+  },
+  {
+    name: "Cat",
+    icon: "🐱",
+    set: "g2",
+    slots: [
+      ["Q", [[2, 0], [3, 1], [2, 2], [1, 1]]],
+      ["S", [[1, -1], [2, 0], [1, 1]]],
+      ["S", [[3, -1], [3, 1], [2, 0]]],
+      ["L", [[2, 2], [2, 6], [4, 4]]],
+      ["L", [[2, 6], [6, 6], [4, 4]]],
+      ["M", [[0, 6], [2, 6], [2, 4]]],
+      ["P", [[6, 6], [8, 6], [9, 5], [7, 5]]],
+    ],
+  },
+  {
+    name: "Fish",
+    icon: "🐟",
+    set: "g2",
+    slots: [
+      ["L", [[0, 2], [2, 0], [4, 2]]],
+      ["L", [[0, 2], [4, 2], [2, 4]]],
+      ["M", [[4, 2], [6, 0], [6, 2]]],
+      ["S", [[4, 2], [6, 2], [5, 3]]],
+      ["S", [[5, 3], [6, 2], [6, 4]]],
+      ["Q", [[2, 0], [3, -1], [4, 0], [3, 1]]],
+      ["P", [[3, 3], [2, 4], [4, 4], [5, 3]]],
+    ],
+  },
+  {
+    name: "Rocket",
+    icon: "🚀",
+    set: "g2",
+    slots: [
+      ["M", [[0, 1.4142], [2.8284, 1.4142], [1.4142, 0]]],
+      ["L", [[0, 1.4142], [2.8284, 1.4142], [0, 4.2426]]],
+      ["L", [[2.8284, 1.4142], [2.8284, 4.2426], [0, 4.2426]]],
+      ["S", [[0, 2.8284], [0, 4.2426], [-1.4142, 4.2426]]],
+      ["S", [[2.8284, 2.8284], [2.8284, 4.2426], [4.2426, 4.2426]]],
+      ["Q", [[0.7071, 4.2426], [2.1213, 4.2426], [2.1213, 5.6569], [0.7071, 5.6569]]],
+      ["P", [[0.7071, 5.6569], [2.1213, 5.6569], [3.5355, 7.0711], [2.1213, 7.0711]]],
+    ],
+  },
 ];
 
 const centroid = (pts) => [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
@@ -102,10 +148,210 @@ const shapeOf = (piece) => {
 };
 const samePoly = (a, b, tol = 0.2) => a.length === b.length && a.every((p) => b.some((q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < tol));
 
+// Where each of the 7 pieces sits (centre x, y, turns of 45°, flipped) to make a puzzle picture.
+function layoutOf(puzzle) {
+  const used = new Set();
+  const out = [];
+  for (const [type, pts] of puzzle.slots) {
+    const c = centroid(pts);
+    let found = null;
+    PIECES.forEach(([t, base], i) => {
+      if (found || t !== type || used.has(i)) return;
+      for (let rot = 0; rot < 8 && !found; rot++)
+        for (const flip of [false, true]) if (!found && samePoly(shapeOf({ base, rot, flip, x: c[0], y: c[1] }), pts)) found = { i, x: c[0], y: c[1], rot, flip };
+    });
+    used.add(found.i);
+    out[found.i] = found;
+  }
+  return out;
+}
+
+// A tangram piece drawn around its own centre, moved with translate / rotate / scale.
+function seePiece(parent, i) {
+  const [type, base] = PIECES[i];
+  const c = centroid(base);
+  const g = el("g", {}, parent);
+  el("path", { d: "M" + base.map(([x, y]) => `${x - c[0]} ${y - c[1]}`).join("L") + "Z", fill: TYPES[type].color, stroke: "#fff", "stroke-width": 3, "vector-effect": "non-scaling-stroke", "stroke-linejoin": "round" }, g);
+  const state = { x: 0, y: 0, rot: 0, sx: 1, u: 60 };
+  const put = (st) => {
+    Object.assign(state, st);
+    g.setAttribute("transform", `translate(${state.x} ${state.y}) rotate(${state.rot * 45}) scale(${state.u * state.sx} ${state.u})`);
+  };
+  return { g, state, put, type };
+}
+// Pixel place of a layout so the picture fits a box.
+function fitLayout(puzzle, box = { x: 60, y: 40, w: 880, h: 470 }, maxU = 80) {
+  const xs = puzzle.slots.flatMap(([, p]) => p.map((q) => q[0]));
+  const ys = puzzle.slots.flatMap(([, p]) => p.map((q) => q[1]));
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  const u = Math.min(box.w / (Math.max(...xs) - minX), box.h / (Math.max(...ys) - minY), maxU);
+  const ox = box.x + (box.w - (Math.max(...xs) - minX) * u) / 2 - minX * u;
+  const oy = box.y + (box.h - (Math.max(...ys) - minY) * u) / 2 - minY * u;
+  return layoutOf(puzzle).map((p) => ({ x: ox + p.x * u, y: oy + p.y * u, rot: p.rot, sx: p.flip ? -1 : 1, u }));
+}
+async function glide(api, piece, to, ms = 1200) {
+  const from = { ...piece.state };
+  let dr = to.rot - from.rot;
+  dr = ((((dr + 4) % 8) + 8) % 8) - 4;
+  await api.tween(ms, (t) => piece.put({ x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t, rot: from.rot + dr * t, sx: from.sx + (to.sx - from.sx) * t, u: from.u + (to.u - from.u) * t }));
+  piece.put({ ...to, rot: ((to.rot % 8) + 8) % 8 });
+}
+
 const units = {
-  g1() {
+  g0() {
     const my = token;
-    let index = shell.progress().g1?.next || 0;
+    const label = (parent, x, y, str, size = 32, fill = "#2b1d12") => text(parent, x, y, str, { "font-size": size, fill, "font-weight": 900 });
+    const scenes = [
+      {
+        say: "Why do we play tangrams? Fitting shapes together trains your shape brain! Tangram is an old puzzle from China.",
+        draw: everyday([["🧩", "Puzzles train shape thinking"], ["🏮", "An old puzzle from China"], ["🧳", "Packing a suitcase"], ["🧱", "Building with blocks"]]),
+      },
+      {
+        say: "A tangram is a square cut into <b>7 pieces</b>. Watch them slide apart. Let's count them!",
+        async draw(v, api) {
+          const home = fitLayout(PUZZLES[0], { x: 350, y: 110, w: 300, h: 300 });
+          const pieces = PIECES.map((_, i) => seePiece(v, i));
+          pieces.forEach((p, i) => p.put(home[i]));
+          await api.wait(1400);
+          const cx = 500;
+          const cy = 260;
+          await Promise.all(pieces.map((p, i) => glide(api, p, { ...home[i], x: cx + (home[i].x - cx) * 2.1, y: cy + (home[i].y - cy) * 1.55 }, 1500)));
+          for (const [i, p] of pieces.entries()) {
+            await api.wait(450);
+            const t = label(v, p.state.x, p.state.y + 12, String(i + 1), 36, "#fff");
+            t.setAttribute("stroke", "#2b1d12");
+            t.setAttribute("stroke-width", 5);
+            t.setAttribute("paint-order", "stroke");
+            MUSIC.play("xylophone", [84, 86, 88, 89, 91, 93, 95][i], { gain: 0.35 });
+          }
+          label(v, 500, 545, "7 pieces!", 34, "#7a4520");
+        },
+      },
+      {
+        say: "Two <b>small triangles</b> fit together to make a <b>square</b>. Move them again, and they make a <b>middle triangle</b>!",
+        async draw(v, api) {
+          const u = 100;
+          const ox = 250;
+          const oy = 130;
+          const at = (x, y, rot) => ({ x: ox + x * u, y: oy + y * u, rot, sx: 1, u });
+          const a = seePiece(v, 3);
+          const b = seePiece(v, 5);
+          // Piece 3 points left at rot 0; piece 5 points up at rot 0 (each turn of 2 is a quarter turn).
+          a.put(at(-1.2, 1, 0));
+          b.put(at(3.2, 1, 2));
+          await api.wait(900);
+          await Promise.all([glide(api, a, at(2 / 3, 1, 0)), glide(api, b, at(4 / 3, 1, 2))]);
+          MUSIC.play("xylophone", 88, { gain: 0.4 });
+          const eq = label(v, 600, 245, "=", 70, "#7a4520");
+          const q = seePiece(v, 4);
+          q.put({ x: 760, y: oy + u, rot: 0, sx: 1, u });
+          label(v, 760, 360, "square", 30, "#7a4520");
+          await api.wait(2400);
+          eq.remove();
+          v.querySelectorAll("text").forEach((t) => t.remove());
+          q.g.remove();
+          await Promise.all([glide(api, a, at(5 / 3, 1, 0)), glide(api, b, at(1, 5 / 3, 0))]);
+          MUSIC.play("xylophone", 91, { gain: 0.4 });
+          label(v, 600, 245, "=", 70, "#7a4520");
+          const m = seePiece(v, 2);
+          m.put({ x: 820, y: oy + (4 / 3) * u, rot: 0, sx: 1, u });
+          label(v, 780, 360, "middle triangle", 30, "#7a4520");
+        },
+      },
+      {
+        say: "Tap a piece to <b>turn</b> it. Each tap turns it a little. Keep turning until it fits the shadow!",
+        async draw(v, api) {
+          const u = 95;
+          const target = { x: 700, y: 250, rot: 3, sx: 1, u };
+          const c = centroid(PIECES[2][1]);
+          const sh = el("g", { transform: `translate(${target.x} ${target.y}) rotate(${target.rot * 45}) scale(${u})` }, v);
+          el("path", { d: "M" + PIECES[2][1].map(([x, y]) => `${x - c[0]} ${y - c[1]}`).join("L") + "Z", fill: "#3b2a1d", opacity: 0.85 }, sh);
+          const p = seePiece(v, 2);
+          p.put({ x: 280, y: 250, rot: 0, sx: 1, u });
+          const tag = label(v, 280, 470, "", 34, "#7a4520");
+          await api.wait(1000);
+          for (let k = 1; k <= 3; k++) {
+            const hand = emoji(v, 280, 90, "👆", 60);
+            MUSIC.play("woodblock", 79, { gain: 0.5 });
+            await glide(api, p, { ...p.state, rot: k }, 700);
+            tag.textContent = `turn ${k}`;
+            hand.remove();
+            await api.wait(600);
+          }
+          await glide(api, p, target, 1300);
+          MUSIC.play("xylophone", 91, { gain: 0.4 });
+          tag.textContent = "it fits!";
+        },
+      },
+      {
+        say: "The purple <b>parallelogram</b> is special. Sometimes turning is not enough, so you <b>flip</b> it over, like turning a pancake!",
+        async draw(v, api) {
+          const u = 95;
+          const target = { x: 700, y: 250, rot: 0, sx: -1, u };
+          const c = centroid(PIECES[6][1]);
+          const sh = el("g", { transform: `translate(${target.x} ${target.y}) scale(${-u} ${u})` }, v);
+          el("path", { d: "M" + PIECES[6][1].map(([x, y]) => `${x - c[0]} ${y - c[1]}`).join("L") + "Z", fill: "#3b2a1d", opacity: 0.85 }, sh);
+          const p = seePiece(v, 6);
+          p.put({ x: 280, y: 250, rot: 0, sx: 1, u });
+          const tag = label(v, 280, 420, "", 34, "#7a4520");
+          await api.wait(1000);
+          await glide(api, p, { ...p.state, x: 700 }, 1100);
+          tag.setAttribute("x", 700);
+          tag.textContent = "doesn't fit…";
+          MUSIC.oops();
+          await api.wait(1300);
+          await glide(api, p, { ...p.state, x: 280 }, 900);
+          tag.setAttribute("x", 280);
+          tag.textContent = "↔️ flip!";
+          await glide(api, p, { ...p.state, sx: -1 }, 1300);
+          await api.wait(500);
+          await glide(api, p, target, 1100);
+          MUSIC.play("xylophone", 91, { gain: 0.4 });
+          tag.setAttribute("x", 700);
+          tag.textContent = "it fits!";
+        },
+      },
+      {
+        say: "The same 7 pieces can make lots of pictures: a square, a house, a cat and a rocket!",
+        async draw(v, api) {
+          const order = ["Square", "House", "Cat", "Rocket"].map((n) => PUZZLES.find((p) => p.name === n));
+          const box = { x: 230, y: 30, w: 540, h: 440 };
+          const first = fitLayout(order[0], box);
+          const pieces = PIECES.map((_, i) => seePiece(v, i));
+          pieces.forEach((p, i) => p.put(first[i]));
+          const tag = label(v, 500, 540, `${order[0].icon} ${order[0].name}`, 36, "#7a4520");
+          for (const pz of order.slice(1)) {
+            await api.wait(1800);
+            const lay = fitLayout(pz, box);
+            await Promise.all(pieces.map((p, i) => glide(api, p, lay[i], 1500)));
+            MUSIC.play("xylophone", 84 + order.indexOf(pz) * 4, { gain: 0.4 });
+            tag.textContent = `${pz.icon} ${pz.name}`;
+          }
+        },
+      },
+    ];
+    explain(scenes, {
+      alive: () => my === token,
+      title: "Tangrams",
+      onDone: () => {
+        shell.mark("g0", { done: true });
+        shell.go("g1");
+      },
+    });
+  },
+  g1() {
+    tangramUnit("g1", PUZZLES.filter((p) => !p.set));
+  },
+  g2() {
+    tangramUnit("g2", PUZZLES.filter((p) => p.set === "g2"));
+  },
+};
+
+function tangramUnit(id, puzzles) {
+  {
+    const my = token;
+    let index = Math.min(shell.progress()[id]?.next || 0, puzzles.length - 1);
     let pieces = [];
     let slots = [];
     let easy = true;
@@ -116,8 +362,7 @@ const units = {
     let dragging = null;
     let moved = false;
     let selected = null;
-    panel(`<div class="ap-chips" data-puzzles>${PUZZLES.filter((p) => p.slots.length === 7).map((p, i) => `<button type="button" data-p="${i}">${p.icon} ${p.name}</button>`).join("")}</div><p class="ap-status" data-status></p><div class="ap-buttons"><button type="button" data-do="flip">↔️ Flip</button><button type="button" data-do="hint">💡 Hint</button><button type="button" data-do="mode">👀 Hard mode</button><button type="button" data-do="reset">↺ Start again</button></div>`);
-    const puzzles = PUZZLES.filter((p) => p.slots.length === 7);
+    panel(`<div class="ap-chips" data-puzzles>${puzzles.map((p, i) => `<button type="button" data-p="${i}">${p.icon} ${p.name}</button>`).join("")}</div><p class="ap-status" data-status></p><div class="ap-buttons"><button type="button" data-do="flip">↔️ Flip</button><button type="button" data-do="hint">💡 Hint</button><button type="button" data-do="mode">👀 Hard mode</button><button type="button" data-do="reset">↺ Start again</button></div>`);
     const toPx = ([x, y]) => [ox + x * U, oy + y * U];
     const fromPx = ([x, y]) => [(x - ox) / U, (y - oy) / U];
     const setup = () => {
@@ -221,8 +466,8 @@ const units = {
       MUSIC.chime();
       confetti();
       window.OC?.count("tangrams");
-      const solved = new Set([...(shell.progress().g1?.solved || []), puzzles[index].name]);
-      shell.mark("g1", { solved: [...solved], next: (index + 1) % puzzles.length, done: solved.size >= puzzles.length });
+      const solved = new Set([...(shell.progress()[id]?.solved || []), puzzles[index].name]);
+      shell.mark(id, { solved: [...solved], next: (index + 1) % puzzles.length, done: solved.size >= puzzles.length });
       say(`🎉 ${pick(PRAISE)} You made the ${puzzles[index].name.toLowerCase()} with all 7 pieces!`);
       await wait(3400);
       if (my !== token) return;
@@ -301,14 +546,17 @@ const units = {
       }
     };
     setup();
-  },
-};
+  }
+}
 
 const shell = SHELL({
   units: UNITS,
   how: {
+    g0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    g2: { icon: "🐱", title: "Cat, fish and rocket", steps: ["Drag a coloured piece into the dark shape.", "Tap a piece to turn it. Use Flip for the purple one.", "Fit all 7 pieces to make the picture!"] },
     g1: { icon: "🧩", title: "Tangram puzzles", steps: ["Drag a coloured piece into the dark shape.", "Tap a piece to turn it. Use Flip for the purple one.", "Fit all 7 pieces to finish the picture!"] },
   },
+  start: "g0",
   onStop() {
     token += 1;
     $("[data-panel]").onclick = null;

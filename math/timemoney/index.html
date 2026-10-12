@@ -1,0 +1,1082 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clocks & Coins · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="math">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Clocks & Coins</b><small>Math · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, pickInt, wait, confetti, PRAISE, KIND, choices, explain, everyday, emoji, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "c0", label: "1. See it", icon: "👀" },
+  { id: "c1", label: "2. What time is it?", icon: "🕰️" },
+  { id: "c2", label: "3. Set the clock", icon: "👆" },
+  { id: "c3", label: "4. My day in order", icon: "🌅" },
+  { id: "c4", label: "5. How long until?", icon: "⏳" },
+  { id: "c5", label: "6. Count the coins", icon: "🪙" },
+  { id: "c6", label: "7. Coin shop", icon: "🛒" },
+];
+
+const css = document.createElement("style");
+css.textContent = `
+.tm-ans{display:flex;flex-direction:column;align-items:center;gap:8px;min-height:48px}
+.tm-tap{cursor:pointer}
+.tm-ans .ap-buttons button{min-height:50px}
+@media (max-height:460px){.tm-ans .ap-buttons button{min-height:40px}.tm-ans{min-height:40px;gap:5px}}
+`;
+document.head.appendChild(css);
+
+const INK = "#2b1d12";
+const HOUR_INK = "#c0392b";
+const MIN_INK = "#1565c0";
+
+// ---------- helpers ----------
+function addDefs(svgNode) {
+  const defs = el("defs", {}, svgNode);
+  for (const [k, c] of Object.entries(COINS)) {
+    const g = el("radialGradient", { id: `tm-g-${k}`, cx: "38%", cy: "32%", r: "75%" }, defs);
+    el("stop", { offset: "0%", "stop-color": c.fill[0] }, g);
+    el("stop", { offset: "55%", "stop-color": c.fill[1] }, g);
+    el("stop", { offset: "100%", "stop-color": c.fill[2] }, g);
+  }
+  return defs;
+}
+function fresh() {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  addDefs(view);
+  return view;
+}
+const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+function tween(ms, fn, alive) {
+  return new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(true);
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!alive()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(ease(t));
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+}
+const toSvg = (svgNode, event) => {
+  const p = svgNode.createSVGPoint();
+  p.x = event.clientX;
+  p.y = event.clientY;
+  return p.matrixTransform(svgNode.getScreenCTM().inverse());
+};
+
+// ---------- time ----------
+const norm = (t) => ((Math.round(t) % 720) + 720) % 720;
+const hourOf = (t) => Math.floor(norm(t) / 60) % 12 || 12;
+const pad = (m) => String(m).padStart(2, "0");
+const fmt = (t) => `${hourOf(t)}:${pad(norm(t) % 60)}`;
+function words(t) {
+  const h = hourOf(t);
+  const m = norm(t) % 60;
+  const nh = hourOf(t + 60);
+  if (m === 0) return `${h} o'clock`;
+  if (m === 15) return `quarter past ${h}`;
+  if (m === 30) return `half past ${h}`;
+  if (m === 45) return `quarter to ${nh}`;
+  if (m < 30) return `${m} minute${m > 1 ? "s" : ""} past ${h}`;
+  return `${60 - m} minute${60 - m > 1 ? "s" : ""} to ${nh}`;
+}
+const durText = (d) => {
+  const h = Math.floor(d / 60);
+  const m = d % 60;
+  return h && m ? `${h} h ${m} min` : h ? `${h} hour${h > 1 ? "s" : ""}` : `${m} min`;
+};
+const durSay = (d) => {
+  const h = Math.floor(d / 60);
+  const m = d % 60;
+  const hs = h ? `${h} hour${h > 1 ? "s" : ""}` : "";
+  const ms = m ? `${m} minutes` : "";
+  return hs && ms ? `${hs} and ${ms}` : hs || ms;
+};
+
+function handPath(cx, cy, len, w) {
+  return `M${cx - w / 2} ${cy + w * 1.8} L${cx - w / 2} ${cy - len + w * 1.2} L${cx} ${cy - len} L${cx + w / 2} ${cy - len + w * 1.2} L${cx + w / 2} ${cy + w * 1.8} Z`;
+}
+// A wooden wall clock. Hands are geared: the hour hand turns 1/12 as fast as the minute hand.
+function clock(parent, cx, cy, r, total = 0, { labels = true } = {}) {
+  const g = el("g", {}, parent);
+  el("circle", { cx, cy: cy + 6, r: r * 1.1, fill: "rgba(70,40,15,.12)" }, g);
+  el("circle", { cx, cy, r: r * 1.1, fill: "#b9773f", stroke: "#7a4520", "stroke-width": 4 }, g);
+  el("circle", { cx, cy, r: r * 1.02, fill: "#8d5428" }, g);
+  el("circle", { cx, cy, r, fill: "#fffaf0" }, g);
+  const sector = el("path", { fill: "#cfe6fb", opacity: 0 }, g);
+  for (let i = 0; i < 60; i++) {
+    const a = (i * 6 * Math.PI) / 180;
+    const big = i % 5 === 0;
+    const r1 = r * (big ? 0.86 : 0.92);
+    const r2 = r * 0.97;
+    el("line", { x1: cx + Math.sin(a) * r1, y1: cy - Math.cos(a) * r1, x2: cx + Math.sin(a) * r2, y2: cy - Math.cos(a) * r2, stroke: "#5a4130", "stroke-width": big ? Math.max(3, r * 0.022) : Math.max(1.5, r * 0.01), "stroke-linecap": "round" }, g);
+  }
+  const nums = [];
+  if (labels)
+    for (let n = 1; n <= 12; n++) {
+      const a = (n * 30 * Math.PI) / 180;
+      nums.push(text(g, cx + Math.sin(a) * r * 0.69, cy - Math.cos(a) * r * 0.69 + r * 0.075, n, { "font-size": Math.max(22, r * 0.21), fill: INK, "font-weight": 800 }));
+    }
+  const hour = el("path", { d: handPath(cx, cy, r * 0.5, r * 0.075), fill: HOUR_INK, stroke: "#7d1f14", "stroke-width": 2, "stroke-linejoin": "round" }, g);
+  const minute = el("path", { d: handPath(cx, cy, r * 0.86, r * 0.05), fill: MIN_INK, stroke: "#0b3d7a", "stroke-width": 2, "stroke-linejoin": "round" }, g);
+  el("circle", { cx, cy, r: Math.max(6, r * 0.065), fill: INK }, g);
+  el("circle", { cx, cy, r: Math.max(2, r * 0.025), fill: "#e8c48a" }, g);
+  let cur = total;
+  const api = {
+    g,
+    nums,
+    hour,
+    minute,
+    get: () => cur,
+    set(t) {
+      cur = t;
+      hour.setAttribute("transform", `rotate(${(((t * 0.5) % 360) + 360) % 360} ${cx} ${cy})`);
+      minute.setAttribute("transform", `rotate(${(((t * 6) % 360) + 360) % 360} ${cx} ${cy})`);
+    },
+    sector(m, color = "#cfe6fb") {
+      if (!m) return sector.setAttribute("opacity", 0);
+      const R = r * 0.97;
+      if (m >= 60) {
+        sector.setAttribute("d", `M${cx} ${cy - R}A${R} ${R} 0 1 1 ${cx - 0.01} ${cy - R}Z`);
+      } else {
+        const a = (m * 6 * Math.PI) / 180;
+        sector.setAttribute("d", `M${cx} ${cy}L${cx} ${cy - R}A${R} ${R} 0 ${m > 30 ? 1 : 0} 1 ${cx + Math.sin(a) * R} ${cy - Math.cos(a) * R}Z`);
+      }
+      sector.setAttribute("fill", color);
+      sector.setAttribute("opacity", 1);
+    },
+  };
+  api.set(total);
+  return api;
+}
+function legend(parent, x, y) {
+  const g = el("g", {}, parent);
+  el("rect", { x, y: y - 14, width: 70, height: 14, rx: 7, fill: HOUR_INK }, g);
+  text(g, x + 86, y, "short hand = hours", { "font-size": 24, fill: INK, "text-anchor": "start" });
+  el("rect", { x, y: y + 30, width: 110, height: 10, rx: 5, fill: MIN_INK }, g);
+  text(g, x + 126, y + 42, "long hand = minutes", { "font-size": 24, fill: INK, "text-anchor": "start" });
+  return g;
+}
+function digital(parent, cx, cy, str, w = 320) {
+  const g = el("g", {}, parent);
+  el("rect", { x: cx - w / 2, y: cy - 66, width: w, height: 120, rx: 24, fill: "#3a281c", stroke: "#1f140c", "stroke-width": 4 }, g);
+  const t = text(g, cx, cy + 22, str, { "font-size": 76, fill: "#8ff0a4", "font-family": "ui-monospace, SFMono-Regular, Menlo, monospace" });
+  return t;
+}
+
+// ---------- money ----------
+// True US coin diameters (mm): dime 17.91 < penny 19.05 < nickel 21.21 < quarter 24.26.
+const COINS = {
+  q: { v: 25, name: "quarter", d: 24.26, fill: ["#ffffff", "#c3c8ce", "#868d95"], edge: "#6b7179", ink: "#2e3439", reeded: true },
+  d: { v: 10, name: "dime", d: 17.91, fill: ["#ffffff", "#d0d4d8", "#9097a0"], edge: "#757c85", ink: "#2e3439", reeded: true },
+  n: { v: 5, name: "nickel", d: 21.21, fill: ["#f5f5f2", "#b5b8b6", "#7f8483"], edge: "#666b6a", ink: "#2e3439", reeded: false },
+  p: { v: 1, name: "penny", d: 19.05, fill: ["#ffd0a6", "#c8753f", "#8a4220"], edge: "#6e3417", ink: "#3d1a07", reeded: false },
+};
+const ORDER = ["q", "d", "n", "p"];
+function coin(parent, x, y, k, s = 2.2, attrs = {}) {
+  const c = COINS[k];
+  const R = (c.d * s) / 2;
+  const g = el("g", { transform: `translate(${x} ${y})`, ...attrs }, parent);
+  el("circle", { cy: 3, r: R, fill: "rgba(0,0,0,.18)" }, g);
+  el("circle", { r: R, fill: `url(#tm-g-${k})`, stroke: c.edge, "stroke-width": 2 }, g);
+  if (c.reeded) el("circle", { r: R - 2, fill: "none", stroke: c.edge, "stroke-width": 3, "stroke-dasharray": "1.4 2.2", opacity: 0.8 }, g);
+  el("circle", { r: R * 0.8, fill: "none", stroke: "rgba(255,255,255,.6)", "stroke-width": 2 }, g);
+  el("circle", { r: R * 0.8 + 2, fill: "none", stroke: "rgba(0,0,0,.12)", "stroke-width": 1.5 }, g);
+  text(g, 0, R * 0.24, `${c.v}¢`, { "font-size": Math.max(22, R * 0.66), fill: c.ink, "font-weight": 900 });
+  return g;
+}
+const coinR = (k, s = 2.2) => (COINS[k].d * s) / 2;
+function bill(parent, x, y, w = 190, attrs = {}) {
+  const h = w * 0.43;
+  const g = el("g", { transform: `translate(${x} ${y})`, ...attrs }, parent);
+  el("rect", { x: -w / 2, y: -h / 2 + 4, width: w, height: h, rx: 8, fill: "rgba(0,0,0,.15)" }, g);
+  el("rect", { x: -w / 2, y: -h / 2, width: w, height: h, rx: 8, fill: "#cfe3c4", stroke: "#4e7a45", "stroke-width": 3 }, g);
+  el("rect", { x: -w / 2 + 8, y: -h / 2 + 8, width: w - 16, height: h - 16, rx: 5, fill: "none", stroke: "#6f9a63", "stroke-width": 2 }, g);
+  el("ellipse", { cx: 0, cy: 0, rx: h * 0.32, ry: h * 0.38, fill: "#a9c99a", stroke: "#4e7a45", "stroke-width": 2 }, g);
+  text(g, -w / 2 + 30, -h / 2 + 34, "1", { "font-size": 24, fill: "#2f5a28" });
+  text(g, w / 2 - 30, h / 2 - 14, "1", { "font-size": 24, fill: "#2f5a28" });
+  text(g, 0, h * 0.14, "$1", { "font-size": Math.max(24, h * 0.42), fill: "#24481f", "font-weight": 900 });
+  return g;
+}
+const money = (c) => (c >= 100 ? `$${Math.floor(c / 100)}.${pad(c % 100)}` : `${c}¢`);
+const moneySay = (c) => {
+  const d = Math.floor(c / 100);
+  const r = c % 100;
+  if (!d) return `${c} cent${c === 1 ? "" : "s"}`;
+  return `${d} dollar${d > 1 ? "s" : ""}${r ? ` and ${r} cent${r === 1 ? "" : "s"}` : ""}`;
+};
+function greedy(c) {
+  const out = [];
+  for (const k of ORDER) while (c >= COINS[k].v) {
+    out.push(k);
+    c -= COINS[k].v;
+  }
+  return out;
+}
+function jar(parent, x, y, w = 210, h = 300) {
+  const back = el("g", {}, parent);
+  el("rect", { x: x - w * 0.36, y: y - 34, width: w * 0.72, height: 38, rx: 10, fill: "#b9773f", stroke: "#7a4520", "stroke-width": 3 }, back);
+  el("rect", { x: x - w / 2, y, width: w, height: h, rx: 46, fill: "rgba(198,226,245,.45)" }, back);
+  const inside = el("g", {}, parent);
+  const front = el("g", { "pointer-events": "none" }, parent);
+  el("rect", { x: x - w / 2, y, width: w, height: h, rx: 46, fill: "none", stroke: "#86aac0", "stroke-width": 5 }, front);
+  el("path", { d: `M${x - w / 2 + 22} ${y + 50} L${x - w / 2 + 22} ${y + h - 60}`, stroke: "rgba(255,255,255,.85)", "stroke-width": 9, "stroke-linecap": "round" }, front);
+  const slot = (i) => ({ x: x - w * 0.27 + (i % 3) * w * 0.27 + (Math.floor(i / 3) % 2 ? w * 0.06 : 0), y: y + h - 38 - Math.floor(i / 3) * 30 });
+  return { back, inside, front, slot };
+}
+
+// ---------- one game frame: chips, status, rounds ----------
+const LEVELS = [
+  ["easy", "🐣 Easy"],
+  ["medium", "🦊 Medium"],
+  ["hard", "🦁 Hard"],
+];
+function frame(id, { rounds = 8, noun, countKey, ask }) {
+  const my = token;
+  const g = { id, level: "easy", round: 0, score: 0, missed: false, busy: false, gen: 0 };
+  g.live = () => my === token;
+  panel(`<div class="ap-row"><div class="ap-chips" data-lv>${LEVELS.map(([v, l]) => `<button type="button" data-l="${v}" aria-pressed="${v === "easy"}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div><div class="tm-ans" data-ans></div>`);
+  g.ans = $("[data-ans]");
+  g.next = () => {
+    if (!g.live()) return;
+    g.gen += 1;
+    g.missed = false;
+    g.busy = false;
+    $("[data-status]").textContent = `${noun} ${g.round + 1} of ${rounds}`;
+    g.ans.innerHTML = "";
+    g.ans.onclick = null;
+    ask(g);
+  };
+  g.wrong = (msg) => {
+    if (g.busy || !g.live()) return;
+    MUSIC.oops();
+    g.missed = true;
+    window.OC?.touch();
+    say(`${pick(KIND)} ${msg}`);
+  };
+  g.win = async (msg, ms = 1200) => {
+    if (g.busy || !g.live()) return;
+    g.busy = true;
+    const gen = g.gen;
+    MUSIC.chime();
+    if (!g.missed) g.score += 1;
+    g.round += 1;
+    window.OC?.count(countKey);
+    await Promise.all([sayAsync(`${pick(PRAISE)} ${msg}`), wait(ms)]);
+    if (!g.live() || gen !== g.gen) return;
+    if (g.round >= rounds) {
+      confetti();
+      shell.mark(id, { done: true });
+      await Promise.all([sayAsync(`🎉 You finished all ${rounds}! ${g.score} right on the first try.`), wait(2200)]);
+      if (!g.live() || gen !== g.gen) return;
+      g.round = 0;
+      g.score = 0;
+    }
+    g.next();
+  };
+  $("[data-lv]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-l]");
+    if (!b || !g.live()) return;
+    g.level = b.dataset.l;
+    document.querySelectorAll("[data-l]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    g.round = 0;
+    g.score = 0;
+    VOICE.hush();
+    g.next();
+  });
+  g.next();
+  return g;
+}
+
+// ---------- units ----------
+const units = {
+  c0() {
+    const my = token;
+    stage.innerHTML = "";
+    const scenes = [
+      {
+        say: "Why do we learn clocks and coins? So we know when school starts, when cartoons are on, when it's bedtime, and how to pay for a treat!",
+        draw: everyday([
+          ["🏫", "School starts at 8"],
+          ["📺", "Cartoon time"],
+          ["🛏️", "Bedtime"],
+          ["🍦", "Buying a treat"],
+        ]),
+      },
+      {
+        say: "A clock has two hands. The short red hand shows the hour. The long blue hand shows the minutes.",
+        async draw(v, api) {
+          addDefs(v);
+          const ck = clock(v, 330, 280, 200, 3 * 60);
+          const tag = (x, y, str, color) => {
+            const g = el("g", { opacity: 0 }, v);
+            el("rect", { x: x - 10, y: y - 40, width: 340, height: 60, rx: 18, fill: "#fff", stroke: color, "stroke-width": 4 }, g);
+            text(g, x + 160, y, str, { "font-size": 30, fill: color });
+            return g;
+          };
+          const a = tag(600, 200, "Short hand: hours", HOUR_INK);
+          const b = tag(600, 330, "Long hand: minutes", MIN_INK);
+          await api.wait(600);
+          await api.tween(700, (t) => a.setAttribute("opacity", t));
+          await api.tween(900, (t) => ck.hour.setAttribute("stroke-width", 2 + Math.sin(t * Math.PI) * 6));
+          await api.wait(900);
+          await api.tween(700, (t) => b.setAttribute("opacity", t));
+          await api.tween(900, (t) => ck.minute.setAttribute("stroke-width", 2 + Math.sin(t * Math.PI) * 6));
+          text(v, 780, 450, "It's 3 o'clock", { "font-size": 34, fill: INK });
+        },
+      },
+      {
+        say: "Watch! The long hand goes all the way round: that is 60 minutes. The short hand only creeps to the next number. 60 minutes make 1 hour.",
+        async draw(v, api) {
+          addDefs(v);
+          const ck = clock(v, 330, 280, 200, 3 * 60);
+          const d = digital(v, 760, 250, "3:00", 300);
+          const note = text(v, 760, 400, "", { "font-size": 30, fill: INK });
+          await api.wait(1800);
+          let last = -1;
+          await api.tween(9000, (t) => {
+            const m = Math.round(t * 60);
+            ck.set(3 * 60 + t * 60);
+            ck.sector(t * 60);
+            d.textContent = m === 60 ? "4:00" : `3:${pad(m)}`;
+            if (m % 5 === 0 && m !== last) {
+              last = m;
+              MUSIC.tick(m % 15 === 0);
+            }
+          }, (t) => t);
+          note.textContent = "60 minutes = 1 hour";
+          MUSIC.chime();
+        },
+      },
+      {
+        say: "Each number is 5 more minutes for the long hand. Count by fives with me: 5, 10, 15, all the way to 60!",
+        async draw(v, api) {
+          addDefs(v);
+          const cx = 500;
+          const cy = 290;
+          const r = 190;
+          const ck = clock(v, cx, cy, r, 6 * 60);
+          await api.wait(1200);
+          for (let n = 1; n <= 12; n++) {
+            const a = (n * 30 * Math.PI) / 180;
+            const lab = text(v, cx + Math.sin(a) * r * 1.3, cy - Math.cos(a) * r * 1.3 + 10, n * 5, { "font-size": 28, fill: MIN_INK, opacity: 0 });
+            const from = 6 * 60 + (n - 1) * 5;
+            await api.tween(500, (t) => {
+              ck.set(from + t * 5);
+              lab.setAttribute("opacity", t);
+            });
+            MUSIC.play("xylophone", 72 + [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19][n - 1], { gain: 0.4 });
+            await api.wait(420);
+          }
+        },
+      },
+      {
+        say: "Long hand at 3: quarter past. At 6: half past. At 9: quarter to the next hour.",
+        async draw(v, api) {
+          addDefs(v);
+          const items = [
+            [0, "o'clock", "#fff1c9"],
+            [15, "quarter past", "#cfe6fb"],
+            [30, "half past", "#d6f0d6"],
+            [45, "quarter to", "#f9d9d0"],
+          ];
+          for (let i = 0; i < 4; i++) {
+            const [m, name, color] = items[i];
+            const g = el("g", { opacity: 0 }, v);
+            const ck = clock(g, 130 + i * 247, 230, 100, 2 * 60 + m, { labels: true });
+            ck.sector(m || 0.01, color);
+            if (!m) ck.sector(0);
+            text(g, 130 + i * 247, 400, name, { "font-size": 28, fill: INK });
+            text(g, 130 + i * 247, 446, fmt(2 * 60 + m), { "font-size": 36, fill: MIN_INK });
+            await api.tween(700, (t) => g.setAttribute("opacity", t));
+            await api.wait(1100);
+          }
+        },
+      },
+      {
+        say: "These are our coins. A penny is 1 cent, a nickel is 5, a dime is 10, a quarter is 25. The dime is the smallest coin, but it is worth more!",
+        async draw(v, api) {
+          addDefs(v);
+          const order = ["p", "n", "d", "q"];
+          const xs = [110, 285, 450, 625];
+          for (let i = 0; i < 4; i++) {
+            const k = order[i];
+            const g = el("g", { opacity: 0 }, v);
+            coin(g, xs[i], 220, k, 4.6);
+            text(g, xs[i], 360, COINS[k].name, { "font-size": 32, fill: INK });
+            text(g, xs[i], 404, `${COINS[k].v} cent${COINS[k].v > 1 ? "s" : ""}`, { "font-size": 28, fill: "#7a4520" });
+            await api.tween(700, (t) => g.setAttribute("opacity", t));
+            await api.wait(700);
+          }
+          const b = el("g", { opacity: 0 }, v);
+          bill(b, 840, 220, 190);
+          text(b, 840, 360, "dollar", { "font-size": 32, fill: INK });
+          text(b, 840, 404, "100 cents", { "font-size": 28, fill: "#7a4520" });
+          await api.tween(700, (t) => b.setAttribute("opacity", t));
+          const tag = text(v, 450, 470, "smallest coin!", { "font-size": 26, fill: "#c0392b", opacity: 0 });
+          await api.tween(600, (t) => tag.setAttribute("opacity", t));
+        },
+      },
+      {
+        say: "To count coins, start with the biggest and count on: 25, 35, 40, 41, 42 cents! And 100 cents make 1 dollar.",
+        async draw(v, api) {
+          addDefs(v);
+          const list = ["q", "d", "n", "p", "p"];
+          const j = jar(v, 720, 170, 230, 320);
+          const total = text(v, 720, 110, "0¢", { "font-size": 56, fill: INK });
+          const coins = list.map((k, i) => coin(v, 110 + i * 105, 300, k, 2.3));
+          await api.wait(1400);
+          let sum = 0;
+          for (let i = 0; i < list.length; i++) {
+            const g = coins[i];
+            const sx = 110 + i * 105;
+            const s = j.slot(i);
+            j.inside.appendChild(g);
+            await api.tween(900, (t) => g.setAttribute("transform", `translate(${sx + (s.x - sx) * t} ${300 + (s.y - 300) * t - Math.sin(t * Math.PI) * 140}) scale(${1 - t * 0.25})`));
+            sum += COINS[list[i]].v;
+            total.textContent = `${sum}¢`;
+            MUSIC.play("xylophone", 84 + i * 2, { gain: 0.45 });
+            await api.wait(700);
+          }
+        },
+      },
+    ];
+    explain(scenes, { alive: () => my === token, onDone: () => shell.go("c1"), title: "Clocks & Coins" });
+  },
+
+  // What time is it?
+  c1() {
+    frame("c1", {
+      noun: "Clock",
+      countKey: "clocks read",
+      ask(g) {
+        fresh();
+        let m;
+        if (g.level === "easy") m = g.round < 3 ? 0 : pick([0, 30]);
+        else if (g.level === "medium") m = pick([0, 15, 30, 45, 15, 45]);
+        else m = g.round < 4 ? 5 * pickInt(1, 11) : pick([1, 2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 16, 17, 18, 19, 21, 22, 23, 24, 26, 27, 28, 29, 31, 32, 33, 34, 36, 37, 38, 39, 41, 42, 43, 44, 46, 47, 48, 49, 51, 52, 53, 54, 56, 57, 58, 59]);
+        const h = pickInt(1, 12);
+        const t = (h % 12) * 60 + m;
+        const ck = clock(view, 290, 280, 215, t);
+        const dig = digital(view, 740, 170, "?:??", 330);
+        legend(view, 600, 330);
+        const tag = text(view, 740, 470, "", { "font-size": 30, fill: MIN_INK });
+        // distractors
+        const cand = [];
+        if (m % 5 === 0) cand.push(((m / 5 || 12) % 12) * 60 + ((h * 5) % 60));
+        if (g.level === "easy") cand.push(t + 30, t - 30, t + 60, t - 60);
+        else if (g.level === "medium") cand.push(m >= 30 ? t + 60 : t - 60, t + 15, t - 15, t + 60);
+        else cand.push(t + 60, t - 60, t + 5, t - 5, t + 1, t - 1, t + 10);
+        const opts = [t];
+        for (const c of cand) {
+          const n = norm(c);
+          if (!opts.includes(n) && (g.level !== "easy" || n % 30 === 0)) opts.push(n);
+          if (opts.length >= (g.level === "easy" ? 3 : 4)) break;
+        }
+        const hint = () => {
+          const hourPart = m === 0 ? `The short red hand points right at ${h}.` : `The short red hand has gone past ${h}, so the hour is ${h}.`;
+          const at = m / 5 || 12;
+          const minPart = m === 0 ? "The long hand is at 12: o'clock." : m % 5 === 0 ? `The long blue hand points at ${at}. Count by fives: ${m} minutes.` : `The long hand is ${m % 5} little mark${m % 5 > 1 ? "s" : ""} after the ${Math.floor(m / 5) || 12}: ${Math.floor(m / 5) * 5} and ${m % 5} more is ${m} minutes.`;
+          return `${hourPart} ${minPart}`;
+        };
+        choices(g.ans, shuffle(opts).map((o) => ({ label: fmt(o), v: o })), (o, btn) => {
+          if (g.busy) return;
+          ck.sector(m);
+          if (o.v === t) {
+            btn.classList.add("right");
+            dig.textContent = fmt(t);
+            tag.textContent = words(t);
+            g.win(`It's ${fmt(t)}, ${words(t)}.`);
+          } else {
+            btn.classList.add("wrong");
+            g.wrong(hint());
+          }
+        });
+        say(g.level === "easy" ? "What time is it? Look at the short red hand first." : "What time does the clock show? Tap the answer.");
+      },
+    });
+  },
+
+  // Set the clock: drag the long hand, the short hand follows.
+  c2() {
+    frame("c2", {
+      noun: "Clock",
+      countKey: "clocks set",
+      ask(g) {
+        fresh();
+        let m;
+        if (g.level === "easy") m = pick([0, 30, 0]);
+        else if (g.level === "medium") m = pick([15, 30, 45, 0, 45]);
+        else m = g.round < 4 ? 5 * pickInt(1, 11) : pickInt(1, 59);
+        const step = g.level === "hard" && g.round >= 4 ? 1 : 5;
+        const h = pickInt(1, 12);
+        const target = (h % 12) * 60 + m;
+        const base = target - m;
+        let cur = m === 0 ? base - 60 : pick([base, base - 60]);
+        const cx = 300;
+        const cy = 280;
+        const R = 215;
+        const ck = clock(view, cx, cy, R, cur);
+        el("rect", { x: 580, y: 70, width: 360, height: 250, rx: 28, fill: "#fff7e8", stroke: "#e2c9a0", "stroke-width": 4 }, view);
+        text(view, 760, 120, "Make the clock say", { "font-size": 26, fill: "#7a4520" });
+        text(view, 760, 210, fmt(target), { "font-size": 84, fill: INK, "font-weight": 900 });
+        text(view, 760, 280, words(target), { "font-size": 30, fill: MIN_INK });
+        text(view, 760, 390, "👆 Drag the long blue hand", { "font-size": 26, fill: INK });
+        text(view, 760, 430, "The short hand follows it.", { "font-size": 24, fill: "#7a4520", "font-weight": 600 });
+        const shown = text(view, 760, 500, "", { "font-size": 30, fill: "#2e7d46" });
+        let drag = false;
+        let lastA = 0;
+        let lastFive = Math.floor(cur / 5);
+        const angleMin = (p) => {
+          const a = Math.atan2(p.x - cx, -(p.y - cy));
+          return (((a * 180) / Math.PI + 360) % 360) / 6;
+        };
+        const move = (p) => {
+          const a = angleMin(p);
+          let d = a - lastA;
+          if (d > 30) d -= 60;
+          if (d < -30) d += 60;
+          cur += d;
+          lastA = a;
+          ck.set(cur);
+          const f = Math.floor(cur / 5);
+          if (f !== lastFive) {
+            lastFive = f;
+            MUSIC.tick(((f % 12) + 12) % 12 === 0);
+          }
+        };
+        view.addEventListener("pointerdown", (event) => {
+          if (g.busy || !g.live()) return;
+          const p = toSvg(view, event);
+          if (Math.hypot(p.x - cx, p.y - cy) > R * 1.15) return;
+          drag = true;
+          shown.textContent = "";
+          try {
+            view.setPointerCapture(event.pointerId);
+          } catch {}
+          lastA = (((cur % 60) + 60) % 60);
+          move(p);
+          window.OC?.touch();
+        });
+        view.addEventListener("pointermove", (event) => {
+          if (drag && g.live()) move(toSvg(view, event));
+        });
+        const up = () => {
+          if (!drag) return;
+          drag = false;
+          cur = Math.round(cur / step) * step;
+          ck.set(cur);
+        };
+        view.addEventListener("pointerup", up);
+        view.addEventListener("pointercancel", up);
+        const turn = async (dir) => {
+          if (g.busy) return;
+          g.busy = true;
+          const from = cur;
+          await tween(1100, (t) => ck.set(from + dir * 60 * t), g.live);
+          cur = from + dir * 60;
+          ck.set(cur);
+          g.busy = false;
+        };
+        g.ans.innerHTML = `<div class="ap-buttons"><button type="button" data-b="back" aria-label="Turn back one hour">↺ 1 hour</button><button type="button" data-b="on" aria-label="Turn on one hour">1 hour ↻</button><button type="button" class="primary" data-b="check">✓ Check</button></div>`;
+        g.ans.onclick = (event) => {
+          const b = event.target.closest("[data-b]");
+          if (!b || !g.live()) return;
+          window.OC?.touch();
+          if (b.dataset.b === "back") return turn(-1);
+          if (b.dataset.b === "on") return turn(1);
+          if (g.busy) return;
+          const now = norm(cur);
+          shown.textContent = `Your clock: ${fmt(now)}`;
+          if (now === target) return g.win(`Your clock says ${fmt(target)}, ${words(target)}.`);
+          const nm = now % 60;
+          if (nm === m) g.wrong(`The minutes are right! But it says ${fmt(now)}. Turn the long hand all the way round to move the short hand to ${h}.`);
+          else g.wrong(m % 5 === 0 ? `Your clock says ${fmt(now)}. For ${m} minutes the long hand points at the ${m / 5 || 12}.` : `Your clock says ${fmt(now)}. For ${m} minutes the long hand goes ${m % 5} little marks past the ${Math.floor(m / 5) || 12}.`);
+        };
+        say(`Make the clock say ${fmt(target)}, ${words(target)}. Drag the long blue hand.`);
+      },
+    });
+  },
+
+  // My day in order (a.m. and p.m.)
+  c3() {
+    const DAY = [
+      ["🌅", "Wake up", 7 * 60],
+      ["🥣", "Breakfast", 7 * 60 + 30],
+      ["🏫", "School", 8 * 60 + 30],
+      ["🥪", "Lunch", 12 * 60],
+      ["🛝", "Play outside", 15 * 60 + 30],
+      ["🍝", "Dinner", 18 * 60],
+      ["🛁", "Bath", 19 * 60],
+      ["🛏️", "Bedtime", 20 * 60],
+    ];
+    const EXTRA = [["📚", "Library"], ["⚽", "Soccer"], ["🎹", "Piano"], ["🛒", "Shopping"], ["🐶", "Walk the dog"], ["🎂", "Party"], ["📞", "Call Grandma"], ["🧹", "Tidy up"], ["🧁", "Bake muffins"], ["🎨", "Painting"]];
+    const ampm = (t) => `${t % 720 >= 60 ? Math.floor((t % 720) / 60) : 12}:${pad(t % 60)} ${t < 720 ? "a.m." : "p.m."}`;
+    const ampmSay = (t) => `${ampm(t)}`;
+    frame("c3", {
+      noun: "Day",
+      countKey: "days put in order",
+      ask(g) {
+        fresh();
+        let acts;
+        if (g.level === "easy") acts = [pick(DAY.slice(0, 3)), pick(DAY.slice(3, 5)), pick(DAY.slice(5))];
+        else if (g.level === "medium") acts = [pick(DAY.slice(0, 2)), pick(DAY.slice(2, 4)), pick(DAY.slice(4, 6)), pick(DAY.slice(6))];
+        else {
+          // Five things at mixed times. Always a "1 p.m. vs 10 a.m." trap and a noon-time card.
+          const ts = new Set();
+          ts.add(pickInt(9, 11) * 60 + pick([0, 15, 30, 45]));
+          ts.add(pickInt(13, 15) * 60 + pick([0, 15, 30, 45]));
+          ts.add(12 * 60 + pick([0, 15, 30, 45]));
+          while (ts.size < 5) ts.add(pick([pickInt(6, 8), pickInt(16, 20)]) * 60 + pick([0, 15, 30, 45]));
+          const names = shuffle(EXTRA);
+          acts = [...ts].map((t, i) => [names[i][0], names[i][1], t]);
+        }
+        const n = acts.length;
+        const order = [...acts].sort((a, b) => a[2] - b[2]);
+        const deck = shuffle(acts);
+        const cw = Math.min(200, (920 - (n - 1) * 16) / n);
+        const x0 = (W - (n * cw + (n - 1) * 16)) / 2;
+        const xAt = (i) => x0 + i * (cw + 16);
+        const ch = 200;
+        // timeline slots
+        for (let i = 0; i < n; i++) {
+          el("rect", { x: xAt(i), y: 268, width: cw, height: ch, rx: 22, fill: "#f6efe3", stroke: "#d9c7a8", "stroke-width": 3, "stroke-dasharray": "10 8" }, view);
+          text(view, xAt(i) + cw / 2, 380, i + 1, { "font-size": 54, fill: "#d9c7a8" });
+        }
+        el("line", { x1: 120, x2: 880, y1: 505, y2: 505, stroke: "#c9a679", "stroke-width": 6, "stroke-linecap": "round" }, view);
+        el("path", { d: "M880 492 L904 505 L880 518 Z", fill: "#c9a679" }, view);
+        emoji(view, 80, 505, "🌅", 44);
+        emoji(view, 940, 505, "🌙", 40);
+        text(view, 500, 545, "morning  →  night", { "font-size": 24, fill: "#7a4520" });
+        let placed = 0;
+        const cards = deck.map((a, i) => {
+          const c = el("g", { class: "tm-tap", "data-i": i, transform: `translate(${xAt(i)} 24)` }, view);
+          el("rect", { width: cw, height: ch, rx: 22, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, c);
+          emoji(c, cw / 2, g.level === "easy" ? 80 : 62, a[0], g.level === "easy" ? 90 : 64);
+          const name = a[1];
+          text(c, cw / 2, g.level === "easy" ? 175 : 140, name, { "font-size": name.length > 10 && cw < 190 ? 22 : 26, fill: INK });
+          if (g.level !== "easy") text(c, cw / 2, 182, ampm(a[2]), { "font-size": cw < 180 ? 24 : 27, fill: a[2] < 720 ? "#b8620f" : "#3949ab", "font-weight": 900 });
+          return c;
+        });
+        view.addEventListener("pointerdown", async (event) => {
+          const c = event.target.closest(".tm-tap");
+          if (!c || g.busy || !g.live() || c.dataset.done) return;
+          const a = deck[Number(c.dataset.i)];
+          const want = order[placed];
+          if (a === want) {
+            c.dataset.done = "1";
+            const from = xAt(Number(c.dataset.i));
+            const slot = placed;
+            placed += 1;
+            MUSIC.play("xylophone", 72 + [0, 4, 7, 12, 16][slot], { gain: 0.45 });
+            VOICE.speak(g.level === "easy" ? a[1] : `${a[1]}, ${ampmSay(a[2])}`);
+            window.OC?.touch();
+            tween(700, (t) => c.setAttribute("transform", `translate(${from + (xAt(slot) - from) * t} ${24 + 244 * t})`), g.live);
+            if (placed === n) {
+              await wait(800);
+              g.win(g.level === "hard" ? "Earliest to latest. a.m. is before noon, p.m. is after noon." : "That's the order of the day, from morning to night!");
+            }
+          } else {
+            let msg;
+            if (g.level === "easy") msg = `We do that later. ${want[1]} comes first.`;
+            else if (a[2] >= 720 && want[2] < 720) msg = `a.m. is the morning and p.m. is after noon, so ${ampm(want[2])} comes before ${ampm(a[2])}`;
+            else if (Math.floor(want[2] / 60) === 12 && a[2] >= 780) msg = `12 p.m. is noon, the middle of the day, so ${ampm(want[2])} comes before ${ampm(a[2])}`;
+            else msg = `Find the earliest time: ${ampm(want[2])} is earlier than ${ampm(a[2])}`;
+            g.wrong(msg);
+          }
+        });
+        say(g.level === "easy" ? "What do we do first? Tap the pictures in order, morning to night." : g.level === "medium" ? "Tap the cards in order of the day, earliest first." : "Tap from earliest to latest. Watch out for a.m. and p.m.!");
+      },
+    });
+  },
+
+  // How long until? Elapsed time on a timeline.
+  c4() {
+    const SCEN = [["🎬", "The movie"], ["🎂", "The cake"], ["🏊", "Swimming"], ["🚗", "The car trip"], ["🎈", "The party"], ["🛝", "Park time"], ["🎹", "Piano class"]];
+    frame("c4", {
+      noun: "Question",
+      countKey: "time spans worked out",
+      ask(g) {
+        fresh();
+        let start;
+        let dur;
+        if (g.level === "easy") {
+          start = pickInt(1, 9) * 60;
+          dur = pickInt(1, 3) * 60;
+        } else if (g.level === "medium") {
+          start = pickInt(1, 9) * 60 + pick([0, 15, 30, 45]);
+          dur = pick([15, 30, 45, 60, 90, 30, 45]);
+        } else {
+          start = pickInt(1, 9) * 60 + 5 * pickInt(1, 11);
+          do dur = 5 * pickInt(7, 33);
+          while (Math.floor((start + dur) / 60) === Math.floor(start / 60) || (start + dur) % 60 === 0);
+        }
+        const end = start + dur;
+        const [icon, what] = pick(SCEN);
+        const c1 = clock(view, 150, 150, 105, start);
+        const c2 = clock(view, 850, 150, 105, end);
+        text(view, 150, 312, `Start ${fmt(start)}`, { "font-size": 30, fill: "#2e7d46" });
+        text(view, 850, 312, `End ${fmt(end)}`, { "font-size": 30, fill: HOUR_INK });
+        emoji(view, 500, 115, icon, 96);
+        text(view, 500, 230, what, { "font-size": 34, fill: INK });
+        text(view, 500, 275, "How long?", { "font-size": 30, fill: "#7a4520" });
+        void c1;
+        void c2;
+        // timeline
+        const H0 = Math.floor(start / 60) * 60;
+        const H1 = Math.ceil(end / 60) * 60 === H0 ? H0 + 60 : Math.ceil(end / 60) * 60;
+        const LY = 470;
+        const xOf = (t) => 90 + ((t - H0) / (H1 - H0)) * 820;
+        el("line", { x1: 70, x2: 930, y1: LY, y2: LY, stroke: "#5a4130", "stroke-width": 5, "stroke-linecap": "round" }, view);
+        for (let t = H0; t <= H1; t += 15) {
+          const big = t % 60 === 0;
+          el("line", { x1: xOf(t), x2: xOf(t), y1: LY - (big ? 14 : 8), y2: LY + (big ? 14 : 8), stroke: "#5a4130", "stroke-width": big ? 4 : 2 }, view);
+          if (big) text(view, xOf(t), LY + 48, fmt(t), { "font-size": 26, fill: INK });
+        }
+        const flag = (t, color) => {
+          el("line", { x1: xOf(t), x2: xOf(t), y1: LY, y2: LY - 60, stroke: color, "stroke-width": 4 }, view);
+          el("path", { d: `M${xOf(t)} ${LY - 60} l30 10 l-30 10 Z`, fill: color }, view);
+        };
+        flag(start, "#2e7d46");
+        flag(end, HOUR_INK);
+        const jumps = el("g", {}, view);
+        let jumping = false;
+        const showJumps = async () => {
+          if (jumping) return;
+          jumping = true;
+          jumps.innerHTML = "";
+          const stops = [start];
+          let t = start;
+          if (t % 60 && Math.ceil(t / 60) * 60 <= end) stops.push((t = Math.ceil(t / 60) * 60));
+          while (t + 60 <= end) stops.push((t += 60));
+          if (t < end) stops.push(end);
+          for (let i = 1; i < stops.length; i++) {
+            const a = stops[i - 1];
+            const b = stops[i];
+            const xa = xOf(a);
+            const xb = xOf(b);
+            const hgt = Math.min(70, 20 + (xb - xa) * 0.35);
+            const path = el("path", { d: `M${xa} ${LY - 4} Q${(xa + xb) / 2} ${LY - 4 - hgt * 2} ${xb} ${LY - 4}`, fill: "none", stroke: "var(--accent)", "stroke-width": 5, "stroke-linecap": "round" }, jumps);
+            const len = path.getTotalLength();
+            path.setAttribute("stroke-dasharray", len);
+            path.setAttribute("stroke-dashoffset", len);
+            await tween(600, (k) => path.setAttribute("stroke-dashoffset", len * (1 - k)), g.live);
+            const d = b - a;
+            text(jumps, (xa + xb) / 2, LY - hgt - 14, d === 60 ? "+1 h" : `+${d}`, { "font-size": 24, fill: "var(--accent-dark)" });
+            MUSIC.play("xylophone", 76 + i * 2, { gain: 0.4 });
+            await wait(250);
+          }
+          jumping = false;
+        };
+        const opts = [dur];
+        const cand = g.level === "easy" ? [dur + 60, dur - 60, dur + 120, dur - 120] : g.level === "medium" ? [dur + 15, dur - 15, dur + 30, dur - 30, dur + 60] : [dur + 10, dur - 10, dur + 60, dur - 60, dur + 5, dur - 5];
+        for (const c of shuffle(cand)) if (c > 0 && !opts.includes(c) && opts.length < (g.level === "easy" ? 3 : 4)) opts.push(c);
+        choices(g.ans, shuffle(opts).map((o) => ({ label: durText(o), v: o })), async (o, btn) => {
+          if (g.busy) return;
+          if (o.v === dur) {
+            btn.classList.add("right");
+            g.busy = true;
+            await showJumps();
+            g.busy = false;
+            g.win(`${what} lasts ${durSay(dur)}. From ${fmt(start)} to ${fmt(end)}.`, 1800);
+          } else {
+            btn.classList.add("wrong");
+            g.wrong(start % 60 ? "Jump to the next o'clock first, then count the hours, then the minutes left." : "Count the hour jumps on the line, from the green flag to the red flag.");
+            showJumps();
+          }
+        });
+        say(`${what} starts at ${fmt(start)} and ends at ${fmt(end)}. How long is it?`);
+      },
+    });
+  },
+
+  // Count the coins
+  c5() {
+    frame("c5", {
+      noun: "Jar",
+      countKey: "coin piles counted",
+      ask(g) {
+        fresh();
+        let list = [];
+        let withBill = false;
+        if (g.level === "easy") list = Array(pickInt(3, g.round < 4 ? 6 : 10)).fill("p");
+        else if (g.level === "medium") {
+          const kind = pick(["np", "dp", "dn", "dnp"]);
+          for (const k of kind) list.push(...Array(pickInt(1, kind.length === 3 ? 2 : 4)).fill(k));
+        } else {
+          do {
+            list = [...Array(pickInt(0, 3)).fill("q"), ...Array(pickInt(0, 3)).fill("d"), ...Array(pickInt(0, 2)).fill("n"), ...Array(pickInt(0, 4)).fill("p")];
+          } while (list.length < 4 || list.reduce((s, k) => s + COINS[k].v, 0) < 30);
+          withBill = g.round >= 5;
+        }
+        list = shuffle(list);
+        const total = list.reduce((s, k) => s + COINS[k].v, 0) + (withBill ? 100 : 0);
+        // table
+        el("rect", { x: 30, y: 40, width: 620, height: 470, rx: 30, fill: "#f3e3c8", stroke: "#d8bf96", "stroke-width": 4 }, view);
+        const j = jar(view, 815, 180, 220, 300);
+        const shown = text(view, 815, 120, g.level === "easy" ? "0" : "?", { "font-size": 60, fill: INK });
+        const cols = list.length > 8 ? 4 : list.length > 4 ? 4 : list.length;
+        const rows = Math.ceil(list.length / cols);
+        const pos = list.map((_, i) => ({ x: 340 - ((cols - 1) * 140) / 2 + (i % cols) * 140 + pickInt(-10, 10), y: 275 - ((rows - 1) * 130) / 2 + Math.floor(i / cols) * 130 + pickInt(-8, 8) }));
+        if (withBill) {
+          const b = bill(view, 340, 75 + 10, 160);
+          b.setAttribute("transform", `translate(340 80) scale(.85)`);
+          pos.forEach((p) => (p.y += 40));
+        }
+        let dropped = 0;
+        let sum = 0;
+        const nodes = list.map((k, i) => {
+          const c = coin(view, pos[i].x, pos[i].y, k, 3.2, { class: "tm-tap", "data-i": i });
+          text(c, 0, coinR(k, 3.2) + 28, COINS[k].name, { "font-size": 22, fill: "#7a4520", "font-weight": 700 });
+          return c;
+        });
+        view.addEventListener("pointerdown", (event) => {
+          const c = event.target.closest(".tm-tap");
+          if (!c || c.dataset.done || !g.live()) return;
+          c.dataset.done = "1";
+          const i = Number(c.dataset.i);
+          const k = list[i];
+          const slot = j.slot(dropped);
+          dropped += 1;
+          sum += COINS[k].v;
+          window.OC?.touch();
+          c.querySelectorAll("text")[1]?.remove();
+          j.inside.appendChild(c);
+          tween(700, (t) => c.setAttribute("transform", `translate(${pos[i].x + (slot.x - pos[i].x) * t} ${pos[i].y + (slot.y - pos[i].y) * t - Math.sin(t * Math.PI) * 120}) scale(${1 - 0.3 * t})`), g.live);
+          MUSIC.play("xylophone", 84 + (dropped % 8) * 2, { gain: 0.4 });
+          if (g.level === "easy") {
+            shown.textContent = dropped;
+            VOICE.speak(String(dropped));
+          } else VOICE.speak(`${COINS[k].name}, ${COINS[k].v}`);
+        });
+        const cand = g.level === "easy" ? [total + 1, total - 1, total + 2, total - 2] : [total + 5, total - 5, total + 10, total - 10, total + 1, total - 1];
+        const opts = [total];
+        for (const c of shuffle(cand)) if (c > 0 && !opts.includes(c) && opts.length < (g.level === "easy" ? 3 : 4)) opts.push(c);
+        const countUp = () => {
+          const sorted = [...list].sort((a, b) => COINS[b].v - COINS[a].v);
+          let s = withBill ? 100 : 0;
+          const steps = sorted.map((k) => (s += COINS[k].v));
+          return (withBill ? "100, " : "") + steps.map((x) => (g.level === "easy" ? x : x)).join(", ");
+        };
+        choices(g.ans, shuffle(opts).map((o) => ({ label: g.level === "easy" ? String(o) : money(o), v: o })), (o, btn) => {
+          if (g.busy) return;
+          if (o.v === total) {
+            btn.classList.add("right");
+            shown.textContent = g.level === "easy" ? `${total}¢` : money(total);
+            g.win(g.level === "easy" ? `${total} pennies make ${total} cents.` : `${countUp()}. That's ${moneySay(total)}.`, 1600);
+          } else {
+            btn.classList.add("wrong");
+            g.wrong(g.level === "easy" ? "Tap each penny to drop it in the jar and count with me." : `Start with the biggest coins and count on: ${countUp()}.`);
+          }
+        });
+        say(g.level === "easy" ? "How many pennies? Tap each one into the jar and count." : withBill ? "A dollar bill and some coins! How much money is there?" : "How much money? Biggest coins first, then count on.");
+        void nodes;
+        void sum;
+      },
+    });
+  },
+
+  // Coin shop: pay exactly, or pick the right change from a dollar.
+  c6() {
+    const TOYS = [["🧸", "teddy bear"], ["🪀", "yo-yo"], ["🚂", "toy train"], ["⚽", "ball"], ["🪁", "kite"], ["🦖", "dinosaur"], ["🧩", "puzzle"], ["🍭", "lollipop"], ["🎈", "balloon"], ["🖍️", "crayon box"]];
+    frame("c6", {
+      noun: "Toy",
+      countKey: "toys bought",
+      ask(g) {
+        fresh();
+        const [icon, toy] = pick(TOYS);
+        const shelf = (x, price) => {
+          el("rect", { x: x - 120, y: 60, width: 240, height: 290, rx: 26, fill: "#fff7e8", stroke: "#e2c9a0", "stroke-width": 4 }, view);
+          el("rect", { x: x - 120, y: 290, width: 240, height: 22, fill: "#c9a679" }, view);
+          emoji(view, x, 175, icon, 130);
+          const tag = el("g", { transform: `translate(${x + 40} 330) rotate(-6)` }, view);
+          el("rect", { x: -70, y: -34, width: 140, height: 66, rx: 14, fill: "#fff", stroke: HOUR_INK, "stroke-width": 4 }, tag);
+          el("circle", { cx: -52, cy: -16, r: 6, fill: "none", stroke: HOUR_INK, "stroke-width": 3 }, tag);
+          text(tag, 8, 14, money(price), { "font-size": 40, fill: HOUR_INK, "font-weight": 900 });
+        };
+        if (g.level === "hard") {
+          let price;
+          do price = g.round < 5 ? 5 * pickInt(3, 19) : pickInt(11, 94);
+          while (greedy(100 - price).length > 6);
+          const change = 100 - price;
+          shelf(170, price);
+          bill(view, 520, 130, 190);
+          text(view, 520, 225, "You pay $1", { "font-size": 30, fill: INK });
+          el("path", { d: "M640 130 L760 130", stroke: "#7a4520", "stroke-width": 5, "stroke-linecap": "round" }, view);
+          el("path", { d: "M760 116 L784 130 L760 144 Z", fill: "#7a4520" }, view);
+          text(view, 870, 120, "Your change?", { "font-size": 28, fill: INK });
+          text(view, 870, 160, "Tap a tray", { "font-size": 24, fill: "#7a4520", "font-weight": 600 });
+          const opts = [change];
+          for (const c of shuffle([change + 5, change - 5, change + 10, change - 10])) if (c > 0 && c < 100 && !opts.includes(c) && opts.length < 3) opts.push(c);
+          const trays = shuffle(opts);
+          const sc = 2.7;
+          trays.forEach((amt, i) => {
+            const tx = 30 + i * 320;
+            const tg = el("g", { class: "tm-tap", "data-amt": amt }, view);
+            el("rect", { x: tx, y: 380, width: 300, height: 160, rx: 24, fill: "#f3e3c8", stroke: "#d8bf96", "stroke-width": 4 }, tg);
+            const cs = greedy(amt);
+            const per = cs.length > 3 ? Math.ceil(cs.length / 2) : cs.length;
+            cs.forEach((k, j) => {
+              const row = Math.floor(j / per);
+              const col = j % per;
+              const rowsN = Math.ceil(cs.length / per);
+              coin(tg, tx + 150 - ((per - 1) * 74) / 2 + col * 74, 460 - ((rowsN - 1) * 70) / 2 + row * 70, k, sc);
+            });
+          });
+          view.addEventListener("pointerdown", async (event) => {
+            const tg = event.target.closest(".tm-tap");
+            if (!tg || g.busy || !g.live()) return;
+            const amt = Number(tg.dataset.amt);
+            window.OC?.touch();
+            const steps = [];
+            let s = price;
+            for (const k of greedy(change).reverse()) steps.push((s += COINS[k].v));
+            if (amt === change) {
+              tg.querySelector("rect").setAttribute("fill", "#cdeccf");
+              g.win(`Count up from ${money(price).replace("¢", "")}: ${steps.join(", ")}. Your change is ${moneySay(change)}.`, 1800);
+            } else {
+              tg.querySelector("rect").setAttribute("fill", "#f6dcd4");
+              g.wrong(`That tray has ${moneySay(amt)}. Count up from ${price} to 100: ${steps.join(", ")}.`);
+            }
+          });
+          say(`The ${toy} costs ${moneySay(price)}. You pay with 1 dollar. Which tray is the right change?`);
+          return;
+        }
+        const price = g.level === "easy" ? pickInt(2, 10) : pickInt(12, 60);
+        const bank = g.level === "easy" ? ["n", "p"] : ORDER;
+        shelf(150, price);
+        // the counter mat
+        el("rect", { x: 300, y: 70, width: 430, height: 420, rx: 28, fill: "#e8f2e3", stroke: "#b9d3ad", "stroke-width": 4 }, view);
+        const putT = text(view, 515, 120, "You put in: 0¢", { "font-size": 30, fill: INK });
+        const mat = el("g", {}, view);
+        const paid = [];
+        const draw = () => {
+          mat.innerHTML = "";
+          paid.sort((a, b) => COINS[b].v - COINS[a].v);
+          paid.forEach((k, i) => coin(mat, 375 + (i % 4) * 94, 195 + Math.floor(i / 4) * 92, k, 2.8, { class: "tm-tap", "data-pi": i }));
+          putT.textContent = `You put in: ${money(paid.reduce((s, k) => s + COINS[k].v, 0))}`;
+        };
+        // the coin bank
+        el("rect", { x: 760, y: 30, width: 210, height: 500, rx: 28, fill: "#fff7e8", stroke: "#e2c9a0", "stroke-width": 4 }, view);
+        text(view, 865, 72, "Tap a coin", { "font-size": 24, fill: "#7a4520" });
+        const gap = 440 / bank.length;
+        bank.forEach((k, i) => {
+          const c = coin(view, 865, 100 + gap * (i + 0.5), k, bank.length > 2 ? 3.4 : 4.2, { class: "tm-tap", "data-bank": k });
+          void c;
+        });
+        const addCoin = (k) => {
+          if (paid.length >= 16) return;
+          paid.push(k);
+          MUSIC.play("xylophone", 88, { gain: 0.35 });
+          VOICE.speak(`${COINS[k].name}, ${COINS[k].v}`);
+        };
+        view.addEventListener("pointerdown", (event) => {
+          const c = event.target.closest(".tm-tap");
+          if (!c || g.busy || !g.live()) return;
+          window.OC?.touch();
+          if (c.dataset.bank) addCoin(c.dataset.bank);
+          else if (c.dataset.pi) {
+            paid.splice(Number(c.dataset.pi), 1);
+            MUSIC.play("xylophone", 81, { gain: 0.3 });
+          }
+          draw();
+        });
+        draw();
+        g.ans.innerHTML = `<div class="ap-buttons">${[...bank].reverse().map((k) => `<button type="button" data-coin="${k}" aria-label="Add a ${COINS[k].name}">${COINS[k].v}¢</button>`).join("")}<button type="button" data-b="clear" aria-label="Take all coins back">↺</button><button type="button" class="primary" data-b="pay">🛒 Pay</button></div>`;
+        g.ans.onclick = (event) => {
+          const cb = event.target.closest("[data-coin]");
+          if (cb && !g.busy && g.live()) {
+            window.OC?.touch();
+            addCoin(cb.dataset.coin);
+            return draw();
+          }
+          const b = event.target.closest("[data-b]");
+          if (!b || g.busy || !g.live()) return;
+          if (b.dataset.b === "clear") {
+            paid.length = 0;
+            return draw();
+          }
+          const sum = paid.reduce((s, k) => s + COINS[k].v, 0);
+          if (sum === price) g.win(`You paid exactly ${moneySay(price)} for the ${toy}.${paid.length === greedy(price).length ? " And with the fewest coins!" : ""}`, 1600);
+          else if (sum > price) g.wrong(`That's ${moneySay(sum)}: too much! The ${toy} costs ${moneySay(price)}. Tap a coin on the mat to take it back.`);
+          else g.wrong(`That's ${moneySay(sum)}. You need ${moneySay(price - sum)} more.`);
+        };
+        say(`The ${toy} costs ${moneySay(price)}. Tap coins to pay exactly ${moneySay(price)}, then press Pay.`);
+      },
+    });
+  },
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    c0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    c1: { icon: "🕰️", title: "What time is it?", steps: ["Look at the short red hand: the hour.", "Look at the long blue hand: the minutes.", "Tap the time the clock shows."] },
+    c2: { icon: "👆", title: "Set the clock", steps: ["Read the time on the card.", "Drag the long blue hand round the clock.", "Press ✓ Check when it's right."] },
+    c3: { icon: "🌅", title: "My day in order", steps: ["Look at the cards.", "Tap what happens first.", "Keep going until the day is in order."] },
+    c4: { icon: "⏳", title: "How long until?", steps: ["Look at the start and end clocks.", "Count the jumps on the timeline.", "Tap how long it takes."] },
+    c5: { icon: "🪙", title: "Count the coins", steps: ["Tap each coin to drop it in the jar.", "Count the money as you go.", "Tap how much there is."] },
+    c6: { icon: "🛒", title: "Coin shop", steps: ["Look at the price tag.", "Tap coins to pay that much.", "Press 🛒 Pay. Hard: pick the right change."] },
+  },
+  start: "c0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Math",
+  activity: "Clocks & Coins",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 77, 79, 81, 83, 84, 86, 88, 90, 91, 92, 96]);
+MUSIC.preload("woodblock", [72, 79]);
+MUSIC.preload("piano", [64, 67]);
+</script>
+</body>
+</html>

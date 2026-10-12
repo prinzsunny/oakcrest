@@ -127,6 +127,63 @@
     }
   }
 
+  // The soroban bead click: a short wooden tick plus the ring of a hard bead (same as the Soroban app).
+  let beadNoise = null;
+  let beadLast = 0;
+  function bead(strength = 1) {
+    const ctx = context();
+    if (!ctx || !audio.on || performance.now() - beadLast < 28) return;
+    beadLast = performance.now();
+    if (!beadNoise) {
+      const length = Math.floor(ctx.sampleRate * 0.03);
+      beadNoise = ctx.createBuffer(1, length, ctx.sampleRate);
+      const data = beadNoise.getChannelData(0);
+      for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 4);
+    }
+    const t = ctx.currentTime + 0.002;
+    const out = ctx.createGain();
+    out.gain.value = 0.9 * strength;
+    const air = ctx.createBiquadFilter();
+    air.type = "highpass";
+    air.frequency.value = 180;
+    out.connect(air).connect(audio.master);
+    const tick = ctx.createBufferSource();
+    tick.buffer = beadNoise;
+    tick.playbackRate.value = 0.9 + Math.random() * 0.3;
+    const band = ctx.createBiquadFilter();
+    band.type = "bandpass";
+    band.frequency.value = 3800 + Math.random() * 1400;
+    band.Q.value = 1.4;
+    const tickGain = ctx.createGain();
+    tickGain.gain.setValueAtTime(0.5, t);
+    tickGain.gain.exponentialRampToValueAtTime(0.001, t + 0.012);
+    tick.connect(band).connect(tickGain).connect(out);
+    tick.start(t);
+    tick.stop(t + 0.02);
+    const base = 1550 + Math.random() * 350;
+    for (const [ratio, level, decay] of [[1, 0.34, 0.045], [2.32, 0.2, 0.024], [4.25, 0.11, 0.013], [6.63, 0.05, 0.008]]) {
+      const osc = ctx.createOscillator();
+      osc.frequency.value = base * ratio * (0.985 + Math.random() * 0.03);
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(level, t + 0.0006);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + decay * 4);
+      osc.connect(gain).connect(out);
+      osc.start(t);
+      osc.stop(t + decay * 4 + 0.01);
+    }
+    const knock = ctx.createOscillator();
+    knock.frequency.setValueAtTime(260 + Math.random() * 40, t);
+    knock.frequency.exponentialRampToValueAtTime(190, t + 0.03);
+    const knockGain = ctx.createGain();
+    knockGain.gain.setValueAtTime(0.0001, t);
+    knockGain.gain.exponentialRampToValueAtTime(0.09, t + 0.001);
+    knockGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    knock.connect(knockGain).connect(out);
+    knock.start(t);
+    knock.stop(t + 0.06);
+  }
+
   const now = () => context()?.currentTime || 0;
   const tick = (accent = false, at = 0) => play("woodblock", accent ? 79 : 72, { gain: accent ? 0.75 : 0.55, at });
   function chime() {
@@ -176,5 +233,5 @@
     },
   };
 
-  window.MUSIC = { SAMPLES, audio, context, preload, play, tick, chime, oops, toggle, now, midiOf, fileOf, prettyOf, letterOf, isWhite, stepOf, midiOfStep, LETTERS, progress };
+  window.MUSIC = { SAMPLES, audio, context, preload, play, tick, bead, chime, oops, toggle, now, midiOf, fileOf, prettyOf, letterOf, isWhite, stepOf, midiOfStep, LETTERS, progress };
 })();
