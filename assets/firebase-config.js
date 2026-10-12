@@ -1,1 +1,1 @@
-window.OC_FIREBASE = null;
+window.OC_FIREBASE = {"projectId": "oakcrest-academy-home", "appId": "1:758871319672:web:6f5cee9ce2a499dc33398d", "storageBucket": "oakcrest-academy-home.firebasestorage.app", "apiKey": "AIzaSyCsAuTKTlFvocuscD0fTW7KO35B3MkGINw", "authDomain": "oakcrest-academy-home.firebaseapp.com", "messagingSenderId": "758871319672"};
