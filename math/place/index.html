@@ -820,7 +820,8 @@ const units = {
         const t = (N - lo) / step;
         q = { N, lo, hi, t, step, ans: t >= 0.5 ? hi : lo };
         draw();
-        say(`Is <b>${fmt(N)}</b> closer to ${fmt(lo)} or ${fmt(hi)}? Tap the valley where the ball will roll.`);
+        if (t === 0.5) say(`<b>${fmt(N)}</b> is exactly halfway: ${fmt(step / 2)} from ${fmt(lo)} and ${fmt(step / 2)} from ${fmt(hi)}. Neither is closer. By the agreed rounding rule, which way does it go?`);
+        else say(`Is <b>${fmt(N)}</b> closer to ${fmt(lo)} or ${fmt(hi)}? Tap the valley the ball will roll into.`);
         choices($("[data-ans]"), [lo, hi].map((v) => ({ label: `⛳ ${fmt(v)}`, v })), (o, button) => answer(o.v, button));
       },
       { thing: "numbers rounded" },
@@ -833,7 +834,7 @@ const units = {
       d += ` L${X(1.9)} ${H + 200} Z`;
       el("path", { d, fill: "#bfe3a5", stroke: "#5e9b48", "stroke-width": 6, "stroke-linejoin": "round" }, view);
       el("line", { x1: X(0.5), x2: X(0.5), y1: Y(0.5) - 10, y2: 470, stroke: "#5e9b48", "stroke-width": 3, "stroke-dasharray": "8 8" }, view);
-      text(view, X(0.5), Y(0.5) - 24, `halfway: ${fmt(q.lo + q.step / 2)}`, { "font-size": 26, fill: "#3f6e2e" });
+      text(view, X(0.5) + 92, 432, `halfway: ${fmt(q.lo + q.step / 2)}`, { "font-size": 22, fill: "#3f6e2e" });
       el("line", { x1: X(0), x2: X(1), y1: 470, y2: 470, stroke: "#5a4130", "stroke-width": 4 }, view);
       for (let k = 0; k <= 10; k++) {
         el("line", { x1: X(k / 10), x2: X(k / 10), y1: 460, y2: 480, stroke: "#5a4130", "stroke-width": 3 }, view);
@@ -875,13 +876,28 @@ const units = {
       if (!right) g.oops();
       const to = q.ans === q.hi ? 1 : 0;
       const t0 = q.t;
-      const ok = await tween(1300, (t) => place(t0 + (to - t0) * t, (to - t0) * t * 600), () => g.ok(gen));
+      const dLo = q.N - q.lo;
+      const dHi = q.hi - q.N;
+      // Show both distances on the number line, so the comparison is visible, not just told.
+      const span = (a, b, n, y) => {
+        el("path", { d: `M${X(a)} ${y} Q${(X(a) + X(b)) / 2} ${y - 46} ${X(b)} ${y}`, fill: "none", stroke: "#1d5bc9", "stroke-width": 4 }, view);
+        text(view, (X(a) + X(b)) / 2, y - 40, fmt(n), { "font-size": 24, fill: "#1d5bc9" });
+      };
+      span(0, q.t, dLo, 456);
+      span(q.t, 1, dHi, 456);
+      let ok = true;
+      if (q.t === 0.5) {
+        // A ball balanced on the very top would not roll either way: halfway is decided by a rule, not by distance.
+        ok = await tween(900, (t) => place(0.5 + 0.08 * t * to - 0.08 * t * (1 - to), 0), () => g.ok(gen));
+      } else ok = await tween(1300, (t) => place(t0 + (to - t0) * t, (to - t0) * t * 600), () => g.ok(gen));
       if (!ok) return;
       MUSIC.play("timpani", 48, { gain: 0.5 });
-      const half = q.t === 0.5 ? ` ${fmt(q.N)} is exactly halfway, and halfway numbers round up.` : "";
-      const msg = `${fmt(q.N)} is closer to ${fmt(q.ans)}, so it rounds to ${fmt(q.ans)}.${half}`;
+      const msg =
+        q.t === 0.5
+          ? `${fmt(q.N)} is ${fmt(dLo)} from ${fmt(q.lo)} and ${fmt(dHi)} from ${fmt(q.hi)}: exactly equal, so neither is closer. The usual convention (an agreed rule) is to round a halfway number up, so ${fmt(q.N)} rounds to ${fmt(q.hi)}. This is a rule people chose, not because ${fmt(q.hi)} is nearer.`
+          : `${fmt(q.N)} is ${fmt(dLo)} from ${fmt(q.lo)} and ${fmt(dHi)} from ${fmt(q.hi)}, so it is closer to ${fmt(q.ans)} and rounds to ${fmt(q.ans)}.`;
       if (right) g.win(`${pick(PRAISE)} ${msg}`, { ms: 3400 });
-      else g.skip(`${pick(KIND)} See where the ball rolled? ${msg}`, { ms: 4200 });
+      else g.skip(`${pick(KIND)} ${msg}`, { ms: 5200 });
     };
   },
 
@@ -1000,7 +1016,7 @@ const shell = SHELL({
     pv2: { icon: "🔍", title: "What is it worth?", steps: ["One digit has a yellow box.", "Look at its place name.", "Tap what that digit is worth."] },
     pv3: { icon: "✂️", title: "Break it apart", steps: ["Look at the big number.", "Type what each digit is worth.", "Then put parts back together."] },
     pv4: { icon: "🔁", title: "Trade 10 for 1", steps: ["A yellow pile has 10 or more.", "Tap it to count 10 blocks.", "They trade for 1 bigger block!"] },
-    pv5: { icon: "⛰️", title: "Round it", steps: ["The ball sits on a hill.", "Which valley is closer?", "Tap that number. Watch it roll!"] },
+    pv5: { icon: "⛰️", title: "Round it", steps: ["The number sits on a hill between two round numbers.", "Decide which is closer by comparing the two distances.", "Exactly halfway? Neither is closer; the agreed rule is to round up."] },
     pv6: { icon: "⚖️", title: "Which is bigger?", steps: ["Look at the two numbers.", "Check the biggest place first.", "Tap the bigger number."] },
   },
   start: "pv0",
