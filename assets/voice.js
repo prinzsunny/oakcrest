@@ -33,10 +33,12 @@
     const saved = read("sb-voice");
     voice.pick = voice.list.find((v) => v.name === saved) || (voice.list.includes(voice.pick) ? voice.pick : voice.list[0]) || null;
     document.querySelectorAll("[data-voice-pick]").forEach((menu) => {
-      menu.innerHTML = voice.list
-        .slice(0, 14)
-        .map((v) => `<option value="${v.name}"${v === voice.pick ? " selected" : ""}>${v.name.replace(/^Microsoft /, "").replace(/ Online \(Natural\).*/, " (natural)")}</option>`)
-        .join("");
+      menu.innerHTML =
+        `<optgroup label="Natural voices (best)">${NEURAL.map(([id, label]) => `<option value="neural:${id}"${neural.id === id ? " selected" : ""}>${label}</option>`).join("")}</optgroup>` +
+        `<optgroup label="Device voices">${voice.list
+          .slice(0, 14)
+          .map((v) => `<option value="device:${v.name}"${!neural.id && v === voice.pick ? " selected" : ""}>${v.name.replace(/^Microsoft /, "").replace(/ Online \(Natural\).*/, "")}</option>`)
+          .join("")}</optgroup>`;
     });
   }
 
@@ -66,14 +68,127 @@
       .replace(/\s+/g, " ")
       .trim();
 
+  // ── Natural voice: Piper neural text-to-speech running in the browser (free, open source, no server).
+  // The voice model downloads once (about 60 MB) and is cached by the browser; then each sentence takes a moment.
+  const NEURAL = [
+    ["en_US-hfc_female-medium", "Hope (natural)"],
+    ["en_US-kristin-medium", "Kristin (natural)"],
+    ["en_US-amy-medium", "Amy (natural)"],
+    ["en_US-lessac-medium", "Lessac (natural)"],
+    ["en_GB-alba-medium", "Alba, British (natural)"],
+    ["en_US-ryan-medium", "Ryan (natural)"],
+  ];
+  const TTS_URL = "https://cdn.jsdelivr.net/npm/@diffusionstudio/vits-web@1.0.3/+esm";
+  const neural = { id: null, mod: null, loading: null, ready: new Set(), failed: false, ctx: null, source: null, cache: new Map() };
+  {
+    const saved = read("oc-voice-engine");
+    if (saved === null || saved.startsWith("neural:")) neural.id = saved ? saved.slice(7) : NEURAL[0][0];
+  }
+  const audioCtx = () => {
+    if (!neural.ctx) {
+      const C = window.AudioContext || window.webkitAudioContext;
+      if (!C) return null;
+      neural.ctx = new C();
+    }
+    if (neural.ctx.state === "suspended") neural.ctx.resume();
+    return neural.ctx;
+  };
+  function toast(message) {
+    let box = document.querySelector(".vx-toast");
+    if (!message) return box && box.remove();
+    if (!box) {
+      box = document.createElement("div");
+      box.className = "vx-toast";
+      box.style.cssText = "position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:60;padding:8px 14px;border-radius:16px;background:#2b1d12;color:#fff;font:800 14px/1.3 system-ui,sans-serif;box-shadow:0 8px 20px rgba(0,0,0,.2);max-width:90vw;text-align:center";
+      document.body.appendChild(box);
+    }
+    box.textContent = message;
+  }
+  // Load the model for a voice (first time downloads it). Resolves true when ready.
+  function prepare(id = neural.id) {
+    if (!id || neural.failed) return Promise.resolve(false);
+    if (neural.ready.has(id)) return Promise.resolve(true);
+    if (neural.loading && neural.loading.id === id) return neural.loading.job;
+    const job = (async () => {
+      try {
+        neural.mod = neural.mod || (await import(TTS_URL));
+        const t = setTimeout(() => toast("🎙️ Getting the natural reading voice ready. This happens only once."), 1500);
+        await neural.mod.predict({ text: "Hi.", voiceId: id });
+        clearTimeout(t);
+        toast("");
+        neural.ready.add(id);
+        return true;
+      } catch (error) {
+        console.warn("Natural voice unavailable, using the device voice.", error);
+        toast("");
+        neural.failed = true;
+        return false;
+      }
+    })();
+    neural.loading = { id, job };
+    return job;
+  }
+  async function bufferOf(id, sentence) {
+    const key = id + "|" + sentence;
+    if (neural.cache.has(key)) return neural.cache.get(key);
+    const job = (async () => {
+      const wav = await neural.mod.predict({ text: sentence, voiceId: id });
+      return audioCtx().decodeAudioData(await wav.arrayBuffer());
+    })();
+    neural.cache.set(key, job);
+    if (neural.cache.size > 120) neural.cache.delete(neural.cache.keys().next().value);
+    job.catch(() => neural.cache.delete(key));
+    return job;
+  }
+  function play(buffer, gen) {
+    return new Promise((resolve) => {
+      if (gen !== voice.gen) return resolve();
+      const ctx = audioCtx();
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      const gain = ctx.createGain();
+      gain.gain.value = 1;
+      source.connect(gain).connect(ctx.destination);
+      let over = false;
+      const end = () => {
+        if (over) return;
+        over = true;
+        resolve();
+      };
+      source.onended = end;
+      // If audio is blocked (no tap yet) the clip never "ends"; a timer keeps lessons moving.
+      setTimeout(end, buffer.duration * 1000 + 400);
+      neural.source = source;
+      source.start();
+    });
+  }
+  async function speakNeural(parts, gen) {
+    const id = neural.id;
+    let next = bufferOf(id, parts[0]);
+    for (let i = 0; i < parts.length; i++) {
+      if (gen !== voice.gen) return;
+      const buffer = await next;
+      if (i + 1 < parts.length) next = bufferOf(id, parts[i + 1]); // make the next sentence while this one plays
+      if (gen !== voice.gen) return;
+      await play(buffer, gen);
+      if (gen !== voice.gen) return;
+      await new Promise((r) => setTimeout(r, 120));
+    }
+  }
+
   function hush() {
     voice.gen += 1;
     if (ready) speechSynthesis.cancel();
+    try {
+      neural.source?.stop();
+    } catch {}
+    neural.source = null;
   }
 
   function unlock() {
     if (voice.unlocked || !ready) return;
     voice.unlocked = true;
+    if (neural.id) audioCtx();
     const line = new SpeechSynthesisUtterance(" ");
     line.volume = 0;
     speechSynthesis.speak(line);
@@ -92,7 +207,20 @@
         done = true;
         resolve(gen === voice.gen);
       };
-      if (!voice.on || !ready || !parts.length) {
+      if (!voice.on || !parts.length) {
+        setTimeout(finish, 300 + text.length * 45);
+        return;
+      }
+      // Natural voice when it is ready; the device voice meanwhile (first download) or if it can't load.
+      if (neural.id && !neural.failed) {
+        const ctx = neural.ready.has(neural.id) && audioCtx();
+        if (ctx && ctx.state === "running") {
+          speakNeural(parts, gen).then(finish, finish);
+          return;
+        }
+        prepare();
+      }
+      if (!ready) {
         setTimeout(finish, 300 + text.length * 45);
         return;
       }
@@ -126,10 +254,20 @@
     else speakAsync("Voice is on.");
   }
 
-  function choose(name) {
+  function choose(value) {
+    if (String(value).startsWith("neural:")) {
+      neural.id = value.slice(7);
+      neural.failed = false;
+      write("oc-voice-engine", value);
+      if (voice.on) prepare().then((ok) => ok && speakAsync("Hello! This is my natural voice."));
+      return;
+    }
+    const name = String(value).replace(/^device:/, "");
+    neural.id = null;
+    write("oc-voice-engine", "device:" + name);
     voice.pick = voice.list.find((v) => v.name === name) || voice.pick;
     if (voice.pick) write("sb-voice", voice.pick.name);
-    if (voice.on) speakAsync("Hello! Let's make music.");
+    if (voice.on) speakAsync("Hello! Let's learn.");
   }
 
   if (read("sb-voice-on") === "0") voice.on = false;
@@ -138,9 +276,11 @@
     speechSynthesis.addEventListener("voiceschanged", load);
   }
   addEventListener("pointerdown", unlock, { capture: true });
+  // Get the natural voice ready in the background so the first sentence is quick.
+  if (neural.id && voice.on) setTimeout(() => prepare(), 1500);
   addEventListener("keydown", unlock, { capture: true });
   addEventListener("pagehide", hush);
   document.addEventListener("visibilitychange", () => document.hidden && hush());
 
-  window.VOICE = { state: voice, speak: (html) => void speakAsync(html), speakAsync, hush, toggle, choose, load };
+  window.VOICE = { state: voice, speak: (html) => void speakAsync(html), speakAsync, hush, toggle, choose, load, prepare, neural, plain };
 })();
