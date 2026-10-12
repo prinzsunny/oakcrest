@@ -13,8 +13,17 @@
     }
     return out;
   };
-  const PRAISE = ["Yes!", "Great!", "Well done!", "Brilliant!", "Super!", "You got it!", "Fantastic!"];
-  const KIND = ["Good try!", "Almost!", "Not quite!", "Nearly!"];
+  // Older and advanced learners (Level 3 and up) get precise, academic feedback instead of cheers.
+  const mature = (() => {
+    try {
+      const at = window.OC ? OC.LEVELS.indexOf(OC.levelOf(OC.current())) : -1;
+      return at >= 2;
+    } catch {
+      return false;
+    }
+  })();
+  const PRAISE = mature ? ["Correct.", "Correct, and well reasoned.", "Exactly right.", "Precisely.", "Correct. Good method."] : ["Yes!", "Great!", "Well done!", "Brilliant!", "Super!", "You got it!", "Fantastic!"];
+  const KIND = mature ? ["Not quite.", "Not yet.", "Close. Reconsider.", "Check that again."] : ["Good try!", "Almost!", "Not quite!", "Nearly!"];
   const still = matchMedia("(prefers-reduced-motion: reduce)");
 
   function svg(viewBox, parent) {
