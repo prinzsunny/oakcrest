@@ -1,0 +1,2233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Theory Grades 1–2 · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="music">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Theory Grades 1–2</b><small>Music · Advanced</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>// Theory Grades 1–2 (and beyond): clefs, note values, time, accidentals, keys, intervals, triads, Italian terms, transposition.
+// Every exercise is generated fresh; every answer is computed by the small music-theory model below (tested in Node).
+
+// ===== MODEL START =====
+const GR = (() => {
+  const rp = (list) => list[Math.floor(Math.random() * list.length)];
+  const ri = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+  const rs = (list) => {
+    const out = [...list];
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+  };
+  const mod = (a, n) => ((a % n) + n) % n;
+
+  // ---------- pitch ----------
+  const LET = ["C", "D", "E", "F", "G", "A", "B"];
+  const NAT = [0, 2, 4, 5, 7, 9, 11];
+  const SIGN = { "-2": "𝄫", "-1": "♭", 0: "", 1: "♯", 2: "𝄪" };
+  const WORD = { "-2": "double flat", "-1": "flat", 0: "natural", 1: "sharp", 2: "double sharp" };
+  const nt = (l, a, o) => ({ l, a, o });
+  function P(s) {
+    const m = /^([A-G])(bb|b|##|#|♭|♯|)(-?\d)$/.exec(s);
+    return nt(LET.indexOf(m[1]), { "": 0, "#": 1, "♯": 1, "##": 2, b: -1, "♭": -1, bb: -2 }[m[2]], Number(m[3]));
+  }
+  const stepOf = (n) => n.o * 7 + n.l;
+  const midiOf = (n) => (n.o + 1) * 12 + NAT[n.l] + n.a;
+  const nameOf = (n) => LET[n.l] + SIGN[n.a];
+  const sciOf = (n) => nameOf(n) + n.o;
+  const atStep = (s, a = 0) => nt(mod(s, 7), a, Math.floor(s / 7));
+  const same = (a, b) => a.l === b.l && a.a === b.a && a.o === b.o;
+
+  // Staff position 0 = bottom line, even = line, odd = space. Treble bottom line E4, bass bottom line G2.
+  const CLEFS = {
+    treble: { bottom: stepOf(P("E4")), name: "treble clef", alias: "G clef", line: 2, lineNote: "G4" },
+    bass: { bottom: stepOf(P("G2")), name: "bass clef", alias: "F clef", line: 6, lineNote: "F3" },
+  };
+  const posOf = (n, clef) => stepOf(n) - CLEFS[clef].bottom;
+  const noteAt = (pos, clef, a = 0) => atStep(pos + CLEFS[clef].bottom, a);
+  function ledgers(pos) {
+    const out = [];
+    for (let p = -2; p >= pos; p -= 2) out.push(p);
+    for (let p = 10; p <= pos; p += 2) out.push(p);
+    return out;
+  }
+  const ORD = ["first", "second", "third", "fourth", "fifth"];
+  function placeWords(pos) {
+    if (pos >= 0 && pos <= 8) return pos % 2 === 0 ? `on the ${ORD[pos / 2]} line (counting from the bottom)` : `in the ${ORD[(pos - 1) / 2]} space (counting from the bottom)`;
+    if (pos === -1) return "in the space just below the staff";
+    if (pos === 9) return "in the space just above the staff";
+    if (pos < -1) return pos % 2 === 0 ? `on the ${ORD[-pos / 2 - 1]} ledger line below the staff` : `just below the ${ORD[(-pos - 1) / 2 - 1]} ledger line below the staff`;
+    return pos % 2 === 0 ? `on the ${ORD[(pos - 10) / 2]} ledger line above the staff` : `just above the ${ORD[(pos - 11) / 2]} ledger line above the staff`;
+  }
+  // Landmarks a reader counts from.
+  const LANDMARKS = {
+    treble: [[-2, "middle C (C4), on the first ledger line below"], [2, "G4, the line the clef curls around"], [5, "C5, in the third space"], [8, "F5, the top line"], [12, "C6, on the second ledger line above"]],
+    bass: [[-2, "E2, on the first ledger line below"], [0, "G2, the bottom line"], [6, "F3, the line between the clef's two dots"], [10, "middle C (C4), on the first ledger line above"]],
+  };
+  const landmarkFor = (pos, clef) => LANDMARKS[clef].reduce((best, m) => (Math.abs(m[0] - pos) < Math.abs(best[0] - pos) ? m : best));
+
+  // ---------- scales and keys ----------
+  const PATTERN = { major: [0, 2, 4, 5, 7, 9, 11, 12], harmonic: [0, 2, 3, 5, 7, 8, 11, 12], melodic: [0, 2, 3, 5, 7, 9, 11, 12], natural: [0, 2, 3, 5, 7, 8, 10, 12] };
+  function scaleOf(tonic, form) {
+    const s0 = stepOf(tonic);
+    const m0 = midiOf(tonic);
+    return PATTERN[form].map((semi, i) => {
+      const n = atStep(s0 + i);
+      n.a = m0 + semi - midiOf(n);
+      return n;
+    });
+  }
+  // Tonic chosen so the scale sits comfortably on the treble staff; the bass version is two octaves lower.
+  const KEYS = [
+    { id: "C", tonic: "C4", mode: "major", grade: 1 },
+    { id: "G", tonic: "G4", mode: "major", grade: 1 },
+    { id: "D", tonic: "D4", mode: "major", grade: 1 },
+    { id: "F", tonic: "F4", mode: "major", grade: 1 },
+    { id: "A", tonic: "A4", mode: "major", grade: 2 },
+    { id: "Bb", tonic: "Bb4", mode: "major", grade: 2 },
+    { id: "Eb", tonic: "Eb4", mode: "major", grade: 2 },
+    { id: "a", tonic: "A4", mode: "minor", grade: 2 },
+    { id: "e", tonic: "E4", mode: "minor", grade: 2 },
+    { id: "d", tonic: "D4", mode: "minor", grade: 2 },
+    { id: "E", tonic: "E4", mode: "major", grade: 3 },
+    { id: "Ab", tonic: "Ab4", mode: "major", grade: 3 },
+    { id: "b", tonic: "B4", mode: "minor", grade: 3 },
+    { id: "f#", tonic: "F#4", mode: "minor", grade: 3 },
+    { id: "c#", tonic: "C#4", mode: "minor", grade: 3 },
+    { id: "g", tonic: "G4", mode: "minor", grade: 3 },
+    { id: "c", tonic: "C4", mode: "minor", grade: 3 },
+    { id: "f", tonic: "F4", mode: "minor", grade: 3 },
+  ];
+  const SIG_COUNT = { C: 0, G: 1, D: 2, A: 3, E: 4, F: -1, Bb: -2, Eb: -3, Ab: -4, a: 0, e: 1, b: 2, "f#": 3, "c#": 4, d: -1, g: -2, c: -3, f: -4 };
+  const keyById = (id) => KEYS.find((k) => k.id === id);
+  const keysFor = (lv) => KEYS.filter((k) => k.grade <= lv);
+  // Bass: two octaves lower, unless that would start below the first ledger line (then one octave lower).
+  const tonicOf = (key, clef = "treble") => {
+    const t = P(key.tonic);
+    if (clef !== "bass") return t;
+    const two = atStep(stepOf(t) - 14, t.a);
+    return stepOf(two) - stepOf(P("G2")) < -2 ? atStep(stepOf(t) - 7, t.a) : two;
+  };
+  const keyName = (key) => `${nameOf(P(key.tonic))} ${key.mode}`;
+  const SHARP_ORDER = [3, 0, 4, 1, 5, 2, 6]; // F C G D A E B
+  const FLAT_ORDER = [6, 2, 5, 1, 4, 0, 3]; // B E A D G C F
+  const SIG_POS = {
+    sharp: { treble: [8, 5, 9, 6, 3, 7, 4], bass: [6, 3, 7, 4, 1, 5, 2] },
+    flat: { treble: [4, 7, 3, 6, 2, 5, 1], bass: [2, 5, 1, 4, 0, 3, 6] },
+  };
+  // The key signature, read off the scale itself (major, or natural minor for a minor key).
+  function sigOf(key) {
+    const sc = scaleOf(P(key.tonic), key.mode === "major" ? "major" : "natural").slice(0, 7);
+    const acc = sc.filter((n) => n.a !== 0);
+    if (!acc.length) return { type: null, n: 0, letters: [] };
+    const type = acc[0].a > 0 ? "sharp" : "flat";
+    const order = type === "sharp" ? SHARP_ORDER : FLAT_ORDER;
+    const letters = acc.map((n) => n.l).sort((x, y) => order.indexOf(x) - order.indexOf(y));
+    return { type, n: letters.length, letters };
+  }
+  function sigPositions(key, clef) {
+    const s = sigOf(key);
+    if (!s.n) return [];
+    return SIG_POS[s.type][clef].slice(0, s.n).map((pos) => ({ pos, a: s.type === "sharp" ? 1 : -1 }));
+  }
+  const sigMap = (key) => {
+    const s = sigOf(key);
+    const map = {};
+    for (const l of s.letters) map[l] = s.type === "sharp" ? 1 : -1;
+    return map;
+  };
+  const sigWords = (key) => {
+    const s = sigOf(key);
+    if (!s.n) return "no sharps or flats";
+    return `${s.n} ${s.type}${s.n > 1 ? "s" : ""} (${s.letters.map((l) => LET[l] + SIGN[s.type === "sharp" ? 1 : -1]).join(", ")})`;
+  };
+  const relativeOf = (key) => KEYS.find((k) => k.mode !== key.mode && SIG_COUNT[k.id] === SIG_COUNT[key.id]);
+
+  // ---------- intervals ----------
+  const NUM = ["", "unison", "2nd", "3rd", "4th", "5th", "6th", "7th", "8ve"];
+  const NUM_WORD = ["", "unison", "second", "third", "fourth", "fifth", "sixth", "seventh", "octave"];
+  function intervalOf(lo, hi) {
+    const num = stepOf(hi) - stepOf(lo) + 1;
+    const semis = midiOf(hi) - midiOf(lo);
+    const base = { 1: 0, 2: 2, 3: 4, 4: 5, 5: 7, 6: 9, 7: 11, 8: 12 }[num];
+    const d = semis - base;
+    const perfect = [1, 4, 5, 8].includes(num);
+    const q = perfect ? { 0: "perfect", 1: "augmented", "-1": "diminished" }[d] : { 0: "major", "-1": "minor", 1: "augmented", "-2": "diminished" }[d];
+    return { num, semis, q };
+  }
+
+  // ---------- accidentals within a bar ----------
+  // events: [{ pos, acc: null | -1 | 0 | 1, bar, tie (tied from the previous note) }]
+  function effAcc(events, i, clef, sig = {}) {
+    const e = events[i];
+    if (e.acc !== null && e.acc !== undefined) return { acc: e.acc, why: "written" };
+    if (e.tie && i > 0) return { acc: effAcc(events, i - 1, clef, sig).acc, why: "tie", from: i - 1 };
+    for (let j = i - 1; j >= 0 && events[j].bar === e.bar; j--) if (events[j].pos === e.pos && events[j].acc !== null && events[j].acc !== undefined) return { acc: events[j].acc, why: "bar", from: j };
+    const l = noteAt(e.pos, clef).l;
+    return { acc: sig[l] || 0, why: sig[l] ? "key" : "none" };
+  }
+
+  // ---------- rhythm ----------
+  const VAL = {
+    sb: { d: 4, uk: "semibreve", us: "whole note" },
+    dm: { d: 3, uk: "dotted minim", us: "dotted half note" },
+    m: { d: 2, uk: "minim", us: "half note" },
+    dc: { d: 1.5, uk: "dotted crotchet", us: "dotted quarter note" },
+    c: { d: 1, uk: "crotchet", us: "quarter note" },
+    dq: { d: 0.75, uk: "dotted quaver", us: "dotted eighth note" },
+    q: { d: 0.5, uk: "quaver", us: "eighth note" },
+    sq: { d: 0.25, uk: "semiquaver", us: "sixteenth note" },
+  };
+  const restName = (v) => `${VAL[v].uk} rest (${VAL[v].us.replace(" note", " rest")})`;
+  const noteName = (v) => `${VAL[v].uk} (${VAL[v].us})`;
+  const TIMES = {
+    "2/4": { top: 2, bot: 4, bar: 2, beat: 1 },
+    "3/4": { top: 3, bot: 4, bar: 3, beat: 1 },
+    "4/4": { top: 4, bot: 4, bar: 4, beat: 1 },
+    "2/2": { top: 2, bot: 2, bar: 4, beat: 2 },
+    "3/2": { top: 3, bot: 2, bar: 6, beat: 2 },
+    "3/8": { top: 3, bot: 8, bar: 1.5, beat: 0.5 },
+  };
+  const BEAT_NOTE = { 2: "m", 4: "c", 8: "q" };
+  const timesFor = (lv) => (lv >= 3 ? ["2/4", "3/4", "4/4", "2/2", "3/2", "3/8"] : ["2/4", "3/4", "4/4"]);
+  const sumD = (items) => items.reduce((s, it) => s + VAL[it.v].d, 0);
+  const frac = (d) => {
+    const w = Math.floor(d + 1e-9);
+    const f = Math.round((d - w) * 4);
+    const tail = ["", "¼", "½", "¾"][f];
+    return w ? `${w}${tail}` : tail || "0";
+  };
+
+  function weighted(cands) {
+    const list = cands.filter(Boolean);
+    let r = Math.random() * list.reduce((s, c) => s + c.w, 0);
+    for (const c of list) if ((r -= c.w) <= 0) return c;
+    return list[list.length - 1];
+  }
+  let beamId = 0;
+  // Fill the span [from, to) of a bar with correctly grouped notes. Durations in crotchet units.
+  function fill(ts, from, to, lv) {
+    const T = TIMES[ts];
+    const out = [];
+    let p = from;
+    const push = (vs, beamed) => {
+      const id = beamed ? ++beamId : 0;
+      for (const v of vs) out.push({ t: "n", v, beam: VAL[v].d < 1 && beamed ? id : 0 });
+    };
+    let guard = 0;
+    while (p < to - 1e-9 && guard++ < 40) {
+      const left = to - p;
+      let c;
+      if (T.bot === 4) {
+        const strong2 = T.top === 4 ? p === 0 || p === 2 : T.top === 2 ? p === 0 : p <= 1;
+        c = weighted([
+          left >= 1 && { it: ["c"], w: 3 },
+          left >= 1 && { it: ["q", "q"], beam: true, w: 2.5 },
+          left >= 1 && lv >= 2 && { it: ["sq", "sq", "sq", "sq"], beam: true, w: 1 },
+          left >= 1 && lv >= 3 && { it: ["dq", "sq"], beam: true, w: 1 },
+          left >= 2 && strong2 && { it: ["m"], w: 2 },
+          left >= 2 && strong2 && { it: ["dc", "q"], w: 1.2 },
+          left >= 3 && ((T.top === 3 && p === 0) || (T.top === 4 && p <= 1)) && { it: ["dm"], w: 1.4 },
+          left >= 4 && T.top === 4 && p === 0 && { it: ["sb"], w: 0.6 },
+        ]);
+      } else if (T.bot === 2) {
+        if (Math.abs(p % 2 - 1) < 1e-9) c = { it: ["c"] };
+        else
+          c = weighted([
+            left >= 2 && { it: ["m"], w: 3 },
+            left >= 2 && { it: ["c", "c"], w: 2 },
+            left >= 2 && { it: ["c", "q", "q"], beamTail: true, w: 1.5 },
+            left >= 4 && (p === 0 || (T.top === 3 && p === 2)) && { it: ["sb"], w: 1 },
+            left >= 4 && (p === 0 || (T.top === 3 && p === 2)) && { it: ["dm", "c"], w: 1 },
+          ]);
+      } else {
+        c = weighted([left >= 1.5 && { it: ["q", "q", "q"], beam: true, w: 2 }, left >= 1.5 && { it: ["c", "q"], w: 1.5 }, left >= 1.5 && { it: ["dc"], w: 1 }, left < 1.5 && { it: ["q"], w: 1 }]);
+      }
+      if (c.beamTail) {
+        push(["c"], false);
+        push(["q", "q"], true);
+      } else push(c.it, !!c.beam);
+      p += c.it.reduce((s, v) => s + VAL[v].d, 0);
+    }
+    return out;
+  }
+  const melody = (items, lo = 1, hi = 7) => {
+    let pos = ri(lo + 1, hi - 1);
+    for (const it of items) {
+      if (it.t !== "n") continue;
+      pos = Math.max(lo, Math.min(hi, pos + rp([-2, -1, -1, 0, 1, 1, 2])));
+      it.pos = pos;
+    }
+    return items;
+  };
+  const barOf = (ts, lv) => fill(ts, 0, TIMES[ts].bar, lv);
+
+  // ---------- generators (data only; the page draws them) ----------
+  const CL = () => rp(["treble", "bass"]);
+  const RANGE = { 1: [0, 8], 2: [-4, 12], 3: [-6, 14] };
+
+  function genClef(lv, mode) {
+    const clef = CL();
+    const [lo, hi] = RANGE[lv];
+    let pos = ri(lo, hi);
+    if (lv === 1 && Math.random() < 0.15) pos = clef === "treble" ? -2 : 10;
+    const note = noteAt(pos, clef);
+    const lm = landmarkFor(pos, clef);
+    const dist = pos - lm[0];
+    const why = `This note is ${placeWords(pos)} of the ${CLEFS[clef].name}, so it is ${sciOf(note)}${sciOf(note) === "C4" ? " (middle C)" : ""}. Count from ${lm[1]}: ${dist === 0 ? "it is that very note" : `${Math.abs(dist)} step${Math.abs(dist) > 1 ? "s" : ""} ${dist > 0 ? "up" : "down"} (each step is the next line or space) reaches ${LET[note.l]}`}.${ledgers(pos).length ? ` It needs ${ledgers(pos).length} ledger line${ledgers(pos).length > 1 ? "s" : ""}.` : ""}`;
+    return { clef, pos, note, mode, any: lv === 1 && mode === "place", range: [Math.min(lo, -2), Math.max(hi, 10)], lm, ans: mode === "name" ? note.l : pos, why };
+  }
+
+  const NOTE_POOL = { 1: ["sb", "m", "c", "q", "dm", "dc"], 2: ["sb", "m", "c", "q", "sq", "dm", "dc"], 3: ["sb", "m", "c", "q", "sq", "dm", "dc", "dq"] };
+  const REST_POOL = { 1: ["sb", "m", "c", "q"], 2: ["sb", "m", "c", "q", "sq"], 3: ["sb", "m", "c", "q", "sq", "dc"] };
+  function genValue(lv, kind) {
+    if (kind === "name") {
+      const rest = Math.random() < 0.4;
+      const pool = rest ? REST_POOL[lv] : NOTE_POOL[lv];
+      const v = rp(pool);
+      const label = rest ? restName : noteName;
+      const opts = rs([v, ...rs(pool.filter((x) => x !== v)).slice(0, 3)]);
+      return { kind, rest, v, ans: v, opts: opts.map((x) => ({ label: label(x), v: x })), why: rest ? `This is a ${restName(v)}: ${frac(VAL[v].d)} crotchet beat${VAL[v].d === 1 ? "" : "s"} of silence. ${REST_SHAPE[v]}` : `This is a ${noteName(v)}, worth ${frac(VAL[v].d)} crotchet beat${VAL[v].d === 1 ? "" : "s"}. ${NOTE_SHAPE[v]}` };
+    }
+    if (kind === "equal") {
+      const pairs = [];
+      const pool = NOTE_POOL[lv];
+      for (const a of pool) for (const b of pool) if (VAL[a].d > VAL[b].d && Number.isInteger(VAL[a].d / VAL[b].d) && !(b.startsWith("d") && lv < 3)) pairs.push([a, b]);
+      const [a, b] = rp(pairs);
+      const n = VAL[a].d / VAL[b].d;
+      return { kind, a, b, ans: n, why: `A ${noteName(a)} lasts ${frac(VAL[a].d)} crotchet beat${VAL[a].d === 1 ? "" : "s"}; a ${noteName(b)} lasts ${frac(VAL[b].d)}. ${frac(VAL[a].d)} ÷ ${frac(VAL[b].d)} = ${n}, so ${n} ${VAL[b].uk}s fill the same time.` };
+    }
+    // tie or dot: total length in crotchet beats
+    const tiePool = lv === 1 ? ["m", "c", "q", "dm", "dc"] : lv === 2 ? ["sb", "m", "c", "q", "dm", "dc", "sq"] : ["sb", "m", "c", "q", "dm", "dc", "sq", "dq"];
+    const count = lv === 3 && Math.random() < 0.5 ? 3 : 2;
+    const vs = Array.from({ length: count }, () => rp(tiePool));
+    const total = vs.reduce((s, v) => s + VAL[v].d, 0);
+    const wrong = rs([total + 1, total - 0.5, total + 0.5, total - 1, total * 2, total + 2].filter((x) => x > 0 && Math.abs(x - total) > 1e-9));
+    const opts = rs([total, ...[...new Set(wrong)].slice(0, 3)]).map((x) => ({ label: frac(x), v: x }));
+    return { kind, vs, ans: total, opts, why: `A tie joins notes of the same pitch into one sound, so the lengths add: ${vs.map((v) => `${VAL[v].uk} ${frac(VAL[v].d)}`).join(" + ")} = ${frac(total)} crotchet beats.${vs.some((v) => v.startsWith("d")) ? " Remember: a dot adds half the note's own value (a dotted minim is 2 + 1 = 3)." : ""}` };
+  }
+  const NOTE_SHAPE = {
+    sb: "Hollow head, no stem.",
+    m: "Hollow head with a stem.",
+    c: "Filled head with a stem.",
+    q: "Filled head, stem and one flag (or one beam).",
+    sq: "Filled head, stem and two flags (or two beams).",
+    dm: "A minim (2) plus a dot, which adds half its value (1): 3 beats.",
+    dc: "A crotchet (1) plus a dot, which adds half its value (½): 1½ beats.",
+    dq: "A quaver (½) plus a dot, which adds half its value (¼): ¾ of a beat.",
+  };
+  const REST_SHAPE = {
+    sb: "It hangs below the fourth line, like a heavy weight.",
+    m: "It sits on top of the middle line, like a hat.",
+    c: "It is the zigzag that stands across the middle of the staff.",
+    q: "It has one hooked flag.",
+    sq: "It has two hooked flags.",
+    dc: "A crotchet rest plus a dot: 1½ beats of silence.",
+  };
+
+  function genTime(lv, kind) {
+    const tsList = timesFor(lv);
+    if (kind === "which") {
+      const ts = rp(tsList);
+      const bars = [melody(barOf(ts, lv)), melody(barOf(ts, lv))];
+      const conflict = (a, b) => TIMES[a].bar === TIMES[b].bar && a !== b;
+      const pool = tsList.filter((x) => x === ts || !conflict(x, ts));
+      const opts = [ts, ...rs(pool.filter((x) => x !== ts)).slice(0, 3)].sort();
+      const T = TIMES[ts];
+      return { kind, ts, bars, ans: ts, opts: opts.map((x) => ({ label: x, v: x })), why: `Each bar adds up to ${frac(T.bar)} crotchet beat${T.bar === 1 ? "" : "s"}${T.bot !== 4 ? ` = ${T.top} ${VAL[BEAT_NOTE[T.bot]].uk}s` : ""}. ${T.top} beats, each a ${VAL[BEAT_NOTE[T.bot]].uk}, is written ${ts}.` };
+    }
+    if (kind === "barline") {
+      const ts = rp(tsList);
+      const n = lv === 1 ? 2 : 3;
+      const bars = Array.from({ length: n }, () => melody(barOf(ts, lv)));
+      const missing = ri(0, n - 2); // barline after bar `missing` is removed
+      const T = TIMES[ts];
+      return { kind, ts, bars, missing, ans: (missing + 1) * T.bar, ok: (v) => Math.abs(v - (missing + 1) * T.bar) < 1e-9, why: `In ${ts} every bar holds ${frac(T.bar)} crotchet beat${T.bar === 1 ? "" : "s"}. Adding the values from the previous barline reaches exactly ${frac(T.bar)} at the gap shown, so the barline belongs there.` };
+    }
+    if (kind === "rest") {
+      const ts = rp(tsList.filter((x) => x !== "3/8" || lv >= 3));
+      const T = TIMES[ts];
+      const specs = [];
+      if (T.bot === 4) {
+        for (let p = 0; p < T.bar; p++) {
+          specs.push({ p, d: 1, v: "c" });
+          specs.push({ p: p + 0.5, d: 0.5, v: "q" });
+        }
+        if (T.top === 4) specs.push({ p: 2, d: 2, v: "m" }, { p: 0, d: 2, v: "m" });
+      } else if (T.bot === 2) {
+        for (let p = 0; p < T.bar; p += 2) specs.push({ p, d: 2, v: "m" }, { p: p + 1, d: 1, v: "c" });
+      } else specs.push({ p: 1, d: 0.5, v: "q" }, { p: 0.5, d: 0.5, v: "q" });
+      let spec = rp(specs);
+      if (lv >= 2 && Math.random() < 0.18) spec = { p: 0, d: T.bar, v: "sb", whole: true };
+      if (lv === 1 && Math.random() < 0.6) spec = rp(specs.filter((s) => s.p + s.d === T.bar)) || spec; // usually the gap is at the end
+      const items = [];
+      const p0 = Math.floor(spec.p / T.beat) * T.beat;
+      items.push(...fill(ts, 0, p0, lv));
+      const gapBefore = spec.p - p0;
+      if (gapBefore > 1e-9) items.push({ t: "n", v: gapBefore >= 1 ? "c" : "q", beam: 0 });
+      items.push({ t: "r", v: spec.v, gap: true });
+      items.push(...fill(ts, spec.p + spec.d, T.bar, lv));
+      melody(items);
+      const pool = REST_POOL[lv];
+      const opts = [spec.v, ...rs(pool.filter((x) => x !== spec.v)).slice(0, 3)];
+      return { kind, ts, items, spec, ans: spec.v, opts: rs(opts).map((x) => ({ label: restName(x), v: x })), why: spec.whole ? `A whole bar of silence is always shown by a semibreve rest, in ${ts} as in any of these time signatures, even though the bar holds ${frac(T.bar)} crotchet beat${T.bar === 1 ? "" : "s"}.` : `The bar must total ${frac(T.bar)} crotchet beats. The notes give ${frac(T.bar - spec.d)}, so ${frac(spec.d)} crotchet beat${spec.d <= 1 ? " is" : "s are"} missing: one ${restName(spec.v)}, placed so that it begins ${Math.abs(spec.p / T.beat - Math.round(spec.p / T.beat)) < 1e-9 ? "on a beat" : "halfway through a beat"}${T.bot !== 4 ? ` (in ${ts} the beat is a ${VAL[BEAT_NOTE[T.bot]].uk})` : ""}.` };
+    }
+    // meaning
+    const ts = rp(tsList);
+    const T = TIMES[ts];
+    const type = rp(["top", "bot", "fill"]);
+    if (type === "top") return { kind, sub: type, ts, ans: T.top, pad: true, ask: `In ${ts} time, how many beats are in each bar?`, why: `The top number counts the beats in a bar: ${T.top}. The bottom number names the beat: ${T.bot} means a ${VAL[BEAT_NOTE[T.bot]].uk} (${VAL[BEAT_NOTE[T.bot]].us}).` };
+    if (type === "bot") {
+      const v = BEAT_NOTE[T.bot];
+      return { kind, sub: type, ts, ans: v, opts: ["sb", "m", "c", "q"].map((x) => ({ label: noteName(x), v: x })), ask: `In ${ts} time, what kind of note is one beat?`, why: `The bottom number names the beat as a fraction of a semibreve: ${T.bot} means ${T.bot === 2 ? "halves (minims)" : T.bot === 4 ? "quarters (crotchets)" : "eighths (quavers)"}. A semibreve divides into ${T.bot} of them.` };
+    }
+    const unit = rp((lv === 1 ? ["q", "c"] : ["q", "c", "sq"]).filter((u) => Number.isInteger(T.bar / VAL[u].d)));
+    const n = T.bar / VAL[unit].d;
+    return { kind, sub: type, ts, unit, ans: n, pad: true, ask: `How many ${VAL[unit].uk}s (${VAL[unit].us}s) fill one bar of ${ts}?`, why: `A bar of ${ts} holds ${T.top} ${VAL[BEAT_NOTE[T.bot]].uk}s = ${frac(T.bar)} crotchet beats. Each ${VAL[unit].uk} is ${frac(VAL[unit].d)}, so ${frac(T.bar)} ÷ ${frac(VAL[unit].d)} = ${n}.` };
+  }
+
+  function genAccidental(lv) {
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const clef = CL();
+      const key = lv === 3 && Math.random() < 0.6 ? rp(KEYS.filter((k) => k.grade <= 2 && SIG_COUNT[k.id] !== 0)) : null;
+      const sig = key ? sigMap(key) : {};
+      const events = [];
+      for (let b = 0; b < 2; b++) for (let k = 0; k < 4; k++) events.push({ pos: ri(1, 7), acc: null, bar: b, tie: false });
+      // pick a focus position and give it accidentals
+      const focus = ri(1, 7);
+      const target = ri(lv === 1 ? 2 : 3, 7);
+      const src = ri(0, Math.min(target - 1, lv === 1 ? 2 : 4));
+      events[src].pos = focus;
+      events[target].pos = focus;
+      const first = rp(key ? [1, -1, 0] : [1, -1]);
+      events[src].acc = first;
+      if (lv >= 2 && Math.random() < 0.35 && target - src >= 2) {
+        const mid = ri(src + 1, target - 1);
+        if (events[mid].bar === events[target].bar) {
+          events[mid].pos = focus;
+          events[mid].acc = 0;
+        }
+      }
+      if (lv === 3 && Math.random() < 0.3) {
+        // same letter, different octave: the accidental does not reach it
+        const other = focus + 7 <= 9 ? focus + 7 : focus - 7;
+        if (other >= -1 && other <= 9) events[target].pos = other;
+      }
+      if (lv === 3 && Math.random() < 0.3 && target === 4) {
+        events[3].pos = focus;
+        events[3].acc = rp([1, -1]);
+        events[4].pos = focus;
+        events[4].tie = true;
+      }
+      // make sure the target itself carries no written accidental and no stray ones confuse the question
+      events[target].acc = null;
+      for (let i = 0; i < events.length; i++) if (i !== src && events[i].acc !== null && events[i].pos !== focus && events[i].pos !== events[target].pos) events[i].acc = null;
+      const res = effAcc(events, target, clef, sig);
+      const note = noteAt(events[target].pos, clef, res.acc);
+      if (Math.abs(res.acc) > 1) continue;
+      const opts = [-1, 0, 1].map((a) => ({ label: LET[note.l] + (a === 0 ? " natural" : SIGN[a]), v: a }));
+      const e = events[target];
+      let why;
+      if (res.why === "bar") why = `${events[res.from].acc === 0 ? "A natural sign" : `The ${WORD[events[res.from].acc]}`} earlier in this bar, on the same ${e.pos % 2 ? "space" : "line"}, still applies: an accidental lasts until the next barline. So the note is ${nameOf(note)}${note.a === 0 ? " (natural)" : ""}.`;
+      else if (res.why === "tie") why = `This note is tied from the previous bar, so it keeps that note's pitch, ${nameOf(note)}, even across the barline. Only the tied note continues it.`;
+      else if (res.why === "key") why = `No accidental in this bar affects this ${e.pos % 2 ? "space" : "line"}${events.some((x, i) => i < target && x.bar !== e.bar && x.pos === e.pos && x.acc !== null) ? " (the barline cancelled the earlier one)" : ""}, so the key signature applies: ${nameOf(note)}.`;
+      else {
+        const crossed = events.some((x, i) => i < target && x.bar !== e.bar && x.pos === e.pos && x.acc !== null);
+        const octave = events.some((x, i) => i < target && x.bar === e.bar && x.pos !== e.pos && noteAt(x.pos, clef).l === note.l && x.acc !== null);
+        why = crossed ? `The barline cancels every accidental in the previous bar, so this note returns to ${nameOf(note)} natural.` : octave ? `An accidental affects only notes on its own line or space. This ${LET[note.l]} is in a different octave, so it stays ${nameOf(note)} natural.` : `No accidental in this bar touches this ${e.pos % 2 ? "space" : "line"}, so the note is ${nameOf(note)} natural.`;
+      }
+      return { clef, key, events, target, res, note, ans: res.acc, opts, why };
+    }
+    throw new Error("genAccidental failed");
+  }
+
+  function wrongSigs(key, clef, right) {
+    const s = sigOf(key);
+    const out = [];
+    const a = s.type === "sharp" ? 1 : -1;
+    if (s.n >= 2) {
+      const sw = right.map((x) => ({ ...x }));
+      const i = ri(0, s.n - 2);
+      [sw[i], sw[i + 1]] = [sw[i + 1], sw[i]];
+      out.push({ list: sw, fault: `the order is wrong: ${s.type}s are always written ${s.type === "sharp" ? "F C G D A E B" : "B E A D G C F"}` });
+    }
+    const oct = right.map((x) => ({ ...x }));
+    const k = ri(0, s.n - 1);
+    oct[k].pos += oct[k].pos + 7 <= 10 ? 7 : -7;
+    if (oct[k].pos >= -1) out.push({ list: oct, fault: `one ${s.type} is in the wrong octave` });
+    const other = clef === "treble" ? "bass" : "treble";
+    out.push({ list: SIG_POS[s.type][other].slice(0, s.n).map((pos) => ({ pos, a })), fault: `the ${s.type}s are placed as for the ${CLEFS[other].name}` });
+    out.push({ list: right.map((x) => ({ pos: x.pos, a: -x.a })), fault: `it uses ${s.type === "sharp" ? "flats" : "sharps"} instead of ${s.type}s` });
+    const keyStr = (l) => l.map((x) => `${x.pos}:${x.a}`).join(",");
+    const seen = new Set([keyStr(right)]);
+    return rs(out).filter((w) => {
+      const k2 = keyStr(w.list);
+      if (seen.has(k2)) return false;
+      seen.add(k2);
+      return true;
+    });
+  }
+
+  function genScale(lv, kind) {
+    const keys = keysFor(lv);
+    const clef = CL();
+    if (kind === "sig") {
+      const key = rp(keys);
+      const mode = lv === 1 ? "major" : key.mode;
+      const pool = keys.filter((k) => k.mode === mode && k !== key);
+      const opts = rs([key, ...rs(pool).slice(0, 3)]);
+      return { kind, clef, key, mode, ans: key.id, opts: opts.map((k) => ({ label: keyName(k), v: k.id })), why: `${keyName(key)} has ${sigWords(key)}.${key.mode === "minor" ? ` It shares this key signature with its relative major, ${keyName(relativeOf(key))}.` : relativeOf(key) && lv >= 2 ? ` Its relative minor, ${keyName(relativeOf(key))}, shares it.` : ""}` };
+    }
+    if (kind === "pick") {
+      const key = rp(keys.filter((k) => SIG_COUNT[k.id] !== 0));
+      const right = sigPositions(key, clef);
+      const wrongs = wrongSigs(key, clef, right).slice(0, 2);
+      const cards = rs([{ list: right, ok: true }, ...wrongs]);
+      const letters = ["A", "B", "C"].slice(0, cards.length);
+      const ans = letters[cards.findIndex((c) => c.ok)];
+      return { kind, clef, key, cards, ans, opts: letters.map((l) => ({ label: l, v: l })), why: `${keyName(key)} has ${sigWords(key)}. They must appear in that order, each on its own line or space for the ${CLEFS[clef].name}. ${cards.filter((c) => !c.ok).map((c, i) => `${letters[cards.indexOf(c)]} is wrong: ${c.fault}.`).join(" ")}` };
+    }
+    if (kind === "semitones") {
+      const key = rp(keys);
+      const form = key.mode === "major" ? "major" : rp(["harmonic", "melodic"]);
+      const sc = scaleOf(tonicOf(key, clef), form);
+      const pairs = [];
+      for (let i = 0; i < 7; i++) if (midiOf(sc[i + 1]) - midiOf(sc[i]) === 1) pairs.push(`${i + 1}–${i + 2}`);
+      const ans = pairs.join(", ");
+      const all = ["3–4, 7–8", "2–3, 5–6, 7–8", "2–3, 7–8", "4–5, 7–8", "3–4, 6–7", "2–3, 6–7", "1–2, 4–5"];
+      const opts = rs([ans, ...rs(all.filter((x) => x !== ans)).slice(0, 3)]);
+      return { kind, clef, key, form, sc, ans, opts: opts.map((x) => ({ label: `Between ${x.replace(/, (?=[^,]*$)/, " and ")}`, v: x })), why: `Measure each step on a keyboard: the semitones (no key between) fall between degrees ${ans.replace(/, (?=[^,]*$)/, " and ")} in every ${form === "major" ? "major scale" : `${form} minor scale${form === "melodic" ? " (ascending)" : ""}`}.${form === "harmonic" ? " The raised 7th makes a gap of three semitones between degrees 6 and 7." : ""}` };
+    }
+    if (kind === "minor") {
+      const key = rp(keys.filter((k) => k.mode === "minor"));
+      const form = rp(["harmonic", "melodic"]);
+      const sc = scaleOf(tonicOf(key, clef), form);
+      return { kind, clef, key, form, sc, ans: form, opts: [{ label: "Harmonic minor", v: "harmonic" }, { label: "Melodic minor (ascending)", v: "melodic" }], why: form === "harmonic" ? `Only the 7th degree is raised (${nameOf(sc[6])}), leaving a gap of three semitones between the 6th and 7th: that is the harmonic minor.` : `Both the 6th and 7th degrees are raised on the way up (${nameOf(sc[5])}, ${nameOf(sc[6])}): that is the melodic minor ascending. Descending, it returns to the key signature.` };
+    }
+    // missing accidental: scale written with accidentals, one left out
+    const pool = keys.filter((k) => k.mode === "minor" || SIG_COUNT[k.id] !== 0);
+    const key = rp(pool);
+    const form = key.mode === "major" ? "major" : rp(["harmonic", "melodic"]);
+    const sc = scaleOf(tonicOf(key, clef), form);
+    const idx = sc.map((n, i) => (n.a !== 0 ? i : -1)).filter((i) => i >= 0);
+    const miss = rp(idx);
+    const shown = sc.map((n, i) => ({ ...n, a: i === miss ? 0 : n.a }));
+    const same8 = (miss === 0 || miss === 7) && sc[0].a !== 0;
+    return { kind, clef, key, form, sc, shown, miss, ans: miss, also: same8 ? [0, 7].filter((i) => i !== miss) : [], why: `The scale of ${keyName(key)}${form !== "major" ? ` (${form}${form === "melodic" ? ", ascending" : ""})` : ""} needs ${nameOf(sc[miss])} as degree ${miss + 1}: the pattern of tones and semitones demands it.` };
+  }
+
+  function genStep(lv, kind) {
+    for (let k = 0; k < 400; k++) {
+      const clef = CL();
+      if (kind === "above") {
+        const base = noteAt(ri(0, 7), clef, rp([0, 0, 0, 1, -1]));
+        const want = rp([1, 2]);
+        const up = atStep(stepOf(base) + 1);
+        up.a = midiOf(base) + want - midiOf(up);
+        if (Math.abs(up.a) > 1) continue;
+        const cands = [-1, 0, 1].map((a) => ({ ...up, a })).concat([{ ...base, a: base.a + 1 }].filter((n) => n.a <= 1 && want === 1));
+        const opts = rs(cands).filter((n, i, list) => list.findIndex((x) => same(x, n)) === i);
+        return { kind, clef, base, want, up, ans: sciOf(up), opts: opts.map((n) => ({ label: nameOf(n), v: sciOf(n) })), ok: (v) => { const n = P(v); return midiOf(n) - midiOf(base) === want; }, why: `A ${want === 1 ? "semitone" : "tone"} is ${want} key${want > 1 ? "s" : ""} up on the keyboard, counting black and white keys. Above ${nameOf(base)} that is ${nameOf(up)}${want === 1 && base.a + 1 <= 1 ? ` (also writable as ${nameOf({ ...base, a: base.a + 1 })}, a chromatic semitone on the same letter)` : ""}.` };
+      }
+      const lo = noteAt(ri(0, 7), clef, rp([0, 0, 0, 1, -1]));
+      const chromatic = lv >= 3 && Math.random() < 0.25;
+      const hi = chromatic ? { ...lo, a: lo.a + 1 } : atStep(stepOf(lo) + 1, rp([0, 0, 1, -1]));
+      if (Math.abs(hi.a) > 1) continue;
+      const semis = midiOf(hi) - midiOf(lo);
+      if (semis !== 1 && semis !== 2) continue;
+      if (lv === 1 && (lo.a !== 0 || hi.a !== 0) && Math.random() < 0.6) continue;
+      const ans = semis === 1 ? "semitone" : "tone";
+      return { kind, clef, lo, hi, semis, ans, opts: [{ label: "Semitone (half step)", v: "semitone" }, { label: "Tone (whole step)", v: "tone" }], why: `From ${nameOf(lo)} up to ${nameOf(hi)} is ${semis} semitone${semis > 1 ? "s" : ""}: ${semis === 1 ? "the very next key, with no key between" : "two keys up, with one key between"}, so it is a ${ans}.${semis === 1 && [2, 6].includes(lo.l) && lo.a === 0 && hi.a === 0 ? " E–F and B–C have no black key between them, so they are semitones." : ""}` };
+    }
+    throw new Error("genStep failed");
+  }
+
+  function genInterval(lv) {
+    const keys = keysFor(lv);
+    const key = rp(keys);
+    const clef = CL();
+    const sc = scaleOf(tonicOf(key, clef), key.mode === "major" ? "major" : "harmonic");
+    const deg = ri(1, 7);
+    const lo = sc[0];
+    const hi = sc[deg];
+    const iv = intervalOf(lo, hi);
+    const withQ = lv >= 3;
+    const label = (num, q) => (withQ ? `${q} ${NUM[num]}` : NUM[num]);
+    const ans = label(iv.num, iv.q);
+    let opts;
+    if (withQ) {
+      const qs = (num) => ([1, 4, 5, 8].includes(num) ? ["perfect", "augmented", "diminished"] : ["major", "minor"]);
+      const set = new Set([ans]);
+      const cands = rs([...qs(iv.num).map((q) => label(iv.num, q)), label(iv.num - 1, qs(iv.num - 1)[0]), label(Math.min(8, iv.num + 1), qs(Math.min(8, iv.num + 1))[0])].filter((x) => !/undefined|unison/.test(x)));
+      for (const c of cands) if (set.size < 4) set.add(c);
+      opts = rs([...set]).map((x) => ({ label: x, v: x }));
+    } else opts = [2, 3, 4, 5, 6, 7, 8].map((n) => ({ label: NUM[n], v: NUM[n] }));
+    return { key, clef, sc, deg, lo, hi, iv, ans, opts, why: `Count letter names from the tonic, including both ends: ${sc.slice(0, deg + 1).map((n) => LET[n.l]).join(" ")} is ${iv.num} letters, so it is a ${NUM_WORD[iv.num]}.${withQ ? ` It spans ${iv.semis} semitones, which makes it ${iv.q}.` : ""}` };
+  }
+
+  function genTriad(lv, kind) {
+    const keys = keysFor(lv);
+    const clef = CL();
+    if (kind === "key") {
+      const key = rp(keys);
+      const sc = scaleOf(tonicOf(key, clef), key.mode === "major" ? "major" : "harmonic");
+      const triad = [sc[0], sc[2], sc[4]];
+      const rel = relativeOf(key);
+      const pool = rs(keys.filter((k) => k !== key && k !== rel));
+      const opts = rs([key, ...(rel && keys.includes(rel) ? [rel] : []), ...pool].slice(0, 4));
+      return { kind, clef, key, triad, ans: key.id, opts: opts.map((k) => ({ label: keyName(k), v: k.id })), why: `The tonic triad is built on degrees 1, 3 and 5 of the scale: ${triad.map(nameOf).join(", ")}. The lowest note, the tonic, is ${nameOf(triad[0])}, and ${nameOf(triad[0])} to ${nameOf(triad[1])} is ${midiOf(triad[1]) - midiOf(triad[0]) === 4 ? "a major 3rd (4 semitones), so the key is major" : "a minor 3rd (3 semitones), so the key is minor"}: ${keyName(key)}.` };
+    }
+    for (let k = 0; k < 200; k++) {
+      const key = rp(keys);
+      const sc = scaleOf(tonicOf(key, clef), key.mode === "major" ? "major" : "harmonic");
+      const triad = [sc[0], sc[2], sc[4]];
+      const bad = ri(0, 2);
+      const shown = triad.map((n) => ({ ...n }));
+      if (Math.random() < 0.6) shown[bad].a += rp([-1, 1]);
+      else shown[bad] = atStep(stepOf(shown[bad]) + rp([-1, 1]), 0);
+      if (Math.abs(shown[bad].a) > 1) continue;
+      if (bad > 0 && stepOf(shown[bad]) <= stepOf(shown[bad - 1])) continue;
+      if (bad < 2 && stepOf(shown[bad]) >= stepOf(shown[bad + 1])) continue;
+      return { kind, clef, key, triad, shown, bad, ans: bad, why: `The tonic triad of ${keyName(key)} is ${triad.map(nameOf).join(", ")} (degrees 1, 3 and 5). The ${["lowest", "middle", "top"][bad]} note is written ${nameOf(shown[bad])}, but it must be ${nameOf(triad[bad])}.` };
+    }
+    throw new Error("genTriad failed");
+  }
+
+  function genTranspose(lv) {
+    for (let k = 0; k < 400; k++) {
+      const down = Math.random() < 0.55; // treble → bass, an octave lower
+      const from = down ? "treble" : "bass";
+      const to = down ? "bass" : "treble";
+      const count = lv === 1 ? 1 : lv === 2 ? 3 : 4;
+      const [lo, hi] = lv === 1 ? [-1, 9] : lv === 2 ? [-2, 10] : [-4, 12];
+      const notes = [];
+      let s = ri(lo, hi);
+      for (let i = 0; i < count; i++) {
+        if (i) s = s + rp([-2, -1, 1, 2, 3, -3]);
+        const src = noteAt(s, from, lv === 3 && Math.random() < 0.25 ? rp([1, -1]) : 0);
+        const dst = atStep(stepOf(src) + (down ? -7 : 7), src.a);
+        notes.push({ src, dst, sp: posOf(src, from), dp: posOf(dst, to) });
+      }
+      if (notes.some((n) => n.sp < -4 || n.sp > 12 || n.dp < lo || n.dp > hi || (lv === 1 && (n.sp < -2 || n.sp > 10)))) continue;
+      return { from, to, down, notes, ans: notes.map((n) => n.dp), why: `${down ? "An octave lower" : "An octave higher"} keeps every letter name but moves ${down ? "down" : "up"} seven steps (8 letters counting both). In the ${CLEFS[to].name} that puts ${notes.map((n) => `${sciOf(n.src)} at ${sciOf(n.dst)}`).join(", ")}.` };
+    }
+    throw new Error("genTranspose failed");
+  }
+
+  // ---------- Italian terms (meanings as in standard theory glossaries) ----------
+  const TERMS = [
+    ["allegro", "quick and lively", 1, "tempo", "Literally 'cheerful'.", "quick"],
+    ["andante", "at a walking pace", 1, "tempo", "From andare, 'to go'."],
+    ["adagio", "slow", 1, "tempo", "From ad agio, 'at ease'.", "slow"],
+    ["lento", "slow", 1, "tempo", "Lento and adagio both mean 'slow'.", "slow"],
+    ["moderato", "at a moderate speed", 1, "tempo", "Shares a root with 'moderate'."],
+    ["allegretto", "fairly quick (a little slower than allegro)", 1, "tempo", "-etto makes a word smaller: a 'little allegro'."],
+    ["presto", "very quick (faster than allegro)", 2, "tempo", "Also everyday Italian for 'soon'."],
+    ["largo", "slow and stately", 2, "tempo", "Literally 'broad'.", "slow"],
+    ["vivace", "lively and quick", 2, "tempo", "Shares a root with 'vivid' and 'vivacious'.", "quick"],
+    ["accelerando", "gradually getting quicker", 1, "change", "Shares a root with 'accelerate'."],
+    ["rallentando", "gradually getting slower", 1, "change", "Abbreviated rall.", "slower"],
+    ["ritardando", "gradually getting slower", 1, "change", "Abbreviated rit. or ritard.", "slower"],
+    ["a tempo", "return to the original speed", 1, "change", "Literally 'in time'."],
+    ["ritenuto", "held back: immediately slower", 3, "change", "Abbreviated riten."],
+    ["rubato", "with some freedom of time", 3, "change", "Literally 'robbed' time: taken from one note and given to another."],
+    ["piano", "soft (quiet)", 1, "dynamic", "The piano's full name, pianoforte, means 'soft-loud': unlike the harpsichord, it can play both."],
+    ["forte", "loud", 1, "dynamic", "Literally 'strong'."],
+    ["mezzo piano", "moderately soft", 1, "dynamic", "Mezzo means 'half'."],
+    ["mezzo forte", "moderately loud", 1, "dynamic", "Mezzo means 'half'."],
+    ["pianissimo", "very soft", 1, "dynamic", "-issimo means 'very' or 'most'."],
+    ["fortissimo", "very loud", 1, "dynamic", "-issimo means 'very' or 'most'."],
+    ["crescendo", "gradually getting louder", 1, "dynamic", "Literally 'growing'; shares a root with 'crescent'."],
+    ["diminuendo", "gradually getting softer", 1, "dynamic", "Literally 'diminishing'.", "softer"],
+    ["decrescendo", "gradually getting softer", 2, "dynamic", "The opposite of crescendo.", "softer"],
+    ["sforzando", "forced: a strong accent on one note", 3, "dynamic", "Abbreviated sf or sfz."],
+    ["fortepiano", "loud, then immediately soft", 3, "dynamic", "Abbreviated fp."],
+    ["legato", "smoothly, the notes joined", 1, "touch", "From legare, 'to tie'; shares a root with 'ligament'."],
+    ["staccato", "detached: short and separated", 1, "touch", "From staccare, 'to detach'."],
+    ["tenuto", "held: give the note its full value", 3, "touch", "From tenere, 'to hold'.", "held"],
+    ["cantabile", "in a singing style", 2, "style", "From cantare, 'to sing'."],
+    ["dolce", "sweetly", 2, "style", "Shares a root with 'dulcet'."],
+    ["grazioso", "gracefully", 2, "style", "Shares a root with 'gracious'."],
+    ["maestoso", "majestically", 3, "style", "Shares a root with 'majesty'."],
+    ["leggiero", "lightly", 3, "style", "From the Latin levis, 'light'; English 'levity' shares the root."],
+    ["sostenuto", "sustained", 3, "style", "Shares a root with 'sustain'.", "held"],
+    ["giocoso", "playfully, merrily", 3, "style", "Shares a root with 'jocular'."],
+    ["tranquillo", "calmly", 3, "style", "Shares a root with 'tranquil'."],
+    ["da capo", "repeat from the beginning", 1, "form", "Literally 'from the head'. Abbreviated D.C."],
+    ["fine", "the end", 1, "form", "Pronounced 'FEE-neh'."],
+    ["dal segno", "repeat from the sign", 2, "form", "Literally 'from the sign'. Abbreviated D.S."],
+    ["poco", "a little", 2, "word", "Poco crescendo: getting a little louder."],
+    ["molto", "much, very", 2, "word", "Molto allegro: very quick."],
+    ["più", "more", 2, "word", "Più mosso: more movement, so quicker."],
+    ["meno", "less", 2, "word", "Meno mosso: less movement, so slower."],
+    ["sempre", "always", 3, "word", "Sempre staccato: detached throughout."],
+    ["senza", "without", 3, "word", "Senza rallentando: without slowing."],
+    ["con", "with", 2, "word", "Con moto: with movement."],
+    ["ma non troppo", "but not too much", 3, "word", "Allegro ma non troppo: quick, but not too quick."],
+    ["subito", "suddenly", 3, "word", "Subito piano: suddenly soft."],
+    ["simile", "in the same way (continue as before)", 3, "word", "Shares a root with 'similar'."],
+  ].map(([term, meaning, grade, cat, note, syn]) => ({ term, meaning, grade, cat, note, syn: syn || term }));
+
+  function genTerm(lv, kind) {
+    const pool = TERMS.filter((t) => t.grade <= lv);
+    const t = rp(pool);
+    const others = rs(pool.filter((x) => x.syn !== t.syn && x.meaning !== t.meaning)).filter((x, i, list) => list.findIndex((y) => y.syn === x.syn || y.meaning === x.meaning) === i);
+    const near = others.filter((x) => x.cat === t.cat);
+    const picks = [...near.slice(0, 2), ...others.filter((x) => x.cat !== t.cat)].slice(0, 3);
+    if (kind === "meaning") return { kind, t, ans: t.term, opts: rs([t, ...picks]).map((x) => ({ label: x.meaning, v: x.term })), why: `${t.term[0].toUpperCase() + t.term.slice(1)} means "${t.meaning}". ${t.note}` };
+    return { kind, t, ans: t.term, opts: rs([t, ...picks]).map((x) => ({ label: x.term, v: x.term })), why: `"${t.meaning[0].toUpperCase() + t.meaning.slice(1)}" is ${t.term}. ${t.note}` };
+  }
+
+  return { LET, NAT, SIGN, WORD, P, nt, stepOf, midiOf, nameOf, sciOf, atStep, same, CLEFS, posOf, noteAt, ledgers, placeWords, landmarkFor, PATTERN, scaleOf, KEYS, SIG_COUNT, keyById, keysFor, tonicOf, keyName, SHARP_ORDER, FLAT_ORDER, SIG_POS, sigOf, sigPositions, sigMap, sigWords, relativeOf, NUM, NUM_WORD, intervalOf, effAcc, VAL, restName, noteName, TIMES, BEAT_NOTE, timesFor, sumD, frac, fill, melody, barOf, genClef, genValue, genTime, genAccidental, genScale, genStep, genInterval, genTriad, genTranspose, TERMS, genTerm, wrongSigs, rp, ri, rs };
+})();
+// ===== MODEL END =====
+
+const { $, el, svg: makeSvg, text, panel, say, pick, pickInt, wait, confetti, PRAISE, KIND, choices, explain, everyday, emoji, numpad, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+const { LET, P, stepOf, midiOf, nameOf, sciOf, atStep, posOf, noteAt, ledgers, VAL, TIMES, CLEFS } = GR;
+
+const UNITS = [
+  { id: "gr0", label: "See it", icon: "👀" },
+  { id: "gr1", label: "1. Clefs and ledger lines", icon: "🎼" },
+  { id: "gr2", label: "2. Note and rest values", icon: "⏱️" },
+  { id: "gr3", label: "3. Time signatures", icon: "🕰️" },
+  { id: "gr4", label: "4. Accidentals in a bar", icon: "♯" },
+  { id: "gr5", label: "5. Scales and key signatures", icon: "🪜" },
+  { id: "gr6", label: "6. Tones and semitones", icon: "🎹" },
+  { id: "gr7", label: "7. Intervals", icon: "📏" },
+  { id: "gr8", label: "8. Tonic triads", icon: "🔺" },
+  { id: "gr9", label: "9. Italian terms", icon: "🇮🇹" },
+  { id: "gr10", label: "10. Octave transposition", icon: "↕️" },
+];
+
+// The clef glyphs come from Noto Music (the same font the easier Music Theory page uses).
+(() => {
+  if (document.querySelector('link[href*="Noto+Music"]')) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "https://fonts.googleapis.com/css2?family=Noto+Music&display=swap";
+  document.head.appendChild(link);
+})();
+
+function fresh() {
+  stage.querySelector(".gr-real")?.remove();
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+}
+
+// ---------- speech ----------
+const spoken = (html) =>
+  String(html)
+    .replace(/<[^>]+>/g, " ")
+    .replace(/([A-G])♯/g, "$1 sharp")
+    .replace(/([A-G])♭/g, "$1 flat")
+    .replace(/♮/g, " natural")
+    .replace(/𝄫/g, " double flat")
+    .replace(/\b8ve\b/g, "octave")
+    .replace(/(\d)–(\d)/g, "$1 to $2")
+    .replace(/\b([2-4])\/([248])\b/g, "$1 $2")
+    .replace(/(\d)½/g, "$1 and a half")
+    .replace(/(\d)¼/g, "$1 and a quarter")
+    .replace(/(\d)¾/g, "$1 and three quarters")
+    .replace(/½/g, "a half")
+    .replace(/¼/g, "a quarter")
+    .replace(/¾/g, "three quarters")
+    .replace(/÷/g, " divided by ")
+    .replace(/\s+/g, " ");
+function talk(html, voiceText) {
+  say(html, { voice: false });
+  VOICE.speak(spoken(voiceText ?? html));
+}
+
+// ---------- colours and helpers ----------
+const INK = "#2b1d12";
+const SOFT = "#6b5642";
+const GREEN = "#2e9b50";
+const WRONG = "#c8402a";
+const HOT = "#b8620f";
+const STOP = Symbol("stop");
+const anim = (alive) => ({
+  alive,
+  wait: (ms) => new Promise((res, rej) => setTimeout(() => (alive() ? res() : rej(STOP)), KIT.still.matches ? Math.min(ms, 150) : ms)),
+  tween: (ms, fn) =>
+    new Promise((res, rej) => {
+      if (KIT.still.matches) {
+        fn(1);
+        return res();
+      }
+      const t0 = performance.now();
+      const frame = (now) => {
+        if (!alive()) return rej(STOP);
+        const t = Math.min(1, (now - t0) / ms);
+        fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+        if (t < 1) requestAnimationFrame(frame);
+        else res();
+      };
+      requestAnimationFrame(frame);
+    }),
+});
+const quiet = (p) => Promise.resolve(p).catch((e) => (e === STOP ? null : console.error(e)));
+function wrap(line, per) {
+  const words = String(line).split(" ");
+  const rows = [];
+  for (const w of words) {
+    const last = rows[rows.length - 1];
+    if (last !== undefined && (last + " " + w).length <= per) rows[rows.length - 1] = last + " " + w;
+    else rows.push(w);
+  }
+  return rows;
+}
+function svgPoint(event) {
+  const p = view.createSVGPoint();
+  p.x = event.clientX;
+  p.y = event.clientY;
+  return p.matrixTransform(view.getScreenCTM().inverse());
+}
+
+// ================= notation renderer =================
+// A staff: position 0 is the bottom line; each step up is half a space (line, space, line ...).
+function staff(parent, { x0 = 70, x1 = 930, yb = 236, g = 26, clef = "treble" } = {}) {
+  const node = el("g", { class: "gr-staff" }, parent);
+  const S = { x0, x1, yb, g, clef, node, y: (pos) => yb - (pos * g) / 2 };
+  for (let i = 0; i < 5; i++) el("line", { x1: x0, x2: x1, y1: yb - i * g, y2: yb - i * g, stroke: INK, "stroke-width": 2 }, node);
+  el("line", { x1: x0, x2: x0, y1: yb - 4 * g, y2: yb, stroke: INK, "stroke-width": 2.5 }, node);
+  S.layer = el("g", {}, node);
+  return S;
+}
+function clefGlyph(S, x) {
+  const bass = S.clef === "bass";
+  const t = el("text", { class: "gr-clef", x, y: bass ? S.yb - 3 * S.g + 1.82 * S.g : S.yb + 0.05 * S.g, "font-size": S.g * (bass ? 3.3 : 4.1), fill: INK }, S.node);
+  t.textContent = bass ? "𝄢" : "𝄞";
+  return t;
+}
+// Sharp, flat and natural drawn as paths (designed at a 26-unit space), centred on the line or space they belong to.
+function accGlyph(parent, x, y, a, g, color = INK) {
+  const grp = el("g", { transform: `translate(${x} ${y}) scale(${g / 26})`, fill: "none", stroke: color, class: "gr-acc" }, parent);
+  if (a === 1) {
+    el("path", { d: "M-5 -30V32M5 -34V28", "stroke-width": 2.6 }, grp);
+    el("path", { d: "M-11 -6L11 -14M-11 14L11 6", "stroke-width": 6 }, grp);
+  } else if (a === -1) {
+    el("path", { d: "M-7 -44V12", "stroke-width": 2.6 }, grp);
+    el("path", { d: "M-7 12C2 6 14 -2 11 -9C8 -15 -1 -10 -7 -4", "stroke-width": 4.5, "stroke-linejoin": "round" }, grp);
+  } else if (a === 0) {
+    el("path", { d: "M-6 -30V12M6 -12V30", "stroke-width": 2.6 }, grp);
+    el("path", { d: "M-6 -3L6 -9M-6 9L6 3", "stroke-width": 5.5 }, grp);
+  }
+  return grp;
+}
+function head(parent, x, y, { v, color, g }) {
+  if (v === "sb") {
+    el("ellipse", { cx: x, cy: y, rx: 0.8 * g, ry: 0.5 * g, fill: color }, parent);
+    el("ellipse", { cx: x, cy: y, rx: 0.36 * g, ry: 0.28 * g, fill: "#fff", transform: `rotate(-55 ${x} ${y})` }, parent);
+  } else if (v === "m" || v === "dm") {
+    el("ellipse", { cx: x, cy: y, rx: 0.66 * g, ry: 0.46 * g, fill: color, transform: `rotate(-22 ${x} ${y})` }, parent);
+    el("ellipse", { cx: x, cy: y, rx: 0.52 * g, ry: 0.2 * g, fill: "#fff", transform: `rotate(-32 ${x} ${y})` }, parent);
+  } else el("ellipse", { cx: x, cy: y, rx: 0.66 * g, ry: 0.46 * g, fill: color, transform: `rotate(-22 ${x} ${y})` }, parent);
+}
+function flag(parent, sx, fy, up, g, color) {
+  const k = g / 22;
+  const d = up ? 1 : -1;
+  el("path", { d: `M${sx} ${fy}C${sx + 4 * k} ${fy + 18 * k * d} ${sx + 26 * k} ${fy + 22 * k * d} ${sx + 16 * k} ${fy + 50 * k * d}C${sx + 22 * k} ${fy + 28 * k * d} ${sx + 8 * k} ${fy + 22 * k * d} ${sx} ${fy + 18 * k * d}Z`, fill: color }, parent);
+}
+const isDotted = (v) => v === "dm" || v === "dc" || v === "dq";
+function note(S, x, pos, { v = "c", acc = null, color = INK, up = null, stemTo = null, flags = true, parent = S.layer } = {}) {
+  const g = S.g;
+  const y = S.y(pos);
+  const grp = el("g", { class: "gr-note", "data-pos": pos }, parent);
+  for (const p of ledgers(pos)) el("line", { class: "gr-ledger", x1: x - 1.05 * g, x2: x + 1.05 * g, y1: S.y(p), y2: S.y(p), stroke: INK, "stroke-width": 2 }, grp);
+  head(grp, x, y, { v, color, g });
+  if (acc !== null && acc !== undefined) accGlyph(grp, x - 1.6 * g, y, acc, g, color);
+  if (isDotted(v)) el("circle", { cx: x + 1.15 * g, cy: S.y(pos % 2 === 0 ? pos + 1 : pos), r: 0.16 * g, fill: color }, grp);
+  let stem = null;
+  if (v !== "sb") {
+    const isUp = up ?? pos < 4;
+    const sx = isUp ? x + 0.6 * g : x - 0.6 * g;
+    let ey = stemTo ?? (isUp ? y - 3.4 * g : y + 3.4 * g);
+    if (stemTo == null) {
+      if (isUp && ey > S.y(4)) ey = S.y(4);
+      if (!isUp && ey < S.y(4)) ey = S.y(4);
+    }
+    el("line", { x1: sx, x2: sx, y1: y + (isUp ? -0.12 : 0.12) * g, y2: ey, stroke: color, "stroke-width": 0.11 * g + 0.6 }, grp);
+    stem = { sx, ey, up: isUp };
+    if (flags && (v === "q" || v === "dq" || v === "sq")) {
+      flag(grp, sx, ey, isUp, g, color);
+      if (v === "sq") flag(grp, sx, ey + (isUp ? 0.85 : -0.85) * g, isUp, g, color);
+    }
+  }
+  return { grp, x, y, stem };
+}
+function rest(S, x, v, { color = INK, parent = S.layer } = {}) {
+  const g = S.g;
+  const grp = el("g", { class: "gr-rest" }, parent);
+  const y4 = S.y(4);
+  const P2 = (dx, dy) => `${x + dx * g} ${y4 + dy * g}`;
+  if (v === "sb") el("rect", { x: x - 0.62 * g, y: S.y(6), width: 1.24 * g, height: 0.5 * g, fill: color }, grp);
+  else if (v === "m") el("rect", { x: x - 0.62 * g, y: y4 - 0.5 * g, width: 1.24 * g, height: 0.5 * g, fill: color }, grp);
+  else if (v === "c" || v === "dc") {
+    el("path", { d: `M${P2(-0.25, -1.45)}L${P2(0.38, -0.62)}L${P2(-0.12, 0.02)}L${P2(0.4, 0.72)}Q${P2(-0.6, 0.38)} ${P2(0.02, 1.4)}`, fill: "none", stroke: color, "stroke-width": 0.2 * g, "stroke-linejoin": "round", "stroke-linecap": "round" }, grp);
+    el("path", { d: `M${P2(0.3, -0.7)}L${P2(-0.06, -0.08)}`, stroke: color, "stroke-width": 0.42 * g, "stroke-linecap": "round" }, grp);
+  } else if (v === "q" || v === "sq") {
+    const y5 = -0.5;
+    el("circle", { cx: x - 0.32 * g, cy: y4 + y5 * g, r: 0.2 * g, fill: color }, grp);
+    el("path", { d: `M${P2(-0.32, y5)}Q${P2(0.05, y5 + 0.35)} ${P2(0.42, y5 - 0.1)}`, fill: "none", stroke: color, "stroke-width": 0.13 * g }, grp);
+    const bottom = v === "sq" ? 2.55 : 1.55;
+    el("line", { x1: x + 0.42 * g, y1: y4 + (y5 - 0.1) * g, x2: x - 0.12 * g, y2: y4 + bottom * g, stroke: color, "stroke-width": 0.13 * g }, grp);
+    if (v === "sq") {
+      const sx = 0.42 - 0.54 * (1.1 / 2.65);
+      el("circle", { cx: x - 0.5 * g, cy: y4 + (y5 + 1) * g, r: 0.2 * g, fill: color }, grp);
+      el("path", { d: `M${P2(-0.5, y5 + 1)}Q${P2(-0.1, y5 + 1.35)} ${P2(sx, y5 + 0.9)}`, fill: "none", stroke: color, "stroke-width": 0.13 * g }, grp);
+    }
+  }
+  if (v === "dc") el("circle", { cx: x + 0.9 * g, cy: S.y(5), r: 0.16 * g, fill: color }, grp);
+  return grp;
+}
+function barline(S, x, end = false, color = INK) {
+  const g = S.g;
+  if (end) {
+    el("line", { x1: x - 0.55 * g, x2: x - 0.55 * g, y1: S.y(8), y2: S.y(0), stroke: color, "stroke-width": 2 }, S.layer);
+    return el("rect", { x: x - 0.3 * g, y: S.y(8), width: 0.36 * g, height: 4 * g, fill: color }, S.layer);
+  }
+  return el("line", { class: "gr-bar", x1: x, x2: x, y1: S.y(8), y2: S.y(0), stroke: color, "stroke-width": 2.2 }, S.layer);
+}
+function timeSig(S, x, ts) {
+  const [a, b] = ts.split("/");
+  for (const [n, pos] of [[a, 6], [b, 2]]) {
+    const t = el("text", { class: "gr-time", x, y: S.y(pos), "font-size": 2.75 * S.g, "text-anchor": "middle", "dominant-baseline": "central", fill: INK }, S.node);
+    t.textContent = n;
+  }
+}
+function header(S, { clef = true, sig = [], ts = null } = {}) {
+  let x = S.x0 + 0.35 * S.g;
+  if (clef) {
+    clefGlyph(S, x);
+    x += 3.0 * S.g;
+  }
+  sig.forEach((k, i) => accGlyph(S.node, x + 0.6 * S.g + i * 1.05 * S.g, S.y(k.pos), k.a, S.g));
+  if (sig.length) x += sig.length * 1.05 * S.g + 0.7 * S.g;
+  if (ts) {
+    timeSig(S, x + 1.0 * S.g, ts);
+    x += 2.3 * S.g;
+  }
+  return x + 0.8 * S.g;
+}
+// Lay out and draw a run of notes, rests and barlines between x0 and x1. Items: { t: "n"|"r"|"bar"|"end", v, pos, acc, color, beam, tie }.
+function music(S, items, x0, x1, { maxUnit = 1.5 } = {}) {
+  const g = S.g;
+  const wOf = (it) => (it.t === "bar" ? 1.6 : it.t === "end" ? 1.0 : 2.0 + 2.2 * Math.sqrt(VAL[it.v].d) + (it.acc !== null && it.acc !== undefined ? 1.4 : 0) + (isDotted(it.v) ? 0.7 : 0));
+  const total = items.reduce((s, it) => s + wOf(it), 0);
+  const u = Math.min((x1 - x0) / total, maxUnit * g);
+  let cur = x0;
+  for (const it of items) {
+    const w = wOf(it) * u;
+    if (it.t === "bar") it.x = cur + w / 2;
+    else if (it.t === "end") it.x = cur + w * 0.7;
+    else it.x = cur + (it.acc !== null && it.acc !== undefined ? 1.4 * u : 0) + 1.0 * u;
+    it.slot = [cur, cur + w];
+    cur += w;
+  }
+  const drawn = new Set();
+  items.forEach((it, i) => {
+    if (drawn.has(i)) return;
+    if (it.t === "bar" || it.t === "end") it.node = barline(S, it.x, it.t === "end");
+    else if (it.t === "r") it.node = rest(S, it.x, it.v, { color: it.color || INK });
+    else if (it.beam) {
+      const group = [];
+      for (let j = i; j < items.length && items[j].beam === it.beam; j++) group.push(j);
+      const mean = group.reduce((s, j) => s + items[j].pos, 0) / group.length;
+      const up = mean < 4;
+      const ys = group.map((j) => S.y(items[j].pos));
+      const by = up ? Math.min(...ys) - 3.2 * g : Math.max(...ys) + 3.2 * g;
+      const heads = group.map((j) => {
+        drawn.add(j);
+        const n = note(S, items[j].x, items[j].pos, { v: items[j].v, acc: items[j].acc, color: items[j].color || INK, up, stemTo: by, flags: false });
+        items[j].node = n.grp;
+        items[j].y = n.y;
+        return n;
+      });
+      const bt = 0.48 * g;
+      const beamAt = (xa, xb, off) => el("polygon", { points: `${xa},${by + (up ? off : -off)} ${xb},${by + (up ? off : -off)} ${xb},${by + (up ? off + bt : -off - bt)} ${xa},${by + (up ? off + bt : -off - bt)}`, fill: items[i].color || INK }, S.layer);
+      beamAt(heads[0].stem.sx, heads[heads.length - 1].stem.sx, 0);
+      group.forEach((j, k) => {
+        if (items[j].v !== "sq") return;
+        const prev = k > 0 && items[group[k - 1]].v === "sq";
+        const next = k < group.length - 1 && items[group[k + 1]].v === "sq";
+        if (next) beamAt(heads[k].stem.sx, heads[k + 1].stem.sx, 0.8 * g);
+        else if (!prev) beamAt(k > 0 ? heads[k].stem.sx - 0.9 * g : heads[k].stem.sx, k > 0 ? heads[k].stem.sx : heads[k].stem.sx + 0.9 * g, 0.8 * g);
+      });
+    } else {
+      const n = note(S, it.x, it.pos, { v: it.v, acc: it.acc, color: it.color || INK });
+      it.node = n.grp;
+      it.y = n.y;
+    }
+  });
+  items.forEach((it, i) => {
+    if (!it.tie) return;
+    const prev = items.slice(0, i).reverse().find((x) => x.t === "n");
+    if (prev) tie(S, prev.x, it.x, it.pos);
+  });
+  return items;
+}
+function tie(S, xa, xb, pos) {
+  const g = S.g;
+  const below = pos < 4;
+  const d = below ? 1 : -1;
+  const y = S.y(pos) + d * 0.65 * g;
+  const a = xa + 0.5 * g;
+  const b = xb - 0.5 * g;
+  const m = (a + b) / 2;
+  el("path", { d: `M${a} ${y}Q${m} ${y + d * 0.95 * g} ${b} ${y}Q${m} ${y + d * 0.65 * g} ${a} ${y}Z`, fill: INK }, S.layer);
+}
+// A tappable band over the staff: the nearest line or space under the pointer.
+function tapStaff(S, { lo, hi, x0, x1, ghostX: gx, onPick }) {
+  const ghostXOf = () => (typeof gx === "function" ? gx() : gx);
+  const g = S.g;
+  const top = S.y(hi + 1.4);
+  const hit = el("rect", { class: "gr-tap", x: x0, y: top, width: x1 - x0, height: S.y(lo - 1.4) - top, fill: "transparent" }, S.node);
+  const ghost = el("g", { opacity: 0, "pointer-events": "none" }, S.node);
+  const posAt = (event) => Math.max(lo, Math.min(hi, Math.round((S.yb - svgPoint(event).y) / (g / 2))));
+  const show = (pos) => {
+    const ghostX = ghostXOf();
+    ghost.innerHTML = "";
+    for (const p of ledgers(pos)) el("line", { x1: ghostX - 1.05 * g, x2: ghostX + 1.05 * g, y1: S.y(p), y2: S.y(p), stroke: SOFT, "stroke-width": 2 }, ghost);
+    el("ellipse", { cx: ghostX, cy: S.y(pos), rx: 0.8 * g, ry: 0.5 * g, fill: "var(--accent)" }, ghost);
+    ghost.setAttribute("opacity", 0.4);
+  };
+  hit.addEventListener("pointermove", (event) => show(posAt(event)));
+  hit.addEventListener("pointerleave", () => ghost.setAttribute("opacity", 0));
+  hit.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    ghost.setAttribute("opacity", 0);
+    onPick(posAt(event));
+  });
+  return { hit, posAt };
+}
+function recolor(grp, color) {
+  grp.querySelectorAll("ellipse").forEach((e) => e.getAttribute("fill") !== "#fff" && e.setAttribute("fill", color));
+  grp.querySelectorAll("line:not(.gr-ledger)").forEach((e) => e.setAttribute("stroke", color));
+  grp.querySelectorAll(".gr-acc").forEach((e) => e.setAttribute("stroke", color));
+  grp.querySelectorAll("circle").forEach((e) => e.setAttribute("fill", color));
+  grp.querySelectorAll("path").forEach((e) => (e.getAttribute("fill") && e.getAttribute("fill") !== "none" ? e.setAttribute("fill", color) : null));
+}
+// A piano keyboard drawn in the stage (tap a key to hear it).
+function keyboard(parent, { low, high, x, y, w, h }) {
+  const whites = [];
+  for (let m = low; m <= high; m++) if (MUSIC.isWhite(m)) whites.push(m);
+  const kw = w / whites.length;
+  const g = el("g", { class: "gr-keys" }, parent);
+  const keys = new Map();
+  whites.forEach((m, i) => {
+    const r = el("rect", { x: x + i * kw + 1, y, width: kw - 2, height: h, rx: 5, fill: "#fffdf8", stroke: "#7d6a58", "stroke-width": 1.5, "data-midi": m }, g);
+    keys.set(m, { r, cx: x + i * kw + kw / 2, white: true, base: "#fffdf8" });
+    if (m % 12 === 0) text(g, x + i * kw + kw / 2, y + h - 12, `C${m / 12 - 1}`, { "font-size": 22, fill: "#8a7764", "pointer-events": "none" });
+  });
+  whites.forEach((m, i) => {
+    if (!MUSIC.isWhite(m + 1) && m + 1 <= high) {
+      const r = el("rect", { x: x + (i + 1) * kw - kw * 0.31, y, width: kw * 0.62, height: h * 0.6, rx: 4, fill: "#2a1d14", "data-midi": m + 1 }, g);
+      keys.set(m + 1, { r, cx: x + (i + 1) * kw, white: false, base: "#2a1d14" });
+    }
+  });
+  g.addEventListener("pointerdown", (event) => {
+    const m = Number(event.target.getAttribute("data-midi"));
+    if (!m) return;
+    MUSIC.play("piano", m, { gain: 0.8, length: 0.9 });
+    window.OC?.touch();
+  });
+  return {
+    mark(m, color) {
+      const k = keys.get(m);
+      if (k) k.r.setAttribute("fill", color);
+    },
+    centre: (m) => keys.get(m)?.cx,
+    top: y,
+    h,
+    keys,
+  };
+}
+
+// ---------- sound ----------
+const BPM = 92;
+function playSeq(seq, { bpm = BPM, gain = 0.8 } = {}) {
+  const t0 = MUSIC.now() + 0.08;
+  const beat = 60 / bpm;
+  let t = t0;
+  for (const s of seq) {
+    const ms = s.m === null || s.m === undefined ? [] : [].concat(s.m);
+    for (const m of ms) MUSIC.play("piano", m, { gain: s.gain ?? gain, at: t, length: s.len ?? Math.max(0.12, s.d * beat * 0.92) });
+    if (s.tick) MUSIC.tick(s.tick === 2, t);
+    t += s.d * beat;
+  }
+  return t - t0;
+}
+const playNotes = (notes, d = 0.8, opts) => playSeq(notes.map((n) => ({ m: midiOf(n), d })), opts);
+const playChord = (notes, at = 0) => playSeq([{ m: notes.map(midiOf), d: 2, len: 1.6 }]);
+// Pitched playback of a rhythm drawn on a staff (accidentals as written).
+function playItems(items, clef, { bpm = BPM } = {}) {
+  const seq = [];
+  items.forEach((it) => {
+    if (it.t === "n") {
+      if (it.tie) seq[seq.length - 1].d += VAL[it.v].d;
+      else seq.push({ m: midiOf(noteAt(it.pos, clef, it.acc || 0)), d: VAL[it.v].d });
+    } else if (it.t === "r") seq.push({ m: null, d: it.whole ? it.whole : VAL[it.v].d });
+  });
+  seq.forEach((s) => (s.len = Math.max(0.12, s.d * (60 / bpm) * 0.92)));
+  return playSeq(seq, { bpm });
+}
+
+// ---------- notes card ----------
+const LOW = { x: 24, y: 350, w: 952, h: 198 };
+const RIGHT = { x: 600, y: 16, w: 384, h: 528 };
+function notes(lines, { title = "🔎 How we know", region = LOW, tone = "work" } = {}) {
+  view.querySelector(".gr-notes")?.remove();
+  const g = el("g", { class: "gr-notes" }, view);
+  let font = 26;
+  const fit = () => {
+    const per = Math.floor((region.w - 40) / (font * 0.53));
+    return lines.flatMap((l) => wrap(l, per));
+  };
+  let rows = fit();
+  while (60 + rows.length * font * 1.34 > region.h && font > 22) {
+    font -= 1;
+    rows = fit();
+  }
+  const lh = font * 1.34;
+  const h = Math.min(region.h, 58 + rows.length * lh);
+  const work = tone === "work";
+  el("rect", { x: region.x, y: region.y, width: region.w, height: h, rx: 22, fill: work ? "#f1faf3" : "#fff8ea", stroke: work ? "#8fcf9f" : "#e0b872", "stroke-width": 3 }, g);
+  text(g, region.x + 20, region.y + 36, title, { "font-size": 25, fill: work ? "#23733b" : "#8a5a12", "text-anchor": "start", "font-weight": 900 });
+  rows.forEach((r, i) => text(g, region.x + 20, region.y + 38 + (i + 1) * lh, r, { "font-size": font, fill: INK, "text-anchor": "start", "font-weight": 700 }));
+  return g;
+}
+
+const EFFORT = ["Correct — and here is why.", "Correct. Your method was sound.", "Correct — careful reading.", "Correct. Notice the reasoning:"];
+const NUDGE = ["Not quite. Consider:", "Not quite — mistakes are how we learn. Let us look why.", "Not yet. Consider:"];
+
+// ---------- panel rows ----------
+const LEVELS = [["easy", "🐣 Grade 1"], ["medium", "🦊 Grade 2"], ["hard", "🦁 Grade 3+"]];
+const LV = { easy: 1, medium: 2, hard: 3 };
+const topRow = (level) => `<div class="ap-row gr-top"><div class="ap-chips" data-levels>${LEVELS.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === level}">${l}</button>`).join("")}</div><button type="button" class="gr-hear" data-hear aria-label="Hear it again">🔊<span> Hear it</span></button><p class="ap-status" data-status></p></div>`;
+const setStatus = (s) => {
+  const b = $("[data-status]");
+  if (b) b.textContent = s;
+};
+
+// ---------- "Explain it" and "Try it for real" ----------
+const EXPLAIN = {
+  gr0: "Why could singers read a chant they had never heard once Guido's lines existed, when neumes alone could not do this? What does a clef add?",
+  gr1: "Explain how the treble clef and the bass clef each fix the letter names on the staff, and why middle C needs a ledger line in both.",
+  gr2: "Explain why a dot adds half of a note's own value, and how a tie differs from a dot. Use a dotted minim as your example.",
+  gr3: "Explain what the two numbers of 3/4 tell a performer, and describe the method you used to decide where a missing barline belonged.",
+  gr4: "Explain how long an accidental lasts, and why a barline, a natural sign or a different octave changes the pitch of a later note.",
+  gr5: "Explain why the scale of G major needs an F sharp. Use the pattern of tones and semitones that every major scale follows.",
+  gr6: "Explain the difference between a tone and a semitone using a keyboard. Why are E–F and B–C semitones although no black key lies between them?",
+  gr7: "Explain how to find the number of an interval, and why both the bottom note and the top note are counted.",
+  gr8: "Explain how to build the tonic triad of any key, and why the triad of A minor contains C natural while A major's contains C sharp.",
+  gr9: "Choose two terms with opposite meanings. Explain what each asks a performer to do, and how the Italian root of the word helps you remember it.",
+  gr10: "Explain why a note moved down an octave from the treble clef to the bass clef lands on a different line or space, although its letter name is unchanged.",
+};
+const REAL = {
+  gr1: { title: "Try it for real: find every C", need: ["A piano or keyboard (or a printed keyboard)", "Sticky notes"], steps: ["Find middle C: the C nearest the centre of the keyboard.", "Label it C4, then label C3 and C5 an octave either side.", "Play G4, the note the treble clef curls around, then F3, the note between the bass clef's dots.", "Write each one on a staff and check the line."], note: "Ask a grown-up before putting sticky notes on an instrument." },
+  gr2: { title: "Try it for real: count and clap", need: ["Your hands", "A steady beat (a ticking clock works)"], steps: ["Clap a semibreve: clap once and hold for 4 ticks.", "Clap two minims, then four crotchets, then eight quavers.", "Clap a dotted minim: clap, then hold for 3 ticks.", "Make up a 4-beat pattern and write it down."], note: "Clap gently: the goal is accuracy, not volume." },
+  gr3: { title: "Try it for real: conduct", need: ["A pencil as a baton", "Recorded music: a march and a waltz"], steps: ["2/4: down, up. Count 1, 2.", "3/4: down, out, up. Count 1, 2, 3.", "4/4: down, in, out, up. Count 1, 2, 3, 4.", "Conduct a march and a waltz. Which pattern fits each?"], note: "Ask a grown-up to choose the recordings with you." },
+  gr4: { title: "Try it for real: accidental hunt", need: ["A printed piece of music", "A pencil"], steps: ["Find every sharp, flat or natural that is not in the key signature.", "For each one, follow the bar to its barline.", "Circle any later note on the same line or space: it keeps the accidental.", "Play the bar with and without the accidental."], note: "Use a copy you are allowed to write on." },
+  gr5: { title: "Try it for real: build G major", need: ["A piano or keyboard"], steps: ["Play C D E F G A B C: white keys only. Listen.", "Start on G and play only white keys. One note sounds wrong.", "Replace F with F sharp (the black key just above F).", "Now play D major: which two black keys does it need?"], note: "Play slowly and listen to each step." },
+  gr6: { title: "Try it for real: semitone search", need: ["A piano or keyboard"], steps: ["Play every key from C to the next C, black and white: 12 semitones.", "Find the two pairs of white keys with no black key between them.", "Play a tone: skip exactly one key.", "Is C to D a tone? Is B to C?"], note: "Count aloud as you play each key." },
+  gr7: { title: "Try it for real: sing an interval", need: ["Your voice", "A piano, if you have one"], steps: ["Sing the opening of Twinkle, Twinkle, Little Star: the leap from the first 'twinkle' to the second is a 5th (C up to G).", "Play C, then count letters up to G: C D E F G = 5.", "Now play C to E (a 3rd) and C to C (an octave).", "Sing each one before you play it."], note: "Sing gently; listen before you sing." },
+  gr8: { title: "Try it for real: triad shapes", need: ["A piano or keyboard"], steps: ["Play C, E, G together: the tonic triad of C major.", "Lower the middle note to E flat: C minor.", "Play the tonic triads of G, D and F major.", "Describe the difference between major and minor in one sentence."], note: "Use three fingers: thumb, middle finger and little finger." },
+  gr9: { title: "Try it for real: term detective", need: ["Two or three printed pieces of music", "Index cards"], steps: ["Find every Italian word or abbreviation in each piece.", "Write each on a card, with its meaning on the back.", "Sort the cards: speed, volume, style, structure.", "Play or sing one phrase obeying the term."], note: "Ask a grown-up for pieces you may borrow." },
+  gr10: { title: "Try it for real: two hands, two clefs", need: ["A piano or keyboard", "Paper with staves"], steps: ["Play a five-note tune with your right hand from middle C.", "Play the same tune an octave lower with your left hand.", "Write the tune in the treble clef, then an octave lower in the bass clef.", "Check: every letter name the same?"], note: "Write neatly: a note's line or space is its meaning." },
+};
+function realCard(id) {
+  const t = REAL[id];
+  if (!t) return;
+  stage.querySelector(".gr-real")?.remove();
+  const box = document.createElement("div");
+  box.className = "gr-real";
+  box.innerHTML = `<div class="gr-real-card" role="dialog" aria-label="${t.title}"><div class="gr-real-head"><span aria-hidden="true">🏠</span><h2>${t.title}</h2></div><p class="gr-need"><b>You need:</b> ${t.need.join(" · ")}</p><ol>${t.steps.map((s) => `<li>${s}</li>`).join("")}</ol><p class="gr-tip">🤝 With a grown-up. ${t.note}</p><button type="button" class="kt-go">✓ Done</button></div>`;
+  stage.appendChild(box);
+  VOICE.speak(spoken(`${t.title}. You need: ${t.need.join(", ")}. ${t.steps.join(" ")} With a grown-up. ${t.note}`));
+  box.querySelector(".kt-go").addEventListener("click", () => {
+    VOICE.hush();
+    box.remove();
+    window.OC?.touch();
+  });
+}
+function explainCard(id, y = 60) {
+  const g = el("g", { class: "gr-explain" }, view);
+  el("rect", { x: 70, y, width: 860, height: 340, rx: 30, fill: "#fff8ea", stroke: "#e0b872", "stroke-width": 4 }, g);
+  text(g, 110, y + 58, "💬 Explain it", { "font-size": 36, fill: "#8a5a12", "text-anchor": "start", "font-weight": 900 });
+  wrap(EXPLAIN[id], 50).forEach((line, i) => text(g, 110, y + 110 + i * 40, line, { "font-size": 29, fill: INK, "text-anchor": "start", "font-weight": 700 }));
+  text(g, 110, y + 312, "Use 2–4 full sentences: say them aloud to a grown-up, or write them.", { "font-size": 23, fill: SOFT, "text-anchor": "start", "font-weight": 600 });
+  return g;
+}
+function finishGame(id, host, { R, first, again }) {
+  fresh();
+  explainCard(id);
+  text(view, 500, 462, `Set complete: ${R} questions`, { "font-size": 34, fill: INK });
+  text(view, 500, 506, `${first} correct at the first attempt · ${R - first} after reconsidering`, { "font-size": 24, fill: SOFT, "font-weight": 600 });
+  confetti();
+  MUSIC.chime();
+  shell.mark(id, { done: true });
+  setStatus("Explain it");
+  talk(`Set complete. Now answer the <b>Explain it</b> task above.`, `Set complete. You worked through all ${R} questions. Now, explain it: ${EXPLAIN[id]}`);
+  host.classList.remove("gr-pick");
+  host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-said>✓ I explained it</button><button type="button" data-again>🔁 New set</button>${REAL[id] ? `<button type="button" data-real>🏠 Try it for real</button>` : ""}</div>`;
+  host.onclick = (event) => {
+    if (event.target.closest("[data-said]")) {
+      window.OC?.touch();
+      window.OC?.count("explanations given");
+      event.target.closest("[data-said]").disabled = true;
+      talk("Well articulated. Putting an idea into your own words is how understanding becomes permanent.");
+    } else if (event.target.closest("[data-again]")) {
+      window.OC?.touch();
+      again();
+    } else if (event.target.closest("[data-real]")) {
+      window.OC?.touch();
+      realCard(id);
+    }
+  };
+}
+
+// ---------- the question engine: ask, a hint after an honest attempt, the reasoning after two ----------
+// q: { draw(api), ask, voice?, opts?, pad?, ans, ok?(v), hint(v), why, work?, region?, play?(), after?(api, won), parts?, askPart?(i), revealPart?(i) }
+let liveQ = null;
+function quiz(id, cfg) {
+  const my = token;
+  const R = cfg.R || 8;
+  let level = shell.progress()[id]?.level || "easy";
+  let round = 0;
+  let first = 0;
+  let tries = 0;
+  let missed = false;
+  let q = null;
+  let busy = false;
+  let pad = null;
+  panel(`${topRow(level)}<div class="gr-in" data-in></div>`);
+  const host = $("[data-in]");
+  $("[data-hear]").onclick = () => {
+    window.OC?.touch();
+    VOICE.hush();
+    q?.play?.();
+  };
+  const status = () => setStatus(`Question ${Math.min(round + 1, R)} of ${R}`);
+  const isRight = (v) => (q.ok ? q.ok(v) : v === q.ans);
+  const ask = () => {
+    if (my !== token) return;
+    tries = 0;
+    missed = false;
+    busy = false;
+    q = cfg.make(LV[level], round);
+    q.part = 0;
+    liveQ = q;
+    const qq = q;
+    q.api = anim(() => my === token && q === qq);
+    q.api.answer = (v) => answer(v, null);
+    fresh();
+    q.draw(q.api);
+    status();
+    host.onclick = null;
+    host.classList.toggle("gr-pick", !!q.opts);
+    host.classList.toggle("gr-many", !!q.opts && q.opts.length > 4);
+    pad = null;
+    if (q.opts) choices(host, q.opts, (o, b) => answer(o.v, b));
+    else if (q.pad) pad = numpad(host, { onEnter: (v) => answer(v), max: 3 });
+    else host.innerHTML = `<p class="gr-tapnote">${q.tapNote || "Tap the staff to answer."}</p>`;
+    talk(q.parts ? `${q.ask} ${q.askPart(0)}` : q.ask, q.voice);
+    $("[data-hear]").hidden = !q.play;
+    if (q.play && q.autoplay !== false) setTimeout(() => my === token && q === qq && q.play(), 600);
+  };
+  const settle = async (won) => {
+    busy = true;
+    const qq = q;
+    host.querySelectorAll("button").forEach((b) => (b.disabled = true));
+    const lead = won ? (tries || missed ? "Correct — your persistence paid off." : pick(EFFORT).replace(/[:.]$/, ".")) : "Here is the answer.";
+    talk(`${lead} Read the reasoning in <b>How we know</b>.`, `${lead} ${q.why}`);
+    notes(q.work || [q.why], { region: q.region || LOW });
+    await quiet(q.after?.(q.api, won));
+    if (my !== token || q !== qq) return;
+    host.classList.remove("gr-pick", "gr-many");
+    host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-next>${round + 1 >= R ? "Finish ▶" : "Next ▶"}</button></div>`;
+    host.onclick = (event) => {
+      if (!event.target.closest("[data-next]")) return;
+      window.OC?.touch();
+      VOICE.hush();
+      round += 1;
+      if (round >= R) finishGame(id, host, { R, first, again: restart });
+      else ask();
+    };
+  };
+  // Returns true (right), false (wrong) or null (ignored), so tap-based questions can colour what was tapped.
+  const answer = (v, button) => {
+    if (my !== token || busy) return null;
+    window.OC?.touch();
+    if (isRight(v)) {
+      button?.classList.add("right");
+      MUSIC.chime();
+      if (q.parts && q.part < q.parts - 1) {
+        q.part += 1;
+        tries = 0;
+        talk(`${pick(["Correct.", "Exactly.", "Right."])} ${q.askPart(q.part)}`);
+        return true;
+      }
+      if (tries === 0 && !missed) first += 1;
+      window.OC?.count(cfg.count);
+      settle(true);
+      return true;
+    }
+    tries += 1;
+    button?.classList.add("wrong");
+    MUSIC.oops();
+    if (tries < 2) {
+      pad?.clear();
+      talk(`${pick(NUDGE)} ${q.hint(v)}`);
+      return false;
+    }
+    missed = true;
+    if (q.parts && q.part < q.parts - 1) {
+      quiet(q.revealPart(q.part));
+      q.part += 1;
+      tries = 0;
+      talk(`Here is that note, with the reasoning: ${q.partWhy(q.part - 1)} ${q.askPart(q.part)}`);
+      return false;
+    }
+    if (q.parts) quiet(q.revealPart(q.part));
+    if (q.opts) {
+      host.querySelectorAll("[data-c]").forEach((b, i) => {
+        if (isRight(q.opts[i].v)) b.classList.add("right");
+      });
+    } else pad?.set(q.ans);
+    settle(false);
+    return false;
+  };
+  const restart = () => {
+    round = 0;
+    first = 0;
+    ask();
+  };
+  $("[data-levels]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    level = b.dataset.lv;
+    shell.mark(id, { level });
+    window.OC?.touch();
+    VOICE.hush();
+    restart();
+  });
+  ask();
+}
+const rot = (round, list) => list[round % list.length];
+const stdStaff = (clef, extra = {}) => staff(view, { x0: 70, x1: 930, yb: 236, g: 26, clef, ...extra });
+const accWritten = (n, sig = {}) => (n.a !== (sig[n.l] || 0) ? n.a : null);
+// Little "?" pointer above a note.
+function pointer(x, y, color = HOT) {
+  const g = el("g", { class: "gr-pointer" }, view);
+  el("path", { d: `M${x - 14} ${y - 34}L${x + 14} ${y - 34}L${x} ${y - 12}Z`, fill: color }, g);
+  text(g, x, y - 44, "?", { "font-size": 34, fill: color });
+  return g;
+}
+
+// ================= 1. Clefs =================
+function clefCase(lv, round) {
+  const mode = rot(round, ["name", "place"]);
+  const d = GR.genClef(lv, mode);
+  const midi = midiOf(d.note);
+  const sci = sciOf(d.note);
+  let S;
+  let placed = null;
+  const NX = 560;
+  const q = {
+    ...d,
+    opts: mode === "name" ? LET.map((l, i) => ({ label: l, v: i })) : null,
+    ok: mode === "place" ? (pos) => (d.any ? noteAt(pos, d.clef).l === d.note.l : pos === d.pos) : null,
+    ask: mode === "name" ? `Name this note in the ${CLEFS[d.clef].name}.` : d.any ? `Place any ${LET[d.note.l]} on this ${d.clef} staff.` : `Place ${sci}${sci === "C4" ? " (middle C)" : ""} on this ${d.clef} staff.`,
+    voice: mode === "place" && !d.any ? `Place ${spoken(sci)}${sci === "C4" ? ", middle C," : ""} on this ${d.clef} staff.` : undefined,
+    tapNote: "Tap a line or a space on the staff. Ledger lines appear as you need them.",
+    draw(api) {
+      S = stdStaff(d.clef);
+      q.S = S;
+      const x = header(S);
+      text(view, 500, 40, mode === "name" ? "Name the note" : d.any ? `Place a ${LET[d.note.l]}` : `Place ${sci}`, { "font-size": 30, fill: SOFT });
+      if (mode === "name") note(S, NX, d.pos, { v: "sb" });
+      else
+        tapStaff(S, {
+          lo: d.range[0],
+          hi: d.range[1],
+          x0: x,
+          x1: 930,
+          ghostX: NX,
+          onPick: (pos) => {
+            placed?.remove();
+            const n = note(S, NX, pos, { v: "sb", color: HOT });
+            placed = n.grp;
+            MUSIC.play("piano", midiOf(noteAt(pos, d.clef)), { gain: 0.8, length: 1.1 });
+            const res = api.answer(pos);
+            if (res === null) return placed.remove();
+            recolor(placed, res ? GREEN : WRONG);
+          },
+        });
+    },
+    play: mode === "name" ? () => MUSIC.play("piano", midi, { gain: 0.85, length: 1.4 }) : null,
+    hint(v) {
+      const lm = d.lm[1];
+      if (mode === "name") return `You chose ${LET[v]}. Start from a landmark you know for certain — ${lm} — and step one letter per line or space towards the note. Where do you arrive?`;
+      const got = noteAt(v, d.clef);
+      return `You placed ${sciOf(got)}. ${d.any ? "" : `Octave numbers change at each C: ${sciOf(d.note)} lies ${stepOf(d.note) >= 28 ? "at or above" : "below"} middle C (C4). `}Start from ${lm}: which way, and how many steps?`;
+    },
+    async after(api, won) {
+      MUSIC.play("piano", midi, { gain: 0.85, length: 1.4 });
+      if (mode === "place" && !won) {
+        placed?.remove();
+        note(S, NX, d.pos, { v: "sb", color: GREEN });
+      }
+      if (mode === "name") note(S, NX, d.pos, { v: "sb", color: GREEN });
+      text(view, NX + 70, S.y(d.pos) + 10, sci, { "font-size": 30, fill: GREEN, "text-anchor": "start" });
+    },
+  };
+  return q;
+}
+
+// ================= 2. Note and rest values =================
+function valueCase(lv, round) {
+  const kind = rot(round, ["name", "equal", "tie"]);
+  const d = GR.genValue(lv, kind);
+  let S;
+  const q = { ...d };
+  const pos = pickInt(2, 6);
+  if (kind === "name") {
+    q.ask = d.rest ? "Name this rest. Give both names: British (American)." : "Name this note. Give both names: British (American).";
+    q.draw = () => {
+      S = staff(view, { x0: 250, x1: 750, yb: 236, g: 30, clef: "treble" });
+      header(S);
+      if (d.rest) rest(S, 540, d.v);
+      else note(S, 540, pos, { v: d.v });
+    };
+    q.play = () => (d.rest ? playSeq([{ m: null, d: 0, tick: 2 }, ...Array.from({ length: Math.max(1, Math.round(VAL[d.v].d)) }, () => ({ m: null, d: 1, tick: 1 }))]) : playSeq([{ m: midiOf(noteAt(pos, "treble")), d: VAL[d.v].d }]));
+    q.hint = () => (d.rest ? "Where does the rest sit: hanging below a line, sitting on one, a zigzag, or a hook with flags? Count any flags." : "Look closely: is the head hollow or filled? Is there a stem? How many flags? Is there a dot?");
+  } else if (kind === "equal") {
+    q.pad = true;
+    q.ask = `How many ${VAL[d.b].uk}s (${VAL[d.b].us}s) last as long as one ${VAL[d.a].uk} (${VAL[d.a].us})?`;
+    q.draw = () => {
+      S = staff(view, { x0: 120, x1: 880, yb: 236, g: 28, clef: "treble" });
+      header(S);
+      note(S, 360, 3, { v: d.a });
+      text(view, 520, S.y(4) + 14, "=", { "font-size": 64, fill: INK });
+      text(view, 640, S.y(4) + 14, "? ×", { "font-size": 50, fill: HOT });
+      note(S, 760, 3, { v: d.b });
+    };
+    q.play = () => playSeq([{ m: 64, d: VAL[d.a].d }, ...Array.from({ length: Math.min(16, d.ans) }, () => ({ m: 67, d: VAL[d.b].d }))]);
+    q.hint = (v) => `You said ${v}. How many crotchet beats is a ${VAL[d.a].uk}? And a ${VAL[d.b].uk}? How many of the second fit into the first?`;
+  } else {
+    q.ask = d.vs.length > 2 ? "These three notes are tied. How many crotchet beats does the sound last?" : "These notes are tied. How many crotchet beats does the sound last?";
+    q.draw = () => {
+      S = staff(view, { x0: 120, x1: 880, yb: 236, g: 28, clef: "treble" });
+      const x = header(S);
+      const items = d.vs.map((v, i) => ({ t: "n", v, pos: 3, tie: i > 0 }));
+      music(S, items, x + 40, 860, { maxUnit: 2.2 });
+    };
+    q.play = () => playSeq([{ m: 64, d: d.ans }]);
+    q.hint = () => "Find each note's value in crotchet beats (a dot adds half the note's own value). A tie joins them into one sound, so add them.";
+  }
+  return q;
+}
+
+// ================= 3. Time signatures =================
+function timeCase(lv, round) {
+  const kind = rot(round, ["which", "barline", "rest", "meaning"]);
+  const d = GR.genTime(lv, kind);
+  const T = TIMES[d.ts];
+  const q = { ...d };
+  let S;
+  if (kind === "which") {
+    const items = [...d.bars[0], { t: "bar" }, ...d.bars[1], { t: "end" }];
+    q.ask = "Which time signature fits these bars?";
+    q.draw = () => {
+      S = stdStaff("treble", { yb: 220 });
+      const x = header(S);
+      text(view, x + 30, S.y(4) + 18, "?", { "font-size": 60, fill: HOT });
+      music(S, items, x + 80, 930);
+    };
+    q.play = () => playItems(items, "treble");
+    q.hint = () => "Add up one bar in crotchet beats (a quaver is ½, a minim 2). Which time signature holds exactly that many?";
+  } else if (kind === "barline") {
+    const items = [];
+    d.bars.forEach((b, i) => {
+      items.push(...b);
+      if (i < d.bars.length - 1 && i !== d.missing) items.push({ t: "bar" });
+    });
+    items.push({ t: "end" });
+    q.ask = "One barline is missing. Tap the gap where it belongs.";
+    q.tapNote = "Tap between two notes on the staff.";
+    q.draw = (api) => {
+      S = stdStaff("treble", { yb: 220 });
+      const x = header(S, { ts: d.ts });
+      music(S, items, x + 10, 930);
+      let cum = 0;
+      items.forEach((it, i) => {
+        if (it.t === "n" || it.t === "r") cum += VAL[it.v].d;
+        const next = items[i + 1];
+        if (!(it.t === "n" || it.t === "r") || !next || !(next.t === "n" || next.t === "r")) return;
+        const at = cum;
+        const gx = Math.max(it.x + 0.9 * S.g, Math.min(next.x - 1.6 * S.g, it.slot[1]));
+        const guide = el("line", { x1: gx, x2: gx, y1: S.y(8) - 6, y2: S.y(0) + 6, stroke: "#d8c9b3", "stroke-width": 2, "stroke-dasharray": "4 6" }, S.layer);
+        const hit = el("rect", { class: "gr-tap", x: it.x + 0.7 * S.g, y: S.y(12), width: Math.max(16, next.x - it.x - 1.4 * S.g), height: S.y(-4) - S.y(12), fill: "transparent" }, S.node);
+        hit.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          const res = api.answer(at);
+          if (res === null) return;
+          guide.setAttribute("stroke", res ? GREEN : WRONG);
+          guide.setAttribute("stroke-dasharray", res ? "" : "4 6");
+          guide.setAttribute("stroke-width", 3);
+          it.gx = gx;
+        });
+        it.guide = guide;
+        it.cumAt = at;
+      });
+      q.items = items;
+    };
+    q.play = () => playItems(items, "treble");
+    q.hint = () => `Start after the time signature (or after a barline) and add the note values. In ${d.ts}, where does the total first reach ${GR.frac(T.bar)} crotchet beat${T.bar === 1 ? "" : "s"}?`;
+    q.after = () => {
+      const it = q.items.find((x) => x.cumAt !== undefined && q.ok(x.cumAt));
+      if (it) {
+        it.guide.setAttribute("stroke", GREEN);
+        it.guide.setAttribute("stroke-dasharray", "");
+        it.guide.setAttribute("stroke-width", 3);
+      }
+    };
+  } else if (kind === "rest") {
+    const items = d.items.map((it) => ({ ...it }));
+    const gap = items.find((it) => it.gap);
+    if (d.spec.whole) gap.whole = T.bar;
+    q.ask = d.spec.whole ? "This whole bar is silent. Which rest fills it?" : "One rest is missing (in the dashed box). Which single rest completes the bar?";
+    q.draw = () => {
+      S = stdStaff("treble", { yb: 220 });
+      const x = header(S, { ts: d.ts });
+      const shown = items.map((it) => (it.gap ? { ...it, color: "transparent" } : it));
+      music(S, [...shown, { t: "end" }], x + 10, 930, { maxUnit: 2 });
+      const gi = shown.find((it) => it.gap);
+      gap.x = gi.x;
+      el("rect", { x: gi.x - 1.1 * S.g, y: S.y(9), width: 2.2 * S.g, height: 5 * S.g, rx: 10, fill: "none", stroke: HOT, "stroke-width": 3, "stroke-dasharray": "8 6" }, S.layer);
+    };
+    q.play = () => playItems(items, "treble");
+    q.hint = () => (d.spec.whole ? "When a whole bar is silent, one particular rest is used whatever the time signature. Which?" : `Add the notes in the bar. ${d.ts} needs ${GR.frac(T.bar)} crotchet beats in total: how many are missing, and does the gap begin on a beat?`);
+    q.after = () => rest(S, gap.x, d.spec.v, { color: GREEN });
+  } else {
+    q.ask = d.ask;
+    q.draw = () => {
+      S = staff(view, { x0: 150, x1: 850, yb: 236, g: 30, clef: "treble" });
+      const x = header(S, { ts: d.ts });
+      const bar = GR.melody(GR.barOf(d.ts, Math.min(lv, 2)));
+      music(S, [...bar, { t: "end" }], x + 10, 850, { maxUnit: 1.6 });
+      q.bar = bar;
+    };
+    q.play = () => playItems(q.bar, "treble");
+    q.hint = () => "The top number counts beats in a bar. The bottom number names the beat as a fraction of a semibreve: 2 = minims, 4 = crotchets, 8 = quavers.";
+  }
+  return q;
+}
+
+// ================= 4. Accidentals =================
+function accidentalCase(lv) {
+  const d = GR.genAccidental(lv);
+  const sig = d.key ? GR.sigMap(d.key) : {};
+  let S;
+  const items = [];
+  d.events.forEach((e, i) => {
+    if (i === 4) items.push({ t: "bar" });
+    items.push({ t: "n", v: "c", pos: e.pos, acc: e.acc, tie: e.tie, color: i === d.target ? HOT : INK, i });
+  });
+  items.push({ t: "end" });
+  const q = {
+    ...d,
+    ask: `What is the highlighted note${d.key ? ` (the key signature is ${GR.keyName(d.key)})` : ""}?`,
+    draw() {
+      S = stdStaff(d.clef);
+      const x = header(S, { sig: d.key ? GR.sigPositions(d.key, d.clef) : [] });
+      music(S, items, x + 10, 930);
+      const t = items.find((it) => it.i === d.target);
+      pointer(t.x, Math.min(S.y(10), t.y - 3.6 * S.g));
+      q.t = t;
+    },
+    play() {
+      const seq = d.events.map((e, i) => ({ m: midiOf(noteAt(e.pos, d.clef, GR.effAcc(d.events, i, d.clef, sig).acc)), d: 1, tie: e.tie }));
+      const out = [];
+      seq.forEach((s) => (s.tie ? (out[out.length - 1].d += 1) : out.push(s)));
+      return playSeq(out, { bpm: 100 });
+    },
+    hint: () => `Look back along this bar to the left: has the same line or space already had a sharp, flat or natural? Is there a barline in between?${d.key ? " And what does the key signature say?" : ""}`,
+    after() {
+      text(view, q.t.x, Math.max(S.y(-3), q.t.y + 3.4 * S.g) + 34, nameOf(d.note), { "font-size": 30, fill: GREEN });
+    },
+  };
+  return q;
+}
+
+// ================= 5. Scales and key signatures =================
+function scaleCase(lv, round) {
+  const kinds = lv === 1 ? ["sig", "pick", "missing", "semitones"] : ["sig", "pick", "missing", "semitones", "minor"];
+  const kind = rot(round, kinds);
+  const d = GR.genScale(lv, kind);
+  const q = { ...d };
+  let S;
+  const scaleItems = (sc, sig = {}) => sc.map((n, i) => ({ t: "n", v: "sb", pos: posOf(n, d.clef), acc: accWritten(n, sig), i }));
+  if (kind === "sig") {
+    q.ask = `Which ${d.mode} key has this key signature?`;
+    q.draw = () => {
+      S = staff(view, { x0: 230, x1: 770, yb: 236, g: 30, clef: d.clef });
+      header(S, { sig: GR.sigPositions(d.key, d.clef) });
+    };
+    q.play = null;
+    q.hint = () => (d.mode === "major" ? "With sharps, the key note is a semitone above the last sharp. With flats, the second-to-last flat names the key; one flat alone means F major." : "Find the major key with this signature first. Its relative minor begins on its 6th degree, three semitones below the major key note.");
+    q.after = () => {
+      const sc = GR.scaleOf(GR.tonicOf(d.key, d.clef), d.key.mode === "major" ? "major" : "harmonic");
+      playNotes(sc, 0.6, { bpm: 132 });
+    };
+  } else if (kind === "pick") {
+    q.ask = `Which shows the correct key signature of ${GR.keyName(d.key)}?`;
+    q.draw = () => {
+      d.cards.forEach((c, i) => {
+        const x0 = 30 + i * 320;
+        text(view, x0 + 150, 76, ["A", "B", "C"][i], { "font-size": 40, fill: "var(--accent-dark)" });
+        const s = staff(view, { x0, x1: x0 + 290, yb: 236, g: 24, clef: d.clef });
+        header(s, { sig: c.list });
+        c.s = s;
+      });
+    };
+    q.hint = () => `Check three things: the order (${GR.sigOf(d.key).type === "sharp" ? "sharps F C G D A E B" : "flats B E A D G C F"}), the octave of each sign, and the clef.`;
+    q.after = () => {
+      const i = d.cards.findIndex((c) => c.ok);
+      el("rect", { x: 22 + i * 320, y: 40, width: 306, height: 290, rx: 20, fill: "none", stroke: GREEN, "stroke-width": 5 }, view);
+    };
+  } else if (kind === "missing") {
+    const items = scaleItems(d.shown);
+    q.ask = `This is the scale of ${GR.keyName(d.key)}${d.form !== "major" ? ` (${d.form}${d.form === "melodic" ? ", ascending" : ""})` : ""}, written with accidentals. One accidental is missing: tap that note.`;
+    q.tapNote = "Tap the note that needs a sharp, flat or natural.";
+    q.draw = (api) => {
+      S = stdStaff(d.clef);
+      const x = header(S);
+      music(S, [...items, { t: "end" }], x + 10, 930);
+      items.forEach((it) => {
+        const hit = el("rect", { class: "gr-tap", x: it.x - 30, y: S.y(Math.max(it.pos, 8) + 3), width: 60, height: S.y(Math.min(it.pos, 0) - 3) - S.y(Math.max(it.pos, 8) + 3), fill: "transparent" }, S.node);
+        hit.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          MUSIC.play("piano", midiOf(d.shown[it.i]), { gain: 0.8, length: 0.9 });
+          const res = api.answer(it.i);
+          if (res !== null) recolor(it.node, res ? GREEN : WRONG);
+        });
+      });
+      q.items = items;
+    };
+    q.play = () => playNotes(d.shown, 0.6, { bpm: 120 });
+    q.hint = () => `Listen again: one note sounds wrong. Check each step against the pattern ${d.form === "major" ? "tone, tone, semitone, tone, tone, tone, semitone" : d.form === "harmonic" ? "tone, semitone, tone, tone, semitone, tone-and-a-half, semitone" : "tone, semitone, tone, tone, tone, tone, semitone"}. Where does it break?`;
+    q.after = () => {
+      const it = q.items[d.miss];
+      accGlyph(S.layer, it.x - 1.6 * S.g, S.y(it.pos), d.sc[d.miss].a, S.g, GREEN);
+      recolor(it.node, GREEN);
+      setTimeout(() => playNotes(d.sc, 0.6, { bpm: 120 }), 300);
+    };
+  } else {
+    const items = scaleItems(d.sc);
+    q.ask = kind === "semitones" ? `The scale of ${GR.keyName(d.key)}${d.form !== "major" ? ` (${d.form}${d.form === "melodic" ? ", ascending" : ""})` : ""}. Between which degrees are the semitones?` : `This is a scale of ${GR.keyName(d.key)}. Which form of the minor scale is it?`;
+    q.draw = () => {
+      S = stdStaff(d.clef, { yb: 220 });
+      const x = header(S);
+      music(S, [...items, { t: "end" }], x + 10, 930);
+      if (kind === "semitones") items.forEach((it) => text(view, it.x, 336, it.i + 1, { "font-size": 26, fill: SOFT }));
+      q.items = items;
+    };
+    q.play = () => playNotes(d.sc, 0.6, { bpm: 120 });
+    q.hint = () => (kind === "semitones" ? "On a keyboard, a semitone is the very next key. Between which neighbouring notes of this scale is there no key at all?" : "Look at degrees 6 and 7 (the two notes before the top tonic). Is only the 7th raised, or both?");
+    q.after = () => {
+      if (kind !== "semitones") return;
+      for (let i = 0; i < 7; i++)
+        if (midiOf(d.sc[i + 1]) - midiOf(d.sc[i]) === 1) {
+          const a = q.items[i];
+          const b = q.items[i + 1];
+          const y = Math.max(S.y(a.pos), S.y(b.pos)) + 30;
+          el("path", { d: `M${a.x} ${y}Q${(a.x + b.x) / 2} ${y + 28} ${b.x} ${y}`, fill: "none", stroke: GREEN, "stroke-width": 4 }, view);
+        }
+    };
+  }
+  q.region = LOW;
+  return q;
+}
+
+// ================= 6. Tones and semitones =================
+function stepCase(lv, round) {
+  const kind = lv === 3 ? rot(round, ["which", "above"]) : "which";
+  const d = GR.genStep(lv, kind);
+  const q = { ...d, region: RIGHT };
+  let S;
+  let kb;
+  const lowNote = kind === "above" ? d.base : d.lo;
+  const c0 = Math.floor((midiOf(lowNote) - 1) / 12) * 12;
+  q.ask = kind === "which" ? "Tone or semitone?" : `Which note is a ${d.want === 1 ? "semitone" : "tone"} above ${nameOf(d.base)}?`;
+  q.draw = () => {
+    S = staff(view, { x0: 40, x1: 570, yb: 190, g: 26, clef: d.clef });
+    const x = header(S);
+    if (kind === "which") music(S, [{ t: "n", v: "sb", pos: posOf(d.lo, d.clef), acc: d.lo.a || null }, { t: "n", v: "sb", pos: posOf(d.hi, d.clef), acc: d.hi.a || (d.hi.l === d.lo.l ? 0 : null) }], x + 20, 560, { maxUnit: 3 });
+    else note(S, x + 120, posOf(d.base, d.clef), { v: "sb", acc: d.base.a || null });
+    kb = keyboard(view, { low: c0, high: c0 + 23, x: 40, y: 330, w: 530, h: 200 });
+  };
+  q.play = () => (kind === "which" ? playNotes([d.lo, d.hi], 1) : MUSIC.play("piano", midiOf(d.base), { length: 1.2 }));
+  q.hint = () => (kind === "which" ? "Find both notes on the keyboard below (sharps are the key just to the right, flats just to the left). Is there a key between them, black or white?" : "Use the next letter name. A semitone is the very next key; a tone skips exactly one key.");
+  q.after = () => {
+    const a = kind === "which" ? d.lo : d.base;
+    const b = kind === "which" ? d.hi : d.up;
+    kb.mark(midiOf(a), "#f6c58b");
+    kb.mark(midiOf(b), "#9fd3a8");
+    const xa = kb.centre(midiOf(a));
+    const xb = kb.centre(midiOf(b));
+    if (xa && xb) el("path", { d: `M${xa} 322Q${(xa + xb) / 2} 290 ${xb} 322`, fill: "none", stroke: GREEN, "stroke-width": 4 }, view);
+    playNotes([a, b], 1);
+  };
+  return q;
+}
+
+// ================= 7. Intervals =================
+function intervalCase(lv) {
+  const d = GR.genInterval(lv);
+  const sig = GR.sigMap(d.key);
+  const q = { ...d };
+  let S;
+  q.ask = `In ${GR.keyName(d.key)}, name the interval above the tonic${lv >= 3 ? ": quality and number" : " by number"}.`;
+  q.draw = () => {
+    S = stdStaff(d.clef);
+    const x = header(S, { sig: GR.sigPositions(d.key, d.clef) });
+    q.items = music(S, [{ t: "n", v: "sb", pos: posOf(d.lo, d.clef), acc: accWritten(d.lo, sig) }, { t: "n", v: "sb", pos: posOf(d.hi, d.clef), acc: accWritten(d.hi, sig) }, { t: "end" }], x + 40, 930, { maxUnit: 3 });
+    text(view, q.items[0].x, S.y(-4) + 10, "tonic", { "font-size": 24, fill: SOFT });
+  };
+  q.play = () => playSeq([{ m: midiOf(d.lo), d: 1 }, { m: midiOf(d.hi), d: 1 }, { m: [midiOf(d.lo), midiOf(d.hi)], d: 2 }]);
+  q.hint = () => `Count the letter names from the tonic up to the higher note, counting both ends: ${LET[d.lo.l]} is 1.${lv >= 3 ? " Then count the semitones: a major 3rd has 4, a minor 3rd 3, a perfect 4th 5, a perfect 5th 7." : ""}`;
+  q.after = () => {
+    const sc = d.sc.slice(0, d.deg + 1);
+    sc.forEach((n, i) => text(view, q.items[0].x + (i * (q.items[1].x - q.items[0].x)) / Math.max(1, d.deg), S.y(-4) + 48, LET[n.l], { "font-size": 26, fill: GREEN }));
+  };
+  return q;
+}
+
+// ================= 8. Tonic triads =================
+function triadCase(lv, round) {
+  const kind = rot(round, ["key", "wrong"]);
+  const d = GR.genTriad(lv, kind);
+  const q = { ...d };
+  let S;
+  if (kind === "key") {
+    q.ask = "This is a tonic triad. Of which key?";
+    q.draw = () => {
+      S = stdStaff(d.clef);
+      const x = header(S, { sig: GR.sigPositions(d.key, d.clef) });
+      d.triad.forEach((n) => note(S, x + 200, posOf(n, d.clef), { v: "sb" }));
+    };
+    q.play = () => playSeq([{ m: d.triad.map(midiOf), d: 2, len: 1.6 }, ...d.triad.map((n) => ({ m: midiOf(n), d: 0.6 }))]);
+    q.hint = () => "The lowest note is the tonic. Is the middle note 4 semitones above it (major) or 3 (minor)?";
+  } else {
+    q.ask = `This should be the tonic triad of ${GR.keyName(d.key)}, written without a key signature. One note is wrong: tap it.`;
+    q.tapNote = "Tap the wrong note.";
+    q.draw = (api) => {
+      S = stdStaff(d.clef);
+      const x = header(S);
+      const items = d.shown.map((n, i) => ({ t: "n", v: "sb", pos: posOf(n, d.clef), acc: n.a || null, i }));
+      music(S, [...items, { t: "end" }], x + 60, 930, { maxUnit: 3 });
+      items.forEach((it) => {
+        const hit = el("rect", { class: "gr-tap", x: it.x - 70, y: S.y(Math.max(it.pos, 8) + 3), width: 110, height: S.y(Math.min(it.pos, 0) - 3) - S.y(Math.max(it.pos, 8) + 3), fill: "transparent" }, S.node);
+        hit.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          MUSIC.play("piano", midiOf(d.shown[it.i]), { gain: 0.8, length: 0.9 });
+          const res = api.answer(it.i);
+          if (res !== null) recolor(it.node, res ? GREEN : WRONG);
+        });
+      });
+      q.items = items;
+    };
+    q.play = () => playSeq([{ m: d.shown.map(midiOf), d: 2, len: 1.6 }]);
+    q.hint = () => `Spell the scale of ${GR.keyName(d.key)} and pick out degrees 1, 3 and 5. Compare each written note with them, accidental included.`;
+    q.after = () => {
+      const it = q.items[d.bad];
+      text(view, it.x, S.y(-5) + 6, `→ ${nameOf(d.triad[d.bad])}`, { "font-size": 30, fill: GREEN });
+      setTimeout(() => playSeq([{ m: d.triad.map(midiOf), d: 2, len: 1.6 }]), 200);
+    };
+  }
+  return q;
+}
+
+// ================= 9. Italian terms =================
+const DEMO = {
+  allegro: { bpm: 150 },
+  andante: { bpm: 84 },
+  adagio: { bpm: 56 },
+  lento: { bpm: 52 },
+  largo: { bpm: 48 },
+  moderato: { bpm: 104 },
+  allegretto: { bpm: 124 },
+  presto: { bpm: 190 },
+  vivace: { bpm: 164 },
+  accelerando: { bpm: [70, 170] },
+  rallentando: { bpm: [150, 60] },
+  ritardando: { bpm: [150, 60] },
+  piano: { gain: [0.22, 0.22] },
+  forte: { gain: [1, 1] },
+  "mezzo piano": { gain: [0.4, 0.4] },
+  "mezzo forte": { gain: [0.65, 0.65] },
+  pianissimo: { gain: [0.1, 0.1] },
+  fortissimo: { gain: [1.25, 1.25] },
+  crescendo: { gain: [0.1, 1.2] },
+  diminuendo: { gain: [1.2, 0.1] },
+  decrescendo: { gain: [1.2, 0.1] },
+  legato: { len: 1.08 },
+  staccato: { len: 0.14 },
+  fortepiano: { fp: true },
+};
+const PHRASE = [60, 62, 64, 65, 67, 69, 71, 72, 71, 69, 67, 65, 64, 62, 60];
+function demo(term) {
+  const d = DEMO[term];
+  if (!d) return 0;
+  const n = PHRASE.length;
+  const t0 = MUSIC.now() + 0.08;
+  let t = t0;
+  for (let i = 0; i < n; i++) {
+    const f = i / (n - 1);
+    const bpm = Array.isArray(d.bpm) ? d.bpm[0] + (d.bpm[1] - d.bpm[0]) * f : d.bpm || 110;
+    const beat = 60 / bpm / 1;
+    const gain = d.fp ? (i === 0 ? 1.2 : 0.2) : d.gain ? d.gain[0] + (d.gain[1] - d.gain[0]) * f : 0.75;
+    const len = d.fp && i === 0 ? beat * 0.9 : d.len ? beat * d.len : beat * 0.85;
+    MUSIC.play("piano", PHRASE[i], { gain, at: t, length: len });
+    t += beat;
+  }
+  return t - t0;
+}
+const CAT = { tempo: "a tempo (speed) marking", change: "a change of speed", dynamic: "a dynamic (volume) marking", touch: "an articulation (touch) marking", style: "a marking of character or style", form: "a direction about the order of the music", word: "a small word that modifies other terms" };
+function termCase(lv, round) {
+  const kind = rot(round, ["meaning", "term"]);
+  const d = GR.genTerm(lv, kind);
+  const q = { ...d };
+  const can = !!DEMO[d.t.term];
+  q.ask = kind === "meaning" ? `What does <i>${d.t.term}</i> mean?` : `Which term means "${d.t.meaning}"?`;
+  q.voice = kind === "meaning" ? `What does ${d.t.term} mean?` : `Which term means: ${d.t.meaning}?`;
+  q.autoplay = false;
+  q.draw = () => {
+    el("rect", { x: 140, y: 40, width: 720, height: 280, rx: 30, fill: "#fffaf0", stroke: "#e0b872", "stroke-width": 4 }, view);
+    text(view, 500, 92, kind === "meaning" ? "Italian term" : "Meaning", { "font-size": 26, fill: SOFT });
+    if (kind === "meaning") text(view, 500, 200, d.t.term, { "font-size": d.t.term.length > 12 ? 64 : 80, fill: INK, "font-family": "Georgia, 'Times New Roman', serif", "font-style": "italic" });
+    else wrap(d.t.meaning, 30).forEach((line, i, all) => text(view, 500, 190 + i * 52 - (all.length - 1) * 26, line, { "font-size": 44, fill: INK }));
+    if (can) text(view, 500, 290, "Press 🔊 Hear it to hear the term performed.", { "font-size": 24, fill: SOFT, "font-weight": 600 });
+  };
+  q.play = can ? () => demo(d.t.term) : null;
+  q.hint = () => `This is ${CAT[d.t.cat]}.${can ? " Listen with 🔊 Hear it." : ""} Which option fits that kind of instruction — and is there an English word that shares its root?`;
+  q.after = () => can && demo(d.t.term);
+  return q;
+}
+
+// ================= 10. Octave transposition =================
+function transposeCase(lv) {
+  const d = GR.genTranspose(lv);
+  const q = { ...d, region: RIGHT, parts: d.notes.length };
+  let A;
+  let B;
+  const xs = [];
+  const placed = [];
+  q.ask = `Write ${d.notes.length > 1 ? "this melody" : "this note"} one octave ${d.down ? "lower" : "higher"} in the ${CLEFS[d.to].name}.`;
+  q.askPart = (i) => (d.notes.length > 1 ? `Note ${i + 1} of ${d.notes.length}: tap its new place on the lower staff.` : "Tap its new place on the lower staff.");
+  q.tapNote = "Tap a line or space on the lower staff.";
+  q.ok = (pos) => pos === d.notes[q.part].dp;
+  q.draw = (api) => {
+    A = staff(view, { x0: 30, x1: 580, yb: 180, g: 24, clef: d.from });
+    const xa = header(A);
+    B = staff(view, { x0: 30, x1: 580, yb: 432, g: 24, clef: d.to });
+    q.S = B;
+    const xb = header(B);
+    text(view, 30, 26, d.from === "treble" ? "Treble clef" : "Bass clef", { "font-size": 24, fill: SOFT, "text-anchor": "start" });
+    text(view, 30, 282, `${CLEFS[d.to].name[0].toUpperCase() + CLEFS[d.to].name.slice(1)}: one octave ${d.down ? "lower" : "higher"}`, { "font-size": 24, fill: SOFT, "text-anchor": "start" });
+    const x0 = Math.max(xa, xb) + 50;
+    const step = d.notes.length > 1 ? Math.min(120, (560 - x0) / (d.notes.length - 0.3)) : 0;
+    d.notes.forEach((n, i) => {
+      xs.push(x0 + i * step + (d.notes.length === 1 ? 140 : 0));
+      note(A, xs[i], n.sp, { v: "c", acc: n.src.a || null });
+    });
+    q.mark = el("g", {}, view);
+    const [lo, hi] = lv === 1 ? [-3, 11] : [-6, 14];
+    tapStaff(B, {
+      lo,
+      hi,
+      x0: x0 - 40,
+      x1: 590,
+      ghostX: () => xs[Math.min(q.part, xs.length - 1)],
+      onPick: (pos) => {
+        const part = q.part;
+        const n = d.notes[part];
+        placed[part]?.remove();
+        const g = note(B, xs[part], pos, { v: "c", acc: n.src.a || null, color: HOT });
+        placed[part] = g.grp;
+        MUSIC.play("piano", midiOf(noteAt(pos, d.to, n.src.a)), { gain: 0.8, length: 0.9 });
+        const res = api.answer(pos);
+        if (res === null) return g.grp.remove();
+        recolor(g.grp, res ? GREEN : WRONG);
+        if (!res) setTimeout(() => placed[part] === g.grp && q.part === part && g.grp.setAttribute("opacity", 0.35), 900);
+        else highlight();
+      },
+    });
+    highlight();
+  };
+  const highlight = () => {
+    q.mark.innerHTML = "";
+    if (q.part < d.notes.length) {
+      const y = A.y(d.notes[q.part].sp);
+      el("circle", { cx: xs[q.part], cy: y, r: 26, fill: "none", stroke: HOT, "stroke-width": 3, "stroke-dasharray": "5 5" }, q.mark);
+    }
+  };
+  q.revealPart = async (i) => {
+    placed[i]?.remove();
+    const n = d.notes[i];
+    placed[i] = note(B, xs[i], n.dp, { v: "c", acc: n.src.a || null, color: GREEN }).grp;
+    setTimeout(highlight, 50);
+  };
+  q.partWhy = (i) => `${sciOf(d.notes[i].src)} ${d.down ? "down" : "up"} an octave is ${sciOf(d.notes[i].dst)}, ${GR.placeWords(d.notes[i].dp)} of the ${CLEFS[d.to].name}.`;
+  q.play = () => playSeq(d.notes.map((n) => ({ m: midiOf(n.src), d: 1 })).concat(d.notes.map((n) => ({ m: midiOf(n.dst), d: 1 }))));
+  q.hint = () => {
+    const n = d.notes[q.part];
+    return `This note is ${sciOf(n.src)}. An octave ${d.down ? "lower" : "higher"} keeps the letter ${LET[n.src.l]} and changes the octave number to ${n.dst.o}. Where is ${sciOf(n.dst)} in the ${CLEFS[d.to].name}? ${d.to === "bass" ? "F3 sits between the clef's dots; middle C is on the ledger line above." : "G4 is the line the clef curls around; middle C is on the ledger line below."}`;
+  };
+  q.after = () => {
+    q.mark.innerHTML = "";
+    playSeq(d.notes.map((n) => ({ m: midiOf(n.dst), d: 1 })));
+  };
+  return q;
+}
+
+// ================= See it =================
+function seeIt() {
+  const my = token;
+  const fade = (node, api, ms = 500) => {
+    node.setAttribute("opacity", 0);
+    return api.tween(ms, (t) => node.setAttribute("opacity", t));
+  };
+  explain(
+    [
+      {
+        say: "Why write music down? Sound vanishes the instant it is made. Notation (a written system for recording sound) lets a melody travel across distance and centuries: a piece written in 1720 can still be read and played today.",
+        draw: everyday([["📜", "Music that outlives its composer"], ["🎻", "Parts for a whole orchestra"], ["🎹", "Learning a new piece alone"], ["⛪", "Chant sung for a thousand years"]]),
+      },
+      {
+        say: "Early chant books mostly used neumes (marks above the words), showing a melody's shape but not its exact pitches. Around 1025–1030, Guido of Arezzo, a Benedictine monk, taught with lines a third apart, so each line and space was one exact step. Others had tried lines; his system spread. He advised colouring the F line red and the C line yellow.",
+        async draw(v, api) {
+          el("rect", { x: 90, y: 40, width: 820, height: 440, rx: 26, fill: "#f7ecd6", stroke: "#c9a978", "stroke-width": 4 }, v);
+          const syl = ["ut", "re", "mi", "fa", "sol", "la"];
+          const steps = [0, 1, 2, 3, 4, 5]; // C D E F G A
+          const xs = syl.map((_, i) => 230 + i * 110);
+          syl.forEach((s, i) => text(v, xs[i], 440, s, { "font-size": 34, fill: "#6b4a2a", "font-family": "Georgia, serif", "font-style": "italic" }));
+          const marks = steps.map((s, i) => {
+            const m = el("rect", { x: xs[i] - 14, y: 330 - s * 8 + pickInt(-14, 14), width: 28, height: 18, rx: 4, fill: "#5a3a1e", transform: `rotate(-12 ${xs[i]} ${330 - s * 8})` }, v);
+            return m;
+          });
+          const cap = text(v, 500, 96, "Neumes: the shape, but not the exact pitch", { "font-size": 30, fill: SOFT });
+          await api.wait(2200);
+          // Guido's lines: a third apart, F red, C yellow (lines from the bottom: D, F, A, C).
+          const lineY = (step) => 340 - step * 26; // step: diatonic steps above C4
+          const lines = [[1, "#5a3a1e", "D"], [3, "#c0392b", "F"], [5, "#5a3a1e", "A"], [7, "#d4a017", "C"]];
+          cap.textContent = "Guido's lines: each line or space is one step";
+          for (const [st, color, name] of lines) {
+            const ln = el("line", { x1: 150, x2: 860, y1: lineY(st), y2: lineY(st), stroke: color, "stroke-width": color === "#5a3a1e" ? 3 : 6, opacity: 0 }, v);
+            await api.tween(350, (t) => ln.setAttribute("opacity", t));
+            if (name === "F" || name === "C") text(v, 128, lineY(st) + 9, name, { "font-size": 28, fill: color, "font-family": "Georgia, serif" });
+          }
+          for (let i = 0; i < marks.length; i++) {
+            const m = marks[i];
+            const y0 = Number(m.getAttribute("y"));
+            const y1 = lineY(steps[i]) - 9;
+            await api.tween(420, (t) => {
+              m.setAttribute("y", y0 + (y1 - y0) * t);
+              m.setAttribute("transform", `rotate(${-12 * (1 - t)} ${xs[i]} ${y0 + (y1 - y0) * t})`);
+            });
+            MUSIC.play("piano", [60, 62, 64, 65, 67, 69][i], { gain: 0.75, length: 0.7 });
+            await api.wait(250);
+          }
+        },
+      },
+      {
+        say: "Guido also named six rising steps ut, re, mi, fa, sol, la, taken from the first syllables of the lines of a hymn: the ancestor of do-re-mi. How do we know any of this? Guido explained his methods in his own treatises, such as the Micrologus of about 1026, which survive in many manuscript copies. Evidence from the time itself is stronger than a later story.",
+        async draw(v, api) {
+          const book = el("g", {}, v);
+          el("rect", { x: 160, y: 60, width: 300, height: 380, rx: 14, fill: "#f7ecd6", stroke: "#c9a978", "stroke-width": 4 }, book);
+          for (let i = 0; i < 8; i++) el("line", { x1: 190, x2: 430, y1: 130 + i * 36, y2: 130 + i * 36, stroke: "#c9a978", "stroke-width": 3 }, book);
+          text(book, 310, 104, "Micrologus", { "font-size": 32, fill: "#6b4a2a", "font-family": "Georgia, serif", "font-style": "italic" });
+          text(book, 310, 480, "c. 1026", { "font-size": 30, fill: SOFT });
+          await fade(book, api, 600);
+          const syl = ["ut", "re", "mi", "fa", "sol", "la"];
+          for (let i = 0; i < 6; i++) {
+            const g = el("g", {}, v);
+            const x = 560 + (i % 3) * 120;
+            const y = 170 + Math.floor(i / 3) * 170 - (i % 3) * 14;
+            el("circle", { cx: x, cy: y, r: 46, fill: "var(--accent-soft)", stroke: "var(--accent)", "stroke-width": 3 }, g);
+            text(g, x, y + 12, syl[i], { "font-size": 34, fill: INK, "font-family": "Georgia, serif" });
+            text(g, x, y + 82, ["C", "D", "E", "F", "G", "A"][i], { "font-size": 26, fill: SOFT });
+            await fade(g, api, 300);
+            MUSIC.play("piano", [60, 62, 64, 65, 67, 69][i], { gain: 0.75, length: 0.7 });
+            await api.wait(350);
+          }
+        },
+      },
+      {
+        say: "Today we use five lines. A note sits on a line or in a space, and each move from a line to the next space is one step through the letters A to G. Higher on the staff means higher in pitch: here is the scale of C major, from middle C.",
+        async draw(v, api) {
+          const S = staff(v, { x0: 80, x1: 920, yb: 330, g: 30, clef: "treble" });
+          const x = header(S);
+          const sc = GR.scaleOf(P("C4"), "major");
+          for (let i = 0; i < 8; i++) {
+            const n = note(S, x + 40 + i * 82, posOf(sc[i], "treble"), { v: "sb" });
+            const lab = text(v, x + 40 + i * 82, 470, LET[sc[i].l], { "font-size": 34, fill: i === 0 || i === 7 ? HOT : INK });
+            await fade(n.grp, api, 250);
+            lab.setAttribute("opacity", 1);
+            MUSIC.play("piano", midiOf(sc[i]), { gain: 0.8, length: 0.8 });
+            await api.wait(380);
+          }
+          text(v, 500, 90, "line, space, line, space … one letter per step", { "font-size": 30, fill: SOFT });
+        },
+      },
+      {
+        say: "A clef fixes the letter names. The treble clef is a stylised letter G: its curl circles the second line, which is therefore G above middle C (G4). The bass clef is a stylised F: its two dots surround the fourth line, the F below middle C (F3). Middle C (C4) needs a short extra line, a ledger line, in both: below the treble staff and above the bass staff.",
+        async draw(v, api) {
+          const T = staff(v, { x0: 120, x1: 880, yb: 190, g: 24, clef: "treble" });
+          header(T);
+          const B = staff(v, { x0: 120, x1: 880, yb: 420, g: 24, clef: "bass" });
+          header(B);
+          el("path", { d: "M110 94Q86 94 92 190Q96 300 74 306Q96 312 92 420Q86 516 110 516", fill: "none", stroke: INK, "stroke-width": 5 }, v);
+          await api.wait(700);
+          const hl = (S, pos, color) => el("rect", { x: S.x0, y: S.y(pos) - 4, width: S.x1 - S.x0, height: 8, rx: 4, fill: color, opacity: 0.45 }, v);
+          const g1 = hl(T, 2, "#f2a93b");
+          await fade(g1, api);
+          note(T, 420, 2, { v: "sb", color: HOT });
+          text(v, 470, T.y(2) + 10, "G4", { "font-size": 30, fill: HOT, "text-anchor": "start" });
+          MUSIC.play("piano", 67, { length: 1.2 });
+          await api.wait(1500);
+          const f1 = hl(B, 6, "#7fb3e0");
+          await fade(f1, api);
+          note(B, 420, 6, { v: "sb", color: "#1e6fb0" });
+          text(v, 470, B.y(6) + 10, "F3", { "font-size": 30, fill: "#1e6fb0", "text-anchor": "start" });
+          MUSIC.play("piano", 53, { length: 1.2 });
+          await api.wait(1500);
+          note(T, 700, -2, { v: "sb", color: GREEN });
+          note(B, 700, 10, { v: "sb", color: GREEN });
+          text(v, 760, T.y(-2) + 10, "C4", { "font-size": 30, fill: GREEN, "text-anchor": "start" });
+          text(v, 760, B.y(10) + 10, "C4", { "font-size": 30, fill: GREEN, "text-anchor": "start" });
+          text(v, 560, 300, "middle C, both clefs", { "font-size": 26, fill: GREEN });
+          MUSIC.play("piano", 60, { length: 1.4 });
+        },
+      },
+      {
+        say: "Note values are fractions of a semibreve (whole note). A semibreve divides into two minims (half notes), four crotchets (quarter notes) and eight quavers (eighth notes): each row halves the one above, exactly as fractions do. A dot after a note adds half of its own value.",
+        async draw(v, api) {
+          const rows = [["sb", 1, "semibreve · whole note", "1"], ["m", 2, "minim · half note", "½"], ["c", 4, "crotchet · quarter note", "¼"], ["q", 8, "quaver · eighth note", "⅛"]];
+          for (let r = 0; r < rows.length; r++) {
+            const [val, n, name, fr] = rows[r];
+            const y = 96 + r * 118;
+            const S = { g: 22, y: (pos) => y - (pos - 4) * 11, layer: v };
+            const g = el("g", {}, v);
+            const w = 560 / n;
+            const items = Array.from({ length: n }, () => ({ t: "n", v: val, pos: 3 }));
+            if (val === "q") items.forEach((it, i) => (it.beam = 100 + Math.floor(i / 2)));
+            const Sg = { ...S, layer: g };
+            if (val === "q") {
+              items.forEach((it, i) => (it.x = 90 + w * i + w / 2));
+              const by = Math.min(...items.map(() => S.y(3))) - 3.2 * 22;
+              items.forEach((it, i) => {
+                const nn = note(Sg, it.x, 3, { v: "q", up: true, stemTo: by, flags: false });
+                if (i % 2) el("rect", { x: items[i - 1].x + 0.6 * 22, y: by, width: it.x - items[i - 1].x, height: 10, fill: INK }, g);
+                void nn;
+              });
+            } else items.forEach((it, i) => note(Sg, 90 + w * i + w / 2, 3, { v: val }));
+            text(g, 680, y + 10, name, { "font-size": 26, fill: INK, "text-anchor": "start" });
+            text(g, 50, y + 12, fr, { "font-size": 34, fill: HOT });
+            await fade(g, api, 400);
+            playSeq(Array.from({ length: n }, () => ({ m: 67, d: 4 / n })), { bpm: 120 });
+            await api.wait(2100);
+          }
+        },
+      },
+      {
+        say: "A time signature has two numbers. The top number counts the beats in each bar; the bottom number names the beat as a fraction of a semibreve. In 3/4 there are three beats, and each beat is a crotchet (a quarter). Listen to the strong first beat of each bar.",
+        async draw(v, api) {
+          const S = staff(v, { x0: 80, x1: 920, yb: 300, g: 30, clef: "treble" });
+          const x = header(S, { ts: "3/4" });
+          const items = [{ t: "n", v: "c", pos: 2 }, { t: "n", v: "c", pos: 4 }, { t: "n", v: "c", pos: 4 }, { t: "bar" }, { t: "n", v: "c", pos: 3 }, { t: "n", v: "c", pos: 5 }, { t: "n", v: "c", pos: 5 }, { t: "end" }];
+          music(S, items, x + 20, 920);
+          const t1 = text(v, x - 60, 92, "3 = beats in a bar", { "font-size": 30, fill: HOT, "text-anchor": "start" });
+          const t2 = text(v, x - 60, 470, "4 = each beat is a crotchet (¼)", { "font-size": 30, fill: "#1e6fb0", "text-anchor": "start" });
+          await fade(t1, api);
+          await fade(t2, api);
+          const notesOnly = items.filter((it) => it.t === "n");
+          for (let rep = 0; rep < 2; rep++)
+            for (let i = 0; i < notesOnly.length; i++) {
+              const it = notesOnly[i];
+              const c = text(v, it.x, S.y(-4) + 10, (i % 3) + 1, { "font-size": 30, fill: i % 3 === 0 ? HOT : SOFT });
+              MUSIC.play("piano", midiOf(noteAt(it.pos, "treble")), { gain: i % 3 === 0 ? 1 : 0.45, length: 0.5 });
+              MUSIC.tick(i % 3 === 0);
+              await api.wait(560);
+              if (rep === 0) c.remove();
+            }
+        },
+      },
+      {
+        say: "Every major scale follows one pattern: tone, tone, semitone, tone, tone, tone, semitone. Starting on G, the pattern forces F sharp as the 7th note. Rather than writing that sharp every time, we place it once at the start of each line, on the F line: that is the key signature of G major.",
+        async draw(v, api) {
+          const S = staff(v, { x0: 60, x1: 940, yb: 300, g: 28, clef: "treble" });
+          const x = header(S);
+          const sc = GR.scaleOf(P("G4"), "major");
+          const items = sc.map((n) => ({ t: "n", v: "sb", pos: posOf(n, "treble"), acc: n.a || null }));
+          music(S, [...items, { t: "end" }], x + 100, 940);
+          for (let i = 0; i < 8; i++) {
+            MUSIC.play("piano", midiOf(sc[i]), { length: 0.7 });
+            if (i) {
+              const semi = midiOf(sc[i]) - midiOf(sc[i - 1]) === 1;
+              text(v, (items[i].x + items[i - 1].x) / 2, S.y(-5), semi ? "S" : "T", { "font-size": 28, fill: semi ? HOT : SOFT });
+            }
+            await api.wait(480);
+          }
+          await api.wait(600);
+          const it = items[6];
+          const mover = accGlyph(v, it.x - 1.6 * S.g, S.y(it.pos), 1, S.g, HOT);
+          const tx = x - 0.8 * S.g + 0.6 * S.g;
+          const ty = S.y(8);
+          const sx = it.x - 1.6 * S.g;
+          const sy = S.y(it.pos);
+          await api.tween(1400, (t) => mover.setAttribute("transform", `translate(${sx + (tx - sx) * t} ${sy + (ty - sy) * t}) scale(${S.g / 26})`));
+          text(v, tx, S.y(12), "key signature", { "font-size": 28, fill: HOT });
+        },
+      },
+      {
+        say: `Explain it, in two to four sentences, aloud to a grown-up or in writing: ${EXPLAIN.gr0}`,
+        async draw(v) {
+          view = v;
+          explainCard("gr0", 90);
+        },
+      },
+    ],
+    { alive: () => my === token, onDone: () => shell.go("gr1"), title: "Reading music precisely", doneLabel: "▶ Begin: clefs" }
+  );
+}
+
+const units = {
+  gr0: seeIt,
+  gr1: () => quiz("gr1", { make: clefCase, count: "notes read" }),
+  gr2: () => quiz("gr2", { make: valueCase, count: "note values" }),
+  gr3: () => quiz("gr3", { make: timeCase, count: "bars checked" }),
+  gr4: () => quiz("gr4", { make: accidentalCase, count: "accidentals read" }),
+  gr5: () => quiz("gr5", { make: scaleCase, count: "scales and keys" }),
+  gr6: () => quiz("gr6", { make: stepCase, count: "tones and semitones" }),
+  gr7: () => quiz("gr7", { make: intervalCase, count: "intervals named" }),
+  gr8: () => quiz("gr8", { make: triadCase, count: "triads named" }),
+  gr9: () => quiz("gr9", { make: termCase, count: "Italian terms" }),
+  gr10: () => quiz("gr10", { make: transposeCase, count: "notes transposed" }),
+};
+
+const grStyle = document.createElement("style");
+grStyle.textContent = `
+.ap-panel .ap-say{flex-shrink:0}
+.gr-in{display:flex;justify-content:center;width:100%}
+.gr-pick .kt-choices button{min-height:52px;min-width:64px;font-size:19px;border-radius:18px;padding:0 16px}
+.gr-hear{min-height:44px;padding:0 16px;border:0;border-radius:16px;background:#fff;color:var(--ink);box-shadow:0 3px 0 #e2d6c4;font:800 16px/1 var(--sans);cursor:pointer;touch-action:manipulation}
+.gr-hear:active{transform:translateY(2px);box-shadow:0 1px 0 #e2d6c4}
+.gr-tapnote{margin:0;color:#6b5642;font:700 17px/1.3 var(--sans)}
+.gr-tap{cursor:pointer}
+.gr-clef{font-family:"Noto Music","Bravura","Apple Symbols","Segoe UI Symbol",serif}
+.gr-time{font-family:Georgia,"Times New Roman",serif;font-weight:900}
+.gr-real{position:absolute;inset:0;z-index:7;display:grid;place-items:center;padding:10px;background:rgba(245,239,228,.94)}
+.gr-real-card{max-width:620px;width:100%;max-height:100%;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 22px;border-radius:28px;background:#fff;box-shadow:0 8px 0 #ece3d6,0 18px 40px rgba(70,40,15,.18)}
+.gr-real-head{display:flex;align-items:center;gap:12px}
+.gr-real-head span{display:grid;place-items:center;width:56px;height:56px;flex:none;border-radius:50%;background:var(--accent-soft);font-size:30px}
+.gr-real-card h2{margin:0;color:#2b1d12;font:900 clamp(19px,2.8vw,26px)/1.15 var(--sans)}
+.gr-need{margin:0;color:#4d3c2e;font:700 clamp(14px,2vw,18px)/1.35 var(--sans);text-align:center}
+.gr-real-card ol{margin:0;padding-left:1.4em;display:grid;gap:4px;text-align:left;width:100%;color:#2b1d12;font:700 clamp(14px,2vw,19px)/1.35 var(--sans)}
+.gr-tip{margin:0;padding:6px 12px;border-radius:12px;background:#fff4dc;color:#7a4a10;font:800 clamp(13px,1.8vw,16px)/1.3 var(--sans)}
+@media (max-width:420px) and (max-height:720px){.ap-panel .ap-say{font-size:14.5px;line-height:1.28;padding-top:6px;padding-bottom:6px}}
+@media (max-height:460px),(max-width:420px){
+ .ap-panel .ap-say{font-size:14.5px;line-height:1.28}
+ .gr-top{gap:4px 6px}
+ .gr-top .ap-chips button{min-height:44px;padding:0 9px;font-size:13.5px}
+ .gr-top .ap-status{font-size:12.5px;padding:3px 8px}
+ .gr-pick .kt-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;width:100%;max-width:560px}
+ .gr-many .kt-choices{grid-template-columns:repeat(7,minmax(0,1fr))}
+ .gr-pick .kt-choices button{min-height:44px;min-width:0;font-size:14px;line-height:1.15;padding:3px 6px;white-space:normal}
+ .gr-hear{min-height:44px;font-size:15px;padding:0 10px}
+ .gr-hear span{display:none}
+ .gr-tapnote{font-size:14px}
+ .gr-real-card{padding:8px 12px;gap:4px}.gr-real-head span{width:38px;height:38px;font-size:20px}.gr-real-card ol{font-size:13.5px}.gr-need{font-size:13.5px}.gr-tip{font-size:12.5px}
+ .gr-real .kt-go{min-height:42px;font-size:17px;margin-top:2px}
+}
+`;
+document.head.appendChild(grStyle);
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    gr0: { icon: "👀", title: "See it", steps: ["Watch and listen to each picture.", "Press Next ▶ to continue.", "Answer the Explain it question at the end."] },
+    gr1: { icon: "🎼", title: "Clefs and ledger lines", steps: ["Name the note, or tap the staff to place it.", "Count from a landmark: G4, F3 or middle C.", "Read the reasoning after each answer."] },
+    gr2: { icon: "⏱️", title: "Note and rest values", steps: ["Name the note or rest, with both names.", "Work out equal values and tied lengths.", "Press 🔊 Hear it to hear the length."] },
+    gr3: { icon: "🕰️", title: "Time signatures", steps: ["Choose the time signature, or find the missing barline or rest.", "Add the values bar by bar.", "Press 🔊 Hear it to hear the rhythm."] },
+    gr4: { icon: "♯", title: "Accidentals in a bar", steps: ["Find the highlighted note.", "Look back along its bar for sharps, flats and naturals.", "Choose its true pitch."] },
+    gr5: { icon: "🪜", title: "Scales and key signatures", steps: ["Read the key signature or the scale.", "Choose, or tap the note that needs an accidental.", "Listen: the pattern of tones and semitones decides."] },
+    gr6: { icon: "🎹", title: "Tones and semitones", steps: ["Find both notes on the keyboard.", "A semitone is the next key; a tone skips one.", "Choose, then see the keys light up."] },
+    gr7: { icon: "📏", title: "Intervals", steps: ["Start on the tonic.", "Count letter names up to the top note, both included.", "Choose the interval; listen to it."] },
+    gr8: { icon: "🔺", title: "Tonic triads", steps: ["Degrees 1, 3 and 5 of the scale make the tonic triad.", "Name the key, or tap the wrong note.", "Listen to the chord."] },
+    gr9: { icon: "🇮🇹", title: "Italian terms", steps: ["Read the term or its meaning.", "Press 🔊 Hear it where you can.", "Choose the match."] },
+    gr10: { icon: "↕️", title: "Octave transposition", steps: ["Read the note on the top staff.", "Tap the same letter an octave away on the lower staff.", "Keep every accidental."] },
+  },
+  start: "gr0",
+  onStop() {
+    token += 1;
+    liveQ = null;
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Music",
+  activity: "Theory Grades 1–2",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+// Test hook: the current question (read-only use in automated checks).
+Object.defineProperty(window, "__grQ", { get: () => liveQ, configurable: true });
+MUSIC.preload("piano", Array.from({ length: 49 }, (_, i) => 36 + i));
+MUSIC.preload("woodblock", [72, 79]);
+MUSIC.preload("xylophone", [84, 88, 91, 96]);
+</script>
+</body>
+</html>

@@ -1,0 +1,2466 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forces & Energy · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="science">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Forces & Energy</b><small>Science · Advanced</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, pickInt, wait, confetti, PRAISE, KIND, choices, explain, everyday, emoji, numpad, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+const GY = 440; // ground line in most scenes
+let token = 0;
+let view = null;
+const STOP = Symbol("stop");
+const C = { ink: "#2b1d12", soft: "#7a6552", wood: "#a8632d", woodL: "#e0a96d", blue: "#1e88e5", orange: "#f08a24", red: "#e53935", green: "#2e9d5b", grey: "#8a7764", purple: "#8e44ad" };
+
+const UNITS = [
+  { id: "f0", label: "See it", icon: "👀" },
+  { id: "f1", label: "1. Speed", icon: "🏃" },
+  { id: "f2", label: "2. Newton's laws", icon: "🚀" },
+  { id: "f3", label: "3. Gravity & weight", icon: "🌙" },
+  { id: "f4", label: "4. Friction & air", icon: "🪂" },
+  { id: "f5", label: "5. Energy", icon: "🎢" },
+  { id: "f6", label: "6. Simple machines", icon: "⚙️" },
+];
+
+// ---------- small helpers ----------
+function fresh() {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+}
+const spoken = (html) =>
+  html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/m\/s²/g, " metres per second, every second")
+    .replace(/N\/kg/g, " newtons per kilogram")
+    .replace(/m\/s/g, " metres per second")
+    .replace(/km\/h/g, " kilometres per hour")
+    .replace(/(\d)\s?kg\b/g, "$1 kilograms")
+    .replace(/(\d)\s?km\b/g, "$1 kilometres")
+    .replace(/(\d)\s?N\b/g, "$1 newtons")
+    .replace(/(\d)\s?J\b/g, "$1 joules")
+    .replace(/(\d)\s?m\b/g, "$1 metres")
+    .replace(/(\d)\s?s\b/g, "$1 seconds")
+    .replace(/(\d)\s?h\b/g, "$1 hours")
+    .replace(/(\d)\s?W\b/g, "$1 watts")
+    .replace(/\b1 (metre|second|hour|newton|joule|kilogram|kilometre)s\b/g, "1 $1")
+    .replace(/→/g, ", so ")
+    .replace(/≈/g, " about ")
+    .replace(/½/g, " half of ")
+    .replace(/²/g, " squared")
+    .replace(/\s−\s/g, " minus ")
+    .replace(/%/g, " percent");
+function talk(html) {
+  const box = $("[data-say]");
+  if (box) box.innerHTML = html;
+  VOICE.speak(spoken(html));
+}
+function talkAsync(html) {
+  const box = $("[data-say]");
+  if (box) box.innerHTML = html;
+  return VOICE.speakAsync(spoken(html));
+}
+const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+const lin = (t) => t;
+// Animation helpers for games: they reject with STOP when the game is switched away.
+function anim(my) {
+  const alive = () => my === token && stage.isConnected;
+  return {
+    alive,
+    wait: (ms) => new Promise((res, rej) => setTimeout(() => (alive() ? res() : rej(STOP)), KIT.still.matches ? Math.min(ms, 150) : ms)),
+    tween: (ms, fn, e = ease) =>
+      new Promise((res, rej) => {
+        if (KIT.still.matches) {
+          fn(1);
+          return res();
+        }
+        const t0 = performance.now();
+        const frame = (now) => {
+          if (!alive()) return rej(STOP);
+          const t = Math.min(1, (now - t0) / ms);
+          fn(e(t));
+          if (t < 1) requestAnimationFrame(frame);
+          else res();
+        };
+        requestAnimationFrame(frame);
+      }),
+  };
+}
+const T = (v, x, y, s, size = 26, fill = C.ink, extra = {}) => text(v, x, y, s, { "font-size": size, fill, ...extra });
+const fade = (A, g, ms = 500) => A.tween(ms, (t) => g.setAttribute("opacity", t));
+
+function bg(v, kind = "lab") {
+  if (kind === "moon") {
+    el("rect", { width: W, height: H, fill: "#1d2333" }, v);
+    for (let i = 0; i < 40; i++) el("circle", { cx: (i * 263) % W, cy: (i * 97) % 380, r: 1.5 + (i % 3), fill: "#fff", opacity: 0.7 }, v);
+    el("rect", { x: 0, y: GY, width: W, height: H - GY, fill: "#c9c6c0" }, v);
+    for (const [x, w] of [[140, 90], [520, 140], [840, 70]]) el("ellipse", { cx: x, cy: GY + 50, rx: w, ry: 14, fill: "#aaa69f" }, v);
+  } else if (kind === "mars") {
+    el("rect", { width: W, height: H, fill: "#f4d9c2" }, v);
+    el("rect", { x: 0, y: GY, width: W, height: H - GY, fill: "#c4683f" }, v);
+    for (const [x, w] of [[200, 70], [700, 110]]) el("ellipse", { cx: x, cy: GY + 55, rx: w, ry: 12, fill: "#a9532f" }, v);
+  } else if (kind === "jupiter" || kind === "planet") {
+    el("rect", { width: W, height: H, fill: kind === "jupiter" ? "#f1dcc0" : "#2a2350" }, v);
+    if (kind === "jupiter") for (let i = 0; i < 7; i++) el("rect", { x: 0, y: GY + i * 18, width: W, height: 10, fill: i % 2 ? "#d9a37a" : "#c9845a" }, v);
+    else {
+      for (let i = 0; i < 30; i++) el("circle", { cx: (i * 263) % W, cy: (i * 97) % 380, r: 2, fill: "#fff", opacity: 0.7 }, v);
+      el("rect", { x: 0, y: GY, width: W, height: H - GY, fill: "#7d6bb3" }, v);
+    }
+  } else if (kind === "earth") {
+    el("rect", { width: W, height: H, fill: "#e4f3fb" }, v);
+    el("rect", { x: 0, y: GY, width: W, height: H - GY, fill: "#bfe0a5" }, v);
+  } else if (kind === "space") {
+    el("rect", { width: W, height: H, fill: "#151a2b" }, v);
+    for (let i = 0; i < 60; i++) el("circle", { cx: (i * 331) % W, cy: (i * 149) % H, r: 1 + (i % 3), fill: "#fff", opacity: 0.75 }, v);
+  } else {
+    el("rect", { width: W, height: H, fill: "#fffaf0" }, v);
+    el("rect", { x: 0, y: GY, width: W, height: H - GY, fill: "#ead3b0" }, v);
+    for (let x = 0; x < W; x += 125) el("line", { x1: x, x2: x, y1: GY, y2: H, stroke: "#d8bb92", "stroke-width": 3 }, v);
+    el("line", { x1: 0, x2: W, y1: GY, y2: GY, stroke: "#c9a679", "stroke-width": 4 }, v);
+  }
+}
+function arrow(v, x1, y1, x2, y2, { color = C.red, label, w = 10, lx, ly, size = 26 } = {}) {
+  const g = el("g", {}, v);
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const hl = Math.min(w * 2.6, len * 0.6);
+  const hx = x2 - ux * hl;
+  const hy = y2 - uy * hl;
+  el("line", { x1, y1, x2: hx, y2: hy, stroke: color, "stroke-width": w, "stroke-linecap": "round" }, g);
+  el("path", { d: `M${x2} ${y2}L${hx - uy * w * 1.6} ${hy + ux * w * 1.6}L${hx + uy * w * 1.6} ${hy - ux * w * 1.6}Z`, fill: color }, g);
+  if (label) T(g, lx ?? (x1 + x2) / 2 + uy * 62, ly ?? (y1 + y2) / 2 - ux * 22 + 9, label, size, color);
+  return g;
+}
+// A pickable emoji that faces right (most emoji runners face left, so we mirror them).
+function glyph(v, x, y, ch, size, flip = false) {
+  const g = el("g", { transform: `translate(${x} ${y})` }, v);
+  const inner = el("g", { transform: flip ? "scale(-1 1)" : "" }, g);
+  emoji(inner, 0, 0, ch, size);
+  return g;
+}
+function cart(v, x, ground, kg, color = "#f2c94c") {
+  const g = el("g", { transform: `translate(${x} 0)` }, v);
+  const w = Math.min(190, 90 + kg * 12);
+  const h = Math.min(90, 46 + kg * 5);
+  el("rect", { x: -w / 2, y: ground - 26 - h, width: w, height: h, rx: 12, fill: color, stroke: C.ink, "stroke-width": 3 }, g);
+  T(g, 0, ground - 26 - h / 2 + 10, `${kg} kg`, 28);
+  for (const s of [-1, 1]) el("circle", { cx: (s * w) / 3, cy: ground - 14, r: 14, fill: "#3b2a1e", stroke: "#8a7764", "stroke-width": 4 }, g);
+  g.w = w;
+  g.h = h + 26;
+  return g;
+}
+function person(v, x, ground, { color = "#1e88e5", scale = 1 } = {}) {
+  const g = el("g", { transform: `translate(${x} ${ground}) scale(${scale})` }, v);
+  el("rect", { x: -14, y: -78, width: 28, height: 50, rx: 12, fill: color }, g);
+  el("line", { x1: -8, y1: -30, x2: -12, y2: 0, stroke: C.ink, "stroke-width": 8, "stroke-linecap": "round" }, g);
+  el("line", { x1: 8, y1: -30, x2: 12, y2: 0, stroke: C.ink, "stroke-width": 8, "stroke-linecap": "round" }, g);
+  el("circle", { cx: 0, cy: -96, r: 18, fill: "#f2c39b", stroke: C.ink, "stroke-width": 2 }, g);
+  return g;
+}
+// Energy bars that always add to a fixed total.
+function bars(v, x, y, items, max, { bw = 64, hmax = 150, gap = 18 } = {}) {
+  const g = el("g", {}, v);
+  el("rect", { x: x - 14, y: y - hmax - 52, width: items.length * (bw + gap) - gap + 28, height: hmax + 104, rx: 18, fill: "#fff", stroke: "#e2d6c4", "stroke-width": 3, opacity: 0.94 }, g);
+  const parts = items.map(([label, color], i) => {
+    const bx = x + i * (bw + gap);
+    el("rect", { x: bx, y: y - hmax, width: bw, height: hmax, rx: 8, fill: "#f3ece1" }, g);
+    const r = el("rect", { x: bx, y, width: bw, height: 0, rx: 8, fill: color }, g);
+    const val = T(g, bx + bw / 2, y - hmax - 14, "", 22, color);
+    T(g, bx + bw / 2, y + 32, label, 22, C.ink);
+    return { r, val };
+  });
+  return {
+    g,
+    set(values) {
+      values.forEach((n, i) => {
+        const h = Math.max(0, (n / max) * hmax);
+        parts[i].r.setAttribute("y", y - h);
+        parts[i].r.setAttribute("height", h);
+        parts[i].val.textContent = `${Math.round(n)} J`;
+      });
+    },
+  };
+}
+
+// The worked-solution card (the "Explain" step of predict, test, explain).
+function card(lines, A, top = false) {
+  const n = lines.length;
+  const h = 28 + n * 38;
+  const y = top ? 12 : H - 12 - h;
+  const g = el("g", { opacity: 0, "pointer-events": "none" }, view);
+  el("rect", { x: 16, y, width: 968, height: h, rx: 22, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4, opacity: 0.97 }, g);
+  lines.forEach((l, i) => T(g, 40, y + 44 + i * 38, l, 26, C.ink, { "text-anchor": "start" }));
+  return A.tween(500, (t) => g.setAttribute("opacity", t));
+}
+
+// ---------- styles ----------
+const feStyle = document.createElement("style");
+feStyle.textContent = `
+.fe-ans{display:flex;justify-content:center;width:100%}
+.fe-ans .kt-choices button{min-height:54px;font-size:19px;padding:4px 16px;line-height:1.15}
+.fe-ans .kt-choices button:disabled{opacity:.45}
+.fe-real{position:fixed;z-index:50}
+.fe-real .kt-how-card{gap:8px;padding:16px 22px}
+.fe-real h2{font-size:clamp(20px,2.8vw,27px)}
+.fe-real li{font-size:clamp(15px,2vw,19px)}
+.fe-real .kt-go{min-height:52px;margin-top:2px}
+.fe-real p{margin:0;color:#2b1d12;font:700 clamp(15px,2vw,18px)/1.35 var(--sans);text-align:left;width:100%}
+.fe-real p.safe{color:#8a4b14;background:#fff4e2;border-radius:14px;padding:8px 12px}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){
+ .fe-ans .kt-choices button{min-height:44px;font-size:15px;padding:2px 10px}
+ .fe-real .kt-how-card{padding:10px 14px;gap:5px}
+ .fe-real li,.fe-real p{font-size:14px}
+}`;
+document.head.appendChild(feStyle);
+
+// ---------- levels ----------
+const LEVELS = [["easy", "🐣 Grade 4"], ["medium", "🦊 Grade 5–6"], ["hard", "🦁 Grade 7–8"]];
+const levelRow = (cur) => `<div class="ap-row"><div class="ap-chips" data-levels>${LEVELS.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div>`;
+const GOOD = ["Correct.", "Correct — your reasoning holds.", "Correct. You applied the rule carefully.", "Correct. You checked the quantities."];
+const OOPS = ["Not quite. Consider:", "Not quite. Mistakes are how we learn. Consider:", "Not yet. Consider:"];
+
+// ---------- the game engine: predict, test, explain ----------
+const ROUNDS = 8;
+function game(id, { types, gen, real, counted, explainIt }) {
+  const my = token;
+  const A = anim(my);
+  let level = shell.progress()[id]?.level || "easy";
+  let round = 0;
+  let first = 0;
+  let tries = 0;
+  let q = null;
+  let phase = "predict";
+  let plan = [];
+  let seen = new Set();
+  let pad = null;
+  const host = panel(`${levelRow(level)}<div class="fe-ans" data-ans></div>`);
+  const status = () => {
+    const s = $("[data-status]");
+    if (s) s.textContent = `Round ${round + 1} of ${ROUNDS} · ${phase === "predict" ? "🤔 Predict" : phase === "test" ? "🧪 Test" : "💡 Explain"}`;
+  };
+  const makeQ = () => {
+    let out;
+    const order = [plan[round], ...shuffle(types[level])];
+    search: for (const t of order) {
+      for (let k = 0; k < 30; k++) {
+        out = gen[t](level);
+        if (!seen.has(out.key)) break search;
+      }
+    }
+    seen.add(out.key);
+    if (!out.pad && !out.keepOrder) {
+      const right = out.opts[out.ok];
+      out.opts = shuffle(out.opts);
+      out.ok = out.opts.indexOf(right);
+    }
+    if (out.pad) out.answerText = out.answerText || `${out.ans} ${out.unit || ""}`.trim();
+    else out.answerText = out.answerText || out.opts[out.ok];
+    return out;
+  };
+  const begin = () => {
+    round = 0;
+    first = 0;
+    seen = new Set();
+    plan = [];
+    while (plan.length < ROUNDS) plan.push(...shuffle(types[level]));
+    plan = plan.slice(0, ROUNDS);
+    ask();
+  };
+  const ask = () => {
+    phase = "predict";
+    tries = 0;
+    q = makeQ();
+    fresh();
+    q.ctx = q.draw(view) || {};
+    status();
+    const box = $("[data-ans]");
+    pad = null;
+    if (q.pad) pad = numpad(box, { onEnter: (v) => answer(v === q.ans, v), max: 5 });
+    else
+      choices(
+        box,
+        q.opts.map((label, i) => ({ label, i })),
+        (o, b) => answer(o.i === q.ok, o.i, b)
+      );
+    talk(q.say);
+  };
+  const answer = async (ok, value, button) => {
+    if (my !== token || phase !== "predict") return;
+    window.OC?.touch();
+    if (ok) {
+      button?.classList.add("right");
+      MUSIC.chime();
+      if (tries === 0) first += 1;
+      return run(true);
+    }
+    tries += 1;
+    MUSIC.oops();
+    if (button) {
+      button.classList.add("wrong");
+      button.disabled = true;
+    }
+    if (tries < 2) {
+      pad?.clear();
+      const extra = q.hintFor?.(value);
+      talk(`${pick(OOPS)} ${extra || q.hint}`);
+    } else run(false);
+  };
+  const run = async (ok) => {
+    phase = "test";
+    status();
+    $("[data-ans]").innerHTML = "";
+    try {
+      await talkAsync(ok ? `${pick(GOOD)} Now we test the prediction.` : "Let us run the test and observe what actually happens.");
+      if (my !== token) return;
+      if (q.test) await q.test(q.ctx, A);
+      phase = "explain";
+      status();
+      card(q.why, A, q.top).catch(() => {});
+      talk(`${ok ? "" : `The answer is <b>${q.answerText}</b>. `}${q.why.join(" ")}`);
+      $("[data-ans]").innerHTML = `<div class="ap-buttons"><button type="button" data-again aria-label="Hear it again">🔁</button><button type="button" class="primary" data-next>${round + 1 >= ROUNDS ? "Finish ✓" : "Next ▶"}</button></div>`;
+    } catch (error) {
+      if (error !== STOP) console.error(error);
+    }
+  };
+  const finish = () => {
+    phase = "done";
+    fresh();
+    bg(view, "lab");
+    emoji(view, 500, 150, "🏅", 150);
+    emoji(view, 500, 70, "🗣️", 70);
+    T(view, 500, 160, "Explain it", 44, "var(--accent-dark)");
+    explainIt.forEach((l, i) => T(view, 500, 220 + i * 40, l, 27, C.ink));
+    T(view, 500, 400, `${ROUNDS} rounds complete · correct on the first attempt: ${first} of ${ROUNDS}`, 26, C.soft);
+    T(view, 500, 450, "Say it aloud to a grown-up, or write it down.", 26, C.soft);
+    T(view, 500, 510, "Predict → Test → Explain: the method of every scientist.", 24, C.soft);
+    confetti();
+    MUSIC.chime();
+    shell.mark(id, { done: true });
+    window.OC?.count(counted);
+    const effort = first >= ROUNDS - 1 ? "You read each problem with care and checked your reasoning." : "You persisted through the difficult problems and learned from every test.";
+    talk(`All ${ROUNDS} rounds complete. ${effort} Explain it: ${explainIt.join(" ")} Answer in two to four sentences, aloud or in writing.`);
+    const s = $("[data-status]");
+    if (s) s.textContent = "Complete · 🗣️ Explain it";
+    $("[data-ans]").innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-real>🏠 Try it for real</button><button type="button" data-replay>🔁 Play again</button></div>`;
+  };
+  host.onclick = (event) => {
+    if (my !== token) return;
+    const lv = event.target.closest("[data-lv]");
+    if (lv) {
+      level = lv.dataset.lv;
+      host.querySelectorAll("[data-lv]").forEach((b) => b.setAttribute("aria-pressed", String(b === lv)));
+      shell.mark(id, { level });
+      window.OC?.touch();
+      VOICE.hush();
+      return begin();
+    }
+    if (event.target.closest("[data-next]")) {
+      window.OC?.touch();
+      VOICE.hush();
+      round += 1;
+      if (round >= ROUNDS) finish();
+      else ask();
+    } else if (event.target.closest("[data-again]")) {
+      talk(q.why.join(" "));
+    } else if (event.target.closest("[data-real]")) realCard(real);
+    else if (event.target.closest("[data-replay]")) begin();
+  };
+  begin();
+  // Test hooks (used by the automated checks only).
+  window.__fe = {
+    state: () => ({ id, level, round, first, phase, t: q?.t, ans: q?.ans, ok: q?.ok, say: $("[data-say]")?.innerText }),
+    right: () => {
+      if (q.pad) answer(true, q.ans);
+      else host.querySelector(`[data-c="${q.ok}"]`).click();
+      return "right";
+    },
+    wrong: () => {
+      if (q.pad) answer(false, q.ans + 1);
+      else host.querySelector(`[data-c]:not([data-c="${q.ok}"]):not(:disabled)`).click();
+      return "wrong";
+    },
+    next: () => (host.querySelector("[data-next]")?.click(), "next"),
+    show: (t) => {
+      plan[round] = t;
+      seen = new Set();
+      ask();
+      return t;
+    },
+    gen: (lv, n = 60) => {
+      const out = [];
+      for (const t of types[lv]) for (let i = 0; i < n; i++) {
+        const g = gen[t](lv);
+        out.push({ t: g.t, v: g.v, ans: g.ans, ok: g.ok, opts: g.opts, pad: !!g.pad, why: g.why });
+      }
+      return out;
+    },
+  };
+}
+
+function realCard(r) {
+  document.querySelector(".fe-real")?.remove();
+  const box = document.createElement("div");
+  box.className = "kt-how fe-real";
+  box.innerHTML = `<div class="kt-how-card" role="dialog" aria-label="Try it for real"><h2>🏠 Try it for real: ${r.title}</h2><p><b>You need:</b> ${r.need}</p><ol>${r.steps.map((s) => `<li>${s}</li>`).join("")}</ol><p class="safe">🧡 ${r.safe}</p><button type="button" class="kt-go">✓ OK!</button></div>`;
+  document.body.appendChild(box);
+  VOICE.speak(spoken(`Try it for real: ${r.title}. You need: ${r.need}. ${r.steps.join(" ")} ${r.safe}`));
+  box.querySelector(".kt-go").addEventListener("click", () => {
+    VOICE.hush();
+    box.remove();
+  });
+}
+
+// =====================================================================
+// 1. SPEED
+// =====================================================================
+const RACERS = {
+  runner: { g: "🏃", name: "runner", lo: 4, hi: 8, flip: true },
+  bike: { g: "🚴", name: "cyclist", lo: 5, hi: 10, flip: true },
+  dog: { g: "🐕", name: "dog", lo: 5, hi: 12, flip: true },
+  horse: { g: "🐎", name: "horse", lo: 10, hi: 18, flip: true },
+  walker: { g: "🚶", name: "walker", lo: 1, hi: 2, flip: true },
+  cheetah: { g: "🐆", name: "cheetah", lo: 25, hi: 30, flip: true },
+  car: { g: "🚗", name: "car", lo: 10, hi: 30, flip: true },
+};
+// A race track: lanes of runners, distance marks and a stopwatch.
+function track(v, lanes, D, unit = "m", clockUnit = "s") {
+  el("rect", { width: W, height: H, fill: "#cfe8b8" }, v);
+  const x0 = 110;
+  const x1 = 890;
+  const n = lanes.length;
+  const lh = 92;
+  const top = n === 1 ? 190 : n === 2 ? 150 : 110;
+  for (let i = 0; i < n; i++) {
+    el("rect", { x: 40, y: top + i * lh, width: 920, height: lh - 6, fill: unit === "km" ? "#8d8a86" : "#d9744a" }, v);
+    if (unit === "km") el("line", { x1: 40, x2: 960, y1: top + i * lh + 43, y2: top + i * lh + 43, stroke: "#fff", "stroke-width": 4, "stroke-dasharray": "30 22" }, v);
+  }
+  for (let k = 0; k < 10; k++) el("rect", { x: x1 - 6, y: top + k * ((n * lh - 6) / 10), width: 12, height: (n * lh - 6) / 10, fill: k % 2 ? "#fff" : C.ink }, v);
+  el("line", { x1: x0, x2: x0, y1: top, y2: top + n * lh - 6, stroke: "#fff", "stroke-width": 5 }, v);
+  const by = top + n * lh + 28;
+  for (let k = 0; k <= 4; k++) {
+    const x = x0 + (k / 4) * (x1 - x0);
+    el("line", { x1: x, x2: x, y1: by - 18, y2: by - 4, stroke: C.ink, "stroke-width": 3 }, v);
+    T(v, x, by + 22, `${Math.round((D * k) / 4 * 10) / 10} ${unit}`, 23, C.ink);
+  }
+  const clock = el("g", {}, v);
+  el("rect", { x: 380, y: 18, width: 240, height: 62, rx: 20, fill: "#fff", stroke: C.ink, "stroke-width": 3 }, clock);
+  const ct = T(clock, 500, 62, `⏱ 0 ${clockUnit}`, 34);
+  const who = lanes.map((ln, i) => {
+    const r = RACERS[ln.kind];
+    const g = glyph(v, x0, top + i * lh + 42, r.g, 58, r.flip);
+    if (ln.tag) T(v, 70, top + i * lh + 52, ln.tag, 30, "#fff");
+    return g;
+  });
+  return {
+    xOf: (d) => x0 + (Math.min(d, D) / D) * (x1 - x0),
+    move(i, d) {
+      who[i].setAttribute("transform", `translate(${x0 + (Math.min(d, D) / D) * (x1 - x0)} ${top + i * lh + 42})`);
+    },
+    time(t) {
+      ct.textContent = `⏱ ${Math.round(t * 10) / 10} ${clockUnit}`;
+    },
+    laneY: (i) => top + i * lh,
+    top,
+    lh,
+  };
+}
+// Run every lane: speeds[i], stop at dist[i]. Shows a clock.
+async function race(tr, A, speeds, dists, { tMax, startGaps = [] } = {}) {
+  const end = tMax ?? Math.max(...dists.map((d, i) => d / speeds[i]));
+  const ms = Math.max(1600, Math.min(4200, end * 300));
+  MUSIC.play("woodblock", 79, { gain: 0.3 });
+  await A.tween(ms, (k) => {
+    const t = k * end;
+    tr.time(t);
+    speeds.forEach((s, i) => tr.move(i, Math.min(dists[i], (startGaps[i] || 0) + s * t)));
+  }, lin);
+  MUSIC.play("woodblock", 84, { gain: 0.35 });
+  await A.wait(500);
+}
+const twoKinds = () => shuffle(["runner", "bike", "dog"]).slice(0, 2);
+const SPEED = {
+  types: { easy: ["compare", "compare", "speed", "speed"], medium: ["dist", "time", "convert", "speed"], hard: ["graph", "avg", "catch", "accel", "kmh"] },
+  gen: {
+    compare(level) {
+      const [ka, kb] = twoKinds();
+      const ra = RACERS[ka];
+      const rb = RACERS[kb];
+      let va = pickInt(ra.lo, ra.hi);
+      let vb = pickInt(rb.lo, rb.hi);
+      if (Math.random() < 0.25) vb = va;
+      const ta = pickInt(4, 10);
+      const tb = pickInt(4, 10);
+      const da = va * ta;
+      const db = vb * tb;
+      const ok = va > vb ? 0 : vb > va ? 1 : 2;
+      const A_ = `${ra.g} ${ra.name}`;
+      const B_ = `${rb.g} ${rb.name}`;
+      return {
+        t: "compare", key: `c${va}${vb}${ta}${tb}`, v: { da, ta, db, tb },
+        say: `${ra.g} The ${ra.name} goes ${da} m in ${ta} s. ${rb.g} The ${rb.name} goes ${db} m in ${tb} s. Who is faster?`,
+        opts: [A_, B_, "Same speed"], ok,
+        hint: "Faster means more metres each second. How many metres does each one go in 1 second?",
+        why: [`Speed = distance ÷ time.`, `${ra.name}: ${da} m ÷ ${ta} s = ${va} m/s.   ${rb.name}: ${db} m ÷ ${tb} s = ${vb} m/s.`, ok === 2 ? "Equal metres per second: identical speeds." : `${ok === 0 ? ra.name : rb.name} goes more metres each second.`],
+        draw: (v) => track(v, [{ kind: ka, tag: "A" }, { kind: kb, tag: "B" }], Math.max(da, db)),
+        test: (tr, A) => race(tr, A, [va, vb], [da, db]),
+      };
+    },
+    speed(level) {
+      const kind = pick(level === "easy" ? ["runner", "bike", "dog"] : ["horse", "car", "dog"]);
+      const r = RACERS[kind];
+      const s = pickInt(r.lo, r.hi);
+      const t = pickInt(3, level === "easy" ? 10 : 15);
+      const d = s * t;
+      return {
+        t: "speed", key: `s${s}${t}`, v: { d, t }, pad: true, ans: s, unit: "m/s",
+        say: `${r.g} A ${r.name} goes ${d} m in ${t} s. What is its speed, in m/s? Type it.`,
+        hint: `Speed is how many metres in ONE second. Share ${d} m between ${t} seconds. What do you get?`,
+        why: [`Speed = distance ÷ time`, `${d} m ÷ ${t} s = ${s} m/s`, `So it goes ${s} metres every second.`],
+        draw: (v) => track(v, [{ kind }], d),
+        test: (tr, A) => race(tr, A, [s], [d]),
+      };
+    },
+    dist(level) {
+      const kind = pick(["bike", "horse", "runner"]);
+      const r = RACERS[kind];
+      const s = pickInt(r.lo, r.hi);
+      const t = pickInt(6, 15);
+      return {
+        t: "dist", key: `d${s}${t}`, v: { s, t }, pad: true, ans: s * t, unit: "m",
+        say: `${r.g} A ${r.name} keeps a speed of ${s} m/s for ${t} s. How far does it go, in metres?`,
+        hint: `Each second it goes ${s} m. How many seconds are there? What should you do with those two numbers?`,
+        why: [`Distance = speed × time`, `${s} m/s × ${t} s = ${s * t} m`, `${s} metres, ${t} times over.`],
+        draw: (v) => track(v, [{ kind }], s * t),
+        test: (tr, A) => race(tr, A, [s], [s * t]),
+      };
+    },
+    time() {
+      const s = pick([40, 50, 60, 80, 90, 100, 120]);
+      const t = pickInt(2, 5);
+      const d = s * t;
+      return {
+        t: "time", key: `t${s}${t}`, v: { d, s }, pad: true, ans: t, unit: "h",
+        say: `🚗 A car drives ${d} km at ${s} km/h. How many hours does the trip take?`,
+        hint: `${s} km/h means ${s} km every hour. How many lots of ${s} km fit into ${d} km?`,
+        hintFor: (v) => (v === d * s ? "That result is far too large. Should you multiply or divide here?" : null),
+        why: [`Time = distance ÷ speed`, `${d} km ÷ ${s} km/h = ${t} h`, `Check: ${s} km × ${t} = ${d} km.`],
+        draw: (v) => track(v, [{ kind: "car" }], d, "km", "h"),
+        test: (tr, A) => race(tr, A, [s], [d]),
+      };
+    },
+    convert() {
+      const s = pick([5, 10, 15, 20, 25, 30]);
+      return {
+        t: "convert", key: `v${s}`, v: { s }, pad: true, ans: (s * 36) / 10, unit: "km/h",
+        say: `🚗 A car goes ${s} m/s. An hour has 3600 seconds. How many km/h is that?`,
+        hint: `In 1 hour it goes ${s} m, 3600 times. How many metres is that? And 1000 m = 1 km.`,
+        why: [`In 1 hour: ${s} m × 3600 = ${s * 3600} m`, `${s * 3600} m ÷ 1000 = ${(s * 36) / 10} km, so ${(s * 36) / 10} km/h.`, `Shortcut: m/s × 3.6 = km/h.`],
+        draw: (v) => {
+          const tr = track(v, [{ kind: "car" }], s * 10);
+          return tr;
+        },
+        test: (tr, A) => race(tr, A, [s], [s * 10]),
+      };
+    },
+    graph() {
+      let va = pickInt(2, 10);
+      let vb = pickInt(2, 10);
+      while (vb === va) vb = pickInt(2, 10);
+      const ask = pick(["speedB", "speedA", "gap"]);
+      const ans = ask === "speedA" ? va : ask === "speedB" ? vb : Math.abs(va - vb) * 10;
+      return {
+        t: "graph", key: `g${va}${vb}${ask}`, v: { va, vb, ask }, pad: true, ans, unit: ask === "gap" ? "m" : "m/s",
+        say: ask === "gap" ? "Two racers, A (blue) and B (orange). How far apart are they after 10 s, in metres?" : `Read the distance–time graph. How fast is ${ask === "speedA" ? "A (blue)" : "B (orange)"}, in m/s?`,
+        hint: ask === "gap" ? "Find each line at 10 s. Read across to the metres. What is the difference?" : "Find where the line is at 10 s. How many metres in 10 seconds? Then in 1 second?",
+        why:
+          ask === "gap"
+            ? [`At 10 s: A is at ${va * 10} m, B is at ${vb * 10} m.`, `${Math.max(va, vb) * 10} − ${Math.min(va, vb) * 10} = ${ans} m apart.`, "A steeper line means a faster racer."]
+            : [`At 10 s the line is at ${(ask === "speedA" ? va : vb) * 10} m.`, `${(ask === "speedA" ? va : vb) * 10} m ÷ 10 s = ${ans} m/s.`, "A steeper line means a faster racer."],
+        top: true,
+        draw: (v) => {
+          bg(v, "lab");
+          const gx = (t) => 140 + t * 70;
+          const gy = (d) => 450 - d * 3.6;
+          el("rect", { x: 100, y: 40, width: 780, height: 470, rx: 18, fill: "#fff", stroke: "#e2d6c4", "stroke-width": 3 }, v);
+          for (let t = 0; t <= 10; t++) el("line", { x1: gx(t), x2: gx(t), y1: gy(0), y2: gy(100), stroke: "#eee3d3", "stroke-width": 2 }, v);
+          for (let d = 0; d <= 100; d += 10) {
+            el("line", { x1: gx(0), x2: gx(10), y1: gy(d), y2: gy(d), stroke: "#eee3d3", "stroke-width": 2 }, v);
+            if (d % 20 === 0) T(v, 116, gy(d) + 8, d, 22, C.soft);
+          }
+          for (let t = 0; t <= 10; t += 2) T(v, gx(t), 482, t, 22, C.soft);
+          el("line", { x1: gx(0), x2: gx(10.3), y1: gy(0), y2: gy(0), stroke: C.ink, "stroke-width": 4 }, v);
+          el("line", { x1: gx(0), x2: gx(0), y1: gy(0), y2: gy(104), stroke: C.ink, "stroke-width": 4 }, v);
+          T(v, 860, 482, "time (s)", 22, C.ink, { "text-anchor": "end" });
+          T(v, 150, 72, "distance (m)", 22, C.ink, { "text-anchor": "start" });
+          const lines = [va, vb].map((s, i) => el("line", { x1: gx(0), y1: gy(0), x2: gx(10), y2: gy(s * 10), stroke: i ? C.orange : C.blue, "stroke-width": 7, "stroke-linecap": "round" }, v));
+          T(v, gx(10) + 30, gy(va * 10) + 8, "A", 28, C.blue);
+          T(v, gx(10) + 30, gy(vb * 10) + 8, "B", 28, C.orange);
+          const dots = [va, vb].map((s, i) => el("circle", { cx: gx(0), cy: gy(0), r: 12, fill: i ? C.orange : C.blue, stroke: "#fff", "stroke-width": 3 }, v));
+          return { gx, gy, dots, lines };
+        },
+        test: async (c, A) => {
+          await A.tween(2600, (k) => {
+            const t = k * 10;
+            c.dots[0].setAttribute("cx", c.gx(t));
+            c.dots[0].setAttribute("cy", c.gy(va * t));
+            c.dots[1].setAttribute("cx", c.gx(t));
+            c.dots[1].setAttribute("cy", c.gy(vb * t));
+          }, lin);
+          for (const [s, col] of [[va, C.blue], [vb, C.orange]]) {
+            el("line", { x1: c.gx(0), x2: c.gx(10), y1: c.gy(s * 10), y2: c.gy(s * 10), stroke: col, "stroke-width": 3, "stroke-dasharray": "8 8" }, view);
+          }
+          await A.wait(500);
+        },
+      };
+    },
+    avg() {
+      const [d, v1, v2] = pick([[60, 30, 60], [60, 20, 30], [120, 40, 60], [30, 10, 15], [12, 6, 12], [40, 10, 40], [90, 30, 45]]);
+      const t1 = d / v1;
+      const t2 = d / v2;
+      const ans = (2 * d) / (t1 + t2);
+      return {
+        t: "avg", key: `a${d}${v1}`, v: { d, v1, v2 }, pad: true, ans, unit: "km/h",
+        say: `🚴 You ride ${d} km to a lake at ${v1} km/h, and ride back at ${v2} km/h. What is your average speed for the whole trip, in km/h?`,
+        hint: "Average speed = total distance ÷ total time. How long does each part take?",
+        hintFor: (v) => (v === (v1 + v2) / 2 ? `${v} is the middle of the two speeds. But you spend MORE time going slowly. How long is each part?` : null),
+        why: [`There: ${d} ÷ ${v1} = ${t1} h.  Back: ${d} ÷ ${v2} = ${t2} h.`, `Total: ${2 * d} km in ${t1 + t2} h → ${2 * d} ÷ ${t1 + t2} = ${ans} km/h.`, `Not ${(v1 + v2) / 2}: you spend longer at the slow speed.`],
+        draw: (v) => track(v, [{ kind: "bike", tag: "→" }, { kind: "bike", tag: "←" }], d, "km", "h"),
+        test: (tr, A) => race(tr, A, [v1, v2], [d, d]),
+      };
+    },
+    accel() {
+      const kind = pick(["car", "bike", "horse"]);
+      const a = pickInt(1, 5);
+      const t = pickInt(2, 6);
+      const v1 = kind === "car" ? pickInt(0, 4) * 2 : pickInt(0, 2);
+      const v2 = v1 + a * t;
+      return {
+        t: "accel", key: `ac${v1}${a}${t}`, v: { v1, v2, t }, pad: true, ans: a, unit: "m/s²",
+        say: `${RACERS[kind].g} A ${RACERS[kind].name} speeds up from ${v1} m/s to ${v2} m/s in ${t} s. Acceleration a = (final speed v − starting speed u) ÷ time t. Find a, in m/s².`,
+        hint: "Acceleration is the change in speed each second. What is the total change, and over how many seconds?",
+        hintFor: (x) => (x * t === v2 ? "You divided the final speed only. What was the change in speed?" : null),
+        why: [`Change in speed: ${v2} − ${v1} = ${v2 - v1} m/s.`, `a = ${v2 - v1} m/s ÷ ${t} s = ${a} m/s².`, `Each second the speed rises by ${a} m/s.`],
+        draw: (v) => track(v, [{ kind }], v1 * t + 0.5 * a * t * t),
+        test: async (tr, A) => {
+          const D = v1 * t + 0.5 * a * t * t;
+          await A.tween(Math.min(4000, 600 * t), (k) => {
+            const tt = k * t;
+            tr.time(tt);
+            tr.move(0, v1 * tt + 0.5 * a * tt * tt);
+          }, lin);
+          T(view, 500, 120, `speed: ${v1} → ${v2} m/s`, 30, C.green);
+          await A.wait(400);
+        },
+      };
+    },
+    kmh() {
+      const s = pick([10, 15, 20, 25, 30, 35, 40]);
+      const k = (s * 36) / 10;
+      return {
+        t: "kmh", key: `kh${s}`, v: { k }, pad: true, ans: s, unit: "m/s",
+        say: `🚗 A car travels at ${k} km/h. Convert this to m/s. (1 km = 1000 m; 1 h = 3600 s.)`,
+        hint: "How many metres does it cover in one hour? Then how many in one second?",
+        why: [`${k} km/h = ${k * 1000} m per 3600 s.`, `${k * 1000} ÷ 3600 = ${s} m/s.`, "Shortcut: km/h ÷ 3.6 = m/s."],
+        draw: (v) => track(v, [{ kind: "car" }], s * 10),
+        test: (tr, A) => race(tr, A, [s], [s * 10]),
+      };
+    },
+    catch() {
+      const va = pickInt(1, 2);
+      const vb = pickInt(4, 8);
+      const t = pickInt(4, 12);
+      const gap = (vb - va) * t;
+      return {
+        t: "catch", key: `k${va}${vb}${t}`, v: { va, vb, gap }, pad: true, ans: t, unit: "s",
+        say: `🚶 A walker starts ${gap} m ahead and walks ${va} m/s. 🏃 A runner chases at ${vb} m/s. After how many seconds does the runner catch up?`,
+        hint: "Each second, how much closer does the runner get? How many of those make the gap?",
+        why: [`Each second the runner gains ${vb} − ${va} = ${vb - va} m.`, `Gap ${gap} m ÷ ${vb - va} m per second = ${t} s.`, `Check: walker at ${gap + va * t} m, runner at ${vb * t} m. Same position.`],
+        draw: (v) => {
+          const tr = track(v, [{ kind: "walker" }, { kind: "runner" }], vb * t + 4);
+          tr.move(0, gap);
+          return tr;
+        },
+        test: (tr, A) => race(tr, A, [va, vb], [9999, 9999], { tMax: t, startGaps: [gap, 0] }),
+      };
+    },
+  },
+};
+
+// =====================================================================
+// 2. NEWTON'S LAWS
+// =====================================================================
+function coinScene(v) {
+  bg(v, "lab");
+  el("rect", { x: 300, y: 250, width: 400, height: 30, rx: 6, fill: C.woodL, stroke: C.wood, "stroke-width": 3 }, v); // table top
+  el("rect", { x: 320, y: 280, width: 24, height: 160, fill: C.wood }, v);
+  el("rect", { x: 656, y: 280, width: 24, height: 160, fill: C.wood }, v);
+  el("path", { d: "M440 250 L450 150 L550 150 L560 250 Z", fill: "#d6ecf7", stroke: "#7fb3d1", "stroke-width": 4, opacity: 0.9 }, v);
+  const cardG = el("rect", { x: 420, y: 138, width: 160, height: 12, rx: 3, fill: "#e53935", stroke: "#a52a28", "stroke-width": 2 }, v);
+  const coin = el("ellipse", { cx: 500, cy: 130, rx: 26, ry: 8, fill: "#f2c94c", stroke: "#b88a1b", "stroke-width": 3 }, v);
+  T(v, 500, 70, "a coin on a card on a cup", 26, C.soft);
+  return { cardG, coin };
+}
+function busScene(v) {
+  bg(v, "earth");
+  el("rect", { x: 0, y: GY, width: W, height: 40, fill: "#8d8a86" }, v);
+  const bus = el("g", { transform: "translate(120 0)" }, v);
+  el("rect", { x: 0, y: 220, width: 420, height: 190, rx: 26, fill: "#f2c94c", stroke: C.ink, "stroke-width": 4 }, bus);
+  for (let i = 0; i < 4; i++) el("rect", { x: 20 + i * 100, y: 240, width: 80, height: 70, rx: 10, fill: "#d6ecf7" }, bus);
+  for (const x of [80, 340]) el("circle", { cx: x, cy: 412, r: 30, fill: "#3b2a1e", stroke: "#8a7764", "stroke-width": 6 }, bus);
+  const rider = el("g", { transform: "translate(250 386)" }, bus);
+  person(rider, 0, 0, { color: C.purple, scale: 0.9 });
+  T(v, 500, 80, "→ the bus drives this way", 28, C.soft);
+  return { bus, rider };
+}
+function skateScene(v, mA = 30, mB = 30) {
+  bg(v, "lab");
+  const mk = (x, m, color) => {
+    const g = el("g", { transform: `translate(${x} 0)` }, v);
+    el("rect", { x: -60, y: GY - 30, width: 120, height: 14, rx: 7, fill: C.wood }, g);
+    for (const s of [-1, 1]) el("circle", { cx: s * 40, cy: GY - 10, r: 10, fill: "#3b2a1e" }, g);
+    person(g, 0, GY - 30, { color, scale: m > 40 ? 1.35 : 1 });
+    T(g, 0, GY - 180 - (m > 40 ? 50 : 0), `${m} kg`, 28);
+    return g;
+  };
+  const a = mk(420, mA, C.blue);
+  const b = mk(580, mB, C.orange);
+  return { a, b };
+}
+function cartsScene(v, masses, F) {
+  bg(v, "lab");
+  const ys = masses.length === 1 ? [GY] : [180, 310, GY];
+  const out = masses.map((m, i) => {
+    const y = ys[i];
+    if (i < masses.length - 1) el("line", { x1: 0, x2: W, y1: y, y2: y, stroke: "#c9a679", "stroke-width": 4 }, v);
+    const g = cart(v, 220, y, m, ["#f2c94c", "#9fd3a8", "#a9d4f5"][i]);
+    const ar = arrow(v, 220 - g.w / 2 - 120, y - 50, 220 - g.w / 2 - 6, y - 50, { label: `${F} N`, lx: 220 - g.w / 2 - 70, ly: y - 76 });
+    return { g, ar, y, m };
+  });
+  return out;
+}
+async function pushCarts(cs, A, F, label = true) {
+  MUSIC.play("woodblock", 76, { gain: 0.35 });
+  const as = cs.map((c) => F / c.m);
+  const amax = Math.max(...as);
+  await A.tween(2200, (k) => {
+    cs.forEach((c, i) => {
+      const x = 220 + (as[i] / amax) * 620 * k * k;
+      c.g.setAttribute("transform", `translate(${x} 0)`);
+      c.ar.setAttribute("opacity", 1 - k);
+    });
+  }, lin);
+  if (label) cs.forEach((c, i) => T(view, 820, c.y - 105, `a = ${F} ÷ ${c.m} = ${Math.round(as[i] * 10) / 10} m/s²`, 24, C.green, { "text-anchor": "end" }));
+  await A.wait(500);
+}
+function rocketScene(v, label) {
+  bg(v, "space");
+  el("rect", { x: 400, y: 470, width: 200, height: 90, fill: "#5b5f6e" }, v);
+  const r = el("g", { transform: "translate(500 330)" }, v);
+  const flame = el("g", { opacity: 0 }, r);
+  el("ellipse", { cx: 0, cy: 120, rx: 30, ry: 60, fill: "#f08a24" }, flame);
+  el("ellipse", { cx: 0, cy: 110, rx: 16, ry: 36, fill: "#ffe082" }, flame);
+  el("path", { d: "M0 -120 C 40 -80 40 -10 36 60 L-36 60 C -40 -10 -40 -80 0 -120 Z", fill: "#eceff1", stroke: C.ink, "stroke-width": 4 }, r);
+  el("circle", { cx: 0, cy: -40, r: 18, fill: "#a9d4f5", stroke: C.ink, "stroke-width": 3 }, r);
+  el("path", { d: "M-36 20 L-70 76 L-36 60 Z M36 20 L70 76 L36 60 Z", fill: C.red, stroke: C.ink, "stroke-width": 3 }, r);
+  if (label) T(v, 500, 60, label, 28, "#fff");
+  return { r, flame };
+}
+const NEWTON = {
+  types: { easy: ["coin", "bus", "space", "which", "skate", "balloon", "rocket"], medium: ["a", "F", "m", "skate", "net", "which"], hard: ["net", "skate2", "rocketNet", "brake"] },
+  gen: {
+    coin: () => ({
+      t: "coin", key: "coin",
+      say: "1st law. You flick the card away very fast. What will the coin do?",
+      opts: ["Drop into the cup", "Fly off with the card", "Float in the air"], ok: 0,
+      hint: "The coin was sitting still. Did the flick push the coin, or only the card?",
+      why: ["1st law: an object stays at rest, or keeps moving steadily,", "unless an unbalanced force acts. (Inertia: resisting change.)", "The card's friction acted too briefly to move the coin much,", "so the coin stayed put; then gravity pulled it into the cup."],
+      draw: coinScene,
+      test: async (c, A) => {
+        MUSIC.play("woodblock", 84, { gain: 0.4 });
+        await A.tween(260, (k) => c.cardG.setAttribute("x", 420 + k * 520), lin);
+        await A.tween(500, (k) => c.coin.setAttribute("cy", 130 + k * k * 105), lin);
+        MUSIC.play("xylophone", 88, { gain: 0.4 });
+        await A.wait(600);
+      },
+    }),
+    bus: () => ({
+      t: "bus", key: "bus",
+      say: "1st law. The bus is moving, then brakes hard. Which way does the standing person lean?",
+      opts: ["Forward", "Backward", "Not at all"], ok: 0,
+      hint: "The bus stops. Does anything stop the person's body at the same moment?",
+      why: ["Newton's 1st law: a moving body keeps moving unless a force acts.", "The brakes stop the bus and the floor stops your feet,", "but nothing stops your upper body at first, so you lurch forward.", "Seat belts supply that missing force."],
+      draw: busScene,
+      test: async (c, A) => {
+        await A.tween(1400, (k) => c.bus.setAttribute("transform", `translate(${120 + k * 260} 0)`), (t) => 1 - (1 - t) * (1 - t));
+        MUSIC.play("woodblock", 72, { gain: 0.4 });
+        await A.tween(500, (k) => c.rider.setAttribute("transform", `translate(250 386) rotate(${k * 22})`));
+        await A.wait(700);
+      },
+    }),
+    space: () => ({
+      t: "space", key: "space",
+      say: "1st law. Far out in space, you throw a ball. There is no air and nothing to hit. What does it do?",
+      opts: ["Keeps going at the same speed", "Slows down and stops", "Falls down"], ok: 0,
+      hint: "On Earth, what makes a rolling ball slow down? Is that there in space?",
+      why: ["On Earth, friction and air slow things down.", "In deep space there is nothing to slow the ball,", "so it keeps the same speed in a straight line. That's the 1st law."],
+      draw: (v) => {
+        bg(v, "space");
+        const ball = el("circle", { cx: 120, cy: 280, r: 30, fill: C.orange, stroke: "#fff", "stroke-width": 3 }, v);
+        return { ball };
+      },
+      test: async (c, A) => {
+        for (let k = 1; k <= 4; k++) {
+          await A.tween(700, (t) => c.ball.setAttribute("cx", 120 + (k - 1 + t) * 200), lin);
+          el("circle", { cx: 120 + k * 200, cy: 280, r: 6, fill: "#fff", opacity: 0.6 }, view);
+          T(view, 120 + k * 200, 350, `${k} s`, 24, "#fff");
+        }
+        T(view, 500, 110, "Same distance every second: steady speed", 28, "#fff");
+        await A.wait(600);
+      },
+    }),
+    which() {
+      const F = pick([12, 24, 36]);
+      const masses = shuffle([1, 2, 3]);
+      const ok = masses.indexOf(1);
+      return {
+        t: "which", key: `w${F}${masses}`, v: { F, masses },
+        say: `2nd law. The same ${F} N push hits each cart. Which cart speeds up the most?`,
+        opts: masses.map((m) => `${m} kg cart`), ok,
+        hint: "Is it easier to push an empty shopping cart or a full one?",
+        why: ["Newton's 2nd law: acceleration = force ÷ mass.", masses.map((m) => `${F} ÷ ${m} = ${F / m}`).join(",   ") + "  (m/s²)", "Same push, less mass: more speeding up."],
+        draw: (v) => cartsScene(v, masses, F),
+        test: (cs, A) => pushCarts(cs, A, F),
+      };
+    },
+    skate: () => ({
+      t: "skate", key: "skate",
+      say: "3rd law. Two friends on skateboards. The blue one pushes the orange one's hands. What happens?",
+      opts: ["Both roll apart", "Only orange moves", "Nobody moves"], ok: 0,
+      hint: "When you push something, do you feel it push back on your hands?",
+      why: ["Newton's 3rd law: forces come in equal and opposite pairs.", "Blue pushes orange; orange pushes blue back, just as hard.", "The two forces act on DIFFERENT people, so they do not cancel:", "both roll apart."],
+      draw: (v) => skateScene(v),
+      test: async (c, A) => {
+        arrow(view, 520, 280, 620, 280, { color: C.blue, label: "push", ly: 262 });
+        arrow(view, 480, 280, 380, 280, { color: C.orange, label: "push back", ly: 262 });
+        await A.wait(700);
+        await A.tween(1500, (k) => {
+          c.a.setAttribute("transform", `translate(${420 - k * 220} 0)`);
+          c.b.setAttribute("transform", `translate(${580 + k * 220} 0)`);
+        }, (t) => 1 - (1 - t) * (1 - t));
+        await A.wait(500);
+      },
+    }),
+    balloon: () => ({
+      t: "balloon", key: "balloon",
+      say: "3rd law. A balloon on a string lets its air rush out to the LEFT. Which way does the balloon go?",
+      opts: ["Right", "Left", "Nowhere"], ok: 0,
+      hint: "The balloon pushes the air one way. Which way does the air push the balloon?",
+      why: ["The balloon squeezes air out to the left.", "The air pushes back on the balloon, to the right.", "3rd law: equal and opposite forces on two DIFFERENT objects."],
+      draw: (v) => {
+        bg(v, "lab");
+        el("line", { x1: 40, x2: 960, y1: 200, y2: 200, stroke: C.grey, "stroke-width": 3 }, v);
+        const g = el("g", { transform: "translate(300 0)" }, v);
+        el("rect", { x: -40, y: 192, width: 80, height: 16, rx: 6, fill: "#fff", stroke: C.grey, "stroke-width": 2 }, g);
+        el("ellipse", { cx: 0, cy: 250, rx: 90, ry: 55, fill: C.red, stroke: "#a52a28", "stroke-width": 3 }, g);
+        el("path", { d: "M-90 250 L-112 240 L-112 260 Z", fill: "#a52a28" }, g);
+        const puffs = el("g", { opacity: 0 }, g);
+        for (let i = 0; i < 4; i++) el("circle", { cx: -140 - i * 36, cy: 250 + (i % 2 ? 10 : -10), r: 14 - i * 2, fill: "#cfe3f0" }, puffs);
+        return { g, puffs };
+      },
+      test: async (c, A) => {
+        c.puffs.setAttribute("opacity", 1);
+        arrow(c.g, -120, 330, -240, 330, { color: C.blue, label: "air pushed left", ly: 372 });
+        arrow(c.g, 100, 330, 220, 330, { color: C.red, label: "balloon pushed right", ly: 372 });
+        await A.wait(900);
+        await A.tween(1800, (k) => c.g.setAttribute("transform", `translate(${300 + k * 420} 0)`), (t) => t * t);
+        await A.wait(400);
+      },
+    }),
+    rocket: () => ({
+      t: "rocket", key: "rocket",
+      say: "3rd law. What pushes a rocket up, even in space where there is no air?",
+      opts: ["Hot gas it pushes down", "Air under the rocket", "The rocket's wings"], ok: 0,
+      hint: "Think of the balloon. What does the rocket throw out of its bottom?",
+      why: ["The engine pushes hot gas DOWN, very fast.", "The gas pushes the rocket UP with an equal force.", "No air is required, so rockets work in space (3rd law)."],
+      draw: (v) => rocketScene(v),
+      test: async (c, A) => {
+        c.flame.setAttribute("opacity", 1);
+        MUSIC.play("timpani", 43, { gain: 0.5 });
+        arrow(view, 640, 380, 640, 500, { color: C.orange, label: "gas pushed down", lx: 790 });
+        arrow(view, 360, 300, 360, 180, { color: "#9fd3ff", label: "rocket pushed up", lx: 210 });
+        await A.wait(900);
+        await A.tween(1800, (k) => c.r.setAttribute("transform", `translate(500 ${330 - k * 260})`), (t) => t * t);
+      },
+    }),
+    a: () => {
+      const m = pickInt(2, 10);
+      const a = pickInt(2, 10);
+      const F = m * a;
+      return {
+        t: "a", key: `a${m}${a}`, v: { F, m }, pad: true, ans: a, unit: "m/s²",
+        say: `2nd law. A ${F} N push acts on a ${m} kg cart. What is its acceleration, in m/s²?`,
+        hint: "Acceleration = force ÷ mass. Which number goes first?",
+        why: ["Acceleration = force ÷ mass", `${F} N ÷ ${m} kg = ${a} m/s²`, `Its speed grows by ${a} m/s every second.`],
+        draw: (v) => cartsScene(v, [m], F),
+        test: (cs, A) => pushCarts(cs, A, F),
+      };
+    },
+    F: () => {
+      const m = pickInt(2, 12);
+      const a = pickInt(2, 9);
+      return {
+        t: "F", key: `F${m}${a}`, v: { m, a }, pad: true, ans: m * a, unit: "N",
+        say: `2nd law. You want a ${m} kg cart to speed up by ${a} m/s every second. How many newtons must you push?`,
+        hint: "Force = mass × acceleration. What are the mass and the acceleration?",
+        why: ["Force = mass × acceleration", `${m} kg × ${a} m/s² = ${m * a} N`, "A heavier cart, or more speeding up, needs a bigger push."],
+        draw: (v) => cartsScene(v, [m], "?"),
+        test: async (cs, A) => {
+          cs[0].ar.querySelector("text").textContent = `${m * a} N`;
+          await pushCarts(cs, A, m * a);
+        },
+      };
+    },
+    m: () => {
+      const m = pickInt(2, 12);
+      const a = pickInt(2, 9);
+      return {
+        t: "m", key: `m${m}${a}`, v: { F: m * a, a }, pad: true, ans: m, unit: "kg",
+        say: `2nd law. A ${m * a} N push makes a cart speed up by ${a} m/s². What is the cart's mass, in kg?`,
+        hint: `Force = mass × acceleration. Which mass times ${a} makes ${m * a}?`,
+        why: ["Mass = force ÷ acceleration", `${m * a} N ÷ ${a} m/s² = ${m} kg`, `Check: ${m} × ${a} = ${m * a}.`],
+        draw: (v) => {
+          const cs = cartsScene(v, [m], m * a);
+          cs[0].g.querySelector("text").textContent = "? kg";
+          return cs;
+        },
+        test: async (cs, A) => {
+          cs[0].g.querySelector("text").textContent = `${m} kg`;
+          await pushCarts(cs, A, m * a);
+        },
+      };
+    },
+    net: () => {
+      const m = pickInt(2, 10);
+      const a = pickInt(2, 8);
+      const f = pickInt(1, 8) * 5;
+      const P = m * a + f;
+      return {
+        t: "net", key: `n${m}${a}${f}`, v: { P, f, m }, pad: true, ans: a, unit: "m/s²",
+        say: `You push a ${m} kg box with ${P} N. Friction pulls back with ${f} N. What is its acceleration, in m/s²?`,
+        hint: "Friction fights your push. What force is left over to speed the box up?",
+        hintFor: (v) => (v * m === P ? "You used the whole push. But friction takes some of it away. What is left?" : null),
+        why: [`Net force = ${P} − ${f} = ${P - f} N (push minus friction).`, `a = net force ÷ mass = ${P - f} ÷ ${m} = ${a} m/s².`, "Only the leftover force speeds things up."],
+        draw: (v) => {
+          const cs = cartsScene(v, [m], P);
+          const x = 220 + cs[0].g.w / 2;
+          cs[0].fr = arrow(v, x + 110, GY - 10, x + 6, GY - 10, { color: C.blue, label: `friction ${f} N`, lx: x + 140, ly: GY + 40 });
+          return cs;
+        },
+        test: async (cs, A) => {
+          cs[0].fr.setAttribute("opacity", 0);
+          await pushCarts(cs, A, P - f);
+        },
+      };
+    },
+    skate2: () => {
+      const [mB, F] = pick([[60, 60], [60, 120], [90, 90], [90, 180], [60, 180], [90, 270]]);
+      const askKid = Math.random() < 0.5;
+      const ans = askKid ? F / 30 : F / mB;
+      return {
+        t: "skate2", key: `k${mB}${F}${askKid}`, v: { mA: 30, mB, F, askKid }, pad: true, ans, unit: "m/s²",
+        say: `A 30 kg child and a ${mB} kg grown-up on skateboards push apart with ${F} N. What is the ${askKid ? "child's" : "grown-up's"} acceleration, in m/s²?`,
+        hint: "3rd law: they push each other with the SAME force. Then use a = F ÷ m for that person.",
+        why: [`Both feel ${F} N (3rd law: equal and opposite).`, `Child: ${F} ÷ 30 = ${F / 30} m/s².   Grown-up: ${F} ÷ ${mB} = ${F / mB} m/s².`, "Same force, but the lighter one speeds up more."],
+        draw: (v) => skateScene(v, 30, mB),
+        test: async (c, A) => {
+          const k1 = F / 30;
+          const k2 = F / mB;
+          const big = Math.max(k1, k2);
+          await A.tween(1800, (k) => {
+            c.a.setAttribute("transform", `translate(${420 - (k1 / big) * k * k * 330} 0)`);
+            c.b.setAttribute("transform", `translate(${580 + (k2 / big) * k * k * 330} 0)`);
+          }, lin);
+          await A.wait(400);
+        },
+      };
+    },
+    brake: () => {
+      const m = pickInt(8, 20) * 100;
+      const t = pickInt(2, 5);
+      const a = pickInt(2, 6);
+      const u = a * t;
+      return {
+        t: "brake", key: `br${m}${t}${a}`, v: { m, u, t }, pad: true, ans: m * a, unit: "N",
+        say: `A ${m} kg car brakes from ${u} m/s to rest in ${t} s. What braking force is needed, in N? (Two steps: a, then F = m × a.)`,
+        hint: "First find the deceleration: how much speed is lost each second? Then multiply by the mass.",
+        why: [`a = ${u} m/s ÷ ${t} s = ${a} m/s² (slowing down).`, `F = m × a = ${m} × ${a} = ${m * a} N.`, "To stop in the same time, heavier or faster cars need more force."],
+        draw: (v) => {
+          const cs = cartsScene(v, [m], "?");
+          cs[0].g.querySelector("text").textContent = `${m} kg`;
+          return cs;
+        },
+        test: async (cs, A) => {
+          cs[0].ar.setAttribute("opacity", 0);
+          await A.tween(1800, (k) => cs[0].g.setAttribute("transform", `translate(${220 + 560 * (1 - (1 - k) * (1 - k))} 0)`), lin);
+          T(view, 500, 120, `${u} m/s → 0 in ${t} s`, 30, C.green);
+          await A.wait(400);
+        },
+      };
+    },
+    rocketNet: () => {
+      const m = pickInt(1, 5);
+      const a = pickInt(2, 15);
+      const thrust = m * 10 + m * a;
+      return {
+        t: "rocketNet", key: `r${m}${a}`, v: { m, thrust }, pad: true, ans: a, unit: "m/s²",
+        say: `A ${m} kg model rocket has ${thrust} N of thrust. Gravity pulls ${m} × 10 = ${m * 10} N down (g ≈ 10 N/kg). Acceleration, in m/s²?`,
+        hint: "Thrust pushes up, weight pulls down. What force is left over going up?",
+        why: [`Net force up = ${thrust} − ${m * 10} = ${thrust - m * 10} N.`, `a = ${thrust - m * 10} ÷ ${m} = ${a} m/s².`, "A rocket needs more thrust than its weight to lift off."],
+        draw: (v) => {
+          const c = rocketScene(v, `${m} kg rocket`);
+          c.up = arrow(v, 700, 360, 700, 200, { color: "#9fd3ff", label: `thrust ${thrust} N`, lx: 800 });
+          c.dn = arrow(v, 300, 250, 300, 380, { color: C.orange, label: `weight ${m * 10} N`, lx: 180 });
+          return c;
+        },
+        test: async (c, A) => {
+          c.flame.setAttribute("opacity", 1);
+          MUSIC.play("timpani", 43, { gain: 0.5 });
+          await A.tween(1800, (k) => c.r.setAttribute("transform", `translate(500 ${330 - k * 260})`), (t) => t * t);
+        },
+      };
+    },
+  },
+};
+
+// =====================================================================
+// 3. GRAVITY & WEIGHT
+// =====================================================================
+const PLACES = { earth: { name: "Earth", g: 10 }, moon: { name: "the Moon" }, mars: { name: "Mars" } };
+// A hanging force meter with an object below it.
+function meterScene(v, place, thing, kg, shown = "? N") {
+  bg(v, place);
+  el("rect", { x: 380, y: 40, width: 240, height: 22, rx: 8, fill: C.wood }, v);
+  el("line", { x1: 500, x2: 500, y1: 62, y2: 90, stroke: C.grey, "stroke-width": 5 }, v);
+  el("rect", { x: 420, y: 90, width: 160, height: 120, rx: 20, fill: "#fff", stroke: C.ink, "stroke-width": 4 }, v);
+  T(v, 500, 124, "force meter", 20, C.soft);
+  const read = T(v, 500, 182, shown, 44, C.red);
+  el("line", { x1: 500, x2: 500, y1: 210, y2: 250, stroke: C.grey, "stroke-width": 5 }, v);
+  emoji(v, 500, 300, thing, 90);
+  const dark = place === "moon" || place === "planet";
+  T(v, 500, 400, `mass ${kg} kg`, 30, dark ? "#fff" : C.ink);
+  T(v, 160, 90, { earth: "🌍 Earth", moon: "🌙 Moon", mars: "🔴 Mars", jupiter: "🪐 Jupiter", planet: "🪐 Planet X" }[place], 32, dark ? "#fff" : C.ink);
+  return { read };
+}
+async function countTo(node, n, A, unit = "N") {
+  await A.tween(1300, (k) => (node.textContent = `${Math.round(n * k)} ${unit}`));
+  MUSIC.play("xylophone", 84, { gain: 0.35 });
+  await A.wait(500);
+}
+function dropScene(v, place, label) {
+  bg(v, place);
+  const dark = place === "moon";
+  if (place === "tube") {
+    bg(v, "lab");
+    el("rect", { x: 330, y: 40, width: 340, height: 400, rx: 30, fill: "#eef7fc", stroke: "#7fb3d1", "stroke-width": 6 }, v);
+    T(v, 500, 500, "a tube with all the air pumped out", 26, C.soft);
+  }
+  const f = glyph(v, 430, 110, "🪶", 64);
+  const h = glyph(v, 570, 110, "🔨", 64);
+  if (label) T(v, 500, 40 + (place === "tube" ? 470 : 0), label, 26, dark ? "#fff" : C.soft);
+  if (place === "moon") emoji(v, 820, 330, "🧑‍🚀", 120);
+  return { f, h };
+}
+const GRAV = {
+  types: { easy: ["mass", "weightMoon", "feather", "featherAir", "earthW", "earthW"], medium: ["earthW", "moonW", "tube", "jump", "fallSpeed"], hard: ["mars", "moonBack", "fallDist", "jupiter", "gfind"] },
+  gen: {
+    mass: () => ({
+      t: "mass", key: "mass",
+      say: "You fly to the Moon. What happens to your MASS (how much stuff you are made of)?",
+      opts: ["Stays the same", "Gets smaller", "Becomes zero"], ok: 0,
+      hint: "Does any of you get left behind on Earth?",
+      why: ["Mass is how much stuff is in you, in kilograms. It stays the same.", "Weight is how hard gravity pulls you, in newtons.", "The Moon pulls less, so your WEIGHT gets smaller, not your mass."],
+      draw: (v) => meterScene(v, "moon", "🧑‍🚀", 30, "? N"),
+      test: async (c, A) => {
+        await countTo(c.read, 50, A);
+        T(view, 800, 300, "still 30 kg", 34, "#fff");
+        await A.wait(600);
+      },
+    }),
+    weightMoon: () => ({
+      t: "weightMoon", key: "wm",
+      say: "On Earth, a 30 kg astronaut weighs 300 N. On the Moon, the force meter shows…",
+      opts: ["Less than 300 N", "More than 300 N", "Exactly 300 N"], ok: 0,
+      hint: "The Moon is much smaller than Earth. Does a smaller world pull harder or more gently?",
+      why: ["The Moon's gravity is about 1/6 of Earth's.", "300 N ÷ 6 = 50 N. Same mass, less pull.", "Hence astronauts can bound so high."],
+      draw: (v) => meterScene(v, "moon", "🧑‍🚀", 30),
+      test: (c, A) => countTo(c.read, 50, A),
+    }),
+    feather: () => ({
+      t: "feather", key: "fm",
+      say: "On the Moon there is no air. You drop a feather and a hammer at the same time. Which lands first?",
+      opts: ["They land together", "The hammer", "The feather"], ok: 0,
+      hint: "What slows a feather down on Earth? Is there any of that on the Moon?",
+      why: ["Gravity speeds up everything at the same rate.", "Only air makes a feather fall slowly, and the Moon has none.", "An Apollo 15 astronaut performed this test on the Moon in 1971."],
+      draw: (v) => dropScene(v, "moon"),
+      test: async (c, A) => {
+        await A.tween(1800, (k) => {
+          c.f.setAttribute("transform", `translate(430 ${110 + k * k * 290})`);
+          c.h.setAttribute("transform", `translate(570 ${110 + k * k * 290})`);
+        }, lin);
+        MUSIC.play("woodblock", 72, { gain: 0.4 });
+        await A.wait(600);
+      },
+    }),
+    featherAir: () => ({
+      t: "featherAir", key: "fe",
+      say: "Now on Earth, in the air. You drop a feather and a hammer together. Which lands first?",
+      opts: ["The hammer", "The feather", "They land together"], ok: 0,
+      hint: "Have you watched a feather fall? What is it pushing against?",
+      why: ["On Earth there is air. Air pushes up against falling things.", "A light, wide feather gets slowed a lot. The hammer hardly at all.", "So the hammer wins here, but only because of the air."],
+      draw: (v) => dropScene(v, "earth"),
+      test: async (c, A) => {
+        await A.tween(3400, (k) => {
+          const kh = Math.min(1, k * 3.2);
+          c.h.setAttribute("transform", `translate(570 ${110 + kh * kh * 290})`);
+          c.f.setAttribute("transform", `translate(${430 + Math.sin(k * 12) * 30} ${110 + k * 290})`);
+        }, lin);
+        await A.wait(400);
+      },
+    }),
+    tube: () => ({
+      t: "tube", key: "tube",
+      say: "On Earth, inside a tube with all the air pumped out, you drop a feather and a hammer. Which lands first?",
+      opts: ["They land together", "The hammer", "The feather"], ok: 0,
+      hint: "Which thing slowed the feather down before? Is it in the tube?",
+      why: ["With no air, nothing slows the feather.", "Gravity speeds up all things at the same rate,", "so they land together, just like on the Moon."],
+      draw: (v) => dropScene(v, "tube"),
+      test: async (c, A) => {
+        await A.tween(1100, (k) => {
+          c.f.setAttribute("transform", `translate(430 ${110 + k * k * 290})`);
+          c.h.setAttribute("transform", `translate(570 ${110 + k * k * 290})`);
+        }, lin);
+        MUSIC.play("woodblock", 72, { gain: 0.4 });
+        await A.wait(500);
+      },
+    }),
+    earthW: (level) => {
+      const m = level === "easy" ? pickInt(2, 9) : pickInt(11, 60);
+      const thing = pick(["🎒", "🐕", "📦", "🧳", "🍉"]);
+      return {
+        t: "earthW", key: `e${m}`, v: { m }, pad: true, ans: m * 10, unit: "N",
+        say: `On Earth, gravity pulls about 10 N on every kilogram. How much does this ${m} kg thing weigh, in N?`,
+        hint: `Each kilogram is pulled with 10 N. How many kilograms are there?`,
+        why: ["Weight = mass × 10 N/kg (really 9.8, we round to 10).", `${m} kg × 10 = ${m * 10} N`, "Mass is in kg. Weight is a force, in newtons."],
+        draw: (v) => meterScene(v, "earth", thing, m),
+        test: (c, A) => countTo(c.read, m * 10, A),
+      };
+    },
+    moonW: () => {
+      const m = pickInt(1, 16) * 6;
+      return {
+        t: "moonW", key: `mw${m}`, v: { m }, pad: true, ans: (m * 10) / 6, unit: "N",
+        say: `Moon gravity is 1/6 of Earth's. What does a ${m} kg astronaut weigh on the Moon, in N?`,
+        hint: "First find the weight on Earth (10 N per kg). Then take 1/6 of it.",
+        why: [`On Earth: ${m} × 10 = ${m * 10} N.`, `On the Moon: ${m * 10} ÷ 6 = ${(m * 10) / 6} N.`, `The mass remains ${m} kg.`],
+        draw: (v) => meterScene(v, "moon", "🧑‍🚀", m),
+        test: (c, A) => countTo(c.read, (m * 10) / 6, A),
+      };
+    },
+    jump: () => ({
+      t: "jump", key: "jump",
+      say: "Jump with the same push on Earth and on the Moon (1/6 gravity). On the Moon you go about…",
+      opts: ["6 times higher", "The same height", "Half as high"], ok: 0,
+      hint: "Gravity pulls you back down. If it pulls 6 times more gently, what happens?",
+      why: ["Gravity slows your jump on the way up.", "Six times weaker gravity means about 6 times higher", "(in a simple model, without a heavy space suit)."],
+      draw: (v) => {
+        el("rect", { width: 500, height: H, fill: "#e4f3fb" }, v);
+        el("rect", { x: 500, width: 500, height: H, fill: "#1d2333" }, v);
+        el("rect", { x: 0, y: GY, width: 500, height: H - GY, fill: "#bfe0a5" }, v);
+        el("rect", { x: 500, y: GY, width: 500, height: H - GY, fill: "#c9c6c0" }, v);
+        T(v, 250, 70, "🌍 Earth", 30);
+        T(v, 750, 70, "🌙 Moon", 30, "#fff");
+        const a = person(v, 250, GY, { color: C.blue });
+        const b = person(v, 750, GY, { color: "#eceff1" });
+        return { a, b };
+      },
+      test: async (c, A) => {
+        await A.tween(2200, (k) => {
+          const s = Math.sin(k * Math.PI);
+          c.a.setAttribute("transform", `translate(250 ${GY - s * 45})`);
+          c.b.setAttribute("transform", `translate(750 ${GY - s * 270})`);
+        }, lin);
+        T(view, 330, 380, "0.5 m", 26);
+        T(view, 860, 200, "about 3 m", 26, "#fff");
+        await A.wait(600);
+      },
+    }),
+    mars: () => {
+      const m = pickInt(4, 20) * 5;
+      const w = (m * 10 * 38) / 100;
+      return {
+        t: "mars", key: `ma${m}`, v: { m }, pad: true, ans: w, unit: "N",
+        say: `Mars gravity is about 0.38 of Earth's. What does a ${m} kg explorer weigh on Mars, in N?`,
+        hint: "Find the Earth weight first. Then 0.38 means 38 out of every 100.",
+        why: [`On Earth: ${m} × 10 = ${m * 10} N.`, `On Mars: ${m * 10} × 0.38 = ${m * 10} ÷ 100 × 38 = ${w} N.`, "A bit more than 1/3 of the Earth weight."],
+        draw: (v) => meterScene(v, "mars", "🧑‍🚀", m),
+        test: (c, A) => countTo(c.read, w, A),
+      };
+    },
+    moonBack: () => {
+      const m = pickInt(2, 20) * 3;
+      const w = (m * 10) / 6;
+      return {
+        t: "moonBack", key: `mb${m}`, v: { w }, pad: true, ans: m, unit: "kg",
+        say: `On the Moon, a box weighs ${w} N. What is its mass, in kg? (Moon gravity is 1/6 of Earth's.)`,
+        hint: "Work backwards: what would it weigh on Earth? Then how many kg is that?",
+        why: [`On Earth it would weigh ${w} × 6 = ${w * 6} N.`, `Mass = ${w * 6} ÷ 10 = ${m} kg.`, "Mass is the same everywhere, so it is the same box."],
+        answerText: `${m} kg`,
+        draw: (v) => {
+          const c = meterScene(v, "moon", "📦", "?", `${w} N`);
+          return c;
+        },
+        test: async (c, A) => {
+          T(view, 800, 300, `= ${m} kg`, 40, "#fff");
+          await A.wait(900);
+        },
+      };
+    },
+    jupiter: () => {
+      const m = pickInt(2, 40);
+      return {
+        t: "jupiter", key: `ju${m}`, v: { m }, pad: true, ans: m * 25, unit: "N",
+        say: `At Jupiter's cloud tops, g ≈ 25 N/kg (2.5 times Earth's). Using W = m × g, what would a ${m} kg probe weigh there, in N?`,
+        hint: "Weight equals mass times the gravitational field strength g. Which two numbers do you multiply?",
+        why: ["W = m × g", `${m} kg × 25 N/kg = ${m * 25} N.`, `On Earth it would be ${m * 10} N; the mass is ${m} kg in both places.`],
+        draw: (v) => meterScene(v, "jupiter", "🛰️", m),
+        test: (c, A) => countTo(c.read, m * 25, A),
+      };
+    },
+    gfind: () => {
+      const g = pick([2, 4, 5, 6, 8, 12, 15, 20]);
+      const m = pickInt(2, 12);
+      return {
+        t: "gfind", key: `gf${g}${m}`, v: { m, W: m * g }, pad: true, ans: g, unit: "N/kg",
+        say: `On an imaginary planet, a ${m} kg mass hangs from a force meter that reads ${m * g} N. Find g there, in N/kg.`,
+        hint: "Rearrange W = m × g. If you know W and m, how do you find g?",
+        why: ["g = W ÷ m", `${m * g} N ÷ ${m} kg = ${g} N/kg.`, `Each kilogram is pulled with ${g} N (Earth: about 10).`],
+        draw: (v) => meterScene(v, "planet", "📦", m, `${m * g} N`),
+        test: async (c, A) => {
+          T(view, 800, 300, `g = ${g} N/kg`, 36, "#fff");
+          await A.wait(900);
+        },
+      };
+    },
+    fallSpeed: () => {
+      const t = pickInt(2, 6);
+      return {
+        t: "fallSpeed", key: `fs${t}`, v: { t }, pad: true, ans: 10 * t, unit: "m/s",
+        say: `With no air, gravity adds about 10 m/s to a falling stone's speed every second. How fast is it going after ${t} s?`,
+        hint: "After 1 s it goes 10 m/s. After 2 s? Can you see the pattern?",
+        why: ["Each second the speed grows by 10 m/s.", `After ${t} s: ${t} × 10 = ${10 * t} m/s.`, "This is gravity's acceleration: about 10 m/s² (more exactly 9.8)."],
+        draw: (v) => fallScene(v, t),
+        test: (c, A) => fallRun(c, A, t, "speed"),
+      };
+    },
+    fallDist: () => {
+      const t = pickInt(1, 4);
+      return {
+        t: "fallDist", key: `fd${t}`, v: { t }, pad: true, ans: 5 * t * t, unit: "m",
+        say: `A stone falls from rest for ${t} s (no air). Its speed goes from 0 to ${10 * t} m/s. How far does it fall, in metres?`,
+        hint: "Its speed grows steadily. What is its AVERAGE speed? Then distance = speed × time.",
+        hintFor: (v) => (v === 10 * t * t ? "That uses the top speed the whole time. But it started at 0. What is the average speed?" : null),
+        why: [`Average speed = (0 + ${10 * t}) ÷ 2 = ${5 * t} m/s.`, `Distance = ${5 * t} m/s × ${t} s = ${5 * t * t} m.`, "Each second it falls farther than the one before: 5, 15, 25, 35 m…"],
+        draw: (v) => fallScene(v, t),
+        test: (c, A) => fallRun(c, A, t, "dist"),
+      };
+    },
+  },
+};
+function fallScene(v, t) {
+  bg(v, "earth");
+  const top = 60;
+  const total = 5 * Math.max(4, Math.ceil(t)) ** 2;
+  const sy = (d) => top + (d / total) * 360;
+  el("rect", { x: 140, y: top, width: 160, height: GY - top, fill: "#b9a58c" }, v);
+  for (let s = 1; s <= Math.max(4, Math.ceil(t)); s++) {
+    el("line", { x1: 300, x2: 640, y1: sy(5 * s * s), y2: sy(5 * s * s), stroke: "#c9b8a1", "stroke-width": 2, "stroke-dasharray": "6 8" }, v);
+    T(v, 680, sy(5 * s * s) + 8, `${s} s`, 22, C.soft, { "text-anchor": "start" });
+  }
+  const stone = el("circle", { cx: 360, cy: top, r: 16, fill: "#6d6a66" }, v);
+  const read = T(v, 820, 120, "0 m/s", 34, C.red);
+  const read2 = T(v, 820, 170, "0 m", 34, C.blue);
+  return { stone, read, read2, sy, total };
+}
+async function fallRun(c, A, t, kind) {
+  await A.tween(Math.min(3000, 700 * t), (k) => {
+    const time = k * t;
+    c.stone.setAttribute("cy", c.sy(5 * time * time));
+    c.read.textContent = `${Math.round(10 * time)} m/s`;
+    c.read2.textContent = `${Math.round(5 * time * time)} m`;
+  }, lin);
+  MUSIC.play("woodblock", 76, { gain: 0.35 });
+  await A.wait(500);
+}
+
+// =====================================================================
+// 4. FRICTION & AIR
+// =====================================================================
+function surfaces(v, order) {
+  bg(v, "lab");
+  const SURF = { ice: ["#dff3fb", "🧊 ice", 760], wood: ["#d9a066", "🪵 wood", 430], carpet: ["#b0503c", "🧶 carpet", 200] };
+  return order.map((k, i) => {
+    const y = 110 + i * 120;
+    const [fill, label, dist] = SURF[k];
+    el("rect", { x: 60, y, width: 880, height: 100, rx: 14, fill, stroke: "#c9b8a1", "stroke-width": 3 }, v);
+    if (k === "carpet") for (let x = 80; x < 930; x += 26) for (let yy = y + 14; yy < y + 96; yy += 22) el("circle", { cx: x, cy: yy, r: 3, fill: "#8f3c2c" }, v);
+    if (k === "wood") for (let yy = y + 20; yy < y + 96; yy += 22) el("line", { x1: 60, x2: 940, y1: yy, y2: yy, stroke: "#b7834b", "stroke-width": 2 }, v);
+    if (k === "ice") for (let x = 120; x < 930; x += 140) el("line", { x1: x, x2: x + 60, y1: y + 30, y2: y + 70, stroke: "#fff", "stroke-width": 4 }, v);
+    T(v, 70, y + 62, label, 26, k === "carpet" ? "#fff" : C.ink, { "text-anchor": "start" });
+    const puck = el("ellipse", { cx: 260, cy: y + 50, rx: 36, ry: 22, fill: "#3b2a1e", stroke: "#fff", "stroke-width": 3 }, v);
+    return { puck, dist, y };
+  });
+}
+function skyScene(v, { open = false, W8 = 800, R = 0 } = {}) {
+  el("rect", { width: W, height: H, fill: "#cfe9f7" }, v);
+  for (const [x, y] of [[150, 120], [820, 380], [700, 90]]) for (const dx of [0, 40, 80]) el("circle", { cx: x + dx, cy: y, r: 34, fill: "#fff", opacity: 0.9 }, v);
+  const g = el("g", { transform: "translate(500 260)" }, v);
+  const chute = el("path", { d: "M-150 -110 Q0 -260 150 -110 Z", fill: C.orange, stroke: C.ink, "stroke-width": 4, opacity: open ? 1 : 0 }, g);
+  const cords = el("path", { d: "M-150 -110 L-10 -10 M150 -110 L10 -10", stroke: C.ink, "stroke-width": 2, opacity: open ? 1 : 0 }, g);
+  person(g, 0, 60, { color: C.red });
+  const wa = arrow(g, 0, 70, 0, 70 + Math.min(200, W8 / 6), { color: C.blue, label: `weight ${W8} N`, lx: 120, ly: 160 });
+  const ra = R ? arrow(g, 0, -120, 0, -120 - Math.min(220, R / 6), { color: C.red, label: `air ${R} N`, lx: -110, ly: -150 }) : null;
+  return { g, chute, cords, wa, ra };
+}
+const FRICTION = {
+  types: { easy: ["slide", "parachute", "grip", "heat"], medium: ["netF", "balanced", "terminal", "terminalN"], hard: ["acc", "skynet", "chute", "steady"] },
+  gen: {
+    slide: () => {
+      const order = shuffle(["ice", "wood", "carpet"]);
+      return {
+        t: "slide", key: `sl${order}`,
+        say: "Each puck gets the SAME push. Which one slides the farthest?",
+        opts: order.map((k) => ({ ice: "🧊 Ice", wood: "🪵 Wood", carpet: "🧶 Carpet" })[k]), ok: order.indexOf("ice"),
+        hint: "Friction is a rubbing force that slows things. Which surface is the smoothest?",
+        why: ["Friction is a force between rubbing surfaces. It slows things.", "Bumpy carpet = lots of friction. Smooth ice = very little.", "Less friction: the puck slides much farther."],
+        draw: (v) => surfaces(v, order),
+        test: async (ps, A) => {
+          MUSIC.play("woodblock", 79, { gain: 0.35 });
+          await A.tween(2400, (k) => ps.forEach((p) => p.puck.setAttribute("cx", 260 + p.dist * 0.82 * (1 - (1 - k) * (1 - k)))), lin);
+          await A.wait(400);
+        },
+      };
+    },
+    parachute: () => ({
+      t: "parachute", key: "pc",
+      say: "Two identical toys drop together: one with a BIG parachute, one with a small one. Which lands last?",
+      opts: ["Big parachute", "Small parachute", "Same time"], ok: 0,
+      hint: "A parachute pushes against the air. Which one catches more air?",
+      why: ["Air resistance (drag) is a kind of friction with the air.", "A bigger canopy pushes on more air, so more air pushes back up.", "More air resistance: a slower, gentler fall."],
+      draw: (v) => {
+        el("rect", { width: W, height: H, fill: "#cfe9f7" }, v);
+        el("rect", { x: 0, y: GY, width: W, height: H - GY, fill: "#bfe0a5" }, v);
+        const mk = (x, r) => {
+          const g = el("g", { transform: `translate(${x} 60)` }, v);
+          el("path", { d: `M${-r} 40 Q0 ${40 - r * 1.3} ${r} 40 Z`, fill: x < 500 ? C.orange : C.purple, stroke: C.ink, "stroke-width": 3 }, g);
+          el("path", { d: `M${-r} 40 L0 100 L${r} 40`, fill: "none", stroke: C.ink, "stroke-width": 2 }, g);
+          emoji(g, 0, 118, "🧸", 46);
+          return g;
+        };
+        return { big: mk(300, 130), small: mk(700, 45) };
+      },
+      test: async (c, A) => {
+        await A.tween(3600, (k) => {
+          c.big.setAttribute("transform", `translate(300 ${60 + k * 250})`);
+          c.small.setAttribute("transform", `translate(700 ${60 + Math.min(1, k * 2.1) * 250})`);
+        }, lin);
+        await A.wait(400);
+      },
+    }),
+    grip: () => ({
+      t: "grip", key: "grip",
+      say: "Why do sports shoes have bumpy, rubbery soles?",
+      opts: ["More friction, so you don't slip", "To make them lighter", "To slide better"], ok: 0,
+      hint: "What happens if you run in socks on a shiny floor?",
+      why: ["Rubber bumps grip the ground: more friction.", "Your foot pushes the ground backward; friction pushes it FORWARD.", "That forward friction moves you; friction the other way stops you.", "Here friction is useful, not a nuisance."],
+      draw: (v) => {
+        bg(v, "lab");
+        el("path", { d: `M100 ${GY} L900 ${GY} L900 220 Z`, fill: "#e8dccb", stroke: "#c9b8a1", "stroke-width": 3 }, v);
+        const a = glyph(v, 380, 300, "🧦", 70);
+        const b = glyph(v, 640, 230, "👟", 70);
+        return { a, b };
+      },
+      test: async (c, A) => {
+        await A.tween(1600, (k) => c.a.setAttribute("transform", `translate(${380 - k * 240} ${300 + k * 72})`), (t) => t * t);
+        T(view, 640, 160, "grips: stays put", 28, C.green);
+        T(view, 160, 330, "slips", 28, C.red);
+        await A.wait(500);
+      },
+    }),
+    heat: () => ({
+      t: "heat", key: "heat",
+      say: "Rub your hands together fast. What do you feel?",
+      opts: ["Warmth", "Cold", "Nothing"], ok: 0,
+      hint: "Try it now: rub hard for 10 seconds. What do you notice?",
+      why: ["Friction turns motion energy into heat.", "That is why hands get warm, and why brakes get hot.", "The energy is not lost; it changes into heat."],
+      draw: (v) => {
+        bg(v, "lab");
+        const g = glyph(v, 500, 230, "🙌", 150);
+        return { g };
+      },
+      test: async (c, A) => {
+        await A.tween(1600, (k) => c.g.setAttribute("transform", `translate(${500 + Math.sin(k * 40) * 20} 230)`), lin);
+        for (const x of [400, 500, 600]) el("path", { d: `M${x} 120 q20 -20 0 -40 q-20 -20 0 -40`, stroke: C.red, "stroke-width": 6, fill: "none" }, view);
+        await A.wait(600);
+      },
+    }),
+    netF: () => {
+      const f = pickInt(2, 8) * 5;
+      const P = f + pickInt(2, 12) * 5;
+      return {
+        t: "netF", key: `nf${P}${f}`, v: { P, f }, pad: true, ans: P - f, unit: "N",
+        say: `You push a sledge with ${P} N. Friction pulls back with ${f} N. What is the net (leftover) force, in N?`,
+        hint: "The two forces point opposite ways. Do they add up, or does one cancel some of the other?",
+        hintFor: (v) => (v === P + f ? "They point in opposite directions, so they fight each other. Add or take away?" : null),
+        why: [`Opposite forces: take away.  ${P} − ${f} = ${P - f} N`, `${P - f} N forward is left over, so the sledge speeds up.`, "Unbalanced forces change speed."],
+        draw: (v) => {
+          const cs = cartsScene(v, [6], P);
+          const x = 220 + cs[0].g.w / 2;
+          cs[0].fr = arrow(v, x + 110, GY - 10, x + 6, GY - 10, { color: C.blue, label: `friction ${f} N`, lx: x + 140, ly: GY + 40 });
+          return cs;
+        },
+        test: async (cs, A) => {
+          cs[0].fr.setAttribute("opacity", 0);
+          await pushCarts(cs, A, P - f, false);
+        },
+      };
+    },
+    balanced: () => {
+      const P = pickInt(3, 10) * 10;
+      return {
+        t: "balanced", key: `b${P}`, v: { P },
+        say: `A box is already sliding. You push with ${P} N, and friction is also ${P} N. What happens?`,
+        opts: ["It keeps the same speed", "It speeds up", "It stops at once"], ok: 0,
+        hint: "The forces are equal and opposite. Is any force left over to change the speed?",
+        why: [`${P} − ${P} = 0 N. The forces are balanced.`, "Balanced forces do not change motion (1st law).", "It was moving, so it keeps moving at a steady speed."],
+        draw: (v) => {
+          const cs = cartsScene(v, [5], P);
+          const x = 220 + cs[0].g.w / 2;
+          arrow(v, x + 110, GY - 10, x + 6, GY - 10, { color: C.blue, label: `friction ${P} N`, lx: x + 140, ly: GY + 40 });
+          return cs;
+        },
+        test: async (cs, A) => {
+          const g = cs[0].g;
+          for (let s = 0; s < 4; s++) {
+            await A.tween(600, (k) => g.setAttribute("transform", `translate(${220 + (s + k) * 140} 0)`), lin);
+            T(view, 220 + (s + 1) * 140, 300, "→", 30, C.green);
+          }
+          T(view, 500, 120, "same distance each second", 30, C.green);
+          await A.wait(400);
+        },
+      };
+    },
+    terminal: () => ({
+      t: "terminal", key: "term",
+      say: "A skydiver falls faster and faster, so air resistance grows. When air resistance equals her weight, she…",
+      opts: ["Falls at a steady speed", "Stops in the air", "Goes back up"], ok: 0,
+      hint: "Equal forces up and down are balanced. Do balanced forces stop things, or keep them the same?",
+      why: ["Faster falling = more air resistance.", "When air pushes up as hard as gravity pulls down: balanced.", "She stops speeding up: steady top speed (terminal speed)."],
+      draw: (v) => skyScene(v, { W8: 700, R: 0 }),
+      test: (c, A) => skyGrow(c, A, 700),
+    }),
+    terminalN: () => {
+      const w = pickInt(5, 9) * 100;
+      return {
+        t: "terminalN", key: `tn${w}`, v: { w }, pad: true, ans: w, unit: "N",
+        say: `A skydiver weighs ${w} N. She falls at a steady top speed. How big is the air resistance, in N?`,
+        hint: "Steady speed means the forces are balanced. What does balanced mean?",
+        why: ["Steady speed = no leftover force = balanced forces.", `So air resistance up = weight down = ${w} N.`, "This top speed is called terminal speed."],
+        draw: (v) => skyScene(v, { W8: w, R: 0 }),
+        test: (c, A) => skyGrow(c, A, w),
+      };
+    },
+    acc: () => {
+      const m = pickInt(2, 10);
+      const a = pickInt(2, 6);
+      const f = pickInt(1, 6) * 10;
+      return {
+        t: "acc", key: `ac${m}${a}${f}`, v: { P: m * a + f, f, m }, pad: true, ans: a, unit: "m/s²",
+        say: `A ${m} kg sledge is pulled with ${m * a + f} N. Snow friction is ${f} N. What is its acceleration, in m/s²?`,
+        hint: "First find the leftover force. Then use a = F ÷ m.",
+        why: [`Net force = ${m * a + f} − ${f} = ${m * a} N.`, `a = ${m * a} ÷ ${m} = ${a} m/s².`, "Friction always uses up some of your pull."],
+        draw: (v) => {
+          const cs = cartsScene(v, [m], m * a + f);
+          const x = 220 + cs[0].g.w / 2;
+          cs[0].fr = arrow(v, x + 110, GY - 10, x + 6, GY - 10, { color: C.blue, label: `friction ${f} N`, lx: x + 140, ly: GY + 40 });
+          return cs;
+        },
+        test: async (cs, A) => {
+          cs[0].fr.setAttribute("opacity", 0);
+          await pushCarts(cs, A, m * a);
+        },
+      };
+    },
+    skynet: () => {
+      const w = pickInt(6, 9) * 100;
+      const R = pickInt(1, w / 100 - 1) * 100;
+      return {
+        t: "skynet", key: `sn${w}${R}`, v: { w, R }, pad: true, ans: w - R, unit: "N",
+        say: `A ${w / 10} kg skydiver weighs ${w} N. Right now air pushes up ${R} N. What is the net force down, in N?`,
+        hint: "Weight pulls down, air pushes up. Which is bigger, and by how much?",
+        why: [`Net force = ${w} − ${R} = ${w - R} N downward.`, "A leftover force down means she is still speeding up.", `She keeps speeding up until air reaches ${w} N.`],
+        draw: (v) => skyScene(v, { W8: w, R }),
+        test: (c, A) => skyGrow(c, A, w, R),
+      };
+    },
+    chute: () => ({
+      t: "chute", key: "chute",
+      say: "A skydiver (800 N) falls at a steady speed. She opens her parachute: air now pushes up 1500 N. What happens?",
+      opts: ["She slows down", "She goes up", "She stops in the air"], ok: 0,
+      hint: "The leftover force points up. But she is moving DOWN. Does an upward force reverse her or slow her?",
+      why: ["Net force = 1500 − 800 = 700 N upward.", "A force against the motion slows her. It does not lift her up.", "As she slows, air resistance drops, until 800 N up = 800 N down again."],
+      draw: (v) => skyScene(v, { W8: 800, R: 800 }),
+      test: async (c, A) => {
+        c.chute.setAttribute("opacity", 1);
+        c.cords.setAttribute("opacity", 1);
+        c.ra.remove();
+        const ra = arrow(c.g, 0, -150, 0, -150 - 200, { color: C.red, label: "air 1500 N", lx: -130, ly: -260 });
+        MUSIC.play("cello", 43, { gain: 0.4 });
+        await A.wait(800);
+        ra.remove();
+        arrow(c.g, 0, -150, 0, -150 - 110, { color: C.red, label: "air 800 N", lx: -130, ly: -210 });
+        T(view, 830, 480, "slow, safe landing", 30, C.green);
+        await A.wait(600);
+      },
+    }),
+    steady: () => {
+      const P = pickInt(3, 15) * 10;
+      return {
+        t: "steady", key: `st${P}`, v: { P }, pad: true, ans: P, unit: "N",
+        say: `You pull a toy wagon with ${P} N and it rolls at a perfectly steady speed. How big is the friction, in N?`,
+        hint: "Steady speed: is the speed changing? What does that say about the forces?",
+        hintFor: (v) => (v === 0 ? "If there were no friction, would your pull make it speed up?" : null),
+        why: ["Steady speed in a straight line means balanced forces (1st law).", `Your pull ${P} N forward = friction ${P} N backward.`, "Pull harder and it speeds up; pull less and it slows."],
+        draw: (v) => cartsScene(v, [4], P),
+        test: async (cs, A) => {
+          const g = cs[0].g;
+          await A.tween(2200, (k) => g.setAttribute("transform", `translate(${220 + k * 560} 0)`), lin);
+          T(view, 500, 120, "steady speed → balanced forces", 30, C.green);
+          await A.wait(400);
+        },
+      };
+    },
+  },
+};
+async function skyGrow(c, A, w, R0 = 0) {
+  const label = (r) => `air ${Math.round(r / 10) * 10} N`;
+  let ra = c.ra;
+  await A.tween(2600, (k) => {
+    const r = R0 + (w - R0) * k;
+    ra?.remove();
+    ra = arrow(c.g, 0, -120, 0, -120 - Math.max(20, Math.min(220, r / 6)), { color: C.red, label: label(r), lx: -120, ly: -160 });
+  }, lin);
+  T(view, 500, 520, "balanced: steady top speed", 30, C.green);
+  await A.wait(500);
+}
+
+// =====================================================================
+// 5. ENERGY
+// =====================================================================
+const coasterPath = (startH, hillH) => {
+  const sy = 470 - (startH / 40) * 350;
+  const hy = 470 - (hillH / 40) * 350;
+  return { d: `M60 ${sy} C 200 ${sy}, 230 470, 360 470 S 560 ${hy}, 640 ${hy} S 760 470, 900 470`, sy, hy };
+};
+function coaster(v, startH, hillH, total, { heat = true, bx = 290, by = 190, labels } = {}) {
+  el("rect", { width: W, height: H, fill: "#e4f3fb" }, v);
+  el("rect", { x: 0, y: 470, width: W, height: 90, fill: "#bfe0a5" }, v);
+  const { d, sy, hy } = coasterPath(startH, hillH);
+  el("path", { d: `${d} L900 470 L60 470 Z`, fill: "#f3e3c8" }, v);
+  el("path", { d: `M0 470 H${W}`, stroke: "#8a7764", "stroke-width": 4 }, v);
+  const path = el("path", { d, fill: "none", stroke: "#c0392b", "stroke-width": 9, "stroke-linecap": "round" }, v);
+  const [l1, l2] = labels || [`${startH} m`, `${hillH} m`];
+  T(v, 60, sy - 24, l1, 24, C.ink);
+  T(v, 640, hy - 28, l2, 24, C.ink);
+  const car = el("g", {}, v);
+  el("rect", { x: -26, y: -40, width: 52, height: 30, rx: 8, fill: C.blue, stroke: C.ink, "stroke-width": 3 }, car);
+  for (const s of [-1, 1]) el("circle", { cx: s * 15, cy: -8, r: 8, fill: C.ink }, car);
+  const items = heat ? [["height", C.blue], ["motion", C.orange], ["heat", C.red]] : [["height", C.blue], ["motion", C.orange]];
+  const b = bars(v, bx, by, items, total, { bw: 62, hmax: 110, gap: 26 });
+  const len = path.getTotalLength();
+  const place = (s) => {
+    const p = path.getPointAtLength(s);
+    car.setAttribute("transform", `translate(${p.x} ${p.y})`);
+    return (470 - p.y) / 350 * 40; // height in m
+  };
+  place(0);
+  b.set(heat ? [total, 0, 0] : [total, 0]);
+  return { path, len, place, b, car, total, startH, heat };
+}
+// Find the path length where the car sits at the hill top (x = 640).
+const sAtX = (c, x) => {
+  let lo = 0;
+  let hi = c.len;
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2;
+    if (c.path.getPointAtLength(mid).x < x) lo = mid;
+    else hi = mid;
+  }
+  return lo;
+};
+async function ride(c, A, fromS, toS, ms, lossPerLen = 0) {
+  await A.tween(ms, (k) => {
+    const s = fromS + (toS - fromS) * k;
+    const h = c.place(s);
+    const gpe = (c.total * h) / c.startH;
+    const heat = Math.min(c.total, lossPerLen * s);
+    const ke = Math.max(0, c.total - gpe - heat);
+    c.b.set(c.heat ? [Math.max(0, Math.min(c.total, gpe)), ke, heat] : [Math.max(0, Math.min(c.total, gpe)), ke]);
+  });
+}
+function pendulum(v, total) {
+  bg(v, "lab");
+  el("rect", { x: 160, y: 40, width: 280, height: 18, rx: 6, fill: C.wood }, v);
+  const g = el("g", { transform: "translate(300 58)" }, v);
+  el("line", { x1: 0, y1: 0, x2: 0, y2: 300, stroke: C.ink, "stroke-width": 4 }, g);
+  el("circle", { cx: 0, cy: 300, r: 34, fill: C.orange, stroke: C.ink, "stroke-width": 4 }, g);
+  el("line", { x1: 90, x2: 510, y1: 358, y2: 358, stroke: "#d9cdb5", "stroke-width": 3, "stroke-dasharray": "10 10" }, v);
+  T(v, 560, 366, "lowest point", 22, C.soft, { "text-anchor": "start" });
+  const b = bars(v, 700, 330, [["height", C.blue], ["motion", C.orange]], total, { bw: 70, hmax: 180 });
+  const amp = 0.75;
+  const set = (ang) => {
+    g.setAttribute("transform", `translate(300 58) rotate(${(ang * 180) / Math.PI})`);
+    const hFrac = (1 - Math.cos(ang)) / (1 - Math.cos(amp));
+    b.set([total * hFrac, total * (1 - hFrac)]);
+  };
+  set(amp);
+  return { set, amp, g };
+}
+async function swing(c, A, n = 2) {
+  await A.tween(1800 * n, (k) => c.set(c.amp * Math.cos(k * n * 2 * Math.PI)), lin);
+}
+const ENERGY = {
+  types: { easy: ["pendLow", "pendTop", "chain", "torch", "total"], medium: ["half", "friction", "hill", "gpe"], hard: ["ke", "vbottom", "waste", "climb", "gpe"] },
+  gen: {
+    pendLow: () => ({
+      t: "pendLow", key: "pl",
+      say: "A swinging ball. At the LOWEST point of the swing, which energy is biggest?",
+      opts: ["Motion energy", "Height energy", "Both are zero"], ok: 0,
+      hint: "Where does the ball go fastest? Where is it lowest?",
+      why: ["At the top: high and still → all height energy.", "Swinging down, height energy turns into motion energy.", "At the bottom it is lowest and fastest → all motion energy."],
+      draw: (v) => pendulum(v, 100),
+      test: (c, A) => swing(c, A, 2),
+    }),
+    pendTop: () => ({
+      t: "pendTop", key: "pt",
+      say: "At the very TOP of its swing, how fast is the ball moving?",
+      opts: ["Stopped for a moment", "Its fastest", "Half speed"], ok: 0,
+      hint: "Watch a swing turn around. What must happen before it can change direction?",
+      why: ["To turn around, the ball must stop for an instant.", "So at the top, motion energy is 0 J.", "All 100 J is height energy, ready to swing back down."],
+      draw: (v) => pendulum(v, 100),
+      test: (c, A) => swing(c, A, 2),
+    }),
+    chain: () => {
+      const opts = shuffle(["🌱 Plant", "🪨 Rock", "🧊 Ice"]);
+      return {
+        t: "chain", key: `ch${opts}`,
+        say: "Energy chain: Sun → ? → food → you. What goes in the gap?",
+        opts, ok: opts.indexOf("🌱 Plant"),
+        hint: "What living thing uses sunlight to grow?",
+        why: ["Plants catch light energy and store it in sugar.", "We eat plants (or animals that ate plants).", "Your muscles release that stored energy, which began in the Sun."],
+        draw: (v) => chainScene(v, ["☀️", "?", "🍎", "🏃"]),
+        test: (c, A) => chainRun(c, A, "🌱"),
+      };
+    },
+    torch: () => {
+      const opts = shuffle(["Light and heat", "Water", "Food"]);
+      return {
+        t: "torch", key: `to${opts}`,
+        say: "A torch: battery → wire → bulb → ? What does the bulb turn the energy into?",
+        opts, ok: opts.indexOf("Light and heat"),
+        hint: "Switch on a torch and hold your hand near the bulb. What two things do you notice?",
+        why: ["Chemical energy in the battery → electrical energy in the wire", "→ light (useful) plus some heat (wasted).", "The energy changes form. None of it is destroyed."],
+        draw: (v) => chainScene(v, ["🔋", "〰️", "💡", "?"]),
+        test: (c, A) => chainRun(c, A, "✨🔥"),
+      };
+    },
+    total: () => {
+      const T0 = pick([100, 200, 300, 400, 500]);
+      return {
+        t: "total", key: `tt${T0}`, v: { T0 }, pad: true, ans: T0, unit: "J",
+        say: `At the top, the coaster car has ${T0} J of height energy. With NO friction, how much motion energy at the very bottom?`,
+        hint: "Energy changes form but is never lost. With no friction, does any leak away?",
+        why: ["At the bottom, height energy is 0 J.", `It all became motion energy: ${T0} J.`, "Height + motion always add up to the same total."],
+        draw: (v) => coaster(v, 40, 20, T0, { heat: false }),
+        test: async (c, A) => ride(c, A, 0, c.len * 0.26, 1800),
+      };
+    },
+    half: () => {
+      const T0 = pickInt(2, 12) * 100;
+      const hill = pick([10, 20, 30]);
+      const gpe = (T0 * hill) / 40;
+      return {
+        t: "half", key: `h${T0}${hill}`, v: { T0, hill }, pad: true, ans: T0 - gpe, unit: "J",
+        say: `The car starts at rest 40 m up with ${T0} J of height energy. At the ${hill} m hill top it has ${gpe} J of height energy. Motion energy there? (no friction)`,
+        hint: "Height + motion always make the same total. What is missing?",
+        why: [`Total stays ${T0} J.`, `Motion = ${T0} − ${gpe} = ${T0 - gpe} J.`, `(${hill} m is ${hill}/40 of the start height, so ${gpe} J is height energy.)`],
+        draw: (v) => coaster(v, 40, hill, T0, { heat: false }),
+        test: async (c, A) => ride(c, A, 0, sAtX(c, 640), 2600),
+      };
+    },
+    friction: () => {
+      const T0 = pickInt(3, 12) * 100;
+      const loss = pickInt(1, 5) * 20;
+      return {
+        t: "friction", key: `fr${T0}${loss}`, v: { T0, loss }, pad: true, ans: T0 - loss, unit: "J",
+        say: `The car starts at rest at the top with ${T0} J of height energy. On the way down, friction turns ${loss} J into heat. Motion energy at the bottom?`,
+        hint: "The total does not change. Where did some of the energy go? How much is left for motion?",
+        why: [`Heat is energy too: ${loss} J went to warm the track and the air.`, `Motion = ${T0} − ${loss} = ${T0 - loss} J.`, `Height + motion + heat = ${T0} J, always.`],
+        draw: (v) => coaster(v, 40, 20, T0),
+        test: async (c, A) => ride(c, A, 0, c.len * 0.26, 2000, loss / (c.len * 0.26)),
+      };
+    },
+    hill: () => ({
+      t: "hill", key: "hill",
+      say: "A coaster car (no motor) starts 30 m high. Can it get over a 40 m hill?",
+      opts: ["No, it rolls back", "Yes, easily", "Only if it is heavy"], ok: 0,
+      hint: "Where does the car's energy come from? Can it ever have more than it started with?",
+      why: ["All its energy came from its starting height.", "To reach 40 m it would need MORE energy than it has.", "So it climbs to just under 30 m (friction) and rolls back."],
+      draw: (v) => coaster(v, 30, 40, 300),
+      test: async (c, A) => {
+        let top = 0;
+        for (let s = sAtX(c, 360); s < c.len; s += 4) {
+          const p = c.path.getPointAtLength(s);
+          if ((470 - p.y) / 350 * 40 >= 28) {
+            top = s;
+            break;
+          }
+        }
+        const loss = 20 / top;
+        await ride(c, A, 0, top, 2600, loss);
+        await A.wait(300);
+        await A.tween(1800, (k) => {
+          const s = top * (1 - k * 0.55);
+          const h = c.place(s);
+          const heat = Math.min(c.total, 20 + loss * top * k * 0.55);
+          const gpe = (c.total * h) / 30;
+          c.b.set([gpe, Math.max(0, c.total - gpe - heat), heat]);
+        });
+      },
+    }),
+    gpe: () => {
+      const m = pickInt(2, 10);
+      const h = pickInt(2, 15);
+      return {
+        t: "gpe", key: `gp${m}${h}`, v: { m, h }, pad: true, ans: m * 10 * h, unit: "J",
+        say: `Height energy (gravitational potential energy) = mass × 10 × height. A ${m} kg box is lifted onto a ${h} m high shelf. How many joules?`,
+        hint: "Multiply the three numbers: mass, 10, and height. Try one step at a time.",
+        why: ["Height energy = m × g × h  (g ≈ 10 N/kg)", `${m} × 10 × ${h} = ${m * 10 * h} J`, `It is also the work to lift it: ${m * 10} N × ${h} m.`],
+        draw: (v) => shelfScene(v, `${m} kg`, h),
+        test: async (c, A) => {
+          await A.tween(1600, (k) => c.box.setAttribute("transform", `translate(0 ${-k * c.hpx})`));
+          c.read.textContent = `${m * 10 * h} J`;
+          await A.wait(500);
+        },
+      };
+    },
+    ke: () => {
+      const m = pickInt(1, 10) * 2;
+      const v0 = pickInt(2, 15);
+      return {
+        t: "ke", key: `ke${m}${v0}`, v: { m, v0 }, pad: true, ans: (m * v0 * v0) / 2, unit: "J",
+        say: `Kinetic (motion) energy KE = ½ × m × v². A ${m} kg ball moves at ${v0} m/s. Find its KE, in joules.`,
+        hint: "Square the speed first (v × v). Then multiply by the mass and halve it.",
+        hintFor: (x) => (x === (m * v0) / 2 ? "You forgot to square the speed. What is v × v?" : x === m * v0 * v0 ? "Remember the ½ in the formula." : null),
+        why: [`v² = ${v0} × ${v0} = ${v0 * v0}.`, `KE = ½ × ${m} × ${v0 * v0} = ${(m * v0 * v0) / 2} J.`, "Double the speed and KE quadruples, because v is squared."],
+        draw: (v) => {
+          const cs = cartsScene(v, [m], "");
+          cs[0].ar.setAttribute("opacity", 0);
+          T(v, 700, 150, `v = ${v0} m/s`, 40, C.orange);
+          return cs;
+        },
+        test: async (cs, A) => {
+          await A.tween(1800, (k) => cs[0].g.setAttribute("transform", `translate(${220 + 560 * k} 0)`), lin);
+          T(view, 500, 230, `KE = ${(m * v0 * v0) / 2} J`, 40, C.orange);
+          await A.wait(400);
+        },
+      };
+    },
+    vbottom: () => {
+      const [h, v0] = pick([[5, 10], [20, 20], [45, 30], [80, 40]]);
+      const m = pickInt(1, 6);
+      return {
+        t: "vbottom", key: `vb${h}${m}`, v: { h, m }, pad: true, ans: v0, unit: "m/s",
+        say: `A ${m} kg ball drops ${h} m (no air). Height energy turns into motion energy, ½ × m × speed². Speed at the bottom, in m/s?`,
+        hint: `Height energy = ${m} × 10 × ${h}. Set it equal to ½ × ${m} × speed². What speed works?`,
+        why: [`Height energy: ${m} × 10 × ${h} = ${m * 10 * h} J.`, `½ × ${m} × v² = ${m * 10 * h} → v² = ${v0 * v0} → v = ${v0} m/s.`, "Mass cancels out: every mass lands at the same speed."],
+        draw: (v) => fallScene(v, Math.sqrt(h / 5)),
+        test: (c, A) => fallRun(c, A, Math.sqrt(h / 5), "speed"),
+      };
+    },
+    waste: () => {
+      const [E, U] = pick([[100, 10], [200, 50], [400, 100], [500, 200], [200, 150], [1000, 400]]);
+      const askPct = Math.random() < 0.5;
+      return {
+        t: "waste", key: `ws${E}${askPct}`, v: { E, U, askPct }, pad: true, ans: askPct ? (U * 100) / E : E - U, unit: askPct ? "%" : "J",
+        say: askPct ? `A machine takes in ${E} J and does ${U} J of useful work. What is its efficiency, in %?` : `A machine takes in ${E} J. Only ${U} J does the useful job. How much is wasted as heat, in J?`,
+        hint: askPct ? "Efficiency = useful ÷ total, as a percent. How many of every 100 J are useful?" : "Energy is never lost. Total = useful + wasted.",
+        why: askPct ? [`Efficiency = useful ÷ total × 100`, `${U} ÷ ${E} × 100 = ${(U * 100) / E}%`, "The rest becomes heat (and some sound)."] : [`Total = useful + wasted`, `${E} − ${U} = ${E - U} J of heat.`, "No real machine is 100% efficient: friction always makes heat."],
+        answerText: askPct ? `${(U * 100) / E}%` : `${E - U} J`,
+        draw: (v) => {
+          bg(v, "lab");
+          emoji(v, 220, 230, "⚙️", 150);
+          arrow(v, 330, 230, 560, 160, { color: C.green, label: `useful ${U} J`, ly: 140 });
+          arrow(v, 330, 250, 560, 340, { color: C.red, label: askPct ? `wasted ${E - U} J` : "wasted ? J", ly: 380 });
+          T(v, 220, 110, `in: ${E} J`, 34, C.blue);
+          return {};
+        },
+        test: async (c, A) => {
+          emoji(view, 700, 330, "🔥", 80);
+          await A.wait(800);
+        },
+      };
+    },
+    climb: () => {
+      const m = pick([1, 2, 4, 5]);
+      const h = pick([10, 20, 30, 40]);
+      const T0 = m * 10 * h;
+      const lossH = pickInt(1, 4);
+      const loss = m * 10 * lossH;
+      return {
+        t: "climb", key: `cl${m}${h}${lossH}`, v: { m, h, loss }, pad: true, ans: h - lossH, unit: "m",
+        say: `A ${m} kg car starts ${h} m high, so it has ${T0} J. Friction turns ${loss} J into heat. How high can it climb the next hill, in m?`,
+        hint: `What energy is left for height? Each metre of height needs ${m} × 10 = ${m * 10} J.`,
+        why: [`Left: ${T0} − ${loss} = ${T0 - loss} J.`, `Height = ${T0 - loss} ÷ (${m} × 10) = ${h - lossH} m.`, "Friction means it can never get back to its start height."],
+        draw: (v) => coaster(v, 40, 40 * ((h - lossH) / h), T0, { labels: [`${h} m`, "? m"] }),
+        test: async (c, A) => ride(c, A, 0, sAtX(c, 640), 2600, loss / sAtX(c, 640)),
+      };
+    },
+  },
+};
+function chainScene(v, items) {
+  bg(v, "lab");
+  const xs = [140, 380, 620, 860];
+  const boxes = items.map((g, i) => {
+    el("rect", { x: xs[i] - 90, y: 140, width: 180, height: 180, rx: 28, fill: g === "?" ? "#fff" : "var(--accent-soft)", stroke: g === "?" ? "var(--accent)" : "#c9b8a1", "stroke-width": 5, "stroke-dasharray": g === "?" ? "14 10" : null }, v);
+    const t = g === "?" ? T(v, xs[i], 260, "?", 96, "var(--accent)") : emoji(v, xs[i], 230, g, 100);
+    if (i < 3) arrow(v, xs[i] + 96, 230, xs[i + 1] - 96, 230, { color: C.orange, w: 8 });
+    return t;
+  });
+  return { boxes, xs, q: items.indexOf("?") };
+}
+async function chainRun(c, A, glyphs) {
+  const t = c.boxes[c.q];
+  t.remove();
+  emoji(view, c.xs[c.q], 230, glyphs, glyphs.length > 2 ? 64 : 100);
+  for (let i = 0; i < 4; i++) {
+    const r = el("circle", { cx: c.xs[i], cy: 380, r: 0, fill: C.orange }, view);
+    await A.tween(350, (k) => r.setAttribute("r", 14 * k));
+    MUSIC.play("xylophone", 76 + i * 3, { gain: 0.35 });
+  }
+  await A.wait(400);
+}
+function shelfScene(v, label, h, title = "height energy") {
+  bg(v, "lab");
+  const hpx = Math.min(300, h * 20);
+  el("rect", { x: 560, y: GY - hpx, width: 260, height: 14, fill: C.wood }, v);
+  el("rect", { x: 800, y: GY - hpx, width: 14, height: hpx, fill: C.wood }, v);
+  el("line", { x1: 520, x2: 520, y1: GY, y2: GY - hpx, stroke: C.blue, "stroke-width": 4 }, v);
+  T(v, 470, GY - hpx / 2 + 8, `${h} m`, 28, C.blue);
+  const box = el("g", {}, v);
+  el("rect", { x: 620, y: GY - 80, width: 110, height: 80, rx: 8, fill: "#d9a066", stroke: C.ink, "stroke-width": 3 }, box);
+  T(box, 675, GY - 30, label, 28);
+  const read = T(v, 220, 200, "? J", 54, C.blue);
+  T(v, 220, 140, title, 26, C.soft);
+  return { box, hpx: hpx + 14, read };
+}
+
+// =====================================================================
+// 6. SIMPLE MACHINES
+// =====================================================================
+// A lever: plank on a pivot. Load on the left, effort on the right. Lengths in metres.
+function leverScene(v, { L, E, load, effort = "?", s, loadGlyph = "🪨", showArms = true, rock = true }) {
+  bg(v, "lab");
+  const px = 120 + L * s + 20;
+  const py = 330;
+  el("path", { d: `M${px} ${py + 10} L${px - 50} ${GY} L${px + 50} ${GY} Z`, fill: "#8a7764", stroke: C.ink, "stroke-width": 3 }, v);
+  const plank = el("g", { transform: `rotate(0 ${px} ${py})` }, v);
+  el("rect", { x: px - L * s, y: py - 8, width: (L + E) * s, height: 18, rx: 6, fill: C.woodL, stroke: C.wood, "stroke-width": 3 }, plank);
+  const lg = el("g", {}, plank);
+  if (rock) emoji(lg, px - L * s + 10, py - 50, loadGlyph, 84);
+  T(lg, px - L * s + 10, rock ? py - 112 : py - 190, `${load} N`, 30, C.ink);
+  const eff = arrow(plank, px + E * s - 10, py - 150, px + E * s - 10, py - 14, { color: C.red, label: `${effort}${effort === "?" ? "" : " N"}`, lx: px + E * s - 10, ly: py - 162 });
+  if (showArms) {
+    const ay = py + 56;
+    el("line", { x1: px - L * s + 10, x2: px, y1: ay, y2: ay, stroke: C.blue, "stroke-width": 4 }, v);
+    el("line", { x1: px, x2: px + E * s - 10, y1: ay + 40, y2: ay + 40, stroke: C.red, "stroke-width": 4 }, v);
+    for (const x of [px - L * s + 10, px]) el("line", { x1: x, x2: x, y1: ay - 10, y2: ay + 10, stroke: C.blue, "stroke-width": 4 }, v);
+    for (const x of [px, px + E * s - 10]) el("line", { x1: x, x2: x, y1: ay + 30, y2: ay + 50, stroke: C.red, "stroke-width": 4 }, v);
+    T(v, px - (L * s) / 2, ay - 12, `load arm ${L} m`, 22, C.blue);
+    T(v, px + (E * s) / 2, ay + 78, `effort arm ${E} m`, 22, C.red);
+  }
+  return { plank, px, py, eff };
+}
+async function tilt(c, A, deg = 12) {
+  MUSIC.play("woodblock", 72, { gain: 0.35 });
+  await A.tween(1400, (k) => c.plank.setAttribute("transform", `rotate(${k * deg} ${c.px} ${c.py})`));
+  await A.wait(400);
+}
+// A pulley: n rope pieces hold the bottom block. You pull the free end.
+function pulleyScene(v, n, load, effort = "?") {
+  bg(v, "lab");
+  el("rect", { x: 300, y: 30, width: 400, height: 22, rx: 6, fill: C.wood }, v);
+  const fx = 500;
+  const fw = Math.max(1, Math.ceil(n / 2)) * 60;
+  el("rect", { x: fx - fw / 2, y: 52, width: fw, height: 70, rx: 18, fill: "#b0bec5", stroke: C.ink, "stroke-width": 3 }, v);
+  const xs = [...Array(n)].map((_, i) => fx - ((n - 1) * 34) / 2 + i * 34);
+  const g = el("g", {}, v);
+  const ropes = xs.map((x) => el("line", { x1: x, x2: x, y1: 122, y2: 300, stroke: "#6d4c2f", "stroke-width": 6 }, v));
+  if (n > 1) el("rect", { x: fx - fw / 2, y: 290, width: fw, height: 40, rx: 14, fill: "#b0bec5", stroke: C.ink, "stroke-width": 3 }, g);
+  el("line", { x1: fx, x2: fx, y1: 300, y2: 340, stroke: "#6d4c2f", "stroke-width": 6 }, g);
+  el("rect", { x: fx - 70, y: 340, width: 140, height: 80, rx: 10, fill: "#d9a066", stroke: C.ink, "stroke-width": 3 }, g);
+  T(g, fx, 392, `${load} N`, 30);
+  const freeX = fx + Math.max(fw / 2, 70) + 60;
+  el("path", { d: `M${fx + fw / 2 - 10} 80 Q${freeX} 70 ${freeX} 110`, fill: "none", stroke: "#6d4c2f", "stroke-width": 6 }, v);
+  const free = el("line", { x1: freeX, x2: freeX, y1: 108, y2: 300, stroke: "#6d4c2f", "stroke-width": 6 }, v);
+  const hand = el("g", { transform: `translate(${freeX} 300)` }, v);
+  arrow(hand, 0, 0, 0, 90, { color: C.red, label: effort === "?" ? "pull ?" : `pull ${effort} N`, lx: 110, ly: 60 });
+  return { g, ropes, free, hand, xs, freeX };
+}
+async function lift(c, A, n, liftPx = 60) {
+  const pull = Math.min(200, liftPx * n);
+  const rise = pull / n;
+  MUSIC.play("woodblock", 76, { gain: 0.35 });
+  await A.tween(2000, (k) => {
+    c.g.setAttribute("transform", `translate(0 ${-rise * k})`);
+    c.ropes.forEach((r) => r.setAttribute("y2", 300 - rise * k));
+    c.free.setAttribute("y2", 300 + pull * k);
+    c.hand.setAttribute("transform", `translate(${c.freeX} ${300 + pull * k})`);
+  });
+  c.ropes.forEach((r) => r.setAttribute("stroke", C.green));
+  await A.wait(400);
+}
+function rampScene(v, L, h, load, effort = "?") {
+  bg(v, "lab");
+  const base = Math.sqrt(L * L - h * h);
+  const s = Math.min(640 / base, 300 / h);
+  const x0 = 160;
+  const x1 = x0 + base * s;
+  const y1 = GY - h * s;
+  el("path", { d: `M${x0} ${GY} L${x1} ${GY} L${x1} ${y1} Z`, fill: "#e8dccb", stroke: "#a8916f", "stroke-width": 4 }, v);
+  T(v, x1 + 18, (GY + y1) / 2 + 8, `${h} m`, 28, C.blue, { "text-anchor": "start" });
+  const ang = Math.atan2(h, base);
+  T(v, (x0 + x1) / 2 - 30, (GY + y1) / 2 - 28, `${L} m`, 28, C.green, { transform: `rotate(${(-ang * 180) / Math.PI} ${(x0 + x1) / 2 - 30} ${(GY + y1) / 2 - 28})` });
+  const box = el("g", {}, v);
+  el("rect", { x: -40, y: -60, width: 80, height: 60, rx: 8, fill: "#d9a066", stroke: C.ink, "stroke-width": 3 }, box);
+  T(box, 0, -22, `${load} N`, 22);
+  arrow(box, -150, -30, -46, -30, { color: C.red, label: effort === "?" ? "push ?" : `${effort} N`, ly: -60 });
+  const at = (k) => {
+    const x = x0 + 90 + (x1 - x0 - 140) * k;
+    const y = GY - (x - x0) * Math.tan(ang);
+    box.setAttribute("transform", `translate(${x} ${y}) rotate(${(-ang * 180) / Math.PI})`);
+  };
+  at(0);
+  return { at };
+}
+const MACHINES = {
+  types: { easy: ["where", "ropes", "rampPick", "seesaw", "ropes"], medium: ["leverMA", "leverF", "pulleyF", "rampF", "work"], hard: ["ropeLen", "power", "balance", "rampLen"] },
+  gen: {
+    where: () => ({
+      t: "where", key: "where",
+      say: "You want to lift a heavy rock with a lever. Where should you push down?",
+      opts: ["Far from the pivot", "Close to the pivot", "Right on the pivot"], ok: 0,
+      hint: "Is it easier to open a door by pushing near the hinge, or near the handle?",
+      why: ["For the same push, a longer effort arm turns more strongly.", "Pushing far from the pivot needs only a small force.", "But your hand moves a long way down. That's the trade-off."],
+      draw: (v) => leverScene(v, { L: 1, E: 4, load: 600, s: 150 }),
+      test: (c, A) => tilt(c, A, 10),
+    }),
+    ropes: () => {
+      const n = pickInt(1, 4);
+      const load = n * pick([50, 100, 150]);
+      return {
+        t: "ropes", key: `ro${n}${load}`, v: { n }, pad: true, ans: n, unit: "",
+        answerText: `${n} rope${n > 1 ? "s" : ""}`,
+        say: "Count the rope segments that hold up the load (not the free end you pull). How many?",
+        hint: "Put your finger on each rope going down to the load. Count them, one by one.",
+        why: [`${n} rope piece${n > 1 ? "s share" : " holds"} the ${load} N load.`, `So you pull with only ${load} ÷ ${n} = ${load / n} N.`, `But you pull ${n} m of rope to lift the load 1 m.`],
+        draw: (v) => pulleyScene(v, n, load),
+        test: (c, A) => lift(c, A, n),
+      };
+    },
+    rampPick: () => ({
+      t: "rampPick", key: "rp",
+      say: "Two ramps to the same 1 m high step. Which needs the SMALLER push to roll a heavy box up?",
+      opts: ["The long gentle ramp", "The short steep ramp", "Both the same"], ok: 0,
+      hint: "Is it easier to walk up a gentle path or climb a steep one?",
+      why: ["A longer ramp spreads the lift over a longer distance.", "So the push is smaller, but you push for longer.", "Force × distance (the work) comes out the same."],
+      draw: (v) => {
+        bg(v, "lab");
+        el("path", { d: `M80 ${GY} L540 ${GY} L540 ${GY - 120} Z`, fill: "#e8dccb", stroke: "#a8916f", "stroke-width": 4 }, v);
+        el("path", { d: `M680 ${GY} L840 ${GY} L840 ${GY - 120} Z`, fill: "#f3d2b8", stroke: "#a8916f", "stroke-width": 4 }, v);
+        T(v, 300, 250, "long", 30, C.green);
+        T(v, 740, 250, "short", 30, C.red);
+        return {};
+      },
+      test: async (c, A) => {
+        arrow(view, 240, 380, 330, 350, { color: C.green, w: 6, label: "small push", ly: 330 });
+        arrow(view, 660, 400, 780, 290, { color: C.red, w: 14, label: "big push", lx: 640, ly: 320 });
+        await A.wait(900);
+      },
+    }),
+    seesaw: () => ({
+      t: "seesaw", key: "ss",
+      say: "On a seesaw, a heavy grown-up and a light child want to balance. Where should the grown-up sit?",
+      opts: ["Closer to the middle", "Farther from the middle", "Anywhere"], ok: 0,
+      hint: "Remember: far from the pivot gives more turning. Who needs less turning power?",
+      why: ["Turning effect = weight × distance from the pivot.", "The heavy person sits close, the light person sits far.", "For example, 600 N × 1 m = 300 N × 2 m: balanced."],
+      draw: (v) => {
+        const c = leverScene(v, { L: 1, E: 2, load: 600, s: 220, rock: false, showArms: false });
+        c.eff.remove();
+        const big = el("g", {}, c.plank);
+        person(big, c.px - 220, c.py - 8, { color: C.blue, scale: 1.3 });
+        const kid = el("g", {}, c.plank);
+        person(kid, c.px + 440 - 30, c.py - 8, { color: C.orange, scale: 0.85 });
+        T(c.plank, c.px + 410, c.py - 130, "300 N", 30);
+        return c;
+      },
+      test: async (c, A) => {
+        T(view, c.px - 110, c.py + 100, "1 m", 28, C.blue);
+        T(view, c.px + 205, c.py + 100, "2 m", 28, C.red);
+        T(view, 500, 520, "600 × 1 = 300 × 2  →  balanced", 30, C.green);
+        await A.wait(900);
+      },
+    }),
+    leverMA: () => {
+      const L = pickInt(1, 2);
+      const E = L * pickInt(2, 4);
+      return {
+        t: "leverMA", key: `lm${L}${E}`, v: { L, E }, pad: true, ans: E / L, unit: "",
+        answerText: `${E / L}`,
+        say: `Mechanical advantage (MA) = effort arm ÷ load arm. This lever's effort arm is ${E} m and load arm ${L} m. MA?`,
+        hint: "Find the two arm lengths. Which one is divided by which?",
+        why: [`MA = ${E} m ÷ ${L} m = ${E / L}.`, `Your push is multiplied by ${E / L}.`, `But your hand moves ${E / L} times farther than the load.`],
+        draw: (v) => leverScene(v, { L, E, load: 600, s: Math.min(150, 640 / (L + E)) }),
+        test: (c, A) => tilt(c, A, 10),
+      };
+    },
+    leverF: () => {
+      const L = 1;
+      const E = pickInt(2, 5);
+      const effort = pickInt(2, 9) * 10;
+      const load = effort * E;
+      return {
+        t: "leverF", key: `lf${E}${effort}`, v: { L, E, load }, pad: true, ans: effort, unit: "N",
+        say: `This lever lifts a ${load} N rock. Effort arm ${E} m, load arm ${L} m. How much push do you need, in N?`,
+        hint: "First find the MA (effort arm ÷ load arm). The push is the load shared by the MA.",
+        why: [`MA = ${E} ÷ ${L} = ${E}.`, `Push = load ÷ MA = ${load} ÷ ${E} = ${effort} N.`, `Check turning: ${load} × ${L} = ${effort} × ${E}.`],
+        draw: (v) => leverScene(v, { L, E, load, s: Math.min(150, 640 / (L + E)) }),
+        test: async (c, A) => {
+          c.eff.querySelector("text").textContent = `${effort} N`;
+          await tilt(c, A, 10);
+        },
+      };
+    },
+    pulleyF: () => {
+      const n = pickInt(2, 4);
+      const effort = pickInt(2, 15) * 10;
+      return {
+        t: "pulleyF", key: `pf${n}${effort}`, v: { n, load: n * effort }, pad: true, ans: effort, unit: "N",
+        say: `Count the ropes holding the block. The load is ${n * effort} N. How hard must you pull, in N? (no friction)`,
+        hint: "Each rope piece holds an equal share. How many pieces? Share the load between them.",
+        why: [`${n} rope pieces hold the load, so MA = ${n}.`, `Pull = ${n * effort} ÷ ${n} = ${effort} N.`, `To lift it 1 m you pull ${n} m of rope.`],
+        draw: (v) => pulleyScene(v, n, n * effort),
+        test: (c, A) => lift(c, A, n),
+      };
+    },
+    rampF: () => {
+      const h = pickInt(1, 2);
+      const k = pickInt(2, 5);
+      const L = h * k;
+      const effort = pickInt(3, 15) * 10;
+      const load = effort * k;
+      return {
+        t: "rampF", key: `rf${h}${k}${effort}`, v: { L, h, load }, pad: true, ans: effort, unit: "N",
+        say: `A ramp is ${L} m long and ${h} m high. Push a ${load} N box up it (no friction). How big a push, in N?`,
+        hint: "Ramp MA = length ÷ height. The push is the load shared by the MA.",
+        why: [`MA = ${L} ÷ ${h} = ${k}.`, `Push = ${load} ÷ ${k} = ${effort} N.`, `Work check: ${effort} × ${L} = ${load} × ${h} = ${effort * L} J.`],
+        draw: (v) => rampScene(v, L, h, load),
+        test: async (c, A) => {
+          await A.tween(2000, (t) => c.at(t));
+          await A.wait(300);
+        },
+      };
+    },
+    ropeLen: () => {
+      const n = pickInt(2, 4);
+      const hh = pickInt(1, 5);
+      return {
+        t: "ropeLen", key: `rl${n}${hh}`, v: { n, hh }, pad: true, ans: n * hh, unit: "m",
+        say: `With ${n} rope pieces holding the load, you lift it ${hh} m. How many metres of rope must you pull?`,
+        hint: `Every rope piece must get ${hh} m shorter. How many pieces are there?`,
+        why: [`Each of the ${n} pieces gets ${hh} m shorter.`, `You pull ${n} × ${hh} = ${n * hh} m of rope.`, `Small force, long pull: work (F × d) stays the same.`],
+        draw: (v) => pulleyScene(v, n, n * 100),
+        test: (c, A) => lift(c, A, n, 40),
+      };
+    },
+    work: () => {
+      const F = pickInt(2, 10) * 50;
+      const d = pickInt(2, 6);
+      const k = pick([2, 4]);
+      return {
+        t: "work", key: `wk${F}${d}`, v: { F, d }, pad: true, ans: F * d, unit: "J",
+        say: `Work = force × distance. You lift a ${F} N box ${d} m straight up. How much work, in joules?`,
+        hint: "Multiply the force by how far it moves.",
+        why: [`Work = ${F} N × ${d} m = ${F * d} J.`, `A smooth ramp ${k}× as long as it is high: ${F / k} N × ${d * k} m = ${F * d} J.`, "Machines trade force for distance. They never make extra energy."],
+        draw: (v) => shelfScene(v, `${F} N`, d, "work"),
+        test: async (c, A) => {
+          await A.tween(1600, (t) => c.box.setAttribute("transform", `translate(0 ${-t * c.hpx})`));
+          c.read.textContent = `${F * d} J`;
+          await A.wait(400);
+        },
+      };
+    },
+    power: () => {
+      const F = pickInt(2, 12) * 50;
+      const d = pickInt(2, 6);
+      const W = F * d;
+      const divs = [2, 4, 5, 10].filter((t) => W % t === 0);
+      const t = pick(divs);
+      return {
+        t: "power", key: `pw${F}${d}${t}`, v: { F, d, t }, pad: true, ans: W / t, unit: "W",
+        say: `A motor lifts a ${F} N load ${d} m in ${t} s. Power P = work ÷ time, in watts (W = J per second). Find P.`,
+        hint: "First the work: force × distance. Then how much of that work is done each second?",
+        why: [`Work = ${F} N × ${d} m = ${W} J.`, `P = ${W} J ÷ ${t} s = ${W / t} W.`, "A more powerful motor does the same work in less time."],
+        draw: (v) => shelfScene(v, `${F} N`, d, "power"),
+        test: async (c, A) => {
+          await A.tween(1600, (k) => c.box.setAttribute("transform", `translate(0 ${-k * c.hpx})`));
+          c.read.textContent = `${W / t} W`;
+          await A.wait(400);
+        },
+      };
+    },
+    balance: () => {
+      const [w1, d1, w2] = pick([[600, 2, 400], [300, 2, 200], [400, 3, 600], [200, 3, 300], [500, 2, 250], [300, 4, 400], [600, 1, 200]]);
+      const d2 = (w1 * d1) / w2;
+      return {
+        t: "balance", key: `bl${w1}${d1}${w2}`, v: { w1, d1, w2 }, pad: true, ans: d2, unit: "m",
+        say: `A seesaw: ${w1} N sits ${d1} m from the pivot. How far from the pivot must ${w2} N sit to balance, in m?`,
+        hint: "Balance means weight × distance is the same on both sides.",
+        why: [`Left turning: ${w1} × ${d1} = ${w1 * d1}.`, `Right: ${w2} × ? = ${w1 * d1} → ? = ${w1 * d1} ÷ ${w2} = ${d2} m.`, "This is the law of the lever."],
+        draw: (v) => {
+          const c = leverScene(v, { L: d1, E: d2, load: w1, s: Math.min(140, 700 / (d1 + d2)), rock: false, showArms: false });
+          c.eff.remove();
+          person(el("g", {}, c.plank), c.px - d1 * Math.min(140, 700 / (d1 + d2)) + 20, c.py - 8, { color: C.blue, scale: w1 >= w2 ? 1.2 : 0.9 });
+          T(view, 500, 70, `${w2} N sits at ? m`, 30, C.red);
+          return { c, s: Math.min(140, 700 / (d1 + d2)) };
+        },
+        test: async ({ c, s }, A) => {
+          const g = el("g", { opacity: 0 }, c.plank);
+          person(g, c.px + d2 * s - 20, c.py - 8, { color: C.orange, scale: w2 > w1 ? 1.2 : 0.9 });
+          T(g, c.px + d2 * s - 20, c.py - 150, `${w2} N`, 28);
+          await A.tween(600, (t) => g.setAttribute("opacity", t));
+          T(view, 500, 520, `${w1} × ${d1} = ${w2} × ${d2}  ✓ balanced`, 30, C.green);
+          await A.wait(800);
+        },
+      };
+    },
+    rampLen: () => {
+      const h = pickInt(1, 2);
+      const k = pickInt(2, 5);
+      const effort = pickInt(2, 10) * 50;
+      return {
+        t: "rampLen", key: `rL${h}${k}${effort}`, v: { h, load: effort * k, effort }, pad: true, ans: h * k, unit: "m",
+        say: `You can push only ${effort} N. To roll a ${effort * k} N box up onto a ${h} m high step, how long must the ramp be, in m?`,
+        hint: "Work is the same either way: load × height = push × ramp length.",
+        why: [`Work to lift: ${effort * k} × ${h} = ${effort * k * h} J.`, `Ramp length = ${effort * k * h} ÷ ${effort} = ${h * k} m.`, `MA = ${h * k} ÷ ${h} = ${k}: the push is 1/${k} of the load.`],
+        draw: (v) => rampScene(v, h * k, h, effort * k, effort),
+        test: async (c, A) => {
+          await A.tween(2000, (t) => c.at(t));
+          await A.wait(300);
+        },
+      };
+    },
+  },
+};
+
+// =====================================================================
+// SEE IT
+// =====================================================================
+const units = {
+  f0() {
+    const my = token;
+    explain(
+      [
+        { say: "Why study forces and energy? Together they explain every motion you will ever see, from a kicked ball to a launching rocket.", draw: everyday([["⚽", "Kicking a ball far"], ["🚗", "Cars that stop safely"], ["🎢", "Roller coasters"], ["🚀", "Rockets to space"]]) },
+        {
+          say: "A force is a push or a pull, measured in newtons (N), named after Isaac Newton. Gravity pulls a small apple (about 100 g) down with about 1 N.",
+          async draw(v, api) {
+            bg(v, "lab");
+            const box = el("g", {}, v);
+            el("rect", { x: 220, y: GY - 110, width: 140, height: 110, rx: 12, fill: "#d9a066", stroke: C.ink, "stroke-width": 3 }, box);
+            const a = arrow(v, 60, GY - 55, 210, GY - 55, { label: "push 20 N", ly: GY - 82 });
+            a.setAttribute("opacity", 0);
+            await api.tween(600, (t) => a.setAttribute("opacity", t));
+            await api.tween(1200, (t) => {
+              box.setAttribute("transform", `translate(${t * 80} 0)`);
+              a.setAttribute("transform", `translate(${t * 80} 0)`);
+            });
+            await api.wait(600);
+            el("rect", { x: 680, y: 40, width: 200, height: 20, rx: 6, fill: C.wood }, v);
+            el("rect", { x: 740, y: 60, width: 80, height: 60, rx: 12, fill: "#fff", stroke: C.ink, "stroke-width": 3 }, v);
+            const read = T(v, 780, 100, "0 N", 28, C.red);
+            const spring = el("path", { d: "", fill: "none", stroke: C.grey, "stroke-width": 5 }, v);
+            const apple = el("g", {}, v);
+            emoji(apple, 0, 0, "🍎", 70);
+            const zig = (len) => {
+              let d = `M780 120`;
+              for (let i = 1; i <= 8; i++) d += ` L${780 + (i % 2 ? 18 : -18)} ${120 + (len * i) / 8}`;
+              spring.setAttribute("d", d + ` L780 ${120 + len + 10}`);
+              apple.setAttribute("transform", `translate(780 ${120 + len + 50})`);
+            };
+            zig(60);
+            await api.tween(1200, (t) => {
+              zig(60 + t * 70);
+              read.textContent = `${Math.round(t * 10) / 10} N`;
+            });
+            T(v, 780, 420, "about 1 N", 30, C.red);
+          },
+        },
+        {
+          say: "Equal, opposite forces are balanced: motion does not change. When one is larger, the leftover (net) force makes the object accelerate.",
+          async draw(v, api) {
+            bg(v, "lab");
+            const rope = el("g", {}, v);
+            el("line", { x1: 220, x2: 780, y1: 260, y2: 260, stroke: "#8a5a2b", "stroke-width": 10 }, rope);
+            el("rect", { x: 490, y: 240, width: 20, height: 60, fill: C.red }, rope);
+            const L = arrow(rope, 220, 260, 80, 260, { color: C.blue, label: "100 N", ly: 230 });
+            let R = arrow(rope, 780, 260, 920, 260, { color: C.orange, label: "100 N", ly: 230 });
+            const msg = T(v, 500, 400, "balanced: no change", 36, C.ink);
+            await api.wait(2400);
+            R.remove();
+            R = arrow(rope, 780, 260, 990, 260, { color: C.orange, label: "150 N", w: 14, ly: 226 });
+            msg.textContent = "150 − 100 = 50 N leftover →";
+            msg.setAttribute("fill", C.green);
+            await api.tween(1800, (t) => rope.setAttribute("transform", `translate(${t * t * 120} 0)`), lin);
+            T(v, 500, 460, "unbalanced: it speeds up", 32, C.green);
+          },
+        },
+        {
+          say: "Speed is distance ÷ time. Running 100 m in 20 s means 5 m each second: 5 m/s. A cheetah sprints at roughly 30 m/s.",
+          async draw(v, api) {
+            const tr = track(v, [{ kind: "runner" }, { kind: "cheetah" }], 100);
+            await api.wait(800);
+            await api.tween(4000, (k) => {
+              const t = k * 20;
+              tr.time(t);
+              tr.move(0, 5 * t);
+              tr.move(1, Math.min(100, 30 * t));
+            }, lin);
+            T(v, 500, 470, "100 m ÷ 20 s = 5 m/s", 34, C.ink);
+          },
+        },
+        {
+          say: "Mass is the amount of matter in you, in kilograms; weight is gravity's pull on it, in newtons: W = m × g. On the Moon g is about 1/6 as strong: 300 N becomes 50 N.",
+          async draw(v, api) {
+            el("rect", { width: 500, height: H, fill: "#e4f3fb" }, v);
+            el("rect", { x: 500, width: 500, height: H, fill: "#1d2333" }, v);
+            el("rect", { x: 0, y: GY, width: 500, height: H - GY, fill: "#bfe0a5" }, v);
+            el("rect", { x: 500, y: GY, width: 500, height: H - GY, fill: "#c9c6c0" }, v);
+            T(v, 250, 60, "🌍 Earth", 32);
+            T(v, 750, 60, "🌙 Moon", 32, "#fff");
+            for (const [x, dark] of [[250, false], [750, true]]) {
+              emoji(v, x, 250, "🧑‍🚀", 120);
+              el("rect", { x: x - 90, y: GY - 40, width: 180, height: 40, rx: 10, fill: "#fff", stroke: C.ink, "stroke-width": 3 }, v);
+              T(v, x, 130 + 250, "mass 30 kg", 28, dark ? "#fff" : C.ink);
+            }
+            const r1 = T(v, 250, GY - 10, "0 N", 28, C.red);
+            const r2 = T(v, 750, GY - 10, "0 N", 28, C.red);
+            await api.wait(600);
+            await api.tween(1600, (t) => {
+              r1.textContent = `${Math.round(300 * t)} N`;
+              r2.textContent = `${Math.round(50 * t)} N`;
+            });
+            T(v, 750, 520, "300 ÷ 6 = 50 N", 30, C.ink);
+          },
+        },
+        {
+          say: "Energy changes form but is never destroyed (conservation of energy). A pendulum trades height energy for motion energy and back; ignoring air resistance, the total is constant.",
+          async draw(v, api) {
+            const c = pendulum(v, 100);
+            T(v, 780, 460, "always 100 J in total", 28, C.green);
+            await api.tween(7200, (k) => c.set(c.amp * Math.cos(k * 4 * 2 * Math.PI)), lin);
+          },
+        },
+        {
+          say: "A lever lets a small force lift a large load. Push 3 times farther from the pivot and you need 1/3 of the force, but your hand travels 3 times as far.",
+          async draw(v, api) {
+            const c = leverScene(v, { L: 1, E: 3, load: 300, effort: 100, s: 160 });
+            await api.wait(1200);
+            await api.tween(1600, (k) => c.plank.setAttribute("transform", `rotate(${k * 12} ${c.px} ${c.py})`));
+            T(v, 500, 60, "100 N × 3 m = 300 N × 1 m", 32, C.green);
+          },
+        },
+        {
+          say: "Explain it: describe one force and one energy change you met today, in two to four sentences, aloud to a grown-up or in writing. Then press Let's play.",
+          async draw(v, api) {
+            bg(v, "lab");
+            const g = el("g", { opacity: 0 }, v);
+            emoji(g, 500, 90, "🗣️", 90);
+            T(g, 500, 200, "Explain it", 48, "var(--accent-dark)");
+            ["Name one force you used today. Was it a push or a pull?", "Name one energy change, e.g. food → motion.", "Say it in 2–4 full sentences, or write it down."].forEach((l, i) => T(g, 500, 270 + i * 50, l, 28, C.ink));
+            await api.tween(800, (t) => g.setAttribute("opacity", t));
+          },
+        },
+      ],
+      { alive: () => my === token, onDone: () => shell.go("f1"), title: "Forces & Energy" }
+    );
+  },
+  f1() {
+    game("f1", {
+      ...SPEED,
+      counted: "speed problems",
+      explainIt: ["A car travels farther than a runner. Is it", "necessarily faster? Explain what speed measures,", "and why the time taken matters."],
+      real: {
+        title: "Measure your own speed",
+        need: "a tape measure (or count big steps), a stopwatch, chalk or two sticks, a grown-up",
+        steps: ["Mark a start and a finish 20 m apart on grass.", "A grown-up times you walking, then running.", "Speed = 20 ÷ your time. Who is faster: walking you or running you?"],
+        safe: "With a grown-up, on grass or a park path, far away from roads and cars.",
+      },
+    });
+  },
+  f2() {
+    game("f2", {
+      ...NEWTON,
+      counted: "Newton's law problems",
+      explainIt: ["Choose one of Newton's three laws.", "Explain it in your own words,", "and give an everyday example that shows it."],
+      real: {
+        title: "Coin drop and balloon rocket",
+        need: "a cup, a playing card, a coin, a balloon, string, a drinking straw, sticky tape",
+        steps: ["Put the card on the cup and the coin on the card. Flick the card away fast. Where does the coin go?", "Thread string through the straw and tie it across a room.", "A grown-up blows up the balloon. Tape it to the straw, then let go. Which way does it zoom?"],
+        safe: "A grown-up blows up the balloon. Keep balloon pieces away from small children.",
+      },
+    });
+  },
+  f3() {
+    game("f3", {
+      ...GRAV,
+      counted: "gravity problems",
+      explainIt: ["What is the difference between mass and weight?", "Why would your weight change on the Moon,", "while your mass stays exactly the same?"],
+      real: {
+        title: "Book and paper drop",
+        need: "a hardback book, a sheet of paper smaller than the book",
+        steps: ["Drop the book and the flat paper side by side. Which lands first?", "Now lay the paper flat ON TOP of the book and drop them together.", "Why does the paper keep up now? (The book blocks the air!)"],
+        safe: "Drop onto a soft rug, and keep toes and pets out of the way.",
+      },
+    });
+  },
+  f4() {
+    game("f4", {
+      ...FRICTION,
+      counted: "friction problems",
+      explainIt: ["Why does a skydiver stop speeding up?", "Use the words weight, air resistance,", "and balanced forces in your explanation."],
+      real: {
+        title: "Ramp racing and paper parachutes",
+        need: "a toy car, a board or big book for a ramp, a tape measure, a tissue, string, a small toy",
+        steps: ["Let the car roll down the ramp onto carpet, then onto a smooth floor. Measure how far it goes.", "Tie a tissue to a small toy with 4 strings to make a parachute.", "Drop it next to a toy without a parachute. Which lands last, and why?"],
+        safe: "Drop parachutes from standing height only. Never climb up high, and do this with a grown-up.",
+      },
+    });
+  },
+  f5() {
+    game("f5", {
+      ...ENERGY,
+      counted: "energy problems",
+      explainIt: ["Follow a roller-coaster car from the top to the bottom.", "Explain where its energy goes at each stage,", "and why it can never climb higher than its start."],
+      real: {
+        title: "The pendulum that never hits you",
+        need: "a string about 1 m long, a heavy washer or a sock with a small ball inside, a door frame",
+        steps: ["A grown-up ties the string to the top of a door frame.", "Hold the weight touching your chin. Release it gently; do not push it.", "Stand still. It swings back but never higher. Where did some energy go?"],
+        safe: "Use something soft and light, and only do this with a grown-up holding the string's top.",
+      },
+    });
+  },
+  f6() {
+    game("f6", {
+      ...MACHINES,
+      counted: "machine problems",
+      explainIt: ["A lever lets a small force lift a heavy load.", "Explain what you must give up in exchange,", "and why no machine can create extra energy."],
+      real: {
+        title: "A ruler lever",
+        need: "a 30 cm ruler, a pencil, some same coins",
+        steps: ["Lay the ruler across the pencil at the 15 cm mark: that's the pivot.", "Put 2 coins 5 cm from the pivot on one side.", "Where must 1 coin go on the other side to balance? (Try 10 cm!)"],
+        safe: "Keep coins away from little children who might put them in their mouth.",
+      },
+    });
+  },
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    f0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    f1: { icon: "🏃", title: "Speed", steps: ["Read the race. Predict the answer.", "Watch the test race.", "Read why. Press Next ▶."] },
+    f2: { icon: "🚀", title: "Newton's laws", steps: ["Predict what will happen.", "Watch the test.", "Read why it happens. Press Next ▶."] },
+    f3: { icon: "🌙", title: "Gravity & weight", steps: ["Predict the answer.", "Watch the test on Earth, the Moon or Mars.", "Read why. Press Next ▶."] },
+    f4: { icon: "🪂", title: "Friction & air", steps: ["Predict what will happen.", "Watch the test.", "Read why. Press Next ▶."] },
+    f5: { icon: "🎢", title: "Energy", steps: ["Predict the energy.", "Watch the bars change in the test.", "Read why. Press Next ▶."] },
+    f6: { icon: "⚙️", title: "Simple machines", steps: ["Predict the answer.", "Watch the machine work.", "Read why. Press Next ▶."] },
+  },
+  start: "f0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+    document.querySelector(".fe-real")?.remove();
+  },
+  subject: "Science",
+  activity: "Forces & Energy",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 76, 79, 82, 84, 85, 88]);
+MUSIC.preload("woodblock", [72, 76, 79, 84]);
+MUSIC.preload("timpani", [43]);
+MUSIC.preload("cello", [43]);
+</script>
+</body>
+</html>

@@ -1,0 +1,3301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Space & Astronomy · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="science">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Space & Astronomy</b><small>Science · Advanced</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, pickInt, wait, confetti, choices, explain, everyday, emoji, shuffle, numpad } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "s0", label: "See it", icon: "👀" },
+  { id: "s1", label: "1. Planets in order", icon: "🪐" },
+  { id: "s2", label: "2. Sizes & distances", icon: "📏" },
+  { id: "s3", label: "3. Day, year & seasons", icon: "🌍" },
+  { id: "s4", label: "4. Moon phases", icon: "🌙" },
+  { id: "s5", label: "5. Gravity & orbits", icon: "🚀" },
+  { id: "s6", label: "6. Stars & constellations", icon: "⭐" },
+  { id: "s7", label: "7. History of astronomy", icon: "🛰️" },
+  { id: "s8", label: "8. Space quiz", icon: "🧠" },
+];
+
+// ---------- colours & small helpers ----------
+const SKY = "#1c2340";
+const LIGHT = "#fff6e0";
+const GOLD = "#ffd166";
+const SOFT = "#c3c9ef";
+const GOOD = "#7ee0a1";
+const BAD = "#ff9b85";
+stage.style.background = SKY;
+
+const smooth = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+const lin = (t) => t;
+const tw = (ms, fn, live, ease = smooth) =>
+  new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(live());
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!live()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(ease(t));
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+const nap = (ms, live) => wait(KIT.still.matches ? Math.min(ms, 150) : ms).then(() => live());
+const T = (parent, x, y, str, size = 26, fill = LIGHT, extra = {}) => text(parent, x, y, str, { "font-size": size, fill, ...extra });
+const move = (node, x, y, extra = "") => node.setAttribute("transform", `translate(${x} ${y})${extra}`);
+const fmt = (n) => Number(n).toLocaleString("en-US");
+const rad = (d) => (d * Math.PI) / 180;
+
+function sky(v) {
+  el("rect", { x: 0, y: 0, width: W, height: H, fill: SKY }, v);
+  const defs = el("defs", {}, v);
+  defs.innerHTML = `<radialGradient id="spShade" cx="0.35" cy="0.32" r="0.8"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></radialGradient><radialGradient id="spSun" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff7c2"/><stop offset=".55" stop-color="#ffd23f"/><stop offset="1" stop-color="#ff9a1f"/></radialGradient><radialGradient id="spGlow" cx=".5" cy=".5" r=".5"><stop offset=".55" stop-color="#ffcf4d" stop-opacity=".5"/><stop offset="1" stop-color="#ffcf4d" stop-opacity="0"/></radialGradient>`;
+  let s = 11;
+  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 80; i++) el("circle", { cx: (rnd() * W).toFixed(1), cy: (rnd() * H).toFixed(1), r: (0.8 + rnd() * 1.6).toFixed(2), fill: "#fff", opacity: (0.25 + rnd() * 0.5).toFixed(2) }, v);
+}
+function fresh() {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  sky(view);
+  return view;
+}
+function drawSun(parent, x, y, r) {
+  const g = el("g", {}, parent);
+  el("circle", { cx: x, cy: y, r: r * 1.5, fill: "url(#spGlow)" }, g);
+  el("circle", { cx: x, cy: y, r, fill: "url(#spSun)" }, g);
+  return g;
+}
+
+// ---------- true planet facts (NASA fact-sheet values, rounded) ----------
+// d: mean diameter km · au: average distance from the Sun in AU · mkm: million km · yr: one trip around the Sun · g: gravity compared with Earth
+const PLANETS = [
+  { n: "Mercury", d: 4879, au: 0.39, mkm: 58, yrDays: 88, yr: "88 days", g: 0.38, col: "#b5aca3", fact: "the innermost and smallest planet, with almost no atmosphere" },
+  { n: "Venus", d: 12104, au: 0.72, mkm: 108, yrDays: 225, yr: "225 days", g: 0.91, col: "#e8c27a", fact: "the hottest planet: its thick carbon-dioxide atmosphere traps heat" },
+  { n: "Earth", d: 12742, au: 1, mkm: 150, yrDays: 365, yr: "365 days", g: 1, col: "#3f7fd6", fact: "the only world known to host life, with liquid water on its surface" },
+  { n: "Mars", d: 6779, au: 1.52, mkm: 228, yrDays: 687, yr: "687 days", g: 0.38, col: "#d0603a", fact: "the red planet: iron-oxide (rust) dust colours its surface" },
+  { n: "Jupiter", d: 139820, au: 5.2, mkm: 778, yrDays: 4333, yr: "12 years", g: 2.5, col: "#d9a066", fact: "the largest planet, a gas giant made mostly of hydrogen and helium" },
+  { n: "Saturn", d: 116460, au: 9.5, mkm: 1430, yrDays: 10759, yr: "29 years", g: 1.07, col: "#e6cf8b", ring: true, fact: "a gas giant with the most extensive rings, made of ice and rock" },
+  { n: "Uranus", d: 50724, au: 19.2, mkm: 2870, yrDays: 30687, yr: "84 years", g: 0.9, col: "#9fd9e0", fact: "an ice giant whose axis is tilted about 98°, so it rolls on its side" },
+  { n: "Neptune", d: 49244, au: 30.1, mkm: 4500, yrDays: 60190, yr: "165 years", g: 1.14, col: "#4f6fd6", fact: "the outermost planet, with the fastest winds measured in the solar system" },
+];
+const P = Object.fromEntries(PLANETS.map((p) => [p.n, p]));
+const EARTH_D = 12742;
+const SUN_D = 1392700;
+
+function drawPlanet(parent, x, y, r, p) {
+  const g = el("g", { transform: `translate(${x} ${y})` }, parent);
+  const name = p.n;
+  if (p.ring) el("ellipse", { rx: r * 1.8, ry: r * 0.5, fill: "none", stroke: "#d8c38a", "stroke-width": Math.max(2, r * 0.18), transform: "rotate(-16)" }, g);
+  el("circle", { r, fill: p.col }, g);
+  if (name === "Earth") {
+    for (const [cx, cy, rr] of [[-0.3, -0.2, 0.35], [0.25, 0.25, 0.3], [0.35, -0.35, 0.18]]) el("circle", { cx: cx * r, cy: cy * r, r: rr * r, fill: "#5bb267" }, g);
+  }
+  if (name === "Jupiter" || name === "Saturn") {
+    for (const yy of [-0.5, -0.18, 0.18, 0.5]) {
+      const hw = r * Math.sqrt(1 - yy * yy) * 0.97;
+      el("rect", { x: -hw, y: yy * r - r * 0.06, width: hw * 2, height: r * 0.12, rx: r * 0.06, fill: name === "Jupiter" ? "#b9824f" : "#cdb06c" }, g);
+    }
+    if (name === "Jupiter") el("ellipse", { cx: r * 0.32, cy: r * 0.32, rx: r * 0.16, ry: r * 0.09, fill: "#c4553a" }, g);
+  }
+  if (name === "Mars") el("ellipse", { cx: 0, cy: -r * 0.82, rx: r * 0.3, ry: r * 0.12, fill: "#fff", opacity: 0.85 }, g);
+  if (name === "Moon") for (const [cx, cy, rr] of [[-0.3, -0.25, 0.18], [0.3, 0.1, 0.14], [-0.05, 0.4, 0.12]]) el("circle", { cx: cx * r, cy: cy * r, r: rr * r, fill: "#aaa59b" }, g);
+  el("circle", { r, fill: "url(#spShade)" }, g);
+  if (p.ring) {
+    const a = r * 1.8;
+    const b = r * 0.5;
+    el("path", { d: `M${-a} 0 A${a} ${b} 0 0 0 ${a} 0`, fill: "none", stroke: "#e8d6a0", "stroke-width": Math.max(2, r * 0.18), transform: "rotate(-16)" }, g);
+  }
+  return g;
+}
+const MOON = { n: "Moon", col: "#d6d1c6" };
+
+// Moon phase seen from the north half of Earth. k = 0..7 (0 new, 2 first quarter, 4 full, 6 third quarter).
+const PHASES = ["New Moon", "Waxing crescent", "First quarter", "Waxing gibbous", "Full Moon", "Waning gibbous", "Third quarter", "Waning crescent"];
+const PHEMO = ["🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"];
+function drawPhase(parent, cx, cy, r, k) {
+  const f = k / 8;
+  const g = el("g", {}, parent);
+  el("circle", { cx, cy, r, fill: "#3b4060", stroke: "#8e93b8", "stroke-width": 2 }, g);
+  if (k === 0) return g;
+  if (k === 4) {
+    el("circle", { cx, cy, r, fill: "#f5edd0" }, g);
+  } else {
+    const c = Math.cos(2 * Math.PI * f);
+    const rx = Math.abs(c) * r;
+    const top = `${cx} ${cy - r}`;
+    const bot = `${cx} ${cy + r}`;
+    const d = f < 0.5 ? `M${top} A${r} ${r} 0 0 1 ${bot} A${rx} ${r} 0 0 ${c > 0 ? 0 : 1} ${top} Z` : `M${top} A${r} ${r} 0 0 0 ${bot} A${rx} ${r} 0 0 ${c > 0 ? 1 : 0} ${top} Z`;
+    el("path", { d, fill: "#f5edd0" }, g);
+  }
+  return g;
+}
+
+// ---------- level chips, Try-it cards ----------
+const LEVELS = [["easy", "🐣 Easy"], ["medium", "🦊 Medium"], ["hard", "🦁 Hard"]];
+const levelRow = (cur, tryIt = true) =>
+  `<div class="ap-row"><div class="ap-chips" data-levels>${LEVELS.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div>${tryIt ? `<button type="button" class="sp-trybtn" data-try>🏠 Try it</button>` : ""}<p class="ap-status" data-status></p></div>`;
+const onLevels = (id, fn) =>
+  $("[data-levels]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    shell.mark(id, { level: b.dataset.lv });
+    window.OC?.touch();
+    fn(b.dataset.lv);
+  });
+
+const spStyle = document.createElement("style");
+spStyle.textContent = `
+.sp-pick .kt-choices button{min-height:56px;min-width:84px;font-size:19px;border-radius:20px}
+.sp-pick .kt-choices button:disabled{opacity:.45}
+.sp-tap{cursor:pointer}
+.sp-padwrap .kt-pad{flex-direction:row;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px}
+.sp-trybtn{min-height:44px;padding:0 14px;border:0;border-radius:22px;background:var(--accent-soft);color:var(--accent-dark);box-shadow:0 3px 0 #d7e6d3;font:900 15px/1 var(--sans);cursor:pointer}
+.sp-try{position:fixed;inset:0;z-index:45;display:grid;place-items:center;padding:12px;background:rgba(43,29,18,.38);backdrop-filter:blur(3px)}
+.sp-try-card{width:min(820px,100%);max-height:100%;overflow:auto;padding:16px 22px;border-radius:26px;background:#fffdf8;box-shadow:0 20px 50px rgba(0,0,0,.25);color:#2b1d12;text-align:left}
+.sp-try-card h2{margin:0 0 6px;font:900 clamp(20px,3vw,28px)/1.15 var(--sans);text-align:center}
+.sp-safe{margin:0 auto 8px;width:fit-content;max-width:100%;padding:5px 12px;border-radius:12px;background:#fff1d6;color:#7a4208;font:800 clamp(14px,1.9vw,17px)/1.3 var(--sans);text-align:center}
+.sp-cols{display:grid;grid-template-columns:1fr 1.5fr;gap:6px 22px}
+.sp-try-card h3{margin:0 0 2px;font:900 16px var(--sans);color:var(--accent-dark)}
+.sp-try-card ul,.sp-try-card ol{margin:0;padding-left:1.25em;font:700 clamp(14px,1.9vw,18px)/1.35 var(--sans)}
+.sp-ask{margin:4px 0 8px;font:800 clamp(17px,2.4vw,22px)/1.35 var(--sans);text-align:center}.sp-model h3{margin:4px 0 2px}.sp-try-card .ap-buttons{margin-top:10px}
+.sp-notice{margin:10px 0 6px;padding:7px 12px;border-radius:12px;background:var(--accent-soft);font:700 clamp(14px,1.9vw,17px)/1.35 var(--sans)}
+.sp-try .kt-go{display:block;margin:6px auto 0}
+@media (max-width:600px){.sp-cols{grid-template-columns:1fr}}
+@media (max-height:460px){.sp-try-card{padding:8px 14px}.sp-try-card h2{font-size:18px;margin-bottom:3px}.sp-safe{margin-bottom:4px;font-size:13px}.sp-try-card ul,.sp-try-card ol{font-size:13.5px;line-height:1.25}.sp-ask{margin:4px 0 8px;font:800 clamp(17px,2.4vw,22px)/1.35 var(--sans);text-align:center}.sp-model h3{margin:4px 0 2px}.sp-try-card .ap-buttons{margin-top:10px}
+.sp-notice{margin:5px 0 3px;font-size:13.5px}.sp-try .kt-go{min-height:40px;font-size:17px;margin-top:2px}.sp-trybtn{min-height:32px;font-size:13px;padding:0 10px}}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){.sp-pick .kt-choices button{min-height:44px;min-width:64px;font-size:15.5px;padding:0 11px}}
+`;
+document.head.appendChild(spStyle);
+
+const TRY = {
+  s1: {
+    title: "Play-dough planets",
+    safe: "Do this with a grown-up. Play-dough is not food.",
+    need: ["Play-dough in a few colours", "A ruler", "A long table or the floor"],
+    steps: ["Make Earth as big as a pea (about 1 cm).", "Make Jupiter about 11 cm wide, Saturn about 9 cm, Uranus and Neptune about 4 cm.", "Make Venus like Earth, Mars half a pea, Mercury a tiny crumb.", "Line them up in order from the Sun and say their names."],
+    notice: "At this size the Sun would be about 1 metre wide, taller than a small child! Four small rocky planets are close to the Sun; four giants are far out.",
+  },
+  s2: {
+    title: "Toilet-paper solar system",
+    safe: "Do this with a grown-up, in a long hallway or outside. Roll the paper back up to use it later.",
+    need: ["A roll of toilet paper (about 80 sheets)", "8 sticky notes with the planet names", "A ball for the Sun"],
+    steps: ["Put the ball (the Sun) at the start of the hall.", "Unroll and stick notes at these sheets: Mercury 1, Venus 2, Earth 2½, Mars 4.", "Keep going: Jupiter 13, Saturn 24, Uranus 48, Neptune 75.", "Walk from the Sun to Neptune and look back."],
+    notice: "The first four planets are bunched up near the Sun. Then there are huge empty gaps. Space is mostly empty!",
+  },
+  s3: {
+    title: "Torch seasons",
+    safe: "Do this with a grown-up. Never shine the torch into anyone's eyes.",
+    need: ["A torch", "A sheet of squared paper", "A pencil"],
+    steps: ["Shine the torch straight down at the paper from 20 cm high. Draw round the light spot.", "Now tilt the torch, from the same height. Draw round the spot again.", "Count the squares inside each spot.", "Which spot is brighter?"],
+    notice: "Straight-down light makes a small, bright spot: that's summer sun. Slanted light spreads out and is weaker: that's winter sun.",
+  },
+  s4: {
+    title: "Lamp and ball Moon",
+    safe: "Do this with a grown-up. Lamp bulbs get hot: don't touch them.",
+    need: ["A lamp with no shade", "A ball stuck on a pencil (that's the Moon)", "A dark room"],
+    steps: ["Stand facing the lamp. Hold the ball out in front, a bit above your head.", "Turn slowly to your left in a circle, keeping the ball in front of you.", "Watch the lit part of the ball grow and shrink.", "Stop when the ball is opposite the lamp: full Moon!"],
+    notice: "Your head is Earth. The ball is always half lit. As it goes round, you see more or less of its lit half: the phases!",
+  },
+  s5: {
+    title: "Sock-ball orbit",
+    safe: "Outdoors, with a grown-up, far away from people and windows.",
+    need: ["A long sock", "A soft ball or rolled-up socks", "A piece of string about 1 metre long"],
+    steps: ["Put the ball in the sock and tie the string to it.", "Swing it gently in a circle beside you.", "The string pulls the ball inward, like gravity.", "Let go of the string (aim at grass!). Which way does the ball fly?"],
+    notice: "When you let go, the ball flies off in a straight line in the direction it was moving at that instant (then drops to the ground). Without a pull inward, there's no orbit. Gravity is the Moon's 'string'.",
+  },
+  s6: {
+    title: "Star-spotting and a constellation tube",
+    safe: "Go star-spotting with a grown-up. Never look at the Sun.",
+    need: ["A clear night", "A cardboard tube and black paper", "A pin or pencil to poke holes"],
+    steps: ["Outside at night, wait 10 minutes so your eyes get used to the dark.", "Look for the Big Dipper (north) or Orion (in winter).", "At home, draw a constellation on black paper and poke holes for its stars.", "Put it on the tube and look through it at a lamp."],
+    notice: "Are all the stars the same colour? Look for orange Betelgeuse and blue-white Rigel in Orion.",
+  },
+  s7: {
+    title: "Space-history timeline",
+    safe: "With a grown-up if you use scissors.",
+    need: ["A long strip of paper (about 1 metre)", "A ruler and a pencil", "Crayons"],
+    steps: ["Draw a line. Make 1 cm stand for 1 year, starting at 1957.", "Mark Sputnik (1957), first person in space (1961) and the Moon landing (1969).", "Add the first Space Station crew (2000) and the Curiosity rover landing on Mars (2012).", "Add your own birth year!"],
+    notice: "Only 12 years passed between the first satellite and people walking on the Moon.",
+  },
+  s8: {
+    title: "Moon diary",
+    safe: "Look at the Moon with a grown-up. Never look at the Sun.",
+    need: ["A notebook", "A pencil", "A window or garden"],
+    steps: ["Each evening for 2 weeks, look for the Moon.", "Draw its shape and write the date.", "Shade the dark part.", "Is the lit part growing or shrinking?"],
+    notice: "From new Moon to full Moon takes about 2 weeks. The whole cycle takes about 29½ days: about a month.",
+  },
+};
+function closeTry() {
+  const box = document.querySelector(".sp-try");
+  if (!box) return;
+  box.remove();
+  VOICE.hush();
+}
+function tryCard(id) {
+  const t = TRY[id];
+  if (!t) return;
+  closeTry();
+  const box = document.createElement("div");
+  box.className = "sp-try";
+  box.setAttribute("role", "dialog");
+  box.setAttribute("aria-label", "Try it for real");
+  box.innerHTML = `<div class="sp-try-card"><h2>🏠 Try it for real: ${t.title}</h2><p class="sp-safe">🤝 ${t.safe}</p><div class="sp-cols"><div><h3>You need</h3><ul>${t.need.map((x) => `<li>${x}</li>`).join("")}</ul></div><div><h3>Do this</h3><ol>${t.steps.map((x) => `<li>${x}</li>`).join("")}</ol></div></div><p class="sp-notice">👀 <b>Notice:</b> ${t.notice}</p><button type="button" class="kt-go" data-close>✓ Got it</button></div>`;
+  document.body.appendChild(box);
+  box.addEventListener("click", (event) => {
+    if (event.target === box || event.target.closest("[data-close]")) closeTry();
+  });
+  VOICE.speak(`Try it for real: ${t.title}. ${t.safe} You need: ${t.need.join(", ")}. ${t.steps.join(" ")} Notice: ${t.notice}`);
+}
+
+// ---------- "Explain it": say the idea aloud or write it, then compare with a model ----------
+const EXPLAIN = {
+  s0: { q: "Why do we have day and night, and why do we have years?", pts: ["Earth spins on its axis once about every 24 hours.", "The half facing the Sun has day; the other half has night.", "Earth also travels around the Sun; one complete orbit is a year, about 365¼ days."] },
+  s1: { q: "What is the pattern between a planet's distance from the Sun and the length of its year? Why might that be?", pts: ["The farther a planet is from the Sun, the longer its year.", "Its path around the Sun is longer, and it also moves more slowly, because the Sun's pull is weaker far away.", "Kepler described this precisely in his third law (1619)."] },
+  s2: { q: "Why can't one picture of the solar system show both the sizes and the distances to scale?", pts: ["The distances are enormous compared with the sizes.", "If Earth were 1 cm wide, the Sun would be about 109 cm wide and about 117 metres away.", "So a page that shows the planets clearly must squash the distances; space is mostly empty."] },
+  s3: { q: "What causes the seasons, and how do we know it is not Earth's distance from the Sun?", pts: ["Earth's axis is tilted about 23.4° (often rounded to 23½°) and keeps pointing the same way in space.", "The half tilted toward the Sun gets higher, more direct sunlight and longer days: summer.", "Earth is closest to the Sun in early January, during the northern winter, and the two hemispheres have opposite seasons, so distance cannot be the cause."] },
+  s4: { q: "Why does the Moon show phases? Use the words 'sunlit half' and 'orbit'.", pts: ["The Sun always lights one half of the Moon (its sunlit half).", "As the Moon travels in its orbit around Earth, we see different amounts of that sunlit half.", "A full cycle, new Moon to new Moon, takes about 29½ days."] },
+  s5: { q: "How can something in orbit be falling all the time and yet never hit the ground?", pts: ["Gravity pulls the object toward Earth's centre, so it is always falling.", "It also moves sideways very fast (about 7.8 km/s just above the air).", "As it falls, Earth's curved surface drops away beneath it at the same rate, so it falls around Earth instead of into it."] },
+  s6: { q: "What is a light-year, and why does looking at distant stars mean looking into the past?", pts: ["A light-year is a distance: how far light travels in one year, about 9.5 trillion km.", "Light from a star 100 light-years away took 100 years to reach us.", "So we see the star as it was when that light left it."] },
+  s7: { q: "Choose one milestone (a scientist or a mission) and explain what changed because of it.", pts: ["Name the milestone and its date.", "Say what was known or believed before it.", "Say what it showed or made possible afterwards, for example Galileo's moons of Jupiter showing that not everything orbits Earth."] },
+  s8: { q: "Teach a grown-up the fact from this quiz that surprised you most, and explain why it is true.", pts: ["State the fact precisely.", "Give the evidence or reasoning behind it.", "Connect it to another idea you learned (for example, tilt and seasons, or gravity and orbits)."] },
+};
+function explainCard(id) {
+  const t = EXPLAIN[id];
+  if (!t) return;
+  closeTry();
+  const box = document.createElement("div");
+  box.className = "sp-try";
+  box.setAttribute("role", "dialog");
+  box.setAttribute("aria-label", "Explain it");
+  box.innerHTML = `<div class="sp-try-card"><h2>🗣️ Explain it</h2><p class="sp-ask">${t.q}</p><p class="sp-safe">Say it aloud to a grown-up in 2–4 full sentences, or write it down. Then compare.</p><div class="sp-model" hidden><h3>A strong answer includes</h3><ul>${t.pts.map((x) => `<li>${x}</li>`).join("")}</ul></div><div class="ap-buttons"><button type="button" data-model>Show a model answer</button><button type="button" class="primary" data-close>✓ Done</button></div></div>`;
+  document.body.appendChild(box);
+  box.addEventListener("click", (event) => {
+    if (event.target === box || event.target.closest("[data-close]")) closeTry();
+    else if (event.target.closest("[data-model]")) {
+      box.querySelector(".sp-model").hidden = false;
+      event.target.closest("[data-model]").remove();
+      VOICE.speak(`A strong answer includes: ${t.pts.join(" ")}`);
+    }
+  });
+  window.OC?.count("ideas explained");
+  VOICE.speak(`Explain it. ${t.q} Say it aloud to a grown-up in two to four full sentences, or write it down.`);
+}
+function endButtons(host, id, again) {
+  host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-explain>🗣️ Explain it</button>${TRY[id] ? `<button type="button" data-trynow>🏠 Try it for real</button>` : ""}<button type="button" data-more>🔁 Again</button></div>`;
+  host.onclick = (event) => {
+    if (event.target.closest("[data-explain]")) explainCard(id);
+    else if (event.target.closest("[data-trynow]")) tryCard(id);
+    else if (event.target.closest("[data-more]")) again();
+  };
+}
+
+// ---------- the question engine ----------
+// q: { ask, draw(q, api), opts?, pad?, ans | check(v), hint(v), why, show(live), mark(v, ok), test(v, live), ansText }
+const NICE = ["Correct.", "Correct — and here is why:"];
+function game(id, cfg) {
+  const my = token;
+  const alive = () => my === token;
+  const R = cfg.rounds || 8;
+  let level = shell.progress()[id]?.level || "easy";
+  let round = 0;
+  let q = null;
+  let tries = 0;
+  let busy = false;
+  let gen = 0;
+  const bags = {};
+  const ctx = {
+    next(key, list) {
+      if (!bags[key]?.length) bags[key] = shuffle(list);
+      return bags[key].pop();
+    },
+  };
+  panel(`${levelRow(level, !!TRY[id])}<div class="sp-pick" data-choices></div>`);
+  const host = $("[data-choices]");
+  $("[data-try]")?.addEventListener("click", () => {
+    window.OC?.touch();
+    tryCard(id);
+  });
+  const status = (s) => {
+    const b = $("[data-status]");
+    if (b) b.textContent = s || `Question ${Math.min(round + 1, R)} of ${R}`;
+  };
+  const isRight = (v) => (q.check ? q.check(v) : v === q.ans);
+  const ask = () => {
+    if (!alive()) return;
+    q = cfg.make(level, round, ctx);
+    tries = 0;
+    busy = false;
+    const g = ++gen;
+    q.live = () => alive() && g === gen;
+    fresh();
+    q.draw?.(q, { pick: (v) => answer(v) });
+    status();
+    if (q.pad) {
+      host.onclick = null;
+      host.innerHTML = `<div class="sp-padwrap"></div>`;
+      q.padApi = numpad(host.firstChild, { max: q.max || 4, onEnter: (n) => answer(n) });
+    } else if (q.opts) choices(host, q.opts, (c, b) => answer(c.v, b));
+    else {
+      host.innerHTML = `<div class="ap-buttons"><button type="button" data-again>🔁 Say it again</button></div>`;
+      host.onclick = (event) => {
+        if (event.target.closest("[data-again]")) say(q.ask);
+      };
+    }
+    say(q.ask);
+    window.__spq = q;
+    window.__spPick = (val) => answer(val, host.querySelector(`[data-c="${q.opts ? q.opts.findIndex((o) => o.v === val) : -1}"]`) || undefined);
+  };
+  const answer = async (v, button) => {
+    if (!alive() || busy || !q) return;
+    window.OC?.touch();
+    const live = q.live;
+    if (q.test) {
+      busy = true;
+      host.querySelectorAll("[data-c]").forEach((b) => (b.disabled = true));
+      await q.test(v, live);
+      if (!live()) return;
+      host.querySelectorAll("[data-c]").forEach((b) => (b.disabled = b.classList.contains("wrong")));
+      busy = false;
+    }
+    if (isRight(v)) {
+      busy = true;
+      button?.classList.add("right");
+      host.querySelectorAll("[data-c]").forEach((b) => (b.disabled = b !== button));
+      q.mark?.(v, true);
+      MUSIC.chime();
+      say(`${tries ? "Correct — you revised your thinking." : pick(NICE)} ${q.why}`);
+      if (q.show) await q.show(live);
+      if (!live()) return;
+      return done();
+    }
+    tries += 1;
+    MUSIC.oops();
+    if (button) {
+      button.classList.add("wrong");
+      button.disabled = true;
+    }
+    q.mark?.(v, false);
+    q.padApi?.clear();
+    if (tries < 2) {
+      say(`Not quite. Consider: ${typeof q.hint === "function" ? q.hint(v) : q.hint || "what do you notice? Look again."}`);
+      return;
+    }
+    busy = true;
+    await sayAsync("Mistakes are how we learn. Let's look why.");
+    if (!live()) return;
+    let label = q.ansText;
+    if (q.opts) {
+      const i = q.opts.findIndex((o) => isRight(o.v));
+      const b = host.querySelector(`[data-c="${i}"]`);
+      b?.classList.add("right");
+      label = label ?? q.opts[i]?.label;
+      host.querySelectorAll("[data-c]").forEach((x) => (x.disabled = x !== b));
+    }
+    if (q.pad && q.padApi) q.padApi.set(q.ansText ?? q.ans);
+    q.mark?.(q.ans, true);
+    say(`The answer is <b>${label ?? q.ans}</b>. ${q.why}`);
+    if (q.show) await q.show(live);
+    if (!live()) return;
+    done();
+  };
+  const done = () => {
+    round += 1;
+    window.OC?.count(cfg.count || "space questions");
+    const last = round >= R;
+    status(`Question ${round} of ${R}`);
+    host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-next>${last ? "Finish ▶" : "Next ▶"}</button></div>`;
+    host.onclick = (event) => {
+      if (!event.target.closest("[data-next]")) return;
+      VOICE.hush();
+      if (last) finish();
+      else ask();
+    };
+  };
+  const finish = () => {
+    if (!alive()) return;
+    gen += 1;
+    confetti();
+    MUSIC.chime();
+    shell.mark(id, { done: true });
+    window.OC?.count("space games finished");
+    status(`All ${R} done`);
+    say(`All ${R} complete. You reasoned carefully and persisted. Now the most important step: explain the idea in your own words.`);
+    endButtons(host, id, () => {
+      round = 0;
+      ask();
+    });
+  };
+  onLevels(id, (lv) => {
+    level = lv;
+    round = 0;
+    ask();
+  });
+  ask();
+}
+// three choices from a list, always including the answer, in a fixed order
+const opt3 = (ans, pool, n = 3) => {
+  const rest = shuffle(pool.filter((x) => x !== ans)).slice(0, n - 1);
+  return shuffle([ans, ...rest]);
+};
+const labelled = (list, fn = (x) => String(x)) => list.map((x) => ({ label: fn(x), v: x }));
+
+// ---------- SEE IT ----------
+function seeIt() {
+  const my = token;
+  explain(
+    [
+      {
+        say: "Why study astronomy? Our calendar is built on Earth's orbit, the seasons follow from Earth's tilt, tides follow the Moon, and satellite navigation relies on orbits.",
+        async draw(v, api) {
+          sky(v);
+          await everyday([["📅", "Calendars"], ["🌸", "Seasons"], ["🌊", "Tides from the Moon"], ["🛰️", "GPS satellites for maps"]])(v, api);
+        },
+      },
+      {
+        say: "The Sun is a star. It appears large and bright only because it is near; every other star is a sun at an immense distance.",
+        async draw(v, api) {
+          sky(v);
+          const star = el("g", {}, v);
+          const glow = el("circle", { cx: 500, cy: 270, r: 6, fill: "url(#spGlow)" }, star);
+          const ball = el("circle", { cx: 500, cy: 270, r: 4, fill: "url(#spSun)" }, star);
+          const t1 = T(v, 500, 70, "A star far away…", 34, GOLD);
+          await api.wait(1400);
+          t1.textContent = "…is a sun, very far away!";
+          await api.tween(2400, (t) => {
+            const r = 4 + 150 * t;
+            ball.setAttribute("r", r);
+            glow.setAttribute("r", r * 1.5);
+          });
+          MUSIC.play("harp", 72, { gain: 0.35 });
+          const t2 = T(v, 500, 520, "Our Sun is a star, close to us.", 34, LIGHT, { opacity: 0 });
+          await api.tween(700, (t) => t2.setAttribute("opacity", t));
+        },
+      },
+      {
+        say: "Eight planets orbit the Sun. Inner planets complete their orbits quickly; outer planets take far longer. Earth takes one year.",
+        async draw(v, api) {
+          sky(v);
+          const cx = 500;
+          const cy = 290;
+          const radii = [62, 92, 125, 158, 228, 300, 380, 460];
+          const periods = [0.24, 0.62, 1, 1.88, 11.86, 29.46, 84, 164.8];
+          drawSun(v, cx, cy, 34);
+          const bodies = PLANETS.map((p, i) => {
+            el("ellipse", { cx, cy, rx: radii[i], ry: radii[i] * 0.48, fill: "none", stroke: "#4c557f", "stroke-width": 2 }, v);
+            const g = drawPlanet(v, 0, 0, [7, 9, 10, 8, 20, 17, 13, 13][i], p);
+            const tag = ["Earth", "Jupiter", "Saturn", "Neptune"].includes(p.n) ? T(v, 0, 0, p.n, 22, i === 2 ? GOLD : SOFT) : null;
+            return { g, tag, i, a0: (i * 47) % 360 };
+          });
+          const yearText = T(v, 500, 50, "Earth years: 0", 30, GOLD);
+          T(v, 500, 545, "Sizes and distances not to scale", 22, SOFT);
+          const place = (years) => {
+            for (const b of bodies) {
+              const a = rad(b.a0) - (2 * Math.PI * years) / periods[b.i];
+              const x = cx + radii[b.i] * Math.cos(a);
+              const y = cy + radii[b.i] * 0.48 * Math.sin(a);
+              move(b.g, x, y);
+              if (b.tag) {
+                b.tag.setAttribute("x", x);
+                b.tag.setAttribute("y", y + (b.i >= 4 ? 44 : 34));
+              }
+            }
+            yearText.textContent = `Earth years: ${Math.floor(years + 1e-6)}`;
+          };
+          place(0);
+          await api.wait(600);
+          await api.tween(16000, (t) => place(3 * t), lin);
+        },
+      },
+      {
+        say: "Jupiter is about 11 Earth-diameters across. The Sun is about 109.",
+        async draw(v, api) {
+          sky(v);
+          const a = el("g", {}, v);
+          drawPlanet(a, 500, 270, 220, P.Jupiter);
+          const head = T(v, 500, 34, "Jupiter", 30, GOLD);
+          const dots = [];
+          for (let i = 0; i < 11; i++) dots.push(drawPlanet(a, 300 + i * 40, 270, 19, P.Earth));
+          dots.forEach((d) => d.setAttribute("opacity", 0));
+          const count = T(v, 500, 545, "", 30, LIGHT);
+          for (let i = 0; i < 11; i++) {
+            dots[i].setAttribute("opacity", 1);
+            count.textContent = `${i + 1} Earth${i ? "s" : ""}`;
+            MUSIC.play("xylophone", 72 + [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17][i], { gain: 0.3 });
+            await api.wait(330);
+          }
+          await api.wait(1500);
+          await api.tween(700, (t) => a.setAttribute("opacity", 1 - t));
+          a.remove();
+          head.textContent = "The Sun";
+          el("path", { d: "M40 470 A460 460 0 0 1 960 470 Z", fill: "url(#spSun)" }, v);
+          const row = el("g", {}, v);
+          const d = 920 / 109.3;
+          let shown = 0;
+          await api.tween(3000, (t) => {
+            const n = Math.round(109 * t);
+            while (shown < n) {
+              el("circle", { cx: 40 + d / 2 + shown * d, cy: 470 + d / 2 + 2, r: d / 2 - 0.5, fill: "#3f7fd6" }, row);
+              shown += 1;
+            }
+            count.textContent = `${shown} Earths`;
+          }, lin);
+          count.textContent = "About 109 Earths across the Sun!";
+        },
+      },
+      {
+        say: "Space is mostly empty. Take one step to be the Sun–Earth distance, one astronomical unit. Neptune is then 30 steps away.",
+        async draw(v, api) {
+          sky(v);
+          const x0 = 80;
+          const xs = (au) => x0 + (au / 30.1) * 860;
+          drawSun(v, 20, 300, 50);
+          el("line", { x1: 70, x2: 950, y1: 300, y2: 300, stroke: "#4c557f", "stroke-width": 3, "stroke-dasharray": "4 8" }, v);
+          let last = -99;
+          PLANETS.forEach((p, i) => {
+            drawPlanet(v, xs(p.au), 300, 7, p);
+            if (xs(p.au) - last > 60 || i === 2) {
+              T(v, xs(p.au), i % 2 ? 350 : 268, p.n, 22, i === 2 ? GOLD : SOFT);
+              last = xs(p.au);
+            }
+          });
+          T(v, 500, 60, "1 step = 150 million km (Sun to Earth)", 28, GOLD);
+          const walker = el("g", {}, v);
+          emoji(walker, 0, 0, "🚶", 54, { transform: "scale(-1 1)" });
+          move(walker, x0, 210);
+          const steps = T(v, 500, 480, "Steps: 0", 34, LIGHT);
+          await api.wait(500);
+          let n = 0;
+          await api.tween(7000, (t) => {
+            const au = 30.1 * t;
+            move(walker, xs(au), 210);
+            const k = Math.floor(au + 1e-6);
+            if (k > n) {
+              n = k;
+              steps.textContent = `Steps: ${n}`;
+              el("ellipse", { cx: xs(n), cy: 400, rx: 6, ry: 10, fill: "#8e93b8" }, v);
+              MUSIC.play("woodblock", 79, { gain: 0.18 });
+            }
+          }, lin);
+          steps.textContent = "30 steps to Neptune, almost all empty space!";
+        },
+      },
+      {
+        say: "Earth rotates once a day, giving day and night. It completes one orbit of the Sun each year, in about 365¼ days.",
+        async draw(v, api) {
+          sky(v);
+          const cx = 470;
+          const cy = 290;
+          el("ellipse", { cx, cy, rx: 330, ry: 160, fill: "none", stroke: "#6c74a8", "stroke-width": 3, "stroke-dasharray": "10 10" }, v);
+          drawSun(v, cx, cy, 56);
+          const e = el("g", {}, v);
+          const spin = el("g", {}, e);
+          el("circle", { r: 34, fill: "#3f7fd6" }, spin);
+          for (const [x, y, r] of [[-12, -8, 12], [10, 9, 10], [13, -13, 6]]) el("circle", { cx: x, cy: y, r, fill: "#5bb267" }, spin);
+          const night = el("path", { d: "", fill: "#05081a", opacity: 0.55 }, e);
+          const days = T(v, 880, 260, "Day 0", 30, GOLD);
+          T(v, 880, 300, "spins: days", 22, SOFT);
+          T(v, 880, 330, "one trip: a year", 22, SOFT);
+          await api.tween(12000, (t) => {
+            const a = Math.PI - 2 * Math.PI * t;
+            const x = cx + 330 * Math.cos(a);
+            const y = cy + 160 * Math.sin(a);
+            move(e, x, y);
+            spin.setAttribute("transform", `rotate(${-t * 365 * 6})`);
+            const toSun = Math.atan2(cy - y, cx - x);
+            const back = toSun + Math.PI;
+            const p1 = [34 * Math.cos(back - Math.PI / 2), 34 * Math.sin(back - Math.PI / 2)];
+            const p2 = [34 * Math.cos(back + Math.PI / 2), 34 * Math.sin(back + Math.PI / 2)];
+            night.setAttribute("d", `M${p1[0]} ${p1[1]} A34 34 0 0 1 ${p2[0]} ${p2[1]} Z`);
+            days.textContent = `Day ${Math.round(365 * t)}`;
+          }, lin);
+          days.textContent = "365 days: 1 year!";
+          MUSIC.chime();
+        },
+      },
+      {
+        say: "Gravity pulls the Moon toward Earth, while its sideways motion carries it onward. It falls continually around Earth: that is an orbit.",
+        async draw(v, api) {
+          sky(v);
+          const cx = 420;
+          const cy = 285;
+          el("circle", { cx, cy, r: 200, fill: "none", stroke: "#6c74a8", "stroke-width": 3, "stroke-dasharray": "10 10" }, v);
+          drawPlanet(v, cx, cy, 70, P.Earth);
+          const m = el("g", {}, v);
+          drawPlanet(m, 0, 0, 24, MOON);
+          const pull = el("line", { stroke: BAD, "stroke-width": 7, "stroke-linecap": "round" }, v);
+          const side = el("line", { stroke: GOOD, "stroke-width": 7, "stroke-linecap": "round" }, v);
+          const key = el("g", {}, v);
+          el("rect", { x: 720, y: 200, width: 30, height: 8, fill: BAD, rx: 4 }, key);
+          T(key, 860, 214, "gravity pull", 24, LIGHT);
+          el("rect", { x: 720, y: 260, width: 30, height: 8, fill: GOOD, rx: 4 }, key);
+          T(key, 865, 274, "moving sideways", 24, LIGHT);
+          T(v, 840, 360, "= falling around!", 28, GOLD);
+          await api.tween(10000, (t) => {
+            const a = -Math.PI / 2 - 2 * Math.PI * 1.25 * t;
+            const x = cx + 200 * Math.cos(a);
+            const y = cy + 200 * Math.sin(a);
+            move(m, x, y);
+            pull.setAttribute("x1", x - 30 * Math.cos(a));
+            pull.setAttribute("y1", y - 30 * Math.sin(a));
+            pull.setAttribute("x2", x - 80 * Math.cos(a));
+            pull.setAttribute("y2", y - 80 * Math.sin(a));
+            const sx = Math.sin(a);
+            const sy = -Math.cos(a);
+            side.setAttribute("x1", x + 30 * sx);
+            side.setAttribute("y1", y + 30 * sy);
+            side.setAttribute("x2", x + 90 * sx);
+            side.setAttribute("y2", y + 90 * sy);
+          }, lin);
+        },
+      },
+      {
+        say: "Explain it. In two to four sentences, tell a grown-up why we have day and night, and why we have years. Use the words rotate and orbit.",
+        async draw(v, api) {
+          sky(v);
+          emoji(v, 500, 110, "🗣️", 90);
+          T(v, 500, 230, "Explain it", 40, GOLD);
+          const lines = ["Why do we have day and night?", "Why do we have years?", "Use the words rotate and orbit."];
+          for (let i = 0; i < lines.length; i++) {
+            const t = T(v, 500, 310 + i * 56, lines[i], 30, i === 2 ? SOFT : LIGHT, { opacity: 0 });
+            await api.tween(600, (k) => t.setAttribute("opacity", k));
+          }
+        },
+      },
+    ],
+    { alive: () => my === token, onDone: () => shell.go("s1"), title: "Space & Astronomy" }
+  );
+}
+
+// ---------- 1. PLANETS IN ORDER (drag or tap) ----------
+function orderGame() {
+  const id = "s1";
+  const my = token;
+  const alive = () => my === token;
+  let level = shell.progress()[id]?.level || "easy";
+  const MODES = {
+    easy: {
+      title: "Nearest the Sun  →  farthest",
+      ask: "Arrange the eight planets by distance from the Sun. Drag each to its place, or tap the planet that comes next.",
+      order: [...PLANETS],
+      tag: () => "",
+      hint: "Not quite. Consider: the four inner planets are small and rocky; the four outer ones are giants. A mnemonic helps: My Very Eager Mother Just Served Us Nachos.",
+      why: (p, i) => `${p.n} is planet ${i + 1}, about ${fmt(p.mkm)} million km from the Sun.`,
+      end: "The four rocky (terrestrial) planets lie close to the Sun; the four giant planets orbit far beyond them.",
+    },
+    medium: {
+      title: "Smallest  →  largest (diameter in km)",
+      ask: "Arrange the planets by diameter, smallest first. Compare the numbers carefully, then drag or tap.",
+      order: [...PLANETS].sort((a, b) => a.d - b.d),
+      tag: (p) => fmt(p.d),
+      hint: "Not quite. Consider: a number with fewer digits is smaller. With equal digits, compare the leading digit, then the next.",
+      why: (p) => `${p.n}, at ${fmt(p.d)} km, is the smallest remaining.`,
+      end: "Jupiter is the largest planet, about 11 Earth-diameters across; Mercury is the smallest.",
+    },
+    hard: {
+      title: "Shortest orbital period  →  longest",
+      ask: "A planet's orbital period is its year. Arrange them from shortest to longest. Mind the units: days and years are mixed.",
+      order: [...PLANETS].sort((a, b) => a.yrDays - b.yrDays),
+      tag: (p) => p.yr,
+      hint: "Not quite. Consider: convert to one unit first. One Earth year is about 365 days, so 687 days is nearly 2 years.",
+      why: (p) => `${p.n}'s year, ${p.yr}, is the shortest remaining.`,
+      end: "This is the same order as distance from the Sun. Kepler's third law (1619) states it exactly: the square of the period is proportional to the cube of the orbit's size.",
+    },
+  };
+  panel(`${levelRow(level)}<div class="sp-pick" data-choices></div>`);
+  const host = $("[data-choices]");
+  $("[data-try]").addEventListener("click", () => {
+    window.OC?.touch();
+    tryCard(id);
+  });
+  let placed = 0;
+  let wrongs = 0;
+  let busy = false;
+  let gen = 0;
+  let tokens = [];
+  let mode = MODES[level];
+  const SX = (i) => 175 + i * 108;
+  const SY = 150;
+  const status = () => {
+    const b = $("[data-status]");
+    if (b) b.textContent = `Placed ${placed} of 8`;
+  };
+  const toSvg = (event) => {
+    const p = view.createSVGPoint();
+    p.x = event.clientX;
+    p.y = event.clientY;
+    return p.matrixTransform(view.getScreenCTM().inverse());
+  };
+  const start = () => {
+    const g = ++gen;
+    const live = () => alive() && g === gen;
+    mode = MODES[level];
+    placed = 0;
+    wrongs = 0;
+    busy = false;
+    fresh();
+    drawSun(view, -40, SY, 150);
+    T(view, 560, 50, mode.title, 28, GOLD);
+    for (let i = 0; i < 8; i++) {
+      el("circle", { cx: SX(i), cy: SY, r: 42, fill: "#ffffff", opacity: 0.06, stroke: "#9aa3d6", "stroke-width": 2.5, "stroke-dasharray": "7 7" }, view);
+      T(view, SX(i), SY + 9, i + 1, 26, "#6c74a8");
+    }
+    const xs = shuffle([...Array(8).keys()]);
+    tokens = PLANETS.map((p, j) => {
+      const x = 70 + xs[j] * 123;
+      const y = 400;
+      const t = el("g", { class: "sp-tap", "data-n": p.n }, view);
+      el("circle", { r: 50, fill: "transparent" }, t);
+      const r = level === "easy" ? Math.min(36, 16 + 24 * Math.sqrt(p.d / 139820)) * (p.ring ? 0.8 : 1) : p.ring ? 24 : 30;
+      drawPlanet(t, 0, 0, r, p);
+      const halo = el("circle", { r: 46, fill: "none", stroke: GOLD, "stroke-width": 5, opacity: 0 }, t);
+      const name = T(t, 0, 66, p.n, 22, LIGHT);
+      const tag = mode.tag(p) ? T(t, 0, 92, mode.tag(p), 22, GOLD) : null;
+      move(t, x, y);
+      const tok = { p, g: t, x, y, home: [x, y], halo, name, tag, done: false };
+      wire(tok, live);
+      return tok;
+    });
+    status();
+    host.innerHTML = `<div class="ap-buttons"><button type="button" data-again>🔁 Say it again</button></div>`;
+    host.onclick = (event) => {
+      if (event.target.closest("[data-again]")) say(mode.ask);
+    };
+    say(mode.ask);
+  };
+  const wire = (tok, live) => {
+    let drag = null;
+    tok.g.addEventListener("pointerdown", (event) => {
+      if (!live() || busy || tok.done) return;
+      event.preventDefault();
+      try {
+        tok.g.setPointerCapture(event.pointerId);
+      } catch {}
+      const p = toSvg(event);
+      drag = { sx: p.x, sy: p.y, moved: false };
+      view.appendChild(tok.g);
+    });
+    tok.g.addEventListener("pointermove", (event) => {
+      if (!drag) return;
+      const p = toSvg(event);
+      const dx = p.x - drag.sx;
+      const dy = p.y - drag.sy;
+      if (Math.hypot(dx, dy) > 10) drag.moved = true;
+      if (drag.moved) move(tok.g, tok.x + dx, tok.y + dy);
+    });
+    const end = (event, cancel) => {
+      if (!drag) return;
+      const d = drag;
+      drag = null;
+      if (cancel) return back(tok, live);
+      let target = null;
+      if (!d.moved) target = firstEmpty();
+      else {
+        const p = toSvg(event);
+        const x = tok.x + (p.x - d.sx);
+        const y = tok.y + (p.y - d.sy);
+        let best = 90;
+        for (let i = 0; i < 8; i++) {
+          const dist = Math.hypot(SX(i) - x, SY - y);
+          if (dist < best && !tokens.some((t) => t.slot === i)) {
+            best = dist;
+            target = i;
+          }
+        }
+      }
+      if (target == null) return back(tok, live);
+      attempt(tok, target, live);
+    };
+    tok.g.addEventListener("pointerup", (event) => end(event, false));
+    tok.g.addEventListener("pointercancel", (event) => end(event, true));
+  };
+  const firstEmpty = () => {
+    for (let i = 0; i < 8; i++) if (!tokens.some((t) => t.slot === i)) return i;
+    return null;
+  };
+  const back = (tok, live) => {
+    const [x0, y0] = [Number(tok.g.transform.baseVal[0]?.matrix.e ?? tok.x), Number(tok.g.transform.baseVal[0]?.matrix.f ?? tok.y)];
+    tw(400, (t) => move(tok.g, x0 + (tok.x - x0) * t, y0 + (tok.y - y0) * t), live);
+  };
+  const place = async (tok, i, live) => {
+    tok.done = true;
+    tok.slot = i;
+    tok.halo.setAttribute("opacity", 0);
+    const x0 = tok.g.transform.baseVal[0]?.matrix.e ?? tok.x;
+    const y0 = tok.g.transform.baseVal[0]?.matrix.f ?? tok.y;
+    tok.x = SX(i);
+    tok.y = SY;
+    tok.name.setAttribute("y", 72);
+    if (tok.tag) tok.tag.setAttribute("y", 98);
+    await tw(500, (t) => move(tok.g, x0 + (SX(i) - x0) * t, y0 + (SY - y0) * t), live);
+    MUSIC.play("xylophone", 72 + [0, 2, 4, 5, 7, 9, 11, 12][i], { gain: 0.4 });
+    placed += 1;
+    wrongs = 0;
+    status();
+    window.OC?.count("planets placed");
+  };
+  const attempt = async (tok, i, live) => {
+    window.OC?.touch();
+    const want = mode.order[i];
+    if (tok.p === want) {
+      busy = true;
+      await place(tok, i, live);
+      if (!live()) return;
+      busy = false;
+      if (placed === 8) return finish(live);
+      say(level === "easy" ? `Correct. ${tok.p.n}: ${tok.p.fact}.` : `Correct. ${tok.p.n}: ${tok.tag ? tok.tag.textContent : ""}${level === "medium" ? " km" : ""}. Which comes next?`);
+      return;
+    }
+    back(tok, live);
+    MUSIC.oops();
+    wrongs += 1;
+    if (wrongs < 2) {
+      say(mode.hint);
+      return;
+    }
+    busy = true;
+    await sayAsync("Mistakes are how we learn. Let's look why.");
+    if (!live()) return;
+    const k = firstEmpty();
+    const right = tokens.find((t) => t.p === mode.order[k]);
+    right.halo.setAttribute("opacity", 1);
+    say(mode.why(right.p, k));
+    await nap(1600, live);
+    if (!live()) return;
+    await place(right, k, live);
+    if (!live()) return;
+    busy = false;
+    if (placed === 8) finish(live);
+  };
+  const finish = (live) => {
+    confetti();
+    MUSIC.chime();
+    shell.mark(id, { done: true });
+    window.OC?.count("space games finished");
+    const b = $("[data-status]");
+    if (b) b.textContent = "All 8 placed";
+    say(`All 8 placed. ${mode.end} Now explain the pattern in your own words.`);
+    endButtons(host, id, start);
+    void live;
+  };
+  onLevels(id, (lv) => {
+    level = lv;
+    start();
+  });
+  start();
+}
+
+// ---------- 2. SIZES & DISTANCES ----------
+function twoPlanets(q, api, a, b) {
+  const big = a.d > b.d ? a : b;
+  const scale = 170 / big.d;
+  const left = Math.random() < 0.5 ? a : b;
+  const right = left === a ? b : a;
+  T(view, 500, 46, "Drawn to scale", 24, SOFT);
+  [[left, 280], [right, 720]].forEach(([p, x]) => {
+    const r = Math.max(3, p.d * scale);
+    const g = el("g", { class: "sp-tap" }, view);
+    el("circle", { cx: x, cy: 270, r: Math.max(r, 80), fill: "transparent" }, g);
+    drawPlanet(g, x, 270, r, p);
+    T(g, x, 500, p.n, 32, LIGHT);
+    g.addEventListener("pointerdown", () => api.pick(p.n));
+    q.nodes = { ...(q.nodes || {}), [p.n]: g };
+  });
+}
+async function earthsAcross(target, live) {
+  const ratio = target.d / EARTH_D;
+  fresh();
+  if (target.n === "Sun") {
+    T(view, 500, 46, "The Sun", 30, GOLD);
+    el("path", { d: "M40 470 A460 460 0 0 1 960 470 Z", fill: "url(#spSun)" }, view);
+    const d = 920 / ratio;
+    const count = T(view, 500, 535, "", 30, LIGHT);
+    let shown = 0;
+    await tw(2600, (t) => {
+      const n = Math.round(109 * t);
+      while (shown < n) {
+        el("circle", { cx: 40 + d / 2 + shown * d, cy: 470 + d / 2 + 2, r: d / 2 - 0.5, fill: "#3f7fd6" }, view);
+        shown += 1;
+      }
+      count.textContent = `${shown} Earths`;
+    }, live, lin);
+    count.textContent = "About 109 Earths across the Sun";
+    return;
+  }
+  const D = ratio >= 8 ? 440 : 380;
+  const d = D / ratio;
+  T(view, 500, 40, target.n, 30, GOLD);
+  drawPlanet(view, 500, 270, D / 2, target);
+  const n = Math.round(ratio);
+  const count = T(view, 500, 535, "", 30, LIGHT);
+  for (let i = 0; i < n; i++) {
+    drawPlanet(view, 500 - D / 2 + d / 2 + i * d, 270, d / 2 - 1, P.Earth);
+    count.textContent = `${i + 1} Earth${i ? "s" : ""}`;
+    MUSIC.play("xylophone", 72 + Math.min(24, i * 2), { gain: 0.3 });
+    if (!(await nap(300, live))) return;
+  }
+  count.textContent = `About ${n} Earths across ${target.n}`;
+}
+// A walk from the Sun along a straight line. stepAu: AU per step. labels: which planets to name.
+function walkStrip(target, { names = null, tapNames = null, api = null } = {}) {
+  const x0 = 80;
+  const xs = (au) => x0 + (au / target.au) * 840;
+  drawSun(view, 20, 300, 50);
+  el("line", { x1: 70, x2: 950, y1: 300, y2: 300, stroke: "#4c557f", "stroke-width": 3, "stroke-dasharray": "4 8" }, view);
+  const list = PLANETS.filter((p) => p.au <= target.au + 1e-9 && (!names || names.includes(p.n)));
+  let last = -99;
+  let row = 0;
+  const nodes = {};
+  for (const p of list) {
+    const x = xs(p.au);
+    const g = el("g", { class: tapNames ? "sp-tap" : "" }, view);
+    if (tapNames) el("circle", { cx: x, cy: 300, r: 55, fill: "transparent" }, g);
+    drawPlanet(g, x, 300, tapNames ? 18 : 9, p);
+    if (x - last > 70 || p === target || tapNames) {
+      T(g, x, row % 2 ? 360 : 262, p.n, tapNames ? 30 : 22, p === target ? GOLD : SOFT);
+      last = x;
+      row += 1;
+    }
+    if (tapNames) g.addEventListener("pointerdown", () => api.pick(p.n));
+    nodes[p.n] = g;
+  }
+  return { xs, nodes };
+}
+async function walk(target, stepMkm, live) {
+  fresh();
+  const { xs } = walkStrip(target);
+  const total = target.mkm / stepMkm;
+  T(view, 500, 60, stepMkm === 150 ? "1 step = 150 million km (Sun to Earth)" : `1 step = ${stepMkm} million km`, 28, GOLD);
+  const walker = el("g", {}, view);
+  emoji(walker, 0, 0, "🚶", 54, { transform: "scale(-1 1)" });
+  move(walker, 80, 200);
+  const steps = T(view, 500, 470, "Steps: 0", 34, LIGHT);
+  const every = Math.max(1, Math.ceil(total / 40));
+  let n = 0;
+  const ok = await tw(Math.min(6000, 1500 + total * 120), (t) => {
+    const au = target.au * t;
+    move(walker, xs(au), 200);
+    const k = Math.floor(total * t + 1e-6);
+    if (k > n) {
+      n = k;
+      steps.textContent = `Steps: ${n}`;
+      if (n % every === 0) {
+        el("ellipse", { cx: xs((n / total) * target.au), cy: 405, rx: 5, ry: 9, fill: "#8e93b8" }, view);
+        MUSIC.play("woodblock", 79, { gain: 0.15 });
+      }
+    }
+  }, live, lin);
+  if (!ok) return;
+  steps.textContent = `About ${fmt(Math.round(total * 10) / 10)} steps, mostly empty space!`;
+}
+// A "worksheet" scene: the given facts, written clearly.
+function sheet(title, lines, y0 = 150) {
+  T(view, 500, 64, title, 30, GOLD);
+  lines.forEach((ln, i) => T(view, 500, y0 + i * 56, ln, i === lines.length - 1 && /\?$/.test(ln) ? 36 : 28, i === lines.length - 1 && /\?$/.test(ln) ? LIGHT : SOFT));
+}
+const SIZE_BANK = {
+  easy: [
+    function bigger(ctx) {
+      const pairs = [];
+      for (const a of PLANETS) for (const b of PLANETS) if (a.d / b.d >= 1.8) pairs.push([a, b]);
+      const [big, small] = ctx.next("szpair", pairs);
+      return {
+        ask: `Which has the larger diameter (width across): ${small.n} or ${big.n}?`,
+        draw: (q, api) => twoPlanets(q, api, big, small),
+        opts: shuffle([big, small]).map((p) => ({ label: p.n, v: p.n })),
+        ans: big.n,
+        hint: "the two are drawn to the same scale. Which circle is wider?",
+        why: `${big.n} (${fmt(big.d)} km) is about ${Math.round((big.d / small.d) * 10) / 10} times as wide as ${small.n} (${fmt(small.d)} km).`,
+      };
+    },
+    function farther(ctx) {
+      const pairs = [];
+      for (const a of PLANETS) for (const b of PLANETS) if (a.au > b.au) pairs.push([a, b]);
+      const [far, near] = ctx.next("dpair", pairs);
+      return {
+        ask: `Which orbits farther from the Sun: ${near.n} or ${far.n}?`,
+        draw: (q, api) => walkStrip(far, { names: [far.n, near.n], tapNames: true, api }),
+        opts: shuffle([far, near]).map((p) => ({ label: p.n, v: p.n })),
+        ans: far.n,
+        hint: "the Sun is at the left. Which planet lies farther along the line?",
+        why: `${far.n} averages about ${fmt(far.mkm)} million km from the Sun; ${near.n} about ${fmt(near.mkm)} million km. Sunlight weakens with distance.`,
+      };
+    },
+    function across(ctx) {
+      const t = ctx.next("szm", ["Jupiter", "Saturn", "Uranus", "Sun", "Neptune"]);
+      const target = t === "Sun" ? { n: "Sun", d: SUN_D } : P[t];
+      const ratio = Math.round(target.d / EARTH_D);
+      const pool = t === "Sun" ? [11, 109, 1000] : ratio > 8 ? [2, ratio, 100] : [ratio, 20, 100];
+      return {
+        ask: `Estimate: about how many Earths, side by side, would span the diameter of ${t === "Sun" ? "the Sun" : t}?`,
+        draw() {
+          if (t === "Sun") {
+            T(view, 500, 46, "Not to scale: the Sun is far larger", 26, SOFT);
+            drawSun(view, 380, 300, 200);
+            drawPlanet(view, 800, 300, 10, P.Earth);
+            T(view, 800, 345, "Earth", 26, LIGHT);
+          } else {
+            T(view, 500, 46, "Drawn to scale", 24, SOFT);
+            drawPlanet(view, 380, 280, 200, target);
+            drawPlanet(view, 800, 280, 200 / (target.d / EARTH_D), P.Earth);
+            T(view, 380, 520, t, 30, LIGHT);
+            T(view, 800, 520, "Earth", 30, LIGHT);
+          }
+        },
+        opts: labelled([...pool].sort((a, b) => a - b), fmt),
+        ans: ratio,
+        hint: "imagine laying Earths across the middle. A handful, about ten, or a great many?",
+        why: `About ${ratio} Earth-diameters span ${t === "Sun" ? "the Sun" : t}.`,
+        show: (live) => earthsAcross(target, live),
+      };
+    },
+    function marsHalf() {
+      return {
+        ask: "How does the diameter of Mars compare with Earth's?",
+        draw: (q, api) => twoPlanets(q, api, P.Earth, P.Mars),
+        opts: labelled(["About half as wide", "About the same", "About twice as wide"]),
+        ans: "About half as wide",
+        hint: "could two of Mars fit across Earth?",
+        why: "Mars is 6,779 km across and Earth 12,742 km: Mars is roughly half Earth's diameter.",
+      };
+    },
+    function auSteps(ctx) {
+      const t = ctx.next("dm", ["Mars", "Jupiter", "Saturn", "Uranus", "Neptune"]);
+      const p = P[t];
+      const steps = { Mars: "1½", Jupiter: "5", Saturn: "about 10", Uranus: "19", Neptune: "30" }[t];
+      const pool = { Mars: ["1½", "15", "100"], Jupiter: ["1", "5", "50"], Saturn: ["2", "10", "100"], Uranus: ["4", "19", "190"], Neptune: ["3", "30", "300"] }[t];
+      const ans = { Mars: "1½", Jupiter: "5", Saturn: "10", Uranus: "19", Neptune: "30" }[t];
+      return {
+        ask: `Astronomers call the Sun–Earth distance 1 AU (astronomical unit), about 150 million km. Roughly how many AU from the Sun is ${t}?`,
+        draw() {
+          walkStrip(p, { names: ["Earth", t] });
+          T(view, 500, 60, "1 step = 1 AU = Sun to Earth", 28, GOLD);
+        },
+        opts: labelled(pool, (x) => `${x} AU`),
+        ans,
+        hint: `Earth marks 1 AU. How many of those gaps fit between the Sun and ${t}?`,
+        why: `${t} averages about ${fmt(p.mkm)} million km from the Sun: ${steps} AU. The space between planets is almost entirely empty.`,
+        show: (live) => walk(p, 150, live),
+      };
+    },
+    function rocky() {
+      return {
+        ask: "Which description fits the four inner planets: Mercury, Venus, Earth and Mars?",
+        draw() {
+          walkStrip(P.Mars, {});
+        },
+        opts: labelled(["Small and rocky", "Giants of gas and ice", "Made of ice only"]),
+        ans: "Small and rocky",
+        hint: "Earth is one of them. What is Earth's surface made of?",
+        why: "The inner four are terrestrial (rocky) planets. Jupiter and Saturn are gas giants; Uranus and Neptune are ice giants.",
+      };
+    },
+  ],
+  medium: [
+    function divide(ctx) {
+      const t = ctx.next("szh", [["Jupiter", "Earth"], ["Saturn", "Earth"], ["Uranus", "Earth"], ["Sun", "Earth"], ["Jupiter", "Mars"], ["Neptune", "Mercury"], ["Saturn", "Venus"], ["Sun", "Jupiter"]]);
+      const big = t[0] === "Sun" ? { n: "the Sun", d: SUN_D } : P[t[0]];
+      const small = P[t[1]];
+      const ratio = big.d / small.d;
+      const ans = Math.round(ratio);
+      return {
+        ask: `${cap(big.n)} is ${fmt(big.d)} km wide; ${small.n} is ${fmt(small.d)} km wide. About how many ${small.n}-diameters span ${big.n}? Round to a whole number.`,
+        draw() {
+          sheet("Estimate by rounding first", [`${fmt(big.d)} ≈ ${fmt(roundTo(big.d))}`, `${fmt(small.d)} ≈ ${fmt(roundTo(small.d))}`, `${fmt(big.d)} ÷ ${fmt(small.d)} ≈ ?`], 180);
+        },
+        pad: true,
+        check: (v) => Math.abs(v - ratio) < (ratio > 50 ? 1.5 : 0.75),
+        ans,
+        hint: "use the rounded numbers. How many of the smaller fit into the larger?",
+        why: `${fmt(big.d)} ÷ ${fmt(small.d)} ≈ ${Math.round(ratio * 10) / 10}, so about ${ans}.`,
+        show: small.n === "Earth" ? (live) => earthsAcross(t[0] === "Sun" ? { n: "Sun", d: SUN_D } : big, live) : null,
+      };
+    },
+    function tenSteps(ctx) {
+      const t = ctx.next("dh", ["Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune"]);
+      const p = P[t];
+      const exact = p.mkm / 10;
+      return {
+        ask: `Let 1 step = 10 million km. ${t} is about ${fmt(p.mkm)} million km from the Sun. How many steps is that?`,
+        draw() {
+          walkStrip(p, { names: ["Earth", t] });
+          T(view, 500, 60, "1 step = 10 million km", 28, GOLD);
+          T(view, 500, 470, `${fmt(p.mkm)} ÷ 10 = ?`, 32, LIGHT);
+        },
+        pad: true,
+        check: (v) => Math.abs(v - exact) <= 0.8,
+        ans: Math.round(exact),
+        hint: "what does dividing by 10 do to each digit's place value?",
+        why: `${fmt(p.mkm)} ÷ 10 = ${exact}. Nearly every one of those steps crosses empty space.`,
+        show: (live) => walk(p, 10, live),
+      };
+    },
+    function auToKm(ctx) {
+      const [t, au] = ctx.next("auk", [["Mars", 1.5], ["Jupiter", 5.2], ["Saturn", 9.5], ["Uranus", 19.2], ["Neptune", 30]]);
+      const exact = Math.round(au * 150 * 10) / 10;
+      return {
+        ask: `${t} is about ${au} AU from the Sun, and 1 AU ≈ 150 million km. About how many million km is that?`,
+        draw() {
+          sheet("Convert AU to kilometres", ["1 AU ≈ 150 million km", `${t}: ${au} AU`, `${au} × 150 = ?`], 180);
+        },
+        pad: true,
+        check: (v) => Math.abs(v - exact) <= 1,
+        ans: exact,
+        hint: `split the multiplication: ${Math.floor(au)} × 150, then add ${Math.round((au % 1) * 10) / 10} × 150.`,
+        why: `${au} × 150 = ${fmt(exact)} million km. The AU keeps such numbers small.`,
+      };
+    },
+    function moonEarths() {
+      return {
+        ask: "The Moon is about 384,400 km away; Earth is 12,742 km wide. About how many Earths, lined up, would reach the Moon?",
+        draw() {
+          drawPlanet(view, 90, 280, 30, P.Earth);
+          drawPlanet(view, 930, 280, 8, MOON);
+          for (let i = 1; i < 30; i++) el("circle", { cx: 90 + i * 28, cy: 280, r: 13, fill: "none", stroke: "#4c557f", "stroke-width": 2 }, view);
+          T(view, 500, 200, "384,400 ÷ 12,742 ≈ ?", 34, LIGHT);
+          T(view, 500, 400, "Hint: 384,000 ÷ 13,000", 26, SOFT);
+        },
+        pad: true,
+        check: (v) => v >= 29 && v <= 31,
+        ans: 30,
+        hint: "round to 390,000 ÷ 13,000. How many 13s make 390?",
+        why: "384,400 ÷ 12,742 ≈ 30. About 30 Earths would bridge the gap, far more than most diagrams suggest.",
+      };
+    },
+  ],
+  hard: [
+    function scaleSun(ctx) {
+      const n = ctx.next("scs", [1, 2, 3]);
+      const exact = (SUN_D / EARTH_D) * n;
+      return {
+        ask: `Build a scale model in which Earth's 12,742 km diameter becomes ${n} cm. The Sun is 1,392,700 km wide. How wide is the model Sun, in cm (nearest whole number)?`,
+        draw() {
+          sheet("Scale model", [`Earth: 12,742 km → ${n} cm`, "Sun: 1,392,700 km → ? cm", "scale factor = 1,392,700 ÷ 12,742"], 190);
+        },
+        pad: true,
+        check: (v) => Math.abs(v - exact) <= 1,
+        ans: Math.round(exact),
+        hint: "first find how many times wider the Sun is than Earth, then multiply by the model Earth's size.",
+        why: `1,392,700 ÷ 12,742 ≈ 109.3, and 109.3 × ${n} ≈ ${Math.round(exact)} cm.`,
+      };
+    },
+    function scaleGap(ctx) {
+      const n = ctx.next("scg", [1, 2]);
+      const exact = (150e6 / EARTH_D) * n / 100;
+      return {
+        ask: `In the same kind of model, Earth is ${n} cm wide. The Sun is 150,000,000 km from Earth. How far away is the model Sun, in metres (nearest whole number)?`,
+        draw() {
+          sheet("Scale model: distance", [`12,742 km → ${n} cm`, "150,000,000 km → ? cm", "then convert: 100 cm = 1 m"], 190);
+        },
+        pad: true,
+        max: 5,
+        check: (v) => Math.abs(v - exact) <= 1,
+        ans: Math.round(exact),
+        hint: "how many Earth-diameters fit in 150,000,000 km? Each is worth the model Earth's size.",
+        why: `150,000,000 ÷ 12,742 ≈ 11,772 Earth-diameters; × ${n} cm ≈ ${fmt(Math.round(11772 * n))} cm ≈ ${Math.round(exact)} m. A ${n}-cm Earth with its Sun more than a football pitch away!`,
+      };
+    },
+    function lightMin(ctx) {
+      const [t, au] = ctx.next("lm", [["Mars", 1.52], ["Jupiter", 5.2], ["Saturn", 9.5], ["Neptune", 30.1]]);
+      const exact = au * 8.3;
+      return {
+        ask: `Sunlight takes about 8.3 minutes to travel 1 AU. ${t} is ${au} AU from the Sun. How many minutes does sunlight take to reach it (nearest whole number)?`,
+        draw() {
+          sheet("Light-travel time", ["1 AU ↔ 8.3 minutes", `${t}: ${au} AU`, `${au} × 8.3 = ?`], 190);
+        },
+        pad: true,
+        check: (v) => Math.abs(v - exact) <= 1,
+        ans: Math.round(exact),
+        hint: `${au} × 8 first, then add ${au} × 0.3.`,
+        why: `${au} × 8.3 ≈ ${Math.round(exact * 10) / 10} minutes. Signals to and from spacecraft there take this long each way.`,
+      };
+    },
+    function lightHours() {
+      return {
+        ask: "Neptune is 30 AU from the Sun, and light crosses 1 AU in about 8.3 minutes. To the nearest hour, how long does sunlight take to reach Neptune?",
+        draw() {
+          sheet("Minutes to hours", ["30 × 8.3 minutes = ?", "60 minutes = 1 hour", "hours ≈ ?"], 190);
+        },
+        pad: true,
+        check: (v) => v === 4,
+        ans: 4,
+        hint: "30 × 8.3 = 249 minutes. How many 60s are in 249?",
+        why: "30 × 8.3 = 249 minutes ≈ 4.15 hours, so about 4 hours.",
+      };
+    },
+    function auModel() {
+      return {
+        ask: "Shrink the solar system so that 1 AU = 1 metre. The nearest star beyond the Sun, Proxima Centauri, is about 268,000 AU away. How many kilometres away is it in this model?",
+        draw() {
+          sheet("1 AU → 1 metre", ["Neptune: 30 m away", "Proxima Centauri: 268,000 AU", "268,000 m = ? km"], 190);
+        },
+        pad: true,
+        check: (v) => v === 268,
+        ans: 268,
+        hint: "1,000 m make 1 km. Divide by 1,000.",
+        why: "268,000 m = 268 km. Neptune is 30 m from the model Sun, but the next star is 268 km away: interstellar space is vast.",
+      };
+    },
+    function voyager() {
+      return {
+        ask: "Voyager 1, the most distant spacecraft, travels about 17 km every second. About how many km does it travel in one hour (3,600 seconds)?",
+        draw() {
+          emoji(view, 160, 260, "🛰️", 100);
+          sheet("Rate × time", ["17 km each second", "1 hour = 3,600 s", "17 × 3,600 = ?"], 190);
+        },
+        pad: true,
+        max: 5,
+        check: (v) => v === 61200,
+        ans: 61200,
+        ansText: "61,200",
+        hint: "17 × 3,600 = 17 × 36 × 100. Find 17 × 36 first.",
+        why: "17 × 36 = 612, so 17 × 3,600 = 61,200 km per hour. Even so, it would need tens of thousands of years to reach another star.",
+      };
+    },
+    function cube() {
+      return {
+        ask: "Jupiter's diameter is about 11 times Earth's. Volume grows with the cube of the diameter. About how many Earths could fit inside Jupiter (ignoring gaps)?",
+        draw() {
+          drawPlanet(view, 330, 280, 200, P.Jupiter);
+          drawPlanet(view, 730, 280, 18, P.Earth);
+          T(view, 800, 420, "11 × 11 × 11 = ?", 30, LIGHT);
+        },
+        opts: labelled([11, 121, 1331], fmt),
+        ans: 1331,
+        hint: "volume depends on width, depth and height. Each is 11 times larger.",
+        why: "11³ = 1,331. The real figure is about 1,300 Earths' worth of volume.",
+      };
+    },
+  ],
+};
+const sizes = {
+  count: "size and distance questions",
+  make(level, round, ctx) {
+    return ctx.next(`sz-${level}`, SIZE_BANK[level])(ctx);
+  },
+};
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+const roundTo = (n) => {
+  const mag = 10 ** (String(Math.round(n)).length - 2);
+  return Math.round(n / mag) * mag;
+};
+
+// ---------- 3. DAY, YEAR & SEASONS ----------
+const OX = 390;
+const OY = 285;
+const RX = 300;
+const RY = 150;
+const POS = { jun: 180, sep: 90, dec: 0, mar: -90 };
+const MONTH = {
+  jun: { label: "June", elev: 73.5, hours: 15 },
+  sep: { label: "September", elev: 50, hours: 12 },
+  dec: { label: "December", elev: 26.5, hours: 9 },
+  mar: { label: "March", elev: 50, hours: 12 },
+};
+const onOrbit = (deg) => [OX + RX * Math.cos(rad(deg)), OY + RY * Math.sin(rad(deg))];
+function tiltEarth(parent) {
+  const g = el("g", {}, parent);
+  el("circle", { r: 32, fill: "#3f7fd6" }, g);
+  for (const [x, y, r] of [[-10, -8, 11], [9, 9, 9], [12, -13, 6]]) el("circle", { cx: x, cy: y, r, fill: "#5bb267" }, g);
+  el("circle", { r: 32, fill: "url(#spShade)" }, g);
+  const t = rad(23.5);
+  el("line", { x1: -48 * Math.sin(t), y1: 48 * Math.cos(t), x2: 48 * Math.sin(t), y2: -48 * Math.cos(t), stroke: "#fff", "stroke-width": 4, "stroke-linecap": "round" }, g);
+  T(g, 60 * Math.sin(t) + 8, -60 * Math.cos(t), "N", 22, GOLD);
+  return g;
+}
+function rays(parent, x0, x1, groundY, elev, topY) {
+  // sunlight coming from the upper left at angle elev, a 56-wide beam centred on the middle of the box
+  const g = el("g", {}, parent);
+  const mid = (x0 + x1) / 2 + 20;
+  const e = rad(elev);
+  const w = 56 / Math.sin(e);
+  el("rect", { x: mid - w / 2, y: groundY - 6, width: w, height: 12, rx: 6, fill: "#ffd23f" }, g);
+  for (const k of [-1, 0, 1]) {
+    const gx = mid + (k * w) / 2;
+    const L = Math.min((gx - x0 - 4) / Math.cos(e), (groundY - topY) / Math.sin(e));
+    el("line", { x1: gx - L * Math.cos(e), y1: groundY - L * Math.sin(e), x2: gx, y2: groundY - 8, stroke: "#ffd23f", "stroke-width": 4, "stroke-linecap": "round" }, g);
+  }
+  return { g, w };
+}
+function orbitScene(q, api, { at = "jun", tap = false } = {}) {
+  const v = view;
+  el("ellipse", { cx: OX, cy: OY, rx: RX, ry: RY, fill: "none", stroke: "#6c74a8", "stroke-width": 3, "stroke-dasharray": "10 10" }, v);
+  drawSun(v, OX, OY, 58);
+  const ghosts = {};
+  for (const [key, a] of Object.entries(POS)) {
+    const [x, y] = onOrbit(a);
+    const g = el("g", { class: "sp-tap", "data-k": key }, v);
+    const ring = el("circle", { cx: x, cy: y, r: 46, fill: "#fff", "fill-opacity": 0.06, stroke: "#9aa3d6", "stroke-width": 2, "stroke-dasharray": "6 6" }, g);
+    T(g, key === "mar" ? x + 112 : x, key === "mar" ? y + 8 : y + 70, MONTH[key].label, 22, SOFT);
+    ghosts[key] = { g, ring };
+  }
+  const earth = tiltEarth(v);
+  let cur = POS[at];
+  const put = (deg) => move(earth, ...onOrbit(deg));
+  put(cur);
+  // inset: noon sun at a place 40 degrees north
+  const box = el("g", {}, v);
+  el("rect", { x: 752, y: 60, width: 240, height: 450, rx: 20, fill: "#2a3260", stroke: "#4c557f", "stroke-width": 2 }, box);
+  T(box, 872, 94, "Noon Sun at 40° N", 22, LIGHT);
+  el("rect", { x: 764, y: 360, width: 216, height: 44, fill: "#5c8f4e" }, box);
+  const inner = el("g", {}, box);
+  const draw = (key) => {
+    inner.innerHTML = "";
+    rays(inner, 764, 980, 360, MONTH[key].elev, 120);
+    T(inner, 872, 448, MONTH[key].label, 24, GOLD);
+    T(inner, 872, 484, `${q.hideHours ? "?" : MONTH[key].hours} h of daylight`, 22, LIGHT);
+  };
+  draw(at);
+  const goTo = async (key, live = q.live) => {
+    let target = POS[key];
+    while (target > cur) target -= 360;
+    const from = cur;
+    const okay = await tw(Math.max(500, (from - target) * 8), (t) => put(from + (target - from) * t), live);
+    cur = ((target % 360) + 360) % 360;
+    if (cur > 180) cur -= 360;
+    if (okay) draw(key);
+  };
+  v.addEventListener("pointerdown", (event) => {
+    const g = event.target.closest(".sp-tap");
+    if (!g || !q.live()) return;
+    if (tap) api.pick(g.dataset.k);
+    else {
+      window.OC?.touch();
+      goTo(g.dataset.k);
+    }
+  });
+  q.ghosts = ghosts;
+  q.goTo = goTo;
+  q.mark = (v2, ok) => {
+    const gh = ghosts[v2];
+    if (gh) gh.ring.setAttribute("fill", ok ? GOOD : BAD), gh.ring.setAttribute("fill-opacity", 0.45);
+  };
+  return { goTo };
+}
+function spinScene(q, { house = 180, labels = false, arrow = true } = {}) {
+  const v = view;
+  const cx = 600;
+  const cy = 285;
+  const r = 170;
+  drawSun(v, 40, cy, 80);
+  for (const y of [190, 285, 380]) {
+    el("line", { x1: 140, x2: 380, y1: y, y2: y, stroke: "#ffd23f", "stroke-width": 4, "stroke-dasharray": "14 10" }, v);
+    el("path", { d: `M380 ${y - 10} L398 ${y} L380 ${y + 10} Z`, fill: "#ffd23f" }, v);
+  }
+  const globe = el("g", { transform: `translate(${cx} ${cy})` }, v);
+  el("circle", { r, fill: "#3f7fd6" }, globe);
+  const land = el("g", {}, globe);
+  for (const [x, y, rr] of [[-60, -50, 55], [50, 60, 60], [70, -80, 30], [-70, 80, 34]]) el("circle", { cx: x, cy: y, r: rr, fill: "#5bb267" }, land);
+  el("circle", { r: 26, fill: "#eef3ff" }, globe);
+  el("path", { d: `M0 ${-r} A${r} ${r} 0 0 1 0 ${r} Z`, fill: "#05081a", opacity: 0.6 }, globe);
+  if (labels) {
+    T(v, 470, 70, "☀️ Day", 30, GOLD);
+    T(v, 760, 70, "🌙 Night", 30, SOFT);
+  }
+  if (arrow) {
+    el("path", { d: `M${cx + 120} ${cy - 160} A200 200 0 0 0 ${cx - 120} ${cy - 160}`, fill: "none", stroke: GOLD, "stroke-width": 5 }, v);
+    el("path", { d: `M${cx - 104} ${cy - 176} L${cx - 132} ${cy - 150} L${cx - 96} ${cy - 146} Z`, fill: GOLD }, v);
+  }
+  T(v, cx, 540, "Seen from above the North Pole", 22, SOFT);
+  const h = el("g", {}, v);
+  emoji(h, 0, 0, "🏠", 46);
+  const put = (deg) => {
+    move(h, cx + (r + 22) * Math.cos(rad(deg)), cy + (r + 22) * Math.sin(rad(deg)) - 6);
+    land.setAttribute("transform", `rotate(${deg})`);
+  };
+  put(house);
+  q.spin = async (from, to, live, ms = 1800) => tw(ms, (t) => put(from + (to - from) * t), live);
+  q.cx = cx;
+  return { put };
+}
+function directPic(q, api, highFirst) {
+  const pics = highFirst ? [["high", 73.5], ["low", 26.5]] : [["low", 26.5], ["high", 73.5]];
+  pics.forEach(([key, elev], i) => {
+    const x0 = 70 + i * 450;
+    const g = el("g", { class: "sp-tap" }, view);
+    const ring = el("rect", { x: x0, y: 70, width: 410, height: 400, rx: 24, fill: "#2a3260", stroke: "#4c557f", "stroke-width": 3 }, g);
+    el("rect", { x: x0 + 10, y: 380, width: 390, height: 80, fill: "#5c8f4e" }, g);
+    const { w } = rays(g, x0 + 10, x0 + 400, 380, elev, 90);
+    T(g, x0 + 205, 500, `Patch: ${Math.round(w)} wide`, 24, LIGHT);
+    g.addEventListener("pointerdown", () => api.pick(key));
+    q.nodes = { ...(q.nodes || {}), [key]: ring };
+  });
+  T(view, 500, 46, "The same amount of sunlight in each picture", 24, SOFT);
+  q.mark = (v, ok) => q.nodes[v]?.setAttribute("stroke", ok ? GOOD : BAD);
+}
+const SEASON_BANK = {
+  easy: [
+    function dayNight() {
+      const day = Math.random() < 0.5;
+      const end = day ? pickInt(140, 220) : pickInt(-40, 40);
+      return {
+        ask: "Earth rotates as the arrow shows. Is it day or night at the house now?",
+        draw(q) {
+          spinScene(q, { house: end + 120 });
+          q.spin(end + 120, end, q.live);
+        },
+        opts: [{ label: "☀️ Day", v: "day" }, { label: "🌙 Night", v: "night" }],
+        ans: day ? "day" : "night",
+        hint: "where is the Sun? Is the house on the hemisphere facing it, or the one facing away?",
+        why: day ? "The house is on the hemisphere facing the Sun, so it is daytime there." : "The house faces away from the Sun, into Earth's own shadow, so it is night there.",
+      };
+    },
+    function daySide() {
+      return {
+        ask: "Tap the half of Earth that is having daytime.",
+        draw(q, api) {
+          spinScene(q, { house: 200, arrow: false });
+          const cx = q.cx;
+          for (const [key, d] of [["day", `M${cx} 115 A170 170 0 0 0 ${cx} 455 Z`], ["night", `M${cx} 115 A170 170 0 0 1 ${cx} 455 Z`]]) {
+            const p = el("path", { d, fill: "transparent", class: "sp-tap" }, view);
+            p.addEventListener("pointerdown", () => api.pick(key));
+            q.nodes = { ...(q.nodes || {}), [key]: p };
+          }
+          q.mark = (v, ok) => {
+            q.nodes[v].setAttribute("fill", ok ? GOOD : BAD);
+            q.nodes[v].setAttribute("fill-opacity", 0.35);
+          };
+        },
+        ans: "day",
+        ansText: "the hemisphere facing the Sun",
+        hint: "follow the sunbeams. Which half do they strike?",
+        why: "At any moment, the hemisphere facing the Sun has day; the opposite hemisphere has night.",
+      };
+    },
+    function spin() {
+      return {
+        ask: "Earth makes one complete rotation on its axis. How long does that take?",
+        draw(q) {
+          spinScene(q, { house: 180, labels: true });
+        },
+        opts: labelled(["About 24 hours", "About a month", "About a year"]),
+        ans: "About 24 hours",
+        hint: "in one rotation, the house passes through one daytime and one night. What do we call that span?",
+        why: "One rotation takes about 24 hours: one day-and-night cycle.",
+      };
+    },
+    function orbit() {
+      return {
+        ask: "Earth completes one orbit (one full trip) around the Sun. How long does that take?",
+        draw(q, api) {
+          orbitScene(q, api, { at: "jun" });
+        },
+        opts: labelled(["1 day", "1 month", "1 year"]),
+        ans: "1 year",
+        hint: "how often does a birthday return?",
+        why: "One orbit is one year, about 365¼ days. Our calendar is built on it.",
+        show: async function (live) {
+          for (const key of ["sep", "dec", "mar", "jun"]) {
+            await this.goTo(key, live);
+            if (!live()) return;
+          }
+        },
+      };
+    },
+    function sunMove() {
+      return {
+        ask: "Each day the Sun appears to cross the sky from east to west. What actually causes this?",
+        draw(q) {
+          spinScene(q, { house: 180, labels: true });
+        },
+        opts: labelled(["Earth rotating", "The Sun circling Earth daily", "The wind"]),
+        ans: "Earth rotating",
+        hint: "on a turning carousel, the room seems to move past you. Which is really moving?",
+        why: "The Sun stays put; Earth's rotation carries us past it, so it seems to rise, cross the sky and set.",
+      };
+    },
+    function tapSeason() {
+      const k = pick(["summer", "winter"]);
+      return {
+        ask: `Find the N at the top of Earth's tilted axis. Tap the position where the northern hemisphere has ${k}.`,
+        draw(q, api) {
+          orbitScene(q, api, { at: k === "summer" ? "mar" : "sep", tap: true });
+        },
+        ans: k === "summer" ? "jun" : "dec",
+        ansText: k === "summer" ? "June" : "December",
+        hint: `the axis always points the same way in space. Where does the north end lean ${k === "summer" ? "toward" : "away from"} the Sun?`,
+        why: k === "summer" ? "In June the north end leans toward the Sun: sunlight is more direct and days are longer. Summer." : "In December the north end leans away: sunlight is slanted and days are short. Winter.",
+        show: function (live) {
+          return this.goTo(this.ans, live);
+        },
+      };
+    },
+    function direct() {
+      return {
+        ask: "Both pictures receive the same sunlight. Tap the one where each patch of ground is heated more.",
+        draw(q, api) {
+          directPic(q, api, Math.random() < 0.5);
+        },
+        ans: "high",
+        ansText: "the small, bright patch",
+        hint: "in which picture is the same light concentrated into a smaller area?",
+        why: "High Sun concentrates the light on a small patch, so each spot gets more energy. That is summer sunlight.",
+      };
+    },
+  ],
+  medium: [
+    function january() {
+      return {
+        ask: "Earth is nearest the Sun in early January. Which season is the northern hemisphere having then?",
+        draw(q, api) {
+          orbitScene(q, api, { at: "dec" });
+        },
+        opts: labelled(["Summer", "Winter", "Spring"]),
+        ans: "Winter",
+        hint: "is January warm or cold in the north? What does that imply about distance?",
+        why: "Northern winter. So nearness to the Sun cannot be what causes summer; the tilt does.",
+      };
+    },
+    function south() {
+      return {
+        ask: "In June the northern hemisphere leans toward the Sun. What season is it in the southern hemisphere, in Australia for example?",
+        draw(q, api) {
+          orbitScene(q, api, { at: "jun" });
+        },
+        opts: labelled(["Summer", "Winter", "Autumn"]),
+        ans: "Winter",
+        hint: "if the north leans toward the Sun, which way must the south lean?",
+        why: "The south leans away, so it is winter there. The hemispheres have opposite seasons.",
+      };
+    },
+    function whySummer() {
+      return {
+        ask: "Why is summer warmer than winter?",
+        draw(q, api) {
+          orbitScene(q, api, { at: "jun" });
+        },
+        opts: labelled(["Earth is nearer the Sun", "Sunlight is more direct and days are longer", "The Sun burns hotter"]),
+        ans: "Sunlight is more direct and days are longer",
+        hint: "tap each month on the orbit and watch the sunlight panel. What changes?",
+        why: "The tilt makes the noon Sun higher and the days longer in summer; more direct light for more hours means more heating.",
+      };
+    },
+    function tilt() {
+      return {
+        ask: "Earth's axis (the line it spins around) is tilted. By about how much?",
+        draw(q, api) {
+          orbitScene(q, api, { at: "jun" });
+        },
+        opts: labelled(["0°", "About 23.4°", "90°"]),
+        ans: "About 23.4°",
+        hint: "0° would be upright; 90° would be lying flat. Look at the drawn axis.",
+        why: "About 23.4° (23.44°, often rounded to 23½°). With no tilt, there would be no seasons.",
+      };
+    },
+    function hours() {
+      const m = pick(["jun", "dec", "sep"]);
+      return {
+        ask: `At latitude 40° N (New York, Madrid, Beijing), about how many hours of daylight are there in ${MONTH[m].label}?`,
+        draw(q, api) {
+          q.hideHours = true;
+          orbitScene(q, api, { at: m === "jun" ? "mar" : "jun" });
+        },
+        opts: labelled([9, 12, 15], (x) => `${x} hours`),
+        ans: MONTH[m].hours,
+        hint: "is that month summer, winter or between in the north? Summer days are long.",
+        why: `About ${MONTH[m].hours} hours. ${m === "jun" ? "Long summer days." : m === "dec" ? "Short winter days." : "Near the equinox, day and night are roughly equal."}`,
+        show: function (live) {
+          this.hideHours = false;
+          return this.goTo(m, live);
+        },
+      };
+    },
+    function morning() {
+      const top = Math.random() < 0.5;
+      return {
+        ask: `The house is being carried ${top ? "out of darkness into sunlight" : "out of sunlight into darkness"}. Is it sunrise or sunset there?`,
+        draw(q) {
+          spinScene(q, { house: top ? -60 : 120, labels: true });
+          q.spin(top ? -30 : 150, top ? -90 : 90, q.live, 2600);
+        },
+        opts: labelled(["Sunrise", "Sunset"]),
+        ans: top ? "Sunrise" : "Sunset",
+        hint: "follow the arrow. Is the house entering the light or leaving it?",
+        why: top ? "Rotating from night into day is sunrise." : "Rotating from day into night is sunset.",
+      };
+    },
+    function equinox() {
+      return {
+        ask: "Tap a position on the orbit where day and night are about 12 hours each everywhere on Earth.",
+        draw(q, api) {
+          orbitScene(q, api, { at: "jun", tap: true });
+        },
+        check: (v) => v === "mar" || v === "sep",
+        ans: "sep",
+        ansText: "March or September",
+        hint: "where does the axis lean neither toward the Sun nor away from it?",
+        why: "In March and September the axis is side-on to the Sun; day and night are nearly equal. These are the equinoxes (Latin: 'equal night').",
+        show: function (live) {
+          return this.goTo("sep", live);
+        },
+      };
+    },
+    function spins() {
+      return {
+        ask: "A year has about 365 days (sunrise-to-sunrise cycles). About how many days are there in 3 years?",
+        draw(q, api) {
+          orbitScene(q, api, { at: "jun" });
+        },
+        pad: true,
+        check: (v) => v >= 1095 && v <= 1096,
+        ans: 1095,
+        ansText: "1,095",
+        hint: "3 × 365 = 3 × 300 + 3 × 65.",
+        why: "3 × 365 = 1,095 days (1,096 if one of the years is a leap year). Measured against the stars, Earth actually turns about 366 times a year; a harder question explains why.",
+      };
+    },
+  ],
+  hard: [
+    function noonAlt(ctx) {
+      const [lat, place] = ctx.next("lat", [[40, "Madrid"], [52, "London"], [30, "Cairo"], [35, "Tokyo"], [45, "Minneapolis"]]);
+      const [m, dec] = pick([["June", 23.5], ["December", -23.5], ["March", 0]]);
+      const exact = 90 - lat + dec;
+      return {
+        ask: `At noon, the Sun's height above the horizon (its altitude) is 90° − latitude + the Sun's declination. ${place} is near ${lat}° N; in ${m} the declination is ${dec > 0 ? "+" : ""}${dec}°. Find the noon altitude to the nearest degree.`,
+        draw() {
+          sheet("Noon Sun altitude", ["altitude = 90° − latitude + declination", `= 90 − ${lat} + (${dec})`, "= ?°"], 200);
+        },
+        pad: true,
+        check: (v) => Math.abs(v - exact) <= 0.5,
+        ans: Math.round(exact),
+        hint: "work left to right: 90 − latitude first, then add the declination (subtract if negative).",
+        why: `90 − ${lat} + (${dec}) = ${exact}°. ${dec > 0 ? "A high summer Sun." : dec < 0 ? "A low winter Sun." : "At the equinox the declination is 0°."}`,
+      };
+    },
+    function tropic() {
+      return {
+        ask: "On the June solstice, at what latitude is the noon Sun directly overhead (altitude 90°)?",
+        draw() {
+          sheet("Where is the Sun overhead?", ["altitude = 90° − latitude + 23.5°", "set altitude = 90°", "latitude = ?"], 200);
+        },
+        opts: labelled(["0° (the equator)", "23.5° N (Tropic of Cancer)", "66.5° N (Arctic Circle)"]),
+        ans: "23.5° N (Tropic of Cancer)",
+        hint: "if 90 − latitude + 23.5 = 90, what must the latitude be?",
+        why: "Latitude = 23.5° N, the Tropic of Cancer (more precisely 23.4° N, because the tilt is 23.44°). The tropics mark how far the overhead Sun travels north and south.",
+      };
+    },
+    function arctic() {
+      return {
+        ask: "North of which latitude does the Sun stay up for 24 hours on at least one day each year?",
+        draw(q, api) {
+          orbitScene(q, api, { at: "jun" });
+        },
+        opts: labelled(["23.5° N", "45° N", "66.5° N"]),
+        ans: "66.5° N",
+        hint: "the tilt is 23.5°. Measure 23.5° down from the North Pole at 90°.",
+        why: "90° − 23.5° = 66.5° N, the Arctic Circle (more precisely about 66.6° N, using the 23.44° tilt). In June, everywhere north of it has a midnight Sun.",
+      };
+    },
+    function sidereal() {
+      return {
+        ask: "Earth turns once relative to the distant stars in about 23 hours 56 minutes, yet noon to noon is 24 hours. Why the extra 4 minutes?",
+        draw(q, api) {
+          orbitScene(q, api, { at: "jun" });
+        },
+        opts: labelled(["Earth also moves along its orbit, so it must turn a little further to face the Sun again", "The Sun is slowing Earth down every day", "Clocks are inaccurate"]),
+        ans: "Earth also moves along its orbit, so it must turn a little further to face the Sun again",
+        hint: "during one day, Earth moves about 1/365 of the way around its orbit. Does the Sun's direction change?",
+        why: "Each day Earth advances about 1° along its orbit, so it must rotate about 1° extra (about 4 minutes) to bring the Sun back to noon.",
+      };
+    },
+    function degPerDay() {
+      return {
+        ask: "Earth travels 360° around the Sun in about 365 days. About how many degrees does it move along its orbit each day (nearest whole number)?",
+        draw(q, api) {
+          orbitScene(q, api, { at: "sep" });
+        },
+        pad: true,
+        check: (v) => v === 1,
+        ans: 1,
+        hint: "360 ÷ 365 is slightly less than what?",
+        why: "360 ÷ 365 ≈ 0.99, about 1° per day. That is why the stars rise about 4 minutes earlier each night.",
+      };
+    },
+    function leap() {
+      return {
+        ask: "A year is about 365.2422 days. The Gregorian calendar adds a leap day every 4 years, except century years not divisible by 400. Which year is a leap year?",
+        draw() {
+          sheet("Leap-year rule", ["divisible by 4 → leap", "but century years → not leap…", "…unless divisible by 400"], 200);
+        },
+        opts: labelled(["1900", "2000", "2100"]),
+        ans: "2000",
+        hint: "all three are century years. Which one divides exactly by 400?",
+        why: "2000 ÷ 400 = 5, so 2000 was a leap year; 1900 and 2100 are not. The rule keeps the calendar aligned with the seasons.",
+      };
+    },
+    function sydney() {
+      return {
+        ask: "Sydney is near 34° S. In the southern hemisphere, noon altitude = 90° − latitude + 23.5° on the December solstice. Find it to the nearest degree.",
+        draw() {
+          sheet("Southern summer", ["90 − 34 + 23.5", "= ?°", "(December: summer in the south)"], 200);
+        },
+        pad: true,
+        check: (v) => v === 79 || v === 80,
+        ans: 80,
+        ansText: "79.5° (about 80°)",
+        hint: "90 − 34 first, then add 23.5.",
+        why: "90 − 34 + 23.5 = 79.5°. December brings a high Sun and summer to Sydney.",
+      };
+    },
+    function perihelion() {
+      return {
+        ask: "Earth is about 147 million km from the Sun in early January and about 152 million km in early July. By how many million km does the distance change?",
+        draw(q, api) {
+          orbitScene(q, api, { at: "dec" });
+        },
+        pad: true,
+        check: (v) => v === 5,
+        ans: 5,
+        hint: "subtract the smaller distance from the larger.",
+        why: "152 − 147 = 5 million km, only about 3%. Far too small a change to cause the seasons.",
+      };
+    },
+  ],
+};
+const seasons = {
+  count: "Earth and Sun questions",
+  make(level, round, ctx) {
+    return ctx.next(`se-${level}`, SEASON_BANK[level])(ctx);
+  },
+};
+
+// ---------- 4. MOON PHASES ----------
+function moonTop(q, api, { k = null, tap = false } = {}) {
+  const v = view;
+  const ex = 330;
+  const ey = 280;
+  drawSun(v, -30, ey, 80);
+  T(v, 70, 120, "Sunlight", 24, GOLD);
+  for (const y of [180, 380]) {
+    el("line", { x1: 60, x2: 115, y1: y, y2: y, stroke: "#ffd23f", "stroke-width": 4 }, v);
+    el("path", { d: `M115 ${y - 9} L131 ${y} L115 ${y + 9} Z`, fill: "#ffd23f" }, v);
+  }
+  el("circle", { cx: ex, cy: ey, r: 170, fill: "none", stroke: "#6c74a8", "stroke-width": 3, "stroke-dasharray": "8 8" }, v);
+  drawPlanet(v, ex, ey, 44, P.Earth);
+  el("path", { d: `M${ex} ${ey - 44} A44 44 0 0 1 ${ex} ${ey + 44} Z`, fill: "#05081a", opacity: 0.55 }, v);
+  q.moons = [];
+  for (let i = 0; i < 8; i++) {
+    const a = rad(180 - 45 * i);
+    const x = ex + 170 * Math.cos(a);
+    const y = ey + 170 * Math.sin(a);
+    const g = el("g", { class: tap ? "sp-tap" : "", "data-k": i }, v);
+    const ring = el("circle", { cx: x, cy: y, r: 36, fill: "#fff", "fill-opacity": tap ? 0.06 : 0, stroke: i === k ? GOLD : "transparent", "stroke-width": 5 }, g);
+    el("circle", { cx: x, cy: y, r: 22, fill: "#3b4060" }, g);
+    el("path", { d: `M${x} ${y - 22} A22 22 0 0 0 ${x} ${y + 22} Z`, fill: "#f5edd0" }, g);
+    if (tap) g.addEventListener("pointerdown", () => api.pick(i));
+    q.moons.push(ring);
+  }
+  // what we see
+  el("rect", { x: 640, y: 70, width: 330, height: 430, rx: 24, fill: "#2a3260", stroke: "#4c557f", "stroke-width": 2 }, v);
+  T(v, 805, 112, "From Earth we see:", 26, LIGHT);
+  const seen = el("g", {}, v);
+  const nameT = T(v, 805, 470, "", 28, GOLD);
+  const showSeen = (kk) => {
+    seen.innerHTML = "";
+    drawPhase(seen, 805, 285, 120, kk);
+    nameT.textContent = PHASES[kk];
+  };
+  if (!q.showSeenNow) {
+    el("circle", { cx: 805, cy: 285, r: 120, fill: "none", stroke: SOFT, "stroke-width": 3, "stroke-dasharray": "10 10" }, seen);
+    T(seen, 805, 312, "?", 80, SOFT);
+  }
+  q.showSeen = showSeen;
+  q.mark = (vv, ok) => {
+    if (tap && q.moons[vv]) {
+      q.moons[vv].setAttribute("fill", ok ? GOOD : BAD);
+      q.moons[vv].setAttribute("fill-opacity", 0.5);
+    }
+  };
+}
+const phaseOpts = (k, n = 3) => opt3(k, [0, 1, 2, 3, 4, 5, 6, 7], n).map((x) => ({ label: `${PHEMO[x]} ${PHASES[x]}`, v: x }));
+function seeQ(ctx) {
+  const pos = ctx.next("m4pos", [1, 2, 3, 4, 5, 6, 7, 0]);
+  return {
+    ask: "The Moon is at the gold ring; its sunlit half faces the Sun. Which phase do we see from Earth?",
+    draw(q, api) {
+      moonTop(q, api, { k: pos });
+    },
+    opts: phaseOpts(pos),
+    ans: pos,
+    hint: "imagine standing on Earth looking toward that Moon. How much of its sunlit half faces you?",
+    why: `The ${PHASES[pos].toLowerCase()}. ${pos === 0 ? "The sunlit half faces away from us." : pos === 4 ? "The whole sunlit half faces us." : pos < 4 ? "The lit part is growing: waxing." : "The lit part is shrinking: waning."}`,
+    show: async function (live) {
+      this.showSeen(pos);
+      return nap(400, live);
+    },
+  };
+}
+function tapPosQ(ctx) {
+  const want = ctx.next("m4tap", [4, 0, 2, 6]);
+  return {
+    ask: `Tap where the Moon must be in its orbit for us to see the ${PHASES[want].toLowerCase()}.`,
+    draw(q, api) {
+      q.showSeenNow = true;
+      moonTop(q, api, { tap: true });
+      q.showSeen(want);
+    },
+    ans: want,
+    ansText: { 4: "opposite the Sun", 0: "between Earth and the Sun", 2: "a quarter of the way round (below Earth)", 6: "three-quarters of the way round (above Earth)" }[want],
+    hint: { 4: "to see the whole sunlit half, must the Moon be on the Sun's side of Earth or the far side?", 0: "to see none of the sunlit half, it must face away from us. Where is that?", 2: "half the sunlit side is visible from the side. The Moon travels: left, down, right, up.", 6: "half the sunlit side is visible from the side. Which side comes after full Moon?" }[want],
+    why: { 4: "Opposite the Sun, the entire sunlit half faces us: full Moon.", 0: "Between Earth and the Sun, the sunlit half faces away: new Moon.", 2: "A quarter of the way round, we see half of the sunlit half: first quarter.", 6: "Three-quarters round, we again see half of the sunlit half: third quarter." }[want],
+  };
+}
+const MOON_BANK = {
+  easy: [
+    function tapPhase(ctx) {
+      const k = ctx.next("e4", ["full", "half", "crescent", "new"]);
+      const want = { full: 4, half: 2, crescent: 1, new: 0 }[k];
+      const words = { full: "the full Moon", half: "the first-quarter (half-lit) Moon", crescent: "the crescent Moon", new: "the new Moon" }[k];
+      return {
+        ask: `Tap ${words}.`,
+        draw(q, api) {
+          const ks = shuffle([0, 1, 2, 4]);
+          q.nodes = {};
+          ks.forEach((kk, i) => {
+            const x = 140 + i * 240;
+            const g = el("g", { class: "sp-tap" }, view);
+            const ring = el("circle", { cx: x, cy: 270, r: 104, fill: "#fff", "fill-opacity": 0.05, stroke: "transparent", "stroke-width": 6 }, g);
+            drawPhase(g, x, 270, 88, kk);
+            g.addEventListener("pointerdown", () => api.pick(kk));
+            q.nodes[kk] = ring;
+          });
+          q.mark = (v, ok) => q.nodes[v]?.setAttribute("stroke", ok ? GOOD : BAD);
+        },
+        ans: want,
+        ansText: PHASES[want],
+        hint: { 4: "'full' means the entire disc is lit.", 2: "one half bright, one half dark.", 1: "a crescent is a thin curved sliver.", 0: "which is almost entirely dark?" }[want],
+        why: { 4: "Full Moon: the entire sunlit half faces us.", 2: "First quarter: we see half of the sunlit half. It is called a quarter because the Moon is a quarter of the way through its cycle.", 1: "Crescent: only a sliver of the sunlit half faces us.", 0: "New Moon: the sunlit half faces away from us." }[want],
+      };
+    },
+    function light() {
+      return {
+        ask: "Where does moonlight come from?",
+        draw() {
+          drawSun(view, 150, 280, 90);
+          drawPlanet(view, 520, 280, 36, P.Earth);
+          drawPhase(view, 820, 280, 70, 4);
+          el("line", { x1: 250, x2: 740, y1: 210, y2: 210, stroke: "#ffd23f", "stroke-width": 4, "stroke-dasharray": "14 10" }, view);
+        },
+        opts: [{ label: "☀️ Reflected sunlight", v: "sun" }, { label: "🔥 Its own fire", v: "fire" }, { label: "⭐ Starlight", v: "star" }],
+        ans: "sun",
+        hint: "is the Moon a burning ball of gas like the Sun, or a ball of rock?",
+        why: "The Moon makes no light of its own; it reflects sunlight, like a grey mirror.",
+      };
+    },
+    function shape() {
+      return {
+        ask: "Does the Moon actually change its shape during the month?",
+        draw() {
+          [0, 2, 4, 6].forEach((kk, i) => drawPhase(view, 160 + i * 230, 260, 80, kk));
+        },
+        opts: [{ label: "No; we see different amounts of its sunlit half", v: "no" }, { label: "Yes; it shrinks and grows", v: "yes" }],
+        ans: "no",
+        hint: "the Moon is a solid sphere of rock. Could rock grow and shrink every month?",
+        why: "The Moon is always a sphere, always half lit by the Sun. Only our view of the lit half changes.",
+      };
+    },
+    seeQ,
+    tapPosQ,
+    function waning() {
+      return {
+        ask: "'Waxing' means the lit part is growing; 'waning' means it is shrinking. Just after full Moon, is it waxing or waning?",
+        draw() {
+          [3, 4, 5].forEach((kk, i) => drawPhase(view, 250 + i * 250, 260, 90, kk));
+          T(view, 500, 440, "before  ·  full  ·  after", 28, SOFT);
+        },
+        opts: labelled(["Waxing", "Waning"]),
+        ans: "Waning",
+        hint: "once the whole disc is lit, can the lit part grow any more?",
+        why: "After full Moon the lit part shrinks: the Moon is waning toward new Moon.",
+      };
+    },
+  ],
+  medium: [
+    seeQ,
+    tapPosQ,
+    function next() {
+      const s = pickInt(0, 7);
+      const seq = [s, (s + 1) % 8, (s + 2) % 8, (s + 3) % 8];
+      const hide = pickInt(1, 3);
+      return {
+        ask: "These phases are in time order. Which phase is missing?",
+        draw() {
+          seq.forEach((kk, i) => {
+            const x = 140 + i * 240;
+            if (i === hide) {
+              el("circle", { cx: x, cy: 260, r: 88, fill: "none", stroke: SOFT, "stroke-width": 3, "stroke-dasharray": "10 10" }, view);
+              T(view, x, 287, "?", 80, SOFT, { class: "sp-q" });
+            } else drawPhase(view, x, 260, 88, kk);
+            T(view, x, 400, i === hide ? "?" : PHASES[kk], 22, i === hide ? GOLD : LIGHT);
+          });
+          T(view, 500, 490, "time →", 26, SOFT);
+        },
+        opts: phaseOpts(seq[hide]),
+        ans: seq[hide],
+        hint: "is the lit part growing or shrinking along the row? Which side is lit?",
+        why: `The ${PHASES[seq[hide]].toLowerCase()}. Seen from the northern hemisphere, the right side lights first (waxing); the left side is the last lit (waning).`,
+        show: async (live) => {
+          view.querySelector(".sp-q")?.remove();
+          drawPhase(view, 140 + hide * 240, 260, 88, seq[hide]);
+          return nap(300, live);
+        },
+      };
+    },
+    function days() {
+      return {
+        ask: "From one full Moon to the next takes about how many days (nearest whole number)?",
+        draw() {
+          [4, 6, 0, 2, 4].forEach((kk, i) => drawPhase(view, 120 + i * 190, 250, 70, kk));
+          T(view, 500, 420, "full → … → full", 30, SOFT);
+        },
+        pad: true,
+        check: (v) => v === 29 || v === 30,
+        ans: 29,
+        ansText: "about 29½",
+        hint: "it is close to the length of a calendar month.",
+        why: "About 29½ days, the synodic month. The word 'month' comes from 'Moon'.",
+      };
+    },
+    function half() {
+      return {
+        ask: "The whole cycle takes about 29½ days. About how many days from new Moon to full Moon?",
+        draw() {
+          [0, 1, 2, 3, 4].forEach((kk, i) => drawPhase(view, 120 + i * 190, 250, 70, kk));
+          T(view, 500, 420, "new → full is half the cycle", 28, SOFT);
+        },
+        pad: true,
+        check: (v) => v === 14 || v === 15,
+        ans: 15,
+        ansText: "about 15",
+        hint: "new to full is half the cycle. What is half of 29½?",
+        why: "Half of 29½ is about 14¾, roughly two weeks.",
+      };
+    },
+    function face() {
+      return {
+        ask: "Why do we always see the same face of the Moon?",
+        draw(q) {
+          const ex = 400;
+          const ey = 280;
+          drawPlanet(view, ex, ey, 60, P.Earth);
+          el("circle", { cx: ex, cy: ey, r: 190, fill: "none", stroke: "#6c74a8", "stroke-width": 3, "stroke-dasharray": "8 8" }, view);
+          const m = el("g", {}, view);
+          el("circle", { r: 30, fill: "#d6d1c6" }, m);
+          el("circle", { cx: 0, cy: -18, r: 8, fill: "#e05a47" }, m);
+          T(view, 820, 250, "The red mark", 26, LIGHT);
+          T(view, 820, 290, "always faces Earth", 26, LIGHT);
+          tw(9000, (t) => {
+            const a = 2 * Math.PI * t;
+            move(m, ex + 190 * Math.cos(a), ey + 190 * Math.sin(a), ` rotate(${(a * 180) / Math.PI - 90})`);
+          }, q.live, lin);
+        },
+        opts: labelled(["It rotates exactly once per orbit", "It does not rotate at all", "Its far side is always dark"]),
+        ans: "It rotates exactly once per orbit",
+        hint: "watch the red mark. Is the Moon turning as it travels? How many turns per orbit?",
+        why: "The Moon rotates once per orbit (tidal locking, caused by Earth's gravity), so one face always points at us.",
+      };
+    },
+    function far() {
+      return {
+        ask: "At new Moon, what is the Moon's far side (the side we never see) like?",
+        draw(q, api) {
+          moonTop(q, api, { k: 0 });
+        },
+        opts: labelled(["In full sunlight", "Dark", "Permanently dark"]),
+        ans: "In full sunlight",
+        hint: "at new Moon, which side of the Moon faces the Sun?",
+        why: "There is no permanent 'dark side'. At new Moon the far side faces the Sun and is fully lit.",
+      };
+    },
+  ],
+  hard: [
+    function solarEclipse() {
+      return {
+        ask: "A solar eclipse (the Moon blocking the Sun) can only happen at which phase?",
+        draw(q, api) {
+          moonTop(q, api, { k: 0 });
+        },
+        opts: phaseOpts(0),
+        ans: 0,
+        hint: "for the Moon to block the Sun, where must it be: between Earth and the Sun, or behind Earth?",
+        why: "Only at new Moon is the Moon between Earth and the Sun, so only then can it cover the Sun.",
+      };
+    },
+    function lunarEclipse() {
+      return {
+        ask: "A lunar eclipse (Earth's shadow falling on the Moon) can only happen at which phase?",
+        draw(q, api) {
+          moonTop(q, api, { k: 4 });
+        },
+        opts: phaseOpts(4),
+        ans: 4,
+        hint: "Earth's shadow points away from the Sun. Where is the Moon when it lies in that direction?",
+        why: "Only at full Moon is the Moon on the far side of Earth from the Sun, inside reach of Earth's shadow.",
+      };
+    },
+    function notMonthly() {
+      return {
+        ask: "There is a new Moon every month. Why is there not a solar eclipse every month?",
+        draw(q, api) {
+          moonTop(q, api, { k: 0 });
+        },
+        opts: labelled(["The Moon's orbit is tilted about 5°, so it usually passes above or below the Sun", "The Moon is too small", "Clouds hide most of them"]),
+        ans: "The Moon's orbit is tilted about 5°, so it usually passes above or below the Sun",
+        hint: "this diagram is flat. Is the Moon's orbit exactly in the same plane as Earth's orbit?",
+        why: "The Moon's orbit is tilted about 5° to Earth's. Usually the new Moon passes just above or below the Sun; eclipses need the line-up to be exact.",
+      };
+    },
+    function sizes() {
+      return {
+        ask: "The Sun is about 400 times wider than the Moon, and also about 400 times farther away. What follows?",
+        draw() {
+          drawSun(view, 260, 270, 150);
+          drawPhase(view, 740, 270, 150, 0);
+          T(view, 260, 480, "400 × wider", 28, GOLD);
+          T(view, 740, 480, "400 × nearer", 28, SOFT);
+        },
+        opts: labelled(["They look almost the same size in our sky", "The Sun looks 400 times bigger", "The Moon looks 400 times bigger"]),
+        ans: "They look almost the same size in our sky",
+        hint: "an object twice as wide but twice as far away looks… how big?",
+        why: "The two factors cancel, so the Moon can just cover the Sun's disc: a total solar eclipse.",
+      };
+    },
+    function riseFull() {
+      return {
+        ask: "At about what time does a full Moon rise?",
+        draw(q, api) {
+          moonTop(q, api, { k: 4 });
+        },
+        opts: labelled(["Around sunset", "Around noon", "Around sunrise"]),
+        ans: "Around sunset",
+        hint: "a full Moon is opposite the Sun in the sky. When the Sun sets in the west, what is rising in the east?",
+        why: "Opposite the Sun, the full Moon rises as the Sun sets and sets as the Sun rises.",
+      };
+    },
+    function riseQuarter() {
+      return {
+        ask: "A first-quarter Moon is 90° east of the Sun. At about what time is it highest in the sky?",
+        draw(q, api) {
+          moonTop(q, api, { k: 2 });
+        },
+        opts: labelled(["Around sunset (6 pm)", "Around midnight", "Around 6 am"]),
+        ans: "Around sunset (6 pm)",
+        hint: "Earth turns 90° in 6 hours. The Sun is highest at noon; when is a point 90° behind it highest?",
+        why: "It rises about noon, is highest about 6 pm and sets about midnight: 6 hours behind the Sun.",
+      };
+    },
+    function later() {
+      return {
+        ask: "The Moon rises about 50 minutes later each day. After 6 days, about how many minutes later does it rise?",
+        draw() {
+          sheet("Moonrise drifts later", ["≈ 50 minutes per day", "6 days", "6 × 50 = ?"], 200);
+        },
+        pad: true,
+        check: (v) => v === 300,
+        ans: 300,
+        hint: "6 × 5 = 30. What is 6 × 50?",
+        why: "6 × 50 = 300 minutes, 5 hours. The Moon moves eastward along its orbit about 13° a day.",
+      };
+    },
+    function recede() {
+      return {
+        ask: "Laser measurements show the Moon moving away from Earth by about 3.8 cm a year. How many metres farther away will it be after 1,000 years?",
+        draw() {
+          sheet("Lunar laser ranging", ["3.8 cm per year", "× 1,000 years", "100 cm = 1 m  →  ? m"], 200);
+        },
+        pad: true,
+        check: (v) => v === 38,
+        ans: 38,
+        hint: "3.8 × 1,000 = 3,800 cm. How many metres is that?",
+        why: "3,800 cm = 38 m. Astronauts left reflectors on the Moon in 1969 that make this measurement possible.",
+      };
+    },
+    function synodic() {
+      return {
+        ask: "The Moon orbits Earth in 27.3 days relative to the stars, but the phase cycle takes 29.5 days. Why longer?",
+        draw(q, api) {
+          moonTop(q, api, { k: 0 });
+        },
+        opts: labelled(["Earth moves along its orbit, so the Moon must go a little further to line up with the Sun again", "The Moon slows down every month", "The phases are measured from the far side"]),
+        ans: "Earth moves along its orbit, so the Moon must go a little further to line up with the Sun again",
+        hint: "during one month, does the direction of the Sun (as seen from Earth) stay fixed?",
+        why: "In 27.3 days Earth travels about 27° around the Sun, so the Moon needs about 2 more days to return to the same Sun–Earth–Moon arrangement.",
+      };
+    },
+  ],
+};
+const moon = {
+  count: "Moon questions",
+  make(level, round, ctx) {
+    return ctx.next(`mo-${level}`, MOON_BANK[level])(ctx);
+  },
+};
+
+// ---------- 5. GRAVITY & ORBITS ----------
+const MU = 398600; // Earth's gravity strength, km³/s²
+const RE = 6371;
+const R0 = 6571; // a cannon on a pretend mountain 200 km high, above the air
+function flight(speed) {
+  let x = -R0;
+  let y = 0;
+  let vx = 0;
+  let vy = -speed;
+  const dt = 5;
+  const acc = (px, py) => {
+    const r = Math.hypot(px, py);
+    const a = -MU / (r * r * r);
+    return [a * px, a * py];
+  };
+  let [ax, ay] = acc(x, y);
+  const pts = [[x, y]];
+  let swept = 0;
+  let prev = Math.atan2(y, x);
+  let result = "orbit";
+  let t = 0;
+  for (let i = 0; i < 40000; i++) {
+    vx += (ax * dt) / 2;
+    vy += (ay * dt) / 2;
+    x += vx * dt;
+    y += vy * dt;
+    [ax, ay] = acc(x, y);
+    vx += (ax * dt) / 2;
+    vy += (ay * dt) / 2;
+    t += dt;
+    const a = Math.atan2(y, x);
+    let da = a - prev;
+    if (da > Math.PI) da -= 2 * Math.PI;
+    if (da < -Math.PI) da += 2 * Math.PI;
+    swept += Math.abs(da);
+    prev = a;
+    if (i % 3 === 0) pts.push([x, y]);
+    const r = Math.hypot(x, y);
+    if (r <= RE) {
+      result = "land";
+      pts.push([x, y]);
+      break;
+    }
+    if (r > 22000) {
+      result = "escape";
+      pts.push([x, y]);
+      break;
+    }
+    if (swept >= 2 * Math.PI) {
+      pts.push([x, y]);
+      break;
+    }
+  }
+  return { pts, result, t, ground: Math.round((RE * swept) / 100) * 100 };
+}
+const CX5 = 300;
+const CY5 = 285;
+const RPX = 100;
+const toPx = ([x, y]) => {
+  const r = Math.hypot(x, y);
+  const rv = (RPX * r) / RE + 12 * Math.min(1, Math.max(0, (r - RE) / 200));
+  return [CX5 + (x / r) * rv, CY5 + (y / r) * rv];
+};
+const OUTCOME = { land: "🎯 Lands on Earth", orbit: "🔄 Goes all the way around", escape: "🚀 Flies away into space" };
+function cannonScene(q) {
+  const v = view;
+  drawPlanet(v, CX5, CY5, RPX, P.Earth);
+  el("path", { d: `M${CX5 - RPX * Math.cos(rad(14))} ${CY5 - RPX * Math.sin(rad(14))} L${CX5 - 113} ${CY5} L${CX5 - RPX * Math.cos(rad(14))} ${CY5 + RPX * Math.sin(rad(14))} Z`, fill: "#8a6a4f" }, v);
+  el("rect", { x: CX5 - 122, y: CY5 - 22, width: 12, height: 26, rx: 4, fill: "#5a4130" }, v);
+  T(v, CX5, 545, "Pretend mountain, above the air", 22, SOFT);
+  const path = el("polyline", { points: "", fill: "none", stroke: GOLD, "stroke-width": 4, "stroke-linecap": "round", "stroke-linejoin": "round" }, v);
+  const ball = el("circle", { r: 9, fill: "#fff", stroke: "#2b1d12", "stroke-width": 2 }, v);
+  const [bx, by] = toPx([-R0, 0]);
+  ball.setAttribute("cx", bx);
+  ball.setAttribute("cy", by);
+  const box = el("g", {}, v);
+  el("rect", { x: 690, y: 70, width: 290, height: 420, rx: 22, fill: "#2a3260", stroke: "#4c557f", "stroke-width": 2 }, box);
+  T(box, 835, 112, "Cannonball test", 26, LIGHT);
+  const sp = T(box, 835, 190, "", 40, GOLD);
+  const res = T(box, 835, 270, "", 24, LIGHT);
+  const res2 = T(box, 835, 306, "", 24, LIGHT);
+  const res3 = T(box, 835, 380, "", 22, SOFT);
+  const res4 = T(box, 835, 412, "", 22, SOFT);
+  q.fire = async (speed, live) => {
+    const f = flight(speed);
+    sp.textContent = `${speed} km/s`;
+    res.textContent = "";
+    res2.textContent = "";
+    res3.textContent = "";
+    res4.textContent = "";
+    path.setAttribute("points", "");
+    MUSIC.play("timpani", 48, { gain: 0.45 });
+    const pts = f.pts.map(toPx);
+    const ms = f.result === "land" ? 1600 : f.result === "orbit" ? (speed > 9 ? 5200 : 3800) : 2600;
+    const ok = await tw(ms, (t) => {
+      const n = Math.max(1, Math.round(t * (pts.length - 1)));
+      path.setAttribute("points", pts.slice(0, n + 1).map((p) => p.join(",")).join(" "));
+      ball.setAttribute("cx", pts[n][0]);
+      ball.setAttribute("cy", pts[n][1]);
+    }, live, lin);
+    if (!ok) return f;
+    if (f.result === "land") {
+      res.textContent = "Lands!";
+      res2.textContent = `about ${fmt(f.ground)} km away`;
+      MUSIC.play("woodblock", 72, { gain: 0.4 });
+    } else if (f.result === "orbit") {
+      res.textContent = speed > 9 ? "A long oval orbit!" : "Orbit! It falls around";
+      res2.textContent = speed > 9 ? "" : "Earth and never lands.";
+      res3.textContent = `Once around: about`;
+      res4.textContent = `${Math.round(f.t / 60)} minutes`;
+      MUSIC.play("harp", 72, { gain: 0.35 });
+    } else {
+      res.textContent = "Escapes Earth!";
+      res2.textContent = "It never comes back.";
+      MUSIC.play("flute", 76, { gain: 0.3 });
+    }
+    return f;
+  };
+}
+const WORLDS = {
+  moon: { n: "the Moon", g: 1 / 6, p: MOON, emo: "🌕" },
+  mars: { n: "Mars", g: 0.38, p: P.Mars, emo: "🔴" },
+  earth: { n: "Earth", g: 1, p: P.Earth, emo: "🌍" },
+  jupiter: { n: "Jupiter", g: 2.5, p: P.Jupiter, emo: "🟠" },
+};
+function jumpScene(q, keys) {
+  q.kids = keys.map((key, i) => {
+    const w = WORLDS[key];
+    const x = 180 + i * 320;
+    const g = el("g", {}, view);
+    el("circle", { cx: x, cy: 900, r: 420, fill: w.p.col }, g);
+    el("circle", { cx: x, cy: 900, r: 420, fill: "url(#spShade)" }, g);
+    T(g, x, 540, cap(w.n), 30, LIGHT, { stroke: "#1c2340", "stroke-width": 5, "paint-order": "stroke" });
+    const kid = el("g", {}, view);
+    emoji(kid, 0, 0, "🧒", 64);
+    move(kid, x, 448);
+    return { kid, x, w };
+  });
+  q.jump = async (live) => {
+    MUSIC.play("woodblock", 79, { gain: 0.3 });
+    return tw(2200, (t) => {
+      for (const k of q.kids) {
+        const hgt = Math.min(330, 45 / k.w.g) * Math.sin(Math.PI * t);
+        move(k.kid, k.x, 448 - hgt);
+      }
+    }, live, lin);
+  };
+}
+function scaleScene(q, key, earthKg) {
+  const w = WORLDS[key];
+  el("circle", { cx: 500, cy: 960, r: 520, fill: w.p.col }, view);
+  el("circle", { cx: 500, cy: 960, r: 520, fill: "url(#spShade)" }, view);
+  T(view, 500, 60, `On ${w.n}: gravity about ${w.g === 1 / 6 ? "1/6" : w.g} × Earth's`, 28, GOLD);
+  el("rect", { x: 420, y: 420, width: 160, height: 40, rx: 12, fill: "#eceff6", stroke: "#2b1d12", "stroke-width": 3 }, view);
+  const disp = el("rect", { x: 455, y: 427, width: 90, height: 26, rx: 6, fill: "#1f2a1f" }, view);
+  void disp;
+  const read = T(view, 500, 449, "? kg", 22, "#9ff59f");
+  emoji(view, 500, 350, "🧒", 110);
+  el("rect", { x: 40, y: 150, width: 260, height: 110, rx: 18, fill: "#2a3260", stroke: "#4c557f", "stroke-width": 2 }, view);
+  T(view, 170, 195, "On Earth the", 22, SOFT);
+  T(view, 170, 235, `scale shows ${earthKg} kg`, 26, LIGHT);
+  q.read = read;
+}
+const cannonQ = (speeds, askText, ans, hint, why) => ({
+  ask: askText,
+  draw(q) {
+    cannonScene(q);
+  },
+  opts: speeds.map((s) => ({ label: `${s} km/s`, v: s })),
+  test(v, live) {
+    return this.fire(v, live);
+  },
+  ans,
+  hint,
+  why,
+});
+const fireShow = (speed) =>
+  function (live) {
+    return this.fire(speed, live);
+  };
+// Kepler's third law for bodies orbiting the Sun: P² = a³ (P in years, a in AU).
+function keplerScene(rows) {
+  drawSun(view, 120, 280, 50);
+  [1, 2.2, 3.6].forEach((r, i) => el("ellipse", { cx: 120, cy: 280, rx: 90 * r, ry: 60 * r, fill: "none", stroke: "#4c557f", "stroke-width": 2 }, view));
+  el("rect", { x: 560, y: 90, width: 410, height: 380, rx: 22, fill: "#2a3260", stroke: "#4c557f", "stroke-width": 2 }, view);
+  T(view, 765, 140, "Kepler's third law", 28, GOLD);
+  T(view, 765, 190, "P² = a³", 40, LIGHT);
+  T(view, 765, 232, "P in years, a in AU", 22, SOFT);
+  rows.forEach((r, i) => T(view, 765, 300 + i * 50, r, 28, i === rows.length - 1 ? LIGHT : SOFT));
+}
+const GRAV_BANK = {
+  easy: [
+    () => cannonQ([3, 6, 7.8], "Tap a launch speed. Which speed sends the cannonball all the way around Earth?", 7.8, "that one fell back. What if it is launched faster?", "At about 7.8 km/s the ground curves away as fast as the ball falls, so it falls around Earth: an orbit."),
+    function jump() {
+      return {
+        ask: "With the same jump, where would you rise highest?",
+        draw(q) {
+          jumpScene(q, shuffle(["moon", "earth", "jupiter"]));
+        },
+        opts: [{ label: "🌕 Moon", v: "moon" }, { label: "🌍 Earth", v: "earth" }, { label: "🟠 Jupiter", v: "jupiter" }],
+        ans: "moon",
+        hint: "where is the downward pull weakest? Smaller, less massive worlds pull less.",
+        why: "The Moon's surface gravity is about 1/6 of Earth's, so the same jump rises about 6 times as high.",
+        show: function (live) {
+          return this.jump(live);
+        },
+      };
+    },
+    function heavy() {
+      const k = pick(["heavy", "light"]);
+      return {
+        ask: k === "heavy" ? "Where would you feel heaviest?" : "Where would you feel lightest?",
+        draw(q) {
+          jumpScene(q, shuffle(["moon", "earth", "jupiter"]));
+        },
+        opts: [{ label: "🌕 Moon", v: "moon" }, { label: "🌍 Earth", v: "earth" }, { label: "🟠 Jupiter", v: "jupiter" }],
+        ans: k === "heavy" ? "jupiter" : "moon",
+        hint: "more massive worlds pull harder. Which is most massive? Which least?",
+        why: k === "heavy" ? "Jupiter's gravity at its cloud tops is about 2.5 times Earth's." : "The Moon pulls only about 1/6 as hard as Earth.",
+        show: function (live) {
+          return this.jump(live);
+        },
+      };
+    },
+    function why() {
+      return {
+        ask: "Why doesn't the International Space Station fall to Earth?",
+        draw(q) {
+          cannonScene(q);
+        },
+        opts: labelled(["It is falling, but moves sideways so fast it keeps missing Earth", "There is no gravity in space", "It floats on air"]),
+        ans: "It is falling, but moves sideways so fast it keeps missing Earth",
+        hint: "is there air in space? Watch the 7.8 km/s cannonball: is gravity still pulling it?",
+        why: "At the station's height gravity is still about 90% as strong as on the ground. It falls continuously, but its sideways speed carries it around the curve of Earth.",
+        show: fireShow(7.8),
+      };
+    },
+    function moonKg(ctx) {
+      const kg = ctx.next("mkg", [18, 24, 30, 36, 42, 48, 54]);
+      return {
+        ask: `A bathroom scale reads ${kg} kg on Earth. The Moon pulls about 1/6 as hard. What would the scale read on the Moon?`,
+        draw(q) {
+          scaleScene(q, "moon", kg);
+        },
+        pad: true,
+        ans: kg / 6,
+        hint: `one-sixth means dividing into 6 equal parts. What times 6 makes ${kg}?`,
+        why: `${kg} ÷ 6 = ${kg / 6}. The scale would read ${kg / 6} kg; your body is unchanged, only the pull is weaker.`,
+        show: function (live) {
+          this.read.textContent = `${kg / 6} kg`;
+          return nap(300, live);
+        },
+      };
+    },
+  ],
+  medium: [
+    () => cannonQ([4, 6, 7.8, 11.2], "Which launch speed puts the cannonball into a circular orbit just above the air?", 7.8, "slow balls land; very fast ones leave. Which lies between?", "About 7.8 km/s near Earth: the circular orbital speed."),
+    () => cannonQ([6, 7.8, 11.2], "Which launch speed lets the cannonball escape Earth for good?", 11.2, "did that one come back around? Try a greater speed.", "About 11.2 km/s is Earth's escape speed: gravity can no longer pull the ball back."),
+    function oval() {
+      return {
+        ask: "Predict: at 9.5 km/s, faster than orbital speed but slower than escape speed, what happens?",
+        draw(q) {
+          cannonScene(q);
+        },
+        opts: labelled(["A long, stretched (elliptical) orbit", "It lands", "It escapes"]),
+        ans: "A long, stretched (elliptical) orbit",
+        hint: "too fast to fall back, too slow to escape. What lies between?",
+        why: "It swings far out on an ellipse and returns. Most real orbits, including the planets', are ellipses.",
+        show: fireShow(9.5),
+      };
+    },
+    function marsJup(ctx) {
+      const k = ctx.next("mj", ["mars", "jupiter", "mars", "jupiter"]);
+      const kg = k === "mars" ? ctx.next("hm", [50, 100, 30, 20]) : ctx.next("hj", [20, 30, 40, 60]);
+      const w = WORLDS[k];
+      const exact = kg * w.g;
+      return {
+        ask: `A scale reads ${kg} kg on Earth. ${w.n} pulls about ${w.g} times as hard. About what would it read on ${w.n}? (Nearest whole number.)`,
+        draw(q) {
+          scaleScene(q, k, kg);
+        },
+        pad: true,
+        check: (v) => Math.abs(v - exact) <= 0.6,
+        ans: Math.round(exact),
+        hint: k === "mars" ? `${kg} × 0.38 = ${kg} × 38 ÷ 100.` : `${kg} × 2.5 = ${kg} × 2 + half of ${kg}.`,
+        why: `${kg} × ${w.g} = ${Math.round(exact * 100) / 100}, about ${Math.round(exact)} kg.`,
+        show: function (live) {
+          this.read.textContent = `${Math.round(exact)} kg`;
+          return nap(300, live);
+        },
+      };
+    },
+    function iss() {
+      return {
+        ask: "The Space Station circles Earth about every 90 minutes. A day has 1,440 minutes. About how many orbits does it make per day?",
+        draw(q) {
+          cannonScene(q);
+        },
+        pad: true,
+        check: (v) => v === 16 || v === 15,
+        ans: 16,
+        hint: "how many 90s make 1,440? Start with 90 × 10 = 900.",
+        why: "1,440 ÷ 90 = 16: the crew see about 16 sunrises a day.",
+        show: fireShow(7.8),
+      };
+    },
+    function minute() {
+      return {
+        ask: "In orbit the cannonball covers about 7.8 km each second. How far in one minute (60 s)?",
+        draw(q) {
+          cannonScene(q);
+        },
+        pad: true,
+        check: (v) => v === 468,
+        ans: 468,
+        hint: "7.8 × 60 = 7 × 60 + 0.8 × 60.",
+        why: "420 + 48 = 468 km per minute.",
+      };
+    },
+  ],
+  hard: [
+    function inverse(ctx) {
+      const [k, ans, pool] = ctx.next("inv", [[2, "1/4", ["1/2", "1/4", "1/8"]], [3, "1/9", ["1/3", "1/6", "1/9"]], [4, "1/16", ["1/4", "1/8", "1/16"]], [10, "1/100", ["1/10", "1/20", "1/100"]]]);
+      return {
+        ask: `Newton's law of gravitation: the pull weakens with the square of the distance between centres. If the distance becomes ${k} times as great, the pull becomes…`,
+        draw() {
+          sheet("Inverse-square law", ["F ∝ 1 / d²", `d → ${k} × d`, "F → ?"], 200);
+        },
+        opts: labelled(pool, (x) => `${x} as strong`),
+        ans,
+        hint: `square the factor: ${k} × ${k}. The force is divided by that.`,
+        why: `${k}² = ${k * k}, so the force becomes ${ans} as strong.`,
+      };
+    },
+    function issG() {
+      return {
+        ask: "The Space Station orbits about 400 km up; Earth's radius is 6,371 km. Compared with the ground, gravity up there is about…",
+        draw() {
+          sheet("How strong is gravity at the station?", ["distance from centre: 6,771 km", "ratio: (6,371 ÷ 6,771)²", "≈ ?"], 200);
+        },
+        opts: labelled(["0% (none)", "about 89%", "about 50%"]),
+        ans: "about 89%",
+        hint: "6,371 ÷ 6,771 is about 0.94. What is 0.94 × 0.94?",
+        why: "(0.94)² ≈ 0.89. Astronauts float because they are in free fall, not because gravity has vanished.",
+      };
+    },
+    function feather() {
+      return {
+        ask: "On the airless Moon, an astronaut drops a hammer and a feather together. What happens?",
+        draw() {
+          emoji(view, 380, 200, "🔨", 90);
+          emoji(view, 620, 200, "🪶", 90);
+          el("rect", { x: 200, y: 430, width: 600, height: 20, rx: 10, fill: "#cfcac0" }, view);
+        },
+        opts: labelled(["They land together", "The hammer lands first", "The feather floats away"]),
+        ans: "They land together",
+        hint: "on Earth, what slows a feather? Is that present on the Moon?",
+        why: "Without air resistance, all objects fall with the same acceleration. Commander David Scott showed this on Apollo 15 in 1971.",
+      };
+    },
+    function mass() {
+      return {
+        ask: "You travel from Earth to the Moon. What happens to your mass (the amount of matter in you) and your weight (the pull of gravity on you)?",
+        draw(q) {
+          jumpScene(q, ["earth", "moon"]);
+        },
+        opts: labelled(["Mass stays the same; weight drops to about 1/6", "Both drop to 1/6", "Mass drops; weight stays"]),
+        ans: "Mass stays the same; weight drops to about 1/6",
+        hint: "does travelling remove any of your matter? Which quantity depends on the world you stand on?",
+        why: "Mass is the same everywhere; weight is a force that depends on local gravity.",
+      };
+    },
+    function moonSlow() {
+      return {
+        ask: "The Space Station orbits at about 7.7 km/s; the Moon at only about 1 km/s. Why is the Moon so much slower?",
+        draw(q) {
+          cannonScene(q);
+        },
+        opts: labelled(["It is much farther away, where Earth's gravity is weaker", "It is heavier", "It is pushed by the Sun"]),
+        ans: "It is much farther away, where Earth's gravity is weaker",
+        hint: "about 60 Earth radii away, how strong is Earth's pull by the inverse-square law?",
+        why: "Far from Earth the pull is weak, so a slower speed suffices to keep falling around it. The same holds for planets: outer ones move more slowly.",
+      };
+    },
+    function kepler1() {
+      return {
+        ask: "Kepler's first law (1609): what shape is every planet's orbit, and where is the Sun?",
+        draw() {
+          el("ellipse", { cx: 500, cy: 280, rx: 380, ry: 200, fill: "none", stroke: "#6c74a8", "stroke-width": 3 }, view);
+          drawSun(view, 500 + Math.sqrt(380 ** 2 - 200 ** 2), 280, 30);
+          el("circle", { cx: 500 - Math.sqrt(380 ** 2 - 200 ** 2), cy: 280, r: 6, fill: SOFT }, view);
+        },
+        opts: labelled(["An ellipse, with the Sun at one focus", "A perfect circle, Sun at the centre", "A spiral, Sun at the start"]),
+        ans: "An ellipse, with the Sun at one focus",
+        hint: "Look at the drawing. Is the Sun at the centre of the oval?",
+        why: "Orbits are ellipses with the Sun at one focus (one of two special points inside). Most planetary orbits are only slightly elongated.",
+      };
+    },
+    function kepler2() {
+      return {
+        ask: "Kepler's second law: a line from the Sun to a planet sweeps out equal areas in equal times. So where does a planet move fastest?",
+        draw() {
+          const f = 500 + Math.sqrt(380 ** 2 - 200 ** 2);
+          el("ellipse", { cx: 500, cy: 280, rx: 380, ry: 200, fill: "none", stroke: "#6c74a8", "stroke-width": 3 }, view);
+          el("path", { d: `M${f} 280 L880 280 L862 200 Z`, fill: GOLD, opacity: 0.4 }, view);
+          el("path", { d: `M${f} 280 L120 280 L135 205 Z`, fill: GOLD, opacity: 0.4 }, view);
+          drawSun(view, f, 280, 30);
+          T(view, 500, 540, "Equal times → equal areas", 26, SOFT);
+        },
+        opts: labelled(["Closest to the Sun", "Farthest from the Sun", "Same speed everywhere"]),
+        ans: "Closest to the Sun",
+        hint: "near the Sun the swept triangle is short. To have the same area, must the arc be longer or shorter?",
+        why: "Near the Sun, the planet must cover a longer arc in the same time: it moves fastest at its closest point (perihelion).",
+      };
+    },
+    function kepler3(ctx) {
+      const [a, P] = ctx.next("k3", [[4, 8], [9, 27], [16, 64], [25, 125], [100, 1000]]);
+      return {
+        ask: `Kepler's third law for the Sun's family: P² = a³ (P in years, a in AU). An asteroid orbits at a = ${a} AU. What is its period P, in years?`,
+        draw() {
+          keplerScene([`a = ${a} AU`, `a³ = ${fmt(a ** 3)}`, "P = √(a³) = ?"]);
+        },
+        pad: true,
+        check: (v) => v === P,
+        ans: P,
+        hint: `find a³ = ${a} × ${a} × ${a}, then the number that multiplies by itself to give it.`,
+        why: `${a}³ = ${fmt(a ** 3)} = ${P}², so P = ${P} years.`,
+      };
+    },
+    function kepler3b(ctx) {
+      const [P, a] = ctx.next("k3b", [[8, 4], [27, 9], [125, 25], [1, 1]]);
+      return {
+        ask: `Using P² = a³: a comet takes ${P} year${P === 1 ? "" : "s"} to orbit the Sun. What is the size of its orbit, a, in AU?`,
+        draw() {
+          keplerScene([`P = ${P} years`, `P² = ${fmt(P * P)}`, "a = ∛(P²) = ?"]);
+        },
+        pad: true,
+        check: (v) => v === a,
+        ans: a,
+        hint: `P² = ${fmt(P * P)}. Which number, cubed (× itself three times), gives that?`,
+        why: `${P}² = ${fmt(P * P)} = ${a}³, so a = ${a} AU.`,
+      };
+    },
+    function keplerMars() {
+      return {
+        ask: "Mars orbits at about 1.52 AU. Using P² = a³, its year is closest to…",
+        draw() {
+          keplerScene(["a = 1.52 AU", "a³ ≈ 3.5", "P = √3.5 ≈ ?"]);
+        },
+        opts: labelled(["about 1.9 years", "about 1.5 years", "about 3.5 years"]),
+        ans: "about 1.9 years",
+        hint: "which number squared is about 3.5? Try 1.9 × 1.9.",
+        why: "1.9² = 3.61, close to 3.5, so P ≈ 1.88 years: the 687 days of a Martian year.",
+      };
+    },
+  ],
+};
+const gravity = {
+  count: "gravity questions",
+  make(level, round, ctx) {
+    return ctx.next(`gr-${level}`, GRAV_BANK[level])(ctx);
+  },
+};
+
+// ---------- 6. STARS & CONSTELLATIONS ----------
+const CONS = {
+  dipper: {
+    name: "the Big Dipper",
+    stars: [[120, 180, "Alkaid"], [235, 150, "Mizar"], [340, 180, "Alioth"], [440, 225, "Megrez"], [640, 205, "Dubhe"], [630, 360, "Merak"], [455, 355, "Phecda"]],
+    lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 3]],
+    fact: "The Big Dipper is part of the Great Bear. The two end stars of its bowl point to the North Star.",
+  },
+  orion: {
+    name: "Orion the hunter",
+    stars: [[360, 110, "Betelgeuse", "#ff9a6b"], [610, 135, "Bellatrix"], [545, 280, "Mintaka"], [490, 297, "Alnilam"], [435, 314, "Alnitak"], [405, 470, "Saiph"], [640, 455, "Rigel", "#b9d4ff"]],
+    lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 0], [4, 5], [2, 6]],
+    fact: "Orion has 3 stars in a row for his belt. Red Betelgeuse is cooler; blue-white Rigel is much hotter.",
+  },
+  cass: {
+    name: "Cassiopeia",
+    stars: [[200, 200, "Caph"], [350, 320, "Schedar"], [500, 230, "Gamma Cas"], [650, 330, "Ruchbah"], [800, 215, "Segin"]],
+    lines: [[0, 1], [1, 2], [2, 3], [3, 4]],
+    fact: "Cassiopeia makes a W shape (or an M), on the other side of the North Star from the Big Dipper.",
+  },
+  crux: {
+    name: "the Southern Cross",
+    stars: [[500, 80, "Gacrux", "#ff9a6b"], [500, 470, "Acrux"], [360, 250, "Mimosa"], [630, 290, "Delta Crucis"]],
+    lines: [[0, 1], [2, 3]],
+    fact: "The Southern Cross is seen from the south half of Earth. It is on the flags of Australia and New Zealand.",
+  },
+};
+const starPath = (cx, cy, R, r = R * 0.45) => {
+  let d = "";
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const rr = i % 2 ? r : R;
+    d += `${i ? "L" : "M"}${(cx + rr * Math.cos(a)).toFixed(1)} ${(cy + rr * Math.sin(a)).toFixed(1)}`;
+  }
+  return d + "Z";
+};
+function connectScene(q, api, key, auto = false) {
+  const c = CONS[key];
+  const lines = el("g", {}, view);
+  const nodes = c.stars.map(([x, y, name, col], i) => {
+    const g = el("g", { class: "sp-tap" }, view);
+    el("circle", { cx: x, cy: y, r: 40, fill: "transparent" }, g);
+    const halo = el("circle", { cx: x, cy: y, r: 26, fill: "none", stroke: GOLD, "stroke-width": 4, opacity: 0 }, g);
+    el("path", { d: starPath(x, y, 16), fill: col || "#fff3d6" }, g);
+    const num = T(g, x + 28, y - 18, i + 1, 24, GOLD);
+    const nm = T(g, x, y + 44, name, 22, SOFT, { opacity: 0 });
+    g.addEventListener("pointerdown", () => tap(i));
+    return { x, y, halo, num, nm };
+  });
+  let next = 0;
+  const lit = new Set();
+  const glow = () => nodes.forEach((n, i) => n.halo.setAttribute("opacity", i === next ? 1 : 0));
+  glow();
+  const tap = (i) => {
+    if (!q.live() || next >= nodes.length) return;
+    window.OC?.touch();
+    if (i !== next) {
+      say(`Look for number ${next + 1}. It has a gold ring.`, { voice: true });
+      return;
+    }
+    lit.add(i);
+    nodes[i].nm.setAttribute("opacity", 1);
+    if (!auto) MUSIC.play("xylophone", 72 + [0, 2, 4, 7, 9, 12, 14][i % 7], { gain: 0.4 });
+    for (const [a, b] of c.lines)
+      if (lit.has(a) && lit.has(b) && (a === i || b === i)) el("line", { x1: nodes[a].x, y1: nodes[a].y, x2: nodes[b].x, y2: nodes[b].y, stroke: "#9fb4ff", "stroke-width": 4, "stroke-linecap": "round" }, lines);
+    next += 1;
+    glow();
+    if (next >= nodes.length) {
+      T(view, 500, 540, cap(c.name), 30, GOLD);
+      if (!auto) api.pick("done");
+    }
+  };
+  q.tapStar = tap;
+  if (auto) for (let i = 0; i < nodes.length; i++) tap(i);
+}
+const STARCOL = [
+  { k: "red", col: "#ff6b4a", name: "red", temp: 1 },
+  { k: "orange", col: "#ffa646", name: "orange", temp: 2 },
+  { k: "yellow", col: "#ffe066", name: "yellow", temp: 3 },
+  { k: "blue", col: "#8fb8ff", name: "blue", temp: 5 },
+];
+function colourStars(q, api) {
+  q.nodes = {};
+  shuffle(STARCOL).forEach((s, i) => {
+    const x = 140 + i * 240;
+    const g = el("g", { class: "sp-tap" }, view);
+    const ring = el("circle", { cx: x, cy: 250, r: 100, fill: "#fff", "fill-opacity": 0.05, stroke: "transparent", "stroke-width": 6 }, g);
+    el("circle", { cx: x, cy: 250, r: 90, fill: s.col, opacity: 0.25 }, g);
+    el("path", { d: starPath(x, 250, 72, 32), fill: s.col }, g);
+    g.addEventListener("pointerdown", () => api.pick(s.k));
+    q.nodes[s.k] = ring;
+  });
+  // cool to hot bar
+  const grad = el("defs", {}, view);
+  grad.innerHTML = `<linearGradient id="spTemp"><stop offset="0" stop-color="#ff6b4a"/><stop offset=".35" stop-color="#ffa646"/><stop offset=".6" stop-color="#ffe066"/><stop offset=".8" stop-color="#ffffff"/><stop offset="1" stop-color="#8fb8ff"/></linearGradient>`;
+  q.bar = el("g", { opacity: 0 }, view);
+  el("rect", { x: 150, y: 430, width: 700, height: 30, rx: 15, fill: "url(#spTemp)" }, q.bar);
+  T(q.bar, 150, 500, "cooler", 26, LIGHT);
+  T(q.bar, 850, 500, "hotter", 26, LIGHT);
+  q.mark = (v, ok) => q.nodes[v]?.setAttribute("stroke", ok ? GOOD : BAD);
+  q.show = (live) => tw(800, (t) => q.bar.setAttribute("opacity", t), live);
+}
+function choiceQ(ask, opts, ans, hint, why, draw) {
+  return { ask, opts: opts.map(([label, v]) => ({ label, v })), ans, hint, why, draw };
+}
+const skyDots = () => {
+  for (let i = 0; i < 30; i++) el("path", { d: starPath(pickInt(60, 940), pickInt(60, 500), pickInt(5, 10)), fill: "#fff3d6" }, view);
+};
+const sunAndStars = () => {
+  drawSun(view, 300, 280, 110);
+  for (const [x, y, r] of [[700, 160, 5], [820, 300, 4], [650, 420, 3], [880, 120, 3]]) el("path", { d: starPath(x, y, r * 3), fill: "#fff3d6" }, view);
+};
+const colourRow = () => STARCOL.forEach((s, i) => el("path", { d: starPath(170 + i * 220, 260, 60, 27), fill: s.col }, view));
+const lightQ = (planet, times, lo, hi) => ({
+  ask: `Sunlight takes about 8 minutes to reach Earth. ${planet} is about ${times} times as far from the Sun. About how many minutes does sunlight take to reach ${planet}?`,
+  draw() {
+    drawSun(view, 70, 280, 50);
+    el("line", { x1: 130, x2: 930, y1: 280, y2: 280, stroke: "#ffd23f", "stroke-width": 3, "stroke-dasharray": "10 10" }, view);
+    drawPlanet(view, 130 + 800 / times, 280, 12, P.Earth);
+    T(view, 130 + 800 / times, 330, "8 min", 24, GOLD);
+    drawPlanet(view, 930, 280, 20, P[planet]);
+    T(view, 930, 330, "?", 30, GOLD);
+  },
+  pad: true,
+  check: (v) => v >= lo && v <= hi,
+  ans: 8 * times,
+  hint: `${times} times the distance means ${times} times the travel time. What is 8 × ${times}?`,
+  why: `8 × ${times} = ${8 * times} minutes. Light is fast, but the solar system is vast.`,
+});
+const STAR_BANK = {
+  easy: [
+    function connect(ctx) {
+      const key = ctx.next("cons", ["dipper", "orion", "cass", "crux"]);
+      const c = CONS[key];
+      return {
+        ask: `Tap the stars in order, 1 to ${c.stars.length}, to draw ${c.name}.`,
+        draw: (q, api) => connectScene(q, api, key),
+        ans: "done",
+        why: `${c.fact} A constellation is a pattern people see in the stars; its stars are usually at very different distances from us.`,
+      };
+    },
+    function colour(ctx) {
+      const k = ctx.next("ec", ["blue", "red", "yellow"]);
+      return {
+        ask: { blue: "A star's colour reveals its surface temperature. Tap the hottest star.", red: "A star's colour reveals its surface temperature. Tap the coolest star.", yellow: "The Sun is a yellow-white star. Tap the star most like it." }[k],
+        draw: (q, api) => colourStars(q, api),
+        ans: k,
+        ansText: `the ${k} star`,
+        hint: { blue: "in a gas flame, which colour is the hottest part?", red: "glowing embers that are cooling look which colour?", yellow: "which star is yellow?" }[k],
+        why: "From coolest to hottest: red, orange, yellow, white, blue.",
+      };
+    },
+    () => choiceQ("What is the nearest star to Earth?", [["☀️ The Sun", "sun"], ["⭐ The North Star", "north"], ["🌙 The Moon", "moon"]], "sun", "which of these makes its own light? The Moon only reflects light.", "The Sun, about 150 million km away. The next nearest star is roughly 270,000 times farther.", sunAndStars),
+    () => choiceQ("Why do stars look like tiny points at night?", [["They are extremely far away", "far"], ["They are as small as sparks", "small"], ["They are close but dim", "dim"]], "far", "the Sun is a star too. How do distant objects appear?", "Stars are suns, many larger than ours, but so distant that they appear as points.", skyDots),
+    () => choiceQ("Why can't we see stars in the daytime?", [["Sunlight scattered in the air brightens the sky", "sun"], ["Stars switch off by day", "off"], ["Stars hide behind the Moon", "moon"]], "sun", "are the stars still there by day? What makes the day sky bright?", "The stars are still there; scattered sunlight makes the sky far brighter than they are.", colourRow),
+    () => choiceQ("Which row goes from coolest star to hottest?", [["🔴 🟠 🟡 ⚪ 🔵", "a"], ["🔵 ⚪ 🟡 🟠 🔴", "b"], ["🟡 🔴 🔵 🟠 ⚪", "c"]], "a", "find the row that begins with the coolest colour and ends with the hottest.", "Red is coolest, then orange, yellow, white; blue is hottest.", colourRow),
+  ],
+  medium: [
+    function hotter() {
+      return {
+        ask: "In Orion, Betelgeuse is red-orange and Rigel is blue-white. Which has the hotter surface?",
+        draw(q, api) {
+          connectScene(q, api, "orion", true);
+        },
+        opts: [{ label: "🔵 Rigel", v: "rigel" }, { label: "🔴 Betelgeuse", v: "bet" }],
+        ans: "rigel",
+        hint: "in a flame, is blue or red-orange hotter?",
+        why: "Rigel's surface is nearly 12,000 °C; Betelgeuse, a cool red supergiant, is only about 3,300 °C. Blue-white means far hotter than red-orange.",
+      };
+    },
+    function pointer() {
+      return {
+        ask: "The two stars at the end of the Big Dipper's bowl point toward which star?",
+        draw(q, api) {
+          connectScene(q, api, "dipper", true);
+          el("line", { x1: 630, y1: 345, x2: 650, y2: 70, stroke: GOLD, "stroke-width": 4, "stroke-dasharray": "10 8" }, view);
+          T(view, 700, 80, "?", 44, GOLD);
+        },
+        opts: [{ label: "⭐ Polaris, the North Star", v: "north" }, { label: "☀️ The Sun", v: "sun" }, { label: "🔴 Betelgeuse", v: "bet" }],
+        ans: "north",
+        hint: "navigators used it to find north. What is it called?",
+        why: "They point to Polaris, which sits almost directly above Earth's North Pole, so it barely moves through the night.",
+      };
+    },
+    function belt() {
+      return {
+        ask: "How many stars form Orion's belt?",
+        draw(q, api) {
+          connectScene(q, api, "orion", true);
+        },
+        opts: labelled([2, 3, 5]),
+        ans: 3,
+        hint: "find the short straight row across the middle and count.",
+        why: "Three: Alnitak, Alnilam and Mintaka.",
+      };
+    },
+    () => choiceQ("Compared with other stars, the Sun is…", [["A medium-sized star", "mid"], ["The largest star", "big"], ["The smallest star", "small"]], "mid", "Betelgeuse is hundreds of times wider than the Sun; many stars are smaller. Where does that place the Sun?", "The Sun is an average, middle-aged star (a yellow dwarf). It only looks immense because it is close.", sunAndStars),
+    function ly() {
+      return {
+        ask: "A light-year measures…",
+        draw() {
+          drawSun(view, 120, 280, 60);
+          el("line", { x1: 200, x2: 820, y1: 280, y2: 280, stroke: "#ffd23f", "stroke-width": 4, "stroke-dasharray": "14 10" }, view);
+          el("path", { d: starPath(880, 280, 30), fill: "#fff3d6" }, view);
+          T(view, 510, 250, "light travelling for 1 year", 26, LIGHT);
+          T(view, 510, 330, "about 9.5 trillion km", 26, GOLD);
+        },
+        opts: labelled(["A distance: how far light travels in a year", "A length of time: one year", "A star's brightness"]),
+        ans: "A distance: how far light travels in a year",
+        hint: "the picture shows light covering ground. Is that 'how long' or 'how far'?",
+        why: "Despite the word 'year', it is a distance: about 9.5 trillion km. The nearest star beyond the Sun is about 4.2 light-years away.",
+      };
+    },
+    () => lightQ("Jupiter", 5, 40, 44),
+    () => lightQ("Saturn", 10, 76, 80),
+    function past() {
+      return {
+        ask: "A star is 100 light-years away. The light reaching your eye tonight left it how many years ago?",
+        draw() {
+          el("path", { d: starPath(850, 260, 40), fill: "#fff3d6" }, view);
+          emoji(view, 140, 300, "🔭", 90);
+          el("line", { x1: 220, x2: 800, y1: 270, y2: 270, stroke: "#fff3d6", "stroke-width": 3, "stroke-dasharray": "10 10" }, view);
+          T(view, 510, 240, "100 light-years", 30, GOLD);
+        },
+        pad: true,
+        check: (v) => v === 100,
+        ans: 100,
+        hint: "a light-year is the distance light covers in one year.",
+        why: "100 years ago. Looking outward in space is looking backward in time.",
+      };
+    },
+    function moonlight() {
+      return {
+        ask: "Light travels about 300,000 km each second. The Moon is about 384,000 km away. How long does moonlight take to reach us?",
+        draw() {
+          drawPlanet(view, 150, 280, 50, P.Earth);
+          drawPlanet(view, 860, 280, 30, MOON);
+          T(view, 505, 240, "384,000 km", 30, GOLD);
+          el("line", { x1: 210, x2: 820, y1: 280, y2: 280, stroke: "#fff3d6", "stroke-width": 3, "stroke-dasharray": "10 10" }, view);
+        },
+        opts: labelled(["A little over 1 second", "Under 1 second", "About 8 minutes"]),
+        ans: "A little over 1 second",
+        hint: "compare 384,000 with 300,000.",
+        why: "384,000 ÷ 300,000 ≈ 1.3 seconds.",
+      };
+    },
+  ],
+  hard: [
+    function lyKm() {
+      return {
+        ask: "Light travels about 300,000 km/s, and a year has about 31.6 million seconds. Roughly how far is one light-year?",
+        draw() {
+          sheet("Building the light-year", ["300,000 km/s", "× 31,600,000 s", "≈ ? km"], 200);
+        },
+        opts: labelled(["About 9.5 trillion km", "About 9.5 million km", "About 300,000 km"]),
+        ans: "About 9.5 trillion km",
+        hint: "3 × 10⁵ × 3.16 × 10⁷: multiply 3 × 3.16, then add the powers of ten.",
+        why: "3 × 3.16 ≈ 9.5 and 10⁵ × 10⁷ = 10¹², so about 9.5 × 10¹² km: 9.5 trillion.",
+      };
+    },
+    function lyAu() {
+      return {
+        ask: "One light-year is about 63,000 AU. Proxima Centauri is about 4.2 light-years away. About how many AU is that?",
+        draw() {
+          sheet("Light-years to AU", ["1 ly ≈ 63,000 AU", "4.2 ly × 63,000", "≈ ? AU"], 200);
+        },
+        opts: labelled(["About 26,500 AU", "About 265,000 AU", "About 2.65 million AU"]),
+        ans: "About 265,000 AU",
+        hint: "4 × 63,000 = 252,000. Add 0.2 × 63,000.",
+        why: "4.2 × 63,000 ≈ 265,000 AU. Neptune is only 30 AU out.",
+      };
+    },
+    () => choiceQ("How do astronomers measure the distance to nearby stars directly?", [["Parallax: the star's tiny shift as Earth moves around its orbit", "par"], ["By timing how long the star takes to twinkle", "tw"], ["By its colour", "col"]], "par", "hold up a finger and look with one eye, then the other. What happens? Earth's orbit gives two viewpoints.", "Parallax. Viewed six months apart, from opposite sides of Earth's orbit, a nearby star shifts slightly against far-off stars. The smaller the shift, the farther the star.", skyDots),
+    () => choiceQ("Two stars give out the same light, but star B is twice as far away as star A. How bright does B appear compared with A?", [["1/4 as bright", "q"], ["1/2 as bright", "h"], ["Equally bright", "e"]], "q", "light spreads over a sphere whose area grows with the square of the distance.", "Brightness falls with the square of distance: 2² = 4, so B appears 1/4 as bright.", skyDots),
+    () => choiceQ("How does the Sun produce its energy?", [["Nuclear fusion: hydrogen nuclei join to form helium", "fus"], ["Burning coal and gas", "burn"], ["Reflecting light from other stars", "ref"]], "fus", "ordinary fire would have burned out in a few thousand years. The Sun is about 4.6 billion years old.", "In its core, at about 15 million °C, hydrogen fuses into helium, releasing energy (Einstein's E = mc²).", sunAndStars),
+    () => choiceQ("In about 5 billion years, when its core hydrogen runs low, what will the Sun become?", [["A red giant, then a white dwarf", "rg"], ["A black hole", "bh"], ["A blue supergiant", "bs"]], "rg", "black holes form only from stars far more massive than the Sun.", "It will swell into a red giant, shed its outer layers, and leave a small, hot white dwarf.", sunAndStars),
+    function arrive(ctx) {
+      const [d, y] = ctx.next("arr", [[40, 1990], [25, 2001], [60, 1975], [12, 2010]]);
+      return {
+        ask: `Light leaves a star ${d} light-years away in the year ${y}. In what year does it reach Earth?`,
+        draw() {
+          sheet("Light-travel time", [`distance: ${d} light-years`, `light leaves: ${y}`, "arrives: ?"], 200);
+        },
+        pad: true,
+        check: (v) => v === y + d,
+        ans: y + d,
+        hint: `${d} light-years takes light ${d} years.`,
+        why: `${y} + ${d} = ${y + d}.`,
+      };
+    },
+    function ship() {
+      return {
+        ask: "Light from Proxima Centauri takes about 4 years to reach us. A spacecraft 10,000 times slower than light would take how many years?",
+        draw() {
+          emoji(view, 160, 280, "🚀", 90);
+          el("path", { d: starPath(860, 280, 40), fill: "#fff3d6" }, view);
+          T(view, 860, 360, "Proxima Centauri", 24, GOLD);
+          T(view, 510, 250, "4 light-years", 30, LIGHT);
+        },
+        pad: true,
+        max: 6,
+        check: (v) => v === 40000,
+        ans: 40000,
+        ansText: "40,000",
+        hint: "10,000 times slower means 10,000 times longer.",
+        why: "4 × 10,000 = 40,000 years. Our fastest spacecraft are slower still.",
+      };
+    },
+    function sunTemp() {
+      return {
+        ask: "The Sun's surface is about 5,500 °C; a red dwarf's about 3,000 °C. How many degrees hotter is the Sun's surface?",
+        draw() {
+          drawSun(view, 300, 270, 110);
+          el("path", { d: starPath(720, 270, 90, 40), fill: "#ff6b4a" }, view);
+          T(view, 300, 460, "5,500 °C", 30, GOLD);
+          T(view, 720, 460, "3,000 °C", 30, "#ff9b85");
+        },
+        pad: true,
+        check: (v) => v === 2500,
+        ans: 2500,
+        ansText: "2,500",
+        hint: "subtract the thousands, then the hundreds.",
+        why: "5,500 − 3,000 = 2,500 °C. Hotter stars glow whiter and bluer.",
+      };
+    },
+    () => lightQ("Neptune", 30, 240, 250),
+  ],
+};
+const stars = {
+  count: "star questions",
+  make(level, round, ctx) {
+    return ctx.next(`st-${level}`, STAR_BANK[level])(ctx);
+  },
+};
+
+// ---------- 7. SPACE HISTORY ----------
+const EVENTS = [
+  { y: 1957, e: "🛰️", s: "Sputnik 1", l: ["Sputnik 1", "first satellite"] },
+  { y: 1961, e: "👨‍🚀", s: "First person in space", l: ["Yuri Gagarin", "first person in space"] },
+  { y: 1963, e: "👩‍🚀", s: "First woman in space", l: ["Valentina Tereshkova", "first woman in space"] },
+  { y: 1969, e: "👣", s: "Apollo 11 Moon landing", l: ["Apollo 11", "first people on the Moon"] },
+  { y: 1981, e: "🚀", s: "First Space Shuttle flight", l: ["Space Shuttle", "first flight"] },
+  { y: 1990, e: "🔭", s: "Hubble telescope launched", l: ["Hubble Space Telescope", "launched into orbit"] },
+  { y: 1997, e: "🚙", s: "First Mars rover", l: ["Sojourner", "first rover on Mars"] },
+  { y: 2000, e: "🏠", s: "Crew moves into the ISS", l: ["Space Station", "crewed ever since"] },
+  { y: 2012, e: "🤖", s: "Curiosity lands on Mars", l: ["Curiosity rover", "lands on Mars"] },
+  { y: 2015, e: "🛬", s: "Orbital booster lands upright", l: ["Reusable rocket", "booster lands upright"] },
+  { y: 2021, e: "🚁", s: "Helicopter flies on Mars", l: ["Ingenuity", "flies on another planet"] },
+];
+const ASTRO = [
+  { y: -270, when: "c. 270 BCE", e: "☀️", s: "Aristarchus", l: ["Aristarchus", "first Sun-centred idea"] },
+  { y: -240, when: "c. 240 BCE", e: "📐", s: "Eratosthenes", l: ["Eratosthenes", "measures Earth's size"] },
+  { y: 150, when: "c. 150 CE", e: "🌍", s: "Ptolemy", l: ["Ptolemy", "Earth-centred model"] },
+  { y: 1543, when: "1543", e: "📖", s: "Copernicus", l: ["Copernicus", "Sun-centred model"] },
+  { y: 1572, when: "1572", e: "✨", s: "Tycho Brahe", l: ["Tycho Brahe", "precise star records"] },
+  { y: 1609, when: "1609", e: "⭕", s: "Kepler", l: ["Kepler", "orbits are ellipses"] },
+  { y: 1610, when: "1610", e: "🔭", s: "Galileo", l: ["Galileo", "moons of Jupiter"] },
+  { y: 1687, when: "1687", e: "🍎", s: "Newton", l: ["Newton", "universal gravitation"] },
+  { y: 1781, when: "1781", e: "🪐", s: "Herschel", l: ["Herschel", "discovers Uranus"] },
+  { y: 1846, when: "1846", e: "🧮", s: "Neptune found", l: ["Neptune", "predicted by maths"] },
+  { y: 1924, when: "1924", e: "🌌", s: "Hubble (the astronomer)", l: ["Edwin Hubble", "other galaxies exist"] },
+];
+const TX = (year) => 80 + (year - 1950) * 10.5;
+function timeline(parent, y = 420, marks = []) {
+  el("line", { x1: 60, x2: 940, y1: y, y2: y, stroke: SOFT, "stroke-width": 4, "stroke-linecap": "round" }, parent);
+  for (let d = 1950; d <= 2030; d += 10) {
+    el("line", { x1: TX(d), x2: TX(d), y1: y - 10, y2: y + 10, stroke: SOFT, "stroke-width": 3 }, parent);
+    T(parent, TX(d), y + 40, d, 22, SOFT);
+  }
+  for (const ev of marks) {
+    el("circle", { cx: TX(ev.y), cy: y, r: 10, fill: GOLD }, parent);
+    T(parent, TX(ev.y), y - 22, ev.y, 22, GOLD);
+  }
+}
+function eventCard(parent, x, y, ev, w = 380, h = 250, showYear = false) {
+  const g = el("g", {}, parent);
+  const ring = el("rect", { x: x - w / 2, y, width: w, height: h, rx: 24, fill: "#2a3260", stroke: "#4c557f", "stroke-width": 4 }, g);
+  emoji(g, x, y + 72, ev.e, 76);
+  ev.l.forEach((ln, i) => T(g, x, y + 160 + i * 32, ln, i ? 22 : 26, i ? SOFT : LIGHT));
+  if (showYear) T(g, x, y + h - 14, ev.when || ev.y, 24, GOLD);
+  return { g, ring };
+}
+const HIST_BANK = {
+  easy: [
+    function first(ctx) {
+      const pairs = [];
+      for (const a of EVENTS) for (const b of EVENTS) if (b.y - a.y >= 12) pairs.push([a, b]);
+      const [early, late] = ctx.next("hp", pairs);
+      const [L, Rr] = shuffle([early, late]);
+      return {
+        ask: `Which happened first: ${L.s}, or ${Rr.s}?`,
+        draw(q, api) {
+          q.nodes = {};
+          [[L, 270], [Rr, 730]].forEach(([ev, x]) => {
+            const c = eventCard(view, x, 50, ev, 400, 250);
+            c.g.classList.add("sp-tap");
+            c.g.addEventListener("pointerdown", () => api.pick(ev.y));
+            q.nodes[ev.y] = c.ring;
+          });
+          q.line = el("g", { opacity: 0 }, view);
+          timeline(q.line, 430, [early, late]);
+          q.mark = (v, ok) => q.nodes[v]?.setAttribute("stroke", ok ? GOOD : BAD);
+        },
+        opts: [L, Rr].map((ev) => ({ label: `${ev.e} ${ev.s}`, v: ev.y })),
+        ans: early.y,
+        hint: "which achievement would have to come before the other was possible?",
+        why: `${early.l[0]}: ${early.y}. ${late.l[0]}: ${late.y}, ${late.y - early.y} years later.`,
+        show: function (live) {
+          return tw(700, (t) => this.line.setAttribute("opacity", t), live);
+        },
+      };
+    },
+    function decade(ctx) {
+      const ev = ctx.next("hm7", EVENTS);
+      const dec = Math.floor(ev.y / 10) * 10;
+      return {
+        ask: `${ev.l[0]}: ${ev.l[1]}, in ${ev.y}. Tap its decade.`,
+        draw(q, api) {
+          eventCard(view, 500, 30, ev, 560, 260);
+          q.nodes = {};
+          for (let d = 1950; d <= 2020; d += 10) {
+            const x = 60 + ((d - 1950) / 10) * 112;
+            const g = el("g", { class: "sp-tap" }, view);
+            const r = el("rect", { x, y: 340, width: 100, height: 110, rx: 16, fill: "#2a3260", stroke: "#4c557f", "stroke-width": 3 }, g);
+            T(g, x + 50, 405, `${d}s`, 26, LIGHT);
+            g.addEventListener("pointerdown", () => api.pick(d));
+            q.nodes[d] = r;
+          }
+          T(view, 500, 505, "'The 1950s' means 1950 to 1959", 22, SOFT);
+          q.mark = (v, ok) => q.nodes[v]?.setAttribute("fill", ok ? "#2f7a4c" : "#8a3b30");
+        },
+        ans: dec,
+        ansText: `the ${dec}s`,
+        hint: `look at the first three digits of ${ev.y}.`,
+        why: `${ev.y} falls in the ${dec}s, from ${dec} to ${dec + 9}.`,
+      };
+    },
+  ],
+  medium: [
+    function gap(ctx) {
+      const pairs = [[0, 3], [1, 3], [0, 9], [6, 10], [3, 7], [5, 8], [1, 7], [3, 10], [2, 4]];
+      const [i, j] = ctx.next("gp", pairs);
+      const a = EVENTS[i];
+      const b = EVENTS[j];
+      return {
+        ask: `${a.s}: ${a.y}. ${b.s}: ${b.y}. How many years apart?`,
+        draw() {
+          eventCard(view, 270, 30, a, 400, 250);
+          eventCard(view, 730, 30, b, 400, 250);
+          timeline(view, 430, [a, b]);
+        },
+        pad: true,
+        ans: b.y - a.y,
+        hint: `count on from ${a.y} to the next decade, then on to ${b.y}.`,
+        why: `${b.y} − ${a.y} = ${b.y - a.y} years.${a.y === 1957 && b.y === 1969 ? " From the first satellite to people on the Moon in only 12 years." : ""}`,
+      };
+    },
+    function between(ctx) {
+      const i = ctx.next("btw", [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+      const a = EVENTS[i];
+      const c = EVENTS[i + 2];
+      const mid = EVENTS[i + 1];
+      const others = shuffle(EVENTS.filter((e) => e.y < a.y || e.y > c.y)).slice(0, 2);
+      return {
+        ask: `Which event happened between ${a.y} and ${c.y}?`,
+        draw() {
+          timeline(view, 330, [a, c]);
+          T(view, (TX(a.y) + TX(c.y)) / 2, 280, "?", 50, GOLD);
+        },
+        opts: shuffle([mid, ...others]).map((e) => ({ label: `${e.e} ${e.s}`, v: e.y })),
+        ans: mid.y,
+        hint: "date each option roughly. Is it before, after, or inside that span?",
+        why: `${mid.l[0]} (${mid.l[1]}): ${mid.y}.`,
+      };
+    },
+    function sequence() {
+      const three = shuffle([EVENTS[3], EVENTS[0], EVENTS[1]]);
+      return {
+        ask: "Which of these three came first?",
+        draw() {
+          three.forEach((ev, i) => eventCard(view, 180 + i * 320, 60, ev, 300, 260));
+        },
+        opts: three.map((e) => ({ label: `${e.e} ${e.s}`, v: e.y })),
+        ans: 1957,
+        hint: "before risking a person in orbit, what would engineers test first?",
+        why: "Sputnik 1 (1957), then the first person in space (1961), then the Moon landing (1969).",
+      };
+    },
+    function decadeM(ctx) {
+      return HIST_BANK.easy[1](ctx);
+    },
+  ],
+  hard: [
+    function order(ctx) {
+      const pool = shuffle(ASTRO).slice(0, 3);
+      const firstEv = pool.reduce((m, e) => (e.y < m.y ? e : m));
+      return {
+        ask: "Which of these came first in the history of astronomy?",
+        draw() {
+          pool.forEach((ev, i) => eventCard(view, 180 + i * 320, 60, ev, 300, 260));
+        },
+        opts: pool.map((e) => ({ label: `${e.e} ${e.s}`, v: e.y })),
+        ans: firstEv.y,
+        hint: "ancient Greek scholars came long before the telescope (invented about 1608).",
+        why: pool
+          .slice()
+          .sort((a, b) => a.y - b.y)
+          .map((e) => `${e.l[0]} (${e.when})`)
+          .join(", then ") + ".",
+      };
+    },
+    function span(ctx) {
+      const [i, j] = ctx.next("asp", [[3, 7], [6, 7], [5, 7], [8, 9], [2, 3], [3, 6]]);
+      const a = ASTRO[i];
+      const b = ASTRO[j];
+      return {
+        ask: `${a.l[0]}: ${a.when}. ${b.l[0]}: ${b.when}. How many years apart?`,
+        draw() {
+          eventCard(view, 270, 40, a, 400, 280, true);
+          eventCard(view, 730, 40, b, 400, 280, true);
+        },
+        pad: true,
+        check: (v) => v === b.y - a.y,
+        ans: b.y - a.y,
+        ansText: fmt(b.y - a.y),
+        hint: `subtract: ${b.y} − ${a.y}.`,
+        why: `${b.y} − ${a.y} = ${fmt(b.y - a.y)} years.${a.y === 150 ? " Ptolemy's Earth-centred model was taught for about 1,400 years." : ""}`,
+      };
+    },
+    () => choiceQ("Which of Galileo's 1610 observations showed that not everything orbits Earth?", [["Four moons circling Jupiter", "moons"], ["Spots on the Sun", "spots"], ["Mountains on the Moon", "mts"]], "moons", "which observation shows objects going around something other than Earth?", "Moons orbiting Jupiter proved there were other centres of motion. His observation of Venus showing a full set of phases also fitted only a Sun-centred system.", () => eventCard(view, 500, 60, ASTRO[6], 520, 300, true)),
+    () => choiceQ("Ptolemy's Earth-centred model explained planets' occasional backward (retrograde) motion with…", [["Epicycles: small circles riding on larger circles", "epi"], ["Ellipses with the Sun at a focus", "ell"], ["Gravity from the Sun", "grav"]], "epi", "ellipses and gravity came much later, with Kepler and Newton.", "Epicycles. Copernicus later showed retrograde motion arises naturally when the faster Earth overtakes an outer planet.", () => eventCard(view, 500, 60, ASTRO[2], 520, 300, true)),
+    () => choiceQ("Kepler discovered that orbits are ellipses by analysing whose precise observations of Mars?", [["Tycho Brahe's", "tycho"], ["Galileo's", "gal"], ["Newton's", "new"]], "tycho", "who made the most accurate naked-eye measurements before the telescope?", "Tycho Brahe's. Kepler worked for years to fit Mars's orbit; only an ellipse matched Tycho's data.", () => eventCard(view, 500, 60, ASTRO[4], 520, 300, true)),
+    () => choiceQ("How was Neptune discovered in 1846?", [["Mathematics predicted its position from Uranus's disturbed orbit", "math"], ["A space probe photographed it", "probe"], ["It was always visible to the naked eye", "eye"]], "math", "Uranus was drifting from its predicted path. What could pull it?", "Le Verrier calculated where an unseen planet must be; Galle found Neptune within about 1° of the prediction, a triumph for Newton's gravity.", () => eventCard(view, 500, 60, ASTRO[9], 520, 300, true)),
+    () => choiceQ("Eratosthenes estimated Earth's size around 240 BCE. What did he measure?", [["The different angles of noon shadows in two cities", "shadow"], ["How long a ship took to sail around Earth", "ship"], ["The Moon's distance", "moon"]], "shadow", "if Earth were flat, would shadows in two distant cities be the same?", "At noon in Syene the Sun was overhead; in Alexandria shadows fell at about 7°, 1/50 of a circle. So Earth's circumference was 50 times the distance between the cities.", () => eventCard(view, 500, 60, ASTRO[1], 520, 300, true)),
+    () => choiceQ("Newton's Principia (1687) explained Kepler's laws. With what idea?", [["One gravity, weakening with the square of distance, rules both falling apples and planets", "grav"], ["Planets are pushed by angels", "ang"], ["Magnetism from the Sun", "mag"]], "grav", "what links the cannonball you fired to the Moon's orbit?", "Universal gravitation: the force that drops an apple also holds the Moon and planets in orbit, falling off with distance squared.", () => eventCard(view, 500, 60, ASTRO[7], 520, 300, true)),
+    () => choiceQ("In 1924, Edwin Hubble showed that the Andromeda 'nebula' was…", [["A separate galaxy, far beyond our Milky Way", "gal"], ["A cloud inside our solar system", "cloud"], ["A comet", "comet"]], "gal", "he measured special stars in it and found them far too faint to be nearby.", "A galaxy of its own, about 2.5 million light-years away. The universe was suddenly far larger.", () => eventCard(view, 500, 60, ASTRO[10], 520, 300, true)),
+  ],
+};
+const spaceHistory = {
+  count: "history questions",
+  make(level, round, ctx) {
+    return ctx.next(`hi-${level}`, HIST_BANK[level])(ctx);
+  },
+};
+
+// ---------- 8. SPACE QUIZ ----------
+const QUIZ = {
+  easy: [
+    ["How many planets orbit our Sun?", "🪐", [["8", 1], ["9", 0], ["12", 0]], "Eight. Since 2006, Pluto has been classed as a dwarf planet."],
+    ["What is Pluto?", "⚪", [["A dwarf planet", 1], ["The largest planet", 0], ["A star", 0]], "A small, icy dwarf planet orbiting beyond Neptune."],
+    ["Which planet is nearest the Sun?", "☀️", [["Mercury", 1], ["Venus", 0], ["Earth", 0]], "Mercury, about 58 million km from the Sun."],
+    ["Which planet is the hottest?", "🔥", [["Venus", 1], ["Mercury", 0], ["Mars", 0]], "Venus. Its dense carbon-dioxide atmosphere traps heat (a runaway greenhouse effect), so it is hotter than Mercury."],
+    ["What mainly causes ocean tides?", "🌊", [["The Moon's gravity", 1], ["Wind", 0], ["Earth's rotation alone", 0]], "Chiefly the Moon's gravity, helped by the Sun's. Tides are one everyday reason astronomy matters."],
+    ["What do GPS satellites let a phone work out?", "🛰️", [["Its position on Earth", 1], ["Tomorrow's weather", 0], ["The time of the tides", 0]], "Its position, by timing signals from several satellites at once."],
+    ["Which is the largest planet?", "🟠", [["Jupiter", 1], ["Saturn", 0], ["Earth", 0]], "Jupiter, about 11 Earth-diameters across."],
+    ["What makes day and night?", "🌍", [["Earth rotating on its axis", 1], ["The Sun switching off", 0], ["Clouds", 0]], "Earth's rotation carries us into and out of sunlight about every 24 hours."],
+    ["How long does Earth take to orbit the Sun?", "📅", [["About 365¼ days", 1], ["About 30 days", 0], ["24 hours", 0]], "About 365¼ days, hence a leap day roughly every four years."],
+    ["What is the Sun?", "☀️", [["A star", 1], ["A planet", 0], ["A moon", 0]], "A star: a vast ball of hot gas producing its own light."],
+    ["Why does Mars look red?", "🔴", [["Iron-oxide (rust) dust", 1], ["It is very hot", 0], ["Red oceans", 0]], "Its surface dust is rich in iron oxide, the chemical in rust."],
+    ["Which object goes around Earth?", "🌙", [["The Moon", 1], ["The Sun", 0], ["The stars", 0]], "The Moon orbits Earth about once every 27 days; Earth orbits the Sun."],
+  ],
+  medium: [
+    ["What causes the seasons?", "🌸", [["The 23.5° tilt of Earth's axis", 1], ["Earth's changing distance from the Sun", 0], ["The Moon", 0]], "The tilt. Earth is nearest the Sun in January, during the northern winter."],
+    ["About how long does sunlight take to reach Earth?", "☀️", [["About 8 minutes", 1], ["About 1 second", 0], ["About 1 day", 0]], "About 8⅓ minutes to cross 150 million km."],
+    ["About how many Earths would fit across the Sun's diameter?", "☀️", [["About 109", 1], ["About 11", 0], ["About 1,000,000", 0]], "About 109 across. (By volume, about 1.3 million Earths would fit inside.)"],
+    ["What is 1 AU?", "📏", [["The average Earth–Sun distance, about 150 million km", 1], ["One light-year", 0], ["Earth's diameter", 0]], "The astronomical unit, the natural yardstick of the solar system."],
+    ["About what speed keeps an object in orbit just above Earth's air?", "🚀", [["About 7.8 km/s", 1], ["About 7.8 km/h", 0], ["About 780 km/s", 0]], "About 7.8 km per second, roughly 30 times faster than a passenger jet."],
+    ["Surface gravity on Mars is about what fraction of Earth's?", "🔴", [["About 0.38", 1], ["About 2", 0], ["Exactly 1", 0]], "About 0.38, a little over a third."],
+    ["Which star colour indicates the hottest surface?", "⭐", [["Blue", 1], ["Red", 0], ["Yellow", 0]], "Blue stars are hottest; red stars coolest."],
+    ["What was Sputnik 1 (1957)?", "🛰️", [["The first artificial satellite", 1], ["The first Moon landing", 0], ["A Mars rover", 0]], "Launched by the Soviet Union, it began the Space Age."],
+    ["One year on Jupiter lasts about…", "🟠", [["12 Earth years", 1], ["12 Earth days", 0], ["1 Earth year", 0]], "About 11.9 Earth years; outer planets have longer orbits and move more slowly."],
+    ["On Venus, which is longer?", "🟡", [["One rotation (its day)", 1], ["One orbit (its year)", 0]], "Venus rotates once in 243 Earth days but orbits in 225: its day outlasts its year. It also spins backwards."],
+    ["Why do we always see the same face of the Moon?", "🌙", [["It rotates once per orbit", 1], ["It does not rotate", 0], ["The far side is always dark", 0]], "Tidal locking: Earth's gravity has synchronised its rotation with its orbit."],
+    ["Which is farther from Earth, the Moon or the Sun?", "🔭", [["The Sun, about 400 times farther", 1], ["The Moon", 0], ["They are equally far", 0]], "The Sun is about 390 times as far as the Moon (150 million km against 384,400 km)."],
+  ],
+  hard: [
+    ["Kepler's first law states that planetary orbits are…", "⭕", [["Ellipses with the Sun at one focus", 1], ["Circles centred on the Sun", 0], ["Circles centred on Earth", 0]], "Ellipses (1609), found from Tycho Brahe's observations of Mars."],
+    ["Kepler's second law implies that a planet moves fastest…", "☄️", [["At perihelion, nearest the Sun", 1], ["At aphelion, farthest from the Sun", 0], ["At a constant speed", 0]], "Equal areas in equal times means a faster sweep near the Sun."],
+    ["By Kepler's third law (P² = a³), a body at 4 AU has a period of…", "🧮", [["8 years", 1], ["4 years", 0], ["16 years", 0]], "4³ = 64 = 8², so P = 8 years."],
+    ["If the distance between two bodies is tripled, the gravitational force becomes…", "🍎", [["1/9 as strong", 1], ["1/3 as strong", 0], ["3 times as strong", 0]], "Inverse-square law: 3² = 9."],
+    ["Which observation by Galileo supported the Sun-centred model?", "🔭", [["Venus shows a full set of phases", 1], ["The Moon is round", 0], ["Stars twinkle", 0]], "A full set of Venus's phases is possible only if Venus orbits the Sun."],
+    ["Who published the Sun-centred model in 1543?", "📖", [["Copernicus", 1], ["Ptolemy", 0], ["Newton", 0]], "Nicolaus Copernicus, in De revolutionibus, the year of his death."],
+    ["Parallax measures a star's distance using…", "📐", [["Its apparent shift as Earth moves around its orbit", 1], ["Its colour", 0], ["How fast it twinkles", 0]], "Nearer stars shift more against the distant background; the first measurement was made in 1838 by Bessel."],
+    ["A star twice as far away (same true output) appears…", "💡", [["1/4 as bright", 1], ["1/2 as bright", 0], ["Equally bright", 0]], "Light spreads over an area growing as distance squared."],
+    ["The Sun shines by…", "☀️", [["Nuclear fusion of hydrogen into helium", 1], ["Chemical burning", 0], ["Reflecting starlight", 0]], "Fusion in a core at about 15 million °C."],
+    ["About how many AU are in one light-year?", "🌌", [["About 63,000", 1], ["About 63", 0], ["About 6.3 million", 0]], "9.5 trillion km ÷ 150 million km ≈ 63,000."],
+    ["A solar eclipse can only occur at…", "🌑", [["New Moon", 1], ["Full Moon", 0], ["First quarter", 0]], "Only then is the Moon between Earth and the Sun."],
+    ["Neptune was discovered in 1846 by…", "🧮", [["Calculations from irregularities in Uranus's orbit", 1], ["A space probe", 0], ["Accident, with the naked eye", 0]], "Le Verrier's prediction, confirmed by Galle: Newton's gravity at work."],
+    ["At latitude 52° N, the noon Sun on the June solstice is at altitude…", "📐", [["61.5°", 1], ["38°", 0], ["90°", 0]], "90 − 52 + 23.5 = 61.5°."],
+  ],
+};
+const quiz = {
+  rounds: 10,
+  count: "quiz questions",
+  make(level, round, ctx) {
+    const [ask, pic, opts, why] = ctx.next(`qz-${level}`, QUIZ[level]);
+    const ans = opts.find((o) => o[1])[0];
+    return {
+      ask,
+      draw() {
+        el("circle", { cx: 500, cy: 250, r: 150, fill: "#2a3260", stroke: "#4c557f", "stroke-width": 4 }, view);
+        emoji(view, 500, 250, pic, 150);
+        T(view, 500, 470, `Question ${round + 1} of 10`, 30, GOLD);
+      },
+      opts: shuffle(opts).map(([label]) => ({ label, v: label })),
+      ans,
+      hint: "recall what you saw in the other units. Which option is consistent with it?",
+      why,
+    };
+  },
+};
+
+// ---------- units & shell ----------
+const units = {
+  s0: seeIt,
+  s1: orderGame,
+  s2: () => game("s2", sizes),
+  s3: () => game("s3", seasons),
+  s4: () => game("s4", moon),
+  s5: () => game("s5", gravity),
+  s6: () => game("s6", stars),
+  s7: () => game("s7", spaceHistory),
+  s8: () => game("s8", quiz),
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    s0: { icon: "👀", title: "See it", steps: ["Watch each animated picture and listen.", "Press Next ▶ to continue, or ◀ to review.", "The last scene asks you to explain the ideas aloud."] },
+    s1: { icon: "🪐", title: "Planets in order", steps: ["Drag each planet into its numbered place, or tap the one that comes next.", "Levels: distance (🐣), diameter (🦊), orbital period (🦁).", "Finish by explaining the pattern you found."] },
+    s2: { icon: "📏", title: "Sizes & distances", steps: ["Read the figures; estimate before you calculate.", "Tap an answer or type a number, then press ✓.", "Watch the scale drawing that checks your answer."] },
+    s3: { icon: "🌍", title: "Day, year & seasons", steps: ["Tap a month on the orbit to see how the noon Sun changes.", "Answer the question beneath.", "🦁 uses the noon-altitude formula."] },
+    s4: { icon: "🌙", title: "Moon phases", steps: ["Study where the Moon is relative to the Sun and Earth.", "Ask: how much of its sunlit half faces Earth?", "Tap or type your answer."] },
+    s5: { icon: "🚀", title: "Gravity & orbits", steps: ["Fire the cannonball at different speeds and observe.", "Use Newton's and Kepler's laws at the higher levels.", "Tap or type your answer."] },
+    s6: { icon: "⭐", title: "Stars & constellations", steps: ["Tap stars in number order to draw a constellation.", "Reason about colour, temperature and light-years.", "Tap or type your answer."] },
+    s7: { icon: "🛰️", title: "History of astronomy", steps: ["Read each milestone and its date.", "Order events, find decades and compute time spans.", "🦁 covers Ptolemy to Hubble."] },
+    s8: { icon: "🧠", title: "Space quiz", steps: ["Ten questions drawn from every unit.", "Tap the best answer.", "Then explain one idea to a grown-up."] },
+  },
+  start: "s0",
+  onStop() {
+    token += 1;
+    closeTry();
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Science",
+  activity: "Space & Astronomy",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 77, 79, 81, 83, 84, 86, 88, 91, 96]);
+MUSIC.preload("woodblock", [72, 79]);
+MUSIC.preload("timpani", [48]);
+MUSIC.preload("harp", [72]);
+MUSIC.preload("flute", [76]);
+</script>
+</body>
+</html>

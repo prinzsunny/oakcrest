@@ -1,0 +1,2158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grammar Workshop · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="reading">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Grammar Workshop</b><small>Writing · Advanced</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, wait, confetti, explain, everyday, emoji, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "g0", label: "See it", icon: "👀" },
+  { id: "g1", label: "1. The 8 parts of speech", icon: "🏷️" },
+  { id: "g2", label: "2. Subject & predicate", icon: "🎯" },
+  { id: "g3", label: "3. Sentence types & clauses", icon: "🧱" },
+  { id: "g4", label: "4. Sentence diagramming", icon: "📐" },
+  { id: "g5", label: "5. Verb tenses & agreement", icon: "⏳" },
+  { id: "g6", label: "6. Punctuation", icon: "✒️" },
+  { id: "g7", label: "7. Fix the sentence", icon: "🔧" },
+  { id: "g8", label: "8. Verbals", icon: "🔀" },
+  { id: "g9", label: "9. Clauses at work", icon: "🧩" },
+  { id: "g10", label: "10. Mood & parallelism", icon: "🎭" },
+];
+
+function fresh() {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+}
+
+// ---------- shared helpers ----------
+const EMO = /[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{1F3FB}-\u{1F3FF}️‍⃣]/gu;
+const clean = (s) => String(s).replace(/<[^>]+>/g, " ").replace(EMO, "").replace(/[|]/g, " ").replace(/\s+/g, " ").trim();
+function talk(html, speech) {
+  say(html, { voice: false });
+  VOICE.speak(clean(speech ?? html));
+}
+function talkAsync(html, speech) {
+  say(html, { voice: false });
+  return VOICE.speakAsync(clean(speech ?? html));
+}
+const LEARN = "Not quite. Consider:";
+const RIGHT = ["#d8f3e0", "#22a05a"];
+const WRONG = ["#fbe3dc", "#d9822b"];
+const INK = "#2b1d12";
+const an = (w) => (/^[aeiou]/i.test(w) ? "an" : "a");
+const bare = (w) => w.replace(/[.,!?;:"]/g, "");
+
+// Width of a string in the SVG, measured for real when possible.
+function measure(str, size, weight = 700) {
+  try {
+    const host = stage.querySelector("svg") || view;
+    const t = text(host, -999, -999, str, { "font-size": size, "font-weight": weight, "text-anchor": "start" });
+    const w = t.getComputedTextLength();
+    t.remove();
+    if (w > 0) return w;
+  } catch {}
+  return String(str).length * size * 0.55;
+}
+// Shrink an SVG text until it fits a width.
+function fit(t, maxW, min = 22) {
+  let size = Number(t.getAttribute("font-size"));
+  try {
+    while (size > min && t.getComputedTextLength() > maxW) {
+      size -= 2;
+      t.setAttribute("font-size", size);
+    }
+  } catch {}
+  return t;
+}
+// Wrapped, centred lines of plain text.
+function para(parent, x, y, str, { size = 28, maxW = 880, lineH, fill = "#5a4130", weight = 700, maxLines = 3 } = {}) {
+  let s = size;
+  let lines;
+  for (;;) {
+    lines = [""];
+    for (const word of String(str).split(" ")) {
+      const tryLine = lines[lines.length - 1] ? `${lines[lines.length - 1]} ${word}` : word;
+      if (measure(tryLine, s, weight) > maxW && lines[lines.length - 1]) lines.push(word);
+      else lines[lines.length - 1] = tryLine;
+    }
+    if (lines.length <= maxLines || s <= 22) break;
+    s -= 2;
+  }
+  const lh = lineH ?? s * 1.3;
+  const g = el("g", {}, parent);
+  lines.forEach((line, i) => text(g, x, y + i * lh, line, { "font-size": s, fill, "font-weight": weight }));
+  g.lines = lines.length;
+  g.bottom = y + (lines.length - 1) * lh;
+  return g;
+}
+
+// A sentence as separate word boxes (tappable when tap is given), wrapped and centred.
+function wordRow(parent, list, { y = 90, size = 48, maxW = 920, maxLines = 2, lineH, tap, cls = "gw-word" } = {}) {
+  let s = size;
+  let built;
+  for (;;) {
+    const g = el("g", {}, parent);
+    const items = list.map((w, i) => {
+      const wg = el("g", { class: tap ? cls : null, "data-i": i }, g);
+      const r = el("rect", { class: "gw-box", rx: 12, fill: "transparent", stroke: "transparent", "stroke-width": 3 }, wg);
+      const t = text(wg, 0, 0, w, { "font-size": s, fill: INK, "text-anchor": "start" });
+      let w0 = 0;
+      try {
+        w0 = t.getComputedTextLength();
+      } catch {}
+      return { g: wg, r, t, w: w0 || w.length * s * 0.55, word: w, i };
+    });
+    const space = s * 0.4;
+    const lines = [[]];
+    let lw = 0;
+    for (const it of items) {
+      const line = lines[lines.length - 1];
+      const need = (line.length ? space : 0) + it.w;
+      if (line.length && lw + need > maxW) {
+        lines.push([it]);
+        lw = it.w;
+      } else {
+        line.push(it);
+        lw += need;
+      }
+    }
+    if (lines.length > maxLines && s > 26) {
+      g.remove();
+      s -= 4;
+      continue;
+    }
+    const lh = lineH ?? s * 1.75;
+    lines.forEach((line, li) => {
+      const total = line.reduce((sum, it) => sum + it.w, 0) + space * (line.length - 1);
+      let x = 500 - total / 2;
+      const by = y + li * lh;
+      for (const it of line) {
+        it.x = x;
+        it.y = by;
+        it.size = s;
+        it.t.setAttribute("x", x);
+        it.t.setAttribute("y", by);
+        Object.entries({ x: x - space * 0.36, y: by - s * 0.92, width: it.w + space * 0.72, height: s * 1.3 }).forEach(([k, v]) => it.r.setAttribute(k, v));
+        x += it.w + space;
+      }
+    });
+    built = { g, items, lines: lines.length, size: s, bottom: y + (lines.length - 1) * lh };
+    break;
+  }
+  if (tap)
+    built.items.forEach((it) =>
+      it.g.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        tap(it);
+      })
+    );
+  return built;
+}
+const underline = (parent, it, color, double = false) => {
+  const y = it.y + it.size * 0.22;
+  el("line", { x1: it.x, x2: it.x + it.w, y1: y, y2: y, stroke: color, "stroke-width": 5, "stroke-linecap": "round", class: "gw-ul" }, parent);
+  if (double) el("line", { x1: it.x, x2: it.x + it.w, y1: y + 10, y2: y + 10, stroke: color, "stroke-width": 5, "stroke-linecap": "round", class: "gw-ul" }, parent);
+};
+const strike = (parent, it, color = "#8a7764") => {
+  const y = it.y - it.size * 0.3;
+  el("line", { x1: it.x - 4, x2: it.x + it.w + 4, y1: y, y2: y, stroke: color, "stroke-width": 4, "stroke-linecap": "round" }, parent);
+};
+
+function card(parent, x, y, w, h, { fill = "#fffaf0", stroke = "#d9cdb5", cls = "gw-card" } = {}) {
+  const g = el("g", { class: cls, transform: `translate(${x} ${y})` }, parent);
+  el("rect", { class: "gw-face", x: -w / 2, y: 0, width: w, height: h, rx: 22, fill, stroke, "stroke-width": 4 }, g);
+  return g;
+}
+const paint = (g, fill, stroke) => {
+  const r = g.querySelector(".gw-face");
+  if (fill) r.setAttribute("fill", fill);
+  if (stroke) r.setAttribute("stroke", stroke);
+};
+const glowOk = () => [...view.querySelectorAll("[data-ok='1']")].forEach((g) => g.classList.add("gw-glow", "gw-blink"));
+
+function realCard({ icon, title, need, steps, safe = "Do this with a grown-up." }) {
+  fresh();
+  el("rect", { x: 30, y: 18, width: 940, height: 524, rx: 32, fill: "#fffaf0", stroke: "var(--accent)", "stroke-width": 5 }, view);
+  el("circle", { cx: 110, cy: 100, r: 58, fill: "var(--accent-soft)" }, view);
+  emoji(view, 110, 98, icon, 64);
+  text(view, 190, 78, "🏠 Try it for real", { "font-size": 26, fill: "var(--accent-dark)", "text-anchor": "start" });
+  fit(text(view, 190, 124, title, { "font-size": 40, fill: INK, "text-anchor": "start" }), 740);
+  fit(text(view, 70, 210, `You need: ${need.join(" · ")}`, { "font-size": 27, fill: "#5a4130", "text-anchor": "start", "font-weight": 800 }), 860);
+  steps.forEach((s, i) => {
+    const y = 278 + i * 72;
+    el("circle", { cx: 92, cy: y - 9, r: 22, fill: "var(--accent)" }, view);
+    text(view, 92, y, i + 1, { "font-size": 24, fill: "#fff" });
+    fit(text(view, 130, y, s, { "font-size": 27, fill: INK, "text-anchor": "start", "font-weight": 700 }), 810);
+  });
+  text(view, 70, 508, `👋 ${safe}`, { "font-size": 25, fill: "#8a6a4f", "text-anchor": "start", "font-weight": 700 });
+}
+
+// Level chips map to grades: 🐣 grade 4, 🦊 grades 5–7, 🦁 grade 8 and high school.
+function explainCard(prompt) {
+  fresh();
+  el("rect", { x: 30, y: 18, width: 940, height: 524, rx: 32, fill: "#fffaf0", stroke: "var(--accent)", "stroke-width": 5 }, view);
+  el("circle", { cx: 110, cy: 100, r: 58, fill: "var(--accent-soft)" }, view);
+  emoji(view, 110, 98, "🗣️", 60);
+  text(view, 190, 78, "Explain it", { "font-size": 26, fill: "var(--accent-dark)", "text-anchor": "start" });
+  text(view, 190, 124, "Put the idea into words", { "font-size": 38, fill: INK, "text-anchor": "start" });
+  para(view, 500, 230, prompt, { size: 40, fill: INK, maxW: 880, maxLines: 5, lineH: 52 });
+  para(view, 500, 470, "Say it aloud to a grown-up, or write it in 2–4 full sentences. Use the grammar terms precisely.", { size: 28, fill: "#8a6a4f", maxW: 860, maxLines: 2 });
+}
+
+const LEVELS = [["easy", "🐣 Grade 4"], ["medium", "🦊 Grade 5–7"], ["hard", "🦁 Grade 8+"]];
+const levelRow = (cur, list) => `<div class="ap-row"><div class="ap-chips" data-levels>${list.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div>`;
+const again = (id) => {
+  token += 1;
+  VOICE.hush();
+  units[id]();
+};
+
+function runGame(id, cfg) {
+  const my = token;
+  const levels = cfg.levels || LEVELS;
+  const saved = shell.progress()[id]?.level;
+  const st = { id, my, level: levels.some(([k]) => k === saved) ? saved : levels[0][0], round: 0, first: 0, tries: 0, busy: false };
+  st.alive = () => st.my === token;
+  const bindLevels = () =>
+    $("[data-levels]").addEventListener("click", (event) => {
+      const b = event.target.closest("[data-lv]");
+      if (!b || !st.alive()) return;
+      token += 1;
+      st.my = token;
+      VOICE.hush();
+      st.level = b.dataset.lv;
+      document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      shell.mark(id, { level: st.level });
+      window.OC?.touch();
+      restart();
+    });
+  const build = () => {
+    panel(`${levelRow(st.level, levels)}<div class="ap-buttons gw-acts" data-acts></div>`);
+    bindLevels();
+  };
+  build();
+  st.acts = (html, handlers = {}) => {
+    const box = $("[data-acts]");
+    box.innerHTML = html;
+    box.onclick = (e) => {
+      const b = e.target.closest("[data-a]");
+      if (b && !b.disabled && st.alive()) {
+        window.OC?.touch();
+        handlers[b.dataset.a]?.(b);
+      }
+    };
+  };
+  // Answer buttons in the panel. After two tries the right one glows, with the reason.
+  st.choose = (options, right, { hint, why, extra = "", onExtra = {}, onWin } = {}) => {
+    const html = options.map((o, i) => `<button type="button" data-a="c${i}">${o}</button>`).join("") + extra;
+    const handlers = { ...onExtra };
+    options.forEach((o, i) => {
+      handlers[`c${i}`] = (b) => {
+        if (st.busy) return;
+        if (i === right) {
+          b.classList.add("right");
+          onWin?.();
+          return st.win(`Correct — ${why}`);
+        }
+        if (b.classList.contains("wrong")) return;
+        b.classList.add("wrong");
+        const tries = st.oops();
+        if (tries === 1) talk(`${LEARN} ${hint}`);
+        else {
+          $(`[data-a="c${right}"]`)?.classList.add("gw-pulse");
+          talk(`The answer is highlighted. Reason: ${why} Select it to continue.`);
+        }
+      };
+    });
+    st.acts(html, handlers);
+  };
+  st.status = (s) => {
+    const b = $("[data-status]");
+    if (b) b.textContent = s ?? `${cfg.label || "Round"} ${st.round + 1} of ${cfg.rounds}`;
+  };
+  st.take = (list) => {
+    if (!st.deck || st.deckKey !== st.level || !st.deck.length) {
+      st.deck = shuffle(list);
+      st.deckKey = st.level;
+    }
+    return st.deck.pop();
+  };
+  st.takeFrom = (key, list) => {
+    st.decks ||= {};
+    const k = `${key}:${st.level}`;
+    if (!st.decks[k]?.length) st.decks[k] = shuffle(list);
+    return st.decks[k].pop();
+  };
+  st.next = () => {
+    if (!st.alive()) return;
+    st.tries = 0;
+    st.busy = false;
+    st.status();
+    cfg.ask(st);
+  };
+  st.win = async (html, speech, { chime = true, ms = 1000 } = {}) => {
+    st.busy = true;
+    const gen = st.gen;
+    const live = () => st.alive() && st.gen === gen;
+    if (chime) MUSIC.chime();
+    if (st.tries === 0) st.first += 1;
+    st.round += 1;
+    window.OC?.count(cfg.count);
+    await talkAsync(html, speech);
+    if (!live()) return;
+    await wait(ms);
+    if (!live()) return;
+    if (st.round >= cfg.rounds) finish();
+    else st.next();
+  };
+  st.oops = () => {
+    MUSIC.oops();
+    st.tries += 1;
+    return st.tries;
+  };
+  const finish = () => {
+    confetti();
+    shell.mark(id, { done: true });
+    const prompt = EXPLAIN[id][st.level] || EXPLAIN[id].easy;
+    explainCard(prompt);
+    st.done = true;
+    panel(`${levelRow(st.level, levels)}<div class="ap-buttons"><button type="button" class="primary" data-real>🏠 Try it for real</button><button type="button" data-again>🔁 Again</button></div>`);
+    bindLevels();
+    $("[data-status]").textContent = "Finished ✓";
+    $("[data-again]").addEventListener("click", () => again(id));
+    $("[data-real]").addEventListener("click", () => {
+      if (!st.alive()) return;
+      window.OC?.touch();
+      realCard(cfg.real);
+      talk("Now apply it away from the screen. The steps are on the card.");
+    });
+    talk(`Session complete: ${st.first} of ${cfg.rounds} correct on the first attempt. Now explain it: the task is on the card.`, `Session complete: ${st.first} of ${cfg.rounds} correct on the first attempt. Now explain it. ${prompt} Say it aloud to a grown-up, or write it in two to four sentences.`);
+  };
+  const restart = () => {
+    if (st.done) {
+      st.done = false;
+      build();
+    }
+    st.gen = (st.gen || 0) + 1;
+    st.round = 0;
+    st.first = 0;
+    st.deck = null;
+    st.next();
+  };
+  restart();
+  return st;
+}
+
+// Three sentence cards on the stage; tap the one that is right.
+function cardRound(st, { top, sub, cards, right, hint, why }) {
+  fresh();
+  const my = st.my;
+  const head = para(view, 500, 50, top, { size: 34, fill: INK, maxW: 920, maxLines: 2, weight: 800 });
+  let y0 = head.bottom + 30;
+  if (sub) {
+    text(view, 500, y0 + 4, sub, { "font-size": 24, fill: "var(--accent-dark)" });
+    y0 += 22;
+  }
+  const order = shuffle(cards.map((c, i) => i));
+  const gap = 14;
+  const h = Math.min(120, (540 - y0 - gap * 2) / 3);
+  order.forEach((ci, k) => {
+    const g = card(view, 500, y0 + k * (h + gap), 940, h, { fill: "#fff", stroke: "#c9b8a1" });
+    g.dataset.ok = ci === right ? "1" : "";
+    g.dataset.ci = ci;
+    const t = text(g, 0, h / 2 + 11, cards[ci], { "font-size": 32, fill: INK, "font-weight": 700 });
+    fit(t, 890);
+    g.addEventListener("pointerdown", () => {
+      if (my !== token || st.busy) return;
+      window.OC?.touch();
+      if (ci === right) {
+        paint(g, ...RIGHT);
+        return st.win(`Correct — ${why}`);
+      }
+      if (g.dataset.bad) return;
+      g.dataset.bad = "1";
+      paint(g, ...WRONG);
+      const tries = st.oops();
+      if (tries === 1) talk(`${LEARN} ${hint}`);
+      else {
+        glowOk();
+        talk(`The correct version is highlighted. Reason: ${why} Select it to continue.`);
+      }
+    });
+  });
+}
+
+// A sentence with a [marked] word or phrase, plus answer buttons.
+const citeText = (y, cite) => fit(text(view, 500, y, `— ${cite}`, { "font-size": 24, fill: "#8a6a4f", "font-style": "italic", "font-weight": 700 }), 920);
+function markedQ(st, { s, title, choices, right, hint, why, cite, prompt, size = 50 }) {
+  fresh();
+  text(view, 500, 70, title, { "font-size": 30, fill: "var(--accent-dark)" });
+  let inside = false;
+  const toks = s.split(" ");
+  const marked = toks.map((w) => {
+    if (w.includes("[")) inside = true;
+    const on = inside;
+    if (w.includes("]")) inside = false;
+    return on;
+  });
+  const row = wordRow(view, toks.map((w) => w.replace(/[[\]]/g, "")), { y: 190, size, maxW: 930, maxLines: 3, lineH: size * 1.55 });
+  row.items.forEach((it) => {
+    if (!marked[it.i]) return;
+    it.r.setAttribute("fill", "#fff1dc");
+    it.r.setAttribute("stroke", "#b45f06");
+  });
+  if (cite) citeText(row.bottom + 62, cite);
+  st.choose(choices, right, { hint, why });
+  const phrase = toks.filter((w, i) => marked[i]).map((w) => w.replace(/[[\]]/g, "")).join(" ").replace(/[.,!?:;]+$/, "");
+  talk(`${prompt || title} <b>${phrase}</b>`, `${toks.map((w) => w.replace(/[[\]]/g, "")).join(" ")}. ${prompt || title} The marked words: ${phrase}.`);
+}
+
+// ---------- parts of speech ----------
+const POS = {
+  n: ["noun", "names", "#e6effc", "#1f4e8c", "names a person, place, thing or idea"],
+  pro: ["pronoun", "stands in", "#e3f4e6", "#2e7d32", "takes the place of a noun"],
+  v: ["verb", "acts or is", "#fff1dc", "#b45f06", "shows action or being"],
+  adj: ["adjective", "describes nouns", "#fde7f3", "#a3246b", "describes a noun: which one, what kind or how many"],
+  adv: ["adverb", "how, when, where", "#ede7f6", "#5e35b1", "tells how, when, where or how much about a verb, an adjective or another adverb"],
+  prep: ["preposition", "links a noun", "#dff2f0", "#00695c", "links the noun after it to the rest of the sentence"],
+  conj: ["conjunction", "joins", "#fff6d6", "#8a6500", "joins words or groups of words"],
+  int: ["interjection", "shows feeling", "#ffe9ea", "#c62828", "shows a burst of feeling and stands apart from the sentence"],
+};
+const ABBR = { n: "noun", pro: "pron.", v: "verb", adj: "adj.", adv: "adv.", prep: "prep.", conj: "conj.", int: "interj." };
+const ASK = {
+  n: "Can you put the word the in front of it? Does it name a person, place, thing or idea?",
+  pro: "Could a noun go in its place? Which noun might it stand for?",
+  adj: "Which noun is it next to? Does it tell which one, what kind or how many?",
+  v: "What is happening in this sentence? Is this word the action, or a being word like is or was?",
+  adv: "Does it tell how, when, where or how much? Which word does it tell about?",
+  prep: "Is there a noun after it? Does it start a little phrase that ends with that noun?",
+  conj: "Does it join two things together? Two words, or two whole ideas?",
+  int: "Is it a burst of feeling that could stand all on its own?",
+};
+const ARTICLES = ["a", "an", "the"];
+// Every word is tagged. Tags follow traditional grammar: articles are adjectives, helping verbs are verbs,
+// gerunds are nouns. Items: [tagged sentence, notes for tricky words, citation for literary lines].
+const POS_SENT = {
+  easy: [
+    ["The/adj hungry/adj otter/n cracked/v a/adj clam/n with/prep a/adj rock./n"],
+    ["She/pro painted/v a/adj purple/adj boat./n"],
+    ["Seven/adj geese/n landed/v on/prep the/adj frozen/adj pond./n"],
+    ["We/pro planted/v tomatoes/n and/conj beans/n in/prep the/adj garden./n"],
+    ["They/pro carried/v heavy/adj backpacks/n up/prep the/adj hill./n"],
+    ["A/adj curious/adj fox/n sniffed/v the/adj tent./n"],
+    ["He/pro built/v a/adj tall/adj tower/n of/prep blocks./n"],
+    ["Grandma/n knitted/v a/adj warm/adj scarf/n for/prep me./pro"],
+    ["The/adj tiny/adj hummingbird/n sipped/v sweet/adj nectar./n"],
+    ["Bright/adj stars/n filled/v the/adj dark/adj sky./n"],
+    ["The/adj farmer/n fed/v them/pro fresh/adj hay./n"],
+    ["The/adj puppy/n slept/v peacefully/adv under/prep the/adj porch./n"],
+    ["Rain/n tapped/v softly/adv against/prep the/adj window./n"],
+    ["We/pro walked/v carefully/adv across/prep the/adj icy/adj bridge./n"],
+    ["Yesterday/adv the/adj class/n visited/v a/adj busy/adj bakery./n"],
+    ["Snow/n fell/v silently/adv on/prep the/adj sleeping/adj town./n"],
+    ["The/adj kite/n soared/v high/adv above/prep the/adj trees./n"],
+    ["Bees/n buzz/v busily/adv around/prep the/adj clover./n"],
+    ["She/pro whispered/v the/adj secret/n to/prep me./pro"],
+    ["The/adj train/n arrived/v early/adv at/prep the/adj station./n"],
+    ["They/pro rowed/v slowly/adv toward/prep the/adj island./n"],
+    ["A/adj very/adv large/adj whale/n rose/v nearby./adv", { very: "Very tells how large; it modifies an adjective, so it is an adverb." }],
+    ["Ancient/adj glaciers/n carved/v these/adj deep/adj valleys./n"],
+    ["The/adj astronomer/n patiently/adv tracked/v a/adj distant/adj comet./n"],
+    ["Volcanic/adj ash/n drifted/v slowly/adv over/prep the/adj harbor./n"],
+  ],
+  medium: [
+    ["The/adj cat/n climbed/v up/prep the/adj tree./n", { up: "Up has an object, tree: up the tree. It begins a prepositional phrase, so here it is a preposition." }],
+    ["The/adj cat/n looked/v up./adv", { up: "Up has no object. It tells where the cat looked, so here it is an adverb." }],
+    ["After/prep lunch,/n we/pro played/v chess./n", { After: "After is followed only by a noun, lunch, with no verb. So here it is a preposition." }],
+    ["After/conj the/adj rain/n stopped,/v we/pro played/v outside./adv", { After: "After introduces a whole clause with its own subject and verb: the rain stopped. So here it is a subordinating conjunction." }],
+    ["We/pro light/v the/adj campfire/n at/prep dusk./n", { light: "Here light names an action we perform. It is a verb." }],
+    ["The/adj light/n from/prep the/adj campfire/n danced./v", { light: "Here light names a thing and follows the article the. It is a noun." }],
+    ["Ouch!/int That/adj bee/n stung/v me!/pro", { That: "That points out the noun bee: which bee? That bee. A demonstrative used this way is an adjective." }],
+    ["That/pro was/v a/adj great/adj game!/n", { That: "That stands alone in place of a noun. Here it is a demonstrative pronoun." }],
+    ["The/adj fast/adj runner/n ran/v fast./adv", { fast: "The first fast modifies the noun runner, so it is an adjective. The second modifies the verb ran, telling how, so it is an adverb." }],
+    ["The/adj soup/n was/v hot,/adj but/conj we/pro ate/v it/pro anyway./adv", { was: "Was expresses being, not action. It is a linking verb, which is still a verb.", hot: "Hot follows the linking verb was but describes the soup. It is a predicate adjective." }],
+    ["Hooray,/int the/adj team/n won!/v", { Hooray: "Hooray expresses emotion and stands grammatically apart from the sentence. It is an interjection." }],
+    ["Owls/n and/conj bats/n hunt/v quietly/adv at/prep night./n"],
+    ["Everyone/pro cheered/v loudly/adv when/conj the/adj rocket/n launched./v", { when: "When joins the clause the rocket launched to the main clause. It is a subordinating conjunction." }],
+    ["Hey,/int those/adj boots/n are/v muddy!/adj", { those: "Those points out the noun boots, so here it is an adjective." }],
+    ["Down/adv came/v the/adj rain./n", { Down: "Down has no object here. It tells where the rain came, so it is an adverb." }],
+    ["She/pro walked/v down/prep the/adj aisle./n", { down: "Down has an object, aisle. It is a preposition." }],
+    ["What/adj book/n are/v you/pro reading?/v", { What: "What modifies the noun book: which book? So here it is an interrogative adjective." }],
+    ["What/pro did/v you/pro say?/v", { What: "What stands alone as the object of say. Here it is an interrogative pronoun." }],
+    ["We/pro had/v met/v before./adv", { before: "Before has no object and introduces no clause. It tells when, so it is an adverb." }],
+    ["Neither/conj the/adj map/n nor/conj the/adj compass/n helped./v", { Neither: "Neither works with nor as a pair. Paired joining words are correlative conjunctions." }],
+    ["Alas,/int the/adj ship/n had/v already/adv sailed./v"],
+    ["Swimming/n is/v excellent/adj exercise./n", { Swimming: "Swimming ends in -ing, but here it names an activity and acts as the subject. A verb form used as a noun is a gerund." }],
+  ],
+  hard: [
+    ["Reader,/n I/pro married/v him./pro", { Reader: "Reader is a noun of direct address: the narrator speaks to the reader directly." }, "Charlotte Brontë, Jane Eyre (1847)"],
+    ["Brevity/n is/v the/adj soul/n of/prep wit./n", { Brevity: "Brevity (shortness) names an idea, so it is an abstract noun." }, "William Shakespeare, Hamlet"],
+    ["The/adj woods/n are/v lovely,/adj dark/adj and/conj deep./adj", { lovely: "Lovely ends in -ly, yet it describes the noun woods after the linking verb are. It is an adjective, not an adverb." }, "Robert Frost, Stopping by Woods on a Snowy Evening (1923)"],
+    ["Two/adj roads/n diverged/v in/prep a/adj yellow/adj wood./n", { diverged: "Diverged (split apart) is the action of the subject roads. It is a verb." }, "Robert Frost, The Road Not Taken (1916)"],
+    ["The/adj boy/n stood/v on/prep the/adj burning/adj deck./n", { burning: "Burning is a verb form, but here it modifies the noun deck. A verb form used as an adjective is a participle." }, "Felicia Hemans, Casabianca (1826)"],
+    ["Because/conj I/pro could/v not/adv stop/v for/prep Death,/n He/pro kindly/adv stopped/v for/prep me/pro", { not: "Not modifies the verb could stop by negating it. It is an adverb.", Because: "Because introduces a dependent clause. It is a subordinating conjunction." }, "Emily Dickinson (about 1863)"],
+    ["Once/adv upon/prep a/adj midnight/n dreary,/adj while/conj I/pro pondered,/v weak/adj and/conj weary/adj", { dreary: "Dreary follows its noun, as poets often arrange it, but it still modifies midnight. It is an adjective.", while: "While introduces the clause I pondered. It is a subordinating conjunction." }, "Edgar Allan Poe, The Raven (1845)"],
+    ["Laugh,/v and/conj the/adj world/n laughs/v with/prep you./pro", { Laugh: "Laugh is a command with the subject you understood. It is a verb in the imperative mood." }, "Ella Wheeler Wilcox, Solitude (1883)"],
+    ["Tell/v me/pro not,/adv in/prep mournful/adj numbers,/n Life/n is/v but/adv an/adj empty/adj dream!/n", { but: "But here means only: life is only an empty dream. Used this way it is an adverb, not a conjunction.", numbers: "Numbers here means verses, lines of poetry. It is a noun." }, "Henry Wadsworth Longfellow, A Psalm of Life (1838)"],
+    ["The/adj Child/n is/v father/n of/prep the/adj Man./n", { father: "Father follows the linking verb is and renames the subject. It is a predicate nominative, a noun." }, "William Wordsworth, My Heart Leaps Up (1807)"],
+    ["Nature/n never/adv did/v betray/v the/adj heart/n that/pro loved/v her./pro", { that: "That stands for the noun heart and introduces the clause that loved her. It is a relative pronoun." }, "William Wordsworth, Tintern Abbey (1798)"],
+    ["Hope/n is/v the/adj thing/n with/prep feathers./n", { thing: "Thing follows the linking verb is and renames the subject hope. It is a predicate nominative, a noun.", Hope: "Hope names an idea you cannot touch, so it is an abstract noun." }, "Emily Dickinson (about 1861)"],
+    ["I/pro know/v that/conj that/adj answer/n is/v right./adj", { that: "The first that introduces a noun clause, so it is a conjunction. The second points out answer, so it is an adjective." }],
+    ["Nobody/pro but/prep the/adj guard/n saw/v the/adj comet./n", { but: "But here means except and takes the object guard. It is a preposition." }],
+    ["Since/prep Monday,/n the/adj river/n has/v risen/v steadily./adv", { Since: "Since takes the object Monday and no verb follows. It is a preposition." }],
+    ["Since/conj the/adj river/n rose,/v the/adj ferry/n has/v stopped./v", { Since: "Since introduces the clause the river rose. It is a subordinating conjunction." }],
+    ["We/pro had/v scarcely/adv arrived/v when/conj the/adj storm/n broke./v", { scarcely: "Scarcely (barely) modifies the verb had arrived. It is an adverb." }],
+    ["Whoever/pro wins/v must/v deliver/v a/adj short/adj speech./n", { Whoever: "Whoever is the subject of wins and stands for an unknown person. It is an indefinite relative pronoun." }],
+    ["Honesty/n is/v the/adj best/adj policy./n", { Honesty: "Honesty names a quality you cannot touch, so it is an abstract noun." }],
+    ["Beyond/prep the/adj ridge/n lay/v an/adj unexplored/adj valley./n", { lay: "Lay is the past tense of lie, to rest. It is a verb.", Beyond: "Beyond takes the object ridge. It is a preposition." }],
+  ],
+};
+const POS_SETS = { easy: ["n", "pro", "v", "adj", "adv", "prep"], medium: ["n", "pro", "v", "adj", "adv", "prep", "conj", "int"], hard: ["n", "pro", "v", "adj", "adv", "prep", "conj", "int"] };
+const parseTagged = (s) => s.split(" ").map((tok) => {
+  const k = tok.lastIndexOf("/");
+  return { show: tok.slice(0, k), tag: tok.slice(k + 1), word: bare(tok.slice(0, k)) };
+});
+
+// ---------- subject & predicate ----------
+// [word] = simple subject, {word} = verb (with helping verbs). Brackets may span several words.
+// Items: [sentence, note, citation].
+const SP_SENT = {
+  easy: [
+    ["The old [bridge] {creaked} in the wind."],
+    ["Our [neighbor] {fixed} the fence."],
+    ["Seven tiny [frogs] {hopped} onto a log."],
+    ["[We] {packed} sandwiches for the trip."],
+    ["The brave [firefighter] {climbed} the ladder."],
+    ["A cold [wind] {blew} across the field."],
+    ["[She] {read} three chapters before bed."],
+    ["The hungry [caterpillar] {chewed} a leaf."],
+    ["Bright [lightning] {flashed} over the hills."],
+    ["The [baker] {sliced} the warm bread."],
+    ["[They] {sang} softly by the fire."],
+    ["A [family] of ducks {crossed} the road.", "Ducks is inside the phrase of ducks. A subject is never inside a prepositional phrase."],
+    ["The [box] of crayons {is sitting} on the shelf.", "Crayons is inside the phrase of crayons. The verb phrase is sitting includes the helping verb is."],
+    ["[One] of the puppies {has escaped}!", "One is the subject. Puppies is the object of the preposition of."],
+    ["The [students] {were building} a model volcano.", "Were is a helping verb; the complete verb is were building."],
+    ["The [leaves] on the maple tree {are turning} red.", "Tree is inside the phrase on the maple tree, so it cannot be the subject."],
+    ["[Everyone] in the band {will practice} tomorrow.", "Will is a helping verb that marks the future."],
+    ["The [path] through the woods {had become} muddy.", "Woods is inside the phrase through the woods. The verb is had become."],
+    ["The [cookies] in the jar {have disappeared}.", "Jar is inside the phrase in the jar. Have is a helping verb."],
+    ["A [bowl] of cherries {sat} on the table.", "Cherries is inside the phrase of cherries. What sat? A bowl."],
+  ],
+  medium: [
+    ["[Rabbits] and [deer] {nibbled} the lettuce.", "Two subjects share one verb: a compound subject."],
+    ["The [squirrel] {grabbed} an acorn and {raced} up the tree.", "One subject performs two actions: a compound verb."],
+    ["Under the bridge {lived} a grumpy [troll].", "The sentence is inverted (reversed). Ask: who lived? A troll lived."],
+    ["[Thunder] and [rain] {rattled} the windows and {woke} the baby.", "A compound subject with a compound verb."],
+    ["Here {comes} the [parade]!", "Here is an adverb and is never the subject. What comes? The parade."],
+    ["Across the meadow {galloped} two wild [horses].", "Inverted order. What galloped? Horses."],
+    ["The [pilot] {checked} the map, {started} the engine, and {waved}.", "One subject with three verbs."],
+    ["Neither the [cat] nor the [dog] {noticed} the mouse.", "Neither and nor join two subjects."],
+    ["There {were} three [owls] in the barn.", "There is an expletive (a filler word) and is never the subject. What were in the barn? Owls."],
+    ["[Grandpa] and [I] {washed} and {dried} the dishes.", "Two subjects and two verbs."],
+    ["{Did} the [committee] {approve} the plan?", "In a question the helping verb often comes before the subject: the committee did approve."],
+    ["{Have} [you] ever {seen} a meteor shower?", "The verb phrase have seen is split by the subject and by the adverb ever."],
+    ["The [mayor] {has} never {been} so popular.", "Never is an adverb, not part of the verb. The verb is has been."],
+    ["[Each] of the explorers {was carrying} a lantern.", "Each is the subject; explorers is the object of the preposition of."],
+    ["Over the hill {rolled} an enormous [pumpkin].", "Inverted order. What rolled? A pumpkin."],
+  ],
+  hard: [
+    ["[Swimming] in the lake {is} dangerous.", "Swimming is a gerund, a verb form acting as a noun. Here it is the subject; is links it to the predicate adjective dangerous."],
+    ["[Reading] and [writing] {sharpen} the mind.", "Two gerunds form a compound subject."],
+    ["[To err] {is} human.", "To err is an infinitive acting as a noun; the whole infinitive is the subject.", "Alexander Pope, An Essay on Criticism (1711)"],
+    ["[Brevity] {is} the soul of wit.", "Is is a linking verb; soul renames brevity.", "William Shakespeare, Hamlet"],
+    ["Two [roads] {diverged} in a yellow wood.", "Wood is the object of the preposition in.", "Robert Frost, The Road Not Taken (1916)"],
+    ["The [woods] {are} lovely, dark and deep.", "Are links woods to three predicate adjectives.", "Robert Frost, Stopping by Woods on a Snowy Evening (1923)"],
+    ["Under a spreading chestnut-tree the village [smithy] {stands}.", "Inverted order. What stands? The smithy (a blacksmith's workshop).", "Henry Wadsworth Longfellow, The Village Blacksmith (1840)"],
+    ["Into the valley of Death {rode} the six [hundred].", "Inverted order. Who rode? The six hundred; hundred is used as a noun.", "Alfred, Lord Tennyson, The Charge of the Light Brigade (1854)"],
+    ["Not a [creature] {was stirring}, not even a mouse.", "Creature is the subject. Not even a mouse is a phrase added for emphasis; it has no verb of its own.", "Clement Clarke Moore, A Visit from St. Nicholas (1823)"],
+    ["[Hope] {is} the thing with feathers.", "Is links hope to the noun thing.", "Emily Dickinson (about 1861)"],
+    ["[Neither] of the answers {seems} correct.", "Neither is a singular pronoun subject; answers is inside the phrase of the answers."],
+    ["[Few] {have} ever {climbed} that peak.", "Few is a pronoun subject. Ever is an adverb that interrupts the verb phrase have climbed."],
+    ["The [committee] {had been meeting} for hours.", "Had been meeting is a three-word verb phrase: two helping verbs and a main verb."],
+    ["Only after midnight {did} the [storm] {pass}.", "Inverted order after a limiting phrase: the storm did pass."],
+    ["Beyond the ridge {lay} an unexplored [valley].", "Inverted order. What lay beyond the ridge? A valley."],
+  ],
+};
+const parseSP = (s) => {
+  let inS = false;
+  let inV = false;
+  return s.split(" ").map((tok) => {
+    if (tok.includes("[")) inS = true;
+    if (tok.includes("{")) inV = true;
+    const out = { show: tok.replace(/[[\]{}]/g, ""), subj: inS, verb: inV };
+    if (tok.includes("]")) inS = false;
+    if (tok.includes("}")) inV = false;
+    return out;
+  });
+};
+
+// ---------- sentence types & clauses ----------
+const TYPES = ["Declarative · tells", "Interrogative · asks", "Imperative · commands", "Exclamatory · feeling"];
+const TYPE_WHY = [
+  "It tells something, so it is declarative. It ends with a period.",
+  "It asks something, so it is interrogative. It ends with a question mark.",
+  "It gives a command or a request, so it is imperative. The subject, you, is understood.",
+  "It shows strong feeling, so it is exclamatory. It ends with an exclamation mark.",
+];
+const TYPE_SENT = [
+  ["Sea otters hold paws while they sleep.", 0],
+  ["Did you feed the goldfish this morning?", 1],
+  ["Please close the gate behind you.", 2],
+  ["What a huge pumpkin that is!", 3],
+  ["Watch out for the puddle!", 2, "It tells you to do something, and the subject you is understood. A command can end with an exclamation mark and still be imperative."],
+  ["The library opens at nine on Saturdays.", 0],
+  ["How many legs does a spider have?", 1],
+  ["I can't believe we won!", 3],
+  ["Bring your boots tomorrow.", 2],
+  ["Where did the cat hide the sock?", 1],
+  ["How beautiful the sunset is!", 3, "It starts with how, but it does not ask anything. It shows strong feeling, so it is exclamatory."],
+  ["I wonder whether it will snow.", 0, "It tells what I wonder. It does not ask you directly, so it is declarative and ends with a period."],
+  ["Stir the batter slowly.", 2],
+];
+const CLAUSES = ["Independent clause", "Dependent clause", "Phrase"];
+const CLAUSE_SENT = [
+  ["the dog barked", 0],
+  ["because the dog barked", 1],
+  ["under the kitchen table", 2],
+  ["when the bell rings", 1],
+  ["the bell rings", 0],
+  ["after lunch", 2],
+  ["after we ate lunch", 1],
+  ["running through the sprinkler", 2, "Running is a verb form, but nobody is doing it: there is no subject. So it is a phrase."],
+  ["if you need help", 1],
+  ["the soup was too salty", 0],
+  ["although the path was steep", 1],
+  ["with a bucket of sand", 2],
+  ["since the store closed early", 1],
+  ["they laughed", 0],
+];
+const KINDS = ["Simple", "Compound", "Complex", "Compound-complex"];
+const KIND_SENT = [
+  ["The wind howled all night.", 0, [], "There is one clause: the wind howled. So it is simple."],
+  ["The wind howled, and the shutters banged.", 1, ["and"], "Two independent clauses are joined by and, one of the FANBOYS. So it is compound."],
+  ["The shutters banged because the wind howled.", 2, ["because"], "Because the wind howled is a dependent clause. One independent plus one dependent makes it complex."],
+  ["Owls and bats hunt at night.", 0, ["and"], "Two subjects share one verb, hunt. There is still only one clause, so it is simple."],
+  ["The kitten chased the yarn and tangled it.", 0, ["and"], "One subject, kitten, has two verbs. That is still one clause, so it is simple."],
+  ["I wanted to swim, but the pool was closed.", 1, ["but"], "Two independent clauses are joined by but. So it is compound."],
+  ["When the timer beeps, take the bread out.", 2, ["When"], "When the timer beeps is dependent. Take the bread out is independent, with you understood. So it is complex."],
+  ["We could take the bus, or we could walk.", 1, ["or"], "Two independent clauses are joined by or. So it is compound."],
+  ["Although the trail was rocky, we reached the top.", 2, ["Although"], "Although starts a dependent clause. With one independent clause, it is complex."],
+  ["The museum was closed; we visited the park instead.", 1, ["closed;"], "A semicolon joins two independent clauses. So it is compound."],
+  ["If it snows tonight, we will build a fort, and Dad will make cocoa.", 3, ["If", "and"], "Two independent clauses joined by and, plus a dependent clause starting with if. That is compound-complex."],
+  ["The plant grew taller after we moved it to the window.", 2, ["after"], "After we moved it is a dependent clause with its own subject and verb. So it is complex."],
+  ["Because the bridge was icy, the bus went slowly, so we were late.", 3, ["Because", "so"], "Because starts a dependent clause, and so joins two independent clauses. That is compound-complex."],
+  ["After lunch, we played chess.", 0, [], "After lunch is a phrase with no verb, not a clause. There is only one clause, so it is simple."],
+];
+
+// ---------- verbs ----------
+// [ ] marks the verb to judge.
+const TENSES = ["Past", "Present", "Future"];
+const TENSE_SENT = [
+  ["The geese [flew] south in October.", 0],
+  ["My brother [plays] the cello.", 1],
+  ["Tomorrow we [will plant] the seeds.", 2],
+  ["The kettle [whistles] when the water boils.", 1],
+  ["Last summer the creek [dried] up.", 0],
+  ["The astronauts [will return] next week.", 2],
+  ["She [is reading] a mystery right now.", 1, "Is reading means it is going on right now. That is present tense: the present progressive."],
+  ["We [were waiting] for the bus.", 0, "Were waiting means it was going on at a time already gone. That is past tense: the past progressive."],
+  ["The bakery [will open] at seven.", 2],
+  ["Ants [carry] crumbs to their nest.", 1],
+  ["The storm [knocked] down a branch.", 0],
+  ["I [will be skating] on Saturday.", 2, "Will be skating has not happened yet. The helping verb will makes it future."],
+];
+const TENSE_WHY = ["It already happened, so it is past tense.", "It happens now or always, so it is present tense.", "It has not happened yet, and will shows that. So it is future tense."];
+// sentence with ___, base verb, right form, wrong forms, why
+const IRREG = [
+  ["Yesterday the wind ___ my hat away.", "blow", "blew", ["blowed", "blown"], "Blow is irregular: blow, blew, blown. Blown needs a helper like has."],
+  ["The pond ___ solid in January.", "freeze", "froze", ["freezed", "frozen"], "Freeze is irregular: freeze, froze, frozen."],
+  ["We ___ the whole puzzle by ourselves.", "do", "did", ["done", "doed"], "Do is irregular: do, did, done. Done needs a helper like have."],
+  ["She ___ the ball over the fence.", "throw", "threw", ["throwed", "thrown"], "Throw is irregular: throw, threw, thrown."],
+  ["The choir ___ beautifully at the concert.", "sing", "sang", ["sung", "singed"], "Sing is irregular: sing, sang, sung. With no helper, use sang."],
+  ["Our dog has ___ my sock again!", "steal", "stolen", ["stole", "stealed"], "Has is a helping verb, so we need the past participle: steal, stole, stolen."],
+  ["The ice cream ___ in the sun.", "melt", "melted", ["molt", "melten"], "Melt is a regular verb. Just add -ed: melted."],
+  ["He ___ his lunch at home.", "leave", "left", ["leaved", "leaven"], "Leave is irregular: leave, left, left."],
+  ["The bell has ___ already.", "ring", "rung", ["rang", "ringed"], "Has needs the past participle: ring, rang, rung."],
+  ["Yesterday they ___ across the finish line.", "run", "ran", ["runned", "run"], "Run is irregular: run, ran, run. For the simple past, use ran."],
+  ["The goalie ___ the ball.", "catch", "caught", ["catched", "caughted"], "Catch is irregular: catch, caught, caught."],
+  ["The children have ___ to the park.", "go", "gone", ["went", "goed"], "Have needs the past participle: go, went, gone."],
+];
+// sentence with ___, right, wrong, words to cross out, why
+const AGREE = [
+  ["The box of markers ___ on the desk.", "is", "are", ["of", "markers"], "Cross out the phrase of markers. The subject is box, which is singular, so we say is."],
+  ["Each of the players ___ a water bottle.", "has", "have", ["of", "the", "players"], "Each means each one, which is singular. So we say has."],
+  ["The puppies in the window ___ adorable.", "look", "looks", ["in", "the", "window"], "The subject is puppies, which is plural. Plural subjects take look, with no s."],
+  ["Neither the teacher nor the students ___ the answer.", "know", "knows", [], "With neither and nor, the verb agrees with the nearer subject, students. Students is plural, so know."],
+  ["Neither the students nor the teacher ___ the answer.", "knows", "know", [], "With neither and nor, the verb agrees with the nearer subject, teacher. Teacher is singular, so knows."],
+  ["The map and the compass ___ in my backpack.", "are", "is", [], "Two subjects joined by and make a plural subject. So we say are."],
+  ["There ___ two raccoons in the yard.", "are", "is", [], "There is never the subject. The subject is raccoons, which is plural, so are."],
+  ["Everyone in the bleachers ___ cheering.", "is", "are", ["in", "the", "bleachers"], "Everyone means every one person, which is singular. So is."],
+  ["One of my socks ___ missing.", "is", "are", ["of", "my", "socks"], "Cross out of my socks. The subject is one, which is singular, so is."],
+  ["The scissors ___ sharp.", "are", "is", [], "Scissors is a plural noun, like pants and glasses. So we say are."],
+  ["Either the twins or their cousin ___ walking the dog.", "is", "are", [], "With either and or, the verb agrees with the nearer subject, cousin. Cousin is singular, so is."],
+  ["Mathematics ___ my favorite subject.", "is", "are", [], "Mathematics ends in s, but it is one subject. So we say is."],
+];
+
+// ---------- punctuation ----------
+// Comma items: a word ending in "," needs a comma after it; "(,)" means a comma there is optional.
+const COMMA = {
+  easy: [
+    ["We packed apples, cheese, crackers(,) and grapes.", "series", "Commas separate the items in a list. The comma before and, called the serial comma, is your choice."],
+    ["Yes, I would like more soup.", "intro", "Yes is an introductory word. A comma comes after it."],
+    ["Well, that was a surprise.", "intro", "Well is an introductory word. A comma comes after it."],
+    ["The flag was red, white(,) and blue.", "series", "Red, white and blue is a list of three. A comma goes after red. The serial comma after white is your choice."],
+    ["When the bell rang, we lined up.", "intro", "When the bell rang is an introductory clause. A comma comes after it."],
+    ["Lions, tigers(,) and leopards are all big cats.", "series", "Lions, tigers and leopards is a list. A comma goes after lions."],
+    ["No, the store is closed today.", "intro", "No is an introductory word. A comma comes after it."],
+    ["Finally, the rain stopped.", "intro", "Finally is an introductory word. A comma comes after it."],
+    ["She can swim, dive(,) and float on her back.", "series", "Swim, dive and float is a list of actions. A comma goes after swim."],
+    ["After the long and windy hike, we rested by the lake.", "intro", "After the long and windy hike is a long introductory phrase. A comma comes after it."],
+  ],
+  medium: [
+    ["The movie was long, but we enjoyed every minute.", "compound", "Both sides are whole sentences, joined by but. Put a comma before the joining word."],
+    ["I knocked twice, and nobody answered.", "compound", "I knocked twice and nobody answered are both whole sentences. A comma goes before and."],
+    ["The bread smelled wonderful, so we bought two loaves.", "compound", "Two whole sentences are joined by so. A comma goes before so."],
+    ["We can play inside, or we can go to the park.", "compound", "Two whole sentences are joined by or. A comma goes before or."],
+    ["The puppy chased its tail and fell over.", "none", "Fell over has no subject of its own. One subject does two things, so no comma is needed."],
+    ["My sister likes peas, but she hates carrots.", "compound", "She hates carrots is a whole sentence. A comma goes before but."],
+    ["Because the road was flooded, we took the long way.", "intro", "Because the road was flooded is an introductory clause. A comma comes after it."],
+  ],
+  hard: [
+    ["If you finish early, read a book, draw a map(,) or help a friend.", "series", "If you finish early is introductory, so a comma follows it. Then commas separate the list."],
+    ["Oh, I forgot my mittens, and my hat is wet.", "compound", "Oh is an interjection, so a comma follows it. Then two whole sentences are joined by and."],
+    ["The owl blinked slowly, and then it flew away.", "compound", "Then it flew away is a whole sentence with its own subject, it. So a comma goes before and."],
+    ["When the music stopped, everyone froze in place.", "intro", "When the music stopped is an introductory clause. A comma comes after it."],
+    ["The hikers were tired and hungry.", "none", "Tired and hungry are just two words joined by and. No comma is needed."],
+    ["We saw seals, otters(,) and pelicans at the beach.", "series", "Seals, otters and pelicans is a list. A comma goes after seals."],
+  ],
+};
+const COMMA_ASK = {
+  series: "How many items are in the list? Each item gets a comma after it, except the last.",
+  intro: "Where does the main sentence really start? What comes before it?",
+  compound: "Find the joining word. Is there a whole sentence on both sides of it?",
+  none: "Look at the joining word. Is there a whole sentence, with its own subject, on both sides?",
+  nonres: "Is the phrase or clause essential to identify the noun, or is it extra information? Extra information is enclosed by commas on both sides.",
+  inter: "Could the word be lifted out without changing the meaning? An interrupter is enclosed by commas on both sides.",
+  res: "Does the clause tell which one? If it is essential to the meaning, it takes no commas.",
+};
+const parseComma = (s) => s.split(" ").map((tok) => {
+  const opt = tok.endsWith("(,)");
+  const need = !opt && tok.endsWith(",");
+  return { show: tok.replace("(,)", "").replace(/,$/, ""), need, opt };
+});
+// Card items: question, right, wrong, wrong, why, hint
+const APOS = [
+  ["The tail belongs to the dog.", "The dog wagged its tail.", "The dog wagged it's tail.", "The dog wagged its' tail.", "Its, with no apostrophe, shows ownership. It's always means it is.", "Read it's as it is. Does the dog wag it is tail?"],
+  ["It is raining.", "It's raining, so bring an umbrella.", "Its raining, so bring an umbrella.", "Its' raining, so bring an umbrella.", "It's is short for it is. The apostrophe stands for the missing letter i.", "Which one could you read as it is raining?"],
+  ["One girl owns the backpack.", "The girl's backpack was heavy.", "The girls' backpack was heavy.", "The girls backpack was heavy.", "One owner: add apostrophe s. Girl's.", "Is there one girl or many? Where does the apostrophe go for one owner?"],
+  ["Three dogs own the leashes.", "The dogs' leashes hung by the door.", "The dog's leashes hung by the door.", "The dogs leashes hung by the door.", "Dogs is plural and ends in s, so just add an apostrophe after the s: dogs'.", "Is there one dog or three? For a plural that ends in s, where does the apostrophe go?"],
+  ["We cannot find it.", "We can't find the remote.", "We cant find the remote.", "We ca'nt find the remote.", "Can't is short for cannot. The apostrophe goes where letters are missing.", "Which letters are left out of cannot? Where should the apostrophe sit?"],
+  ["The toys belong to the children.", "The children's toys covered the floor.", "The childrens' toys covered the floor.", "The childrens toys covered the floor.", "Children is already plural without an s, so add apostrophe s: children's.", "Does children end in s? Then how do we show it owns something?"],
+  ["They are bringing kites that belong to them.", "They're bringing their kites.", "Their bringing there kites.", "There bringing their kites.", "They're means they are. Their means belonging to them.", "Which word means they are? Which word means belonging to them?"],
+  ["Do not touch it.", "Don't touch the wet paint.", "Dont touch the wet paint.", "Do'nt touch the wet paint.", "Don't is short for do not. The apostrophe replaces the missing o.", "Which letter is missing from do not? Where does the apostrophe go?"],
+];
+const QUOTES = [
+  ["Grandpa shouts about the rainbow.", "“Look at the rainbow!” shouted Grandpa.", "“Look at the rainbow”! shouted Grandpa.", "Look at the “rainbow!” shouted Grandpa.", "The quotation marks hold all the spoken words, and the exclamation mark stays inside them.", "Which words did Grandpa say? Where does his exclamation mark belong?"],
+  ["Mom tells us dinner is ready.", "Mom said, “Dinner is ready.”", "Mom said “Dinner is ready”.", "Mom said, “dinner is ready.”", "A comma comes before the quote, the quote starts with a capital, and the period goes inside.", "Check three things: a comma before the quote, a capital letter, and the period inside."],
+  ["The owl's sentence is split in two.", "“I think,” said the owl, “that it will rain.”", "“I think” said the owl, “That it will rain.”", "“I think,” said the owl, “That it will rain.”", "It is one sentence split in two, so the second part starts with a small letter. Commas go inside the quote and after owl.", "Is “that it will rain” a new sentence, or the rest of the same one?"],
+  ["A boy asks a question.", "“Can we go now?” asked the boy.", "“Can we go now”? asked the boy.", "“Can we go now?,” asked the boy.", "The question mark belongs to the spoken words, so it goes inside. No comma is added after it.", "Who is asking the question: the boy's words, or the whole sentence?"],
+  ["Dad says the bus is late.", "“The bus is late,” said Dad.", "“The bus is late.” said Dad.", "“The bus is late” said Dad.", "The sentence goes on after the quote, so the spoken part ends with a comma inside the quotation marks.", "Does the whole sentence end after late? What mark goes there instead?"],
+  ["A teacher gives a reminder.", "\u201CRemember your library books,\u201D said the teacher.", "\u201CRemember your library books\u201D said the teacher.", "\u201CRemember your library books,\u201D Said the teacher.", "The spoken part ends with a comma inside the quotation marks, and said stays small because the sentence goes on.", "What mark ends the spoken part when the sentence keeps going? Does said need a capital?"],
+  ["A friend asks where you are going.", "My friend asked, \u201CWhere are you going?\u201D", "My friend asked, \u201CWhere are you going\u201D?", "My friend asked \u201Cwhere are you going?\u201D", "The question belongs to the spoken words, so the question mark goes inside. A comma and a capital letter start the quote.", "Whose question is it? Where should the question mark go, and how does the quote start?"],
+  ["A girl answers with a cheer.", "“We did it!” she cheered.", "“We did it!” She cheered.", "“We did it”! she cheered.", "She cheered is still part of the same sentence, so she stays small. The exclamation mark goes inside.", "Is she cheered a new sentence? Should she have a capital?"],
+];
+
+// ---------- fix the sentence ----------
+const FAULTS = ["Fragment", "Run-on", "Comma splice", "Complete ✓"];
+const FAULT_WHY = [
+  "It is a fragment: it is missing a subject, a verb, or a main clause, so it cannot stand alone.",
+  "It is a run-on: two sentences are crashed together with no punctuation.",
+  "It is a comma splice: two whole sentences are joined by only a comma, which is not strong enough.",
+  "It is a complete sentence: it has a subject and a verb and expresses a whole thought.",
+];
+const FAULT_SENT = [
+  ["Because the gate was open.", 0, "Because makes this a dependent clause. It needs a main clause to lean on."],
+  ["The goat escaped it ate the flowers.", 1],
+  ["The goat escaped, it ate the flowers.", 2],
+  ["The goat escaped through the open gate.", 3],
+  ["Running down the hall with a kite.", 0, "Who is running? There is no subject and no complete verb."],
+  ["We finished early, we went to the park.", 2],
+  ["The snow was deep we wore tall boots.", 1],
+  ["Stop!", 3, "Stop is a command. The subject, you, is understood, so it is a complete sentence."],
+  ["A box of old photos in the attic.", 0, "What did the box do? There is no verb."],
+  ["Although it was cold, we swam in the lake.", 3, "Although it was cold leans on the main clause we swam in the lake. That is complete."],
+  ["I like to paint my brother likes to draw.", 1],
+  ["The oven was hot, the cookies baked quickly.", 2],
+];
+// broken, right fix, wrong, wrong, why, hint
+const FIXES = [
+  ["The goat escaped, it ate the flowers.", "The goat escaped, and it ate the flowers.", "The goat escaped it ate the flowers.", "The goat, escaped, it ate the flowers.", "A comma alone cannot join two sentences. Add a joining word: comma plus and.", "This is a comma splice. What could make the comma strong enough to join two sentences?"],
+  ["The snow was deep we wore tall boots.", "The snow was deep, so we wore tall boots.", "The snow was deep, we wore tall boots.", "The snow was deep so, we wore tall boots.", "Two sentences need a comma plus a joining word. The comma goes before so, not after it.", "This is a run-on. Which fix uses a comma and a joining word in the right order?"],
+  ["Because the gate was open.", "Because the gate was open, the goat escaped.", "The gate. Because it was open.", "Because the gate, was open.", "The dependent clause needs a main clause to lean on: the goat escaped.", "This is a fragment. What is missing: something that happened because of it?"],
+  ["A box of old photos in the attic.", "A box of old photos sat in the attic.", "A box of old photos, in the attic.", "In the attic a box of old photos.", "It needed a verb. Sat tells what the box did.", "This is a fragment. What did the box do? Which fix gives it a verb?"],
+  ["I like to paint my brother likes to draw.", "I like to paint. My brother likes to draw.", "I like to paint, my brother likes to draw.", "I like to paint my brother, likes to draw.", "Two whole sentences can be split with a period and a capital letter.", "This is a run-on. Where does the first sentence end?"],
+  ["We finished early, we went to the park.", "We finished early; we went to the park.", "We finished early we went to the park.", "We finished, early we went to the park.", "A semicolon is strong enough to join two whole sentences.", "This is a comma splice. Which mark is stronger than a comma but still joins?"],
+  ["Running down the hall with a kite.", "My cousin was running down the hall with a kite.", "Running down the hall, with a kite.", "Running. Down the hall with a kite.", "It needed a subject and a full verb: my cousin was running.", "This is a fragment. Who is running? Which fix tells you?"],
+  ["The oven was hot, the cookies baked quickly.", "Because the oven was hot, the cookies baked quickly.", "The oven was hot, because, the cookies baked quickly.", "The oven was hot the cookies baked quickly.", "Because turns the first part into a dependent clause, and a comma after it is correct.", "This is a comma splice. Which fix makes one part lean on the other?"],
+];
+// first, second, joiner, right, wrong, wrong, why
+const COMBINE = [
+  ["It rained.", "We stayed inside.", "because", "We stayed inside because it rained.", "We stayed inside because, it rained.", "Because it rained. We stayed inside.", "When the because clause comes last, no comma is needed. Because it rained alone would be a fragment."],
+  ["The trail was steep.", "We reached the top.", "although", "Although the trail was steep, we reached the top.", "Although the trail was steep we, reached the top.", "Although the trail was steep. We reached the top.", "The dependent clause comes first, so a comma follows it. A period there would leave a fragment."],
+  ["I studied hard.", "I passed the test.", "so", "I studied hard, so I passed the test.", "I studied hard so, I passed the test.", "I studied hard, so, I passed the test.", "For two whole sentences, the comma goes before so, and nowhere else."],
+  ["The lamp flickered.", "The power went out.", "a semicolon", "The lamp flickered; the power went out.", "The lamp flickered; and, the power went out.", "The lamp flickered, the power went out.", "A semicolon joins two whole sentences by itself. A comma alone would be a splice."],
+  ["We wanted a picnic.", "It was too windy.", "however", "We wanted a picnic; however, it was too windy.", "We wanted a picnic, however it was too windy.", "We wanted a picnic however, it was too windy.", "However is not a FANBOYS word. Use a semicolon before it and a comma after it."],
+  ["You finish your chores.", "You can play outside.", "when", "When you finish your chores, you can play outside.", "When you finish your chores you can, play outside.", "When you finish. Your chores you can play outside.", "The when clause comes first, so a comma follows the whole clause."],
+  ["The kitten was tiny.", "It was brave.", "but", "The kitten was tiny, but it was brave.", "The kitten was tiny but, it was brave.", "The kitten was tiny, it was brave but.", "Comma, then but, then the second sentence."],
+  ["The bell rang.", "The students lined up.", "after", "After the bell rang, the students lined up.", "After the bell rang the students, lined up.", "After the bell, rang the students lined up.", "After the bell rang is a dependent clause at the start, so the comma comes right after it."],
+];
+
+// ---------- diagramming (Reed–Kellogg) ----------
+// s subject, sm its modifiers, v verb, vm adverbs, o direct object, om its modifiers,
+// pp prepositional phrases: at s | v | o, p preposition, ob its object, obm the object's modifiers.
+const D = (sentence, s, sm, v, vm, o = null, om = [], pp = []) => ({ sentence, s, sm, v, vm, o, om, pp, ok: "o" });
+const P = (at, p, ob, obm = []) => ({ at, p, ob, obm });
+// Complement: "pn" predicate nominative or "pa" predicate adjective, drawn after a back-slanted line.
+const C = (d, ok, cite) => ({ ...d, ok, cite });
+// Adverb clause: drawn on a lower baseline, joined verb to verb by a dashed line carrying the conjunction.
+const S = (d, conj, sub, cite) => ({ ...d, sub: { conj, d: sub }, cite });
+const L = (d, cite) => ({ ...d, cite });
+const DIAGRAMS = {
+  easy: [
+    D("Owls hunt.", "Owls", [], "hunt", []),
+    D("The baby giggled.", "baby", ["The"], "giggled", []),
+    D("Tiny ants marched.", "ants", ["Tiny"], "marched", []),
+    D("Dogs bark loudly.", "Dogs", [], "bark", ["loudly"]),
+    D("The tired owl slept soundly.", "owl", ["The", "tired"], "slept", ["soundly"]),
+    D("Bakers make bread.", "Bakers", [], "make", [], "bread"),
+    D("The fox chased a rabbit.", "fox", ["The"], "chased", [], "rabbit", ["a"]),
+    D("The happy baker made fresh bread.", "baker", ["The", "happy"], "made", [], "bread", ["fresh"]),
+    D("A small crab scuttled quickly.", "crab", ["A", "small"], "scuttled", ["quickly"]),
+    D("The frog jumped into the pond.", "frog", ["The"], "jumped", [], null, [], [P("v", "into", "pond", ["the"])]),
+    D("Old trees creaked loudly in the wind.", "trees", ["Old"], "creaked", ["loudly"], null, [], [P("v", "in", "wind", ["the"])]),
+    D("The girl painted a bright mural.", "girl", ["The"], "painted", [], "mural", ["a", "bright"]),
+    D("We ate lunch under a tree.", "We", [], "ate", [], "lunch", [], [P("v", "under", "tree", ["a"])]),
+    D("The boy carefully opened the box.", "boy", ["The"], "opened", ["carefully"], "box", ["the"]),
+    D("Seagulls circled above the harbor.", "Seagulls", [], "circled", [], null, [], [P("v", "above", "harbor", ["the"])]),
+  ],
+  medium: [
+    D("The house on the hill has a red door.", "house", ["The"], "has", [], "door", ["a", "red"], [P("s", "on", "hill", ["the"])]),
+    D("A bird with blue wings sang sweetly.", "bird", ["A"], "sang", ["sweetly"], null, [], [P("s", "with", "wings", ["blue"])]),
+    D("The children built a fort of snow.", "children", ["The"], "built", [], "fort", ["a"], [P("o", "of", "snow")]),
+    D("My grandmother baked cookies for the neighbors.", "grandmother", ["My"], "baked", [], "cookies", [], [P("v", "for", "neighbors", ["the"])]),
+    D("The lamp in the window glowed softly through the fog.", "lamp", ["The"], "glowed", ["softly"], null, [], [P("s", "in", "window", ["the"]), P("v", "through", "fog", ["the"])]),
+    D("The tall giraffe ate the leaves of the acacia.", "giraffe", ["The", "tall"], "ate", [], "leaves", ["the"], [P("o", "of", "acacia", ["the"])]),
+    D("A cat with orange stripes slept on the warm windowsill.", "cat", ["A"], "slept", [], null, [], [P("s", "with", "stripes", ["orange"]), P("v", "on", "windowsill", ["the", "warm"])]),
+    D("The captain steered the ship toward the lighthouse.", "captain", ["The"], "steered", [], "ship", ["the"], [P("v", "toward", "lighthouse", ["the"])]),
+    C(D("The soup tasted salty.", "soup", ["The"], "tasted", [], "salty"), "pa"),
+    C(D("Owls are hunters.", "Owls", [], "are", [], "hunters"), "pn"),
+    C(D("The old map was a treasure.", "map", ["The", "old"], "was", [], "treasure", ["a"]), "pn"),
+    C(D("The tired hikers became quiet.", "hikers", ["The", "tired"], "became", [], "quiet"), "pa"),
+  ],
+  hard: [
+    C(D("Brevity is the soul of wit.", "Brevity", [], "is", [], "soul", ["the"], [P("o", "of", "wit")]), "pn", "William Shakespeare, Hamlet"),
+    L(D("Two roads diverged in a yellow wood.", "roads", ["Two"], "diverged", [], null, [], [P("v", "in", "wood", ["a", "yellow"])]), "Robert Frost, The Road Not Taken (1916)"),
+    L(D("The boy stood on the burning deck.", "boy", ["The"], "stood", [], null, [], [P("v", "on", "deck", ["the", "burning"])]), "Felicia Hemans, Casabianca (1826)"),
+    C(D("The Child is father of the Man.", "Child", ["The"], "is", [], "father", [], [P("o", "of", "Man", ["the"])]), "pn", "William Wordsworth, My Heart Leaps Up (1807)"),
+    C(D("The woods are lovely.", "woods", ["The"], "are", [], "lovely"), "pa", "Robert Frost, Stopping by Woods on a Snowy Evening (1923)"),
+    S(D("We stayed inside because it rained.", "We", [], "stayed", ["inside"]), "because", D("", "it", [], "rained", [])),
+    S(D("The dog barked when the bell rang.", "dog", ["The"], "barked", []), "when", D("", "bell", ["the"], "rang", [])),
+    S(D("The crowd cheered loudly after the team scored.", "crowd", ["The"], "cheered", ["loudly"]), "after", D("", "team", ["the"], "scored", [])),
+    S(D("Birds sing while the sun rises.", "Birds", [], "sing", []), "while", D("", "sun", ["the"], "rises", [])),
+    S(D("The baker smiled because the bread rose.", "baker", ["The"], "smiled", []), "because", D("", "bread", ["the"], "rose", [])),
+    S(D("The guests left before the storm arrived.", "guests", ["The"], "left", []), "before", D("", "storm", ["the"], "arrived", [])),
+    S(D("Frogs sing loudly when spring arrives.", "Frogs", [], "sing", ["loudly"]), "when", D("", "spring", [], "arrives", [])),
+  ],
+};
+const DFONT = 27;
+const SLX = 70;
+const SLY = 118;
+const MOD = 76;
+// Lay out the diagram: returns lines to draw and slots ({ group, word, x, y, a, w }).
+function planDiagram(d, by = 220) {
+  const tw = (w) => measure(w, DFONT, 800);
+  const ppW = (p) => SLX + Math.max(tw(p.ob) + 50, 40 + p.obm.length * MOD + 30) + 18;
+  const pps = (at) => d.pp.map((p, k) => ({ ...p, k })).filter((p) => p.at === at);
+  const seg = (word, mods, at) => (word ? Math.max(tw(word) + 60, 26 + mods.length * MOD + pps(at).reduce((s, p) => s + ppW(p), 0) + 20) : 0);
+  const segs = [seg(d.s, d.sm, "s"), seg(d.v, d.vm, "v"), seg(d.o, d.om, "o")];
+  const total = segs[0] + segs[1] + segs[2];
+  const x0 = 500 - total / 2;
+  const lines = [];
+  const dashed = [];
+  const slots = [];
+  const ang = (Math.atan2(SLY, SLX) * 180) / Math.PI;
+  const len = Math.hypot(SLX, SLY);
+  const nx = Math.sin((ang * Math.PI) / 180);
+  const ny = -Math.cos((ang * Math.PI) / 180);
+  const slant = (x, y, group, word) => {
+    lines.push([x, y, x + SLX, y + SLY]);
+    slots.push({ group, word, x: x + SLX / 2 + nx * 18, y: y + SLY / 2 + ny * 18, a: ang, w: len - 10 });
+  };
+  lines.push([x0 - 10, by, x0 + total + 10, by]);
+  const xs = [x0, x0 + segs[0], x0 + segs[0] + segs[1]];
+  lines.push([xs[1], by - 52, xs[1], by + 52]);
+  if (d.o && d.ok === "o") lines.push([xs[2], by - 52, xs[2], by]);
+  else if (d.o) lines.push([xs[2] - 26, by - 52, xs[2], by]);
+  const heads = [["s", d.s, d.sm, "sm"], ["v", d.v, d.vm, "vm"], ["o", d.o, d.om, "om"]];
+  heads.forEach(([at, word, mods, mg], i) => {
+    if (!word) return;
+    const sx = xs[i];
+    slots.push({ group: at, word, x: sx + segs[i] / 2 + (at === "o" && d.ok !== "o" ? 6 : 0), y: by - 22, a: 0, w: Math.max(tw(word) + 30, 110), base: true });
+    mods.forEach((m, j) => slant(sx + 26 + j * MOD, by, mg, m));
+    let px = sx + 26 + mods.length * MOD;
+    for (const p of pps(at)) {
+      slant(px, by, `p${p.k}`, p.p);
+      const hx = px + SLX;
+      const hy = by + SLY;
+      const hw = ppW(p) - SLX - 18;
+      lines.push([hx, hy, hx + hw, hy]);
+      slots.push({ group: `p${p.k}o`, word: p.ob, x: hx + hw / 2, y: hy - 22, a: 0, w: Math.max(tw(p.ob) + 30, 100), base: true });
+      p.obm.forEach((m, j) => slant(hx + 24 + j * MOD, hy, `p${p.k}m`, m));
+      px += ppW(p);
+    }
+  });
+  let left = x0 - 10;
+  let right = x0 + total + 10;
+  if (d.sub) {
+    const by2 = by + 175;
+    const sp = planDiagram(d.sub.d, by2);
+    const vMain = slots.find((s) => s.group === "v");
+    const vSub = sp.slots.find((s) => s.group === "v");
+    let dx = vMain.x + 170 - vSub.x;
+    if (500 + sp.total / 2 + 10 + dx > 975) dx = 975 - (500 + sp.total / 2 + 10);
+    if (500 - sp.total / 2 - 10 + dx < 25) dx = 25 - (500 - sp.total / 2 - 10);
+    sp.lines.forEach(([a, b, c, e]) => lines.push([a + dx, b, c + dx, e]));
+    sp.slots.forEach((s) => slots.push({ ...s, x: s.x + dx, group: `u:${s.group}` }));
+    const ax = vMain.x;
+    const ay = by;
+    const bx = vSub.x + dx - vSub.w / 2 - 4;
+    const bY = by2;
+    dashed.push([ax, ay, bx, bY]);
+    const ca = (Math.atan2(bY - ay, bx - ax) * 180) / Math.PI;
+    const cn = [Math.sin((ca * Math.PI) / 180), -Math.cos((ca * Math.PI) / 180)];
+    slots.push({ group: "cj", word: d.sub.conj, x: (ax + bx) / 2 + cn[0] * 18, y: (ay + bY) / 2 + cn[1] * 18, a: ca, w: Math.max(tw(d.sub.conj) + 24, 100) });
+    left = Math.min(left, 500 - sp.total / 2 - 10 + dx);
+    right = Math.max(right, 500 + sp.total / 2 + 10 + dx);
+  }
+  return { lines, dashed, slots, total: right - left, by };
+}
+const diagramWords = (d) => [d.s, ...d.sm, d.v, ...d.vm, ...(d.o ? [d.o, ...d.om] : []), ...d.pp.flatMap((p) => [p.p, p.ob, ...p.obm]), ...(d.sub ? [d.sub.conj, ...diagramWords(d.sub.d)] : [])];
+const GROUP_NAME = (g0, d) => {
+  if (g0 === "cj") return "subordinating conjunction";
+  const g = g0.replace(/^u:/, "");
+  if (g === "s") return "subject";
+  if (g === "v") return "verb";
+  if (g === "o") return { o: "direct object", pn: "predicate nominative", pa: "predicate adjective" }[(g0 === g ? d?.ok : "o") || "o"];
+  if (g === "sm" || g === "om") return "adjective";
+  if (g === "vm") return "adverb";
+  if (/^p\dm$/.test(g)) return "adjective";
+  if (/^p\do$/.test(g)) return "object of the preposition";
+  return "preposition";
+};
+function drawLines(parent, lines, attrs = {}) {
+  return lines.map(([x1, y1, x2, y2]) => el("line", { x1, y1, x2, y2, stroke: "#5a4130", "stroke-width": 5, "stroke-linecap": "round", ...attrs }, parent));
+}
+
+// Grade 8+: literary and multi-clause sentences. [sentence, kind, joining words, why, citation]
+const KIND_HARD = [
+  ["Happy families are all alike; every unhappy family is unhappy in its own way.", 1, ["alike;"], "A semicolon joins two independent clauses, so the sentence is compound.", "Leo Tolstoy, Anna Karenina (trans. Constance Garnett, 1901)"],
+  ["It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.", 2, ["that"], "The that clause is a dependent noun clause; it is the real subject postponed after it. One independent clause plus one dependent: complex.", "Jane Austen, Pride and Prejudice (1813)"],
+  ["Because I could not stop for Death, He kindly stopped for me.", 2, ["Because"], "Because I could not stop for Death is a dependent adverb clause; He kindly stopped for me is independent. Complex.", "Emily Dickinson (about 1863)"],
+  ["Laugh, and the world laughs with you; Weep, and you weep alone.", 1, ["and", "you;"], "Four independent clauses (two are commands with you understood), joined by and and a semicolon. No dependent clause: compound.", "Ella Wheeler Wilcox, Solitude (1883)"],
+  ["I came, I saw, I conquered.", 1, [], "Three independent clauses in a row. The commas are a deliberate rhetorical choice (asyndeton, omitting conjunctions). Compound.", "attributed to Julius Caesar"],
+  ["Whose woods these are I think I know.", 2, ["Whose"], "Whose woods these are is a noun clause, the object of know (I know whose woods these are). One independent clause with dependent clauses: complex.", "Robert Frost, Stopping by Woods on a Snowy Evening (1923)"],
+  ["The Child is father of the Man.", 0, [], "One subject, one verb, no dependent clause: simple.", "William Wordsworth, My Heart Leaps Up (1807)"],
+  ["If music be the food of love, play on.", 2, ["If"], "If music be the food of love is a dependent clause; play on is an independent command. Complex.", "William Shakespeare, Twelfth Night"],
+  ["Ask, and it shall be given you; seek, and ye shall find.", 1, ["and", "you;"], "Independent clauses joined by and and a semicolon; none is dependent. Compound.", "Matthew 7:7, King James Bible (1611)"],
+  ["Although the evidence was thin, the detective, who had solved harder cases, refused to give up.", 2, ["Although", "who"], "Two dependent clauses (although…, who…) attach to one independent clause. Still only one independent clause, so complex.", ""],
+  ["The lights failed, and while we waited, the orchestra kept playing.", 3, ["and", "while"], "Two independent clauses joined by and, plus the dependent clause while we waited. Compound-complex.", ""],
+  ["We hoped that the rain would stop, but it continued until dawn.", 3, ["that", "but"], "Two independent clauses joined by but; that the rain would stop is a dependent noun clause. Compound-complex.", ""],
+  ["The scientist who discovered the comet named it after her teacher.", 2, ["who"], "Who discovered the comet is a dependent adjective clause modifying scientist. Complex.", ""],
+  ["Whoever left the gate open owes the farmer an apology, and everyone knows it.", 3, ["Whoever", "and"], "Whoever left the gate open is a noun clause serving as subject; and joins a second independent clause. Compound-complex.", ""],
+  ["Running late, she grabbed her coat and sprinted for the bus.", 0, [], "Running late is a participial phrase (no subject); grabbed and sprinted share one subject. One clause: simple.", ""],
+  ["To finish the marathon was her goal.", 0, [], "To finish the marathon is an infinitive phrase acting as subject. There is only one clause: simple.", ""],
+];
+// Grade 8 tense naming. [sentence with [verb], tense name, why]
+const TENSE12 = ["simple present", "simple past", "simple future", "present progressive", "past progressive", "future progressive", "present perfect", "past perfect", "future perfect", "present perfect progressive", "past perfect progressive", "future perfect progressive"];
+const TENSE_HARD = [
+  ["By noon, the snow [had melted].", "past perfect", "Had plus a past participle: an action completed before another past moment (noon)."],
+  ["She [has lived] here for six years.", "present perfect", "Has plus a past participle: an action that began in the past and continues to matter now."],
+  ["By June, we [will have finished] the novel.", "future perfect", "Will have plus a past participle: an action that will be complete before a future moment."],
+  ["They [had been waiting] for an hour when the bus came.", "past perfect progressive", "Had been plus an -ing form: an ongoing action that continued up to a moment in the past."],
+  ["I [have been reading] since breakfast.", "present perfect progressive", "Have been plus an -ing form: an action that began earlier and is still going on."],
+  ["By next spring, the bridge [will have been standing] for a century.", "future perfect progressive", "Will have been plus an -ing form: duration continuing up to a future moment."],
+  ["The orchestra [was tuning] when we arrived.", "past progressive", "Was plus an -ing form: an action in progress at a past moment."],
+  ["The comet [will be passing] overhead tonight.", "future progressive", "Will be plus an -ing form: an action that will be in progress in the future."],
+  ["The river [is rising] quickly.", "present progressive", "Is plus an -ing form: an action in progress now."],
+  ["Light [travels] faster than sound.", "simple present", "The simple present states general truths, such as facts of physics."],
+  ["The ferry [crossed] the strait at dawn.", "simple past", "A single completed past action with no helping verb."],
+  ["Our class [will visit] the observatory.", "simple future", "Will plus the base form: a plain future action."],
+  ["Before the storm, the farmers [had harvested] the wheat.", "past perfect", "The harvest was complete before another past event, the storm."],
+  ["Astronomers [have discovered] thousands of exoplanets.", "present perfect", "Have plus a past participle: completed discoveries whose results still matter now."],
+];
+const AGREE_HARD = [
+  ["The number of volunteers ___ growing.", "is", "are", ["of", "volunteers"], "The number is a singular subject; volunteers is inside the prepositional phrase. So is."],
+  ["A number of volunteers ___ arriving early.", "are", "is", [], "A number of means several, so the subject is plural. So are."],
+  ["Neither of the answers ___ correct.", "is", "are", ["of", "the", "answers"], "Neither means not either one: singular. So is."],
+  ["The committee ___ reached its decision.", "has", "have", [], "In American English a collective noun acting as one unit is singular; its confirms the singular. So has."],
+  ["Measles ___ a contagious disease.", "is", "are", [], "Measles names one disease despite its final s. So is."],
+  ["Ten dollars ___ too much for that pen.", "is", "are", [], "An amount of money treated as a single sum is singular. So is."],
+  ["Every one of the windows ___ cracked.", "was", "were", ["of", "the", "windows"], "Every one is singular; windows is inside the phrase. So was."],
+  ["The teacher, along with her students, ___ planting trees.", "is", "are", ["along", "with", "her", "students,"], "Along with her students is an interrupting phrase, not part of the subject. Teacher is singular, so is."],
+  ["Here ___ the results of the survey.", "are", "is", [], "Here is never the subject. The subject is results, which is plural. So are."],
+  ["Each boy and girl ___ a library card.", "has", "have", [], "When each precedes a compound subject, it is treated as singular. So has."],
+  ["The scissors ___ sharp.", "are", "is", [], "Scissors is a plural noun, like trousers and glasses. So are."],
+  ["Either the twins or their cousin ___ walking the dog.", "is", "are", [], "With either…or, the verb agrees with the nearer subject, cousin. So is."],
+  ["Mathematics ___ my favorite subject.", "is", "are", [], "Mathematics names a single field of study. So is."],
+  ["Neither the students nor the teacher ___ the answer.", "knows", "know", [], "With neither…nor, the verb agrees with the nearer subject, teacher. So knows."],
+];
+const IRREG_MORE = [
+  ["The cat has ___ in the sun all afternoon.", "lie", "lain", ["laid", "lied"], "Lie (to recline) is irregular: lie, lay, lain. Laid belongs to lay (to place something)."],
+  ["Yesterday I ___ down for a short rest.", "lie", "lay", ["laid", "lied"], "The past tense of lie (to recline) is lay. Lied means told an untruth."],
+  ["She ___ the atlas on the table.", "lay", "laid", ["lay", "layed"], "Lay (to place) takes an object, atlas. Its past is laid."],
+  ["The sun ___ at six this morning.", "rise", "rose", ["raised", "rised"], "Rise needs no object: rise, rose, risen. Raised belongs to raise, which takes an object."],
+  ["The crew has ___ the sail.", "raise", "raised", ["risen", "rose"], "Raise takes an object, sail: raise, raised, raised."],
+  ["The ship ___ beneath the waves.", "sink", "sank", ["sunken", "sinked"], "Sink is irregular: sink, sank, sunk. Without a helper, use sank."],
+  ["I have ___ a letter to my grandmother.", "write", "written", ["wrote", "writed"], "Have needs the past participle: write, wrote, written."],
+  ["We ___ across the lake last summer.", "swim", "swam", ["swum", "swimmed"], "Swim is irregular: swim, swam, swum. Without a helper, use swam."],
+  ["The balloon ___ with a loud pop.", "burst", "burst", ["bursted", "busted"], "Burst does not change: burst, burst, burst."],
+  ["The bell had ___ before we reached the door.", "ring", "rung", ["rang", "ringed"], "Had needs the past participle: ring, rang, rung."],
+];
+// Grade 8 punctuation: nonrestrictive elements and transitions (tap items) and semicolon/colon cards.
+const COMMA_HARD2 = [
+  ["The Nile, which flows north, is the longest river in Africa.", "nonres", "Which flows north adds extra information about one specific river. Nonrestrictive (non-essential) clauses are enclosed by commas."],
+  ["The students who finished early read quietly.", "res", "Who finished early tells which students. A restrictive (essential) clause takes no commas."],
+  ["Mount Everest, the highest mountain on Earth, lies in the Himalayas.", "nonres", "The highest mountain on Earth is an appositive (a renaming phrase) that adds extra information, so commas enclose it."],
+  ["However, the experiment failed.", "intro", "However is an introductory transition. A comma follows it."],
+  ["The results, however, were surprising.", "inter", "However interrupts the sentence, so commas enclose it on both sides."],
+  ["The book that I borrowed is overdue.", "res", "That I borrowed identifies which book. Restrictive clauses take no commas."],
+  ["Having finished the essay, she closed her laptop.", "intro", "Having finished the essay is an introductory participial phrase. A comma follows it."],
+  ["My grandmother, who grew up on a farm, can milk a cow.", "nonres", "The who clause adds extra information about a specific person; the sentence works without it. Nonrestrictive, so commas enclose it."],
+  ["On the other hand, the cost was high.", "intro", "On the other hand is an introductory transition. A comma follows it."],
+  ["Anyone who reads widely learns new words.", "res", "Who reads widely tells which people. It is restrictive, so no commas."],
+];
+const SEMI = [
+  ["Two closely related independent clauses.", "The lecture ended; the debate began.", "The lecture ended, the debate began.", "The lecture ended; and the debate began.", "A semicolon alone can join two independent clauses. A comma alone creates a splice; a semicolon plus and is redundant.", "Which mark is strong enough to join two complete sentences without a conjunction?"],
+  ["A complete clause introduces a list.", "Bring three things: a pencil, a ruler, and an eraser.", "Bring three things; a pencil, a ruler, and an eraser.", "Bring: three things a pencil, a ruler, and an eraser.", "A colon follows a complete clause and introduces what it promises: here, the list.", "Is the part before the mark a complete sentence? Which mark announces a list?"],
+  ["A verb leads straight into its objects.", "The recipe needs flour, eggs, and milk.", "The recipe needs: flour, eggs, and milk.", "The recipe needs; flour, eggs, and milk.", "Never place a colon between a verb and its objects. The recipe needs is not a complete thought.", "Is the recipe needs a complete clause? Does a verb need a mark before its object?"],
+  ["A list whose items already contain commas.", "We visited Lyon, France; Turin, Italy; and Bern, Switzerland.", "We visited Lyon, France, Turin, Italy, and Bern, Switzerland.", "We visited Lyon; France, Turin; Italy, and Bern; Switzerland.", "When list items contain commas, semicolons separate the items so the reader can tell where each ends.", "Where does each item (a city and its country) end?"],
+  ["A transition word joins two clauses.", "The road was icy; however, we arrived on time.", "The road was icy, however, we arrived on time.", "The road was icy; however we arrived, on time.", "However is a conjunctive adverb, not a conjunction. Use a semicolon before it and a comma after it.", "Is however a FANBOYS conjunction? What must come before it to join two clauses?"],
+  ["A colon introduces an explanation.", "She had one goal: to finish the race.", "She had one goal; to finish the race.", "She had: one goal to finish the race.", "A colon after a complete clause can introduce an explanation of it. A semicolon must be followed by a full clause.", "Is to finish the race a complete clause? Which mark introduces an explanation?"],
+  ["A phrase interrupts the sentence.", "The answer, to everyone's surprise, was zero.", "The answer to everyone's surprise, was zero.", "The answer, to everyone's surprise was zero.", "An interrupting phrase needs a mark on both sides: two commas, or two dashes, never one.", "If you remove to everyone's surprise, does the sentence still read smoothly? Which version encloses it?"],
+  ["Two independent clauses joined by yet.", "The trail was short, yet it was exhausting.", "The trail was short yet, it was exhausting.", "The trail was short; yet, it was exhausting.", "Yet is a FANBOYS conjunction. A comma goes before it, not after.", "Where does the comma go with a FANBOYS conjunction?"],
+];
+// Grade 8: misplaced and dangling modifiers. [broken, right, wrong, wrong, why, hint]
+const MODIFIERS = [
+  ["Running to the bus, my backpack fell open.", "As I ran to the bus, my backpack fell open.", "Running to the bus, my backpack, fell open.", "My backpack fell open, running to the bus.", "A backpack cannot run. Giving the clause its own subject, I, removes the dangling modifier.", "Who was running? Does the sentence ever say?"],
+  ["Covered in frosting, my brother ate the cake.", "My brother ate the cake, which was covered in frosting.", "Covered in frosting, my brother ate it.", "My brother, covered in frosting, ate the cake.", "The frosting belongs to the cake, so the modifier must sit next to cake.", "What was covered in frosting? Which version places the modifier beside it?"],
+  ["After reading the book, the film seemed dull.", "After reading the book, I found the film dull.", "After reading the book, the film, seemed dull.", "The film seemed dull after reading the book.", "The film did not read the book. The reader, I, must be the subject next to the modifier.", "Who read the book? Which version names that person right after the comma?"],
+  ["Walking through the museum, the skeleton amazed us.", "Walking through the museum, we were amazed by the skeleton.", "The skeleton amazed us, walking through the museum.", "Walking through the museum the skeleton amazed us.", "The participial phrase must sit beside the people who were walking: we.", "Who was walking? The word right after the comma should name them."],
+  ["To win the contest, practice is necessary.", "To win the contest, you must practice.", "Practice is necessary, to win the contest.", "To win the contest practice, is necessary.", "Practice cannot win a contest. The infinitive phrase needs a person, you, as the subject.", "Who wants to win? Does that person appear in the sentence?"],
+  ["Barking loudly, the mail carrier ran from the dog.", "The mail carrier ran from the dog, which was barking loudly.", "Barking loudly, the mail carrier ran from the dog quickly.", "The mail carrier, barking loudly, ran from the dog.", "The dog was barking, so the modifier must attach to dog.", "Who was barking? Where should barking loudly sit?"],
+  ["At the age of five, my grandmother taught me to knit.", "When I was five, my grandmother taught me to knit.", "At the age of five my grandmother, taught me to knit.", "My grandmother, at the age of five, taught me to knit.", "The narrator was five, not the grandmother. A clause with its own subject, I, removes the confusion.", "Who was five years old? Does the sentence say so clearly?"],
+  ["The teacher gave tests to the students that were stapled.", "The teacher gave the students tests that were stapled.", "The teacher gave tests to the students, that were stapled.", "The teacher, that were stapled, gave tests to the students.", "That were stapled describes the tests, so it must follow tests directly.", "What was stapled: the students or the tests?"],
+];
+// Verbals. [sentence with [verbal], answer index, why, citation]
+const VERBAL_EASY = [
+  ["The [barking] dog woke the neighbors.", 1, "Barking modifies the noun dog, so it is a participle working as an adjective."],
+  ["The dog [was barking] at the mail truck.", 0, "Was barking is the verb of the clause: it tells what the dog was doing."],
+  ["We admired the [sparkling] lake.", 1, "Sparkling describes the lake. It is a participle used as an adjective."],
+  ["The lake [sparkled] in the sun.", 0, "Sparkled is the main verb: it is what the lake did."],
+  ["The [broken] vase lay on the floor.", 1, "Broken describes vase. It is a past participle used as an adjective."],
+  ["Someone [had broken] the vase.", 0, "Had broken is the verb phrase of the sentence."],
+  ["A [frightened] rabbit hid under the hedge.", 1, "Frightened describes rabbit. It is a past participle used as an adjective."],
+  ["The thunder [frightened] the rabbit.", 0, "Frightened is the main verb: what the thunder did."],
+  ["The [falling] leaves covered the path.", 1, "Falling describes leaves. It is a participle used as an adjective."],
+  ["Leaves [are falling] everywhere.", 0, "Are falling is the verb phrase: helping verb plus -ing form."],
+  ["The [frozen] pond glittered.", 1, "Frozen describes pond. It is a past participle used as an adjective."],
+  ["The pond [froze] overnight.", 0, "Froze is the main verb: what the pond did."],
+];
+const VERBAL_MED = [
+  ["[Swimming] is my favorite sport.", 0, "Swimming names an activity and is the subject. An -ing verb form used as a noun is a gerund."],
+  ["I like [to swim] in the ocean.", 2, "To plus the base form of a verb is an infinitive."],
+  ["The [swimming] children laughed.", 1, "Swimming describes children. An -ing form used as an adjective is a participle."],
+  ["[Reading] before bed helps me sleep.", 0, "Reading is the subject of helps. It is a gerund."],
+  ["She wants [to become] an astronaut.", 2, "To become is to plus a base verb: an infinitive."],
+  ["The girl [reading] the map found the trail.", 1, "Reading the map describes the girl. It is a participial phrase."],
+  ["His job is [repairing] clocks.", 0, "Repairing clocks renames job after is. It acts as a noun: a gerund."],
+  ["We stopped [to rest].", 2, "To rest is an infinitive; it tells why we stopped."],
+  ["[Exhausted], the runners collapsed on the grass.", 1, "Exhausted describes the runners. It is a past participle."],
+  ["They argued about [painting] the fence.", 0, "Painting is the object of the preposition about. A noun-like -ing form is a gerund."],
+  ["The best way [to learn] is practice.", 2, "To learn is an infinitive; it describes way."],
+  ["The rain, [falling] softly, soothed us.", 1, "Falling softly describes rain. It is a participial phrase."],
+  ["I enjoy [baking] bread.", 0, "Baking bread is the direct object of enjoy. It is a gerund phrase."],
+  ["[To win] the prize was her goal.", 2, "To win is an infinitive acting as the subject."],
+  ["A [whispered] secret spread through the class.", 1, "Whispered describes secret. It is a past participle."],
+];
+const VERBAL_HARD = [
+  ["[To err] is human.", 0, "The infinitive to err is the subject of is, so it functions as a noun.", "Alexander Pope, An Essay on Criticism (1711)"],
+  ["But I have promises [to keep].", 1, "To keep modifies the noun promises (which promises? ones to keep). The infinitive functions as an adjective.", "Robert Frost, Stopping by Woods on a Snowy Evening (1923)"],
+  ["Water, water, every where, Nor any drop [to drink].", 1, "To drink modifies drop: which drop? A drop to drink. Adjective.", "Samuel Taylor Coleridge, The Rime of the Ancient Mariner (1817 text)"],
+  ["[To be, or not to be]: that is the question.", 0, "The infinitives name the choice itself, and the pronoun that refers back to them. A named choice is a thing: noun.", "William Shakespeare, Hamlet"],
+  ["The boy stood on the [burning] deck.", 1, "Burning modifies deck. A participle used as a verbal (not as part of a verb phrase such as was burning) functions as an adjective.", "Felicia Hemans, Casabianca (1826)"],
+  ["Tyger Tyger, [burning bright], In the forests of the night", 1, "Burning bright modifies Tyger. The participial phrase functions as an adjective.", "William Blake, The Tyger (1794)"],
+  ["We came [to see the eclipse].", 2, "To see the eclipse tells why we came, modifying the verb came. Adverb.", ""],
+  ["She was eager [to begin].", 2, "To begin modifies the adjective eager (eager in what way?). An infinitive modifying an adjective is adverbial.", ""],
+  ["Their plan [to cross the river] failed.", 1, "To cross the river tells which plan, modifying the noun plan. Adjective.", ""],
+  ["He hoped [to finish the essay].", 0, "To finish the essay is what he hoped: the direct object. Noun.", ""],
+  ["[Climbing the cliff] took three hours.", 0, "Climbing the cliff is a gerund phrase and the subject of took. Noun.", ""],
+  ["The scientist, [puzzled by the data], repeated the test.", 1, "Puzzled by the data modifies scientist. Participial phrase: adjective.", ""],
+  ["The water was too cold [to swim in].", 2, "To swim in modifies the adjective cold (too cold for what?). Adverb.", ""],
+  ["My favorite pastime is [sketching birds].", 0, "Sketching birds renames pastime after the linking verb is: a gerund phrase as predicate nominative. Noun.", ""],
+  ["[Hearing the alarm], the crew ran to the deck.", 1, "Hearing the alarm modifies crew. Participial phrase: adjective.", ""],
+];
+// Clauses at work. [sentence with [clause], answer, why, citation]
+const CLAUSE_EASY = [
+  ["The cake [that we baked] is delicious.", 0, "That we baked tells which cake. A clause that modifies a noun is an adjective clause."],
+  ["We went inside [because it was cold].", 1, "Because it was cold tells why we went inside. A clause that modifies a verb is an adverb clause."],
+  ["The boy [who won the race] waved.", 0, "Who won the race tells which boy. Adjective clause."],
+  ["[When the bell rang], everyone stood.", 1, "When the bell rang tells when everyone stood. Adverb clause."],
+  ["I found the book [that you lost].", 0, "That you lost tells which book. Adjective clause."],
+  ["The puppy slept [while we ate dinner].", 1, "While we ate dinner tells when the puppy slept. Adverb clause."],
+  ["The house [where I was born] is blue.", 0, "Where I was born tells which house. Even though it begins with where, it modifies a noun: adjective clause."],
+  ["[If it snows], school will close.", 1, "If it snows states the condition for will close. Adverb clause."],
+  ["The song [which we sang] was old.", 0, "Which we sang tells which song. Adjective clause."],
+  ["She smiled [as she opened the gift].", 1, "As she opened the gift tells when she smiled. Adverb clause."],
+  ["The fossil [that the team uncovered] was enormous.", 0, "That the team uncovered tells which fossil. Adjective clause."],
+  ["We waited [until the storm passed].", 1, "Until the storm passed tells how long we waited. Adverb clause."],
+];
+const CLAUSE_MED = [
+  ["[What you said] surprised me.", 2, "What you said is the subject of surprised. A clause that acts as a noun is a noun clause."],
+  ["I know [that the answer is seven].", 2, "That the answer is seven is what I know: the direct object. Noun clause."],
+  ["The answer [that you gave] is correct.", 0, "That you gave tells which answer. Adjective clause. Compare: that can begin either kind."],
+  ["[Whoever arrives first] can choose a seat.", 2, "Whoever arrives first is the subject of can choose. Noun clause."],
+  ["Give the prize to [whoever wins].", 2, "Whoever wins is the object of the preposition to. Noun clause."],
+  ["We wondered [why the lights flickered].", 2, "Why the lights flickered is what we wondered: the direct object. Noun clause."],
+  ["The day [when we met] was rainy.", 0, "When we met tells which day. Adjective clause."],
+  ["Wait here [until I return].", 1, "Until I return tells how long to wait. Adverb clause."],
+  ["The reason [why she left] is a mystery.", 0, "Why she left tells which reason, modifying the noun reason. Adjective clause."],
+  ["[Although the map was old], it was accurate.", 1, "Although the map was old modifies the main clause by conceding a point. Adverb clause."],
+  ["Tell me [where you hid the key].", 2, "Where you hid the key is what you should tell: the direct object. Noun clause."],
+  ["The scientist [whose experiment failed] tried again.", 0, "Whose experiment failed tells which scientist. Adjective clause."],
+  ["The fact [that he lied] upset everyone.", 2, "That he lied renames fact; it is a noun clause in apposition (renaming). Noun clause."],
+  ["She ran faster [than I expected].", 1, "Than I expected modifies faster, telling to what degree. Adverb clause."],
+];
+const CLAUSE_HARD = [
+  ["It is a truth universally acknowledged, [that a single man in possession of a good fortune, must be in want of a wife].", 2, "The that clause is the true subject, postponed after the placeholder it. Noun clause.", "Jane Austen, Pride and Prejudice (1813)"],
+  ["[Whose woods these are] I think I know.", 2, "In normal order: I think I know whose woods these are. The clause is the object of know. Noun clause.", "Robert Frost, Stopping by Woods on a Snowy Evening (1923)"],
+  ["Nature never did betray the heart [that loved her].", 0, "That loved her tells which heart. Adjective clause.", "William Wordsworth, Tintern Abbey (1798)"],
+  ["[Because I could not stop for Death], He kindly stopped for me.", 1, "The because clause gives the reason for stopped. Adverb clause.", "Emily Dickinson (about 1863)"],
+  ["[If music be the food of love], play on.", 1, "The if clause states a condition for the command play on. Adverb clause.", "William Shakespeare, Twelfth Night"],
+  ["I wandered lonely as a cloud [That floats on high o'er vales and hills].", 0, "That floats on high modifies cloud. Adjective clause.", "William Wordsworth, I Wandered Lonely as a Cloud (1807)"],
+  ["[While I nodded, nearly napping], suddenly there came a tapping.", 1, "The while clause tells when the tapping came. Adverb clause.", "Edgar Allan Poe, The Raven (1845)"],
+  ["We hold these truths to be self-evident, [that all men are created equal].", 2, "The that clause renames truths: a noun clause in apposition.", "The Declaration of Independence (1776)"],
+  ["[Whatever is worth doing at all] is worth doing well.", 2, "The whatever clause is the subject of the second is. Noun clause.", "Lord Chesterfield, Letters to His Son (1746; punctuation modernised)"],
+  ["It is a far, far better thing [that I do], than I have ever done.", 0, "That I do modifies the noun thing. Adjective clause.", "Charles Dickens, A Tale of Two Cities (1859)"],
+  ["I think [that I shall never see A poem lovely as a tree].", 2, "The that clause is what I think: the direct object. Noun clause.", "Joyce Kilmer, Trees (1913)"],
+  ["Tell me not, in mournful numbers, [Life is but an empty dream!]", 2, "The clause is what one should not tell, with that omitted: the direct object. Noun clause.", "Henry Wadsworth Longfellow, A Psalm of Life (1838)"],
+];
+// Mood. [sentence with [verb], answer, why, citation]
+const MOODS = ["Indicative · fact or question", "Imperative · command", "Subjunctive · wish or condition"];
+const MOOD_EASY = [
+  ["The museum [opens] at ten.", 0, "It states a fact. Statements and questions are in the indicative mood."],
+  ["[Open] the window, please.", 1, "It is a request with you understood: imperative mood."],
+  ["If I [were] a bird, I would fly south.", 2, "I am not a bird: this is contrary to fact. Were with I signals the subjunctive."],
+  ["I wish it [were] Saturday.", 2, "A wish about something untrue uses the subjunctive were."],
+  ["[Does] the train stop here?", 0, "Questions about fact are in the indicative mood."],
+  ["[Close] the door quietly.", 1, "A command: imperative mood."],
+  ["The coach insisted that every player [be] on time.", 2, "After verbs of demand (insist, require), English uses the base form be: the subjunctive."],
+  ["Water [boils] at one hundred degrees Celsius at sea level.", 0, "A fact: indicative mood."],
+  ["[Be] careful on the ice.", 1, "A warning given as a command: imperative mood."],
+  ["If music [be] the food of love, play on.", 2, "Be after if expresses a supposition: the subjunctive, common in older English.", "William Shakespeare, Twelfth Night"],
+  ["If music be the food of love, [play] on.", 1, "Play on is a command to the musicians: imperative.", "William Shakespeare, Twelfth Night"],
+  ["It is essential that she [arrive] early.", 2, "After it is essential that, English uses the base form arrive, not arrives: subjunctive."],
+  ["We [were] late yesterday.", 0, "We really were late: a fact. Indicative, even though the word is were."],
+  ["If I [were] you, I would apologize.", 2, "I am not you: contrary to fact, so subjunctive were."],
+  ["Long [live] the king!", 2, "A formulaic wish: live without -s is subjunctive."],
+];
+const SUBJ = [
+  ["If I ___ taller, I could reach the top shelf.", "were", "was", "The condition is contrary to fact, so use the subjunctive were."],
+  ["I wish my brother ___ here.", "were", "was", "A wish about something untrue takes the subjunctive were."],
+  ["The doctor recommends that he ___ more water.", "drink", "drinks", "After recommend that, use the base form (subjunctive): drink."],
+  ["It is vital that every student ___ present.", "be", "is", "After it is vital that, use the base form be."],
+  ["When I was young, I ___ shy.", "was", "were", "This is a true fact about the past, so the ordinary indicative was is correct."],
+  ["If it ___ tomorrow, we will stay inside.", "rains", "were raining", "A real, possible condition uses the indicative: if it rains, we will."],
+  ["She acts as if she ___ the queen.", "were", "was", "She is not the queen: contrary to fact after as if, so were."],
+  ["The judge ordered that the prisoner ___ released.", "be", "is", "After ordered that, use the subjunctive be."],
+  ["I suggest that he ___ early.", "leave", "leaves", "After suggest that, use the base form leave."],
+  ["If she ___ the map, she would not have gotten lost.", "had read", "read", "A past condition contrary to fact uses had plus the past participle."],
+  ["They demanded that the store ___ its prices.", "lower", "lowers", "After demanded that, use the base form lower."],
+  ["If he ___ at home, he will answer the phone.", "is", "were", "This is an open, real possibility, so the indicative is is correct."],
+];
+const PARALLEL = [
+  ["She likes hiking, swimming, and to ride bikes.", "She likes hiking, swimming, and riding bikes.", "She likes to hike, swimming, and riding bikes.", "She likes hiking, to swim, and riding bikes.", "Items in a series must share one grammatical form: three gerunds.", "What form do the first two items take? Does the third match?"],
+  ["The coach told us to stretch, to hydrate, and that we should rest.", "The coach told us to stretch, to hydrate, and to rest.", "The coach told us stretching, to hydrate, and to rest.", "The coach told us to stretch, hydrating, and that we should rest.", "Three infinitives make the series parallel.", "Two items are infinitives. What should the third be?"],
+  ["Not only is the book long but also boring.", "The book is not only long but also boring.", "Not only the book is long but also boring.", "The book not only is long but also it bores.", "With not only…but also, the words after each half must match: long and boring, two adjectives.", "What follows not only? What follows but also? Do they match?"],
+  ["Either we leave now or missing the train.", "Either we leave now, or we miss the train.", "Either we leave now or we missing the train.", "Either leaving now or we miss the train.", "Either and or must each introduce the same structure: two complete clauses.", "What follows either? What follows or? Are they the same kind of structure?"],
+  ["The essay was clear, concise, and it persuaded readers.", "The essay was clear, concise, and persuasive.", "The essay was clear, concise, and it was persuasive.", "The essay was clear, being concise, and persuasive.", "Three predicate adjectives keep the series parallel.", "What part of speech are clear and concise? Does the third item match?"],
+  ["Lincoln at Gettysburg, 1863", "government of the people, by the people, for the people", "government of the people, by the people, and serving the people", "government of the people, by the people, for serving people", "Three prepositional phrases with the same object create Lincoln's famous rhythm.", "Which version repeats the same pattern three times?"],
+  ["Benjamin Franklin, Poor Richard's Almanack (1735)", "Early to bed and early to rise, makes a man healthy, wealthy, and wise.", "Early to bed and early to rise, makes a man healthy, wealthy, and gives wisdom.", "Early to bed and rising early, makes a man healthy, wealthy, and wise.", "Healthy, wealthy, and wise are three parallel adjectives; to bed and to rise also match.", "Which version keeps both pairs of items in the same form?"],
+  ["To read well is as important as writing well.", "Reading well is as important as writing well.", "Reading well is as important as to write well.", "To read well is as important as when you write well.", "Items compared with as…as must match: two gerunds (or two infinitives).", "Do both sides of the comparison use the same verb form?"],
+  ["He wanted fame, fortune, and to be loved.", "He wanted fame, fortune, and love.", "He wanted to be famous, fortune, and love.", "He wanted fame, to have fortune, and love.", "Three nouns make the series parallel.", "Fame and fortune are nouns. Is the third item a noun?"],
+  ["The job requires patience, skill, and being careful.", "The job requires patience, skill, and care.", "The job requires being patient, skill, and care.", "The job requires patience, to be skilled, and care.", "Three nouns: patience, skill, care.", "What part of speech are patience and skill? Match the third."],
+];
+
+const EXPLAIN = {
+  g1: { easy: "Explain how you can tell an adjective from an adverb. Support your answer with one sentence of your own.", medium: "Explain why the same word, such as up or after, can be different parts of speech in different sentences. Give two examples.", hard: "Choose one literary line from this session. Explain the job of its most difficult word and how you proved it." },
+  g2: { easy: "Explain why the subject of a sentence is never inside a prepositional phrase. Use an example.", medium: "Explain how you find the subject of an inverted sentence or a question.", hard: "Explain how a gerund or an infinitive can serve as the subject of a sentence. Give an example." },
+  g3: { easy: "Explain the difference between an imperative and an exclamatory sentence, since both may end with an exclamation mark.", medium: "Explain the difference between a compound and a complex sentence, and name the joining words that signal each.", hard: "Explain why a sentence can be long yet simple, or short yet complex. Use one example from this session." },
+  g4: { easy: "Explain what belongs on the baseline of a diagram, what hangs on the slanted lines, and why.", medium: "Explain how a diagram distinguishes a direct object from a predicate nominative.", hard: "Explain how a diagram shows that a dependent clause leans on the main clause." },
+  g5: { easy: "Explain how you decide whether a verb is past, present, or future, and what helping verbs reveal.", medium: "Explain why has stole is incorrect but has stolen is correct.", hard: "Explain how to find the true subject when a phrase such as of the players or along with her students stands between subject and verb." },
+  g6: { easy: "Explain the two jobs commas performed today: separating items in a series and marking an introduction.", medium: "Explain the difference between its and it's, and between dog's and dogs'.", hard: "Explain the difference between a restrictive and a nonrestrictive clause, and why only one takes commas." },
+  g7: { easy: "Explain the difference between a run-on and a comma splice, and name two ways to repair each.", medium: "Explain why a comma alone cannot join two independent clauses.", hard: "Explain what a dangling modifier is and how it can make a sentence say something absurd." },
+  g8: { easy: "Explain how you can tell whether an -ing or -ed word is the main verb or a participle.", medium: "Explain the three kinds of verbals and how each one behaves in a sentence.", hard: "Explain how an infinitive can act as a noun, an adjective, or an adverb. Give one example of each." },
+  g9: { easy: "Explain the difference between an adjective clause and an adverb clause.", medium: "Explain how the word that can begin either a noun clause or an adjective clause. Give one example of each.", hard: "Choose one literary sentence from today and explain what job its dependent clause performs." },
+  g10: { easy: "Explain the differences among the indicative, imperative, and subjunctive moods.", medium: "Explain why we say if I were you, but when I was young.", hard: "Explain what parallelism is and why writers such as Lincoln use it to make sentences memorable." },
+};
+
+const REAL = {
+  g8: { icon: "🔎", title: "Verbal hunt", need: ["a favourite novel", "paper", "a pencil"], steps: ["Find five words ending in -ing or -ed, or beginning with to.", "Classify each: main verb, gerund, participle or infinitive.", "Explain your hardest decision to a grown-up."], safe: "Read together with a grown-up." },
+  g9: { icon: "🃏", title: "Clause builder", need: ["index cards", "a pencil"], steps: ["Write a short independent clause on one card.", "Add an adjective clause beginning with who, which or that.", "Add an adverb clause beginning with because, when or although."], safe: "Read the finished sentence aloud to a grown-up." },
+  g10: { icon: "📜", title: "A speech in threes", need: ["paper", "a pencil"], steps: ["Write a short speech about something you care about.", "Include one sentence with three parallel parts.", "Deliver it to a grown-up with deliberate pauses."], safe: "Practise in front of a grown-up." },
+  g1: { icon: "🖍️", title: "Colour the jobs", need: ["a favourite book", "paper", "coloured pencils"], steps: ["Copy one sentence from the book.", "Colour every word by its job: nouns blue, verbs orange...", "Explain your trickiest word to a grown-up."], safe: "Do this with a grown-up nearby." },
+  g2: { icon: "📰", title: "Subject and verb hunt", need: ["a magazine or old newspaper", "a pencil"], steps: ["Find three sentences you like.", "Underline the simple subject once.", "Underline the verb twice. Cross out any prepositional phrases."], safe: "Ask a grown-up which paper you may write on." },
+  g3: { icon: "🃏", title: "Clause cards", need: ["index cards", "a pencil"], steps: ["Write four short sentences, one on each card.", "Write and, but, so, because, although on more cards.", "Join two sentences with a card. Is it compound or complex?"], safe: "Read your new sentences aloud to a grown-up." },
+  g4: { icon: "📏", title: "Diagram on paper", need: ["paper", "a ruler", "a pencil"], steps: ["Use the ruler to draw a baseline and a divider.", "Diagram: The small dog barked loudly.", "Then diagram one sentence from your favourite book."], safe: "Take your time and use the ruler carefully." },
+  g5: { icon: "📓", title: "Yesterday, today, tomorrow", need: ["a notebook", "a pencil"], steps: ["Write one sentence about yesterday.", "Write one about today and one about tomorrow.", "Circle every irregular verb you used."], safe: "Share your sentences with a grown-up." },
+  g6: { icon: "💬", title: "Comic strip dialogue", need: ["paper", "a pencil", "crayons"], steps: ["Draw two animals talking in three boxes.", "Write what they say under each box, in quotation marks.", "Check every comma and end mark."], safe: "Show your comic to a grown-up." },
+  g7: { icon: "🖊️", title: "Editor's pen", need: ["a grown-up", "paper", "a red pencil"], steps: ["A grown-up writes three broken sentences.", "Find the fragment, run-on or comma splice.", "Fix each one, then read them aloud."], safe: "Do this with a grown-up." },
+};
+
+const gwStyle = document.createElement("style");
+gwStyle.textContent = `.gw-card,.gw-word,.gw-tile,.gw-slot,.gw-bin{cursor:pointer;touch-action:none}
+.gw-glow .gw-face{stroke:#ffb300;stroke-width:9}
+@keyframes gw-blink{50%{opacity:.5}}.gw-blink{animation:gw-blink 1.1s ease-in-out infinite}
+.gw-acts button.right{background:#22a05a;color:#fff;box-shadow:0 4px 0 #157a40}
+.gw-acts button.wrong{background:#fbe3dc;box-shadow:0 0 0 2px #d9822b}
+.gw-acts button.gw-pulse{box-shadow:0 0 0 5px #ffb300;animation:gw-blink 1.1s ease-in-out infinite}
+.gw-acts button{min-height:50px;padding:0 16px;font-size:17px}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){.gw-acts{gap:6px}.gw-acts button{min-height:44px;font-size:14.5px;padding:0 10px}}
+@media (prefers-reduced-motion:reduce){.gw-blink,.gw-acts button.gw-pulse{animation:none}}`;
+document.head.appendChild(gwStyle);
+
+// ---------- units ----------
+const units = {
+  g0() {
+    const my = token;
+    const CROW = "Wow,/int the/adj clever/adj crow/n quietly/adv hid/v a/adj key/n under/prep the/adj mat,/n and/conj it/pro flew/v away./adv";
+    explain(
+      [
+        {
+          say: "Why study grammar? Grammar is the engineering of sentences: it explains how words fit together to carry meaning. Writers, lawyers, scientists and translators all depend on it.",
+          draw: everyday([["✉️", "Writing precisely"], ["📚", "Reading difficult books"], ["⚖️", "Law and argument"], ["🌍", "Learning languages"]]),
+        },
+        {
+          say: "Every word in a sentence performs a job, like the workers on a building site. Traditional grammar names eight such jobs: the parts of speech.",
+          async draw(v, api) {
+            text(v, 500, 60, "Eight jobs on the sentence site", { "font-size": 36, fill: INK });
+            const keys = Object.keys(POS);
+            for (let i = 0; i < 8; i++) {
+              const [name, job, fill, ink] = POS[keys[i]];
+              const x = 140 + (i % 4) * 240;
+              const y = 110 + Math.floor(i / 4) * 210;
+              const g = el("g", { opacity: 0 }, v);
+              el("rect", { x: x - 110, y, width: 220, height: 186, rx: 24, fill, stroke: ink, "stroke-width": 4 }, g);
+              emoji(g, x, y + 46, "⛑️", 48);
+              fit(text(g, x, y + 122, name, { "font-size": 32, fill: ink }), 200);
+              fit(text(g, x, y + 162, job, { "font-size": 23, fill: "#5a4130" }), 200);
+              await api.tween(380, (t) => g.setAttribute("opacity", t));
+              MUSIC.play("xylophone", 72 + [0, 2, 4, 5, 7, 9, 11, 12][i], { gain: 0.3 });
+              await api.wait(380);
+            }
+          },
+        },
+        {
+          say: "This sentence puts all eight to work. Each colour marks one part of speech. Notice that a word is classified by its job in the sentence, not by its spelling.",
+          async draw(v, api) {
+            const toks = parseTagged(CROW);
+            const row = wordRow(v, toks.map((t) => t.show), { y: 130, size: 50, maxW: 920, maxLines: 3, lineH: 150 });
+            row.items.forEach((it) => it.g.setAttribute("opacity", 0));
+            for (const it of row.items) {
+              const tag = toks[it.i].tag;
+              it.r.setAttribute("fill", POS[tag][2]);
+              it.r.setAttribute("stroke", POS[tag][3]);
+              text(it.g, it.x + it.w / 2, it.y + 46, ABBR[tag], { "font-size": 23, fill: POS[tag][3] });
+              await api.tween(320, (t) => it.g.setAttribute("opacity", t));
+              await api.wait(260);
+            }
+          },
+        },
+        {
+          say: "Every complete sentence divides into a subject, what the sentence is about, and a predicate, what is said about the subject. The simple subject and simple predicate are the core words.",
+          async draw(v, api) {
+            const row = wordRow(v, ["The", "clever", "crow", "hid", "a", "key", "under", "the", "mat."], { y: 250, size: 48, maxW: 960, maxLines: 1 });
+            const cut = (row.items[2].x + row.items[2].w + row.items[3].x) / 2;
+            await api.wait(500);
+            const line = el("line", { x1: cut, x2: cut, y1: 250, y2: 250, stroke: "var(--accent)", "stroke-width": 7, "stroke-linecap": "round" }, v);
+            await api.tween(800, (t) => {
+              line.setAttribute("y1", 250 - 120 * t);
+              line.setAttribute("y2", 250 + 60 * t);
+            });
+            const l = el("g", { opacity: 0 }, v);
+            text(l, (row.items[0].x + cut) / 2, 120, "subject", { "font-size": 34, fill: "#1f4e8c" });
+            text(l, (cut + 960) / 2, 120, "predicate", { "font-size": 34, fill: "#b45f06" });
+            await api.tween(600, (t) => l.setAttribute("opacity", t));
+            await api.wait(700);
+            underline(v, row.items[2], "#1f4e8c");
+            await api.wait(500);
+            underline(v, row.items[3], "#b45f06", true);
+            para(v, 500, 400, "Simple subject: crow (underlined once). Simple predicate: hid (underlined twice).", { size: 28 });
+          },
+        },
+        {
+          say: "A Reed–Kellogg diagram is a blueprint (an exact technical drawing) of a sentence. Subject, verb and object sit on the baseline; modifiers hang on slanted lines beneath the words they modify.",
+          async draw(v, api) {
+            const d = D("The clever crow hid a key.", "crow", ["The", "clever"], "hid", [], "key", ["a"]);
+            const row = wordRow(v, d.sentence.replace(".", "").split(" "), { y: 70, size: 40 });
+            const plan = planDiagram(d, 250);
+            const ls = drawLines(v, plan.lines, { opacity: 0 });
+            await api.tween(800, (t) => ls.forEach((l) => l.setAttribute("opacity", t)));
+            const used = new Set();
+            for (const slot of plan.slots) {
+              const it = row.items.find((x) => x.word === slot.word && !used.has(x.i));
+              used.add(it.i);
+              const sx = it.x + it.w / 2;
+              const sy = it.y - 14;
+              const g = el("g", { transform: `translate(${sx} ${sy})` }, v);
+              text(g, 0, 0, slot.word, { "font-size": DFONT, fill: "var(--accent-dark)", "dominant-baseline": "central", "font-weight": 800 });
+              it.t.setAttribute("opacity", 0.25);
+              await api.tween(900, (t) => g.setAttribute("transform", `translate(${sx + (slot.x - sx) * t} ${sy + (slot.y - sy) * t}) rotate(${slot.a * t})`));
+              MUSIC.play("woodblock", 79, { gain: 0.3 });
+              await api.wait(300);
+            }
+            const lab = el("g", { opacity: 0 }, v);
+            text(lab, plan.slots[0].x, 180, "subject", { "font-size": 24, fill: "#1f4e8c" });
+            text(lab, plan.slots.find((s) => s.group === "v").x, 180, "verb", { "font-size": 24, fill: "#b45f06" });
+            text(lab, plan.slots.find((s) => s.group === "o").x, 180, "direct object", { "font-size": 24, fill: "#00695c" });
+            text(lab, 500, 520, "slants: the, clever, a describe the nouns", { "font-size": 24, fill: "#a3246b" });
+            await api.tween(600, (t) => lab.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "A clause contains a subject and a verb. An independent clause can stand alone; a dependent clause, such as because it rained, must attach to one. When the dependent clause comes first, a comma follows it.",
+          async draw(v, api) {
+            const house = el("g", { opacity: 0 }, v);
+            el("rect", { x: 90, y: 150, width: 430, height: 120, rx: 18, fill: "#e6effc", stroke: "#1f4e8c", "stroke-width": 4 }, house);
+            text(house, 305, 225, "We stayed inside", { "font-size": 40, fill: INK });
+            text(house, 305, 120, "independent: stands alone", { "font-size": 25, fill: "#1f4e8c" });
+            await api.tween(700, (t) => house.setAttribute("opacity", t));
+            await api.wait(600);
+            const lean = el("g", { opacity: 0, transform: "translate(600 150) rotate(-8)" }, v);
+            el("rect", { x: 0, y: 0, width: 330, height: 120, rx: 18, fill: "#fff1dc", stroke: "#b45f06", "stroke-width": 4, "stroke-dasharray": "14 9" }, lean);
+            text(lean, 165, 75, "because it rained", { "font-size": 36, fill: INK });
+            text(v, 765, 320, "dependent: must attach", { "font-size": 25, fill: "#b45f06" });
+            await api.tween(700, (t) => lean.setAttribute("opacity", t));
+            await api.wait(900);
+            await api.tween(1000, (t) => lean.setAttribute("transform", `translate(${600 - 70 * t} 150) rotate(${-8 * (1 - t)})`));
+            MUSIC.play("xylophone", 84, { gain: 0.3 });
+            para(v, 500, 420, "We stayed inside because it rained.", { size: 36, fill: INK });
+            await api.wait(1200);
+            para(v, 500, 480, "Because it rained, we stayed inside.", { size: 36, fill: "#b45f06" });
+          },
+        },
+        {
+          say: "Punctuation marks are signals to the reader. A comma marks a brief pause or a separation; a period marks a full stop.",
+          async draw(v, api) {
+            const row = wordRow(v, ["First,", "we", "mixed", "flour,", "sugar,", "and", "eggs."], { y: 300, size: 50, maxW: 960, maxLines: 1 });
+            for (const it of row.items) {
+              const w = it.word;
+              if (!/[,.]$/.test(w)) continue;
+              const stop = w.endsWith(".");
+              const g = el("g", { opacity: 0 }, v);
+              const x = it.x + it.w - 6;
+              el("line", { x1: x, x2: x, y1: it.y - 70, y2: it.y - 120, stroke: "#8a7764", "stroke-width": 4 }, g);
+              if (stop) el("polygon", { points: [0, 1, 2, 3, 4, 5, 6, 7].map((k) => `${x + 30 * Math.cos(((k + 0.5) * Math.PI) / 4)},${it.y - 150 + 30 * Math.sin(((k + 0.5) * Math.PI) / 4)}`).join(" "), fill: "#d32f2f" }, g);
+              else el("polygon", { points: `${x - 30},${it.y - 175} ${x + 30},${it.y - 175} ${x},${it.y - 122}`, fill: "#f2c94c", stroke: "#b8860b", "stroke-width": 3 }, g);
+              text(g, x, it.y + 70, stop ? "stop" : "pause", { "font-size": 26, fill: stop ? "#d32f2f" : "#b8860b" });
+              it.r.setAttribute("fill", stop ? "#ffe9ea" : "#fff6d6");
+              await api.tween(500, (t) => g.setAttribute("opacity", t));
+              MUSIC.play("woodblock", stop ? 77 : 84, { gain: 0.35 });
+              await api.wait(700);
+            }
+          },
+        },
+        {
+          say: "Explain it. In two to four sentences, explain to a grown-up why up is a preposition in the first sentence and an adverb in the second.",
+          async draw(v, api) {
+            text(v, 500, 70, "Explain it", { "font-size": 36, fill: "var(--accent-dark)" });
+            const a = wordRow(v, ["The", "cat", "climbed", "up", "the", "tree."], { y: 190, size: 50 });
+            const b = wordRow(v, ["The", "cat", "looked", "up."], { y: 320, size: 50 });
+            for (const row of [a, b]) {
+              const it = row.items[3];
+              it.r.setAttribute("fill", "#fff3c4");
+              it.r.setAttribute("stroke", "#e0a100");
+              await api.wait(700);
+            }
+            para(v, 500, 450, "Hint: does up have an object (a noun after it)?", { size: 28, fill: "#8a6a4f" });
+          },
+        },
+      ],
+      { alive: () => my === token, onDone: () => shell.go("g1"), title: "Grammar Workshop" }
+    );
+  },
+
+  g1() {
+    runGame("g1", {
+      rounds: 10,
+      noun: "words",
+      label: "Word",
+      count: "parts of speech named",
+      real: REAL.g1,
+      ask(st) {
+        const my = st.my;
+        fresh();
+        const [s, notes = {}, cite] = st.take(POS_SENT[st.level]);
+        const toks = parseTagged(s);
+        const set = POS_SETS[st.level];
+        const noted = Object.keys(notes).map((w) => toks.findIndex((t) => t.word === w)).filter((i) => i >= 0 && set.includes(toks[i].tag));
+        let cands = toks.map((t, i) => i).filter((i) => set.includes(toks[i].tag) && (!ARTICLES.includes(toks[i].word.toLowerCase()) || (st.level === "hard" && Math.random() < 0.15)));
+        if (st.level === "easy") {
+          const fresh2 = cands.filter((i) => ["adv", "prep"].includes(toks[i].tag));
+          if (fresh2.length && Math.random() < 0.5) cands = fresh2;
+        }
+        let ti = noted.length && Math.random() < 0.8 ? pick(noted) : pick(cands);
+        if (toks[ti].word === "fast") ti = Math.random() < 0.5 ? 1 : 4;
+        if (toks[ti].word === "that" && toks[2]?.word === "that") ti = Math.random() < 0.5 ? 2 : 3;
+        const target = toks[ti];
+        const tag = target.tag;
+        const row = wordRow(view, toks.map((t) => t.show), { y: 84, size: 48, maxW: 930, maxLines: 3, lineH: 70 });
+        const it = row.items[ti];
+        it.r.setAttribute("fill", "#fff3c4");
+        it.r.setAttribute("stroke", "#e0a100");
+        el("path", { d: `M${it.x + it.w / 2 - 14} ${it.y - it.size - 18}l14 16l14 -16z`, fill: "#e0a100" }, view);
+        let top = row.bottom + 50;
+        if (cite) {
+          citeText(row.bottom + 46, cite);
+          top += 34;
+        }
+        const n = set.length;
+        const cols = n === 6 ? 3 : 4;
+        const rows = Math.ceil(n / cols);
+        const bw = cols === 3 ? 290 : 220;
+        const bh = 104;
+        const gapY = 12;
+        const by0 = Math.max(top, 548 - rows * bh - (rows - 1) * gapY);
+        set.forEach((k, i) => {
+          const [name, job, fill, ink] = POS[k];
+          const x = 500 + ((i % cols) - (cols - 1) / 2) * (bw + 16);
+          const y = by0 + Math.floor(i / cols) * (bh + gapY);
+          const g = card(view, x, y, bw, bh, { fill, stroke: ink, cls: "gw-card gw-bin" });
+          g.dataset.ok = k === tag ? "1" : "";
+          g.dataset.tag = k;
+          fit(text(g, 0, bh / 2 - 2, name, { "font-size": 32, fill: ink }), bw - 20);
+          fit(text(g, 0, bh / 2 + 32, job, { "font-size": 22, fill: "#5a4130" }), bw - 20);
+          g.addEventListener("pointerdown", () => {
+            if (my !== token || st.busy) return;
+            window.OC?.touch();
+            const why = notes[target.word] || `It ${POS[tag][4]}.${ARTICLES.includes(target.word.toLowerCase()) ? " A, an and the are special adjectives called articles." : ""}`;
+            if (k === tag) {
+              paint(g, ...RIGHT);
+              return st.win(`Correct — <b>${target.word}</b> is ${an(POS[tag][0])} ${POS[tag][0]} here. ${why}`);
+            }
+            if (g.dataset.bad) return;
+            g.dataset.bad = "1";
+            paint(g, ...WRONG);
+            const tries = st.oops();
+            if (tries === 1) talk(`Not quite: here it is not ${an(name)} ${name}. Consider: ${ASK[tag]}`);
+            else {
+              glowOk();
+              talk(`<b>${target.word}</b> is ${an(POS[tag][0])} ${POS[tag][0]}. ${why} Select the highlighted part of speech.`);
+            }
+          });
+        });
+        st.acts(`<button type="button" data-a="hear">🔊 Hear it</button>`, { hear: () => VOICE.speak(`${toks.map((t) => t.show).join(" ")}. What job does ${target.word} perform?`) });
+        talk(`Which part of speech is <b>${target.word}</b> in this sentence?`);
+      },
+    });
+  },
+
+  g2() {
+    runGame("g2", {
+      rounds: 10,
+      noun: "sentences",
+      label: "Sentence",
+      count: "subjects and verbs found",
+      real: REAL.g2,
+      ask(st) {
+        const my = st.my;
+        fresh();
+        const [s, note, cite] = st.take(SP_SENT[st.level]);
+        const toks = parseSP(s);
+        let step = "subj";
+        const picked = new Set();
+        const marks = el("g", {}, view);
+        const row = wordRow(view, toks.map((t) => t.show), {
+          y: 200,
+          size: 52,
+          maxW: 930,
+          maxLines: 2,
+          lineH: 115,
+          tap: (it) => {
+            if (my !== token || st.busy || it.locked) return;
+            window.OC?.touch();
+            if (picked.has(it.i)) {
+              picked.delete(it.i);
+              it.r.setAttribute("fill", "transparent");
+              it.r.setAttribute("stroke", "transparent");
+            } else {
+              picked.add(it.i);
+              it.r.setAttribute("fill", step === "subj" ? "#e6effc" : "#fff1dc");
+              it.r.setAttribute("stroke", step === "subj" ? "#1f4e8c" : "#b45f06");
+              MUSIC.play("woodblock", 84, { gain: 0.25 });
+            }
+          },
+        });
+        const label = text(view, 500, 70, "", { "font-size": 32, fill: "#1f4e8c" });
+        if (cite) citeText(row.bottom + 90, cite);
+        para(view, 500, 500, "Simple subject: underline once. Verb: underline twice.", { size: 25, fill: "#8a7764" });
+        const want = () => new Set(toks.map((t, i) => i).filter((i) => (step === "subj" ? toks[i].subj : toks[i].verb)));
+        const prompt = () => {
+          label.textContent = step === "subj" ? "Step 1: select the simple subject" : "Step 2: select the simple predicate";
+          label.setAttribute("fill", step === "subj" ? "#1f4e8c" : "#b45f06");
+          if (step === "subj") talk("Select the simple subject: the core noun, pronoun or verbal the sentence is about. If the subject is compound, select every part. Then press Check.");
+          else talk("Now select the simple predicate: the verb with any helping verbs. If the verb is compound, select every verb. Then press Check.");
+        };
+        const reveal = () => {
+          for (const i of picked) {
+            row.items[i].r.setAttribute("fill", "transparent");
+            row.items[i].r.setAttribute("stroke", "transparent");
+          }
+          picked.clear();
+          for (const i of want()) {
+            const it = row.items[i];
+            it.r.setAttribute("stroke", "#ffb300");
+            it.r.setAttribute("stroke-width", 7);
+          }
+        };
+        const check = () => {
+          if (my !== token || st.busy) return;
+          const w = want();
+          const ok = picked.size === w.size && [...w].every((i) => picked.has(i));
+          if (ok) {
+            MUSIC.play("xylophone", step === "subj" ? 84 : 88, { gain: 0.4 });
+            for (const i of w) {
+              const it = row.items[i];
+              it.locked = true;
+              it.r.setAttribute("stroke-width", 3);
+              underline(marks, it, step === "subj" ? "#1f4e8c" : "#b45f06", step === "verb");
+            }
+            picked.clear();
+            if (step === "subj") {
+              step = "verb";
+              const subj = toks.filter((t) => t.subj).map((t) => bare(t.show)).join(" ");
+              talkAsync(`Correct: the simple subject is <b>${subj}</b>.`).then(() => my === token && !st.busy && prompt());
+              return;
+            }
+            const subj = toks.filter((t) => t.subj).map((t) => bare(t.show)).join(" ");
+            const verb = toks.filter((t) => t.verb).map((t) => bare(t.show)).join(" ");
+            return st.win(`Correct — subject: <b>${subj}</b>; predicate: <b>${verb}</b>. ${note || ""}`);
+          }
+          if (picked.size === 0) return talk("Select at least one word, then press Check.");
+          const tries = st.oops();
+          const missing = [...w].some((i) => !picked.has(i));
+          const extra = [...picked].some((i) => !w.has(i));
+          let hint;
+          if (step === "subj") hint = !extra && missing ? "You found part of it. Is there a second subject joined by and, or, or nor?" : "Find the verb first, then ask who or what performs it. A word inside a prepositional phrase is never the subject, and here and there never are.";
+          else hint = !extra && missing ? "You found part of it. Is there a helping verb such as is, was, has, did or will, perhaps separated from the main verb? Or a second verb?" : "One selected word is not a verb. Adverbs such as never and ever interrupt verb phrases but are not verbs.";
+          if (tries === 1) talk(`${LEARN} ${hint}`);
+          else {
+            reveal();
+            talk(`The answer is highlighted. ${note || (step === "subj" ? "That is what the sentence is about." : "Those words express the action or state of being.")} Select them, then press Check.`);
+          }
+        };
+        st.acts(`<button type="button" class="primary" data-a="check">✓ Check</button><button type="button" data-a="hear">🔊 Hear it</button>`, { check, hear: () => VOICE.speak(toks.map((t) => t.show).join(" ")) });
+        prompt();
+      },
+    });
+  },
+
+  g3() {
+    runGame("g3", {
+      rounds: 10,
+      noun: "sentences",
+      label: "Sentence",
+      count: "sentences classified",
+      real: REAL.g3,
+      ask(st) {
+        fresh();
+        if (st.level === "easy") {
+          const [s, right, why] = st.take(TYPE_SENT);
+          text(view, 500, 80, "Which type of sentence is this?", { "font-size": 32, fill: "var(--accent-dark)" });
+          card(view, 500, 150, 920, 220, { fill: "#fff", stroke: "#c9b8a1", cls: "gw-deco" });
+          para(view, 500, 250, s, { size: 50, fill: INK, maxW: 860, maxLines: 2, lineH: 66 });
+          para(view, 500, 450, "Classify by purpose: does it state, ask, command, or exclaim?", { size: 25, fill: "#8a7764" });
+          st.choose(TYPES, right, { hint: "What is the sentence's purpose: to state, to ask, to command, or to exclaim? The end mark is evidence, not proof.", why: why || TYPE_WHY[right] });
+          talk(`<b>${s}</b> Classify this sentence by its purpose.`, `${s} Classify this sentence by its purpose.`);
+          return;
+        }
+        if (st.level === "medium" && st.round % 2 === 0) {
+          const [s, right, why0] = st.takeFrom("clause", CLAUSE_SENT);
+          const first = s.split(" ")[0];
+          const why = why0 || [`It has a subject and a verb and expresses a complete thought, so it is an independent clause.`, `It has a subject and a verb, but ${first} makes it depend on another clause. It is a dependent clause.`, "There is no subject-verb pair, so it is a phrase, not a clause."][right];
+          text(view, 500, 80, "Clause or phrase?", { "font-size": 32, fill: "var(--accent-dark)" });
+          card(view, 500, 140, 860, 200, { fill: "#fff", stroke: "var(--accent)", cls: "gw-deco" });
+          view.lastChild.querySelector("rect").setAttribute("stroke-dasharray", "16 10");
+          para(view, 500, 258, s, { size: 54, fill: INK, maxW: 800, maxLines: 2 });
+          para(view, 500, 420, "A clause contains a subject and a verb. A phrase does not.", { size: 26, fill: "#8a7764" });
+          st.choose(CLAUSES, right, { hint: "Is there a subject-verb pair? If so, could it stand alone as a sentence?", why });
+          talk(`Consider this group of words: <b>${s}</b>. Is it an independent clause, a dependent clause, or a phrase?`);
+          return;
+        }
+        const hard = st.level === "hard";
+        const [s, right, joins, why, cite] = hard ? st.take(KIND_HARD) : st.takeFrom("kind", KIND_SENT);
+        text(view, 500, 62, "Simple, compound, complex, or compound-complex?", { "font-size": 30, fill: "var(--accent-dark)" });
+        const row = wordRow(view, s.split(" "), { y: 160, size: 44, maxW: 930, maxLines: 3, lineH: 70 });
+        if (cite) citeText(row.bottom + 52, cite);
+        para(view, 500, 485, "FANBOYS join equals: for, and, nor, but, or, yet, so.", { size: 24, fill: "#8a7764" });
+        para(view, 500, 522, "Because, when, if, although, who, that… begin dependent clauses.", { size: 24, fill: "#8a7764" });
+        st.choose(KINDS, right, {
+          hint: "Count the subject-verb pairs. Which can stand alone? Does any begin with a subordinating word such as because, who or that?",
+          why,
+          onWin: () => row.items.filter((it) => joins.includes(it.word)).forEach((it) => {
+            it.r.setAttribute("fill", "#fff3c4");
+            it.r.setAttribute("stroke", "#e0a100");
+          }),
+        });
+        talk("Count the clauses. Is this sentence simple, compound, complex, or compound-complex?");
+      },
+    });
+  },
+
+  g4() {
+    runGame("g4", {
+      rounds: 8,
+      noun: "diagrams",
+      label: "Diagram",
+      count: "sentences diagrammed",
+      real: REAL.g4,
+      ask(st) {
+        const my = st.my;
+        fresh();
+        const d = st.take(DIAGRAMS[st.level]);
+        const words = d.sentence.replace(/[.!?]$/, "").split(" ");
+        const tiles = [];
+        const pad = 26;
+        const th = 52;
+        const rowsT = [[]];
+        let lw = 0;
+        words.forEach((w, i) => {
+          const tw = measure(w, DFONT, 800) + pad;
+          const line = rowsT[rowsT.length - 1];
+          if (line.length && lw + tw + 12 > 940) {
+            rowsT.push([]);
+            lw = 0;
+          }
+          rowsT[rowsT.length - 1].push({ w, i, tw });
+          lw += tw + 12;
+        });
+        const by = d.sub ? (rowsT.length > 1 ? 210 : 178) : rowsT.length > 1 ? 232 : 205;
+        const plan = planDiagram(d, by);
+        drawLines(view, plan.lines);
+        drawLines(view, plan.dashed, { "stroke-dasharray": "12 9", "stroke-width": 4 });
+        if (d.cite) citeText(548, d.cite);
+        const pool = {};
+        for (const s of plan.slots) (pool[s.group] ||= []).push(s.word.toLowerCase());
+        const slotG = el("g", {}, view);
+        plan.slots.forEach((s, k) => {
+          const g = el("g", { class: "gw-slot", "data-k": k, "data-group": s.group, transform: `translate(${s.x} ${s.y}) rotate(${s.a})` }, slotG);
+          el("rect", { class: "gw-face", x: -s.w / 2, y: -21, width: s.w, height: 42, rx: 12, fill: "#fffaf0", stroke: "#c9b8a1", "stroke-width": 3, "stroke-dasharray": "9 7" }, g);
+          s.g = g;
+          if (st.level === "easy" && s.base && !/^p/.test(s.group)) text(g, 0, -34, GROUP_NAME(s.group, d), { "font-size": 22, fill: "#8a7764", "font-weight": 700 });
+        });
+        rowsT.forEach((line, r) => {
+          const total = line.reduce((a, t) => a + t.tw, 0) + 12 * (line.length - 1);
+          let x = 500 - total / 2;
+          for (const t of line) {
+            const hx = x + t.tw / 2;
+            const hy = 40 + r * 60;
+            const g = el("g", { class: "gw-tile", "data-word": t.w, transform: `translate(${hx} ${hy})` }, view);
+            el("rect", { class: "gw-face", x: -t.tw / 2, y: -th / 2, width: t.tw, height: th, rx: 14, fill: "#fff", stroke: "var(--accent)", "stroke-width": 3 }, g);
+            text(g, 0, 0, t.w, { "font-size": DFONT, fill: INK, "dominant-baseline": "central", "font-weight": 800 });
+            tiles.push({ g, w: t.w, hx, hy, x: hx, y: hy, tries: 0 });
+            x += t.tw + 12;
+          }
+        });
+        // Crop the view to the drawing so it is as large as possible on every screen.
+        try {
+          const bb = view.getBBox();
+          const padX = 24;
+          const w0 = Math.max(620, bb.width + padX * 2);
+          const h0 = Math.max(360, bb.height + 32);
+          const x0 = bb.x + bb.width / 2 - w0 / 2;
+          const y0 = bb.y + bb.height / 2 - h0 / 2;
+          view.setAttribute("viewBox", `${x0} ${y0} ${w0} ${h0}`);
+        } catch {}
+        const tileOf = (g) => tiles.find((t) => t.g === g);
+        const groupFor = (w) => Object.keys(pool).find((k) => pool[k].includes(w.toLowerCase()));
+        let sel = null;
+        let drag = null;
+        const setPos = (t, x, y) => {
+          t.x = x;
+          t.y = y;
+          t.g.setAttribute("transform", `translate(${x} ${y})`);
+        };
+        const select = (t) => {
+          if (sel) paint(sel.g, "#fff", "var(--accent)");
+          sel = sel === t ? null : t;
+          if (sel) {
+            paint(sel.g, "#fff3c4", "#e0a100");
+            view.appendChild(sel.g);
+          }
+        };
+        const hintFor = (t) => {
+          const w = t.w;
+          const g0 = groupFor(w) || "";
+          if (g0 === "cj") return `${w} is a subordinating conjunction. It sits on the dashed line that links the verb of the dependent clause to the verb it modifies.`;
+          const inSub = g0.startsWith("u:");
+          const g = g0.replace(/^u:/, "");
+          const pre = inSub ? "This word belongs to the dependent clause, drawn on the lower baseline. " : "";
+          if (g === "s") return `${pre}Which word names what the clause is about? The subject sits first on the baseline, before the line that cuts through it.`;
+          if (g === "v") return `${pre}Which word expresses the action or state of being? The verb sits just after the line that cuts through the baseline.`;
+          if (g === "o" && d.ok !== "o") return `After a linking verb, a word that ${d.ok === "pn" ? "renames" : "describes"} the subject sits on the baseline after a line slanting back toward the subject.`;
+          if (g === "o") return `Ask: ${d.v} what? The answer is the direct object. It sits after the short line that stops at the baseline.`;
+          if (g === "vm") return `${pre}Does ${w} tell how, when or where? Then it hangs on a slant under the verb.`;
+          if (/^p\d$/.test(g)) return `${w} is a preposition. Which word does its phrase modify? It hangs on a slant under that word.`;
+          if (/^p\do$/.test(g)) return "Which noun follows the preposition? It sits on the horizontal line at the foot of the phrase.";
+          return `${pre}Which noun does ${w} modify? Modifiers hang on a slant under the word they modify.`;
+        };
+        const done = () => plan.slots.every((s) => s.filled);
+        const attempt = (t, slot) => {
+          if (!t || slot.filled) return t && setPos(t, t.hx, t.hy);
+          const ok = pool[slot.group].includes(t.w.toLowerCase());
+          if (ok) {
+            pool[slot.group].splice(pool[slot.group].indexOf(t.w.toLowerCase()), 1);
+            slot.filled = true;
+            slot.g.classList.remove("gw-glow", "gw-blink");
+            const face = slot.g.querySelector(".gw-face");
+            face.setAttribute("stroke", "transparent");
+            face.setAttribute("fill", "transparent");
+            [...slot.g.querySelectorAll("text")].forEach((x) => x.remove());
+            text(slot.g, 0, 0, t.w, { "font-size": DFONT, fill: "var(--accent-dark)", "dominant-baseline": "central", "font-weight": 800 });
+            slot.g.classList.remove("gw-slot");
+            t.g.remove();
+            t.placed = true;
+            if (sel === t) sel = null;
+            MUSIC.play("xylophone", 72 + 2 * (plan.slots.filter((s) => s.filled).length % 12), { gain: 0.35 });
+            if (done()) {
+              const parts = [`<b>${d.s}</b> is the subject`, `<b>${d.v}</b> is the verb`];
+              if (d.o) parts.push(`<b>${d.o}</b> is the ${GROUP_NAME("o", d)}`);
+              if (d.pp.length) parts.push(`${d.pp.map((p) => `<b>${p.p} ${[...p.obm, p.ob].join(" ")}</b>`).join(" and ")} ${d.pp.length > 1 ? "are prepositional phrases" : "is a prepositional phrase"}`);
+              if (d.sub) parts.push(`<b>${d.sub.conj}</b> introduces the adverb clause, which modifies the verb ${d.v}`);
+              return st.win(`Correct — ${parts.join("; ")}.`, null, { ms: 1400 });
+            }
+            const left = tiles.filter((x) => !x.placed).length;
+            if (left) talk(`Correct. ${left} word${left > 1 ? "s" : ""} remaining.`);
+            return;
+          }
+          setPos(t, t.hx, t.hy);
+          if (sel === t) select(t);
+          t.tries += 1;
+          st.oops();
+          if (t.tries === 1) talk(`${LEARN} ${hintFor(t)}`);
+          else {
+            const g = groupFor(t.w);
+            plan.slots.filter((s) => s.group === g && !s.filled).forEach((s) => s.g.classList.add("gw-glow", "gw-blink"));
+            talk(`${t.w} is ${an(GROUP_NAME(g, d))} ${GROUP_NAME(g, d)}. ${hintFor(t)} Its place is highlighted.`);
+          }
+        };
+        const toSvg = (e) => {
+          const p = view.createSVGPoint();
+          p.x = e.clientX;
+          p.y = e.clientY;
+          return p.matrixTransform(view.getScreenCTM().inverse());
+        };
+        view.addEventListener("pointerdown", (e) => {
+          if (my !== token || st.busy) return;
+          const tg = e.target.closest(".gw-tile");
+          if (tg) {
+            const t = tileOf(tg);
+            if (!t) return;
+            drag = { t, p0: toSvg(e), x0: t.x, y0: t.y, moved: false };
+            try {
+              view.setPointerCapture(e.pointerId);
+            } catch {}
+            view.appendChild(t.g);
+            window.OC?.touch();
+            return;
+          }
+          const sg = e.target.closest(".gw-slot");
+          if (sg && sel) attempt(sel, plan.slots[Number(sg.dataset.k)]);
+        });
+        view.addEventListener("pointermove", (e) => {
+          if (!drag) return;
+          const p = toSvg(e);
+          const dx = p.x - drag.p0.x;
+          const dy = p.y - drag.p0.y;
+          if (Math.hypot(dx, dy) > 10) drag.moved = true;
+          if (drag.moved) setPos(drag.t, drag.x0 + dx, drag.y0 + dy);
+        });
+        const up = () => {
+          if (!drag) return;
+          const { t, moved } = drag;
+          drag = null;
+          if (my !== token || st.busy) return;
+          if (!moved) return select(t);
+          let best = null;
+          let bd = 95;
+          for (const s of plan.slots) {
+            if (s.filled) continue;
+            const dist = Math.hypot(s.x - t.x, s.y - t.y);
+            if (dist < bd) {
+              bd = dist;
+              best = s;
+            }
+          }
+          if (best) attempt(t, best);
+          else setPos(t, t.hx, t.hy);
+        };
+        view.addEventListener("pointerup", up);
+        view.addEventListener("pointercancel", up);
+        st.acts(`<button type="button" data-a="hear">🔊 Hear it</button>`, { hear: () => VOICE.speak(d.sentence) });
+        talk(st.level === "easy" ? "Diagram the sentence: drag each word onto its line, or select a word and then its place." : d.sub ? "Diagram both clauses. The dependent clause goes on the lower baseline; its conjunction goes on the dashed line." : "Diagram the sentence: drag each word onto its line, or select a word and then its place.");
+      },
+    });
+  },
+
+  g5() {
+    runGame("g5", {
+      rounds: 10,
+      noun: "verbs",
+      label: "Verb",
+      count: "verbs analysed",
+      real: REAL.g5,
+      ask(st) {
+        const blankRound = (item, title) => {
+          const [s, base, right, wrongs, why] = item;
+          fresh();
+          text(view, 500, 80, title || `Which form of “${base}” is correct?`, { "font-size": 34, fill: "var(--accent-dark)" });
+          const row = wordRow(view, s.split(" "), { y: 240, size: 54, maxW: 930, lineH: 100 });
+          const blank = row.items.find((it) => it.word.startsWith("___"));
+          blank.t.textContent = "_____";
+          const opts = shuffle([right, ...wrongs]);
+          st.choose(opts, opts.indexOf(right), {
+            hint: "Is there a helping verb such as has, have or had before the blank? If so, you need the past participle. Read each option aloud within the sentence.",
+            why,
+            onWin: () => {
+              blank.t.textContent = right + blank.word.slice(3);
+              blank.t.setAttribute("fill", "#157a40");
+            },
+          });
+          talk(`Choose the correct form of <b>${base}</b>.`, `${s.replace("___", "blank")} Choose the correct form of ${base}.`);
+        };
+        const agreeRound = (item) => {
+          const [s, right, wrong, cross, why] = item;
+          fresh();
+          text(view, 500, 80, "Make the subject and verb agree", { "font-size": 32, fill: "var(--accent-dark)" });
+          const row = wordRow(view, s.split(" "), { y: 230, size: 50, maxW: 930, maxLines: 2, lineH: 100 });
+          const blank = row.items.find((it) => it.word.startsWith("___"));
+          blank.t.textContent = "_____";
+          const opts = shuffle([right, wrong]);
+          st.choose(opts, opts.indexOf(right), {
+            hint: "Locate the true subject first. Set aside any prepositional or interrupting phrase. Is the subject singular or plural?",
+            why,
+            onWin: () => {
+              blank.t.textContent = right + blank.word.slice(3);
+              blank.t.setAttribute("fill", "#157a40");
+              let used = 0;
+              row.items.forEach((it) => {
+                if (used < cross.length && it.word === cross[used] && it.i > 0) {
+                  strike(view, it);
+                  used += 1;
+                }
+              });
+            },
+          });
+          talk("Which verb agrees with the subject?", `${s.replace("___", "blank")} Which verb agrees with the subject?`);
+        };
+        if (st.level === "easy") {
+          if (st.round % 2) return blankRound(st.takeFrom("irreg", IRREG));
+          const [s, right, why] = st.takeFrom("tense", TENSE_SENT);
+          markedQ(st, { s, title: "When does the action occur?", choices: TENSES, right, hint: "Look for time clues such as yesterday or tomorrow, and for helping verbs such as will, is or were.", why: why || TENSE_WHY[right], prompt: "Is the marked verb past, present, or future?" });
+          return;
+        }
+        if (st.level === "medium") {
+          if (st.round % 2) return agreeRound(st.takeFrom("agree", AGREE));
+          return blankRound(st.takeFrom("irreg", [...IRREG, ...IRREG_MORE]));
+        }
+        if (st.round % 2) return agreeRound(st.takeFrom("agree", AGREE_HARD));
+        const [s, name, why] = st.takeFrom("tense12", TENSE_HARD);
+        const [time] = name.split(" ").filter((w) => ["past", "present", "future"].includes(w));
+        const near = TENSE12.filter((t) => t !== name && (t.includes(time) || t.split(" ").slice(-1)[0] === name.split(" ").slice(-1)[0]));
+        const opts = shuffle([name, ...shuffle(near).slice(0, 3)]);
+        markedQ(st, { s, title: "Name the tense precisely", choices: opts, right: opts.indexOf(name), hint: "First decide the time: past, present or future. Then the aspect: is there a form of have (perfect), an -ing form (progressive), both, or neither (simple)?", why, prompt: "Name the tense of the marked verb." });
+      },
+    });
+  },
+
+  g6() {
+    runGame("g6", {
+      rounds: 10,
+      noun: "sentences",
+      label: "Sentence",
+      count: "sentences punctuated",
+      real: REAL.g6,
+      ask(st) {
+        const my = st.my;
+        let kind = "comma";
+        if (st.level === "medium") kind = ["comma", "apos", "quote"][st.round % 3];
+        if (st.level === "hard") kind = st.round % 2 ? "semi" : "comma";
+        if (kind !== "comma") {
+          const list = { apos: APOS, quote: QUOTES, semi: SEMI }[kind];
+          const [meaning, right, w1, w2, why, hint] = st.takeFrom(kind, list);
+          const top = { apos: "Select the sentence with correct apostrophes", quote: "Select the correctly punctuated dialogue", semi: "Select the correctly punctuated sentence" }[kind];
+          cardRound(st, { top, sub: `Situation: ${meaning}`, cards: [right, w1, w2], right: 0, hint, why });
+          st.acts(`<button type="button" data-a="hear">🔊 Hear it</button>`, { hear: () => VOICE.speak(meaning) });
+          talk(`${meaning} Which version is punctuated correctly?`);
+          return;
+        }
+        fresh();
+        const [s, rule, why] = st.takeFrom(`comma-${st.level}`, st.level === "hard" ? COMMA_HARD2 : COMMA[st.level]);
+        const toks = parseComma(s);
+        const on = new Set();
+        const commas = el("g", { "pointer-events": "none" }, view);
+        const marks = [];
+        text(view, 500, 70, "Select each word that a comma should follow", { "font-size": 30, fill: "var(--accent-dark)" });
+        const row = wordRow(view, toks.map((t) => t.show), {
+          y: 210,
+          size: 52,
+          maxW: 900,
+          maxLines: 3,
+          lineH: 105,
+          tap: (it) => {
+            if (my !== token || st.busy || it.i === toks.length - 1) return;
+            window.OC?.touch();
+            if (on.has(it.i)) {
+              on.delete(it.i);
+              marks[it.i].setAttribute("opacity", 0);
+            } else {
+              on.add(it.i);
+              marks[it.i].setAttribute("opacity", 1);
+              MUSIC.play("woodblock", 84, { gain: 0.3 });
+            }
+          },
+        });
+        row.items.forEach((it) => {
+          marks[it.i] = text(commas, it.x + it.w + 4, it.y, ",", { "font-size": it.size * 1.15, fill: "#c62828", "text-anchor": "start", opacity: 0, "font-weight": 900 });
+        });
+        para(view, 500, 500, "Select a word again to remove its comma. Some sentences need none.", { size: 24, fill: "#8a7764" });
+        const need = toks.map((t, i) => (t.need ? i : -1)).filter((i) => i >= 0);
+        const opt = toks.map((t, i) => (t.opt ? i : -1)).filter((i) => i >= 0);
+        const check = () => {
+          if (my !== token || st.busy) return;
+          const missing = need.filter((i) => !on.has(i));
+          const extra = [...on].filter((i) => !need.includes(i) && !opt.includes(i));
+          if (!missing.length && !extra.length) {
+            row.items.forEach((it) => marks[it.i].setAttribute("fill", "#157a40"));
+            return st.win(`Correct — ${why}`);
+          }
+          const tries = st.oops();
+          if (tries === 1) {
+            const tip = extra.length && !missing.length ? "One of your commas is unnecessary." : missing.length && !extra.length && need.length ? "A required comma is still missing." : "";
+            talk(`${LEARN} ${tip} ${COMMA_ASK[rule]}`);
+          } else {
+            on.clear();
+            row.items.forEach((it) => marks[it.i].setAttribute("opacity", 0));
+            need.forEach((i) => {
+              row.items[i].r.setAttribute("stroke", "#ffb300");
+              row.items[i].r.setAttribute("stroke-width", 6);
+            });
+            talk(`${why} ${need.length ? "Select the highlighted word" + (need.length > 1 ? "s" : "") + ", then press Check." : "Therefore remove every comma and press Check."}`);
+          }
+        };
+        st.acts(`<button type="button" class="primary" data-a="check">✓ Check</button><button type="button" data-a="hear">🔊 Hear it</button>`, { check, hear: () => VOICE.speak(toks.map((t) => t.show).join(" ")) });
+        talk("Where are commas required? Select each word that a comma should follow, then press Check.");
+      },
+    });
+  },
+
+  g7() {
+    runGame("g7", {
+      rounds: 10,
+      noun: "sentences",
+      label: "Sentence",
+      count: "sentences repaired",
+      real: REAL.g7,
+      ask(st) {
+        if (st.level === "easy") {
+          fresh();
+          const [s, right, why] = st.take(FAULT_SENT);
+          text(view, 500, 80, "Diagnose the sentence", { "font-size": 32, fill: "var(--accent-dark)" });
+          card(view, 500, 140, 920, 220, { fill: "#fff", stroke: "#c9b8a1", cls: "gw-deco" });
+          para(view, 500, 240, s, { size: 48, fill: INK, maxW: 860, maxLines: 2, lineH: 64 });
+          para(view, 500, 440, "A sentence needs a subject, a verb and a complete thought.", { size: 26, fill: "#8a7764" });
+          st.choose(FAULTS, right, { hint: "Count the subject-verb pairs. Is the thought complete? If there are two independent clauses, how are they joined?", why: why ? `${FAULT_WHY[right].split(":")[0]}. ${why}` : FAULT_WHY[right] });
+          talk(`<b>${s}</b> Is it a fragment, a run-on, a comma splice, or complete?`, `${s} Is it a fragment, a run-on, a comma splice, or complete?`);
+          return;
+        }
+        const combine = () => {
+          const [a, b, join, right, w1, w2, why] = st.takeFrom("combine", COMBINE);
+          cardRound(st, { top: `${a} + ${b}`, sub: `Join them with ${join}.`, cards: [right, w1, w2], right: 0, hint: "Where does the comma go when the dependent clause comes first? When it comes last? With a FANBOYS conjunction, the comma precedes the conjunction.", why });
+          st.acts(`<button type="button" data-a="hear">🔊 Hear it</button>`, { hear: () => VOICE.speak(`${a} ${b} Join them with ${join}.`) });
+          talk(`Combine the two sentences using ${join}. Which version is correct?`);
+        };
+        const fix = (list, key, top) => {
+          const [broken, right, w1, w2, why, hint] = st.takeFrom(key, list);
+          cardRound(st, { top: `${top}: ${broken}`, cards: [right, w1, w2], right: 0, hint, why });
+          st.acts(`<button type="button" data-a="hear">🔊 Hear it</button>`, { hear: () => VOICE.speak(broken) });
+          talk("Which version repairs the sentence correctly?", `${broken} Which version repairs it correctly?`);
+        };
+        if (st.level === "medium") return st.round % 2 ? combine() : fix(FIXES, "fix", "Repair");
+        return st.round % 3 === 2 ? combine() : fix(MODIFIERS, "mod", "Repair the modifier");
+      },
+    });
+  },
+
+  g8() {
+    runGame("g8", {
+      rounds: 10,
+      noun: "verbals",
+      label: "Verbal",
+      count: "verbals identified",
+      real: REAL.g8,
+      ask(st) {
+        if (st.level === "easy") {
+          const [s, right, why] = st.take(VERBAL_EASY);
+          return markedQ(st, { s, title: "Main verb, or a verb form used as an adjective?", choices: ["Main verb", "Participle (adjective)"], right, hint: "Remove the marked word. Does the sentence still have a verb? Does the marked word describe a noun?", why, prompt: "Is the marked word the main verb, or a participle describing a noun?" });
+        }
+        if (st.level === "medium") {
+          const [s, right, why] = st.take(VERBAL_MED);
+          return markedQ(st, { s, title: "Which kind of verbal is marked?", choices: ["Gerund", "Participle", "Infinitive"], right, hint: "Does it begin with to? Then consider infinitive. If it ends in -ing, does it name an activity (a noun) or describe a noun?", why, prompt: "Is the marked verbal a gerund, a participle, or an infinitive?" });
+        }
+        const [s, right, why, cite] = st.take(VERBAL_HARD);
+        markedQ(st, { s, cite, title: "What job does the verbal phrase perform?", choices: ["Noun", "Adjective", "Adverb"], right, hint: "Can you replace it with it or something (a noun)? Does it tell which one (an adjective)? Does it tell why, how, or to what extent (an adverb)?", why, prompt: "Does the marked verbal act as a noun, an adjective, or an adverb?" });
+      },
+    });
+  },
+
+  g9() {
+    runGame("g9", {
+      rounds: 10,
+      noun: "clauses",
+      label: "Clause",
+      count: "clauses analysed",
+      real: REAL.g9,
+      ask(st) {
+        const list = { easy: CLAUSE_EASY, medium: CLAUSE_MED, hard: CLAUSE_HARD }[st.level];
+        const [s, right, why, cite] = st.take(list);
+        const choices = st.level === "easy" ? ["Adjective clause", "Adverb clause"] : ["Adjective clause", "Adverb clause", "Noun clause"];
+        markedQ(st, { s, cite, title: "What job does the dependent clause perform?", choices, right, size: 44, hint: st.level === "easy" ? "Does the clause tell which one about a noun, or when, why or under what condition about a verb?" : "Could you replace the clause with something or it? Then it is a noun clause. Does it tell which one? Adjective. When, why, how or under what condition? Adverb.", why, prompt: "Is the marked clause working as a noun, an adjective, or an adverb?" });
+      },
+    });
+  },
+
+  g10() {
+    runGame("g10", {
+      rounds: 10,
+      noun: "sentences",
+      label: "Sentence",
+      count: "sentences analysed",
+      real: REAL.g10,
+      ask(st) {
+        if (st.level === "easy") {
+          const [s, right, why, cite] = st.take(MOOD_EASY);
+          return markedQ(st, { s, cite, title: "Which mood is the marked verb?", choices: MOODS, right, hint: "Does it state a fact or ask a question? Give a command? Or express a wish, a demand, or a condition contrary to fact?", why, prompt: "Is the marked verb indicative, imperative, or subjunctive?" });
+        }
+        if (st.level === "medium") {
+          const [s, right, wrong, why] = st.take(SUBJ);
+          fresh();
+          text(view, 500, 80, "Indicative or subjunctive: which form fits?", { "font-size": 32, fill: "var(--accent-dark)" });
+          const row = wordRow(view, s.split(" "), { y: 230, size: 50, maxW: 930, maxLines: 2, lineH: 100 });
+          const blank = row.items.find((it) => it.word.startsWith("___"));
+          blank.t.textContent = "_____";
+          para(view, 500, 470, "Subjunctive: wishes, demands, and conditions contrary to fact.", { size: 25, fill: "#8a7764" });
+          const opts = shuffle([right, wrong]);
+          st.choose(opts, opts.indexOf(right), {
+            hint: "Is the situation real and possible, or imagined, wished for, or demanded?",
+            why,
+            onWin: () => {
+              blank.t.textContent = right + blank.word.slice(3);
+              blank.t.setAttribute("fill", "#157a40");
+            },
+          });
+          return talk("Which form completes the sentence correctly?", `${s.replace("___", "blank")} Which form is correct?`);
+        }
+        const [broken, right, w1, w2, why, hint] = st.take(PARALLEL);
+        const cited = !/[.!?]$/.test(broken);
+        cardRound(st, { top: cited ? `Which is the original, parallel wording? (${broken})` : `Make it parallel: ${broken}`, cards: [right, w1, w2], right: 0, hint, why });
+        st.acts(`<button type="button" data-a="hear">🔊 Hear it</button>`, { hear: () => VOICE.speak(cited ? broken : broken) });
+        talk("Parallelism: matching ideas take matching grammatical forms. Which version is parallel?");
+      },
+    });
+  },
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    g0: { icon: "👀", title: "See it", steps: ["Watch each picture and listen.", "Press Next ▶ to continue.", "Press Let's play when you are ready."] },
+    g1: { icon: "🏷️", title: "The 8 parts of speech", steps: ["Read the sentence; one word is highlighted.", "Decide what job that word performs here.", "Select its part of speech."] },
+    g2: { icon: "🎯", title: "Subject and predicate", steps: ["Select the simple subject, then press Check.", "Select the verb and its helpers, then press Check.", "Words in prepositional phrases are never the subject."] },
+    g3: { icon: "🧱", title: "Sentence types and clauses", steps: ["Read the sentence or word group.", "Count the subject-verb pairs; note the joining words.", "Select the classification below."] },
+    g4: { icon: "📐", title: "Sentence diagramming", steps: ["Drag each word onto its line, or select a word and then its place.", "Subject and verb sit on the baseline.", "Modifiers hang on slanted lines below."] },
+    g5: { icon: "⏳", title: "Verb tenses and agreement", steps: ["Read the sentence.", "Find the marked verb or the blank.", "Select the tense or the verb form that fits."] },
+    g6: { icon: "✒️", title: "Punctuation", steps: ["Select each word a comma should follow.", "Press Check when you are done.", "In some rounds, select the correctly punctuated sentence."] },
+    g7: { icon: "🔧", title: "Fix the sentence", steps: ["Read the sentence carefully.", "Diagnose the problem: fragment, run-on, splice or modifier.", "Select the diagnosis or the correct repair."] },
+    g8: { icon: "🔀", title: "Verbals", steps: ["Read the sentence; a verb form is marked.", "Ask what it does: verb, noun or modifier?", "Select the answer below."] },
+    g9: { icon: "🧩", title: "Clauses at work", steps: ["Read the sentence; the dependent clause is marked.", "Does it name, describe, or tell when, why or how?", "Select noun, adjective or adverb clause."] },
+    g10: { icon: "🎭", title: "Mood and parallelism", steps: ["Read the marked verb or the sentence.", "Decide its mood, or find the parallel version.", "Select the answer."] },
+  },
+  start: "g0",
+  onStop() {
+    token += 1;
+    const p = $("[data-panel]");
+    if (p) p.onclick = null;
+  },
+  subject: "Reading",
+  activity: "Grammar Workshop",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 77, 79, 81, 83, 84, 86, 88, 90, 92, 94]);
+MUSIC.preload("woodblock", [77, 79, 84]);
+</script>
+</body>
+</html>

@@ -1,0 +1,3111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logic Pro · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="tech">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Logic Pro</b><small>Logic · Advanced</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>// ===== ENGINE START =====
+// Pure puzzle logic (no DOM). The Node tests run this part on its own and check every generator.
+const shuf = (list, rand = Math.random) => {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+};
+const pickR = (list, rand = Math.random) => list[Math.floor(rand() * list.length)];
+const intR = (lo, hi, rand = Math.random) => lo + Math.floor(rand() * (hi - lo + 1));
+const orList = (xs, word = "or") => (xs.length <= 1 ? String(xs[0] ?? "") : xs.length === 2 ? `${xs[0]} ${word} ${xs[1]}` : `${xs.slice(0, -1).join(", ")} ${word} ${xs[xs.length - 1]}`);
+const fill = (tpl, vars) => tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k]);
+const NAMES = ["Ada", "Ben", "Cleo", "Dev", "Esme", "Finn", "Greta", "Hugo", "Iris", "Jonah", "Kira", "Leo", "Mira", "Nico", "Olga", "Pavel", "Rosa", "Sami", "Tess", "Ugo", "Vera", "Wes", "Yuki"];
+// Names with different first letters, so a grid or a table never shows two names that start alike.
+function namesR(n, rand = Math.random) {
+  const out = [];
+  for (const name of shuf(NAMES, rand)) if (!out.some((o) => o[0] === name[0]) && out.length < n) out.push(name);
+  return out;
+}
+
+// ---------- 1. Deduction grids ----------
+// A solution s is a permutation: s[row] = column. Every row and every column holds exactly one ✓.
+const PERM = {};
+function permsOf(n) {
+  if (PERM[n]) return PERM[n];
+  if (n === 1) return (PERM[1] = [[0]]);
+  const out = [];
+  for (const p of permsOf(n - 1)) for (let i = 0; i <= p.length; i++) out.push([...p.slice(0, i), n - 1, ...p.slice(i)]);
+  return (PERM[n] = out);
+}
+const DNF = 99; // the "did not finish" column ranks behind everybody
+const relOk = (c, oa, ob) => (c.t === "ahead" ? oa < ob : c.t === "next" ? oa !== DNF && ob !== DNF && Math.abs(oa - ob) === 1 : oa !== DNF && ob !== DNF && ob - oa === c.k);
+const UNARY = new Set(["is", "not", "or", "nei"]);
+function gHolds(c, s, ord) {
+  if (c.t === "is") return s[c.a] === c.x;
+  if (c.t === "not") return s[c.a] !== c.x;
+  if (c.t === "or") return c.xs.includes(s[c.a]);
+  if (c.t === "nei") return s[c.a] !== c.x && s[c.b] !== c.x;
+  return relOk(c, ord[s[c.a]], ord[s[c.b]]);
+}
+const gSolutions = (n, ord, clues) => permsOf(n).filter((s) => clues.every((c) => gHolds(c, s, ord)));
+const unaryCells = (c, n) => (c.t === "is" ? [[c.a, c.x, 2]] : c.t === "not" ? [[c.a, c.x, 1]] : c.t === "or" ? [...Array(n).keys()].filter((x) => !c.xs.includes(x)).map((x) => [c.a, x, 1]) : [[c.a, c.x, 1], [c.b, c.x, 1]]);
+const gEmpty = (n) => [...Array(n)].map(() => Array(n).fill(0));
+const gClone = (K) => K.map((r) => [...r]);
+function gBroken(K) {
+  const n = K.length;
+  for (let r = 0; r < n; r++) {
+    if (K[r].every((v) => v === 1)) return { type: "row", r };
+    if (K[r].filter((v) => v === 2).length > 1) return { type: "row2", r };
+  }
+  for (let c = 0; c < n; c++) {
+    const col = K.map((row) => row[c]);
+    if (col.every((v) => v === 1)) return { type: "col", c };
+    if (col.filter((v) => v === 2).length > 1) return { type: "col2", c };
+  }
+  return null;
+}
+// Applies a step; returns true when a cell already held the opposite mark (a contradiction).
+function gApply(K, step) {
+  let clash = false;
+  for (const [r, c, v] of step.cells) {
+    if (K[r][c] && K[r][c] !== v) clash = true;
+    else K[r][c] = v;
+  }
+  return clash;
+}
+// The next forced step, from simplest to hardest. Steps: tick, clue, rowlast, collast, rel, hyp.
+function gStep(K, pz, allowHyp = false) {
+  const { n, ord, clues } = pz;
+  for (let r = 0; r < n; r++)
+    for (let c = 0; c < n; c++) {
+      if (K[r][c] !== 2) continue;
+      const cells = [];
+      for (let k = 0; k < n; k++) {
+        if (k !== c && K[r][k] === 0) cells.push([r, k, 1]);
+        if (k !== r && K[k][c] === 0) cells.push([k, c, 1]);
+      }
+      if (cells.length) return { kind: "tick", r, c, cells };
+    }
+  for (let i = 0; i < clues.length; i++) {
+    if (!UNARY.has(clues[i].t)) continue;
+    const cells = unaryCells(clues[i], n).filter(([r, x, v]) => K[r][x] !== v);
+    if (cells.length) return { kind: "clue", i, cells };
+  }
+  for (let r = 0; r < n; r++) {
+    if (K[r].includes(2)) continue;
+    const open = [...Array(n).keys()].filter((x) => K[r][x] !== 1);
+    if (open.length === 1) return { kind: "rowlast", r, c: open[0], cells: [[r, open[0], 2]] };
+  }
+  for (let c = 0; c < n; c++) {
+    if (K.some((row) => row[c] === 2)) continue;
+    const open = [...Array(n).keys()].filter((r) => K[r][c] !== 1);
+    if (open.length === 1) return { kind: "collast", r: open[0], c, cells: [[open[0], c, 2]] };
+  }
+  for (let i = 0; i < clues.length; i++) {
+    const cl = clues[i];
+    if (UNARY.has(cl.t)) continue;
+    for (const [who, other, first] of [[cl.a, cl.b, true], [cl.b, cl.a, false]]) {
+      const xs = [];
+      for (let x = 0; x < n; x++) {
+        if (K[who][x] === 1) continue;
+        const ok = [...Array(n).keys()].some((y) => y !== x && K[other][y] !== 1 && (first ? relOk(cl, ord[x], ord[y]) : relOk(cl, ord[y], ord[x])));
+        if (!ok) xs.push(x);
+      }
+      if (xs.length) return { kind: "rel", i, who, other, first, xs, cells: xs.map((x) => [who, x, 1]) };
+    }
+  }
+  if (!allowHyp) return null;
+  let best = null;
+  for (let r = 0; r < n; r++)
+    for (let c = 0; c < n; c++) {
+      if (K[r][c]) continue;
+      const res = gSuppose(K, pz, r, c);
+      if (res && (!best || res.used.length < best.used.length)) best = { r, c, ...res };
+    }
+  return best ? { kind: "hyp", r: best.r, c: best.c, used: best.used, broken: best.broken, cells: [[best.r, best.c, 1]] } : null;
+}
+// "Suppose row r is column c": follow the simple rules until something breaks (or nothing more follows).
+function gSuppose(K, pz, r, c) {
+  const K2 = gClone(K);
+  K2[r][c] = 2;
+  const used = [];
+  for (let guard = 0; guard < 80; guard++) {
+    const b = gBroken(K2);
+    if (b) return { used, broken: b };
+    const st = gStep(K2, pz, false);
+    if (!st) return null;
+    used.push(st);
+    if (gApply(K2, st)) return { used, broken: { type: "clash", step: st } };
+  }
+  return null;
+}
+// Solve from a knowledge grid with the allowed rules; returns the list of steps (or null if stuck).
+function gSolvePath(pz, allowHyp, K0 = gEmpty(pz.n)) {
+  const K = gClone(K0);
+  const steps = [];
+  for (let guard = 0; guard < 200; guard++) {
+    if (K.every((row) => row.every((v) => v))) return { steps, K };
+    const st = gStep(K, pz, allowHyp);
+    if (!st) return null;
+    if (gApply(K, st)) return null;
+    steps.push(st);
+  }
+  return null;
+}
+// Themes: words for each clue type. {A} {B} people, {x} {y} columns, {k} a number.
+const G_THEMES = {
+  easy: [
+    { key: "music", noun: "instrument", cols: [["🎻", "violin"], ["🎺", "trumpet"], ["🥁", "drum"], ["🎹", "piano"], ["🎷", "saxophone"]], who: "player", is: "{A} plays the {x}", not: "{A} does not play the {x}", or: "{A} plays the {x} or the {y}", nei: "Neither {A} nor {B} plays the {x}" },
+    { key: "study", noun: "subject", cols: [["📜", "Latin"], ["🧪", "chemistry"], ["🔭", "astronomy"], ["📐", "geometry"], ["🏛️", "history"]], who: "student", is: "{A} studies {x}", not: "{A} does not study {x}", or: "{A} studies {x} or {y}", nei: "Neither {A} nor {B} studies {x}" },
+    { key: "pets", noun: "pet", cols: [["🐢", "tortoise"], ["🦜", "parrot"], ["🐇", "rabbit"], ["🐠", "goldfish"], ["🐈", "cat"]], who: "owner", is: "{A} keeps the {x}", not: "{A} does not keep the {x}", or: "{A} keeps the {x} or the {y}", nei: "Neither {A} nor {B} keeps the {x}" },
+  ],
+  order: [
+    { key: "race", noun: "place", who: "runner", is: "{A} came {x}", not: "{A} did not come {x}", or: "{A} came {x} or {y}", ahead: "{A} finished ahead of {B}", next: "{A} and {B} finished in neighbouring places", gap: "{A} finished exactly {k} places ahead of {B}", dnfIs: "{A} did not finish", dnfNot: "{A} finished the race" },
+    { key: "queue", noun: "place", who: "person", is: "{A} is {x} in the queue", not: "{A} is not {x} in the queue", or: "{A} is {x} or {y} in the queue", ahead: "{A} stands somewhere in front of {B}", next: "{A} and {B} stand next to each other", gap: "{A} is exactly {k} places in front of {B}" },
+  ],
+};
+const ORDN = ["1st", "2nd", "3rd", "4th", "5th"];
+const G_LEVEL = {
+  easy: { n: 3, ordered: false, dnf: false, kinds: ["not", "or", "nei", "is"], maxIs: 1, min: 3, max: 5, hyp: false },
+  medium: { n: 4, ordered: true, dnf: false, kinds: ["ahead", "next", "gap", "not", "or", "is"], maxIs: 1, min: 4, max: 7, hyp: false },
+  hard: { n: 5, ordered: true, dnf: true, kinds: ["ahead", "next", "gap", "not", "or", "is"], maxIs: 1, min: 5, max: 9, hyp: true },
+};
+function gMake(level, rand = Math.random) {
+  const L = G_LEVEL[level];
+  const n = L.n;
+  for (let tries = 0; tries < 400; tries++) {
+    const theme = L.ordered ? (L.dnf ? G_THEMES.order[0] : pickR(G_THEMES.order, rand)) : pickR(G_THEMES.easy, rand);
+    const ord = L.ordered ? [...Array(n)].map((_, i) => (L.dnf && i === n - 1 ? DNF : i + 1)) : Array(n).fill(null);
+    const sol = shuf([...Array(n).keys()], rand);
+    const rels = [];
+    const unary = [];
+    for (let a = 0; a < n; a++) {
+      for (let x = 0; x < n; x++) {
+        if (x === sol[a]) {
+          if (L.kinds.includes("is")) unary.push({ t: "is", a, x });
+        } else {
+          unary.push({ t: "not", a, x });
+          if (L.kinds.includes("or") && !(L.dnf && (x === n - 1 || sol[a] === n - 1))) unary.push({ t: "or", a, xs: L.ordered ? [sol[a], x].sort((p, q) => p - q) : shuf([sol[a], x], rand) });
+        }
+      }
+      if (L.ordered)
+        for (let b = 0; b < n; b++) {
+          if (b === a) continue;
+          for (const t of ["ahead", "next", "gap"]) {
+            if (!L.kinds.includes(t)) continue;
+            if (t === "next" && b < a) continue;
+            const ks = t === "gap" ? [2, 3] : [0];
+            for (const k of ks) {
+              const c = { t, a, b, k };
+              if (gHolds(c, sol, ord)) rels.push(c);
+            }
+          }
+        }
+      if (L.kinds.includes("nei"))
+        for (let b = a + 1; b < n; b++) for (let x = 0; x < n; x++) if (x !== sol[a] && x !== sol[b]) unary.push({ t: "nei", a, b, x });
+    }
+    // Order clues first on the harder levels, so the puzzle needs real reasoning about order.
+    const pool = L.ordered ? [...shuf(rels, rand).slice(0, 6), ...shuf([...unary, ...shuf(rels, rand).slice(6)], rand)] : shuf(unary, rand);
+    let clues = [];
+    let count = permsOf(n).length;
+    for (const c of pool) {
+      if (count === 1) break;
+      if (c.t === "is" && clues.filter((k) => k.t === "is").length >= L.maxIs) continue;
+      const next = gSolutions(n, ord, [...clues, c]).length;
+      if (next < count) {
+        clues.push(c);
+        count = next;
+      }
+    }
+    if (count !== 1) continue;
+    for (const c of shuf(clues, rand)) {
+      const rest = clues.filter((k) => k !== c);
+      if (gSolutions(n, ord, rest).length === 1) clues = rest;
+    }
+    if (clues.length < L.min || clues.length > L.max) continue;
+    const pz = { n, ord, clues, sol, level, theme };
+    const easyPath = gSolvePath(pz, false);
+    if (!L.hyp && !easyPath) continue;
+    const path = easyPath || gSolvePath(pz, true);
+    if (!path) continue;
+    if (L.ordered && !path.steps.some((s) => s.kind === "rel" || s.kind === "hyp")) continue;
+    if (level === "hard" && easyPath && tries < 300 && rand() < 0.6) continue; // most 🦁 grids need a supposition
+    pz.path = path.steps;
+    pz.names = namesR(n, rand);
+    pz.cols = L.ordered ? ord.map((o, i) => (o === DNF ? "DNF" : ORDN[i])) : shuf(theme.cols, rand).slice(0, n).map((c) => c[1]);
+    pz.icons = L.ordered ? ord.map((o, i) => (o === DNF ? "🚫" : ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"][i])) : pz.cols.map((name) => theme.cols.find((c) => c[1] === name)[0]);
+    // Shuffle clue order so the reasoning does not simply follow the list.
+    pz.clues = shuf(clues, rand);
+    const again = gSolvePath(pz, L.hyp);
+    if (!again) continue;
+    pz.path = again.steps;
+    return pz;
+  }
+  return null;
+}
+// Sentences for clues and steps.
+function gIs(pz, r, x, neg = false) {
+  const th = pz.theme;
+  const A = pz.names[r];
+  if (pz.ord[x] === DNF) return fill(neg ? th.dnfNot : th.dnfIs, { A });
+  return fill(neg ? th.not : th.is, { A, x: pz.cols[x] });
+}
+function gClueText(pz, i) {
+  const c = pz.clues[i];
+  const th = pz.theme;
+  const N = pz.names;
+  if (c.t === "is" || c.t === "not") return gIs(pz, c.a, c.x, c.t === "not") + ".";
+  if (c.t === "or") return fill(th.or, { A: N[c.a], x: pz.cols[c.xs[0]], y: pz.cols[c.xs[1]] }) + ".";
+  if (c.t === "nei") return fill(th.nei, { A: N[c.a], B: N[c.b], x: pz.cols[c.x] }) + ".";
+  return fill(th[c.t], { A: N[c.a], B: N[c.b], k: c.k }) + ".";
+}
+const CAP = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+function gStepText(pz, st) {
+  const N = pz.names;
+  const C = pz.cols;
+  const rowWord = pz.theme.who;
+  if (st.kind === "tick") return `${gIs(pz, st.r, st.c)}. Each row and each column holds exactly one ✓, so every other box in ${N[st.r]}'s row and in the ${C[st.c]} column is ✗.`;
+  if (st.kind === "clue") {
+    const c = pz.clues[st.i];
+    const lead = `Clue ${st.i + 1}: ${gClueText(pz, st.i)}`;
+    if (c.t === "is") return `${lead} Put a ✓ there.`;
+    if (c.t === "not") return `${lead} Cross out ${N[c.a]} – ${C[c.x]}.`;
+    if (c.t === "or") return st.cells.length === 1 ? `${lead} So ${gIs(pz, c.a, st.cells[0][1], true)}: cross it out.` : `${lead} Cross out every other box in ${N[c.a]}'s row: ${orList(st.cells.map(([, x]) => C[x]), "and")}.`;
+    return `${lead} Cross out ${C[c.x]} for both ${N[c.a]} and ${N[c.b]}.`;
+  }
+  if (st.kind === "rowlast") return `${N[st.r]} has only one box left that is not crossed out. ${CAP(gIs(pz, st.r, st.c))}.`;
+  if (st.kind === "collast") return `Only one ${rowWord} can still be ${C[st.c]}: every other box in that column is ✗. So ${gIs(pz, st.r, st.c)}.`;
+  if (st.kind === "rel") {
+    const cl = pz.clues[st.i];
+    const W = N[st.who];
+    const O = N[st.other];
+    const parts = st.xs.map((x) => {
+      const need = [...Array(pz.n).keys()].filter((y) => y !== x && (st.first ? relOk(cl, pz.ord[x], pz.ord[y]) : relOk(cl, pz.ord[y], pz.ord[x])));
+      const label = pz.ord[x] === DNF ? `${W} did not finish` : `${W} were ${C[x]}`;
+      return need.length ? `if ${label}, ${O} would have to be ${orList(need.map((y) => C[y]))}, and that is already ruled out` : `if ${label}, no place for ${O} could make the clue true`;
+    });
+    return `Clue ${st.i + 1}: ${gClueText(pz, st.i)} Test each case: ${parts.join("; ")}. So cross out ${W} – ${orList(st.xs.map((x) => C[x]))}.`;
+  }
+  if (st.kind === "hyp") {
+    const brief = (u) =>
+      u.kind === "rowlast" || u.kind === "collast" ? `${gIs(pz, u.r, u.c)}` : u.kind === "clue" || u.kind === "rel" ? `clue ${u.i + 1} rules out ${orList([...new Set(u.cells.map(([r, x]) => `${N[r]} – ${C[x]}`))], "and")}` : null;
+    const b = st.broken;
+    const chain = (b.type === "clash" ? st.used.slice(0, -1) : st.used).map(brief).filter(Boolean);
+    const end =
+      b.type === "row" ? `${N[b.r]} would have no possible ${pz.theme.noun} left` : b.type === "col" ? `nobody could be ${C[b.c]}` : b.type === "row2" ? `${N[b.r]} would need two ✓ marks` : b.type === "col2" ? `two ${rowWord}s would share ${C[b.c]}` : b.step.i !== undefined ? `${brief(b.step)}, which contradicts what we already have` : `two marks would contradict each other`;
+    const shown = chain.length > 4 ? [...chain.slice(0, 3), "…"] : chain;
+    return `Suppose ${gIs(pz, st.r, st.c)}. Then ${shown.length ? `${shown.join("; ")}; and ` : ""}${end}. A supposition that leads to a contradiction must be false, so ${gIs(pz, st.r, st.c, true)}.`;
+  }
+  return "";
+}
+
+// ---------- 2. Knights and knaves ----------
+// Knights always tell the truth; knaves always lie. t[i] is true when islander i is a knight.
+const KN = {
+  isK: { f: (t, s) => t[s.j], say: "{J} is a knight." },
+  isN: { f: (t, s) => !t[s.j], say: "{J} is a knave." },
+  same: { f: (t, s) => t[s.i] === t[s.j], say: "{J} and I are the same kind." },
+  diff: { f: (t, s) => t[s.i] !== t[s.j], say: "{J} and I are different kinds." },
+  bothN: { f: (t, s) => !t[s.i] && !t[s.j], say: "{J} and I are both knaves." },
+  bothK: { f: (t, s) => t[s.i] && t[s.j], say: "{J} and I are both knights." },
+  oneN: { f: (t, s) => !t[s.i] || !t[s.j], say: "At least one of {J} and me is a knave." },
+  exOne: { f: (t, s) => t[s.i] !== t[s.j], say: "Exactly one of {J} and me is a knight." },
+  orKN: { f: (t, s) => t[s.j] || !t[s.k], say: "{J} is a knight, or {K} is a knave (or both)." },
+  andJK: { f: (t, s) => t[s.j] && t[s.k], say: "{J} and {K} are both knights." },
+  sameJK: { f: (t, s) => t[s.j] === t[s.k], say: "{J} and {K} are the same kind." },
+  cnt: { f: (t, s) => t.filter(Boolean).length === s.m, say: "Exactly {M} of us three {ARE}." },
+  allN: { f: (t) => t.every((v) => !v), say: "All three of us are knaves." },
+  ifKN: { f: (t, s) => !t[s.j] || !t[s.k], say: "If {J} is a knight, then {K} is a knave." },
+  ifKK: { f: (t, s) => !t[s.j] || t[s.k], say: "If {J} is a knight, then {K} is a knight too." },
+};
+const KN_LEVEL = {
+  easy: { n: [2], kinds: ["isK", "isN", "same", "diff", "bothN", "bothK", "oneN"] },
+  medium: { n: [2, 3], kinds: ["isN", "same", "diff", "bothN", "oneN", "exOne", "orKN", "andJK", "sameJK", "cnt"] },
+  hard: { n: [3], kinds: ["isN", "diff", "bothN", "oneN", "orKN", "sameJK", "cnt", "allN", "ifKN", "ifKK"] },
+};
+const knAll = (n) => [...Array(1 << n).keys()].map((m) => [...Array(n).keys()].map((i) => !!(m & (1 << i))));
+const knTrue = (st, t) => KN[st.kind].f(t, st);
+const knFits = (sts, t) => sts.every((st) => knTrue(st, t) === t[st.i]);
+function knText(st, names) {
+  const words = ["no", "one", "two", "three"];
+  return fill(KN[st.kind].say, { J: names[st.j] ?? "", K: names[st.k] ?? "", M: words[st.m] ?? "", ARE: st.m === 1 ? "is a knight" : "are knights" });
+}
+function knMake(level, rand = Math.random) {
+  const L = KN_LEVEL[level];
+  for (let tries = 0; tries < 500; tries++) {
+    const n = pickR(L.n, rand);
+    const speakers = n === 2 ? (rand() < 0.25 ? [0] : [0, 1]) : rand() < 0.4 ? [0, 1] : [0, 1, 2];
+    const sts = [];
+    for (const i of speakers) {
+      const kinds = L.kinds.filter((k) => (n === 2 ? !["orKN", "andJK", "sameJK", "cnt", "allN", "ifKN", "ifKK"].includes(k) : true));
+      const kind = pickR(kinds, rand);
+      const others = [...Array(n).keys()].filter((x) => x !== i);
+      const [j, k] = shuf(others, rand);
+      const st = { i, kind, j, k: k ?? j, m: intR(1, 2, rand) };
+      if (["orKN", "andJK", "sameJK", "ifKN", "ifKK"].includes(kind) && st.j === st.k) continue;
+      sts.push(st);
+    }
+    if (sts.length !== speakers.length) continue;
+    const fits = knAll(n).filter((t) => knFits(sts, t));
+    if (fits.length !== 1) continue;
+    // Every statement should matter: dropping any one must leave more than one possibility.
+    if (sts.length > 1 && sts.some((s) => knAll(n).filter((t) => knFits(sts.filter((x) => x !== s), t)).length === 1)) continue;
+    const names = namesR(n, rand);
+    return { n, sts, ans: fits[0], names, level };
+  }
+  return null;
+}
+// One line per case: why it fails, or that it fits.
+function knCases(pz) {
+  return knAll(pz.n).map((t) => {
+    const bad = pz.sts.find((st) => knTrue(st, t) !== t[st.i]);
+    const who = (i) => `${pz.names[i]} (${t[i] ? "knight" : "knave"})`;
+    return { t, ok: !bad, why: bad ? (t[bad.i] ? `${who(bad.i)} would be telling a falsehood` : `${who(bad.i)} would be telling the truth`) : "every statement fits" };
+  });
+}
+
+// ---------- 3. Sudoku ----------
+const SD_BOX = { 4: [2, 2], 6: [2, 3], 9: [3, 3] };
+const SD_PEERS = {};
+function sdPeers(n) {
+  if (SD_PEERS[n]) return SD_PEERS[n];
+  const [br, bc] = SD_BOX[n];
+  const units = [];
+  for (let r = 0; r < n; r++) units.push({ type: "row", idx: r, cells: [...Array(n).keys()].map((c) => r * n + c) });
+  for (let c = 0; c < n; c++) units.push({ type: "column", idx: c, cells: [...Array(n).keys()].map((r) => r * n + c) });
+  for (let b = 0; b < n; b++) {
+    const r0 = Math.floor(b / (n / bc)) * br;
+    const c0 = (b % (n / bc)) * bc;
+    const cells = [];
+    for (let r = 0; r < br; r++) for (let c = 0; c < bc; c++) cells.push((r0 + r) * n + c0 + c);
+    units.push({ type: "box", idx: b, cells });
+  }
+  const peers = [...Array(n * n)].map((_, i) => [...new Set(units.filter((u) => u.cells.includes(i)).flatMap((u) => u.cells))].filter((j) => j !== i));
+  return (SD_PEERS[n] = { units, peers });
+}
+const sdCands = (g, n, i) => {
+  if (g[i]) return [];
+  const seen = new Set(sdPeers(n).peers[i].map((j) => g[j]));
+  return [...Array(n).keys()].map((d) => d + 1).filter((d) => !seen.has(d));
+};
+function sdCount(g0, n, limit = 2) {
+  const g = [...g0];
+  let count = 0;
+  const go = () => {
+    let best = -1;
+    let bestC = null;
+    for (let i = 0; i < n * n; i++) {
+      if (g[i]) continue;
+      const c = sdCands(g, n, i);
+      if (!c.length) return;
+      if (!bestC || c.length < bestC.length) {
+        best = i;
+        bestC = c;
+        if (c.length === 1) break;
+      }
+    }
+    if (best < 0) {
+      count += 1;
+      return;
+    }
+    for (const d of bestC) {
+      g[best] = d;
+      go();
+      g[best] = 0;
+      if (count >= limit) return;
+    }
+  };
+  go();
+  return count;
+}
+function sdFull(n, rand = Math.random) {
+  const g = Array(n * n).fill(0);
+  const go = (i) => {
+    if (i === n * n) return true;
+    for (const d of shuf(sdCands(g, n, i), rand)) {
+      g[i] = d;
+      if (go(i + 1)) return true;
+    }
+    g[i] = 0;
+    return false;
+  };
+  go(0);
+  return g;
+}
+// The next single: hidden single in a box, naked single, then hidden single in a row or column.
+function sdSingle(g, n) {
+  const { units } = sdPeers(n);
+  const hidden = (types) => {
+    for (const u of units) {
+      if (!types.includes(u.type)) continue;
+      for (let d = 1; d <= n; d++) {
+        if (u.cells.some((i) => g[i] === d)) continue;
+        const spots = u.cells.filter((i) => !g[i] && sdCands(g, n, i).includes(d));
+        if (spots.length === 1) return { i: spots[0], d, kind: "hidden", unit: u.type, idx: u.idx };
+      }
+    }
+    return null;
+  };
+  const box = hidden(["box"]);
+  if (box) return box;
+  for (let i = 0; i < n * n; i++) {
+    const c = sdCands(g, n, i);
+    if (!g[i] && c.length === 1) return { i, d: c[0], kind: "naked", seen: [...new Set(sdPeers(n).peers[i].map((j) => g[j]).filter(Boolean))].sort((a, b) => a - b) };
+  }
+  return hidden(["row", "column"]);
+}
+const sdBySingles = (g0, n) => {
+  const g = [...g0];
+  for (;;) {
+    if (g.every(Boolean)) return true;
+    const s = sdSingle(g, n);
+    if (!s) return false;
+    g[s.i] = s.d;
+  }
+};
+const SD_TARGET = { 4: 6, 6: 15, 9: 36 };
+function sdMake(n, rand = Math.random) {
+  const sol = sdFull(n, rand);
+  const g = [...sol];
+  let givens = n * n;
+  for (const i of shuf([...Array(n * n).keys()], rand)) {
+    if (givens <= SD_TARGET[n]) break;
+    const keep = g[i];
+    g[i] = 0;
+    if (sdCount(g, n, 2) === 1 && sdBySingles(g, n)) givens -= 1;
+    else g[i] = keep;
+  }
+  return { n, givens: g, sol };
+}
+function sdHintText(s, n) {
+  const r = Math.floor(s.i / n) + 1;
+  const c = (s.i % n) + 1;
+  if (s.kind === "naked") return `Naked single at row ${r}, column ${c}. Its row, column and box already contain ${orList(s.seen.map(String), "and")}. Only ${s.d} is left for that square.`;
+  const where = s.unit === "box" ? "this box" : `row ${s.idx + 1}`.replace("row", s.unit === "column" ? "column" : "row");
+  return `Hidden single: in ${where}, the digit ${s.d} has only one possible square (row ${r}, column ${c}). Every other empty square there already sees a ${s.d} in its row, column or box.`;
+}
+
+// ---------- 4. River crossings and jugs: breadth-first search ----------
+// BFS explores every state 1 move away, then 2 moves away, and so on; the first time it meets a goal, that path is the shortest.
+function bfs(start, moves, goal, key = JSON.stringify) {
+  const seen = new Map([[key(start), null]]);
+  const queue = [start];
+  let explored = 0;
+  while (queue.length) {
+    const s = queue.shift();
+    explored += 1;
+    if (goal(s)) {
+      const path = [];
+      let k = key(s);
+      while (seen.get(k)) {
+        const { prev, move, state } = seen.get(k);
+        path.unshift({ move, state });
+        k = prev;
+      }
+      return { path, explored, reachable: seen.size };
+    }
+    for (const { move, state } of moves(s)) {
+      const k = key(state);
+      if (!seen.has(k)) {
+        seen.set(k, { prev: key(s), move, state });
+        queue.push(state);
+      }
+    }
+  }
+  return { path: null, explored, reachable: seen.size };
+}
+// Farmer puzzles: state { f: farmer side, at: [side of each item] }. cap = cargo the boat carries with the farmer.
+const FARM_SETS = [
+  { items: [["🐺", "wolf"], ["🐐", "goat"], ["🥬", "cabbage"]], eats: [[0, 1], [1, 2]] },
+  { items: [["🦊", "fox"], ["🪿", "goose"], ["🌾", "bag of grain"]], eats: [[0, 1], [1, 2]] },
+  { items: [["🐕", "dog"], ["🐈", "cat"], ["🐁", "mouse"], ["🧀", "cheese"]], eats: [[0, 1], [1, 2], [2, 3]] },
+  { items: [["🐺", "wolf"], ["🐐", "goat"], ["🥬", "cabbage"], ["🦊", "fox"], ["🐔", "hen"]], eats: [[0, 1], [1, 2], [3, 4], [0, 4]] },
+];
+const farmUnsafe = (pz, s) => {
+  for (const [a, b] of pz.eats) if (s.at[a] === s.at[b] && s.at[a] !== s.f) return [a, b];
+  return null;
+};
+function farmMoves(pz, s) {
+  const out = [];
+  const here = s.at.map((v, i) => (v === s.f ? i : -1)).filter((i) => i >= 0);
+  const loads = [[]];
+  for (const i of here) loads.push([i]);
+  if (pz.cap >= 2) for (let a = 0; a < here.length; a++) for (let b = a + 1; b < here.length; b++) loads.push([here[a], here[b]]);
+  for (const load of loads) {
+    const state = { f: 1 - s.f, at: s.at.map((v, i) => (load.includes(i) ? 1 - v : v)) };
+    if (!farmUnsafe(pz, state)) out.push({ move: load, state });
+  }
+  return out;
+}
+function farmSolve(pz, from = { f: 0, at: pz.items.map(() => 0) }) {
+  return bfs(from, (s) => farmMoves(pz, s), (s) => s.f === 1 && s.at.every((v) => v === 1));
+}
+// Explorers and bears: on either bank, bears may never outnumber explorers who are there.
+const bearUnsafe = (pz, s) => {
+  const L = [s.e, s.b];
+  const R = [pz.m - s.e, pz.m - s.b];
+  if (L[0] > 0 && L[1] > L[0]) return "left";
+  if (R[0] > 0 && R[1] > R[0]) return "right";
+  return null;
+};
+function bearMoves(pz, s) {
+  const out = [];
+  const sign = s.boat === 0 ? -1 : 1;
+  for (let de = 0; de <= pz.cap; de++)
+    for (let db = 0; db + de <= pz.cap; db++) {
+      if (de + db === 0) continue;
+      const availE = s.boat === 0 ? s.e : pz.m - s.e;
+      const availB = s.boat === 0 ? s.b : pz.m - s.b;
+      if (de > availE || db > availB) continue;
+      const state = { e: s.e + sign * de, b: s.b + sign * db, boat: 1 - s.boat };
+      if (!bearUnsafe(pz, state)) out.push({ move: [de, db], state });
+    }
+  return out;
+}
+function bearSolve(pz, from = { e: pz.m, b: pz.m, boat: 0 }) {
+  return bfs(from, (s) => bearMoves(pz, s), (s) => s.e === 0 && s.b === 0 && s.boat === 1);
+}
+// Jugs: state = litres in each jug. tap: true when you may fill from a tap and empty onto the ground.
+function jugMoves(pz, s) {
+  const out = [];
+  const n = pz.caps.length;
+  for (let i = 0; i < n; i++) {
+    if (pz.tap && s[i] < pz.caps[i]) out.push({ move: { op: "fill", i }, state: s.map((v, k) => (k === i ? pz.caps[i] : v)) });
+    if (pz.tap && s[i] > 0) out.push({ move: { op: "empty", i }, state: s.map((v, k) => (k === i ? 0 : v)) });
+    for (let j = 0; j < n; j++) {
+      if (i === j || !s[i] || s[j] === pz.caps[j]) continue;
+      const amt = Math.min(s[i], pz.caps[j] - s[j]);
+      out.push({ move: { op: "pour", i, j }, state: s.map((v, k) => (k === i ? v - amt : k === j ? v + amt : v)) });
+    }
+  }
+  return out;
+}
+const jugGoal = (pz, s) => (pz.split ? s.filter((v) => v === pz.target).length >= 2 : s.includes(pz.target));
+function jugSolve(pz, from = pz.start) {
+  return bfs(from, (s) => jugMoves(pz, s), (s) => jugGoal(pz, s));
+}
+const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+const J_LEVEL = { easy: [4, 6], medium: [6, 8], hard: [8, 14] };
+function jugMake(level, rand = Math.random) {
+  if (level === "hard" && rand() < 0.35) {
+    const opts = [[8, 5, 3], [10, 7, 3], [12, 7, 5]].filter(([a, b, c]) => a % 2 === 0);
+    const [a, b, c] = pickR(opts, rand);
+    const pz = { caps: [a, b, c], tap: false, start: [a, 0, 0], target: a / 2, split: true };
+    const res = jugSolve(pz);
+    if (res.path) return { ...pz, min: res.path.length, explored: res.explored };
+  }
+  const [lo, hi] = J_LEVEL[level];
+  for (let tries = 0; tries < 500; tries++) {
+    const a = intR(2, level === "easy" ? 5 : 9, rand);
+    const b = intR(a + 1, level === "easy" ? 7 : 13, rand);
+    if (gcd(a, b) !== 1) continue;
+    const target = intR(1, b - 1, rand);
+    if (target === a) continue;
+    const pz = { caps: [a, b], tap: true, start: [0, 0], target, split: false };
+    const res = jugSolve(pz);
+    if (!res.path || res.path.length < lo || res.path.length > hi) continue;
+    return { ...pz, min: res.path.length, explored: res.explored };
+  }
+  const pz = { caps: [3, 5], tap: true, start: [0, 0], target: 4, split: false };
+  return { ...pz, min: jugSolve(pz).path.length, explored: jugSolve(pz).explored };
+}
+function riverMake(level, rand = Math.random) {
+  if (level === "easy" || (level === "medium" && rand() < 0.4)) {
+    const set = level === "easy" ? pickR(FARM_SETS.slice(0, 2), rand) : FARM_SETS[2];
+    const pz = { kind: "farm", items: set.items, eats: set.eats, cap: level === "easy" ? 1 : 1 };
+    const res = farmSolve(pz);
+    if (res.path) return { ...pz, min: res.path.length, explored: res.explored };
+  }
+  if (level === "hard" && rand() < 0.4) {
+    const pz = { kind: "farm", items: FARM_SETS[3].items, eats: FARM_SETS[3].eats, cap: 2 };
+    const res = farmSolve(pz);
+    if (res.path) return { ...pz, min: res.path.length, explored: res.explored };
+  }
+  const opts = level === "easy" ? [[2, 2]] : level === "medium" ? [[2, 2], [3, 2]] : [[3, 2], [4, 3], [5, 3]];
+  const [m, cap] = pickR(opts, rand);
+  const pz = { kind: "bears", m, cap };
+  const res = bearSolve(pz);
+  return { ...pz, min: res.path.length, explored: res.explored };
+}
+const JUG_WORD = (pz, mv) => (mv.op === "fill" ? `Fill the ${pz.caps[mv.i]}-litre jug` : mv.op === "empty" ? `Empty the ${pz.caps[mv.i]}-litre jug` : `Pour the ${pz.caps[mv.i]}-litre jug into the ${pz.caps[mv.j]}-litre jug`);
+
+// ---------- 5. Binary and other bases ----------
+const toBase = (v, b) => v.toString(b).toUpperCase();
+const DIGW = "0123456789ABCDEF";
+const fromBase = (s, b) => [...String(s)].reduce((acc, ch) => acc * b + DIGW.indexOf(ch), 0);
+function binExpand(s, b = 2) {
+  const ds = [...s];
+  const terms = ds.map((d, i) => [d, b ** (ds.length - 1 - i)]);
+  const used = terms.filter(([d]) => d !== "0");
+  return b === 2 ? used.map(([, p]) => p).join(" + ") : used.map(([d, p]) => (p === 1 ? `${DIGW.indexOf(d)}` : `${DIGW.indexOf(d)} × ${p}`)).join(" + ");
+}
+
+// Question maker. input: "num" (type a number), "bits" (switch lamps on), "choice" (tap one).
+function bMake(level, round, rand = Math.random) {
+  const pickKind = (list) => list[round % list.length];
+  const easyK = ["b2d", "d2b", "count", "place", "b2d", "d2b", "count", "b2d", "d2b", "place"];
+  const medK = ["b2d", "d2b", "add", "max", "double", "add", "b2d", "d2b", "values", "add"];
+  const hardK = ["base", "tobase", "hex", "add", "tohex", "values", "base", "add", "tobase", "hex"];
+  const SUBS = "₀₁₂₃₄₅₆₇₈₉";
+  const sb = (str, base = 2) => `${str}${[...String(base)].map((d) => SUBS[+d]).join("")}`;
+  const kind = pickKind(level === "easy" ? easyK : level === "medium" ? medK : hardK);
+  const bitsN = level === "easy" ? 5 : 8;
+  if (kind === "b2d") {
+    const v = intR(level === "easy" ? 5 : 33, level === "easy" ? 31 : 255, rand);
+    const s = toBase(v, 2);
+    const ex = binExpand(s);
+    return { kind, input: "num", ans: v, bin: s, ask: `What is ${sb(s)} in decimal?`, why: `${sb(s)} = ${ex === String(v) ? "" : `${ex} = `}${v}. Each place is worth twice the place to its right: 1, 2, 4, 8, 16…` };
+  }
+  if (kind === "d2b") {
+    const v = intR(level === "easy" ? 6 : 40, level === "easy" ? 31 : 255, rand);
+    const s = toBase(v, 2);
+    const ex = binExpand(s);
+    return { kind, input: "bits", bits: bitsN, ans: v, ask: `Switch on the lamps that make ${v}.`, why: ex === String(v) ? `${v} is itself a place value, so only one lamp is lit: ${v} = ${sb(s)}.` : `Take the largest place value that fits, then the next: ${v} = ${ex}, so ${v} = ${sb(s)}.` };
+  }
+  if (kind === "count") {
+    const v = intR(4, 30, rand);
+    const s = toBase(v, 2);
+    const t = toBase(v + 1, 2);
+    return { kind, input: "bits", bits: bitsN, start: v, ans: v + 1, ask: `The lamps show ${sb(s)}. Count on by one: show the next number.`, why: `${sb(s)} + 1 = ${sb(t)}. Adding 1 to binary works like a car's odometer: every 1 at the right end rolls over to 0 and carries 1 to the left. (${v} + 1 = ${v + 1}.)` };
+  }
+  if (kind === "place") {
+    const k = intR(3, 7, rand);
+    const words = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th"];
+    return { kind, input: "num", ans: 2 ** (k - 1), ask: `In binary, what is the ${words[k]} place from the right worth?`, why: `The places are worth 1, 2, 4, 8, 16, 32, 64: each is double the one before. The ${words[k]} place is worth ${k - 1} twos multiplied together: ${Array(k - 1).fill(2).join(" × ")} = ${2 ** (k - 1)}.` };
+  }
+  if (kind === "add") {
+    const hi = level === "medium" ? 60 : 120;
+    const a = intR(5, hi, rand);
+    const b = intR(5, hi, rand);
+    const [A, B, S] = [a, b, a + b].map((v) => toBase(v, 2));
+    return { kind, input: "bits", bits: 8, ans: a + b, a, b, ask: `Add in binary: ${sb(A)} + ${sb(B)}. Show the sum on the lamps.`, why: `Work column by column from the right, using four facts: 0 + 0 = 0; 1 + 0 = 1; 1 + 1 = 10 (write 0, carry 1); 1 + 1 + 1 = 11 (write 1, carry 1). ${sb(A)} + ${sb(B)} = ${sb(S)}. Check in decimal: ${a} + ${b} = ${a + b}.` };
+  }
+  if (kind === "max") {
+    const n = intR(4, 8, rand);
+    return { kind, input: "num", ans: 2 ** n - 1, ask: `What is the largest number you can write with ${n} binary digits?`, why: `All ${n} lamps on: ${sb("1".repeat(n))} = ${binExpand("1".repeat(n))} = ${2 ** n - 1}. That is one less than the next place value, ${2 ** n}.` };
+  }
+  if (kind === "values") {
+    const n = intR(level === "hard" ? 6 : 3, level === "hard" ? 8 : 5, rand);
+    return { kind, input: "num", ans: 2 ** n, ask: `How many different numbers can ${n} binary digits show, counting zero?`, why: `Each digit has 2 choices, so ${n} digits give ${Array(n).fill(2).join(" × ")} = ${2 ** n} patterns: 0 up to ${2 ** n - 1}.${n === 8 ? " Eight bits make one byte, which is why a byte stores 256 values." : ""}` };
+  }
+  if (kind === "double") {
+    const v = intR(5, 60, rand);
+    const s = toBase(v, 2);
+    return { kind, input: "num", ans: v * 2, ask: `${sb(s)} = ${v}. What is ${sb(s + "0")} (the same digits with a 0 on the end)?`, why: `A 0 on the end moves every digit one place left, and every place is worth double: ${sb(s + "0")} = 2 × ${v} = ${2 * v}. (In decimal, a 0 on the end multiplies by 10 for the same reason.)` };
+  }
+  if (kind === "base") {
+    const b = pickR([3, 5, 8], rand);
+    const v = intR(b * 2, b === 8 ? 300 : b * b * b - 1, rand);
+    const s = toBase(v, b);
+    const places = [];
+    for (let p = 1; p <= v; p *= b) places.push(p);
+    return { kind, input: "num", ans: v, ask: `What is ${sb(s, b)} (base ${b}) in decimal?`, why: `In base ${b} the places are worth ${places.join(", ")}: each is ${b} times the one to its right. So ${sb(s, b)} = ${binExpand(s, b)} = ${v}.` };
+  }
+  if (kind === "tobase") {
+    const b = pickR([5, 8], rand);
+    const v = intR(b * 2 + 1, b === 8 ? 400 : 120, rand);
+    const s = toBase(v, b);
+    return { kind, input: "num", ans: Number(s), ask: `Write ${v} in base ${b}. (Type its digits.)`, why: `Divide by ${b} repeatedly and read the remainders from the bottom up, or take the biggest place value that fits: ${v} = ${binExpand(s, b)}, so ${v} = ${sb(s, b)}.` };
+  }
+  if (kind === "hex") {
+    const v = intR(26, 255, rand);
+    const s = toBase(v, 16);
+    return { kind, input: "num", ans: v, ask: `Hexadecimal (base 16) uses 0–9 then A = 10 … F = 15. What is ${sb(s, 16)} in decimal?`, why: `The places are worth 1 and 16. ${sb(s, 16)} = ${binExpand(s, 16)} = ${v}. Programmers like hexadecimal because one hex digit is exactly four bits: ${sb(s, 16)} = ${[...s].map((ch) => DIGW.indexOf(ch).toString(2).padStart(4, "0")).join(" ")}.` };
+  }
+  // tohex: choose
+  const v = intR(30, 255, rand);
+  const s = toBase(v, 16);
+  const wrong = new Set();
+  while (wrong.size < 3) {
+    const w = toBase(Math.max(17, Math.min(255, v + pickR([-16, 16, -1, 1, 15, -15, 32], rand))), 16);
+    if (w !== s) wrong.add(w);
+  }
+  const bin = toBase(v, 2).padStart(8, "0");
+  return { kind: "tohex", input: "choice", ans: s, opts: shuf([s, ...wrong], rand), ask: `Write ${sb(bin)} in hexadecimal (base 16).`, why: `Split the bits into groups of four: ${bin.slice(0, 4)} = ${DIGW[parseInt(bin.slice(0, 4), 2)]} and ${bin.slice(4)} = ${DIGW[parseInt(bin.slice(4), 2)]}. So it is ${sb(s, 16)} = ${v}.` };
+}
+
+// ---------- 6. Syllogisms: three circles S, M, P give 8 regions; a model says which regions have members ----------
+// Statement: { q: "all" | "no" | "some" | "somenot", x, y } with terms 0 = S, 1 = M, 2 = P.
+const inReg = (reg, t) => !!(reg & (1 << t));
+function syTrue(st, model) {
+  const regs = [...Array(8).keys()].filter((r) => model & (1 << r));
+  if (st.q === "all") return !regs.some((r) => inReg(r, st.x) && !inReg(r, st.y));
+  if (st.q === "no") return !regs.some((r) => inReg(r, st.x) && inReg(r, st.y));
+  if (st.q === "some") return regs.some((r) => inReg(r, st.x) && inReg(r, st.y));
+  return regs.some((r) => inReg(r, st.x) && !inReg(r, st.y));
+}
+// valid: no model makes every premise true and the conclusion false. "import" = every term has members (the traditional reading).
+function syValid(prem, conc, existential = false) {
+  for (let model = 0; model < 256; model++) {
+    if (existential && [0, 1, 2].some((t) => ![...Array(8).keys()].some((r) => model & (1 << r) && inReg(r, t)))) continue;
+    if (prem.every((p) => syTrue(p, model)) && !syTrue(conc, model)) return false;
+  }
+  return true;
+}
+// Regions that every premise-model leaves empty (shaded in a Venn diagram).
+function syShaded(prem) {
+  const out = [];
+  for (let r = 0; r < 8; r++) {
+    let empty = true;
+    for (let model = 0; model < 256 && empty; model++) if (model & (1 << r) && prem.every((p) => syTrue(p, model))) empty = false;
+    if (empty) out.push(r);
+  }
+  return out;
+}
+const SY_Q = ["all", "no", "some", "somenot"];
+const NONSENSE = [["zorbs", "plinks", "quibs"], ["blickets", "daxes", "fendles"], ["grommels", "tazzits", "voobs"], ["kribs", "snorlets", "pludges"], ["wugs", "flarps", "mimbles"]];
+function syMake(level, wantValid, rand = Math.random) {
+  const qs = level === "medium" ? ["all", "no"] : SY_Q;
+  for (let tries = 0; tries < 2000; tries++) {
+    const p1 = { q: pickR(qs, rand), ...(rand() < 0.5 ? { x: 1, y: 2 } : { x: 2, y: 1 }) };
+    const p2 = { q: pickR(qs, rand), ...(rand() < 0.5 ? { x: 0, y: 1 } : { x: 1, y: 0 }) };
+    if (level === "medium" && p2.q === "no" && p1.q === "no") continue;
+    const conc = { q: pickR(qs, rand), x: 0, y: 2 };
+    const prem = [p1, p2];
+    const v = syValid(prem, conc, false);
+    if (v !== syValid(prem, conc, true)) continue; // skip forms whose verdict depends on whether every term has members
+    if (v !== wantValid) continue;
+    return { prem, conc, valid: v, words: pickR(NONSENSE, rand), shaded: syShaded(prem) };
+  }
+  return null;
+}
+const syText = (st, words) => {
+  const [X, Y] = [words[st.x], words[st.y]];
+  return st.q === "all" ? `All ${X} are ${Y}.` : st.q === "no" ? `No ${X} are ${Y}.` : st.q === "some" ? `Some ${X} are ${Y}.` : `Some ${X} are not ${Y}.`;
+};
+// Individuals: "All A are B. Rex is an A." Must / cannot / might Rex be a B? (two circles: regions 0..3, bit0 = A, bit1 = B)
+function syIndividual(rand = Math.random) {
+  const forms = [];
+  for (const q of SY_Q) for (const fact of ["A", "notA", "B", "notB"]) forms.push({ q, fact, ask: fact.endsWith("A") ? "B" : "A" });
+  const want = pickR(["must", "cannot", "might"], rand);
+  for (let tries = 0; tries < 400; tries++) {
+    const f = pickR(forms, rand);
+    const st = { q: f.q, x: 0, y: 1 };
+    const verdicts = new Set();
+    for (let model = 0; model < 16; model++) {
+      if (![...Array(4).keys()].some((r) => model & (1 << r))) continue;
+      const okStmt = (() => {
+        const regs = [...Array(4).keys()].filter((r) => model & (1 << r));
+        const has = (pred) => regs.some(pred);
+        if (st.q === "all") return !has((r) => r & 1 && !(r & 2));
+        if (st.q === "no") return !has((r) => r & 1 && r & 2);
+        if (st.q === "some") return has((r) => r & 1 && r & 2);
+        return has((r) => r & 1 && !(r & 2));
+      })();
+      if (!okStmt) continue;
+      for (let r = 0; r < 4; r++) {
+        if (!(model & (1 << r))) continue;
+        const isA = !!(r & 1);
+        const isB = !!(r & 2);
+        const factOk = f.fact === "A" ? isA : f.fact === "notA" ? !isA : f.fact === "B" ? isB : !isB;
+        if (!factOk) continue;
+        verdicts.add(f.ask === "A" ? isA : isB);
+      }
+    }
+    if (!verdicts.size) continue;
+    const ans = verdicts.size === 2 ? "might" : verdicts.has(true) ? "must" : "cannot";
+    if (ans !== want && tries < 300) continue;
+    return { ...f, ans };
+  }
+  return null;
+}
+
+// Real-world arguments: the FORM is checked by syValid; the truth of each premise is stated with the reason.
+// p: [quantifier, x, y, true?, why-if-false]; terms t = [S, M, P].
+const SY_REAL = [
+  { t: ["whales", "mammals", "animals that breathe air"], p: [["all", 1, 2, true], ["all", 0, 1, true]], c: ["all", 0, 2], easy: true },
+  { t: ["penguins", "birds", "animals that can fly"], p: [["all", 1, 2, false, "Penguins, ostriches and kiwis are birds that cannot fly."], ["all", 0, 1, true]], c: ["all", 0, 2], easy: true },
+  { t: ["spiders", "insects", "animals with six legs"], p: [["all", 1, 2, true], ["all", 0, 1, false, "Spiders are arachnids, not insects; they have eight legs."]], c: ["all", 0, 2], easy: true },
+  { t: ["squares", "rectangles", "shapes with four right angles"], p: [["all", 1, 2, true], ["all", 0, 1, true]], c: ["all", 0, 2], easy: true },
+  { t: ["eagles", "animals with feathers", "birds"], p: [["all", 2, 1, true], ["all", 0, 1, true]], c: ["all", 0, 2], easy: true, note: "The conclusion happens to be true, but these premises do not establish it. The same form gives: all bats have wings, all birds have wings, so all bats are birds, which is false." },
+  { t: ["bats", "animals with wings", "birds"], p: [["all", 2, 1, true], ["all", 0, 1, true]], c: ["all", 0, 2], easy: true, note: "Both premises are true, yet the conclusion is false: bats are mammals. Sharing a property does not make two groups the same." },
+  { t: ["snakes", "reptiles", "mammals"], p: [["no", 1, 2, true], ["all", 0, 1, true]], c: ["no", 0, 2], easy: true },
+  { t: ["sharks", "fish", "animals that live in water"], p: [["no", 1, 2, false, "Every fish lives in water."], ["all", 0, 1, true]], c: ["no", 0, 2], easy: true },
+  { t: ["cats", "birds", "animals"], p: [["all", 1, 2, true], ["all", 0, 1, false, "Cats are mammals, not birds."]], c: ["all", 0, 2], easy: true, note: "The conclusion is true, but this argument does not prove it, because one premise is false. A true conclusion does not make an argument sound." },
+  { t: ["multiples of 4", "even numbers", "prime numbers"], p: [["no", 1, 2, false, "2 is even and prime: its only factors are 1 and 2."], ["all", 0, 1, true]], c: ["no", 0, 2], easy: true, note: "The conclusion is true (every multiple of 4 has 2 as a factor), yet the argument is unsound because it rests on a false premise." },
+  { t: ["triangles", "polygons", "circles"], p: [["no", 1, 2, true], ["all", 0, 1, true]], c: ["no", 0, 2], easy: true },
+  { t: ["cats", "dogs", "mammals"], p: [["all", 1, 2, true], ["no", 0, 1, true]], c: ["no", 0, 2], easy: true, note: "Both premises are true and the conclusion is false: cats are mammals too. Being outside one group of mammals does not put you outside all mammals." },
+  { t: ["dogs", "mammals", "vertebrates"], p: [["all", 1, 2, true], ["all", 0, 1, true]], c: ["all", 0, 2], easy: true },
+  { t: ["gold rings", "metal objects", "objects a magnet attracts"], p: [["all", 1, 2, false, "Gold, copper and aluminium are metals that a fridge magnet does not attract."], ["all", 0, 1, true]], c: ["all", 0, 2], easy: true },
+  { t: ["lemons", "fruits", "sweet foods"], p: [["all", 1, 2, false, "Lemons and limes are sour; not every fruit is sweet."], ["all", 0, 1, true]], c: ["all", 0, 2], easy: true },
+  { t: ["birds", "mammals", "fish"], p: [["no", 1, 2, true], ["no", 0, 1, true]], c: ["no", 0, 2], easy: true, note: "The conclusion is true, but two negative premises never prove anything: knowing what two groups are NOT tells you nothing about how they relate to each other." },
+  { t: ["liquids", "metals", "conductors of electricity"], p: [["all", 1, 2, true], ["some", 0, 1, true]], c: ["some", 0, 2] },
+  { t: ["prime numbers", "odd numbers", "multiples of 9"], p: [["some", 1, 2, true], ["some", 0, 1, true]], c: ["some", 0, 2], note: "Both premises are true, but the conclusion is false: every multiple of 9 is divisible by 3 and 9, so none is prime. The odd numbers that are prime need not be the same odd numbers that are multiples of 9." },
+  { t: ["animals with feathers", "birds", "animals that can fly"], p: [["somenot", 1, 2, true], ["all", 1, 0, true]], c: ["somenot", 0, 2] },
+  { t: ["roses", "flowers", "red things"], p: [["some", 1, 2, true], ["all", 0, 1, true]], c: ["some", 0, 2], note: "The conclusion is true, but the premises do not guarantee it: the red flowers might all have been tulips. Swap 'red things' for 'tulips' and the same form fails." },
+  { t: ["animals that lay eggs", "mammals", "birds"], p: [["no", 2, 1, true], ["some", 0, 1, true]], c: ["somenot", 0, 2] },
+];
+// ---------- 7. Truth tables ----------
+// Expression: { op: "var", v } | { op: "not", a } | { op: "and" | "or" | "imp", a, b }
+const V = (v) => ({ op: "var", v });
+const NOT = (a) => ({ op: "not", a });
+const BIN = (op, a, b) => ({ op, a, b });
+function tEval(e, env) {
+  if (e.op === "var") return env[e.v];
+  if (e.op === "not") return !tEval(e.a, env);
+  const a = tEval(e.a, env);
+  const b = tEval(e.b, env);
+  return e.op === "and" ? a && b : e.op === "or" ? a || b : !a || b;
+}
+const OPW = { and: "AND", or: "OR", imp: "→" };
+function tShow(e, top = true) {
+  if (e.op === "var") return e.v;
+  if (e.op === "not") return `NOT ${tShow(e.a, false)}`;
+  const s = `${tShow(e.a, false)} ${OPW[e.op]} ${tShow(e.b, false)}`;
+  return top ? s : `(${s})`;
+}
+const tVars = (e, out = new Set()) => (e.op === "var" ? out.add(e.v) : (tVars(e.a, out), e.b && tVars(e.b, out)), out);
+function tRows(vars) {
+  const n = vars.length;
+  return [...Array(1 << n).keys()].map((m) => Object.fromEntries(vars.map((v, i) => [v, !(m & (1 << (n - 1 - i)))])));
+}
+const tTable = (e, vars) => tRows(vars).map((env) => tEval(e, env));
+const tSame = (e1, e2, vars) => tTable(e1, vars).every((v, i) => v === tTable(e2, vars)[i]);
+function tRandom(depth, vars, rand = Math.random) {
+  if (depth === 0) return V(pickR(vars, rand));
+  const r = rand();
+  if (r < 0.2) return NOT(tRandom(depth - 1, vars, rand));
+  return BIN(pickR(["and", "or", "imp"], rand), tRandom(depth - 1, vars, rand), tRandom(depth - 1, vars, rand));
+}
+// Subexpressions, innermost first: the helper columns of a worked table.
+function tParts(e, out = []) {
+  if (e.op === "var") return out;
+  tParts(e.a, out);
+  if (e.b) tParts(e.b, out);
+  if (!out.some((x) => tShow(x) === tShow(e))) out.push(e);
+  return out;
+}
+// Everyday "if" claims: the claim is broken only when the IF part happens and the THEN part does not.
+const COND = [
+  ["it rains", "the match is cancelled", "it rained", "it did not rain", "the match was cancelled", "the match went ahead"],
+  ["you score above 90", "you receive a certificate", "you scored 95", "you scored 70", "you received a certificate", "you received no certificate"],
+  ["the alarm rings", "the class leaves the building", "the alarm rang", "the alarm stayed silent", "the class left", "the class stayed inside"],
+  ["it is a weekday", "the library is open", "it was Tuesday", "it was Sunday", "the library was open", "the library was closed"],
+  ["the shop is open", "the light is on", "the shop was open", "the shop was shut", "the light was on", "the light was off"],
+];
+function tMake(level, round, rand = Math.random) {
+  const vars2 = ["A", "B"];
+  const vars3 = ["A", "B", "C"];
+  const A = V("A");
+  const B = V("B");
+  const C = V("C");
+  const plan = { easy: ["fill", "fill", "cond", "eval", "fill", "cond", "fill", "eval"], medium: ["fill", "same", "cond", "fill", "eval", "same", "fill", "same"], hard: ["fill3", "same", "eval3", "fill3", "same", "cond", "fill3", "same"] }[level];
+  const kind = plan[round % plan.length];
+  if (kind === "fill") {
+    const pool = level === "easy" ? [BIN("and", A, B), BIN("or", A, B), NOT(A), BIN("imp", A, B), BIN("and", A, NOT(B)), NOT(B)] : [NOT(BIN("and", A, B)), BIN("or", NOT(A), B), BIN("and", A, NOT(B)), NOT(BIN("or", A, B)), BIN("imp", B, A), BIN("imp", NOT(A), B), BIN("or", BIN("and", A, B), NOT(A))];
+    const e = pickR(pool, rand);
+    const vars = [...tVars(e)].sort();
+    return { kind: "fill", e, vars: vars.length === 1 ? vars : vars2, ans: tTable(e, vars.length === 1 ? vars : vars2) };
+  }
+  if (kind === "fill3") {
+    const pool = [BIN("or", BIN("and", A, B), C), BIN("and", BIN("imp", A, B), BIN("imp", B, C)), BIN("and", BIN("or", A, B), NOT(C)), BIN("imp", BIN("and", A, B), C), BIN("or", A, BIN("and", B, C)), BIN("and", A, BIN("or", B, C))];
+    const e = pickR(pool, rand);
+    return { kind: "fill", e, vars: vars3, ans: tTable(e, vars3) };
+  }
+  if (kind === "eval" || kind === "eval3") {
+    const vars = kind === "eval3" ? vars3 : vars2;
+    for (;;) {
+      const e = tRandom(kind === "eval3" ? 2 : level === "easy" ? 1 : 2, vars, rand);
+      const degenerate = (x) => x.op !== "var" && ((x.b && tShow(x.a) === tShow(x.b)) || degenerate(x.a) || (x.b && degenerate(x.b)) || (x.op === "not" && x.a.op === "not"));
+      if (e.op === "var" || tVars(e).size < 2 || degenerate(e)) continue;
+      const env = Object.fromEntries(vars.map((v) => [v, rand() < 0.5]));
+      return { kind: "eval", e, vars: [...tVars(e)].sort(), env, ans: tEval(e, env) };
+    }
+  }
+  if (kind === "same") {
+    const X = rand() < 0.5 ? A : B;
+    const Y = X === A ? B : A;
+    const pairs = [
+      [NOT(BIN("and", X, Y)), BIN("or", NOT(X), NOT(Y)), "De Morgan's law"],
+      [NOT(BIN("and", X, Y)), BIN("and", NOT(X), NOT(Y)), "a tempting but wrong version of De Morgan's law"],
+      [NOT(BIN("or", X, Y)), BIN("and", NOT(X), NOT(Y)), "De Morgan's law"],
+      [NOT(BIN("or", X, Y)), BIN("or", NOT(X), NOT(Y)), "a tempting but wrong version of De Morgan's law"],
+      [BIN("imp", X, Y), BIN("imp", NOT(Y), NOT(X)), "the contrapositive"],
+      [BIN("imp", X, Y), BIN("imp", Y, X), "the converse"],
+      [BIN("imp", X, Y), BIN("imp", NOT(X), NOT(Y)), "the inverse"],
+      [BIN("imp", X, Y), BIN("or", NOT(X), Y), "the OR form of a conditional"],
+      [NOT(NOT(X)), X, "double negation"],
+      [BIN("imp", X, Y), BIN("or", X, NOT(Y)), "a scrambled OR form"],
+    ];
+    const [e1, e2, name] = pickR(pairs, rand);
+    return { kind: "same", e1, e2, name, vars: vars2, ans: tSame(e1, e2, vars2) };
+  }
+  const [p, q, pT, pF, qT, qF] = pickR(COND, rand);
+  const P = rand() < 0.5;
+  const Q = rand() < 0.5;
+  return { kind: "cond", p, q, P, Q, facts: `${P ? pT : pF}, and ${Q ? qT : qF}`, ans: !(P && !Q) };
+}
+// ===== ENGINE END =====
+
+const { $, el, svg: makeSvg, text, panel, say, pick, pickInt, wait, confetti, PRAISE, KIND, choices, explain, everyday, emoji, numpad, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "lp0", label: "See it", icon: "👀" },
+  { id: "lp1", label: "1. Deduction grids", icon: "🕵️" },
+  { id: "lp2", label: "2. Knights & knaves", icon: "🛡️" },
+  { id: "lp3", label: "3. Sudoku", icon: "🔢" },
+  { id: "lp4", label: "4. Crossings & jugs", icon: "🛶" },
+  { id: "lp5", label: "5. Binary & bases", icon: "💡" },
+  { id: "lp6", label: "6. Syllogisms & Venn", icon: "⭕" },
+  { id: "lp7", label: "7. Truth tables", icon: "🔣" },
+];
+
+const INK = "#2b1d12";
+const SOFT = "#6b5642";
+const GREEN = "#2e9b50";
+const RED = "#c0392b";
+const ORANGE = "#d9822b";
+const BLUE = "#2f6fe0";
+const PAPER = "#fffdf8";
+const LINE = "#bfae94";
+
+function fresh(w = W, h = H) {
+  stage.querySelector(".lp-real")?.remove();
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${w} ${h}`, stage);
+  return view;
+}
+// Tall phone screens get a narrower picture so text stays large.
+const isTall = () => {
+  const r = stage.getBoundingClientRect();
+  return r.width / Math.max(1, r.height) < 1.15;
+};
+const tallBox = (w = 600, need = 0) => {
+  const r = stage.getBoundingClientRect();
+  return [w, Math.max(need, Math.round((w * r.height) / Math.max(1, r.width)))];
+};
+const STOP = Symbol("stop");
+const anim = (alive) => ({
+  alive,
+  wait: (ms) => new Promise((res, rej) => setTimeout(() => (alive() ? res() : rej(STOP)), KIT.still.matches ? Math.min(ms, 150) : ms)),
+  tween: (ms, fn) =>
+    new Promise((res, rej) => {
+      if (KIT.still.matches) {
+        fn(1);
+        return res();
+      }
+      const t0 = performance.now();
+      const frame = (now) => {
+        if (!alive()) return rej(STOP);
+        const t = Math.min(1, (now - t0) / ms);
+        fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+        if (t < 1) requestAnimationFrame(frame);
+        else res();
+      };
+      requestAnimationFrame(frame);
+    }),
+});
+const quiet = (p) => Promise.resolve(p).catch((e) => (e === STOP ? null : console.error(e)));
+const SUBN = "₀₁₂₃₄₅₆₇₈₉";
+// Speech: read binary digit by digit, symbols as words.
+const spoken = (html) =>
+  String(html)
+    .replace(/([0-9A-F]+)([₀₁₂₃₄₅₆₇₈₉]+)/g, (_, d, b) => {
+      const base = [...b].map((c) => SUBN.indexOf(c)).join("");
+      return `${[...d].join(" ")} in base ${base}, `;
+    })
+    .replace(/✗/g, " cross ")
+    .replace(/ – /g, ", ")
+    .replace(/\bDNF\b/g, "did not finish")
+    .replace(/(\w) → (\w)/g, "$1 implies $2")
+    .replace(/→/g, " implies ");
+function talk(html, voiceText) {
+  say(html, { voice: false });
+  VOICE.speak(spoken(voiceText ?? html));
+}
+function wrap(line, per) {
+  const rows = [];
+  for (const w of String(line).split(" ")) {
+    const last = rows[rows.length - 1];
+    if (last !== undefined && (last + " " + w).length <= per) rows[rows.length - 1] = last + " " + w;
+    else rows.push(w);
+  }
+  return rows;
+}
+// Wrapped text block; returns the height used.
+function para(parent, x, y, str, { size = 24, width = 400, fill = INK, weight = 700, anchor = "start", lh = 1.3 } = {}) {
+  const per = Math.max(8, Math.floor(width / (size * 0.52)));
+  const rows = wrap(str, per);
+  const ax = anchor === "middle" ? x + width / 2 : x;
+  rows.forEach((r, i) => text(parent, ax, y + size + i * size * lh, r, { "font-size": size, fill, "font-weight": weight, "text-anchor": anchor }));
+  return rows.length * size * lh + size * 0.35;
+}
+const paraH = (str, size, width, lh = 1.3) => wrap(str, Math.max(8, Math.floor(width / (size * 0.52)))).length * size * lh + size * 0.35;
+function box(parent, x, y, w, h, { fill = PAPER, stroke = LINE, sw = 3, rx = 18, cls } = {}) {
+  return el("rect", { x, y, width: w, height: h, rx, fill, stroke, "stroke-width": sw, class: cls }, parent);
+}
+function button(parent, x, y, w, h, label, { fill = "#fff", color = INK, size = 24, cls = "lp-tap", data = {} } = {}) {
+  const g = el("g", { class: cls, transform: `translate(${x} ${y})` }, parent);
+  for (const [k, v] of Object.entries(data)) g.setAttribute(`data-${k}`, v);
+  el("rect", { width: w, height: h, rx: Math.min(18, h / 3), fill, stroke: "rgba(0,0,0,.12)", "stroke-width": 2 }, g);
+  el("rect", { y: h - 5, width: w, height: 5, rx: 2, fill: "rgba(0,0,0,.08)" }, g);
+  const t = text(g, w / 2, h / 2 + size * 0.36, label, { "font-size": size, fill: color });
+  g._label = t;
+  g._rect = g.firstChild;
+  return g;
+}
+const onTap = (node, fn) =>
+  node.addEventListener("pointerdown", (event) => {
+    const g = event.target.closest(".lp-tap");
+    if (!g || !node.contains(g)) return;
+    event.preventDefault();
+    window.OC?.touch();
+    fn(g, event);
+  });
+
+// ---------- level chips and status ----------
+const LEVELS = [["easy", "🐣 <span class=\"lp-long\">Grade </span>4"], ["medium", "🦊 <span class=\"lp-long\">Grade </span>5–6"], ["hard", "🦁 <span class=\"lp-long\">Grade </span>7–8"]];
+const topRow = (level) => `<div class="ap-row lp-top"><div class="ap-chips" data-levels>${LEVELS.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === level}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div>`;
+function bindTop(id, onLevel) {
+  $("[data-levels]")?.addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    shell.mark(id, { level: b.dataset.lv });
+    window.OC?.touch();
+    VOICE.hush();
+    onLevel(b.dataset.lv);
+  });
+}
+const setStatus = (s) => {
+  const b = $("[data-status]");
+  if (b) b.textContent = s;
+};
+const EFFORT = ["Correct — and here is why.", "Correct. Your method was sound.", "Correct — a careful, systematic approach.", "Correct. Notice the reasoning:"];
+const NUDGE = ["Not quite. Consider:", "Not quite — mistakes are how we learn. Consider:", "Not yet. Consider:"];
+
+// ---------- "Explain it" and "Try it for real" ----------
+const EXPLAIN = {
+  lp0: "Explain the difference between deducing and guessing. Then explain why a convincing argument can still be wrong.",
+  lp1: "Choose one step you made in a grid. Explain which clue forced it, and why no other mark was possible there.",
+  lp2: "Explain how testing both cases, 'knight' and 'knave', settles who is who. Why must a supposition that leads to a contradiction be false?",
+  lp3: "Explain the difference between a naked single and a hidden single, and why a well-made Sudoku never requires guessing.",
+  lp4: "Explain how a breadth-first search proves that a solution is the shortest possible, not merely a short one.",
+  lp5: "Explain why each binary place is worth twice the place to its right, and how a computer can store any number with only 0 and 1.",
+  lp6: "Explain the difference between a valid argument and a sound one. Give an example of a valid argument with a false conclusion.",
+  lp7: "Explain when 'If A, then B' is false. Why do logicians call it true when A is false?",
+};
+const REAL = {
+  lp1: { title: "A grid puzzle of your own", need: ["Paper and a pencil", "A ruler"], steps: ["Decide a secret answer: three people and three favourite fruits.", "Write clues one at a time. After each clue, check: could the answer still be different?", "Stop when only your answer fits every clue.", "Give it to a grown-up to solve, and ask them to explain each step."], note: "Writing a puzzle with exactly one answer is harder than solving one." },
+  lp2: { title: "Knights and knaves at the table", need: ["Two cards: one marked K (knight), one marked N (knave)"], steps: ["A grown-up secretly takes a card and makes one statement about themselves or you.", "Test both cases aloud: 'If you are a knight, then…'.", "Name the type only when one case is impossible.", "Swap roles: can you invent a statement that gives the answer away?"], note: "Note that 'I am a knave' can never be said: test both cases to see why." },
+  lp3: { title: "Sudoku on paper", need: ["A newspaper or printed Sudoku", "A pencil with an eraser"], steps: ["Scan each box for a hidden single first.", "Write small pencil marks in squares with few options.", "Before you write a digit, say which technique proves it.", "Never guess: if you are stuck, look for another single."], note: "Use pencil so that you can correct mistakes cleanly." },
+  lp4: { title: "Measure with two cups", need: ["A 3-unit cup and a 5-unit cup (or mark two containers)", "Water, a tray and a towel"], steps: ["Plan the moves on paper first: fill, pour, empty.", "Carry out your plan to measure exactly 4 units.", "Count your moves. Could it be done in fewer?", "Try measuring 1 unit and 2 units as well."], note: "Do this with a grown-up, over a tray or outdoors." },
+  lp5: { title: "Count to 31 on one hand", need: ["One hand"], steps: ["Give your fingers values: thumb 1, index 2, middle 4, ring 8, little 16.", "A raised finger means 1; a folded finger means 0.", "Show 5 (thumb and middle), then 13, then 21.", "With all five raised you reach 31. With both hands you could reach 1023."], note: "Say each number's binary digits aloud as you show it: 13 is 01101." },
+  lp6: { title: "Venn diagrams with hoops", need: ["Two or three hoops or loops of string", "Small toys or picture cards"], steps: ["Label the hoops, for example 'can fly' and 'has feathers'.", "Place each toy where it belongs; some go in the overlap.", "State a rule such as 'All birds have feathers'. Which region must stay empty?", "Make up an argument and test it against the hoops."], note: "Choose facts you can check in a reliable book." },
+  lp7: { title: "A switch circuit", need: ["A battery pack, a bulb or LED, two switches and wires (a simple circuit kit)"], steps: ["Connect two switches in a line (series) with the bulb.", "Fill in a table: which switch settings light the bulb? That is AND.", "Rebuild with the switches side by side (parallel). That is OR.", "Compare your tables with the ones in this game."], note: "Use only a low-voltage battery kit, never a wall socket, and build it with a grown-up." },
+};
+function realCard(id) {
+  const t = REAL[id];
+  if (!t) return;
+  stage.querySelector(".lp-real")?.remove();
+  const b = document.createElement("div");
+  b.className = "lp-real";
+  b.innerHTML = `<div class="lp-real-card" role="dialog" aria-label="${t.title}"><div class="lp-real-head"><span aria-hidden="true">🏠</span><h2>Try it for real: ${t.title}</h2></div><p class="lp-need"><b>You need:</b> ${t.need.join(" · ")}</p><ol>${t.steps.map((s) => `<li>${s}</li>`).join("")}</ol><p class="lp-tip">🤝 ${t.note}</p><button type="button" class="kt-go">✓ Close</button></div>`;
+  stage.appendChild(b);
+  VOICE.speak(`${t.title}. You need: ${t.need.join(", ")}. ${t.steps.join(" ")} ${t.note}`);
+  b.querySelector(".kt-go").addEventListener("click", () => {
+    VOICE.hush();
+    b.remove();
+    window.OC?.touch();
+  });
+}
+function explainCard(id) {
+  const tall = isTall();
+  const [w, h] = tall ? tallBox(600, 520) : [W, H];
+  fresh(w, h);
+  const pad = tall ? 24 : 70;
+  const g = el("g", {}, view);
+  const bw = w - pad * 2;
+  const size = tall ? 28 : 30;
+  const th = paraH(EXPLAIN[id], size, bw - 60);
+  const top = Math.max(16, (h - (th + 190)) / 2);
+  box(g, pad, top, bw, th + 170, { fill: "#fff8ea", stroke: "#e0b872", sw: 4, rx: 30 });
+  text(g, pad + 30, top + 54, "💬 Explain it", { "font-size": 34, fill: "#8a5a12", "text-anchor": "start", "font-weight": 900 });
+  para(g, pad + 30, top + 74, EXPLAIN[id], { size, width: bw - 60 });
+  para(g, pad + 30, top + th + 96, "Use 2–4 full sentences: say them aloud to a grown-up, or write them down.", { size: 22, width: bw - 60, fill: SOFT, weight: 600 });
+  return { w, h, bottom: top + th + 186 };
+}
+function finishGame(id, host, { R, first, noun, again }) {
+  const { w, h, bottom } = explainCard(id);
+  if (bottom + 40 < h) text(view, w / 2, Math.min(h - 20, bottom + 44), `Complete: ${R} ${noun} · ${first} at the first attempt`, { "font-size": 24, fill: SOFT, "font-weight": 700 });
+  confetti();
+  MUSIC.chime();
+  shell.mark(id, { done: true });
+  window.OC?.touch();
+  setStatus("Explain it");
+  talk(`Complete. Now answer the <b>Explain it</b> task on the board.`, `Complete. You worked through all ${R} ${noun}. Now, explain it: ${EXPLAIN[id]}`);
+  host.className = "lp-in";
+  host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-said>✓ I explained it</button><button type="button" data-again>🔁 Again</button><button type="button" data-real>🏠 Try it for real</button></div>`;
+  host.onclick = (event) => {
+    if (event.target.closest("[data-said]")) {
+      window.OC?.touch();
+      window.OC?.count("explanations given");
+      event.target.closest("[data-said]").disabled = true;
+      talk("Well articulated. Explaining an idea in your own words is how understanding becomes permanent.");
+    } else if (event.target.closest("[data-again]")) {
+      window.OC?.touch();
+      host.onclick = null;
+      again();
+    } else if (event.target.closest("[data-real]")) {
+      window.OC?.touch();
+      realCard(id);
+    }
+  };
+}
+// Panel buttons for a game.
+const btnRow = (list) => `<div class="ap-buttons lp-acts">${list.map(([k, label, primary]) => `<button type="button" data-a="${k}"${primary ? ' class="primary"' : ""}>${label}</button>`).join("")}</div>`;
+const nextRow = (last) => `<div class="ap-buttons lp-acts"><button type="button" class="primary" data-a="next">${last ? "Finish ▶" : "Next ▶"}</button></div>`;
+
+// ================= See it =================
+function seeIt() {
+  const my = token;
+  const pop = async (api, g, ms = 400) => {
+    g.setAttribute("opacity", 0);
+    await api.tween(ms, (t) => g.setAttribute("opacity", t));
+  };
+  const cup = (v, x, y, color) => {
+    const g = el("g", { transform: `translate(${x} ${y})` }, v);
+    el("path", { d: "M-70 0 L-52 -150 L52 -150 L70 0 Z", fill: color, stroke: "rgba(0,0,0,.25)", "stroke-width": 4 }, g);
+    el("ellipse", { cx: 0, cy: -150, rx: 52, ry: 12, fill: "rgba(255,255,255,.35)" }, g);
+    return g;
+  };
+  const mark = (v, x, y, ok, size = 90) => text(v, x, y, ok ? "✓" : "✗", { "font-size": size, fill: ok ? GREEN : RED, "font-weight": 900 });
+  explain(
+    [
+      {
+        say: "Logic is the study of correct reasoning: how to reach conclusions that must be true, given what you know. Detectives, judges, mathematicians and every computer chip depend on it.",
+        draw: everyday([["🕵️", "Detectives reason from clues"], ["⚖️", "Courts weigh evidence"], ["📐", "Proofs in mathematics"], ["💻", "Every computer chip"]]),
+      },
+      {
+        say: "A ball is under one of three cups. A guess is right one time in three. Now use clues: it is not under the red cup, and not under the blue cup. Deduction (reaching a conclusion that must follow) says: green, with certainty.",
+        async draw(v, api) {
+          const xs = [250, 500, 750];
+          const cols = ["#e5483b", "#2f6fe0", "#2e9e55"];
+          xs.forEach((x, i) => cup(v, x, 330, cols[i]));
+          const guess = text(v, 500, 430, "Guess: right 1 time in 3", { "font-size": 34, fill: SOFT });
+          await api.wait(2600);
+          guess.remove();
+          const c1 = text(v, 500, 70, "Clue 1: not under red", { "font-size": 34, fill: INK });
+          await pop(api, c1);
+          mark(v, 250, 300, false);
+          MUSIC.play("woodblock", 72, { gain: 0.3 });
+          await api.wait(1500);
+          c1.textContent = "Clue 2: not under blue";
+          mark(v, 500, 300, false);
+          MUSIC.play("woodblock", 72, { gain: 0.3 });
+          await api.wait(1500);
+          c1.textContent = "Only one possibility remains";
+          const ball = el("circle", { cx: 750, cy: 300, r: 0, fill: "#f2b705", stroke: "#a87a00", "stroke-width": 4 }, v);
+          await api.tween(700, (t) => ball.setAttribute("r", 30 * t));
+          MUSIC.chime();
+          text(v, 500, 450, "Deduction: certain, if the clues are true", { "font-size": 34, fill: GREEN });
+        },
+      },
+      {
+        say: "Elimination (crossing out what cannot be true) is the engine of a logic grid. Each row and each column has exactly one tick, so when only one box is left, it must be the answer.",
+        async draw(v, api) {
+          const names = ["Ada", "Ben", "Cleo"];
+          const items = ["🎻", "🎺", "🥁"];
+          const x0 = 380;
+          const y0 = 120;
+          const s = 110;
+          items.forEach((c, i) => emoji(v, x0 + s * i + s / 2, y0 - 50, c, 56));
+          names.forEach((n, i) => text(v, x0 - 20, y0 + s * i + s / 2 + 10, n, { "font-size": 30, fill: INK, "text-anchor": "end" }));
+          const cells = [];
+          for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) cells.push(box(v, x0 + c * s, y0 + r * s, s, s, { rx: 4 }));
+          const cap = text(v, 500, 500, "", { "font-size": 30, fill: SOFT });
+          const put = async (r, c, ok, note) => {
+            if (note) cap.textContent = note;
+            const t = mark(v, x0 + c * s + s / 2, y0 + r * s + s / 2 + 28, ok, 76);
+            await pop(api, t, 300);
+            MUSIC.play("woodblock", ok ? 79 : 72, { gain: 0.25 });
+            await api.wait(700);
+          };
+          await api.wait(800);
+          await put(0, 0, false, "Clue: Ada does not play the violin.");
+          await put(0, 1, false, "Clue: Ada does not play the trumpet.");
+          await put(0, 2, true, "Only one box is left for Ada: the drum.");
+          await put(1, 2, false, "One tick per column: nobody else plays the drum.");
+          await put(2, 2, false);
+          await put(1, 0, false, "Clue: Ben does not play the violin.");
+          await put(1, 1, true, "So Ben plays the trumpet …");
+          await put(2, 1, false);
+          await put(2, 0, true, "… and Cleo plays the violin. Every step was forced.");
+        },
+      },
+      {
+        say: "An 'if… then…' chain links facts like dominoes. If it rains, the ground gets wet; if the ground is wet, the match is cancelled. It rains, so the match is cancelled. But beware: a wet ground does not prove it rained. A sprinkler would also wet it.",
+        async draw(v, api) {
+          const steps = [["🌧️", "It rains"], ["💧", "Ground wet"], ["🚫", "Match off"]];
+          const gs = steps.map(([g, l], i) => {
+            const x = 170 + i * 330;
+            const gg = el("g", { opacity: 0 }, v);
+            box(gg, x - 120, 60, 240, 190, { fill: "#fff", stroke: "var(--accent)", sw: 4, rx: 24 });
+            emoji(gg, x, 125, g, 64);
+            text(gg, x, 222, l, { "font-size": 30, fill: INK });
+            if (i < 2) text(v, x + 165, 170, "→", { "font-size": 60, fill: "var(--accent-dark)" });
+            return gg;
+          });
+          for (const g of gs) {
+            await pop(api, g, 450);
+            MUSIC.play("xylophone", 72 + gs.indexOf(g) * 4, { gain: 0.3 });
+            await api.wait(800);
+          }
+          text(v, 500, 320, "It rains, so the match is off: the chain holds.", { "font-size": 30, fill: GREEN });
+          await api.wait(3200);
+          const trap = el("g", {}, v);
+          box(trap, 120, 360, 760, 170, { fill: "#fff4e6", stroke: ORANGE, sw: 3 });
+          text(trap, 500, 410, "The ground is wet. Did it rain?", { "font-size": 32, fill: INK });
+          text(trap, 500, 460, "Not necessarily: a sprinkler also wets the ground.", { "font-size": 28, fill: ORANGE });
+          text(trap, 500, 500, "'If A then B' does not mean 'if B then A'.", { "font-size": 26, fill: SOFT });
+          await pop(api, trap, 500);
+        },
+      },
+      {
+        say: "A convincing argument is not enough. A reason must be true, and it must actually support the conclusion. All birds can fly; a penguin is a bird; so a penguin can fly. The reasoning has a correct shape, but the first premise (a statement given as a reason) is false.",
+        async draw(v, api) {
+          const lines = [["All birds can fly.", false], ["A penguin is a bird.", true], ["So a penguin can fly.", null]];
+          for (let i = 0; i < 3; i++) {
+            const y = 70 + i * 100;
+            const g = el("g", {}, v);
+            box(g, 110, y, 560, 78, { fill: i === 2 ? "#f4efe6" : "#fff" });
+            text(g, 135, y + 50, lines[i][0], { "font-size": 32, fill: INK, "text-anchor": "start" });
+            await pop(api, g);
+            await api.wait(700);
+          }
+          emoji(v, 830, 190, "🐧", 130);
+          await api.wait(1500);
+          const tags = [["FALSE", RED, "Penguins and ostriches cannot fly."], ["TRUE", GREEN, ""]];
+          for (let i = 0; i < 2; i++) {
+            const y = 70 + i * 100;
+            const t = text(v, 690, y + 50, tags[i][0], { "font-size": 30, fill: tags[i][1], "text-anchor": "start", "font-weight": 900 });
+            await pop(api, t);
+            MUSIC.play("woodblock", i ? 79 : 72, { gain: 0.3 });
+            await api.wait(900);
+          }
+          const q = el("g", {}, v);
+          box(q, 110, 400, 780, 130, { fill: "#f1faf3", stroke: "#8fcf9f" });
+          text(q, 500, 448, "Ask: Is it true? How do we know?", { "font-size": 30, fill: INK });
+          text(q, 500, 496, "Does the conclusion really follow?", { "font-size": 30, fill: INK });
+          await pop(api, q);
+        },
+      },
+      {
+        say: "In 1854 the English mathematician George Boole published An Investigation of the Laws of Thought. He wrote logic as algebra using the symbols 1 and 0. In today's form of his algebra, true is 1, false is 0, and 'A and B' behaves like multiplication.",
+        async draw(v, api) {
+          const book = el("g", {}, v);
+          el("rect", { x: 90, y: 90, width: 250, height: 330, rx: 10, fill: "#7a4a24", stroke: "#4a2c14", "stroke-width": 5 }, book);
+          el("rect", { x: 110, y: 110, width: 210, height: 290, rx: 6, fill: "none", stroke: "#e0b872", "stroke-width": 3 }, book);
+          text(book, 215, 200, "LAWS OF", { "font-size": 30, fill: "#f4dfae" });
+          text(book, 215, 240, "THOUGHT", { "font-size": 30, fill: "#f4dfae" });
+          text(book, 215, 330, "Boole", { "font-size": 30, fill: "#f4dfae" });
+          text(book, 215, 370, "1854", { "font-size": 30, fill: "#f4dfae" });
+          await pop(api, book, 600);
+          const rows = [["1 AND 1", "1 × 1 = 1"], ["1 AND 0", "1 × 0 = 0"], ["0 AND 1", "0 × 1 = 0"], ["0 AND 0", "0 × 0 = 0"]];
+          text(v, 680, 90, "true = 1   false = 0", { "font-size": 34, fill: "var(--accent-dark)" });
+          for (let i = 0; i < 4; i++) {
+            const y = 150 + i * 78;
+            const g = el("g", {}, v);
+            box(g, 420, y, 520, 64, { fill: "#fff" });
+            text(g, 560, y + 43, rows[i][0], { "font-size": 30, fill: INK });
+            text(g, 800, y + 43, rows[i][1], { "font-size": 30, fill: i === 0 ? GREEN : SOFT });
+            await pop(api, g, 350);
+            await api.wait(500);
+          }
+          text(v, 680, 500, "Only 1 AND 1 gives 1, as only 1 × 1 does.", { "font-size": 28, fill: SOFT });
+        },
+      },
+      {
+        say: "In 1937, Claude Shannon showed in his master's thesis at MIT (published in 1938) that circuits of switches and relays obey Boole's algebra. Two switches in a line (series) light the lamp only if both are closed: that is AND. Side by side (parallel), either one will do: that is OR. A modern processor contains billions of tiny transistor switches doing exactly this.",
+        async draw(v, api) {
+          const lamp = (x, y) => {
+            const g = el("g", {}, v);
+            const glow = el("circle", { cx: x, cy: y, r: 34, fill: "#fff7cc", stroke: "#8a7a50", "stroke-width": 4 }, g);
+            emoji(g, x, y - 2, "💡", 46);
+            return glow;
+          };
+          const sw = (x, y) => {
+            el("circle", { cx: x - 40, cy: y, r: 7, fill: INK }, v);
+            el("circle", { cx: x + 40, cy: y, r: 7, fill: INK }, v);
+            return el("line", { x1: x - 40, y1: y, x2: x + 30, y2: y - 40, stroke: INK, "stroke-width": 7, "stroke-linecap": "round" }, v);
+          };
+          const close = (s, x, y, on) => s.setAttribute("x2", on ? x + 40 : x + 30) || s.setAttribute("y2", on ? y : y - 40);
+          // series (AND)
+          text(v, 250, 60, "Series: AND", { "font-size": 34, fill: "var(--accent-dark)" });
+          el("path", { d: "M60 200 L130 200 M210 200 L290 200 M370 200 L420 200 M60 200 L60 320 L420 320 L420 270", fill: "none", stroke: INK, "stroke-width": 5 }, v);
+          const s1 = sw(170, 200);
+          const s2 = sw(330, 200);
+          const l1 = lamp(420, 236);
+          // parallel (OR)
+          text(v, 760, 60, "Parallel: OR", { "font-size": 34, fill: "var(--accent-dark)" });
+          el("path", { d: "M580 160 L580 320 L940 320 L940 270 M580 160 L680 160 M760 160 L860 160 L860 240 M580 240 L680 240 M760 240 L860 240 M860 200 L906 200", fill: "none", stroke: INK, "stroke-width": 5 }, v);
+          const s3 = sw(720, 160);
+          const s4 = sw(720, 240);
+          const l2 = lamp(940, 236);
+          const cap = text(v, 500, 420, "", { "font-size": 30, fill: INK });
+          const cap2 = text(v, 500, 470, "", { "font-size": 26, fill: SOFT });
+          const set = (a, b) => {
+            close(s1, 170, 200, a);
+            close(s2, 330, 200, b);
+            close(s3, 720, 160, a);
+            close(s4, 720, 240, b);
+            l1.setAttribute("fill", a && b ? "#ffd84a" : "#f3f0e6");
+            l2.setAttribute("fill", a || b ? "#ffd84a" : "#f3f0e6");
+            cap.textContent = `Switch A ${a ? "closed" : "open"}, switch B ${b ? "closed" : "open"}`;
+            cap2.textContent = `AND lamp: ${a && b ? "on" : "off"}   ·   OR lamp: ${a || b ? "on" : "off"}`;
+          };
+          for (const [a, b] of [[false, false], [true, false], [false, true], [true, true]]) {
+            set(a, b);
+            MUSIC.play("woodblock", 76, { gain: 0.25 });
+            await api.wait(2000);
+          }
+          text(v, 500, 530, "Boole's algebra + Shannon's switches = the logic of computers", { "font-size": 26, fill: "var(--accent-dark)" });
+        },
+      },
+      {
+        say: `Explain it, in two to four sentences: ${EXPLAIN.lp0}`,
+        async draw(v) {
+          const g = el("g", {}, v);
+          box(g, 70, 90, 860, 320, { fill: "#fff8ea", stroke: "#e0b872", sw: 4, rx: 30 });
+          text(g, 110, 150, "💬 Explain it", { "font-size": 36, fill: "#8a5a12", "text-anchor": "start", "font-weight": 900 });
+          para(g, 110, 170, EXPLAIN.lp0, { size: 30, width: 780 });
+          para(g, 110, 320, "Use 2–4 full sentences: say them aloud to a grown-up, or write them down.", { size: 23, width: 780, fill: SOFT, weight: 600 });
+        },
+      },
+    ],
+    { alive: () => my === token, onDone: () => shell.go("lp1"), title: "Why logic?" }
+  );
+}
+
+// ================= 1. Deduction grids =================
+function gridGame() {
+  const id = "lp1";
+  const my = token;
+  let level = shell.progress()[id]?.level || "easy";
+  let R = level === "hard" ? 6 : 8;
+  let round = 0;
+  let first = 0;
+  let tries = 0;
+  let marks = 0;
+  let busy = false;
+  let pz = null;
+  let M = null;
+  let cells = [];
+  let clueCards = [];
+  panel(`${topRow(level)}<div class="lp-in" data-in></div>`);
+  const host = $("[data-in]");
+  const keyStep = () => pz.path.find((s) => s.kind === "hyp") || pz.path.find((s) => s.kind === "rel") || pz.path.find((s) => s.kind === "clue") || pz.path[0];
+  const paint = (r, c) => {
+    const g = cells[r][c];
+    const v = M[r][c];
+    g._mark.textContent = v === 1 ? "✗" : v === 2 ? "✓" : "";
+    g._mark.setAttribute("fill", v === 1 ? RED : GREEN);
+  };
+  const clearGlow = () => {
+    view.querySelectorAll(".lp-glow").forEach((n) => n.classList.remove("lp-glow"));
+    cells.flat().forEach((g) => {
+      g._rect.setAttribute("stroke", LINE);
+      g._rect.setAttribute("stroke-width", 3);
+    });
+    clueCards.forEach((c) => c.setAttribute("stroke", "#e0b84a"));
+  };
+  const draw = () => {
+    const n = pz.n;
+    const tall = isTall();
+    const clueTexts = pz.clues.map((_, i) => gClueText(pz, i));
+    let w = W;
+    let h = H;
+    let cs;
+    let gx;
+    let gy;
+    let cx;
+    let cy;
+    let cw;
+    let size = 24;
+    const labelW = 104;
+    const headH = 92;
+    if (tall) {
+      w = 600;
+      cs = Math.min(96, (w - 30 - labelW) / n);
+      gx = (w - n * cs - labelW) / 2 + labelW;
+      gy = 12 + headH;
+      cx = 16;
+      cw = w - 32;
+      cy = gy + n * cs + 18;
+      const need = cy + clueTexts.reduce((s, t) => s + paraH(t, size, cw - 56) + 14, 0) + 8;
+      [w, h] = tallBox(600, need);
+    } else {
+      cs = n === 3 ? 104 : n === 4 ? 88 : 74;
+      gx = W - 24 - n * cs;
+      gy = (H - (headH + n * cs)) / 2 + headH;
+      cx = 16;
+      cw = gx - labelW - 40;
+      cy = 16;
+      const total = (sz) => clueTexts.reduce((s, t) => s + paraH(t, sz, cw - 56) + 14, 0);
+      while (size > 21 && total(size) > H - 30) size -= 1;
+      cy = Math.max(16, (H - total(size)) / 2);
+    }
+    fresh(w, h);
+    // clue cards
+    clueCards = [];
+    let y = cy;
+    clueTexts.forEach((t, i) => {
+      const ch = paraH(t, size, cw - 56) + 8;
+      const g = el("g", {}, view);
+      clueCards.push(box(g, cx, y, cw, ch, { fill: "#fff7d6", stroke: "#e0b84a", sw: 3, rx: 14 }));
+      text(g, cx + 24, y + ch / 2 + 8, String(i + 1), { "font-size": 24, fill: "#a8632d", "font-weight": 900 });
+      para(g, cx + 46, y + 3, t, { size, width: cw - 56 });
+      y += ch + 6;
+    });
+    // grid
+    pz.cols.forEach((c, i) => {
+      emoji(view, gx + i * cs + cs / 2, gy - 62, pz.icons[i], 40);
+      text(view, gx + i * cs + cs / 2, gy - 12, c.length > 9 ? c.slice(0, 8) + "." : c, { "font-size": c.length > 6 ? 19 : 22, fill: SOFT });
+    });
+    pz.names.forEach((nm, r) => text(view, gx - 12, gy + r * cs + cs / 2 + 9, nm, { "font-size": 26, fill: INK, "text-anchor": "end" }));
+    cells = [];
+    for (let r = 0; r < n; r++) {
+      cells.push([]);
+      for (let c = 0; c < n; c++) {
+        const g = el("g", { class: "lp-tap lp-cell", "data-r": r, "data-c": c, transform: `translate(${gx + c * cs} ${gy + r * cs})` }, view);
+        g._rect = box(g, 0, 0, cs, cs, { rx: 6, fill: (r + c) % 2 ? "#fffaf0" : PAPER });
+        g._mark = text(g, cs / 2, cs / 2 + cs * 0.22, "", { "font-size": cs * 0.62, "font-weight": 900 });
+        cells[r].push(g);
+        paint(r, c);
+      }
+    }
+    onTap(view, (g) => {
+      if (!g.classList.contains("lp-cell") || busy || my !== token) return;
+      const r = Number(g.dataset.r);
+      const c = Number(g.dataset.c);
+      M[r][c] = (M[r][c] + 1) % 3;
+      marks += 1;
+      clearGlow();
+      paint(r, c);
+      MUSIC.play("woodblock", M[r][c] === 2 ? 79 : 72, { gain: 0.22 });
+    });
+  };
+  const acts = () => {
+    host.innerHTML = btnRow([["check", "✅ Check", true], ["why", "❓ Why?"], ["clear", "↺ Clear"]]);
+  };
+  const ask = () => {
+    if (my !== token) return;
+    pz = gMake(level);
+    M = gEmpty(pz.n);
+    tries = 0;
+    marks = 0;
+    busy = false;
+    R = level === "hard" ? 6 : 8;
+    acts();
+    setStatus(`Grid ${round + 1} of ${R}`);
+    const rule = pz.ord[pz.n - 1] === DNF ? " Exactly one runner did not finish (DNF); every runner who finished counts as ahead of that runner." : "";
+    talk(`Read every clue. Tap a box once for ✗, twice for ✓. Each row and column has exactly one ✓.${rule}`, `Read every clue. Tap a box once for a cross, twice for a tick. Each row and each column has exactly one tick.${rule} ${pz.clues.map((_, i) => `Clue ${i + 1}: ${gClueText(pz, i)}`).join(" ")}`);
+    draw();
+  };
+  const wrongCells = () => {
+    const out = [];
+    for (let r = 0; r < pz.n; r++) for (let c = 0; c < pz.n; c++) if (M[r][c] && (M[r][c] === 2) !== (pz.sol[r] === c)) out.push([r, c]);
+    return out;
+  };
+  const solved = () => pz.sol.every((c, r) => M[r][c] === 2) && M.every((row) => row.filter((v) => v === 2).length === 1);
+  const settle = (won) => {
+    busy = true;
+    for (let r = 0; r < pz.n; r++) for (let c = 0; c < pz.n; c++) (M[r][c] = pz.sol[r] === c ? 2 : 1), paint(r, c);
+    clearGlow();
+    const k = keyStep();
+    k.cells.forEach(([r, c]) => cells[r][c]._rect.classList.add("lp-glow"));
+    if (k.i !== undefined) clueCards[k.i].setAttribute("stroke", "var(--accent)");
+    const answer = pz.names.map((nm, r) => gIs(pz, r, pz.sol[r])).join("; ");
+    talk(`${won ? (tries ? "Correct — your persistence paid off." : pick(EFFORT)) : "Here is the solution."} ${answer}. <b>The key step:</b> ${gStepText(pz, k)}`);
+    host.innerHTML = nextRow(round + 1 >= R);
+    window.OC?.count("logic grids solved");
+  };
+  const check = () => {
+    if (busy) return;
+    clearGlow();
+    if (solved()) {
+      MUSIC.chime();
+      if (!tries) first += 1;
+      return settle(true);
+    }
+    const bad = wrongCells();
+    if (!bad.length) {
+      const left = M.filter((row) => !row.includes(2)).length;
+      return talk(`Every mark so far is correct. ${left} row${left === 1 ? " still needs" : "s still need"} a ✓. Which clue have you not used yet?`);
+    }
+    tries += 1;
+    MUSIC.oops();
+    bad.forEach(([r, c]) => {
+      cells[r][c]._rect.setAttribute("stroke", ORANGE);
+      cells[r][c]._rect.setAttribute("stroke-width", 7);
+    });
+    if (tries < 2) {
+      const [r, c] = bad[0];
+      const clash = pz.clues.findIndex((cl) => UNARY.has(cl.t) && unaryCells(cl, pz.n).some(([a, x, v]) => a === r && x === c && v !== M[r][c]));
+      if (clash >= 0) clueCards[clash].setAttribute("stroke", "var(--accent)");
+      return talk(`${pick(NUDGE)} ${bad.length === 1 ? "The orange box disagrees" : `${bad.length} orange boxes disagree`} with the clues. ${clash >= 0 ? `Read clue ${clash + 1} again: does your mark agree with it?` : `Test the mark: if it were right, could every clue still be true? Follow the consequences.`}`);
+    }
+    settle(false);
+  };
+  const why = () => {
+    if (busy) return;
+    clearGlow();
+    if (!marks && !tries) return talk("Make an attempt first. Which clue tells you something directly? Mark it; then ask <b>Why?</b> for the next forced step.");
+    const bad = wrongCells();
+    if (bad.length) return talk(`Before the next step: one of your marks is not forced by the clues. Look again at ${pz.names[bad[0][0]]}'s row.`);
+    const K = M.map((row) => [...row]);
+    const st = gStep(K, pz, true);
+    if (!st) return talk("Every box is decided. Press <b>Check</b>.");
+    st.cells.forEach(([r, c]) => cells[r][c]._rect.classList.add("lp-glow"));
+    if (st.i !== undefined) clueCards[st.i].setAttribute("stroke", "var(--accent)");
+    window.OC?.count("reasoning steps explained");
+    talk(`<b>Next forced step.</b> ${gStepText(pz, st)}`);
+  };
+  host.onclick = (event) => {
+    const b = event.target.closest("[data-a]");
+    if (!b || my !== token) return;
+    window.OC?.touch();
+    const a = b.dataset.a;
+    if (a === "check") check();
+    else if (a === "why") why();
+    else if (a === "clear" && !busy) {
+      M = gEmpty(pz.n);
+      clearGlow();
+      for (let r = 0; r < pz.n; r++) for (let c = 0; c < pz.n; c++) paint(r, c);
+    } else if (a === "next") {
+      round += 1;
+      if (round >= R) finishGame(id, host, { R, first, noun: "grids", again: restart });
+      else ask();
+    }
+  };
+  const restart = () => {
+    round = 0;
+    first = 0;
+    host.onclick = hostClick;
+    ask();
+  };
+  const hostClick = host.onclick;
+  bindTop(id, (lv) => {
+    level = lv;
+    restart();
+  });
+  ask();
+  window.__lp = { pz: () => pz, M: () => M, check, why, solve: () => pz.sol.forEach((c, r) => ((M[r][c] = 2), paint(r, c))), setRound: (r) => (round = r), mark: (r, c, v) => ((M[r][c] = v), (marks += 1), paint(r, c)) };
+}
+
+// ================= 2. Knights and knaves =================
+function knightGame() {
+  const id = "lp2";
+  const my = token;
+  const R = 8;
+  let level = shell.progress()[id]?.level || "easy";
+  let round = 0;
+  let first = 0;
+  let tries = 0;
+  let busy = false;
+  let pz = null;
+  let pick3 = [];
+  let toggles = [];
+  panel(`${topRow(level)}<div class="lp-in" data-in></div>`);
+  const host = $("[data-in]");
+  const COLORS = ["#e08a1e", "#1e78c8", "#7b5ea7"];
+  const label = (v) => (v === 1 ? "🛡️ Knight" : v === 2 ? "🎭 Knave" : "Knight or knave?");
+  const draw = () => {
+    const n = pz.n;
+    const tall = isTall();
+    const speech = (i) => {
+      const st = pz.sts.find((s) => s.i === i);
+      return st ? `“${knText(st, pz.names)}”` : "(says nothing)";
+    };
+    if (tall) {
+      const cw = 600;
+      const rows = [...Array(n).keys()].map((i) => paraH(speech(i), 25, 440) + 108);
+      const need = 64 + rows.reduce((a, b) => a + b + 14, 0);
+      const [w, h] = tallBox(cw, need);
+      fresh(w, h);
+      text(view, w / 2, 40, "Knights always tell the truth. Knaves always lie.", { "font-size": 23, fill: "var(--accent-dark)" });
+      let y = 64;
+      toggles = [];
+      for (let i = 0; i < n; i++) {
+        const g = el("g", {}, view);
+        el("circle", { cx: 60, cy: y + 46, r: 40, fill: COLORS[i] }, g);
+        text(g, 60, y + 58, pz.names[i][0], { "font-size": 36, fill: "#fff" });
+        text(g, 60, y + 112, pz.names[i], { "font-size": 22, fill: INK });
+        const bh = paraH(speech(i), 25, 440);
+        box(g, 120, y, 464, bh + 8, { fill: "#fff", stroke: LINE, rx: 18 });
+        para(g, 132, y - 2, speech(i), { size: 25, width: 440, weight: 700, fill: pz.sts.some((s) => s.i === i) ? INK : SOFT });
+        toggles.push(button(view, 120, y + bh + 16, 464, 78, label(pick3[i]), { data: { k: i }, size: 28 }));
+        y += rows[i] + 14;
+      }
+    } else {
+      fresh();
+      text(view, W / 2, 46, "Knights always tell the truth. Knaves always lie.", { "font-size": 30, fill: "var(--accent-dark)" });
+      const cw = n === 2 ? 430 : 306;
+      const gap = 20;
+      const x0 = (W - n * cw - (n - 1) * gap) / 2;
+      toggles = [];
+      for (let i = 0; i < n; i++) {
+        const x = x0 + i * (cw + gap);
+        const g = el("g", {}, view);
+        box(g, x, 72, cw, 470, { fill: "#fffaf0", stroke: LINE, rx: 24 });
+        el("circle", { cx: x + cw / 2, cy: 132, r: 44, fill: COLORS[i] }, g);
+        text(g, x + cw / 2, 146, pz.names[i][0], { "font-size": 40, fill: "#fff" });
+        text(g, x + cw / 2, 210, pz.names[i], { "font-size": 30, fill: INK });
+        const size = n === 3 ? 25 : 27;
+        const bh = Math.max(120, paraH(speech(i), size, cw - 50) + 12);
+        box(g, x + 14, 228, cw - 28, bh, { fill: "#fff", stroke: LINE, rx: 18 });
+        para(g, x + 25, 228 + (bh - paraH(speech(i), size, cw - 50)) / 2 - 2, speech(i), { size, width: cw - 50, anchor: "middle", fill: pz.sts.some((s) => s.i === i) ? INK : SOFT });
+        toggles.push(button(view, x + 14, 462, cw - 28, 64, label(pick3[i]), { data: { k: i }, size: n === 3 ? 24 : 27 }));
+      }
+    }
+    onTap(view, (g) => {
+      if (busy || my !== token || g.dataset.k === undefined) return;
+      const i = Number(g.dataset.k);
+      pick3[i] = pick3[i] === 1 ? 2 : 1;
+      g._label.textContent = label(pick3[i]);
+      g._rect.setAttribute("fill", pick3[i] === 1 ? "#e6f3ff" : "#f6e6f6");
+      MUSIC.play("woodblock", pick3[i] === 1 ? 79 : 72, { gain: 0.22 });
+    });
+  };
+  const ask = () => {
+    if (my !== token) return;
+    pz = knMake(level);
+    pick3 = Array(pz.n).fill(0);
+    tries = 0;
+    busy = false;
+    host.innerHTML = btnRow([["check", "✅ Check", true]]);
+    setStatus(`Island ${round + 1} of ${R}`);
+    const lines = pz.sts.map((st) => `${pz.names[st.i]} says: ${knText(st, pz.names)}`).join(" ");
+    talk(`Who is a knight, and who is a knave? Tap each islander's button to decide, then press <b>Check</b>.`, `Knights always tell the truth; knaves always lie. ${lines} Who is a knight, and who is a knave?`);
+    draw();
+  };
+  const caseTable = (won) => {
+    const tall = isTall();
+    const cases = knCases(pz);
+    const n = pz.n;
+    const colW = tall ? 84 : 120;
+    const rowH = n === 3 ? 48 : 64;
+    const stH = pz.sts.length * 32 + 10;
+    const need = 20 + stH + 56 + cases.length * rowH + 10;
+    const [w, h] = tall ? tallBox(600, need) : [W, Math.max(H, need)];
+    fresh(w, h);
+    let y = 14;
+    pz.sts.forEach((st) => {
+      text(view, 24, y + 26, `${pz.names[st.i]}: “${knText(st, pz.names)}”`, { "font-size": tall ? 19 : 23, fill: SOFT, "text-anchor": "start" });
+      y += 32;
+    });
+    y += 10;
+    const x0 = 20;
+    pz.names.forEach((nm, i) => text(view, x0 + i * colW + colW / 2, y + 30, nm, { "font-size": 23, fill: INK }));
+    text(view, x0 + n * colW + 16, y + 30, "Test the case", { "font-size": 23, fill: INK, "text-anchor": "start" });
+    y += 46;
+    cases.forEach((c) => {
+      const right = c.ok;
+      box(view, x0 - 6, y, w - 2 * x0 + 12, rowH - 6, { fill: right ? "#e3f4e7" : "#fff", stroke: right ? GREEN : "#e6dccd", sw: right ? 4 : 2, rx: 12 });
+      c.t.forEach((k, i) => text(view, x0 + i * colW + colW / 2, y + rowH / 2 + 6, k ? "🛡️ K" : "🎭 N", { "font-size": 22, fill: k ? BLUE : "#8e44ad" }));
+      const bad = pz.sts.find((st) => knTrue(st, c.t) !== c.t[st.i]);
+      const verdict = right ? "✓ every statement fits" : `✗ ${pz.names[bad.i]}: a ${c.t[bad.i] ? "knight" : "knave"} could not say that`;
+      text(view, x0 + n * colW + 16, y + rowH / 2 + 6, verdict, { "font-size": tall ? 18 : 22, fill: right ? GREEN : SOFT, "text-anchor": "start", "font-weight": right ? 900 : 700 });
+      y += rowH;
+    });
+    const ans = pz.names.map((nm, i) => `${nm} is a ${pz.ans[i] ? "knight" : "knave"}`).join(", ");
+    const st0 = pz.sts[0];
+    const t0 = knTrue(st0, pz.ans);
+    talk(`${won ? (tries ? "Correct — your persistence paid off." : pick(EFFORT)) : "Here is the reasoning."} ${ans}. The board tests every possible case: assume the types in a row, then check each statement. A knight's statement must be true and a knave's must be false; one mismatch rules the row out. Only one row survives. For example, ${pz.names[st0.i]}'s statement is ${t0 ? "true" : "false"}, which fits a ${t0 ? "knight" : "knave"}.`);
+  };
+  const check = () => {
+    if (busy) return;
+    if (pick3.some((v) => !v)) return talk("Decide for every islander first: tap each button until it shows Knight or Knave.");
+    const right = pick3.every((v, i) => (v === 1) === pz.ans[i]);
+    if (right) {
+      MUSIC.chime();
+      if (!tries) first += 1;
+      busy = true;
+      caseTable(true);
+      host.innerHTML = nextRow(round + 1 >= R);
+      window.OC?.count("knights and knaves solved");
+      return;
+    }
+    tries += 1;
+    MUSIC.oops();
+    const t = pick3.map((v) => v === 1);
+    const bad = pz.sts.find((st) => knTrue(st, t) !== t[st.i]) || pz.sts[0];
+    if (tries < 2) {
+      return talk(`${pick(NUDGE)} Test your own answer. If ${pz.names[bad.i]} is a ${t[bad.i] ? "knight" : "knave"}, the statement “${knText(bad, pz.names)}” must be ${t[bad.i] ? "true" : "false"}. Is it, with your choices? Try supposing the opposite and follow the consequences.`);
+    }
+    busy = true;
+    caseTable(false);
+    host.innerHTML = nextRow(round + 1 >= R);
+  };
+  host.onclick = (event) => {
+    const b = event.target.closest("[data-a]");
+    if (!b || my !== token) return;
+    window.OC?.touch();
+    if (b.dataset.a === "check") check();
+    else if (b.dataset.a === "next") {
+      round += 1;
+      if (round >= R) finishGame(id, host, { R, first, noun: "islands", again: restart });
+      else ask();
+    }
+  };
+  const hostClick = host.onclick;
+  const restart = () => {
+    round = 0;
+    first = 0;
+    host.onclick = hostClick;
+    ask();
+  };
+  bindTop(id, (lv) => {
+    level = lv;
+    restart();
+  });
+  ask();
+  window.__lp = { pz: () => pz, set: (arr) => arr.forEach((v, i) => (pick3[i] = v ? 1 : 2)), check, setRound: (r) => (round = r) };
+}
+
+// ================= 3. Sudoku =================
+function sudokuGame() {
+  const id = "lp3";
+  const my = token;
+  let level = shell.progress()[id]?.level || "easy";
+  const SIZE = { easy: 4, medium: 6, hard: 9 };
+  const ROUNDS = { easy: 8, medium: 5, hard: 3 };
+  let R = ROUNDS[level];
+  let round = 0;
+  let first = 0;
+  let tries = 0;
+  let entered = 0;
+  let busy = false;
+  let pz = null;
+  let g = [];
+  let pm = [];
+  let sel = -1;
+  let pencil = false;
+  let wrongShown = new Set();
+  let hintCell = -1;
+  let cellG = [];
+  let padG = [];
+  panel(`${topRow(level)}<div class="lp-in" data-in></div>`);
+  const host = $("[data-in]");
+  const draw = () => {
+    const n = pz.n;
+    const [br, bc] = SD_BOX[n];
+    const tall = isTall();
+    let gs;
+    let gx;
+    let gy;
+    let px;
+    let py;
+    let pw;
+    let ph;
+    let cols;
+    if (tall) {
+      // 9×9 on a phone: use the full width so the squares are as large as possible.
+      gs = n === 9 ? 584 : 560;
+      gx = n === 9 ? 8 : 20;
+      gy = 10;
+      px = gx;
+      py = gy + gs + 16;
+      pw = gs;
+      cols = n;
+      ph = 74;
+      const [w, h] = tallBox(600, py + ph * 2 + 24);
+      fresh(w, h);
+    } else {
+      fresh();
+      gs = 530;
+      gx = 40;
+      gy = 15;
+      px = 620;
+      py = 30;
+      pw = 350;
+      cols = n === 4 ? 2 : 3;
+      ph = Math.min(96, (440 - 12 * Math.ceil(n / cols)) / Math.ceil(n / cols + 1));
+    }
+    const cs = gs / n;
+    cellG = [];
+    for (let i = 0; i < n * n; i++) {
+      const r = Math.floor(i / n);
+      const c = i % n;
+      const cg = el("g", { class: "lp-tap lp-cell", "data-i": i, transform: `translate(${gx + c * cs} ${gy + r * cs})` }, view);
+      cg._rect = el("rect", { width: cs, height: cs, fill: "#fff", stroke: "#cdbfa8", "stroke-width": 1.5 }, cg);
+      cg._num = text(cg, cs / 2, cs / 2 + cs * 0.2, "", { "font-size": cs * 0.56 });
+      cg._pm = el("g", {}, cg);
+      cellG.push(cg);
+    }
+    // box borders
+    for (let b = 0; b <= n; b++) {
+      if (b % bc === 0) el("line", { x1: gx + b * cs, y1: gy, x2: gx + b * cs, y2: gy + gs, stroke: INK, "stroke-width": 4, "pointer-events": "none" }, view);
+      if (b % br === 0) el("line", { x1: gx, y1: gy + b * cs, x2: gx + gs, y2: gy + b * cs, stroke: INK, "stroke-width": 4, "pointer-events": "none" }, view);
+    }
+    padG = [];
+    const keys = [...Array(n).keys()].map((d) => String(d + 1));
+    if (tall && n === 9) {
+      // Two rows of six wide keys (1–5 + pencil, 6–9 + erase) instead of nine narrow ones.
+      const kw = (pw - 5 * 8) / 6;
+      keys.forEach((k, j) => padG.push(button(view, px + (j % 5) * (kw + 8), py + Math.floor(j / 5) * (ph + 10), kw, ph, k, { size: 36, data: { d: k } })));
+      const pb = button(view, px + 5 * (kw + 8), py, kw, ph, "✏️ off", { size: 24, data: { d: "pencil" } });
+      pb._short = true;
+      padG.push(pb);
+      padG.push(button(view, px + 4 * (kw + 8), py + ph + 10, kw * 2 + 8, ph, "⌫ Erase", { size: 26, data: { d: "erase" } }));
+    } else if (tall) {
+      const kw = (pw - (n - 1) * 8) / n;
+      keys.forEach((k, j) => padG.push(button(view, px + j * (kw + 8), py, kw, ph, k, { size: 34, data: { d: k } })));
+      padG.push(button(view, px, py + ph + 10, pw / 2 - 5, ph, "✏️ Pencil: off", { size: 24, data: { d: "pencil" } }));
+      padG.push(button(view, px + pw / 2 + 5, py + ph + 10, pw / 2 - 5, ph, "⌫ Erase", { size: 24, data: { d: "erase" } }));
+    } else {
+      const kw = (pw - (cols - 1) * 12) / cols;
+      keys.forEach((k, j) => padG.push(button(view, px + (j % cols) * (kw + 12), py + Math.floor(j / cols) * (ph + 12), kw, ph, k, { size: 38, data: { d: k } })));
+      const yb = py + Math.ceil(n / cols) * (ph + 12) + 8;
+      padG.push(button(view, px, yb, pw, Math.min(ph, 72), "✏️ Pencil: off", { size: 26, data: { d: "pencil" } }));
+      padG.push(button(view, px, yb + Math.min(ph, 72) + 12, pw, Math.min(ph, 72), "⌫ Erase", { size: 26, data: { d: "erase" } }));
+    }
+    onTap(view, (t) => {
+      if (busy || my !== token) return;
+      if (t.dataset.i !== undefined) {
+        sel = Number(t.dataset.i);
+        MUSIC.tick?.();
+      } else if (t.dataset.d === "pencil") pencil = !pencil;
+      else if (t.dataset.d === "erase") {
+        if (sel >= 0 && !pz.givens[sel]) {
+          g[sel] = 0;
+          pm[sel].clear();
+          wrongShown.delete(sel);
+        }
+      } else if (t.dataset.d) put(Number(t.dataset.d));
+      render();
+    });
+    render();
+  };
+  const put = (d) => {
+    if (sel < 0 || pz.givens[sel]) return say(sel < 0 ? "First tap an empty square, then a digit." : "That digit is given; choose an empty square.", { voice: false });
+    if (pencil) {
+      if (pm[sel].has(d)) pm[sel].delete(d);
+      else pm[sel].add(d);
+      g[sel] = 0;
+      return;
+    }
+    g[sel] = g[sel] === d ? 0 : d;
+    wrongShown.delete(sel);
+    pm[sel].clear();
+    if (g[sel]) {
+      entered += 1;
+      for (const j of sdPeers(pz.n).peers[sel]) pm[j].delete(d);
+      MUSIC.play("xylophone", 60 + d * 2, { gain: 0.2 });
+    }
+    hintCell = -1;
+  };
+  const render = () => {
+    const n = pz.n;
+    const peers = sel >= 0 ? new Set(sdPeers(n).peers[sel]) : new Set();
+    const cs = Number(cellG[0]._rect.getAttribute("width"));
+    const selD = sel >= 0 ? g[sel] : 0;
+    cellG.forEach((cg, i) => {
+      const fillC = i === sel ? "#ffe3b8" : i === hintCell ? "#d8f2df" : selD && g[i] === selD ? "#fff1d6" : peers.has(i) ? "#fbf5ea" : "#fff";
+      cg._rect.setAttribute("fill", fillC);
+      cg._num.textContent = g[i] ? String(g[i]) : "";
+      cg._num.setAttribute("fill", pz.givens[i] ? INK : wrongShown.has(i) ? RED : BLUE);
+      cg._num.setAttribute("font-weight", pz.givens[i] ? 900 : 700);
+      cg._pm.innerHTML = "";
+      if (!g[i] && pm[i].size) {
+        const [br, bc] = SD_BOX[n];
+        const k = Math.ceil(Math.sqrt(n));
+        const per = n === 6 ? 3 : k;
+        const rows = Math.ceil(n / per);
+        for (const d of pm[i]) {
+          const x = (((d - 1) % per) + 0.5) * (cs / per);
+          const y = (Math.floor((d - 1) / per) + 0.5) * (cs / rows) + cs / rows / 4;
+          text(cg._pm, x, y, String(d), { "font-size": Math.max(13, (cs / rows) * 0.62), fill: SOFT, "font-weight": 700 });
+        }
+        void br;
+        void bc;
+      }
+    });
+    const pb = padG.find((p) => p.dataset.d === "pencil");
+    if (pb) {
+      pb._label.textContent = pb._short ? `✏️ ${pencil ? "on" : "off"}` : `✏️ Pencil: ${pencil ? "on" : "off"}`;
+      pb._rect.setAttribute("fill", pencil ? "var(--accent-soft)" : "#fff");
+    }
+  };
+  const ask = () => {
+    if (my !== token) return;
+    pz = sdMake(SIZE[level]);
+    g = [...pz.givens];
+    pm = g.map(() => new Set());
+    sel = -1;
+    tries = 0;
+    entered = 0;
+    busy = false;
+    hintCell = -1;
+    wrongShown = new Set();
+    R = ROUNDS[level];
+    host.innerHTML = btnRow([["check", "✅ Check", true], ["hint", "💡 Hint"]]);
+    setStatus(`Puzzle ${round + 1} of ${R}`);
+    const [br, bc] = SD_BOX[pz.n];
+    talk(`Fill the grid so that every row, column and ${br}×${bc} box contains 1 to ${pz.n} exactly once. Tap a square, then a digit.`);
+    draw();
+  };
+  const correctGrid = () => g.map((v, i) => (v && v === pz.sol[i] ? v : 0));
+  const firstHint = () => sdSingle([...pz.givens], pz.n);
+  const settle = (won) => {
+    busy = true;
+    g = [...pz.sol];
+    wrongShown.clear();
+    sel = -1;
+    const h0 = firstHint();
+    hintCell = h0 ? h0.i : -1;
+    render();
+    talk(`${won ? (tries ? "Correct — your persistence paid off." : pick(EFFORT)) : "Here is the solution."} Every digit was forced; no guess was needed. For example, the very first step from the start: ${h0 ? sdHintText(h0, pz.n) : ""}`);
+    host.innerHTML = nextRow(round + 1 >= R);
+    window.OC?.count("sudoku solved");
+  };
+  const check = () => {
+    if (busy) return;
+    const wrong = g.map((v, i) => (v && !pz.givens[i] && v !== pz.sol[i] ? i : -1)).filter((i) => i >= 0);
+    const empty = g.filter((v) => !v).length;
+    if (!wrong.length && !empty) {
+      MUSIC.chime();
+      if (!tries) first += 1;
+      return settle(true);
+    }
+    if (!wrong.length) return talk(`No errors so far. ${empty} square${empty === 1 ? "" : "s"} remain${empty === 1 ? "s" : ""}. Look for a box, row or column with only one gap.`);
+    tries += 1;
+    MUSIC.oops();
+    wrong.forEach((i) => wrongShown.add(i));
+    render();
+    if (tries < 2) return talk(`${pick(NUDGE)} ${wrong.length} digit${wrong.length === 1 ? " is" : "s are"} not part of the solution (shown in red). For each one, list the digits its row, column and box already contain. What is truly left?`);
+    settle(false);
+  };
+  const hint = () => {
+    if (busy) return;
+    if (!entered && !tries) return talk("Try first. Choose one box: which digit is missing, and in how many squares could it go? Then ask for a hint.");
+    if (g.some((v, i) => v && v !== pz.sol[i])) return talk("Before the next step: one of your digits is wrong. Press <b>Check</b> to find it.");
+    const s = sdSingle(correctGrid(), pz.n);
+    if (!s) return talk("The grid is complete. Press <b>Check</b>.");
+    hintCell = s.i;
+    sel = -1;
+    render();
+    window.OC?.count("sudoku techniques named");
+    talk(`${sdHintText(s, pz.n)} (The green square.)`);
+  };
+  host.onclick = (event) => {
+    const b = event.target.closest("[data-a]");
+    if (!b || my !== token) return;
+    window.OC?.touch();
+    const a = b.dataset.a;
+    if (a === "check") check();
+    else if (a === "hint") hint();
+    else if (a === "next") {
+      round += 1;
+      if (round >= R) finishGame(id, host, { R, first, noun: "puzzles", again: restart });
+      else ask();
+    }
+  };
+  const hostClick = host.onclick;
+  const restart = () => {
+    round = 0;
+    first = 0;
+    host.onclick = hostClick;
+    ask();
+  };
+  bindTop(id, (lv) => {
+    level = lv;
+    restart();
+  });
+  ask();
+  window.__lp = { pz: () => pz, g: () => g, fill: (k = 0) => ((g = pz.sol.map((v, i) => (i < pz.n * pz.n - k ? v : pz.givens[i]))), (entered += 1), render()), wrong: () => { const i = g.findIndex((v, k) => !pz.givens[k]); g[i] = (pz.sol[i] % pz.n) + 1; entered += 1; render(); }, check, hint, setRound: (r) => (round = r), sel: (i) => ((sel = i), render()), put: (d) => (put(d), render()) };
+}
+
+// ================= 4. River crossings and jugs =================
+function crossGame() {
+  const id = "lp4";
+  const my = token;
+  const R = 6;
+  let level = shell.progress()[id]?.level || "easy";
+  let round = 0;
+  let first = 0;
+  let tries = 0;
+  let moves = 0;
+  let busy = false;
+  let pz = null;
+  let kind = "river";
+  let s = null; // current state
+  let load = []; // river: items (farm) or [explorers, bears] in the boat
+  let selJ = -1;
+  panel(`${topRow(level)}<div class="lp-in" data-in></div>`);
+  const host = $("[data-in]");
+  const api = () => anim(() => my === token);
+  const startState = () => (kind === "jug" ? [...pz.start] : pz.kind === "farm" ? { f: 0, at: pz.items.map(() => 0) } : { e: pz.m, b: pz.m, boat: 0 });
+  const boatSide = () => (pz.kind === "farm" ? s.f : s.boat);
+  // ---------- river drawing ----------
+  const drawRiver = (sailing = false) => {
+    const tall = isTall();
+    const [w, h] = tall ? tallBox(600, 640) : [W, H];
+    fresh(w, h);
+    const bankW = tall ? 170 : 250;
+    el("rect", { x: 0, y: 0, width: w, height: h, fill: "#cfe8f7" }, view);
+    for (let k = 0; k < 6; k++) for (let x = bankW + 20 + (k % 2) * 60; x < w - bankW - 100; x += 200) el("path", { d: `M${x} ${80 + k * 80} q 40 -14 80 0 t 80 0`, fill: "none", stroke: "#a9d3ee", "stroke-width": 4 }, view);
+    el("rect", { x: 0, y: 0, width: bankW, height: h, fill: "#cde7b0" }, view);
+    el("rect", { x: w - bankW, y: 0, width: bankW, height: h, fill: "#cde7b0" }, view);
+    text(view, bankW / 2, 34, "Start", { "font-size": 24, fill: "#3d6b22" });
+    text(view, w - bankW / 2, 34, "Goal", { "font-size": 24, fill: "#3d6b22" });
+    const tok = [];
+    const side = boatSide();
+    const boatX = side === 0 ? bankW + 10 : w - bankW - (tall ? 160 : 200) - 10;
+    const boatW = tall ? 160 : 200;
+    const boatY = h / 2 + 30;
+    const mover = el("g", {}, view);
+    const boat = el("g", { class: "lp-boat", transform: `translate(${boatX} ${boatY})` }, mover);
+    el("path", { d: `M0 0 L${boatW} 0 L${boatW - 26} 46 L26 46 Z`, fill: "#9a6234", stroke: "#5d3a1c", "stroke-width": 4 }, boat);
+    const r = tall ? 34 : 40;
+    const place = (glyph, x, y, data, inBoat) => {
+      const g2 = el("g", { class: "lp-tap", transform: `translate(${x} ${y})` }, inBoat ? mover : view);
+      for (const [k, v] of Object.entries(data)) g2.setAttribute(`data-${k}`, v);
+      el("circle", { r, fill: inBoat ? "#fff3c4" : "#fff", stroke: inBoat ? "#d1a52a" : "rgba(0,0,0,.18)", "stroke-width": 3 }, g2);
+      emoji(g2, 0, -2, glyph, r * 1.15);
+      tok.push(g2);
+      return g2;
+    };
+    const colX = (sd) => (sd === 0 ? bankW / 2 : w - bankW / 2);
+    const slots = (count) => [...Array(count).keys()].map((k) => 90 + k * Math.min(2.3 * r + 6, (h - 120) / Math.max(1, count)));
+    if (pz.kind === "farm") {
+      const onBank = [[], []];
+      if (!sailing) onBank[s.f].push(-1); // the farmer waits on the bank until the boat sails
+      pz.items.forEach((_, i) => {
+        if (!load.includes(i)) onBank[s.at[i]].push(i);
+      });
+      for (const sd of [0, 1]) {
+        const ys = slots(onBank[sd].length);
+        onBank[sd].forEach((i, k) => {
+          if (i === -1) place("🧑‍🌾", colX(sd), ys[k], { f: 1 }, false);
+          else place(pz.items[i][0], colX(sd), ys[k], { item: i }, false);
+        });
+      }
+      const crew = sailing ? [-1, ...load] : load;
+      crew.forEach((i, k) => place(i === -1 ? "🧑‍🌾" : pz.items[i][0], boatX + boatW / 2 + (k - (crew.length - 1) / 2) * 2.1 * r, boatY - r + 6, i === -1 ? { f: 1 } : { item: i, boat: 1 }, true));
+      if (!crew.length) text(view, boatX + boatW / 2, boatY - 12, "empty", { "font-size": 22, fill: "#5d3a1c" });
+    } else {
+      const L = [s.e, s.b];
+      const Rr = [pz.m - s.e, pz.m - s.b];
+      const banks = [L, Rr];
+      for (const sd of [0, 1]) {
+        const [ex, be] = banks[sd];
+        const inE = sd === s.boat ? load[0] : 0;
+        const inB = sd === s.boat ? load[1] : 0;
+        const ys = slots(Math.max(pz.m, 1));
+        for (let k = 0; k < ex - inE; k++) place("🤠", colX(sd) - (tall ? 40 : 52), ys[k], { who: "e", sd }, false);
+        for (let k = 0; k < be - inB; k++) place("🐻", colX(sd) + (tall ? 40 : 52), ys[k], { who: "b", sd }, false);
+      }
+      const inside = [...Array(load[0]).fill("e"), ...Array(load[1]).fill("b")];
+      inside.forEach((who, k) => place(who === "e" ? "🤠" : "🐻", boatX + boatW / 2 + (k - (inside.length - 1) / 2) * 2.1 * r, boatY - r + 6, { who, boat: 1 }, true));
+      if (!inside.length) text(view, boatX + boatW / 2, boatY - 12, "empty", { "font-size": 22, fill: "#5d3a1c" });
+    }
+    const rule = pz.kind === "farm" ? `${pz.eats.map(([a, b]) => `${pz.items[a][1]} eats ${pz.items[b][1]}`).join(" · ")}` : `Bears must never outnumber explorers`;
+    const lim = pz.kind === "farm" ? `Boat: farmer + ${pz.cap}` : `Boat: ${pz.cap} seats`;
+    el("rect", { x: 0, y: h - (tall ? 80 : 86), width: w, height: tall ? 80 : 86, fill: "rgba(255,255,255,.82)" }, view);
+    text(view, w / 2, h - (tall ? 48 : 52), rule, { "font-size": tall ? 21 : 24, fill: "#1d4f7a" });
+    text(view, w / 2, h - 16, `${lim} · Crossings: ${moves} · Fewest possible: ${pz.min}`, { "font-size": tall ? 21 : 24, fill: "#1d4f7a" });
+    onTap(view, (t) => riverTap(t));
+    const target = side === 0 ? w - bankW - boatW - 10 : bankW + 10;
+    return { mover, dx: target - boatX };
+  };
+  const riverTap = (t) => {
+    if (busy || my !== token) return;
+    const side = boatSide();
+    if (pz.kind === "farm") {
+      if (t.dataset.f) return say("The farmer always rows. Choose what goes with the farmer, then press <b>Cross</b>.", { voice: false });
+      const i = Number(t.dataset.item);
+      if (Number.isNaN(i)) return;
+      if (t.dataset.boat) load = load.filter((x) => x !== i);
+      else if (s.at[i] !== side) return say("The boat is on the other bank.", { voice: false });
+      else if (load.length >= pz.cap) return say(`The boat holds the farmer and ${pz.cap === 1 ? "one passenger" : "two passengers"}.`, { voice: false });
+      else load.push(i);
+    } else {
+      const who = t.dataset.who;
+      if (!who) return;
+      const k = who === "e" ? 0 : 1;
+      if (t.dataset.boat) load[k] -= 1;
+      else if (Number(t.dataset.sd) !== side) return say("The boat is on the other bank.", { voice: false });
+      else if (load[0] + load[1] >= pz.cap) return say(`The boat has only ${pz.cap} seats.`, { voice: false });
+      else load[k] += 1;
+    }
+    MUSIC.play("woodblock", 76, { gain: 0.2 });
+    drawRiver();
+  };
+  const cross = async () => {
+    if (busy || my !== token) return;
+    if (pz.kind === "bears" && load[0] + load[1] === 0) return talk("Someone must row: put at least one passenger in the boat.");
+    busy = true;
+    const prev = s;
+    const next = pz.kind === "farm" ? { f: 1 - s.f, at: s.at.map((v, i) => (load.includes(i) ? 1 - v : v)) } : { e: s.e + (s.boat === 0 ? -load[0] : load[0]), b: s.b + (s.boat === 0 ? -load[1] : load[1]), boat: 1 - s.boat };
+    const d = drawRiver(true);
+    await quiet(api().tween(900, (k) => d.mover.setAttribute("transform", `translate(${d.dx * k} 0)`)));
+    if (my !== token) return;
+    const bad = pz.kind === "farm" ? farmUnsafe(pz, next) : bearUnsafe(pz, next);
+    if (bad) {
+      tries += 1;
+      MUSIC.oops();
+      const msg = pz.kind === "farm" ? `Left alone without the farmer, the ${pz.items[bad[0]][1]} would eat the ${pz.items[bad[1]][1]}.` : (() => {
+        const e = bad === "left" ? next.e : pz.m - next.e;
+        const b = bad === "left" ? next.b : pz.m - next.b;
+        return `On the ${bad === "left" ? "start" : "goal"} bank, ${b} bear${b === 1 ? "" : "s"} would outnumber ${e} explorer${e === 1 ? "" : "s"}.`;
+      })();
+      s = prev;
+      busy = false;
+      drawRiver();
+      return talk(`${msg} That crossing is not allowed, so the boat returns. ${tries >= 2 ? "If you wish, press <b>▶ Show me</b> to watch the shortest solution." : "Think one move ahead: what will be left behind?"}`);
+    }
+    s = next;
+    moves += 1;
+    load = pz.kind === "farm" ? [] : [0, 0];
+    busy = false;
+    drawRiver();
+    MUSIC.play("xylophone", 67 + (moves % 5) * 2, { gain: 0.2 });
+    const done = pz.kind === "farm" ? s.f === 1 && s.at.every((v) => v === 1) : s.e === 0 && s.b === 0 && s.boat === 1;
+    if (done) return win(true);
+    if (tries >= 2) acts();
+  };
+  // ---------- jugs ----------
+  const drawJugs = (flash = -1) => {
+    const tall = isTall();
+    const [w, h] = tall ? tallBox(600, 600) : [W, H];
+    fresh(w, h);
+    const n = pz.caps.length;
+    const maxC = Math.max(...pz.caps);
+    const jw = tall ? (n === 3 ? 140 : 170) : n === 3 ? 170 : 200;
+    const gap = tall ? 30 : 70;
+    const x0 = (w - n * jw - (n - 1) * gap) / 2;
+    const top = 90;
+    const bottom = h - (pz.tap ? (tall ? 170 : 150) : 80);
+    const unit = (bottom - top) / maxC;
+    const goal = pz.split ? `Goal: split the ${pz.caps[0]} litres into two equal halves, ${pz.target} + ${pz.target}` : `Goal: exactly ${pz.target} litre${pz.target === 1 ? "" : "s"} in one jug`;
+    text(view, w / 2, 40, goal, { "font-size": tall ? 23 : 30, fill: "var(--accent-dark)" });
+    pz.caps.forEach((cap, i) => {
+      const x = x0 + i * (jw + gap);
+      const hh = cap * unit;
+      const jg = el("g", { class: "lp-tap", "data-j": i }, view);
+      el("rect", { x: x - 10, y: top - 10, width: jw + 20, height: bottom - top + 20, fill: "transparent" }, jg);
+      el("rect", { x, y: bottom - hh, width: jw, height: hh, rx: 10, fill: "#eef6fb", stroke: i === selJ ? "var(--accent)" : "#5b7f99", "stroke-width": i === selJ ? 8 : 5 }, jg);
+      const lv = s[i] * unit;
+      el("rect", { x: x + 5, y: bottom - lv, width: jw - 10, height: Math.max(0, lv - 4), rx: 6, fill: flash === i ? "#5fb6f0" : "#3d9be0" }, jg);
+      for (let k = 1; k < cap; k++) el("line", { x1: x, y1: bottom - k * unit, x2: x + 18, y2: bottom - k * unit, stroke: "#5b7f99", "stroke-width": 3 }, jg);
+      text(jg, x + jw / 2, bottom - hh - 14, `${cap}-litre jug`, { "font-size": 22, fill: SOFT });
+      text(jg, x + jw / 2, bottom - hh / 2 + 12, `${s[i]} L`, { "font-size": 36, fill: INK, "font-weight": 900, stroke: "#fff", "stroke-width": 7, "paint-order": "stroke" });
+      if (pz.tap) {
+        const bh2 = tall ? 82 : 58;
+        button(view, x - (tall ? 6 : 0), bottom + 14, jw / 2 - 2 + (tall ? 6 : 0), bh2, "Fill", { size: tall ? 26 : 23, data: { op: "fill", j: i } });
+        button(view, x + jw / 2 + 4, bottom + 14, jw / 2 - 2 + (tall ? 6 : 0), bh2, "Empty", { size: tall ? 26 : 23, data: { op: "empty", j: i } });
+      }
+    });
+    text(view, w / 2, h - 14, `${pz.tap ? "Tap a jug, then another, to pour." : "No tap: only pour, jug to jug."} Moves: ${moves} · Fewest: ${pz.min}`, { "font-size": tall ? 20 : 23, fill: SOFT });
+    onTap(view, (t) => jugTap(t));
+  };
+  const jugDo = (mv) => {
+    const next = jugMoves(pz, s).find((m) => JSON.stringify(m.move) === JSON.stringify(mv));
+    if (!next) return false;
+    s = next.state;
+    moves += 1;
+    MUSIC.play("xylophone", 60 + (s.reduce((a, b) => a + b, 0) % 20), { gain: 0.25 });
+    return true;
+  };
+  const jugTap = (t) => {
+    if (busy || my !== token) return;
+    const j = Number(t.dataset.j);
+    if (t.dataset.op) {
+      const done = jugDo({ op: t.dataset.op, i: j });
+      if (!done) say(t.dataset.op === "fill" ? "That jug is already full." : "That jug is already empty.", { voice: false });
+      selJ = -1;
+    } else if (selJ < 0) {
+      if (!s[j]) return say("That jug is empty: there is nothing to pour.", { voice: false });
+      selJ = j;
+    } else if (selJ === j) selJ = -1;
+    else {
+      if (!jugDo({ op: "pour", i: selJ, j })) say("Nothing can be poured: the jug is full.", { voice: false });
+      selJ = -1;
+    }
+    drawJugs();
+    if (jugGoal(pz, s)) return win(true);
+    if (moves > pz.min * 2 + 2 && tries < 2) {
+      tries = 2;
+      acts();
+      talk("You have made many moves. Restart and plan ahead, ask for a hint, or press <b>▶ Show me</b> for the shortest solution.");
+    }
+  };
+  // ---------- shared ----------
+  const solveFrom = () => (kind === "jug" ? jugSolve(pz, s) : pz.kind === "farm" ? farmSolve(pz, s) : bearSolve(pz, s));
+  const moveWords = (mv) => {
+    if (kind === "jug") return JUG_WORD(pz, mv);
+    if (pz.kind === "farm") return mv.length ? `the farmer takes the ${mv.map((i) => pz.items[i][1]).join(" and the ")} across` : "the farmer crosses alone";
+    const [e, b] = mv;
+    return `send ${[e ? `${e} explorer${e > 1 ? "s" : ""}` : "", b ? `${b} bear${b > 1 ? "s" : ""}` : ""].filter(Boolean).join(" and ")}`;
+  };
+  const win = (mine) => {
+    busy = true;
+    MUSIC.chime();
+    if (mine && !tries) first += 1;
+    const full = kind === "jug" ? jugSolve(pz) : pz.kind === "farm" ? farmSolve(pz) : bearSolve(pz);
+    const best = moves === pz.min;
+    talk(`${mine ? (best ? "Correct — and in the fewest possible moves." : "Solved.") : "That is the shortest solution."} ${mine ? `You used ${moves} move${moves === 1 ? "" : "s"}. ` : ""}A breadth-first search (checking every position 1 move away, then 2, then 3, and so on) examined ${full.explored} positions and proves that ${pz.min} is the minimum: no shorter route exists.${mine && !best ? " Can you find where your route took a detour?" : ""}`);
+    host.innerHTML = nextRow(round + 1 >= R);
+    window.OC?.count("state-space puzzles solved");
+  };
+  const showMe = async () => {
+    if (my !== token) return;
+    busy = true;
+    s = startState();
+    moves = 0;
+    load = pz.kind === "farm" ? [] : [0, 0];
+    selJ = -1;
+    const path = solveFrom().path;
+    const a = api();
+    redraw();
+    for (const step of path) {
+      await quiet(a.wait(400));
+      if (my !== token) return;
+      say(`Move ${moves + 1}: ${moveWords(step.move)}.`, { voice: false });
+      VOICE.speak(`Move ${moves + 1}: ${moveWords(step.move)}.`);
+      s = step.state;
+      moves += 1;
+      redraw();
+      MUSIC.play("xylophone", 67 + (moves % 5) * 2, { gain: 0.2 });
+      await quiet(a.wait(2000));
+      if (my !== token) return;
+    }
+    win(false);
+  };
+  const hint = () => {
+    if (busy) return;
+    if (moves < 2 && !tries) return talk("Make a few moves first; a hint is more useful once you have tried a plan.");
+    if (kind === "river") load = pz.kind === "farm" ? [] : [0, 0];
+    const res = solveFrom();
+    if (!res.path) return talk("From this position the goal cannot be reached. Press <b>↺ Restart</b>.");
+    redraw();
+    window.OC?.count("hints used wisely");
+    talk(`From here, the shortest route needs ${res.path.length} more move${res.path.length === 1 ? "" : "s"}. Next: ${moveWords(res.path[0].move)}.`);
+  };
+  const redraw = () => (kind === "jug" ? drawJugs() : drawRiver());
+  const acts = () => {
+    const list = kind === "jug" ? [["hint", "💡 Hint"], ["reset", "↺ Restart"]] : [["cross", "⛵ Cross", true], ["hint", "💡 Hint"], ["reset", "↺ Restart"]];
+    if (tries >= 2) list.push(["show", "▶ Show me"]);
+    host.innerHTML = btnRow(list);
+  };
+  const ask = () => {
+    if (my !== token) return;
+    kind = round % 2 === 0 ? "river" : "jug";
+    pz = kind === "jug" ? jugMake(level) : riverMake(level);
+    s = startState();
+    load = kind === "river" && pz.kind === "bears" ? [0, 0] : [];
+    selJ = -1;
+    moves = 0;
+    tries = 0;
+    busy = false;
+    acts();
+    setStatus(`Puzzle ${round + 1} of ${R}`);
+    queueMicrotask(redraw);
+    if (kind === "jug") talk(pz.split ? `Split the ${pz.caps[0]} litres into two equal halves using only these jugs. Tap a jug, then another, to pour. Each pour counts as one move.` : `Measure exactly ${pz.target} litre${pz.target === 1 ? "" : "s"}. Fill, empty, or tap one jug and then another to pour. Each fill, empty or pour counts as one move.`);
+    else if (pz.kind === "farm") talk(`Bring everything to the goal bank. The boat carries the farmer and ${pz.cap === 1 ? "one passenger" : "up to two passengers"}. Never leave a hungry pair alone.${round === 0 ? " (A puzzle of this kind appears in <i>Problems to Sharpen the Young</i>, a collection attributed to Alcuin of York, written around AD 800.)" : ""}`);
+    else talk(`Bring all ${pz.m} explorers and ${pz.m} bears across. The boat holds ${pz.cap}. On either bank, bears must never outnumber explorers who are there.`);
+  };
+  host.onclick = (event) => {
+    const b = event.target.closest("[data-a]");
+    if (!b || my !== token) return;
+    window.OC?.touch();
+    const a = b.dataset.a;
+    if (a === "cross") cross();
+    else if (a === "hint") hint();
+    else if (a === "reset" && !busy) {
+      tries += 1;
+      s = startState();
+      moves = 0;
+      load = kind === "river" && pz.kind === "bears" ? [0, 0] : [];
+      selJ = -1;
+      redraw();
+      acts();
+      talk(tries >= 2 ? "Fresh start. Plan the first three moves before you begin, or press <b>▶ Show me</b>." : "Fresh start. Plan the first three moves before you begin.");
+    } else if (a === "show" && !busy) showMe();
+    else if (a === "next") {
+      round += 1;
+      if (round >= R) finishGame(id, host, { R, first, noun: "puzzles", again: restart });
+      else ask();
+    }
+  };
+  const hostClick = host.onclick;
+  const restart = () => {
+    round = 0;
+    first = 0;
+    host.onclick = hostClick;
+    ask();
+  };
+  bindTop(id, (lv) => {
+    level = lv;
+    restart();
+  });
+  ask();
+  window.__lp = { pz: () => pz, s: () => s, kind: () => kind, setRound: (r) => (round = r), go: (r) => ((round = r), ask()), showMe, hint, solve: async () => { for (const st of solveFrom().path) { if (kind === "jug") jugDo(st.move); else { load = pz.kind === "farm" ? [...st.move] : [...st.move]; await cross(); } } if (kind === "jug") { drawJugs(); win(true); } } };
+}
+
+// ================= the question engine (binary, syllogisms, truth tables) =================
+// cfg: { R, make(level, round) -> q, noun, count }
+// q: { draw(a), ask, voice?, input: "num" | "choice" | "custom", opts?, mount?(host, answer), ans, ok?(v), hint(v), why, after?(a, won), max? }
+function quiz(id, cfg) {
+  const my = token;
+  const R = cfg.R || 8;
+  let level = shell.progress()[id]?.level || "easy";
+  let round = 0;
+  let first = 0;
+  let tries = 0;
+  let q = null;
+  let busy = false;
+  let pad = null;
+  panel(`${topRow(level)}<div class="lp-in" data-in></div>`);
+  const host = $("[data-in]");
+  const isRight = (v) => (q.ok ? q.ok(v) : v === q.ans);
+  const ask = () => {
+    if (my !== token) return;
+    tries = 0;
+    busy = false;
+    q = cfg.make(level, round);
+    const qq = q;
+    q.a = anim(() => my === token && q === qq);
+    setStatus(`${cfg.noun1 || "Question"} ${round + 1} of ${R}`);
+    host.onclick = null;
+    host.className = `lp-in${q.input === "choice" ? " lp-pick" : ""}`;
+    pad = null;
+    if (q.input === "choice") choices(host, q.opts.map((o) => (typeof o === "object" ? o : { label: o, v: o })), (o, b) => answer(o.v, b));
+    else if (q.input === "num") pad = numpad(host, { onEnter: (v) => answer(v), max: q.max || 4 });
+    else q.mount(host, (v) => answer(v));
+    talk(q.ask, q.voice);
+    q.draw(q.a);
+  };
+  const settle = async (won) => {
+    busy = true;
+    const qq = q;
+    host.querySelectorAll("button").forEach((b) => (b.disabled = true));
+    talk(`${won ? (tries ? "Correct — your persistence paid off. Here is why:" : pick(EFFORT)) : "Here is the reasoning."} ${q.why}`, q.whyVoice ? `${won ? "Correct." : "Here is the reasoning."} ${q.whyVoice}` : undefined);
+    await quiet(q.after?.(q.a, won));
+    if (my !== token || q !== qq) return;
+    host.className = "lp-in";
+    host.innerHTML = nextRow(round + 1 >= R);
+    host.onclick = (event) => {
+      if (!event.target.closest("[data-a]")) return;
+      window.OC?.touch();
+      round += 1;
+      if (round >= R) finishGame(id, host, { R, first, noun: cfg.noun, again: restart });
+      else ask();
+    };
+  };
+  const answer = (v, button) => {
+    if (my !== token || busy) return;
+    window.OC?.touch();
+    if (v === null || v === undefined) return;
+    if (isRight(v)) {
+      button?.classList.add("right");
+      MUSIC.chime();
+      if (tries === 0) first += 1;
+      window.OC?.count(cfg.count);
+      return settle(true);
+    }
+    tries += 1;
+    button?.classList.add("wrong");
+    MUSIC.oops();
+    if (tries < 2) {
+      pad?.clear();
+      talk(`${pick(NUDGE)} ${q.hint(v)}`);
+      return;
+    }
+    if (q.input === "choice") {
+      const i = q.opts.findIndex((o) => isRight(typeof o === "object" ? o.v : o));
+      host.querySelectorAll("[data-c]")[i]?.classList.add("right");
+    } else pad?.set(q.ans);
+    settle(false);
+  };
+  const restart = () => {
+    round = 0;
+    first = 0;
+    ask();
+  };
+  bindTop(id, (lv) => {
+    level = lv;
+    restart();
+  });
+  ask();
+  window.__lp = { q: () => q, answer: (v) => answer(v), right: () => answer(q.ans), setRound: (r) => (round = r), go: (r) => ((round = r), ask()) };
+}
+
+// ================= 5. Binary and bases =================
+// Lamps: one per binary place; tap to switch. Returns { value(), set(v) }.
+function lamps(parent, n, { x0, y, w, value = 0, tap = false, labels = true } = {}) {
+  const sp = w / n;
+  const r = Math.min(40, sp * 0.4);
+  const bits = [...Array(n)].map((_, i) => (value >> (n - 1 - i)) & 1);
+  const parts = [];
+  for (let i = 0; i < n; i++) {
+    const cx = x0 + sp * i + sp / 2;
+    const g = el("g", { class: tap ? "lp-tap" : "", "data-bit": i }, parent);
+    const digit = text(g, cx, y - r - 14, "0", { "font-size": 36, fill: INK, "font-family": "ui-monospace, Menlo, monospace" });
+    const bulb = el("circle", { cx, cy: y, r, fill: "#efe8da", stroke: "#8a7a50", "stroke-width": 4 }, g);
+    el("rect", { x: cx - r * 0.45, y: y + r - 2, width: r * 0.9, height: r * 0.4, rx: 4, fill: "#9c9480" }, g);
+    if (labels) text(g, cx, y + r + 44, String(2 ** (n - 1 - i)), { "font-size": n > 7 ? 22 : 26, fill: SOFT });
+    parts.push({ digit, bulb });
+  }
+  const show = () =>
+    parts.forEach((p, i) => {
+      p.digit.textContent = String(bits[i]);
+      p.bulb.setAttribute("fill", bits[i] ? "#ffd84a" : "#efe8da");
+      p.bulb.setAttribute("stroke", bits[i] ? "#c49a00" : "#8a7a50");
+    });
+  show();
+  if (tap)
+    onTap(parent.ownerSVGElement || parent, (g) => {
+      if (g.dataset.bit === undefined) return;
+      const i = Number(g.dataset.bit);
+      bits[i] ^= 1;
+      MUSIC.play("xylophone", bits[i] ? 79 : 72, { gain: 0.2 });
+      show();
+    });
+  return {
+    value: () => bits.reduce((a, b) => a * 2 + b, 0),
+    set: (v) => {
+      for (let i = 0; i < n; i++) bits[i] = (v >> (n - 1 - i)) & 1;
+      show();
+    },
+  };
+}
+const BIN_HINT = {
+  b2d: () => "Add the place values of the lamps that are on. Which values are lit?",
+  d2b: (v, q) => (v > q.ans ? `Your lamps make ${v}, which is too much. Which lamp is worth too much?` : `Your lamps make ${v}; you need ${q.ans - v} more. Which place values add up to that?`),
+  count: () => "Look at the right-hand end. In binary, 1 + 1 = 10: the 1 becomes 0 and carries 1 to the left. Which lamps roll over?",
+  place: () => "Start at 1 on the right and double at every step to the left.",
+  add: () => "Work from the right, column by column. 1 + 1 = 10: write 0 and carry 1.",
+  max: () => "Switch every lamp on and add their place values. Or: find the next place value and subtract 1.",
+  values: () => "One digit gives 2 patterns (0, 1). Two digits give 4 (00, 01, 10, 11). What happens with each extra digit?",
+  double: () => "What does writing 0 at the end of a decimal number do to it? The same idea works in base 2.",
+  base: (v, q) => `List the place values in base ${q.base}: 1, ${q.base}, ${q.base * q.base}… Multiply each digit by its place value and add.`,
+  tobase: (v, q) => `Find the largest place value (1, ${q.base}, ${q.base * q.base}, …) that fits, and how many times it fits; then do the same with what is left.`,
+  hex: () => "The left digit counts sixteens. A = 10, B = 11, C = 12, D = 13, E = 14, F = 15.",
+  tohex: () => "Split the 8 bits into two groups of four. Each group of four is one hex digit from 0 to 15.",
+};
+function binaryCase(level, round) {
+  const q = bMake(level, round);
+  const m = /base (\d+)/.exec(q.ask);
+  q.addA = q.a;
+  q.addB = q.b;
+  delete q.a;
+  q.base = m ? Number(m[1]) : 2;
+  const tall = isTall();
+  const bitsN = q.bits || (q.kind === "b2d" ? Math.max(5, q.ans.toString(2).length) : 8);
+  let lampsObj = null;
+  q.draw = () => {
+    const [w, h] = tall ? tallBox(600, 440) : [W, H];
+    fresh(w, h);
+    const pw = w - 40;
+    const y = tall ? h / 2 + 20 : 300;
+    if (["b2d", "d2b", "count", "add"].includes(q.kind)) {
+      const value = q.kind === "b2d" ? q.ans : q.kind === "count" ? q.start : 0;
+      if (q.kind === "add") {
+        const sp = pw / 8;
+        const colX = (k) => 20 + sp * k + sp / 2; // k = 0..7, left to right
+        const yA = tall ? 60 : 64;
+        [q.addA, q.addB].forEach((v, row) => {
+          const str = v.toString(2);
+          [...str].forEach((d, i) => text(view, colX(8 - str.length + i), yA + row * 54, d, { "font-size": 42, fill: INK, "font-family": "ui-monospace, Menlo, monospace" }));
+        });
+        const lead = 8 - Math.max(q.addA, q.addB).toString(2).length;
+        text(view, colX(Math.max(0, lead - 1)), yA + 54, "+", { "font-size": 42, fill: INK });
+        el("line", { x1: colX(Math.max(0, lead - 1)) - sp / 2, y1: yA + 76, x2: w - 20, y2: yA + 76, stroke: INK, "stroke-width": 4 }, view);
+        lampsObj = lamps(view, 8, { x0: 20, y: y + 30, w: pw, value, tap: true });
+      } else {
+        if (q.kind === "d2b") text(view, w / 2, 70, `Make ${q.ans}`, { "font-size": 48, fill: "var(--accent-dark)" });
+        if (q.kind === "count") text(view, w / 2, 70, "Show the next number", { "font-size": 40, fill: "var(--accent-dark)" });
+        if (q.kind === "b2d") text(view, w / 2, 70, "A lit lamp means 1; the number below is its place value", { "font-size": tall ? 22 : 30, fill: SOFT });
+        lampsObj = lamps(view, bitsN, { x0: 20, y, w: pw, value, tap: q.kind !== "b2d" });
+      }
+    } else if (q.kind === "place") {
+      const k = Number(/the (\d)/.exec(q.ask)[1]);
+      const n = 7;
+      const sp = pw / n;
+      for (let i = 0; i < n; i++) {
+        const pos = n - i;
+        const cx = 20 + sp * i + sp / 2;
+        box(view, cx - sp * 0.42, y - 60, sp * 0.84, 100, { fill: pos === k ? "#fff1d6" : "#fff", stroke: pos === k ? "var(--accent)" : LINE, sw: pos === k ? 5 : 3 });
+        text(view, cx, y + 4, pos <= 3 || pos === k ? (pos === k ? "?" : String(2 ** (pos - 1))) : "…", { "font-size": 34, fill: pos === k ? "var(--accent-dark)" : SOFT });
+        text(view, cx, y + 80, `${pos}${["st", "nd", "rd"][pos - 1] || "th"}`, { "font-size": 22, fill: SOFT });
+      }
+      text(view, w / 2, 90, "Binary places, counted from the right", { "font-size": tall ? 26 : 32, fill: SOFT });
+    } else if (q.kind === "max" || q.kind === "values") {
+      const n = Number(/(\d+) binary/.exec(q.ask)[1]);
+      lampsObj = lamps(view, n, { x0: 20 + (pw - pw * (n / 8)) / 2, y, w: pw * (n / 8), value: q.kind === "max" ? 2 ** n - 1 : 0, tap: q.kind === "values" });
+      text(view, w / 2, 80, q.kind === "max" ? `${n} binary digits` : `${n} binary digits: try some patterns`, { "font-size": tall ? 28 : 36, fill: SOFT });
+    } else if (q.kind === "double") {
+      const s1 = /^([01]+)/.exec(q.ask)[1];
+      text(view, w / 2, 150, `${s1}₂ = ${q.ans / 2}`, { "font-size": 54, fill: INK, "font-family": "ui-monospace, Menlo, monospace" });
+      text(view, w / 2, 280, `${s1}0₂ = ?`, { "font-size": 54, fill: "var(--accent-dark)", "font-family": "ui-monospace, Menlo, monospace" });
+    } else {
+      const big = (/(\w+[₀₁₂₃₄₅₆₇₈₉]+)/.exec(q.ask) || /Write (\d+)/.exec(q.ask))[1];
+      text(view, w / 2, h / 2 - 20, big, { "font-size": tall ? 64 : 84, fill: INK, "font-family": "ui-monospace, Menlo, monospace" });
+      text(view, w / 2, h / 2 + 60, q.kind === "tobase" ? `in base ${q.base} = ?` : q.kind === "tohex" ? "in base 16 = ?" : "in decimal = ?", { "font-size": tall ? 34 : 42, fill: "var(--accent-dark)" });
+      if (q.kind === "hex" || q.kind === "tohex") text(view, w / 2, h - 30, "A = 10 · B = 11 · C = 12 · D = 13 · E = 14 · F = 15", { "font-size": tall ? 22 : 26, fill: SOFT });
+    }
+  };
+  if (q.input === "bits") {
+    q.input = "custom";
+    q.mount = (hostEl, answer) => {
+      hostEl.innerHTML = btnRow([["check", "✅ Check", true], ["off", "↺ All off"]]);
+      hostEl.onclick = (event) => {
+        const b = event.target.closest("[data-a]");
+        if (!b) return;
+        if (b.dataset.a === "off") return lampsObj?.set(0);
+        answer(lampsObj.value());
+      };
+    };
+  }
+  if (q.input === "num") q.max = 4;
+  q.hint = (v) => BIN_HINT[q.kind](v, q);
+  q.after = async () => {
+    if (lampsObj && ["d2b", "count", "add", "max"].includes(q.kind)) lampsObj.set(q.ans);
+  };
+  q.whyVoice = q.why;
+  if (round === 0) q.ask = `${q.ask} <small>(Gottfried Leibniz explained binary arithmetic in a paper of 1703, <i>Explication de l'Arithmétique Binaire</i>; every modern computer stores numbers this way.)</small>`;
+  return q;
+}
+
+// ================= 6. Syllogisms and Venn diagrams =================
+let vennCount = 0;
+const REAL_BAG = {};
+// circles: [{ x, y, r, label, color }]; region r = bitmask of the circles it lies inside.
+function venn(parent, circles) {
+  const uid = `lpv${++vennCount}`;
+  const defs = el("defs", {}, parent);
+  circles.forEach((c, i) => {
+    const cp = el("clipPath", { id: `${uid}c${i}` }, defs);
+    el("circle", { cx: c.x, cy: c.y, r: c.r }, cp);
+  });
+  const shadeLayer = el("g", {}, parent);
+  const lineLayer = el("g", {}, parent);
+  circles.forEach((c) => {
+    el("circle", { cx: c.x, cy: c.y, r: c.r, fill: "none", stroke: c.color, "stroke-width": 5 }, lineLayer);
+  });
+  const markLayer = el("g", {}, parent);
+  const minX = Math.min(...circles.map((c) => c.x - c.r));
+  const maxX = Math.max(...circles.map((c) => c.x + c.r));
+  const minY = Math.min(...circles.map((c) => c.y - c.r));
+  const maxY = Math.max(...circles.map((c) => c.y + c.r));
+  const regionOf = (x, y) => circles.reduce((m, c, i) => m | ((x - c.x) ** 2 + (y - c.y) ** 2 < c.r * c.r ? 1 << i : 0), 0);
+  const sums = {};
+  for (let x = minX; x <= maxX; x += 5)
+    for (let y = minY; y <= maxY; y += 5) {
+      const r = regionOf(x, y);
+      if (!r) continue;
+      sums[r] = sums[r] || [0, 0, 0];
+      sums[r][0] += x;
+      sums[r][1] += y;
+      sums[r][2] += 1;
+    }
+  const centroid = (r) => (sums[r] ? [sums[r][0] / sums[r][2], sums[r][1] / sums[r][2]] : [0, 0]);
+  return {
+    centroid,
+    shade(r, color = "#9c8f7c") {
+      const mask = el("mask", { id: `${uid}m${r}` }, defs);
+      el("rect", { x: 0, y: 0, width: 2000, height: 2000, fill: "#fff" }, mask);
+      circles.forEach((c, i) => {
+        if (!(r & (1 << i))) el("circle", { cx: c.x, cy: c.y, r: c.r, fill: "#000" }, mask);
+      });
+      let g = el("g", { mask: `url(#${uid}m${r})` }, shadeLayer);
+      circles.forEach((c, i) => {
+        if (r & (1 << i)) g = el("g", { "clip-path": `url(#${uid}c${i})` }, g);
+      });
+      return el("rect", { x: minX, y: minY, width: maxX - minX, height: maxY - minY, fill: color, opacity: 0.55 }, g);
+    },
+    mark(regs, glyph = "×", color = RED, size = 54) {
+      const pts = regs.map(centroid);
+      const x = pts.reduce((a, p) => a + p[0], 0) / pts.length;
+      const y = pts.reduce((a, p) => a + p[1], 0) / pts.length;
+      return text(markLayer, x, y + size * 0.35, glyph, { "font-size": size, fill: color, "font-weight": 900 });
+    },
+  };
+}
+const IND_WORDS = [[["glorp", "glorps"], ["wizzle", "wizzles"]], [["zib", "zibs"], ["plonk", "plonks"]], [["frem", "frems"], ["dax", "daxes"]], [["morp", "morps"], ["tull", "tulls"]]];
+function sylloCase(level, round) {
+  const plan = { easy: ["ind", "real", "ind", "real", "ind", "real", "ind", "real"], medium: ["abs", "real", "abs", "real", "abs", "real", "abs", "real"], hard: ["abs", "real", "abs", "abs", "real", "abs", "real", "abs"] }[level];
+  const kind = plan[round % plan.length];
+  const tall = isTall();
+  const layout = (cardH) => {
+    if (tall) {
+      const [w, h] = tallBox(600, cardH + 380);
+      fresh(w, h);
+      return { card: { x: 16, y: 12, w: 568 }, vc: { x: 300, y: cardH + 30 + (h - cardH - 40) / 2, R: Math.min(130, (h - cardH - 60) / 2.9) }, w, h };
+    }
+    fresh();
+    return { card: { x: 20, y: 20, w: 500 }, vc: { x: 770, y: 290, R: 140 }, w: W, h: H };
+  };
+  const cardLines = (L, lines) => {
+    let y = L.card.y + 10;
+    const size = tall ? 25 : 27;
+    const total = lines.reduce((s, [t]) => s + paraH(t, size, L.card.w - 40) + 6, 0) + 20;
+    const bg = box(view, L.card.x, L.card.y, L.card.w, total, { fill: "#fff", stroke: LINE, rx: 20 });
+    const ys = [];
+    lines.forEach(([t, color]) => {
+      ys.push(y);
+      y += para(view, L.card.x + 20, y, t, { size, width: L.card.w - 40, fill: color || INK }) + 6;
+    });
+    return { bg, ys, bottom: L.card.y + total };
+  };
+  if (kind === "ind") {
+    const f = syIndividual();
+    const [[a1, aN], [b1, bN]] = pick(IND_WORDS);
+    const stmt = f.q === "all" ? `All ${aN} are ${bN}.` : f.q === "no" ? `No ${aN} are ${bN}.` : f.q === "some" ? `Some ${aN} are ${bN}.` : `Some ${aN} are not ${bN}.`;
+    const fact = { A: `Tib is a ${a1}.`, notA: `Tib is not a ${a1}.`, B: `Tib is a ${b1}.`, notB: `Tib is not a ${b1}.` }[f.fact];
+    const target = f.ask === "A" ? a1 : b1;
+    const question = `Is Tib a ${target}?`;
+    const opts = [{ label: `Tib must be a ${target}`, v: "must" }, { label: `Tib cannot be a ${target}`, v: "cannot" }, { label: "It might go either way", v: "might" }];
+    // where can Tib be? (regions: bit0 = A, bit1 = B)
+    const okStmt = (regs) => (f.q === "all" ? !regs.some((r) => r & 1 && !(r & 2)) : f.q === "no" ? !regs.some((r) => r & 1 && r & 2) : f.q === "some" ? regs.some((r) => r & 1 && r & 2) : regs.some((r) => r & 1 && !(r & 2)));
+    const factOk = (r) => ({ A: r & 1, notA: !(r & 1), B: r & 2, notB: !(r & 2) })[f.fact];
+    const spots = new Set();
+    for (let m = 1; m < 16; m++) {
+      const regs = [0, 1, 2, 3].filter((r) => m & (1 << r));
+      if (!okStmt(regs)) continue;
+      regs.forEach((r) => factOk(r) && spots.add(r));
+    }
+    let V2 = null;
+    const q = {
+      kind,
+      input: "choice",
+      opts,
+      ans: f.ans,
+      ask: `${stmt} ${fact} ${question}`,
+      draw() {
+        const L = layout(tall ? 190 : 0);
+        cardLines(L, [[stmt], [fact], [question, "var(--accent-dark)"]]);
+        const { x, y, R } = L.vc;
+        V2 = venn(view, [{ x: x - R * 0.55, y, r: R, color: "#e08a1e" }, { x: x + R * 0.55, y, r: R, color: "#1e78c8" }]);
+        text(view, x - R * 0.9, y - R - 14, aN, { "font-size": 26, fill: "#b8620f" });
+        text(view, x + R * 0.9, y - R - 14, bN, { "font-size": 26, fill: "#155a96" });
+      },
+      hint: () => "Use the diagram. Which part does the first statement rule out (or fill)? Then, where in the diagram could Tib stand?",
+      async after(a) {
+        if (f.q === "all") V2.shade(1);
+        if (f.q === "no") V2.shade(3);
+        if (f.q === "some") V2.mark([3], "×", RED, 44);
+        if (f.q === "somenot") V2.mark([1], "×", RED, 44);
+        await a.wait(500);
+        [...spots].forEach((r) => (r ? V2.mark([r], "T", GREEN, 40) : null));
+        if (spots.has(0)) {
+          const c = V2.centroid(1);
+          text(view, c[0] - 40, c[1] + 150, "T (outside both)", { "font-size": 22, fill: GREEN, "text-anchor": "middle" });
+        }
+      },
+    };
+    const reverse = f.q === "all" && f.fact === "B" ? ` Note the trap: "All ${aN} are ${bN}" does not say that all ${bN} are ${aN}.` : f.q === "all" && f.fact === "notA" ? ` Note the trap: not being a ${a1} tells you nothing about being a ${b1}.` : "";
+    q.why = `${f.ans === "must" ? `Every place Tib could stand is inside the ${target} circle, so Tib must be a ${target}.` : f.ans === "cannot" ? `Every place Tib could stand is outside the ${target} circle, so Tib cannot be a ${target}.` : `Tib could stand inside or outside the ${target} circle (the green T marks), so the statements do not decide it.`}${reverse} Shaded means "empty"; × means "something is here".`;
+    return q;
+  }
+  if (kind === "abs") {
+    const s = syMake(level, Math.random() < 0.5);
+    const [S, M, P] = s.words;
+    const lines = [...s.prem.map((p) => syText(p, s.words)), `Therefore, ${syText(s.conc, s.words).replace(/^./, (c) => c.toLowerCase())}`];
+    let V3 = null;
+    // regions: bit0 = S, bit1 = M, bit2 = P
+    const need = { all: [1, 3], no: [5, 7], some: [5, 7], somenot: [1, 3] }[s.conc.q];
+    const xs = (p) => {
+      if (p.q !== "some" && p.q !== "somenot") return null;
+      const inX = (r) => !!(r & (1 << p.x));
+      const inY = (r) => !!(r & (1 << p.y));
+      return [1, 2, 3, 4, 5, 6, 7].filter((r) => inX(r) && (p.q === "some" ? inY(r) : !inY(r)) && !s.shaded.includes(r));
+    };
+    const reason = {
+      all: [`every part of the ${S} circle outside ${P} is shaded (empty)`, `part of the ${S} circle outside ${P} is still unshaded, so something in ${S} but not in ${P} remains possible`],
+      no: [`the whole overlap of ${S} and ${P} is shaded (empty)`, `part of the overlap of ${S} and ${P} is still unshaded, so something could be both`],
+      some: [`the × (something that exists) must lie inside both ${S} and ${P}`, `no premise forces anything to exist in the overlap of ${S} and ${P}, so that overlap could be empty`],
+      somenot: [`the × must lie inside ${S} but outside ${P}`, `no premise forces anything to exist inside ${S} but outside ${P}, so that region could be empty`],
+    }[s.conc.q];
+    const q = {
+      kind,
+      input: "choice",
+      opts: [{ label: "✓ Valid", v: true }, { label: "✗ Invalid", v: false }],
+      ans: s.valid,
+      ask: `Is this argument valid? Valid means: if the premises were true, the conclusion would have to be true.`,
+      voice: `Is this argument valid? ${lines.join(" ")}`,
+      draw() {
+        const L = layout(tall ? 210 : 0);
+        cardLines(L, lines.map((t, i) => [t, i === 2 ? "var(--accent-dark)" : INK]));
+        const { x, y, R } = L.vc;
+        const r = R * 0.82;
+        V3 = venn(view, [{ x: x - r * 0.6, y: y + r * 0.45, r, color: "#e08a1e" }, { x, y: y - r * 0.55, r, color: "#7b5ea7" }, { x: x + r * 0.6, y: y + r * 0.45, r, color: "#1e78c8" }]);
+        text(view, x - r * 1.25, y + r * 1.75, S, { "font-size": 24, fill: "#b8620f" });
+        text(view, x, y - r * 1.65, M, { "font-size": 24, fill: "#5e3f8f" });
+        text(view, x + r * 1.25, y + r * 1.75, P, { "font-size": 24, fill: "#155a96" });
+      },
+      hint: () => `Draw the premises: an "All" or "No" premise shades a region as empty; a "Some" premise puts an × where something exists. Then ask: does the picture already show the conclusion, or is a counterexample still possible?`,
+      async after(a) {
+        for (const p of s.prem) {
+          if (p.q === "all" || p.q === "no") syShaded([p]).forEach((r) => V3.shade(r));
+          await a.wait(700);
+        }
+        for (const p of s.prem) {
+          const regs = xs(p);
+          if (regs && regs.length) V3.mark(regs, "×", RED, 44);
+        }
+      },
+    };
+    q.why = s.valid ? `With both premises drawn, ${reason[0]}. No arrangement makes the premises true and the conclusion false, so the argument is valid. (Shaded = empty.)` : `With both premises drawn, ${reason[1]}. The premises could be true while the conclusion is false, so the argument is invalid.`;
+    void need;
+    return q;
+  }
+  // real-world argument: valid? sound?
+  const pool = level === "easy" ? SY_REAL.filter((a) => a.easy) : SY_REAL;
+  if (!REAL_BAG[level]?.length) REAL_BAG[level] = shuffle(pool);
+  const arg = REAL_BAG[level].pop();
+  const prem = arg.p.map(([qq, x, y]) => ({ q: qq, x, y }));
+  const conc = { q: arg.c[0], x: arg.c[1], y: arg.c[2] };
+  const valid = syValid(prem, conc);
+  const allTrue = arg.p.every((p) => p[3]);
+  const verdict = !valid ? "invalid" : allTrue ? "sound" : "unsound";
+  const lines = [...prem.map((p) => syText(p, arg.t)), `Therefore, ${syText(conc, arg.t).replace(/^./, (c) => c.toLowerCase())}`];
+  let card = null;
+  let L = null;
+  const q = {
+    kind: "real",
+    input: "choice",
+    opts: [{ label: "Valid and sound", v: "sound" }, { label: "Valid, but unsound", v: "unsound" }, { label: "Invalid", v: "invalid" }],
+    ans: verdict,
+    ask: "Judge this argument. Is its form valid? Are its premises actually true?",
+    voice: `Judge this argument. ${lines.join(" ")} Is it valid? Is it sound?`,
+    draw() {
+      if (tall) {
+        const [w, h] = tallBox(600, 520);
+        fresh(w, h);
+        L = { card: { x: 16, y: 16, w: 568 } };
+      } else {
+        fresh();
+        L = { card: { x: 70, y: 30, w: 860 } };
+      }
+      card = cardLines(L, lines.map((t, i) => [t, i === 2 ? "var(--accent-dark)" : INK]));
+      const y = card.bottom + 30;
+      const size = tall ? 22 : 24;
+      para(view, L.card.x + 10, y, "Valid: IF the premises were true, the conclusion would have to be true.", { size, width: L.card.w - 20, fill: SOFT });
+      para(view, L.card.x + 10, y + (tall ? 86 : 60), "Sound: valid AND every premise is actually true.", { size, width: L.card.w - 20, fill: SOFT });
+    },
+    hint: () => "Two separate questions. First: imagine the premises were true. Would the conclusion be forced? Second: are the premises really true? How do we know?",
+    async after(a) {
+      const y = card.bottom + 20;
+      view.querySelectorAll("text").forEach((t) => Number(t.getAttribute("y")) > y && t.remove());
+      let yy = y + 10;
+      const size = tall ? 22 : 24;
+      arg.p.forEach((p, i) => {
+        const t = `Premise ${i + 1}: ${p[3] ? "TRUE" : `FALSE. ${p[4]}`}`;
+        yy += para(view, L.card.x + 10, yy, t, { size, width: L.card.w - 20, fill: p[3] ? GREEN : RED }) + 4;
+      });
+      para(view, L.card.x + 10, yy, `Form: ${valid ? "VALID" : "INVALID"}`, { size, width: L.card.w - 20, fill: valid ? GREEN : RED });
+      await a.wait(10);
+    },
+  };
+  const falseOnes = arg.p.map((p, i) => (!p[3] ? `premise ${i + 1} is false: ${p[4]}` : null)).filter(Boolean);
+  q.why =
+    verdict === "sound"
+      ? "The form is valid, and both premises are true, so the argument is sound: its conclusion is established."
+      : verdict === "unsound"
+      ? `The form is valid — if the premises were true, the conclusion would follow — but ${falseOnes.join(" Also, ")} A valid argument with a false premise is unsound: it does not establish its conclusion.${arg.note ? ` ${arg.note}` : ""}`
+      : `The form is invalid: even if every premise were true, the conclusion would not be guaranteed. ${arg.note || ""}`;
+  return q;
+}
+
+// ================= 7. Truth tables =================
+const TV = (b) => (b ? "T" : "F");
+const ttSpoken = (s) => spoken(String(s).replace(/\bT\b/g, "true").replace(/\bF\b/g, "false"));
+// A table on the board. cols: [{ head, vals: [bool|null], tap?, hl? }]
+const ttRowH = (rows, tall) => (tall ? (rows > 4 ? 54 : 78) : rows > 4 ? 46 : rows > 2 ? 62 : 74);
+function ttTable(cols, rows, { tall, y0 = 20, onCell } = {}) {
+  const vbW = tall ? 600 : W;
+  const size = tall ? (rows > 4 ? 28 : 36) : rows > 4 ? 24 : 28;
+  const rowH = ttRowH(rows, tall);
+  const widths = cols.map((c) => Math.max(tall ? 96 : rows > 4 ? 64 : 76, c.head.length * size * 0.56 + 28));
+  let total = widths.reduce((a, b) => a + b, 0);
+  const scale = Math.min(1, (vbW - 30) / total);
+  const ws = widths.map((x) => x * scale);
+  total = ws.reduce((a, b) => a + b, 0);
+  const x0 = (vbW - total) / 2;
+  const cells = [];
+  let x = x0;
+  cols.forEach((c, j) => {
+    const w = ws[j];
+    box(view, x, y0, w, 56, { fill: c.tap ? "var(--accent-soft)" : "#f4ede0", stroke: LINE, rx: 6 });
+    text(view, x + w / 2, y0 + 37, c.head, { "font-size": Math.min(size, (w - 10) / (c.head.length * 0.56)), fill: INK });
+    cells.push([]);
+    for (let i = 0; i < rows; i++) {
+      const y = y0 + 60 + i * rowH;
+      const g = el("g", { class: c.tap ? "lp-tap" : "", "data-row": i, "data-col": j, transform: `translate(${x} ${y})` }, view);
+      const bg = box(g, 0, 0, w, rowH - 4, { fill: c.hl?.[i] ? "#fde2d6" : "#fff", stroke: c.tap ? "var(--accent)" : "#e6dccd", sw: c.tap ? 3 : 2, rx: 6 });
+      const v = c.vals[i];
+      const t = text(g, w / 2, rowH / 2 + 8, v === null || v === undefined ? (c.tap ? "?" : "") : TV(v), { "font-size": size + 4, fill: v === true ? GREEN : v === false ? RED : SOFT, "font-weight": 900 });
+      cells[j].push({ g, bg, t });
+    }
+    x += w;
+  });
+  if (onCell)
+    onTap(view, (g) => {
+      if (g.dataset.row === undefined) return;
+      onCell(Number(g.dataset.row), Number(g.dataset.col), cells);
+    });
+  return { cells, bottom: y0 + 60 + rows * rowH };
+}
+function truthCase(level, round) {
+  const q = tMake(level, round);
+  const tall = isTall();
+  const box2 = (h0) => (tall ? tallBox(600, h0) : [W, H]);
+  if (q.kind === "fill") {
+    const rows = tRows(q.vars);
+    const vals = rows.map(() => null);
+    const head = tShow(q.e);
+    const varCols = () => q.vars.map((v) => ({ head: v, vals: rows.map((env) => env[v]) }));
+    q.input = "custom";
+    q.draw = () => {
+      const [w, h] = box2(rows.length * ttRowH(rows.length, tall) + 160);
+      fresh(w, h);
+      const y0 = Math.max(16, (h - (60 + rows.length * ttRowH(rows.length, tall)) - 60) / 2);
+      ttTable([...varCols(), { head, vals, tap: true }], rows.length, {
+        tall,
+        y0,
+        onCell: (i, j, cells) => {
+          if (j !== q.vars.length) return;
+          vals[i] = vals[i] === true ? false : true;
+          cells[j][i].t.textContent = TV(vals[i]);
+          cells[j][i].t.setAttribute("fill", vals[i] ? GREEN : RED);
+          MUSIC.play("woodblock", vals[i] ? 79 : 72, { gain: 0.2 });
+        },
+      });
+      if (/→/.test(head)) text(view, w / 2, h - 18, "→ is false only when the left side is T and the right side is F", { "font-size": tall ? 19 : 23, fill: SOFT });
+    };
+    q.mount = (hostEl, answer) => {
+      hostEl.innerHTML = btnRow([["check", "✅ Check", true]]);
+      hostEl.onclick = (event) => {
+        if (!event.target.closest("[data-a]")) return;
+        if (vals.some((v) => v === null)) return talk("Fill every row first: tap each ? to set T or F.");
+        answer(vals.join());
+      };
+    };
+    q.ans = q.ans.join();
+    q.ask = `Complete the truth table for <b>${head}</b>. Tap each ? to set T or F.`;
+    q.voice = ttSpoken(`Complete the truth table for ${head}. Tap each question mark to choose true or false.`);
+    q.hint = () => {
+      const k = vals.findIndex((v, i) => v !== tEval(q.e, rows[i]));
+      const env = rows[k];
+      return `Look at the row where ${q.vars.map((v) => `${v} is ${TV(env[v])}`).join(", ")}. Put those values into ${head} and evaluate the inside of any brackets first.`;
+    };
+    q.why = `Each row is worked from the inside out; the helper columns show every step. ${/→/.test(head) ? "Remember: A → B is false only in the row where A is T and B is F." : ""}`;
+    q.after = async () => {
+      const parts = tParts(q.e).filter((p) => tShow(p) !== head);
+      const [w, h] = box2(rows.length * ttRowH(rows.length, tall) + 160);
+      fresh(w, h);
+      const answerVals = rows.map((env) => tEval(q.e, env));
+      const y0 = Math.max(16, (h - (60 + rows.length * ttRowH(rows.length, tall)) - 60) / 2);
+      ttTable([...varCols(), ...parts.map((p) => ({ head: tShow(p), vals: rows.map((env) => tEval(p, env)) })), { head, vals: answerVals, tap: true, hl: vals.map((v, i) => v !== null && v !== answerVals[i]) }], rows.length, { tall, y0 });
+      if (vals.some((v, i) => v !== null && v !== answerVals[i])) text(view, w / 2, h - 18, "Pink rows: where your answer differed", { "font-size": tall ? 19 : 23, fill: RED });
+    };
+    return q;
+  }
+  if (q.kind === "eval") {
+    const head = tShow(q.e);
+    const envText = q.vars.map((v) => `${v} = ${TV(q.env[v])}`).join("   ");
+    q.input = "choice";
+    q.opts = [{ label: "TRUE", v: true }, { label: "FALSE", v: false }];
+    q.draw = () => {
+      const [w, h] = box2(420);
+      fresh(w, h);
+      text(view, w / 2, 90, envText, { "font-size": tall ? 34 : 42, fill: "var(--accent-dark)" });
+      para(view, 20, 150, head, { size: tall ? 38 : 50, width: w - 40, anchor: "middle", fill: INK, weight: 900 });
+      text(view, w / 2, h - 30, "Work from the inside out.", { "font-size": 24, fill: SOFT });
+    };
+    q.ask = `Given ${envText.replace(/ {3}/g, ", ")}: is <b>${head}</b> true or false?`;
+    q.voice = ttSpoken(`Given ${envText.replace(/ {3}/g, ", ")}: is ${head} true or false?`);
+    q.hint = () => "Replace each letter with its value. Then evaluate the innermost brackets first, and work outwards.";
+    const steps = tParts(q.e).map((p) => `${tShow(p)} is ${TV(tEval(p, q.env))}`);
+    q.why = `Step by step: ${steps.join("; ")}.`;
+    q.whyVoice = ttSpoken(q.why);
+    q.after = async () => {
+      const [w, h] = box2(420);
+      fresh(w, h);
+      text(view, w / 2, 60, envText, { "font-size": 34, fill: "var(--accent-dark)" });
+      let y = 90;
+      tParts(q.e).forEach((p) => {
+        const v = tEval(p, q.env);
+        y += para(view, 20, y, `${tShow(p)}  =  ${TV(v)}`, { size: tall ? 28 : 32, width: w - 40, anchor: "middle", fill: v ? GREEN : RED, weight: 900 }) + 8;
+      });
+    };
+    return q;
+  }
+  if (q.kind === "same") {
+    const h1 = tShow(q.e1);
+    const h2 = tShow(q.e2);
+    const rows = tRows(q.vars);
+    q.input = "choice";
+    q.opts = [{ label: "Equivalent: same table", v: true }, { label: "Not equivalent", v: false }];
+    q.draw = () => {
+      const [w, h] = box2(420);
+      fresh(w, h);
+      text(view, w / 2, 70, "Do these always have the same truth value?", { "font-size": tall ? 24 : 30, fill: SOFT });
+      para(view, 20, 110, `①  ${h1}`, { size: tall ? 34 : 44, width: w - 40, anchor: "middle", weight: 900 });
+      para(view, 20, 230, `②  ${h2}`, { size: tall ? 34 : 44, width: w - 40, anchor: "middle", weight: 900 });
+    };
+    q.ask = `Are <b>${h1}</b> and <b>${h2}</b> equivalent (true in exactly the same rows)?`;
+    q.voice = ttSpoken(`Are ${h1} and ${h2} equivalent? That is, true in exactly the same rows?`);
+    q.hint = () => "Build both tables, row by row. A single row where they differ makes them not equivalent.";
+    const t1 = tTable(q.e1, q.vars);
+    const t2 = tTable(q.e2, q.vars);
+    const diff = t1.findIndex((v, i) => v !== t2[i]);
+    q.why = q.ans ? `They agree in every row: this is ${q.name}. Two formulas that agree in every row say the same thing.` : `They differ in the row where ${q.vars.map((v) => `${v} is ${TV(rows[diff][v])}`).join(" and ")}: ① is ${TV(t1[diff])} but ② is ${TV(t2[diff])}. This is ${q.name}, which does not mean the same.`;
+    q.whyVoice = ttSpoken(q.why);
+    q.after = async () => {
+      const [w, h] = box2(420);
+      fresh(w, h);
+      const hl = t1.map((v, i) => v !== t2[i]);
+      ttTable([...q.vars.map((v) => ({ head: v, vals: rows.map((env) => env[v]) })), { head: `① ${h1}`, vals: t1, hl }, { head: `② ${h2}`, vals: t2, hl }], rows.length, { tall, y0: 30 });
+    };
+    return q;
+  }
+  // cond: the material conditional, honestly
+  const claim = `If ${q.p}, then ${q.q}.`;
+  const facts = q.facts.replace(/^./, (c) => c.toUpperCase()) + ".";
+  q.input = "choice";
+  q.opts = [{ label: "The claim was broken (false)", v: false }, { label: "The claim was kept (true)", v: true }];
+  q.draw = () => {
+    const [w, h] = box2(460);
+    fresh(w, h);
+    const cw = w - 40;
+    box(view, 20, 20, cw, 150, { fill: "#fff8ea", stroke: "#e0b872", rx: 20 });
+    text(view, 44, 60, "Claim", { "font-size": 24, fill: "#8a5a12", "text-anchor": "start" });
+    para(view, 44, 66, claim, { size: tall ? 28 : 32, width: cw - 48, weight: 900 });
+    box(view, 20, 190, cw, 150, { fill: "#fff", stroke: LINE, rx: 20 });
+    text(view, 44, 230, "What happened", { "font-size": 24, fill: SOFT, "text-anchor": "start" });
+    para(view, 44, 236, facts, { size: tall ? 28 : 32, width: cw - 48 });
+  };
+  q.ask = `Claim: <b>${claim}</b> What happened: ${facts} Was the claim broken?`;
+  q.hint = () => "Ask first: did the IF part happen? A promise can only be broken when its condition is met.";
+  q.why = q.P
+    ? q.Q
+      ? `The condition happened and the result followed, so the claim was kept: true.`
+      : `The condition happened but the result did not. This is the only way to break an "if… then…" claim: false.`
+    : `The condition did not happen, so the claim made no promise about this case and nothing broke it. Logicians therefore count it as true (sometimes called "vacuously true"). Everyday speech often expects more from "if" — a cause or a real connection — but the logical meaning concerns only truth values.`;
+  q.after = async () => {
+    const [w, h] = box2(460);
+    fresh(w, h);
+    const rows = tRows(["A", "B"]);
+    const hl = rows.map((env) => env.A === q.P && env.B === q.Q);
+    text(view, w / 2, 34, `A = ${q.p} · B = ${q.q}`, { "font-size": tall ? 18 : 22, fill: SOFT });
+    ttTable([{ head: "A", vals: rows.map((e) => e.A) }, { head: "B", vals: rows.map((e) => e.B) }, { head: "A → B", vals: rows.map((e) => !e.A || e.B), hl }], 4, { tall, y0: 56 });
+    text(view, w / 2, h - 16, "Pink: what happened. Only T → F makes the claim false.", { "font-size": tall ? 19 : 23, fill: SOFT });
+  };
+  return q;
+}
+
+const units = {
+  lp0: seeIt,
+  lp1: gridGame,
+  lp2: knightGame,
+  lp3: sudokuGame,
+  lp4: crossGame,
+  lp5: () => quiz("lp5", { R: 10, make: binaryCase, count: "binary questions", noun: "questions" }),
+  lp6: () => quiz("lp6", { R: 8, make: (lv, r) => {
+    const q = sylloCase(lv, r);
+    if (r === 0) q.ask += " <small>(Aristotle first analysed arguments of this shape, called syllogisms, over 2,300 years ago; John Venn introduced his diagrams in 1880.)</small>";
+    return q;
+  }, count: "arguments judged", noun: "arguments", noun1: "Argument" }),
+  lp7: () => quiz("lp7", { R: 8, make: truthCase, count: "truth tables", noun: "questions" }),
+};
+
+const lpStyle = document.createElement("style");
+lpStyle.textContent = `
+.ap-panel .ap-say{flex-shrink:1;max-height:min(30vh,190px);overflow-y:auto}
+.lp-in{display:flex;justify-content:center;width:100%}
+.lp-tap{cursor:pointer}
+.lp-glow{animation:lp-glow 1.1s ease-in-out infinite;stroke:var(--accent)!important;stroke-width:8!important}
+@keyframes lp-glow{0%,100%{stroke-opacity:1}50%{stroke-opacity:.3}}
+.lp-pick .kt-choices button{min-height:54px;font-size:19px;border-radius:20px}
+.lp-real{position:absolute;inset:0;z-index:7;display:grid;place-items:center;padding:10px;background:rgba(245,239,228,.94)}
+.lp-real-card{max-width:620px;width:100%;max-height:100%;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 22px;border-radius:28px;background:#fff;box-shadow:0 8px 0 #ece3d6,0 18px 40px rgba(70,40,15,.18)}
+.lp-real-head{display:flex;align-items:center;gap:12px}
+.lp-real-head span{display:grid;place-items:center;width:56px;height:56px;flex:none;border-radius:50%;background:var(--accent-soft);font-size:30px}
+.lp-real-card h2{margin:0;color:#2b1d12;font:900 clamp(19px,2.8vw,26px)/1.15 var(--sans)}
+.lp-need{margin:0;color:#4d3c2e;font:700 clamp(14px,2vw,18px)/1.35 var(--sans);text-align:center}
+.lp-real-card ol{margin:0;padding-left:1.4em;display:grid;gap:4px;text-align:left;width:100%;color:#2b1d12;font:700 clamp(14px,2vw,19px)/1.35 var(--sans)}
+.lp-tip{margin:0;padding:6px 12px;border-radius:12px;background:#fff4dc;color:#7a4a10;font:800 clamp(13px,1.8vw,16px)/1.3 var(--sans)}
+@media (max-width:420px) and (max-height:720px){.ap-panel .ap-say{font-size:14.5px;line-height:1.28;padding-top:6px;padding-bottom:6px}}
+@media (max-height:460px) and (min-aspect-ratio:17/10){.ap-panel .ap-say{max-height:62vh}}
+@media (max-width:560px){.lp-long{display:none}.lp-top{gap:6px}.lp-acts{gap:6px}.lp-acts button{padding:0 11px;font-size:16px;min-height:46px}.ap-panel{gap:7px}}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){
+ .lp-pick .kt-choices button{min-height:42px;font-size:15px;padding:0 12px}
+ .lp-real-card{padding:8px 12px;gap:4px}.lp-real-head span{width:38px;height:38px;font-size:20px}.lp-real-card ol{font-size:13.5px}.lp-need{font-size:13.5px}.lp-tip{font-size:12.5px}
+ .lp-real .kt-go{min-height:42px;font-size:17px;margin-top:2px}
+}
+`;
+document.head.appendChild(lpStyle);
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    lp0: { icon: "👀", title: "See it", steps: ["Watch and listen to each scene.", "Press Next ▶ to continue.", "Press Let's play when you are ready."] },
+    lp1: { icon: "🕵️", title: "Deduction grids", steps: ["Read every clue on the left.", "Tap a box once for ✗, twice for ✓.", "Press ❓ Why? for the next forced step; ✅ Check when done."] },
+    lp2: { icon: "🛡️", title: "Knights & knaves", steps: ["Knights always tell the truth; knaves always lie.", "Tap each islander's button: Knight or Knave.", "Press ✅ Check, then study the table of cases."] },
+    lp3: { icon: "🔢", title: "Sudoku", steps: ["Tap a square, then a digit.", "Turn ✏️ Pencil on for small notes.", "💡 Hint names the technique; ✅ Check finds errors."] },
+    lp4: { icon: "🛶", title: "Crossings & jugs", steps: ["River: tap passengers into the boat, then ⛵ Cross.", "Jugs: Fill, Empty, or tap one jug then another to pour.", "Try to match the proven fewest moves."] },
+    lp5: { icon: "💡", title: "Binary & bases", steps: ["Each lamp is a binary place: 1, 2, 4, 8…", "Tap lamps or type your answer.", "Read the worked reasoning after each one."] },
+    lp6: { icon: "⭕", title: "Syllogisms & Venn", steps: ["Read the premises (the reasons given).", "Decide: valid? sound? must, cannot or might?", "Watch the Venn diagram show why."] },
+    lp7: { icon: "🔣", title: "Truth tables", steps: ["T means true, F means false.", "Tap each ? to fill the table, or choose an answer.", "Helper columns show the reasoning."] },
+  },
+  start: "lp0",
+  onStop() {
+    token += 1;
+    const p = $("[data-panel]");
+    if (p) p.onclick = null;
+    stage.querySelector(".lp-real")?.remove();
+  },
+  subject: "Tech",
+  activity: "Logic Pro",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [...Array(22).keys()].map((k) => 60 + k));
+MUSIC.preload("woodblock", [72, 76, 79]);
+</script>
+</body>
+</html>

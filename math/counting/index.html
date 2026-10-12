@@ -1,0 +1,2129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Counting & Probability · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="math">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Counting & Probability</b><small>Math · Advanced</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, pickInt, wait, confetti, choices, explain, everyday, emoji, numpad, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "c0", label: "See it", icon: "👀" },
+  { id: "c1", label: "1. Systematic lists", icon: "👕" },
+  { id: "c2", label: "2. Tree diagrams", icon: "🌳" },
+  { id: "c3", label: "3. Arrangements", icon: "🚶" },
+  { id: "c4", label: "4. Handshakes & pairs", icon: "🤝" },
+  { id: "c5", label: "5. Probability", icon: "🎲" },
+  { id: "c6", label: "6. Experiment lab", icon: "🧪" },
+  { id: "c7", label: "7. Counting puzzles", icon: "🧩" },
+];
+
+function fresh() {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+}
+
+const cnStyle = document.createElement("style");
+cnStyle.textContent = `
+.cn-pop{animation:cn-pop .4s ease-out both}@keyframes cn-pop{from{opacity:0}to{opacity:1}}
+.cn-item,.cn-leaf,.cn-friend,.cn-slot,.cn-person{cursor:pointer}
+.cn-ans .kt-choices button{min-height:52px;min-width:80px;font-size:20px;border-radius:18px}
+.cn-tools button[data-pulse],.cn-act button[data-pulse]{animation:ap-pulse 1.4s ease-in-out infinite}
+.cn-real{position:absolute;inset:0;z-index:7;display:grid;place-items:center;padding:10px;background:rgba(245,239,228,.93)}
+.cn-real-card{max-width:620px;width:100%;max-height:100%;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 22px;border-radius:28px;background:#fff;box-shadow:0 8px 0 #ece3d6,0 18px 40px rgba(70,40,15,.18)}
+.cn-real-head{display:flex;align-items:center;gap:12px}
+.cn-real-head span{display:grid;place-items:center;width:58px;height:58px;border-radius:50%;background:var(--accent-soft);font-size:32px}
+.cn-real-card h2{margin:0;color:#2b1d12;font:900 clamp(20px,3vw,27px)/1.15 var(--sans)}
+.cn-real-card ol{margin:0;padding-left:1.4em;display:grid;gap:4px;text-align:left;width:100%;color:#2b1d12;font:700 clamp(15px,2vw,19px)/1.35 var(--sans)}
+.cn-need{margin:0;color:#4d3c2e;font:700 clamp(15px,2vw,18px)/1.35 var(--sans)}
+.cn-tip{margin:0;padding:6px 12px;border-radius:12px;background:#fff4dc;color:#7a4a10;font:800 clamp(14px,1.8vw,16px)/1.3 var(--sans)}
+.ap-panel .ap-say{flex-shrink:0}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){
+ .cn-ans .kt-choices button{min-height:40px;min-width:58px;font-size:16px;padding:0 10px}
+ .cn-tools button,.cn-act button{min-height:36px;font-size:13px;padding:0 10px}
+ .cn-real-card{padding:10px 14px;gap:5px}
+}
+@media (max-width:600px){.cn-gr{display:none}.cn-lab{display:none}.cn-tools button{min-width:48px}}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){.cn-lab{display:none}.cn-tools button{min-width:44px;font-size:17px}}
+`;
+document.head.appendChild(cnStyle);
+
+// ---------- helpers ----------
+const range = (a, b) => (b < a ? [] : Array.from({ length: b - a + 1 }, (_, i) => a + i));
+const pairs = (n) => range(0, n - 1).flatMap((i) => range(i + 1, n - 1).map((j) => [i, j]));
+const perms = (list) => (list.length <= 1 ? [list] : list.flatMap((x, i) => perms([...list.slice(0, i), ...list.slice(i + 1)]).map((p) => [x, ...p])));
+const choose = (n, k) => (k < 0 || k > n ? 0 : range(1, k).reduce((acc, i) => (acc * (n - k + i)) / i, 1));
+const fact = (n) => range(1, n).reduce((a, b) => a * b, 1);
+const gcd = (a, b) => (b ? gcd(b, a % b) : Math.abs(a));
+const frac = (n, d) => {
+  if (n === 0) return "0";
+  const g = gcd(n, d);
+  return d / g === 1 ? String(n / g) : `${n / g}/${d / g}`;
+};
+const only = (list) => (list.length === 1 ? list[0] : NaN);
+const INK = "#5a4130";
+
+function para(parent, x, y, str, { size = 30, width = 900, lh = 1.32, fill = "#2b1d12", weight = 700, anchor = "start" } = {}) {
+  const maxChars = Math.max(8, Math.floor(width / (size * 0.53)));
+  const lines = [];
+  for (const block of String(str).split("\n")) {
+    let line = "";
+    for (const word of block.split(" ")) {
+      if (line && (line + " " + word).length > maxChars) {
+        lines.push(line);
+        line = word;
+      } else line = line ? `${line} ${word}` : word;
+    }
+    lines.push(line);
+  }
+  if (parent) lines.forEach((ln, i) => text(parent, x, y + i * size * lh, ln, { "font-size": size, fill, "font-weight": weight, "text-anchor": anchor }));
+  return lines.length;
+}
+const fitSize = (str, width, maxH, start = 32, min = 22) => {
+  let size = start;
+  while (size > min && para(null, 0, 0, str, { size, width }) * size * 1.32 > maxH) size -= 2;
+  return size;
+};
+
+const LEVELS = [["easy", "🐣 Grade 4"], ["medium", "🦊 Grade 5–6"], ["hard", "🦁 Grade 7–8"]];
+const levelRow = (cur) => `<div class="ap-row"><div class="ap-chips" data-levels>${LEVELS.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}" aria-label="${l.slice(3)}">${l.replace("Grade ", "<span class=\"cn-gr\">Grade </span>")}</button>`).join("")}</div><p class="ap-status" data-status></p></div>`;
+const onLevels = (id, fn) =>
+  $("[data-levels]")?.addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    shell.mark(id, { level: b.dataset.lv });
+    window.OC?.touch();
+    // Restart the whole game at the new level, so every pending timer of the old one stops.
+    token += 1;
+    VOICE.hush();
+    stage.onpointerdown = null;
+    $("[data-panel]").onclick = null;
+    units[id]();
+  });
+const status = (s) => {
+  const box = $("[data-status]");
+  if (box) box.textContent = s;
+};
+const tween = (ms, fn, alive) =>
+  new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(true);
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!alive()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+
+function card({ icon, title, need = [], steps = [], note: tip = "", button = "✓ Done" }) {
+  return new Promise((resolve) => {
+    stage.querySelector(".cn-real")?.remove();
+    const box = document.createElement("div");
+    box.className = "cn-real";
+    box.innerHTML = `<div class="cn-real-card" role="dialog" aria-label="${title}"><div class="cn-real-head"><span aria-hidden="true">${icon}</span><h2>${title}</h2></div>${need.length ? `<p class="cn-need"><b>You need:</b> ${need.join(" · ")}</p>` : ""}<ol>${steps.map((s) => `<li>${s}</li>`).join("")}</ol>${tip ? `<p class="cn-tip">${tip}</p>` : ""}<button type="button" class="kt-go">${button}</button></div>`;
+    stage.appendChild(box);
+    VOICE.speak(`${title}. ${need.length ? `You need: ${need.join(", ")}. ` : ""}${steps.join(" ")} ${tip}`);
+    box.querySelector(".kt-go").addEventListener("click", () => {
+      VOICE.hush();
+      box.remove();
+      window.OC?.touch();
+      resolve();
+    });
+  });
+}
+// "Explain it" prompts: one per unit. She must articulate the reasoning in 2–4 sentences.
+const EXPLAIN = {
+  c1: "Explain why 4 shirts and 3 pairs of trousers make 12 outfits rather than 7. Then explain how an organised list guarantees that no outfit is missed or counted twice.",
+  c2: "Explain why the number of branches at the end of a tree diagram equals the product of the numbers of choices at each stage. Use the ice-cream tree as your example.",
+  c3: "Explain why 4 people can stand in a line in 4 × 3 × 2 × 1 = 24 ways. Why does each place have one fewer choice than the place before it?",
+  c4: "Explain why 10 people make 10 × 9 ÷ 2 = 45 handshakes. Why must we divide by 2, when arrangements in a line do not need it?",
+  c5: "Explain what a probability of 1/6 means for a fair die, using the words 'equally likely outcomes'. Why is the probability of NOT rolling a six equal to 5/6?",
+  c6: "Explain the difference between experimental probability (what happened in your trials) and theoretical probability (what we expect). Why do more trials usually bring the two closer together, even though they never guarantee an exact match?",
+  c7: "Choose one puzzle you solved. Explain the counting method you used, and why it counts every case exactly once.",
+};
+const explainCard = (id) =>
+  card({
+    icon: "🗣️",
+    title: "Explain it",
+    steps: [EXPLAIN[id], "Say it aloud to a grown-up in 2–4 full sentences, or write it in your notebook.", "Use the precise words: 'outcome', 'choice', 'multiply', 'counted twice'."],
+    note: "A mathematician is judged not only by the answer but by how clearly the reasoning is communicated.",
+  });
+async function finishGame(id, my, message, real) {
+  confetti();
+  MUSIC.chime();
+  shell.mark(id, { done: true });
+  say(message);
+  await wait(2600);
+  if (my !== token) return;
+  await explainCard(id);
+  if (my !== token) return;
+  if (real) await card(real);
+}
+
+// Clothing shapes for the outfit pictures.
+function shirt(g, x, y, color, s = 1) {
+  return el("path", { d: "M-20 -35L-42 -28L-56 -6L-40 2L-30 -10V36H30V-10L40 2L56 -6L42 -28L20 -35Q0 -20 -20 -35Z", fill: color, stroke: INK, "stroke-width": 3 / s, "stroke-linejoin": "round", transform: `translate(${x} ${y}) scale(${s})` }, g);
+}
+function trousers(g, x, y, color, s = 1) {
+  return el("path", { d: "M-30 -36H30L34 36H8L0 -6L-8 36H-34Z", fill: color, stroke: INK, "stroke-width": 3 / s, "stroke-linejoin": "round", transform: `translate(${x} ${y}) scale(${s})` }, g);
+}
+function hat(g, x, y, color, s = 1) {
+  return el("path", { d: "M-30 12Q-30 -26 0 -26Q30 -26 30 12ZM-30 8H44V16H-30Z", fill: color, stroke: INK, "stroke-width": 3 / s, "stroke-linejoin": "round", transform: `translate(${x} ${y}) scale(${s})` }, g);
+}
+const SHIRTS = [["#e53935", "red"], ["#1e88e5", "blue"], ["#f2c94c", "yellow"], ["#43a047", "green"]];
+const BOTTOMS = [["#7e57c2", "purple"], ["#6d4c41", "brown"], ["#ff8a3d", "orange"], ["#26a69a", "teal"]];
+const HATS = [["#ec407a", "pink"], ["#37474f", "black"], ["#ffffff", "white"]];
+function gridPic(g, cols, rows, cell, x0, y0, attrs = {}) {
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) el("rect", { x: x0 + c * cell, y: y0 + r * cell, width: cell, height: cell, fill: "#fff", stroke: INK, "stroke-width": 4, ...attrs }, g);
+}
+
+// ---------- problem card + worked solution (shared by the puzzle-style games) ----------
+function drawProblem(p, tag) {
+  fresh();
+  el("rect", { x: 14, y: 14, width: 972, height: 532, rx: 26, fill: "#fffaf2", stroke: "#eadfcd", "stroke-width": 3 }, view);
+  text(view, 44, 60, tag, { "text-anchor": "start", "font-size": 24, fill: "var(--accent-dark)" });
+  const width = p.pic ? 470 : 912;
+  const size = fitSize(p.q, width, 400, p.pic ? 30 : 34, 22);
+  para(view, 44, 112, p.q, { size, width });
+  if (p.pic) p.pic(el("g", { transform: "translate(552 110)" }, view));
+}
+function drawSolution(p, answerLine) {
+  fresh();
+  el("rect", { x: 14, y: 14, width: 972, height: 532, rx: 26, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, view);
+  const ideaText = `Key idea: ${p.idea}`;
+  el("rect", { x: 40, y: 32, width: Math.min(900, ideaText.length * 14.5 + 60), height: 52, rx: 26, fill: "var(--accent-soft)" }, view);
+  text(view, 64, 67, `🔑 ${ideaText}`, { "text-anchor": "start", "font-size": 27, fill: "var(--accent-dark)" });
+  const width = p.solPic ? 520 : 860;
+  let size = 28;
+  const total = (s) => p.sol.reduce((h, st) => h + para(null, 0, 0, st, { size: s, width }) * s * 1.3 + 14, 0);
+  while (size > 21 && total(size) > 330) size -= 1;
+  let y = 128;
+  p.sol.forEach((st, i) => {
+    el("circle", { cx: 60, cy: y - size * 0.35, r: 17, fill: "var(--accent)" }, view);
+    text(view, 60, y - size * 0.35 + 7, i + 1, { "font-size": 20, fill: "#fff" });
+    y += para(view, 92, y, st, { size, width, lh: 1.3 }) * size * 1.3 + 14;
+  });
+  if (p.solPic) p.solPic(el("g", { transform: "translate(640 110)" }, view));
+  el("rect", { x: 40, y: 474, width: 920, height: 56, rx: 16, fill: "#fff4dc" }, view);
+  text(view, 500, 510, answerLine, { "font-size": 24, fill: "#7a4a10" });
+}
+
+// ---------- puzzle runner: 8 problems, Socratic hints after an attempt, solution after two ----------
+function runPuzzles(id, level, gens, { title, onLevel, real } = {}) {
+  const my = token;
+  const alive = () => my === token;
+  const list = [];
+  const order = shuffle(gens);
+  for (let k = 0; list.length < 8 && k < 80; k++) {
+    const p = order[k % order.length]();
+    if (!list.some((q) => q.q === p.q)) list.push(p);
+  }
+  let i = 0;
+  let firstTry = 0;
+  const show = () => {
+    if (!alive()) return;
+    const p = list[i];
+    let tries = 0;
+    let hint = 0;
+    let done = false;
+    let showing = "problem";
+    let pad = null;
+    panel(`${levelRow(level)}<div class="ap-row cn-ans" data-answer></div><div class="ap-chips cn-tools" data-tools><button type="button" data-t="read" aria-label="Read it to me">🔊</button><button type="button" data-t="hint" aria-label="Hint">💡<span class="cn-lab"> Hint</span></button><button type="button" data-t="sol" aria-label="Solution">📖<span class="cn-lab"> Solution</span></button><button type="button" data-t="next">Next ▶</button></div>`);
+    onLevels(id, onLevel);
+    status(`Problem ${i + 1} of ${list.length}`);
+    drawProblem(p, `${title} · ${LEVELS.find(([k]) => k === level)[1]} · ${i + 1} of ${list.length}`);
+    const ansText = p.opts ? p.ans : String(p.ans);
+    const pulse = (t) => {
+      document.querySelectorAll("[data-tools] [data-pulse]").forEach((b) => b.removeAttribute("data-pulse"));
+      if (t) $(`[data-t="${t}"]`)?.setAttribute("data-pulse", "");
+    };
+    const solve = () => {
+      showing = "sol";
+      drawSolution(p, done ? `Answer: ${ansText}. Explain it: say why the key idea works, in 2–4 sentences.` : `The answer is ${ansText}. Study each step, then explain it in your own words.`);
+      $('[data-t="sol"]').innerHTML = `🧩<span class="cn-lab"> Problem</span>`;
+      say(`<b>${p.idea}.</b> ${p.sol.join(" ")}`);
+    };
+    const answer = (v, button) => {
+      if (!alive() || done) return;
+      window.OC?.touch();
+      tries += 1;
+      if (String(v) === String(p.ans)) {
+        done = true;
+        if (tries === 1) firstTry += 1;
+        button?.classList.add("right");
+        MUSIC.chime();
+        window.OC?.count("counting problems solved");
+        say(`Correct: ${ansText}. ${p.why || ""} Press 📖 to compare your method with the worked solution, or Next ▶.`);
+        pulse("next");
+      } else {
+        button?.classList.add("wrong");
+        MUSIC.oops();
+        pad?.clear();
+        if (tries === 1) {
+          say(`Not quite. Mistakes are how we learn. ${pick(["Consider what each part of the question tells you.", "Which cases have you counted, and which might be missing or doubled?", "Check your answer against every condition in the question."])} Press 💡 for a guiding question, or try again.`);
+          pulse("hint");
+        } else {
+          pulse("sol");
+          say(`Not quite. After two honest attempts, the worked solution is the right next step: the answer is ${ansText}, and here is why.`);
+          done = true;
+          setTimeout(() => alive() && list[i] === p && solve(), 1600);
+        }
+      }
+    };
+    const host = $("[data-answer]");
+    if (p.opts) choices(host, p.opts.map((o) => ({ label: String(o), v: o })), (c, b) => answer(c.v, b));
+    else pad = numpad(host, { onEnter: (v) => answer(v), max: 5 });
+    $("[data-tools]").addEventListener("click", (event) => {
+      const b = event.target.closest("[data-t]");
+      if (!b || !alive()) return;
+      window.OC?.touch();
+      const t = b.dataset.t;
+      if (t === "read") VOICE.speak(`${p.q} ${p.opts ? `The choices are ${p.opts.join(", ")}.` : ""}`);
+      else if (t === "hint") {
+        if (!tries) return say("Make an attempt first. A reasoned answer, even a wrong one, makes the hint more useful.");
+        if (hint >= p.hints.length) return say(`💡 That was the final hint: ${p.hints[p.hints.length - 1]}`);
+        say(`💡 ${p.hints[hint++]}`);
+        pulse("");
+      } else if (t === "sol") {
+        if (showing === "sol") {
+          showing = "problem";
+          drawProblem(p, `${title} · ${i + 1} of ${list.length}`);
+          b.innerHTML = `📖<span class="cn-lab"> Solution</span>`;
+          return;
+        }
+        if (!done && tries < 2) return say(tries ? "Attempt it once more first. Productive struggle is how skill grows; a 💡 hint may help." : "Attempt the problem first. The solution opens after two attempts.");
+        solve();
+      } else if (t === "next") {
+        if (!done && !tries) return say("Give this problem an honest attempt before moving on.");
+        VOICE.hush();
+        i += 1;
+        if (i < list.length) show();
+        else finishGame(id, my, `That completes eight problems, ${firstTry} solved at the first attempt. Choose a level to receive a fresh set of problems.`, real).then(() => alive() && runPuzzles(id, level, gens, { title, onLevel, real }));
+      }
+    });
+    say(`${p.opts ? "Choose the answer." : "Enter the answer, then press ✓."}`, { voice: false });
+    VOICE.speak(`${p.q} ${p.opts ? `The choices are ${p.opts.join(", ")}.` : ""}`);
+  };
+  show();
+}
+
+// ---------- generated problem banks ----------
+const nameOf = (n) => ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"][n] || String(n);
+const letterPerms = (word) => new Set(perms(word.split("")).map((p) => p.join(""))).size;
+const distinctNum = (ans, cands) => {
+  const out = [ans];
+  for (const c of cands) if (out.length < 4 && c > 0 && !out.includes(c)) out.push(c);
+  let k = 1;
+  while (out.length < 4) {
+    if (!out.includes(ans + k)) out.push(ans + k);
+    k += 1;
+  }
+  return out.sort((a, b) => a - b);
+};
+
+// Every k-tuple from `pool` (repeats allowed) that passes `ok`, counted one by one.
+const countTuples = (pool, k, ok = () => true) => {
+  let c = 0;
+  const go = (t) => {
+    if (t.length === k) return void (ok(t) && (c += 1));
+    for (const x of pool) go([...t, x]);
+  };
+  go([]);
+  return c;
+};
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+const ord = (k) => `${k}${k % 10 === 1 && k % 100 !== 11 ? "st" : k % 10 === 2 && k % 100 !== 12 ? "nd" : k % 10 === 3 && k % 100 !== 13 ? "rd" : "th"}`;
+const TREE_HARD = [
+  () => {
+    const L = pickInt(3, 6);
+    const k = pickInt(1, 3);
+    const m = pickInt(1, 2);
+    const letters = "ABCDEF".slice(0, L).split("");
+    const ans = L ** k * 10 ** m;
+    return {
+      q: `A code is ${nameOf(k)} letter${k === 1 ? "" : "s"} chosen from ${letters.join(", ")}, followed by ${nameOf(m)} digit${m === 1 ? "" : "s"} from 0 to 9. Letters and digits may repeat. How many codes are possible?`,
+      ans,
+      idea: "Multiplication principle",
+      hints: ["How many choices are there for each letter position?", "How many choices for each digit position?", "Each position is an independent stage of a tree diagram. Multiply."],
+      sol: [`Each letter: ${L} choices. Each digit: 10 choices.`, `${Array(k).fill(L).concat(Array(m).fill(10)).join(" × ")} = ${ans}.`],
+      calc: () => countTuples(letters, k) * countTuples(range(0, 9), m),
+    };
+  },
+  () => {
+    const n = pickInt(5, 10);
+    const k = pickInt(2, 4);
+    const ans = range(0, k - 1).reduce((s, i) => s * (n - i), 1);
+    return {
+      q: `A ${k}-digit lock code uses the digits ${n === 10 ? "0 to 9" : `1 to ${n}`}, with no digit used twice. How many codes are possible?`,
+      ans,
+      idea: "Choices shrink as digits are used",
+      hints: ["How many choices for the first digit?", "Once a digit is used, how many remain for the second?", "Continue to the last digit, then multiply."],
+      sol: [range(0, k - 1).map((i) => `Digit ${i + 1}: ${n - i} choices`).join(". ") + ".", `${range(0, k - 1).map((i) => n - i).join(" × ")} = ${ans}.`],
+      calc: () => countTuples(n === 10 ? range(0, 9) : range(1, n), k, (t) => new Set(t).size === t.length),
+    };
+  },
+  () => {
+    const s = pickInt(2, 4);
+    const m = pickInt(3, 6);
+    const d = pickInt(2, 4);
+    const ans = m * (s + 1) * (d + 1);
+    return {
+      q: `A restaurant offers ${s} starters, ${m} main courses and ${d} desserts. A meal must include one main course, and may include one starter or none, and one dessert or none. How many different meals are possible?`,
+      ans,
+      idea: "Count 'none' as a choice",
+      hints: ["How many choices are there for the main course?", `For the starter, you may pick one of ${s} or none at all. How many options is that?`, "Treat each course as a stage and multiply."],
+      sol: [`Main: ${m} choices. Starter: ${s} + 1 = ${s + 1} options (including 'none'). Dessert: ${d} + 1 = ${d + 1}.`, `${m} × ${s + 1} × ${d + 1} = ${ans}.`],
+      calc: () => range(1, m).flatMap((a) => range(0, s).flatMap((b) => range(0, d).map((c) => [a, b, c]))).length,
+    };
+  },
+  () => {
+    const N = pickInt(2, 4);
+    const kind = pick(["odd", "noD", "noD", "even", "five"]);
+    const D = pickInt(0, 9);
+    const word = nameOf(N);
+    const lead = kind === "odd" ? 5 : kind === "noD" ? (D === 0 ? 9 : 8) : 9;
+    const mid = kind === "odd" ? 5 : kind === "noD" ? 9 : 10;
+    const last = kind === "odd" ? 5 : kind === "noD" ? 9 : kind === "even" ? 5 : 2;
+    const ans = N === 1 ? last : lead * mid ** (N - 2) * last;
+    const test = (x) => (kind === "odd" ? [...String(x)].every((c) => Number(c) % 2) : kind === "noD" ? !String(x).includes(String(D)) : kind === "even" ? x % 2 === 0 : x % 5 === 0);
+    const what = { odd: "have every digit odd", noD: `do not contain the digit ${D} anywhere`, even: "are even", five: "are multiples of 5" }[kind];
+    const counts = [lead, ...Array(N - 2).fill(mid), last];
+    return {
+      q: `How many ${word}-digit numbers ${what}?`,
+      ans,
+      idea: "Count each place separately",
+      hints: ["Which digits are allowed in the first place? (It cannot be 0.)", "Which digits are allowed in each of the other places?", "Multiply the counts for all the places."],
+      sol: [
+        kind === "odd" ? "Every place may be 1, 3, 5, 7 or 9: 5 choices." : kind === "noD" ? `First place: 1–9${D ? ` without ${D}` : ""}, ${lead} choices. Every other place: 0–9 without ${D}, 9 choices.` : kind === "even" ? "First place: 1–9, 9 choices. Middle places: 10 each. Last place: 0, 2, 4, 6 or 8, 5 choices." : "First place: 1–9, 9 choices. Middle places: 10 each. Last place: 0 or 5, 2 choices.",
+        `${counts.join(" × ")} = ${ans}.`,
+      ],
+      calc: () => range(10 ** (N - 1), 10 ** N - 1).filter(test).length,
+    };
+  },
+  () => {
+    const n = pickInt(3, 10);
+    const kind = pick(["any", "atleast", "must"]);
+    const ans = kind === "any" ? 2 ** n : kind === "atleast" ? 2 ** n - 1 : 2 ** (n - 1);
+    return {
+      q: kind === "any" ? `A pizza can have any combination of ${n} toppings, including no toppings at all. How many different pizzas are possible?` : kind === "atleast" ? `A pizza can have any combination of ${n} toppings, but it must have at least one topping. How many different pizzas are possible?` : `A pizza can have any combination of ${n} toppings, but cheese (one of the ${n}) must always be on it. How many different pizzas are possible?`,
+      ans,
+      idea: kind === "any" ? "Each item: in or out" : kind === "atleast" ? "Each item: in or out, then remove the empty choice" : "A forced choice is not a choice",
+      hints: ["Each topping is either on the pizza or not: 2 choices. Are the decisions independent?", kind === "any" ? `Multiply 2 by itself ${n} times.` : kind === "atleast" ? "Which single combination is now not allowed?" : "How many toppings are still free to be in or out?", "Multiply the choices for the free toppings."],
+      sol: kind === "any" ? [`Each of the ${n} toppings is either included or not: 2 choices each.`, `2 multiplied ${n} times = ${2 ** n}. (This counts every subset, including the empty one.)`] : kind === "atleast" ? [`Without the rule: 2 multiplied ${n} times = ${2 ** n} combinations.`, `Exactly one of those is the empty pizza: ${2 ** n} − 1 = ${ans}.`] : [`Cheese is always on, so only the other ${n - 1} toppings are decisions.`, `2 multiplied ${n - 1} times = ${ans}.`],
+      calc: () => range(0, 2 ** n - 1).filter((m) => (kind === "atleast" ? m !== 0 : kind === "must" ? m & 1 : true)).length,
+    };
+  },
+];
+
+const ARR_HARD = [
+  () => {
+    const n = pickInt(4, 7);
+    const kind = pick(["plain", "first", "end", "ends"]);
+    const N = cap(nameOf(n));
+    const ans = kind === "plain" ? fact(n) : kind === "first" ? fact(n - 1) : kind === "end" ? 2 * fact(n - 1) : 2 * fact(n - 2);
+    return {
+      q: kind === "plain" ? `In how many different orders can ${nameOf(n)} people stand in a line?` : kind === "first" ? `${N} people stand in a line, and the tallest must stand first. How many orders are possible?` : kind === "end" ? `${N} people stand in a line, and the teacher must stand at one of the two ends. How many orders are possible?` : `${N} people stand in a line, and the two captains must stand at the two ends. How many orders are possible?`,
+      ans,
+      idea: kind === "plain" ? "Fill the places one at a time" : "Place the restricted people first",
+      hints: kind === "plain" ? ["How many people could stand first?", "Then how many could stand second?", `Continue down to the last place, then multiply. (Mathematicians write this product as ${n}!, read '${n} factorial'.)`] : ["Deal with the restricted person or people first. How many ways can they be placed?", "How many people are left, and how many places?", "Multiply the two counts."],
+      sol: kind === "plain" ? [`${range(1, n).reverse().join(" × ")} = ${fact(n)}.`, `This product is written ${n}! ('${n} factorial').`] : kind === "first" ? ["The tallest has only 1 place.", `The other ${n - 1} fill the remaining places in ${n - 1}! = ${ans} ways.`] : kind === "end" ? ["The teacher has 2 possible places.", `The other ${n - 1} fill the rest in ${n - 1}! = ${fact(n - 1)} ways: 2 × ${fact(n - 1)} = ${ans}.`] : ["The two captains take the two ends in 2 orders.", `The other ${n - 2} fill the middle in ${n - 2}! = ${fact(n - 2)} ways: 2 × ${fact(n - 2)} = ${ans}.`],
+      calc: () => perms(range(0, n - 1)).filter((p) => (kind === "first" ? p[0] === 0 : kind === "end" ? p[0] === 0 || p[n - 1] === 0 : kind === "ends" ? (p[0] === 0 && p[n - 1] === 1) || (p[0] === 1 && p[n - 1] === 0) : true)).length,
+    };
+  },
+  () => {
+    const w = pick(["BOOK", "LEVEL", "APPLE", "BANANA", "LETTER", "COOKIE", "PEPPER", "ARRAY", "COFFEE", "PUZZLE", "TOFFEE", "BALLOON", "CANNON", "KAYAK", "RADAR", "ALPACA", "TATTOO", "GIGGLE", "MAMMAL", "COCOA", "TEETH", "NOODLE", "BUBBLE", "SEESAW"]);
+    const counts = {};
+    for (const ch of w) counts[ch] = (counts[ch] || 0) + 1;
+    const reps = Object.entries(counts).filter(([, c]) => c > 1);
+    const ans = fact(w.length) / reps.reduce((s, [, c]) => s * fact(c), 1);
+    return {
+      q: `How many different arrangements of the letters of the word ${w} are there? (Nonsense words count.)`,
+      ans,
+      idea: "Divide out identical swaps",
+      hints: [`If all ${w.length} letters were different, how many orders would there be?`, `Which letters repeat? Swapping two identical letters does not create a new word.`, "Divide by the number of ways to arrange each group of repeated letters."],
+      sol: [`With all letters different there would be ${w.length}! = ${fact(w.length)} orders.`, `Repeated letters: ${reps.map(([ch, c]) => `${ch} appears ${c} times (${c}! = ${fact(c)} swaps)`).join("; ")}.`, `${fact(w.length)} ÷ ${reps.map(([, c]) => fact(c)).join(" ÷ ")} = ${ans}.`],
+      calc: () => letterPerms(w),
+    };
+  },
+  () => {
+    const n = pickInt(4, 7);
+    const kind = pick(["pair", "trio", "twopairs", "pairfirst"]);
+    const N = cap(nameOf(n));
+    const ans = kind === "pair" ? 2 * fact(n - 1) : kind === "trio" ? 6 * fact(n - 2) : kind === "twopairs" ? 4 * fact(n - 2) : 2 * fact(n - 2);
+    const q = {
+      pair: `${N} people line up, but two of them, who are twins, insist on standing next to each other. How many orders are possible?`,
+      trio: `${N} people line up, and three of them, who are triplets, insist on standing together in a block. How many orders are possible?`,
+      twopairs: `${N} people line up. Among them are two pairs of twins, and each pair insists on standing side by side. How many orders are possible?`,
+      pairfirst: `${N} people line up. The tallest must stand first, and two twins (not the tallest) insist on standing side by side. How many orders are possible?`,
+    }[kind];
+    return {
+      q,
+      ans,
+      idea: "Glue the group together",
+      hints: ["Imagine each group that must stay together tied into one block. How many 'units' are in the line now?", "How many ways can those units be ordered?", "Inside each block, in how many orders can its members stand?"],
+      sol: {
+        pair: [`Treat the twins as one block: ${n - 1} units, arranged in ${n - 1}! = ${fact(n - 1)} ways.`, "The twins can swap within their block: × 2.", `${fact(n - 1)} × 2 = ${ans}.`],
+        trio: [`Treat the triplets as one block: ${n - 2} units, arranged in ${n - 2}! = ${fact(n - 2)} ways.`, "Inside the block the triplets stand in 3! = 6 orders.", `${fact(n - 2)} × 6 = ${ans}.`],
+        twopairs: [`Two blocks of twins plus ${n - 4} others: ${n - 2} units, arranged in ${n - 2}! = ${fact(n - 2)} ways.`, "Each pair of twins can swap: × 2 × 2.", `${fact(n - 2)} × 4 = ${ans}.`],
+        pairfirst: ["The tallest is fixed in the first place.", `Behind them, the twins' block and the other ${n - 3} people make ${n - 2} units: ${n - 2}! = ${fact(n - 2)} orders, and the twins can swap.`, `${fact(n - 2)} × 2 = ${ans}.`],
+      }[kind],
+      calc: () => {
+        const adj = (p, a, b) => Math.abs(p.indexOf(a) - p.indexOf(b)) === 1;
+        return perms(range(0, n - 1)).filter((p) => {
+          if (kind === "pair") return adj(p, 0, 1);
+          if (kind === "trio") return Math.max(p.indexOf(0), p.indexOf(1), p.indexOf(2)) - Math.min(p.indexOf(0), p.indexOf(1), p.indexOf(2)) === 2;
+          if (kind === "twopairs") return adj(p, 0, 1) && adj(p, 2, 3);
+          return p[0] === n - 1 && adj(p, 0, 1);
+        }).length;
+      },
+    };
+  },
+  () => {
+    const n = pickInt(4, 7);
+    const kind = pick(["apart", "ahead", "notend", "gap"]);
+    const N = cap(nameOf(n));
+    const ans = kind === "apart" ? fact(n) - 2 * fact(n - 1) : kind === "ahead" ? fact(n) / 2 : kind === "gap" ? 2 * (n - 2) * fact(n - 2) : (n - 2) * fact(n - 1);
+    return {
+      q: kind === "apart" ? `${N} people line up, and two of them refuse to stand next to each other. How many orders are possible?` : kind === "ahead" ? `${N} people line up, and Ava must stand somewhere in front of Ben (not necessarily directly in front). How many orders are possible?` : kind === "gap" ? `${N} people line up, and two friends want exactly one person standing between them. How many orders are possible?` : `${N} people line up, and the youngest must not stand at either end. How many orders are possible?`,
+      ans,
+      idea: kind === "apart" ? "Count the complement" : kind === "ahead" ? "Use symmetry" : kind === "gap" ? "Place the restricted pair first" : "Place the restricted person first",
+      hints: kind === "apart" ? ["How many orders are there with no restriction?", "How many orders have the two side by side? (Glue them into a block.)", "Subtract the forbidden orders from the total."] : kind === "ahead" ? ["How many orders are there with no restriction?", "Swap Ava and Ben in any order. What happens to 'Ava in front of Ben'?", "So what fraction of all orders have Ava in front?"] : kind === "gap" ? ["List the pairs of places with exactly one place between them: 1st and 3rd, 2nd and 4th, … How many are there?", "In how many orders can the two friends occupy such a pair of places?", "How many ways can everyone else fill the remaining places? Multiply."] : ["How many places in the line are not at an end?", "Put the youngest in one of those places. How many ways can the others fill the rest?", "Multiply."],
+      sol: kind === "apart" ? [`All orders: ${n}! = ${fact(n)}.`, `Orders with the two together: 2 × ${n - 1}! = ${2 * fact(n - 1)}.`, `${fact(n)} − ${2 * fact(n - 1)} = ${ans}.`] : kind === "ahead" ? [`All orders: ${n}! = ${fact(n)}.`, "Swapping Ava and Ben pairs every order with Ava in front with exactly one order with Ben in front.", `So exactly half qualify: ${fact(n)} ÷ 2 = ${ans}.`] : kind === "gap" ? [`Pairs of places with one place between them: 1st and 3rd, 2nd and 4th, …, up to ${ord(n - 2)} and ${ord(n)}: ${n - 2} pairs.`, `The friends can fill a pair in 2 orders, and the other ${n - 2} people fill the rest in ${n - 2}! = ${fact(n - 2)} ways.`, `${n - 2} × 2 × ${fact(n - 2)} = ${ans}.`] : [`The youngest can take any of the ${n - 2} middle places.`, `The other ${n - 1} people fill the rest in ${n - 1}! = ${fact(n - 1)} ways.`, `${n - 2} × ${fact(n - 1)} = ${ans}.`],
+      calc: () => perms(range(0, n - 1)).filter((p) => (kind === "apart" ? Math.abs(p.indexOf(0) - p.indexOf(1)) !== 1 : kind === "ahead" ? p.indexOf(0) < p.indexOf(1) : kind === "gap" ? Math.abs(p.indexOf(0) - p.indexOf(1)) === 2 : p[0] !== 0 && p[n - 1] !== 0)).length,
+    };
+  },
+  () => {
+    const n = pickInt(4, 7);
+    const kind = pick(["plain", "together", "apart", "mirror"]);
+    const N = cap(nameOf(n));
+    const base = `${N} people sit around a round table. Two seatings count as the same if one is a rotation of the other${kind === "mirror" ? " or a mirror image of the other (only who sits next to whom matters)" : ""}.`;
+    const ans = kind === "plain" ? fact(n - 1) : kind === "together" ? 2 * fact(n - 2) : kind === "apart" ? fact(n - 1) - 2 * fact(n - 2) : fact(n - 1) / 2;
+    return {
+      q: `${base} ${kind === "together" ? "Two friends insist on sitting side by side. " : kind === "apart" ? "Two rivals refuse to sit side by side. " : ""}How many different seatings are there?`,
+      ans,
+      idea: kind === "mirror" ? "Remove rotations, then mirror pairs" : "Fix one person to remove rotations",
+      hints: [`In a line there would be ${n}! orders. How many rotations of a circle look identical?`, "Fix one particular person in one seat. Does that remove the rotations?", kind === "plain" ? `Arrange the remaining ${n - 1} people.` : kind === "together" ? "Glue the two friends into a block first, then fix the block." : kind === "apart" ? "Count all seatings, then subtract those with the rivals side by side." : "Every seating and its mirror image are now counted as one. What does that do to the count?"],
+      sol: kind === "plain" ? [`Each circular seating appears as ${n} different line orders (one per rotation).`, `${n}! ÷ ${n} = ${n - 1}! = ${ans}.`] : kind === "together" ? [`Glue the friends into a block: ${n - 1} units around the table, giving (${n - 1} − 1)! = ${fact(n - 2)} seatings.`, `The friends can swap within the block: ${fact(n - 2)} × 2 = ${ans}.`] : kind === "apart" ? [`All seatings: (${n} − 1)! = ${fact(n - 1)}. With the rivals side by side: 2 × ${fact(n - 2)} = ${2 * fact(n - 2)}.`, `${fact(n - 1)} − ${2 * fact(n - 2)} = ${ans}.`] : [`Up to rotation there are (${n} − 1)! = ${fact(n - 1)} seatings.`, `With ${n} ≥ 3 people, no seating is its own mirror image, so they pair up: ${fact(n - 1)} ÷ 2 = ${ans}.`],
+      calc: () => {
+        const canon = (p) => {
+          const k = p.indexOf(0);
+          const r = [...p.slice(k), ...p.slice(0, k)];
+          if (kind !== "mirror") return r.join(",");
+          const m = [r[0], ...r.slice(1).reverse()];
+          return [r.join(","), m.join(",")].sort()[0];
+        };
+        const nextTo = (p, a, b) => { const d = Math.abs(p.indexOf(a) - p.indexOf(b)); return d === 1 || d === n - 1; };
+        return new Set(perms(range(0, n - 1)).filter((p) => (kind === "together" ? nextTo(p, 1, 2) : kind === "apart" ? !nextTo(p, 1, 2) : true)).map(canon)).size;
+      },
+    };
+  },
+  () => {
+    const n = pickInt(5, 12);
+    const k = pickInt(2, 3);
+    const ans = range(0, k - 1).reduce((s, i) => s * (n - i), 1);
+    return {
+      q: `${n} runners compete and there are no ties. In how many ways can ${k === 3 ? "gold, silver and bronze" : "gold and silver"} be awarded?`,
+      ans,
+      idea: "Order matters: fill the places",
+      hints: ["How many runners could take gold?", "After gold is decided, how many could take silver?", k === 3 ? "Then bronze. Multiply." : "Multiply."],
+      sol: [k === 3 ? `Gold ${n}, silver ${n - 1}, bronze ${n - 2}.` : `Gold ${n}, silver ${n - 1}.`, `${range(0, k - 1).map((i) => n - i).join(" × ")} = ${ans}.`],
+      calc: () => countTuples(range(1, n), k, (t) => new Set(t).size === k),
+    };
+  },
+];
+
+const PAIR_HARD = [
+  () => {
+    const n = pickInt(8, 30);
+    return {
+      q: `${n} people are at a meeting. Each person shakes hands once with every other person. How many handshakes take place?`,
+      ans: (n * (n - 1)) / 2,
+      idea: "Count, then halve the double count",
+      hints: ["How many hands does each person shake?", `${n} × ${n - 1} counts each handshake how many times?`, "Divide by 2."],
+      sol: [`Each person shakes ${n - 1} hands: ${n} × ${n - 1} = ${n * (n - 1)}.`, `Each handshake has two people, so it was counted twice: ${n * (n - 1)} ÷ 2 = ${(n * (n - 1)) / 2}.`],
+      calc: () => pairs(n).length,
+    };
+  },
+  () => {
+    const n = pickInt(6, 20);
+    const h = (n * (n - 1)) / 2;
+    return {
+      q: `At a party, every guest shook hands once with every other guest. There were ${h} handshakes. How many guests were there?`,
+      ans: n,
+      idea: "Work backward from the formula",
+      hints: ["With n guests, there are n × (n − 1) ÷ 2 handshakes.", `So n × (n − 1) = ${2 * h}. Which two consecutive whole numbers multiply to ${2 * h}?`, "Try numbers near the square root."],
+      sol: [`n × (n − 1) ÷ 2 = ${h}, so n × (n − 1) = ${2 * h}.`, `${n} × ${n - 1} = ${2 * h}, so there were ${n} guests.`],
+      calc: () => range(2, 100).find((g) => pairs(g).length === h),
+    };
+  },
+  () => {
+    const n = pickInt(4, 20);
+    return {
+      q: `A diagonal joins two corners of a polygon that are not neighbours. How many diagonals does a polygon with ${n} corners have?`,
+      ans: (n * (n - 3)) / 2,
+      idea: "Count from each corner, then halve",
+      hints: ["From one corner, which corners cannot be joined by a diagonal?", `So each corner has ${n} − 3 diagonals. Why 3?`, "Each diagonal has two ends. What does that mean for the total?"],
+      sol: [`From each corner: ${n} − 3 = ${n - 3} diagonals (not itself, not its two neighbours).`, `${n} × ${n - 3} = ${n * (n - 3)} counts each diagonal twice: ${n * (n - 3)} ÷ 2 = ${(n * (n - 3)) / 2}.`],
+      calc: () => pairs(n).filter(([a, b]) => b - a !== 1 && !(a === 0 && b === n - 1)).length,
+    };
+  },
+  () => {
+    const n = pickInt(4, 20);
+    return {
+      q: `In a football league of ${n} teams, every team plays every other team twice: once at home and once away. How many matches are played?`,
+      ans: n * (n - 1),
+      idea: "Ordered pairs need no halving",
+      hints: ["How many home matches does each team play?", "Is a home match for team A against B the same as a home match for B against A?", "Because order matters here, do not halve."],
+      sol: [`Each team hosts every other team once: ${n - 1} home matches each.`, `${n} × ${n - 1} = ${n * (n - 1)} matches. No halving is needed, because (A at home to B) and (B at home to A) are different matches.`],
+      calc: () => range(0, n - 1).flatMap((a) => range(0, n - 1).filter((b) => b !== a)).length,
+    };
+  },
+  () => {
+    const n = pickInt(5, 12);
+    const k = pick([3, 4]);
+    const shape = k === 3 ? "triangles" : "quadrilaterals (four-sided shapes)";
+    const ordered = range(0, k - 1).reduce((s, i) => s * (n - i), 1);
+    return {
+      q: `${n} points are marked on a circle. How many different ${shape} have all their corners at these points?`,
+      ans: choose(n, k),
+      idea: `Choose ${k}; order does not matter`,
+      hints: ["If the order of picking corners mattered, how many ordered choices would there be?", `The same shape can be picked in ${k}! = ${fact(k)} orders. (Points on a circle always join into exactly one such shape.)`, `Divide ${range(0, k - 1).map((i) => n - i).join(" × ")} by ${fact(k)}.`],
+      sol: [`Ordered picks: ${range(0, k - 1).map((i) => n - i).join(" × ")} = ${ordered}.`, `Each shape is picked in ${k}! = ${fact(k)} orders, so ${ordered} ÷ ${fact(k)} = ${choose(n, k)}.`],
+      calc: () => countTuples(range(0, n - 1), k, (t) => t.every((x, i) => i === 0 || x > t[i - 1])),
+    };
+  },
+  () => {
+    const b = pickInt(3, 6);
+    const g = pickInt(3, 6);
+    return {
+      q: `A team of 2 boys and 1 girl is chosen from ${b} boys and ${g} girls. How many different teams are possible?`,
+      ans: choose(b, 2) * g,
+      idea: "Choose each part, then multiply",
+      hints: [`In how many ways can 2 boys be chosen from ${b}? (Order does not matter.)`, `In how many ways can 1 girl be chosen from ${g}?`, "Multiply the two counts."],
+      sol: [`Pairs of boys: ${b} × ${b - 1} ÷ 2 = ${choose(b, 2)}.`, `Girls: ${g}. Teams: ${choose(b, 2)} × ${g} = ${choose(b, 2) * g}.`],
+      calc: () => pairs(b).length * range(1, g).length,
+    };
+  },
+];
+
+// Probability banks. Answers are fractions in lowest terms.
+function fracOpts(ans, cands) {
+  const out = [ans];
+  for (const [n, d] of cands) {
+    if (out.length >= 4 || d <= 0 || n < 0 || n > d) continue;
+    const f = frac(n, d);
+    if (!out.includes(f)) out.push(f);
+  }
+  return shuffle(out);
+}
+function bagPic(counts) {
+  return (g) => {
+    el("path", { d: "M60 60Q20 70 20 200Q20 330 200 330Q380 330 380 200Q380 70 340 60Z", fill: "#f3e3c8", stroke: INK, "stroke-width": 5 }, g);
+    el("path", { d: "M90 50H310", stroke: INK, "stroke-width": 8, "stroke-linecap": "round" }, g);
+    const balls = counts.flatMap(([c, n]) => Array(n).fill(c));
+    balls.forEach((c, i) => el("circle", { cx: 80 + (i % 5) * 60, cy: 120 + Math.floor(i / 5) * 62, r: 26, fill: c, stroke: INK, "stroke-width": 3 }, g));
+  };
+}
+function spinnerPic(n, colored, col = "#1e88e5") {
+  return (g) => {
+    const cx = 200;
+    const cy = 180;
+    const r = 160;
+    for (let i = 0; i < n; i++) {
+      const a0 = (i / n) * Math.PI * 2 - Math.PI / 2;
+      const a1 = ((i + 1) / n) * Math.PI * 2 - Math.PI / 2;
+      el("path", { d: `M${cx} ${cy}L${cx + r * Math.cos(a0)} ${cy + r * Math.sin(a0)}A${r} ${r} 0 0 1 ${cx + r * Math.cos(a1)} ${cy + r * Math.sin(a1)}Z`, fill: i < colored ? col : "#fff", stroke: INK, "stroke-width": 3 }, g);
+    }
+    el("path", { d: `M${cx} ${cy}L${cx + 20} ${cy - 110}L${cx - 4} ${cy}Z`, fill: INK }, g);
+    el("circle", { cx, cy, r: 10, fill: INK }, g);
+  };
+}
+function diceGrid(test) {
+  return (g) => {
+    const s = 44;
+    range(1, 6).forEach((a) => text(g, 20 + a * s, 18, a, { "font-size": 22, fill: "#e0603a" }));
+    range(1, 6).forEach((b) => text(g, 10, 50 + b * s - 14, b, { "font-size": 22, fill: "#1e88e5" }));
+    for (let a = 1; a <= 6; a++)
+      for (let b = 1; b <= 6; b++) {
+        el("rect", { x: a * s, y: b * s - 10, width: s - 4, height: s - 4, rx: 6, fill: test(a, b) ? "#9fd3a8" : "#fff", stroke: "#d9cdb5", "stroke-width": 2 }, g);
+        text(g, a * s + 20, b * s + 20, a + b, { "font-size": 18, fill: "#4d3c2e", "font-weight": 600 });
+      }
+  };
+}
+const COLORS = [["#e53935", "red"], ["#1e88e5", "blue"], ["#43a047", "green"], ["#f2c94c", "yellow"]];
+const PROB = {
+  easy: [
+    () => {
+      const total = pickInt(4, 10);
+      const kind = pick(["impossible", "unlikely", "even", "likely", "certain"]);
+      const t = kind === "impossible" ? 0 : kind === "certain" ? total : kind === "even" ? (total % 2 ? total - 1 : total) / 2 : kind === "unlikely" ? pickInt(1, Math.ceil(total / 2) - 1) : pickInt(Math.floor(total / 2) + 1, total - 1);
+      const tot = kind === "even" && total % 2 ? total - 1 : total;
+      const [tc, tn] = COLORS[0];
+      const [oc] = COLORS[1];
+      const words = ["impossible", "unlikely", "even chance", "likely", "certain"];
+      const ansWord = { impossible: "impossible", unlikely: "unlikely", even: "even chance", likely: "likely", certain: "certain" }[kind];
+      return {
+        q: `A bag holds ${t} ${tn} marble${t === 1 ? "" : "s"} and ${tot - t} blue marble${tot - t === 1 ? "" : "s"}. You draw one without looking, so each marble is equally likely to be drawn. How likely is it to be ${tn}?`,
+        opts: words,
+        ans: ansWord,
+        idea: "Compare the favourable outcomes with all outcomes",
+        hints: ["How many marbles are there altogether?", `How many of them are ${tn}? Is that none, fewer than half, exactly half, more than half, or all?`, "Match that comparison with one of the words."],
+        sol: [`${t} of the ${tot} marbles are ${tn}.`, `${t === 0 ? "None are red, so it cannot happen" : t === tot ? "Every marble is red, so it must happen" : 2 * t === tot ? "Exactly half are red" : 2 * t < tot ? "Fewer than half are red" : "More than half are red"}: ${ansWord}. As a fraction, the probability is ${frac(t, tot)}.`],
+        calc: () => {
+          const p = t / tot;
+          return p === 0 ? "impossible" : p === 1 ? "certain" : p === 0.5 ? "even chance" : p < 0.5 ? "unlikely" : "likely";
+        },
+        pic: bagPic([[tc, t], [oc, tot - t]]),
+      };
+    },
+    () => {
+      const n = pick([2, 3, 4, 5, 6, 8, 10]);
+      const k = pickInt(1, n - 1);
+      const ans = frac(k, n);
+      return {
+        q: `A spinner has ${n} equal parts, and ${k} of them ${k === 1 ? "is" : "are"} blue. What is the probability of landing on blue?`,
+        opts: fracOpts(ans, [[n - k, n], [k, n - k], [1, n], [k + 1, n], [k, n + 1], [k - 1, n]]),
+        ans,
+        idea: "Favourable parts over total parts",
+        hints: ["Are all the parts equally likely? Why does that matter?", "How many parts are there altogether, and how many are blue?", "Probability = favourable outcomes ÷ all outcomes. Simplify if you can."],
+        sol: [`All ${n} parts are equal, so each outcome is equally likely.`, `${k} favourable out of ${n}: ${k}/${n}${frac(k, n) !== `${k}/${n}` ? ` = ${ans} in lowest terms` : ""}.`],
+        calc: () => frac(range(1, n).filter((x) => x <= k).length, n),
+        pic: spinnerPic(n, k),
+      };
+    },
+    () => {
+      const N = pick([4, 6, 6, 8, 10, 12]);
+      const evs = [
+        ["an even number", (x) => x % 2 === 0],
+        ["an odd number", (x) => x % 2 === 1],
+        ...range(2, N - 2).map((k) => [`a number greater than ${k}`, (x) => x > k]),
+        ...range(2, N - 1).map((k) => [`a number less than ${k}`, (x) => x < k]),
+        ...[3, 4, 5].filter((m) => m < N).map((m) => [`a multiple of ${m}`, (x) => x % m === 0]),
+        ["a prime number (2, 3, 5, 7, 11, …)", (x) => x > 1 && range(2, x - 1).every((d) => x % d)],
+        [`a ${N + 1}`, (x) => x === N + 1],
+        [`a number from 1 to ${N}`, (x) => x >= 1 && x <= N],
+      ];
+      const ev = pick(evs);
+      const fav = range(1, N).filter(ev[1]);
+      const k = fav.length;
+      const ans = frac(k, N);
+      return {
+        q: `You roll a fair ${N}-sided die with faces numbered 1 to ${N}. What is the probability of rolling ${ev[0]}?`,
+        opts: fracOpts(ans, [[N - k, N], [1, N], [k, 2 * N], [k + 1, N], [1, 2], [0, N], [N, N], [k - 1, N]]),
+        ans,
+        idea: "List the equally likely outcomes",
+        hints: [`List the ${N} outcomes. Why are they equally likely?`, `Which of them count as ${ev[0]}?`, `Write favourable ÷ ${N} and simplify.`],
+        sol: [`Outcomes: 1 to ${N}, all equally likely on a fair die. Favourable: ${fav.join(", ") || "none"}.`, `${k}/${N}${k && k !== N && frac(k, N) !== `${k}/${N}` ? ` = ${ans}` : k === 0 ? " = 0 (impossible)" : k === N ? " = 1 (certain)" : ""}.`],
+        calc: () => frac(range(1, N).filter(ev[1]).length, N),
+      };
+    },
+  ],
+  medium: [
+    () => {
+      const r = pickInt(1, 6);
+      const b = pickInt(1, 6);
+      const gn = pickInt(0, 4);
+      const t = r + b + gn;
+      const ans = frac(r + gn, t);
+      return {
+        q: `A bag holds ${r} red, ${b} blue and ${gn} green marbles. One is drawn at random. What is the probability that it is NOT blue?`,
+        opts: fracOpts(ans, [[b, t], [r, t], [r + gn, b], [gn, t], [r + gn, t + 1]]),
+        ans,
+        idea: "The complement: 1 − P(blue)",
+        hints: ["How many marbles are there in total?", "Which marbles are 'not blue'?", `Or: find P(blue) and subtract it from 1.`],
+        sol: [`Total: ${t}. Not blue: ${r} red + ${gn} green = ${r + gn}.`, `P(not blue) = ${r + gn}/${t}${frac(r + gn, t) !== `${r + gn}/${t}` ? ` = ${ans}` : ""}. Check: 1 − ${b}/${t} gives the same.`],
+        calc: () => frac([...Array(r).fill("r"), ...Array(b).fill("b"), ...Array(gn).fill("g")].filter((c) => c !== "b").length, t),
+        pic: bagPic([["#e53935", r], ["#1e88e5", b], ["#43a047", gn]].filter(([, n]) => n)),
+      };
+    },
+    () => {
+      const n = pickInt(2, 4);
+      const kinds = [...range(0, n).map((k) => [`exactly ${nameOf(k)} head${k === 1 ? "" : "s"}`, (h) => h === k]), ...range(1, n - 1).map((k) => [`at least ${nameOf(k)} head${k === 1 ? "" : "s"}`, (h) => h >= k]), ["all the coins the same", (h) => h === 0 || h === n], ["more heads than tails", (h) => 2 * h > n]];
+      const [want, ok] = pick(kinds);
+      const outs = range(0, 2 ** n - 1).map((m) => range(0, n - 1).map((b) => ((m >> b) & 1 ? "H" : "T")).join(""));
+      const test = (o) => ok([...o].filter((c) => c === "H").length);
+      const k = outs.filter(test).length;
+      const ans = frac(k, outs.length);
+      return {
+        q: `${cap(nameOf(n))} fair coins are tossed. What is the probability of ${want}?`,
+        opts: fracOpts(ans, [[1, n + 1], [k, outs.length + 1], [1, 2], [outs.length - k, outs.length], [1, outs.length], [n, outs.length], [k + 1, outs.length]]),
+        ans,
+        idea: "List every equally likely outcome",
+        hints: [`List all outcomes, such as ${outs.slice(0, 2).join(", ")}, … How many are there?`, `Why are ${"H" + "T".repeat(n - 1)} and ${"T".repeat(n - 1) + "H"} different outcomes?`, `Count the outcomes that give ${want}.`],
+        sol: [`The ${outs.length} equally likely outcomes: ${outs.join(", ")}.`, `Favourable: ${outs.filter(test).join(", ") || "none"} (${k}).`, `Probability ${k}/${outs.length}${frac(k, outs.length) !== `${k}/${outs.length}` ? ` = ${ans}` : ""}.`],
+        calc: () => {
+          let c = 0;
+          for (let m = 0; m < 2 ** n; m++) {
+            let h = 0;
+            for (let b = 0; b < n; b++) h += (m >> b) & 1;
+            if (ok(h)) c += 1;
+          }
+          return frac(c, 2 ** n);
+        },
+      };
+    },
+    () => {
+      const n = pick([5, 6, 8, 10, 12]);
+      const k = pickInt(1, n - 1);
+      const trials = pick([20, 40, 60, 100, 120, 200].filter((x) => (x * k) % n === 0));
+      if (!trials) return PROB.medium[0]();
+      const ans = (trials * k) / n;
+      return {
+        q: `A spinner has ${n} equal parts, ${k} of them blue. If it is spun ${trials} times, about how many times would you expect blue? (Give the expected number.)`,
+        opts: distinctNum(ans, [trials - ans, k * 10, Math.round(trials / 2), ans + n, Math.round(trials / n)]),
+        ans,
+        idea: "Expected count = probability × number of trials",
+        hints: ["What is the probability of blue on one spin?", `What is ${k}/${n} of ${trials}?`, "Divide by the denominator, multiply by the numerator."],
+        sol: [`P(blue) = ${k}/${n}.`, `Expected: ${k}/${n} × ${trials} = ${ans}. Real results will vary around this number.`],
+        calc: () => (trials / n) * k,
+        pic: spinnerPic(n, k),
+      };
+    },
+  ],
+  hard: [
+    () => {
+      const s = pickInt(2, 12);
+      const t = pickInt(5, 10);
+      const d = pickInt(0, 4);
+      const v = pickInt(1, 6);
+      const ev = pick([
+        [`the sum is ${s}`, (a, b) => a + b === s],
+        [`the sum is at least ${t}`, (a, b) => a + b >= t],
+        [`the sum is less than ${t}`, (a, b) => a + b < t],
+        [d ? `the two numbers differ by ${d}` : "you roll a double (both dice equal)", (a, b) => Math.abs(a - b) === d],
+        [`at least one die shows a ${v}`, (a, b) => a === v || b === v],
+        ["the product is even", (a, b) => (a * b) % 2 === 0],
+        ["the product is odd", (a, b) => (a * b) % 2 === 1],
+        ["both dice show even numbers", (a, b) => a % 2 === 0 && b % 2 === 0],
+        ["the red die shows more than the blue die", (a, b) => a > b],
+      ]);
+      let k = 0;
+      for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) if (ev[1](a, b)) k += 1;
+      const ans = frac(k, 36);
+      return {
+        q: `Two fair dice, one red and one blue, are rolled. What is the probability that ${ev[0]}?`,
+        opts: fracOpts(ans, [[k, 12], [k + 1, 36], [36 - k, 36], [k - 1, 36], [k, 11], [1, 6], [11, 36], [k + 2, 36]]),
+        ans,
+        idea: "A 6 × 6 table of equally likely outcomes",
+        hints: ["How many equally likely (red, blue) outcomes are there?", "Draw a 6 × 6 table of the outcomes. Which cells satisfy the condition?", ev[0].includes("at least one") ? `Count the complement: outcomes with no ${v} at all.` : "Count the cells, then simplify the fraction."],
+        sol: ["There are 6 × 6 = 36 equally likely outcomes, because red and blue are different dice.", `Cells where ${ev[0]}: ${k} (shaded).`, `Probability ${k}/36${frac(k, 36) !== `${k}/36` ? ` = ${ans}` : ""}.`],
+        calc: () => frac(range(1, 6).flatMap((a) => range(1, 6).map((b) => [a, b])).filter(([a, b]) => ev[1](a, b)).length, 36),
+        solPic: diceGrid(ev[1]),
+      };
+    },
+    () => {
+      const r = pickInt(2, 5);
+      const b = pickInt(2, 5);
+      const t = r + b;
+      const ans = frac(r * (r - 1), t * (t - 1));
+      return {
+        q: `A bag holds ${r} red and ${b} blue marbles. Two are drawn one after the other, without putting the first back. What is the probability that both are red?`,
+        opts: fracOpts(ans, [[r * r, t * t], [r, t], [r - 1, t - 1], [r * (r - 1), t * t], [2 * r, t * (t - 1)]]),
+        ans,
+        idea: "Multiply along the branches",
+        hints: ["What is the probability that the first marble is red?", "If the first was red, how many red marbles remain, and how many marbles in total?", "Multiply the two probabilities, then simplify."],
+        sol: [`First red: ${r}/${t}. Then ${r - 1} red remain among ${t - 1}: ${r - 1}/${t - 1}.`, `${r}/${t} × ${r - 1}/${t - 1} = ${r * (r - 1)}/${t * (t - 1)}${ans !== `${r * (r - 1)}/${t * (t - 1)}` ? ` = ${ans}` : ""}.`],
+        calc: () => {
+          const bag = [...Array(r).fill(1), ...Array(b).fill(0)];
+          let fav = 0;
+          let all = 0;
+          for (let i = 0; i < t; i++) for (let j = 0; j < t; j++) if (i !== j) (all += 1), (fav += bag[i] && bag[j] ? 1 : 0);
+          return frac(fav, all);
+        },
+        pic: bagPic([["#e53935", r], ["#1e88e5", b]]),
+      };
+    },
+    () => {
+      const n = pickInt(2, 6);
+      const kind = pick(["atleast", "both", "atmost1", "exactly1"]);
+      const N = 2 ** n;
+      const k = kind === "atleast" ? N - 1 : kind === "both" ? N - 2 : kind === "atmost1" ? n + 1 : n;
+      const ans = frac(k, N);
+      const what = { atleast: "at least one head", both: "at least one head and at least one tail", atmost1: "at most one head", exactly1: "exactly one head" }[kind];
+      return {
+        q: `A fair coin is tossed ${n} times. What is the probability of getting ${what}?`,
+        opts: fracOpts(ans, [[1, N], [n, N], [1, 2], [n, n + 1], [N - 2, N], [N - 1, N], [n + 1, N]]),
+        ans,
+        idea: kind === "atleast" || kind === "both" ? "Count the complement" : "Count the favourable outcomes directly",
+        hints: [`How many equally likely outcomes are there for ${n} tosses?`, kind === "atleast" ? "Which outcome has no heads at all?" : kind === "both" ? "Which outcomes fail? (Think: all heads, or all tails.)" : kind === "atmost1" ? "How many outcomes have no heads? How many have exactly one?" : "If there is exactly one head, on which toss could it be?", kind === "atleast" || kind === "both" ? "P(event) = 1 − P(the outcomes that fail)." : `Divide the count by ${N}.`],
+        sol: [
+          `There are ${Array(n).fill(2).join(" × ")} = ${N} equally likely outcomes.`,
+          kind === "atleast" ? `Only one (all tails) has no head: 1 − 1/${N} = ${ans}.` : kind === "both" ? `Only two fail (all heads, all tails): 1 − 2/${N} = ${ans}.` : kind === "atmost1" ? `No heads: 1 outcome. Exactly one head: ${n} outcomes (one for each toss). ${n + 1}/${N}${ans !== `${n + 1}/${N}` ? ` = ${ans}` : ""}.` : `The single head can be on any of the ${n} tosses: ${n}/${N}${ans !== `${n}/${N}` ? ` = ${ans}` : ""}.`,
+        ],
+        calc: () => {
+          let c = 0;
+          for (let m = 0; m < N; m++) {
+            let h = 0;
+            for (let b = 0; b < n; b++) h += (m >> b) & 1;
+            if (kind === "atleast" ? h >= 1 : kind === "both" ? h >= 1 && h < n : kind === "atmost1" ? h <= 1 : h === 1) c += 1;
+          }
+          return frac(c, N);
+        },
+      };
+    },
+  ],
+};
+
+// Counting puzzles with pictures.
+const pathsPic = (c, r, mark) => (g) => {
+  const cell = Math.floor(Math.min(340 / c, 270 / r));
+  gridPic(g, c, r, cell, 30, 20, { fill: "none" });
+  el("circle", { cx: 30, cy: 20 + r * cell, r: 12, fill: "#22a05a" }, g);
+  el("circle", { cx: 30 + c * cell, cy: 20, r: 12, fill: "#e0603a" }, g);
+  text(g, 60, 20 + r * cell + 40, "START", { "font-size": 22, fill: "#157a40" });
+  text(g, 30 + c * cell + 18, 28, "END", { "font-size": 22, fill: "#b23a1c", "text-anchor": "start" });
+  if (mark) el("circle", { cx: 30 + mark[0] * cell, cy: 20 + (r - mark[1]) * cell, r: 12, fill: "#f2c94c", stroke: INK, "stroke-width": 3 }, g);
+};
+const pascalPic = (c, r) => (g) => {
+  const cell = Math.floor(Math.min(300 / c, 280 / r));
+  gridPic(g, c, r, cell, 20, 20, { fill: "none", "stroke-width": 3 });
+  for (let i = 0; i <= c; i++) for (let j = 0; j <= r; j++) {
+    el("circle", { cx: 20 + i * cell, cy: 20 + (r - j) * cell, r: 16, fill: "#fff", stroke: "var(--accent)", "stroke-width": 2 }, g);
+    text(g, 20 + i * cell, 20 + (r - j) * cell + 6, choose(i + j, i), { "font-size": choose(i + j, i) > 99 ? 13 : 17, fill: "#2b1d12" });
+  }
+};
+const fanPic = (k, cross = false) => (g) => {
+  const base = range(0, k + 1).map((i) => 20 + (i * 360) / (k + 1));
+  el("path", { d: "M200 20L20 320H380Z", fill: "#fde9b6", stroke: INK, "stroke-width": 5, "stroke-linejoin": "round" }, g);
+  base.slice(1, -1).forEach((x) => el("line", { x1: 200, y1: 20, x2: x, y2: 320, stroke: INK, "stroke-width": 4 }, g));
+  // A line across, parallel to the base, 60% of the way down (it meets the sides at x = 92 and x = 308).
+  if (cross) el("line", { x1: 92, y1: 200, x2: 308, y2: 200, stroke: INK, "stroke-width": 4 }, g);
+};
+const PUZ = {
+  easy: [
+    () => {
+      const n = pickInt(2, 6);
+      const k = Math.random() < 0.4 ? 0 : pickInt(1, n);
+      const total = range(1, n).reduce((s, j) => s + j * j, 0);
+      const ans = k ? (n - k + 1) ** 2 : total;
+      return {
+        q: k ? `How many ${k} by ${k} squares are in a ${n} by ${n} grid? (They may overlap.)` : `How many squares of any size are in a ${n} by ${n} grid?`,
+        ans,
+        idea: k ? "Count the starting positions" : "Count by size",
+        hints: k ? [`Where can the top-left corner of a ${k} by ${k} square sit?`, `In how many columns can it start without running off the grid? In how many rows?`, "Multiply the two counts."] : ["How many of the smallest squares are there?", "How many 2 by 2 squares? They may overlap.", "Continue up to the whole grid and add."],
+        sol: k ? [`A ${k} by ${k} square can start in ${n} − ${k} + 1 = ${n - k + 1} columns and ${n - k + 1} rows.`, `${n - k + 1} × ${n - k + 1} = ${ans}.`] : [range(1, n).map((j) => `${j} by ${j}: ${(n - j + 1) ** 2}`).join(", ") + ".", `Total: ${range(1, n).map((j) => (n - j + 1) ** 2).join(" + ")} = ${total}.`],
+        calc: () => {
+          let c = 0;
+          for (let s = 1; s <= n; s++) for (let x = 0; x + s <= n; x++) for (let y = 0; y + s <= n; y++) if (!k || s === k) c += 1;
+          return c;
+        },
+        pic: (g) => gridPic(g, n, n, Math.floor(300 / n), 40, 10),
+      };
+    },
+    () => {
+      const n = pickInt(3, 12);
+      const long = Math.random() < 0.4;
+      const all = (n * (n + 1)) / 2;
+      const ans = long ? all - n : all;
+      return {
+        q: long ? `A strip is made of ${n} squares in a row. How many rectangles at least 2 squares long can you find in it?` : `A strip is made of ${n} squares in a row. How many rectangles of any length can you find in it? (A single square counts.)`,
+        ans,
+        idea: "Count by length",
+        hints: [long ? "How many rectangles are exactly 2 squares long?" : "How many rectangles are 1 square long?", "How many are 3 squares long? 4? Notice the pattern.", long ? "Add the counts for every length from 2 up to the whole strip." : "Add the counts for every length."],
+        sol: long ? [`Length 2: ${n - 1}, length 3: ${n - 2}, …, length ${n}: 1.`, `${range(1, n - 1).reverse().join(" + ")} = ${ans}.`] : [`Length 1: ${n}, length 2: ${n - 1}, …, length ${n}: 1.`, `${range(1, n).reverse().join(" + ")} = ${ans}.`],
+        calc: () => pairs(n + 1).filter(([a, b]) => !long || b - a >= 2).length,
+        pic: (g) => gridPic(g, n, 1, Math.floor(380 / n), 10, 120),
+      };
+    },
+    () => {
+      const [big, small] = pick([[5, 1], [10, 1], [10, 5], [25, 5]]);
+      const C = small === 5 ? 5 * (big === 25 ? pickInt(5, 30) : pickInt(3, 16)) : big * pickInt(2, 10) + pick([0, pickInt(1, big - 1)]);
+      const ans = Math.floor(C / big) + 1;
+      const name = (c) => `${c}-cent`;
+      return {
+        q: `In how many different ways can you make ${C} cents using only ${name(big)} coins and ${name(small)} coins? (Only the number of each coin matters, not the order.)`,
+        ans,
+        idea: "Organise by the largest coin",
+        hints: [`What is the greatest number of ${name(big)} coins you could use?`, `For each number of ${name(big)} coins, is the number of ${name(small)} coins fixed? Is it always possible?`, `Count the possible numbers of ${name(big)} coins, including zero.`],
+        sol: [`The number of ${name(big)} coins can be 0, 1, …, ${Math.floor(C / big)}; in every case the ${name(small)} coins make up the rest exactly${small === 5 ? ` (the remainder is always a multiple of 5)` : ""}.`, `That is ${ans} ways.`],
+        calc: () => range(0, C).filter((b) => big * b <= C && (C - big * b) % small === 0).length,
+      };
+    },
+    () => {
+      const s = pickInt(1, 18);
+      const ans = range(10, 99).filter((x) => Math.floor(x / 10) + (x % 10) === s).length;
+      return {
+        q: `How many 2-digit numbers have digits that add up to ${s}?`,
+        ans,
+        idea: "Make an organised list",
+        hints: ["Start with the smallest possible tens digit. What must the ones digit be?", "Increase the tens digit one step at a time.", "Stop when the ones digit would be impossible (less than 0 or more than 9)."],
+        sol: [`List by tens digit: ${range(10, 99).filter((x) => Math.floor(x / 10) + (x % 10) === s).join(", ")}.`, `That is ${ans} number${ans === 1 ? "" : "s"}.`],
+        calc: () => {
+          let c = 0;
+          for (let t = 1; t <= 9; t++) for (let o = 0; o <= 9; o++) if (t + o === s) c += 1;
+          return c;
+        },
+      };
+    },
+  ],
+  medium: [
+    () => {
+      const c = pickInt(2, 5);
+      const r = pickInt(2, 5);
+      return {
+        q: `Moving only right or up along the lines, how many shortest paths lead from START to the opposite corner of this ${c} by ${r} grid?`,
+        ans: choose(c + r, r),
+        idea: "Count corner by corner",
+        hints: ["How many ways reach each corner on the bottom edge or the left edge?", "Any other corner is reached from its left or from below. How do the two counts combine?", "Fill in every corner. What lands on the far corner?"],
+        sol: ["Edge corners can be reached in just 1 way.", "Each other corner = the number on its left + the number below it.", `The far corner receives ${choose(c + r, r)}.`],
+        calc: () => {
+          const g = Array.from({ length: r + 1 }, () => Array(c + 1).fill(1));
+          for (let i = 1; i <= r; i++) for (let j = 1; j <= c; j++) g[i][j] = g[i - 1][j] + g[i][j - 1];
+          return g[r][c];
+        },
+        pic: pathsPic(c, r),
+        solPic: pascalPic(c, r),
+      };
+    },
+    () => {
+      const n = pickInt(2, 6);
+      const m = pickInt(2, 4);
+      return {
+        q: `A grid is ${n} squares wide and ${m} squares tall. How many rectangles of any size does it contain? (Squares count as rectangles.)`,
+        ans: choose(n + 1, 2) * choose(m + 1, 2),
+        idea: "Choose two lines each way",
+        hints: ["A rectangle is fixed by two vertical lines and two horizontal lines. How many of each are there?", `How many ways to choose 2 of the ${n + 1} vertical lines?`, `And 2 of the ${m + 1} horizontal lines? Multiply.`],
+        sol: [`Vertical pairs: ${n + 1} × ${n} ÷ 2 = ${choose(n + 1, 2)}. Horizontal pairs: ${m + 1} × ${m} ÷ 2 = ${choose(m + 1, 2)}.`, `${choose(n + 1, 2)} × ${choose(m + 1, 2)} = ${choose(n + 1, 2) * choose(m + 1, 2)}.`],
+        calc: () => {
+          let c = 0;
+          for (let x1 = 0; x1 <= n; x1++) for (let x2 = x1 + 1; x2 <= n; x2++) for (let y1 = 0; y1 <= m; y1++) for (let y2 = y1 + 1; y2 <= m; y2++) c += 1;
+          return c;
+        },
+        pic: (g) => gridPic(g, n, m, Math.floor(Math.min(380 / n, 300 / m, 140)), 10, 20),
+      };
+    },
+    () => {
+      const k = pickInt(1, 8);
+      const cross = Math.random() < 0.5;
+      const base = choose(k + 2, 2);
+      return {
+        q: cross ? `A triangle has ${k} line${k === 1 ? "" : "s"} drawn from its top corner to its base, and one straight line across it parallel to the base. How many triangles of any size are in the figure?` : `A triangle has ${k} line${k === 1 ? "" : "s"} drawn from its top corner to its base. How many triangles of any size are in the figure?`,
+        ans: cross ? 2 * base : base,
+        idea: cross ? "Each triangle = a pair of points on one level" : "Each triangle = a pair of base points",
+        hints: ["Every triangle in the figure uses the top corner. What else does it need?", `How many points are on the base, including its two ends?${cross ? " And on the line across?" : ""}`, cross ? "Count the pairs on each level and add." : "Count the pairs of base points."],
+        sol: cross ? [`Every triangle has the top corner and two points on one horizontal level: the base or the line across. Each level has ${k + 2} points.`, `Pairs on one level: ${k + 2} × ${k + 1} ÷ 2 = ${base}. Two levels: 2 × ${base} = ${2 * base}.`] : [`Every triangle has the top corner and two points on the base. There are ${k + 2} base points.`, `Pairs of base points: ${k + 2} × ${k + 1} ÷ 2 = ${base}.`],
+        calc: () => {
+          // Points: apex A, base B0..B(k+1), and (if cross) M0..M(k+1). Lines: each ray, the base, the cross line.
+          const lines = range(0, k + 1).map((i) => ["A", `B${i}`, ...(cross ? [`M${i}`] : [])]);
+          lines.push(range(0, k + 1).map((i) => `B${i}`));
+          if (cross) lines.push(range(0, k + 1).map((i) => `M${i}`));
+          const pts = [...new Set(lines.flat())];
+          const share = (p, q) => lines.some((L) => L.includes(p) && L.includes(q));
+          let c = 0;
+          for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) for (let l = j + 1; l < pts.length; l++) {
+            const [p, q, r] = [pts[i], pts[j], pts[l]];
+            if (share(p, q) && share(q, r) && share(p, r) && !lines.some((L) => L.includes(p) && L.includes(q) && L.includes(r))) c += 1;
+          }
+          return c;
+        },
+        pic: fanPic(k, cross),
+      };
+    },
+    () => {
+      const C = 5 * pickInt(3, 20);
+      let ways = 0;
+      for (let d = 0; d * 10 <= C; d++) for (let f = 0; d * 10 + f * 5 <= C; f++) ways += 1;
+      return {
+        q: `In how many ways can you make ${C} cents from 1-cent, 5-cent and 10-cent coins? (Any number of each; only the number of each coin matters, not the order.)`,
+        ans: ways,
+        idea: "Organise by the largest coin",
+        hints: ["Start with the most 10-cent coins possible. How many ways to complete the rest?", "Then use one fewer 10-cent coin, and so on.", "For a fixed number of 10s and 5s, the 1-cent coins are determined."],
+        sol: [range(0, Math.floor(C / 10)).map((d) => `${d} ten${d === 1 ? "" : "s"}: ${Math.floor((C - 10 * d) / 5) + 1} way${Math.floor((C - 10 * d) / 5) ? "s" : ""}`).join("; ") + ".", `Total: ${ways}.`],
+        calc: () => {
+          let c = 0;
+          for (let a = 0; a <= C; a++) for (let b = 0; 5 * b <= C; b++) for (let d = 0; 10 * d <= C; d++) if (a + 5 * b + 10 * d === C) c += 1;
+          return c;
+        },
+      };
+    },
+  ],
+  hard: [
+    () => {
+      const c = pickInt(3, 6);
+      const r = pickInt(2, 4);
+      const mx = pickInt(1, c - 1);
+      const my = pickInt(1, r - 1);
+      const ans = choose(mx + my, my) * choose(c - mx + r - my, r - my);
+      return {
+        q: `Moving only right or up along the lines of a ${c} by ${r} grid, how many shortest paths from START to the opposite corner pass through the yellow point (${mx} right and ${my} up from START)?`,
+        ans,
+        idea: "Split at the checkpoint and multiply",
+        hints: ["How many paths go from START to the yellow point?", "How many go from the yellow point to the end?", "Each first half can join each second half."],
+        sol: [`START to yellow: ${mx} right, ${my} up: ${choose(mx + my, my)} paths.`, `Yellow to end: ${c - mx} right, ${r - my} up: ${choose(c - mx + r - my, r - my)} paths.`, `${choose(mx + my, my)} × ${choose(c - mx + r - my, r - my)} = ${ans}.`],
+        calc: () => {
+          let cnt = 0;
+          const walk = (x, y, hit) => {
+            if (x === mx && y === my) hit = true;
+            if (x === c && y === r) return void (hit && cnt++);
+            if (x < c) walk(x + 1, y, hit);
+            if (y < r) walk(x, y + 1, hit);
+          };
+          walk(0, 0, false);
+          return cnt;
+        },
+        pic: pathsPic(c, r, [mx, my]),
+      };
+    },
+    () => {
+      const m = pickInt(3, 8);
+      const n = pickInt(2, m - 1);
+      const ans = range(1, n).reduce((s, k) => s + (m - k + 1) * (n - k + 1), 0);
+      return {
+        q: `How many squares of any size are in a grid ${m} squares wide and ${n} squares tall?`,
+        ans,
+        idea: "Count by size",
+        hints: ["How many 1 by 1 squares?", `A k by k square can start in how many columns and how many rows?`, "Add the counts for every possible size."],
+        sol: [range(1, n).map((k) => `${k}×${k}: ${m - k + 1} × ${n - k + 1} = ${(m - k + 1) * (n - k + 1)}`).join("; ") + ".", `Total ${ans}.`],
+        calc: () => {
+          let c = 0;
+          for (let k = 1; k <= n; k++) for (let x = 0; x + k <= m; x++) for (let y = 0; y + k <= n; y++) c += 1;
+          return c;
+        },
+        pic: (g) => gridPic(g, m, n, Math.floor(Math.min(380 / m, 300 / n)), 10, 10),
+      };
+    },
+    () => {
+      const three = Math.random() < 0.5;
+      const n = three ? pickInt(4, 12) : pickInt(5, 14);
+      const f = three ? [1, 1, 2] : [1, 1];
+      while (f.length <= n) f.push(f[f.length - 1] + f[f.length - 2] + (three ? f[f.length - 3] : 0));
+      return {
+        q: `A staircase has ${n} steps. You climb taking ${three ? "1, 2 or 3 steps" : "either 1 step or 2 steps"} at a time. In how many different ways can you reach the top?`,
+        ans: f[n],
+        idea: "Build from smaller cases",
+        hints: ["Count the ways for 1 step, 2 steps, 3 steps.", three ? "Your last move to step n came from step n − 1, n − 2 or n − 3. What does that tell you?" : "Your last move to step n came either from step n − 1 or from step n − 2. What does that tell you?", three ? "Each count is the sum of the three before it." : "Each count is the sum of the two before it."],
+        sol: three ? ["Ways(1) = 1, Ways(2) = 2, Ways(3) = 4. The last move is 1, 2 or 3 steps, so Ways(n) = Ways(n − 1) + Ways(n − 2) + Ways(n − 3).", `1, 2, 4, 7, 13, 24, … reaches ${f[n]} at ${n} steps.`] : ["Ways(1) = 1, Ways(2) = 2. The last move is a 1-step or a 2-step, so Ways(n) = Ways(n − 1) + Ways(n − 2).", `1, 2, 3, 5, 8, … reaches ${f[n]} at ${n} steps (the Fibonacci numbers, named after a mathematician of medieval Pisa).`],
+        calc: () => {
+          const go = (k) => (k < 0 ? 0 : k === 0 ? 1 : go(k - 1) + go(k - 2) + (three ? go(k - 3) : 0));
+          return go(n);
+        },
+      };
+    },
+    () => {
+      const C = 5 * pickInt(5, 20);
+      let ways = 0;
+      for (let q = 0; 25 * q <= C; q++) for (let d = 0; 25 * q + 10 * d <= C; d++) ways += Math.floor((C - 25 * q - 10 * d) / 5) + 1;
+      return {
+        q: `In how many ways can you make ${C} cents from 1-cent, 5-cent, 10-cent and 25-cent coins? (Only the number of each coin matters, not the order.)`,
+        ans: ways,
+        idea: "Organise by the largest coin",
+        hints: ["Fix the number of 25-cent coins first.", "For each choice, fix the number of 10-cent coins.", "Then count the ways to finish with 5s and 1s, and add everything."],
+        sol: ["Go through the 25s, then the 10s; for each, the number of 5-cent coins can be anything from 0 up to what fits, and 1-cent coins fill the rest.", `Adding all cases gives ${ways}.`],
+        calc: () => {
+          let c = 0;
+          for (let q = 0; 25 * q <= C; q++) for (let d = 0; 10 * d <= C; d++) for (let f = 0; 5 * f <= C; f++) if (25 * q + 10 * d + 5 * f <= C) c += 1;
+          return c;
+        },
+      };
+    },
+  ],
+};
+window.__CN = { TREE_HARD, ARR_HARD, PAIR_HARD, PROB, PUZ };
+
+// ---------- 1. Systematic lists: build every outfit ----------
+function outfits() {
+  const my = token;
+  const alive = () => my === token;
+  let level = shell.progress().c1?.level || "easy";
+  const PLAN = {
+    easy: [[2, 2], [2, 3], [3, 2], [3, 3], [2, 4], [4, 2]],
+    medium: [[2, 2, 2], [3, 2, 2], [2, 3, 2], [2, 2, 3], [3, 2, 2], [2, 2, 2]],
+    hard: [[3, 3, 0, 1], [3, 4, 0, 1], [4, 3, 0, 2], [3, 3, 0, 2], [3, 4, 0, 2], [4, 4, 0, 3]],
+  };
+  let round = 0;
+  let firstClaim = 0;
+  const start = (lv) => {
+    level = lv;
+    round = 0;
+    firstClaim = 0;
+    play();
+  };
+  const play = () => {
+    if (!alive()) return;
+    const [a, b, c = 0, nf = 0] = PLAN[level][round];
+    const cats = c ? [a, b, c] : [a, b];
+    const forbidden = new Set();
+    while (forbidden.size < nf) forbidden.add(`${pickInt(0, a - 1)},${pickInt(0, b - 1)}`);
+    const valid = [];
+    for (let i = 0; i < a; i++) for (let j = 0; j < b; j++) for (let k = 0; k < (c || 1); k++) if (!forbidden.has(`${i},${j}`)) valid.push(c ? `${i},${j},${k}` : `${i},${j}`);
+    const found = new Set();
+    const sel = cats.map(() => null);
+    let claims = 0;
+    let busy = false;
+    panel(`${levelRow(level)}<div class="ap-buttons cn-act"><button type="button" data-do="done" class="primary">✓ I have listed them all</button><button type="button" data-do="real">🏠 Try it for real</button></div>`);
+    onLevels("c1", start);
+    status(`Round ${round + 1} of 6 · listed ${found.size}`);
+    fresh();
+    el("line", { x1: 452, x2: 452, y1: 20, y2: 540, stroke: "#eadfcd", "stroke-width": 4 }, view);
+    const rowsY = c ? [90, 245, 400] : [140, 340];
+    const drawers = [shirt, trousers, hat];
+    const palettes = [SHIRTS, BOTTOMS, HATS];
+    const items = [];
+    cats.forEach((n, cat) => {
+      items[cat] = [];
+      for (let i = 0; i < n; i++) {
+        const x = 72 + i * 110;
+        const g = el("g", { class: "cn-item", "data-cat": cat, "data-i": i }, view);
+        const ring = el("rect", { x: x - 52, y: rowsY[cat] - 62, width: 104, height: 124, rx: 18, fill: "#fffaf2", stroke: "#eadfcd", "stroke-width": 3 }, g);
+        drawers[cat](g, x, rowsY[cat], palettes[cat][i][0], cat === 0 ? 0.8 : cat === 2 ? 1.2 : 0.95);
+        items[cat][i] = ring;
+      }
+    });
+    text(view, 720, 52, "Outfits listed: 0", { "font-size": 30, fill: "#2b1d12", class: "cn-count" });
+    if (nf) {
+      const rules = [...forbidden].map((f) => {
+        const [i, j] = f.split(",").map(Number);
+        return `${SHIRTS[i][1]} shirt ✗ ${BOTTOMS[j][1]} trousers`;
+      });
+      rules.forEach((r, k) => text(view, 720, 530 - (rules.length - 1 - k) * 30, `Rule: ${r}`, { "font-size": 22, fill: "#b23a1c" }));
+    }
+    const cols = b * (c || 1);
+    const tableTop = 80;
+    const tableH = nf ? 440 - nf * 30 : 450;
+    const rowH = Math.min(120, tableH / a);
+    const colW = Math.min(120, 500 / cols);
+    const mini = Math.min(rowH / 170, colW / 120) * (c ? 1 : 1.15);
+    const cell = (i, j, k) => [480 + (j * (c || 1) + (k || 0)) * colW + colW / 2, tableTop + i * rowH + rowH / 2];
+    const drawMini = (key, faint) => {
+      const [i, j, k] = key.split(",").map(Number);
+      const [x, y] = cell(i, j, k);
+      const g = el("g", { opacity: faint ? 0.35 : 1, class: faint ? null : "cn-pop" }, view);
+      if (faint) el("rect", { x: x - colW / 2 + 4, y: y - rowH / 2 + 4, width: colW - 8, height: rowH - 8, rx: 12, fill: "none", stroke: "#e0603a", "stroke-width": 3, "stroke-dasharray": "8 6" }, g);
+      const top = c ? -rowH * 0.28 : -rowH * 0.18;
+      if (c) hat(g, x, y + top - 52 * mini, HATS[k][0], mini);
+      shirt(g, x, y + top, SHIRTS[i][0], mini);
+      trousers(g, x, y + top + 70 * mini, BOTTOMS[j][0], mini);
+      return g;
+    };
+    const missingHint = () => {
+      const missing = valid.filter((v) => !found.has(v));
+      const byShirt = range(0, a - 1).map((i) => missing.filter((m) => m.startsWith(`${i},`)).length);
+      const worst = byShirt.indexOf(Math.max(...byShirt));
+      return { missing, worst };
+    };
+    const tapItem = (cat, i) => {
+      if (!alive() || busy) return;
+      window.OC?.touch();
+      sel[cat] = sel[cat] === i ? null : i;
+      items[cat].forEach((r, k) => {
+        r.setAttribute("stroke", sel[cat] === k ? "var(--accent)" : "#eadfcd");
+        r.setAttribute("stroke-width", sel[cat] === k ? 6 : 3);
+      });
+      MUSIC.play("xylophone", 72 + cat * 4 + i * 2, { gain: 0.3 });
+      if (sel.some((s) => s === null)) return;
+      const key = c ? `${sel[0]},${sel[1]},${sel[2]}` : `${sel[0]},${sel[1]}`;
+      const desc = `${SHIRTS[sel[0]][1]} shirt with ${BOTTOMS[sel[1]][1]} trousers${c ? ` and a ${HATS[sel[2]][1]} hat` : ""}`;
+      sel.fill(null);
+      items.flat().forEach((r) => (r.setAttribute("stroke", "#eadfcd"), r.setAttribute("stroke-width", 3)));
+      if (forbidden.has(key.split(",").slice(0, 2).join(","))) {
+        MUSIC.oops();
+        return say(`Not allowed: the rule excludes the ${desc.replace(/ and a .*/, "")}. Excluded combinations are not counted.`);
+      }
+      if (found.has(key)) {
+        MUSIC.oops();
+        return say(`That outfit, the ${desc}, is already on your list. A systematic list has each outfit exactly once.`);
+      }
+      found.add(key);
+      drawMini(key);
+      view.querySelector(".cn-count").textContent = `Outfits listed: ${found.size}`;
+      status(`Round ${round + 1} of 6 · listed ${found.size}`);
+      say(`Listed: ${desc}. ${found.size === 1 ? "Notice where it appears in the table: each shirt has its own row." : ""}`);
+    };
+    view.addEventListener("pointerdown", (event) => {
+      const g = event.target.closest(".cn-item");
+      if (g) tapItem(Number(g.dataset.cat), Number(g.dataset.i));
+    });
+    $("[data-panel]").onclick = async (event) => {
+      const b2 = event.target.closest("[data-do]");
+      if (!b2 || !alive() || busy) return;
+      window.OC?.touch();
+      if (b2.dataset.do === "real")
+        return card({
+          icon: "🏠",
+          title: "Try it for real",
+          need: ["3 shirts and 2 pairs of trousers (or socks and shoes)", "paper and a pencil"],
+          steps: ["Lay the clothes out in two rows on a bed or the floor.", "Make the outfits in order: the first shirt with every pair of trousers, then the second shirt, and so on.", "Record each outfit in a table, one row per shirt. Count the rows and the columns."],
+          note: "Ask a grown-up before taking clothes out, and fold them away afterwards.",
+        });
+      claims += 1;
+      const { missing, worst } = missingHint();
+      if (missing.length) {
+        MUSIC.oops();
+        if (claims === 1) say(`Not quite: some outfits are missing. Consider the ${SHIRTS[worst][1]} shirt's row. Has it been paired with every ${c ? "pair of trousers and every hat" : "pair of trousers"}${nf ? " that the rule allows" : ""}?`);
+        else {
+          say(`${missing.length} outfit${missing.length === 1 ? " is" : "s are"} still missing: the dashed boxes show where. Build ${missing.length === 1 ? "it" : "them"} to complete the list.`);
+          missing.forEach((m) => drawMini(m, true));
+        }
+        return;
+      }
+      busy = true;
+      if (claims === 1) firstClaim += 1;
+      MUSIC.chime();
+      window.OC?.count("outfits listed");
+      const total = a * b * (c || 1);
+      const why = nf ? `${a} × ${b} = ${a * b} pairings, minus ${nf} excluded by the rule${nf > 1 ? "s" : ""}, leaves ${valid.length}. Subtracting what is not allowed is called counting the complement.` : c ? `Correct. ${a} shirts × ${b} trousers × ${c} hats = ${total}: every shirt-and-trousers pair can take any of the ${c} hats.` : `Correct. ${a} shirts × ${b} trousers = ${total}: each shirt starts a row of ${b} outfits, and there are ${a} rows.`;
+      say(nf ? `Correct. ${why}` : why);
+      await wait(4200);
+      if (!alive()) return;
+      round += 1;
+      if (round < PLAN[level].length) play();
+      else
+        finishGame("c1", my, `All six lists are complete; ${firstClaim} were complete at the first check. An organised list (row by row) is the surest way to count without missing or repeating.`, {
+          icon: "🏠",
+          title: "Try it for real",
+          need: ["some shirts and trousers, or cups and plates", "paper and a pencil"],
+          steps: ["Choose two kinds of item, for instance 3 cups and 4 plates.", "Predict the number of cup-and-plate pairs before you start.", "Make every pair in an organised way and record them in a table. Was your prediction right?"],
+          note: "Do this with a grown-up and handle breakable items carefully.",
+        }).then(() => alive() && start(level));
+    };
+    say(c ? `Build every outfit: tap one shirt, one pair of trousers and one hat. List them all, then press ✓.` : nf ? `Build every allowed outfit. Read the rule first: some pairings are excluded.` : `Build every outfit: tap a shirt, then a pair of trousers. List them all, then press ✓.`);
+  };
+  start(level);
+}
+
+// ---------- 2. Tree diagrams ----------
+const TREES = [
+  { name: "ice creams", q: "An ice cream comes in a cone or a cup, in strawberry, chocolate or lemon.", lv: [[["🍦", "cone"], ["🥣", "cup"]], [["🍓", "strawberry"], ["🍫", "chocolate"], ["🍋", "lemon"]]] },
+  { name: "outcomes", q: "Two coins are tossed, one after the other. Each lands heads (H) or tails (T).", lv: [[["H", "heads"], ["T", "tails"]], [["H", "heads"], ["T", "tails"]]] },
+  { name: "lunches", q: "Lunch is a sandwich, a taco or a slice of pizza, with an apple or a banana.", lv: [[["🥪", "sandwich"], ["🌮", "taco"], ["🍕", "pizza"]], [["🍎", "apple"], ["🍌", "banana"]]] },
+  { name: "breakfasts", q: "Breakfast is milk or juice, with cereal, toast, eggs or a pancake.", lv: [[["🥛", "milk"], ["🧃", "juice"]], [["🥣", "cereal"], ["🍞", "toast"], ["🍳", "eggs"], ["🥞", "pancake"]]] },
+  { name: "trips", q: "You visit the park, the beach or the library, travelling by bicycle, bus or on foot.", lv: [[["🌳", "park"], ["🏖️", "beach"], ["📚", "library"]], [["🚲", "bicycle"], ["🚌", "bus"], ["🚶", "on foot"]]] },
+  { name: "outcomes", q: "Three coins are tossed, one after another.", lv: [[["H", "heads"], ["T", "tails"]], [["H", "heads"], ["T", "tails"]], [["H", "heads"], ["T", "tails"]]], big: true },
+  { name: "desserts", q: "A dessert is a cone or a cup, in strawberry, chocolate or lemon, topped with sprinkles or a cherry.", lv: [[["🍦", "cone"], ["🥣", "cup"]], [["🍓", "strawberry"], ["🍫", "chocolate"], ["🍋", "lemon"]], [["🌈", "sprinkles"], ["🍒", "cherry"]]], big: true },
+  { name: "outcomes", q: "A die is rolled and then a coin is tossed.", lv: [[["1", "one"], ["2", "two"], ["3", "three"], ["4", "four"], ["5", "five"], ["6", "six"]], [["H", "heads"], ["T", "tails"]]], big: true },
+  { name: "codes", q: "A code is a letter (A, B or C), then a digit (1 or 2), then a colour (red or blue).", lv: [[["A", "A"], ["B", "B"], ["C", "C"]], [["1", "one"], ["2", "two"]], [["🔴", "red"], ["🔵", "blue"]]], big: true },
+];
+function drawTree(sc, { partial = false } = {}) {
+  const counts = sc.lv.map((l) => l.length);
+  const leaves = counts.reduce((x, y) => x * y, 1);
+  const L = counts.length;
+  const xOf = (k) => 70 + k * (860 / L);
+  const top = 30;
+  const sp = 500 / leaves;
+  const groups = range(0, L).map(() => el("g", {}, view));
+  const leafNodes = [];
+  const node = (g, x, y, item, r) => {
+    el("circle", { cx: x, cy: y, r, fill: "#fff", stroke: "var(--accent)", "stroke-width": 3 }, g);
+    if (/^[A-Z0-9]{1,2}$/.test(item[0])) text(g, x, y + r * 0.38, item[0], { "font-size": Math.max(18, r * 1.05), fill: "#2b1d12" });
+    else emoji(g, x, y - 2, item[0], Math.max(20, r * 1.3));
+  };
+  const walk = (k, start, count, px, py, path) => {
+    if (k === L) return;
+    const n = counts[k];
+    const each = count / n;
+    sc.lv[k].forEach((item, j) => {
+      const s = start + j * each;
+      const y = top + sp * (s + each / 2);
+      const x = xOf(k + 1);
+      const leaf = k === L - 1;
+      const r = Math.min(30, Math.max(14, sp * each * 0.42));
+      const g = groups[k + 1];
+      if (partial && k >= 1 && path[0] !== 0) {
+        if (j === 0) text(g, x - 40, top + sp * (start + count / 2) + 10, "· · ·", { "font-size": 30, fill: "#8a7764" });
+        return;
+      }
+      el("line", { x1: px, y1: py, x2: x - r, y2: y, stroke: "#b89a78", "stroke-width": 3 }, g);
+      node(g, x, y, item, r);
+      if (leaf) {
+        const hit = el("circle", { class: "cn-leaf", cx: x, cy: y, r: r + 6, fill: "transparent", "data-y": y, "data-x": x }, g);
+        leafNodes.push(hit);
+      }
+      walk(k + 1, s, each, x + r, y, [...path, j]);
+    });
+  };
+  el("circle", { cx: xOf(0), cy: top + 250, r: 30, fill: "var(--accent)" }, groups[0]);
+  text(groups[0], xOf(0), top + 258, "start", { "font-size": 20, fill: "#fff" });
+  walk(0, 0, leaves, xOf(0) + 30, top + 250, []);
+  return { groups, leafNodes, leaves };
+}
+function trees() {
+  const my = token;
+  const alive = () => my === token;
+  let level = shell.progress().c2?.level || "easy";
+  let round = 0;
+  let firstTry = 0;
+  let deck = [];
+  const start = (lv) => {
+    level = lv;
+    round = 0;
+    firstTry = 0;
+    if (lv === "hard") return runPuzzles("c2", "hard", TREE_HARD, { title: "Multiplication principle", onLevel: start });
+    const pool = TREES.filter((t) => (lv === "easy" ? !t.big : true));
+    deck = [...shuffle(pool), ...shuffle(pool)].slice(0, 8);
+    play();
+  };
+  const play = async () => {
+    if (!alive()) return;
+    const sc = deck[round];
+    const counts = sc.lv.map((l) => l.length);
+    const ans = counts.reduce((x, y) => x * y, 1);
+    const partial = level === "medium";
+    let tries = 0;
+    let busy = false;
+    panel(`${levelRow(level)}<div class="ap-row cn-ans" data-answer></div>`);
+    onLevels("c2", start);
+    status(`Tree ${round + 1} of 8`);
+    fresh();
+    const tree = drawTree(sc, { partial });
+    tree.groups.forEach((g) => g.setAttribute("opacity", 0));
+    let counted = 0;
+    view.addEventListener("pointerdown", (event) => {
+      const leaf = event.target.closest(".cn-leaf");
+      if (!leaf || leaf.dataset.done || partial) return;
+      leaf.dataset.done = "1";
+      counted += 1;
+      window.OC?.touch();
+      const x = Number(leaf.dataset.x) + 44;
+      el("circle", { cx: x, cy: Number(leaf.dataset.y), r: 16, fill: "var(--accent)" }, view);
+      text(view, x, Number(leaf.dataset.y) + 6, counted, { "font-size": 18, fill: "#fff" });
+      MUSIC.play("xylophone", 72 + Math.min(24, counted * 2), { gain: 0.3 });
+    });
+    const opts = partial ? distinctNum(ans, [counts.reduce((x, y) => x + y, 0), ans + counts[counts.length - 1], ans - counts[0], counts[0] * counts[0]]) : distinctNum(ans, [counts.reduce((x, y) => x + y, 0), ans + 1, ans - 1]).slice(0, 3);
+    const options = opts.includes(ans) ? opts : [...opts.slice(0, -1), ans].sort((x, y) => x - y);
+    choices($("[data-answer]"), options.map((o) => ({ label: String(o), v: o })), (c, b) => answer(c.v, b));
+    const answer = async (v, button) => {
+      if (!alive() || busy) return;
+      window.OC?.touch();
+      tries += 1;
+      if (v === ans) {
+        busy = true;
+        if (tries === 1) firstTry += 1;
+        button.classList.add("right");
+        MUSIC.chime();
+        window.OC?.count("tree diagrams");
+        if (partial) {
+          fresh();
+          const full = drawTree(sc);
+          full.leafNodes.forEach((l, k) => {
+            const x = Number(l.dataset.x) + 40;
+            text(view, x, Number(l.dataset.y) + 7, k + 1, { "font-size": 18, fill: "var(--accent-dark)" });
+          });
+        }
+        say(`Correct: ${counts.join(" × ")} = ${ans} ${sc.name}. Every branch at one stage splits into the same number of branches at the next, so the choices multiply.`);
+        await wait(4600);
+        if (!alive()) return;
+        round += 1;
+        if (round < 8) play();
+        else finishGame("c2", my, `Eight trees complete, ${firstTry} at the first attempt. A tree diagram makes the multiplication principle visible: stages multiply.`).then(() => alive() && start(level));
+      } else {
+        button.classList.add("wrong");
+        MUSIC.oops();
+        if (tries === 1) say(partial ? `Not quite. Consider: the first branch has been drawn completely. Does every other branch grow in the same way? How many leaves would each one have?` : `Not quite. Consider counting the ends of the branches (the leaves) on the right. Tap each leaf to number it.`);
+        else {
+          busy = true;
+          say(`Not quite. The answer is ${ans}: ${counts.map((n, k) => `${n} ${k === 0 ? "first choices" : "choices for each of those"}`).join(", then ")}, so ${counts.join(" × ")} = ${ans}.`);
+          if (partial) {
+            fresh();
+            drawTree(sc);
+          }
+          await wait(5200);
+          if (!alive()) return;
+          round += 1;
+          if (round < 8) play();
+          else finishGame("c2", my, `Eight trees complete. Stages of choices multiply.`).then(() => alive() && start(level));
+        }
+      }
+    };
+    say(`${sc.q} How many different ${sc.name} are possible? ${partial ? "Only the first branch is drawn in full." : "Count the leaves, or multiply."}`);
+    for (const g of tree.groups) {
+      if (!(await tween(500, (t) => g.setAttribute("opacity", t), alive))) return;
+      await wait(150);
+    }
+  };
+  start(level);
+}
+
+// ---------- 3. Arrangements ----------
+const FRIENDS = [["🦊", "fox"], ["🐻", "bear"], ["🐰", "rabbit"], ["🐸", "frog"], ["🐼", "panda"], ["🐵", "monkey"], ["🦉", "owl"]];
+function arrangements() {
+  const my = token;
+  const alive = () => my === token;
+  let level = shell.progress().c3?.level || "easy";
+  const start = (lv) => {
+    level = lv;
+    if (lv === "easy") findOrders(0);
+    else if (lv === "medium") slots(0, 0);
+    else runPuzzles("c3", "hard", ARR_HARD, { title: "Arrangements", onLevel: start });
+  };
+  // 🐣: discover every order by building them.
+  const ROUNDS = [
+    { n: 3, set: [0, 1, 2], fixed: null },
+    { n: 3, set: [3, 4, 5], fixed: null },
+    { n: 4, set: [0, 1, 2, 6], fixed: 0 },
+    { n: 4, set: [3, 4, 5, 6], fixed: 3 },
+  ];
+  const findOrders = (round) => {
+    if (!alive()) return;
+    const R = ROUNDS[round];
+    const people = R.set.map((i) => FRIENDS[i]);
+    const all = perms(R.set).filter((p) => R.fixed === null || p[0] === R.fixed).map((p) => p.join(","));
+    const found = [];
+    let line = [];
+    let claims = 0;
+    let busy = false;
+    panel(`${levelRow(level)}<div class="ap-buttons cn-act"><button type="button" data-do="undo">↺ Undo</button><button type="button" data-do="done" class="primary">✓ I have found them all</button></div>`);
+    onLevels("c3", start);
+    status(`Round ${round + 1} of 4 · found ${found.length}`);
+    const draw = () => {
+      fresh();
+      text(view, 500, 40, R.fixed === null ? "Line order (front → back)" : `Line order: the ${FRIENDS[R.fixed][1]} must stand at the front`, { "font-size": 26, fill: "#4d3c2e" });
+      for (let s = 0; s < R.n; s++) {
+        const x = 500 + (s - (R.n - 1) / 2) * 130;
+        el("rect", { class: "cn-slot", "data-s": s, x: x - 55, y: 60, width: 110, height: 110, rx: 20, fill: "#fffaf2", stroke: "var(--accent)", "stroke-width": 4, "stroke-dasharray": line[s] === undefined ? "10 8" : null }, view);
+        text(view, x, 194, s + 1, { "font-size": 22, fill: "#8a7764" });
+        if (line[s] !== undefined) emoji(view, x, 112, FRIENDS[line[s]][0], 72, { "pointer-events": "none" });
+      }
+      people.forEach(([e], k) => {
+        const id = R.set[k];
+        const x = 500 + (k - (R.n - 1) / 2) * 130;
+        const used = line.includes(id);
+        const g = el("g", { class: "cn-friend", "data-id": id, opacity: used ? 0.25 : 1 }, view);
+        el("circle", { cx: x, cy: 262, r: 50, fill: "var(--accent-soft)" }, g);
+        emoji(g, x, 258, e, 64);
+      });
+      const per = 3;
+      found.forEach((key, k) => {
+        const ids = key.split(",").map(Number);
+        const x = 40 + (k % per) * 315;
+        const y = 330 + Math.floor(k / per) * 72;
+        el("rect", { x, y, width: 295, height: 62, rx: 14, fill: "#e3f4e7", stroke: "#2e7d46", "stroke-width": 2 }, view);
+        ids.forEach((id, j) => emoji(view, x + 40 + j * (215 / Math.max(1, R.n - 1)), y + 30, FRIENDS[id][0], 36));
+      });
+    };
+    draw();
+    stage.onpointerdown = (event) => {
+      if (!alive() || busy) return;
+      const f = event.target.closest(".cn-friend");
+      if (!f) return;
+      const id = Number(f.dataset.id);
+      if (line.includes(id) || line.length >= R.n) return;
+      window.OC?.touch();
+      if (R.fixed !== null && line.length === 0 && id !== R.fixed) {
+        MUSIC.oops();
+        return say(`The rule says the ${FRIENDS[R.fixed][1]} stands at the front. Place it first.`);
+      }
+      line.push(id);
+      MUSIC.play("xylophone", 72 + line.length * 3, { gain: 0.3 });
+      if (line.length === R.n) {
+        const key = line.join(",");
+        if (found.includes(key)) {
+          MUSIC.oops();
+          say("That order is already on your list. Try changing who stands second.");
+        } else {
+          found.push(key);
+          window.OC?.count("orders found");
+          say(found.length === 1 ? "Listed. Now find a different order. A system helps: keep the front fixed and change the others." : `Listed: ${found.length} orders so far.`);
+        }
+        status(`Round ${round + 1} of 4 · found ${found.length}`);
+        line = [];
+      }
+      draw();
+    };
+    $("[data-panel]").onclick = async (event) => {
+      const b = event.target.closest("[data-do]");
+      if (!b || !alive() || busy) return;
+      window.OC?.touch();
+      if (b.dataset.do === "undo") {
+        line.pop();
+        return draw();
+      }
+      claims += 1;
+      if (found.length < all.length) {
+        MUSIC.oops();
+        if (claims === 1) say("Not quite: there are more orders. Consider: fix who stands first. For each choice of first, how many ways can the others stand?");
+        else say(`There are ${all.length} orders in all; you have ${found.length}. List them by who stands ${R.fixed === null ? "first" : "second"}, and the missing ones will appear.`);
+        return;
+      }
+      busy = true;
+      MUSIC.chime();
+      const free = R.fixed === null ? R.n : R.n - 1;
+      say(`Correct: ${all.length} orders. ${range(1, free).reverse().join(" × ")} = ${all.length}: ${free} choices for the ${R.fixed === null ? "first" : "second"} place, then one fewer for each place after.`);
+      await wait(4600);
+      if (!alive()) return;
+      if (round + 1 < ROUNDS.length) findOrders(round + 1);
+      else finishGame("c3", my, "All four rounds complete. Each place has one fewer choice than the one before: that is why arrangements multiply 3 × 2 × 1.").then(() => alive() && start(level));
+    };
+    say(R.fixed === null ? "Tap the animals to put them in line. Find every different order, then press ✓." : `The ${FRIENDS[R.fixed][1]} must be at the front. Find every possible order, then press ✓.`);
+  };
+  // 🦊: reason place by place.
+  const SLOTS = [
+    { n: 3, k: 3, what: "stand in a line" },
+    { n: 4, k: 4, what: "stand in a line" },
+    { n: 5, k: 3, what: "win gold, silver and bronze", labels: ["gold", "silver", "bronze"] },
+    { n: 6, k: 2, what: "be chosen as captain and vice-captain", labels: ["captain", "vice-captain"] },
+    { n: 5, k: 5, what: "stand in a line" },
+    { n: 7, k: 3, what: "win gold, silver and bronze", labels: ["gold", "silver", "bronze"] },
+  ];
+  const slots = (round, tries0) => {
+    if (!alive()) return;
+    const S = SLOTS[round];
+    let step = 0;
+    let tries = tries0;
+    let busy = false;
+    const product = range(0, S.k - 1).reduce((s, j) => s * (S.n - j), 1);
+    panel(`${levelRow(level)}<div class="ap-row cn-ans" data-answer></div>`);
+    onLevels("c3", start);
+    status(`Round ${round + 1} of ${SLOTS.length}`);
+    const filled = [];
+    const draw = () => {
+      fresh();
+      for (let s = 0; s < S.k; s++) {
+        const x = 500 + (s - (S.k - 1) / 2) * 150;
+        el("rect", { x: x - 60, y: 50, width: 120, height: 120, rx: 20, fill: "#fffaf2", stroke: "var(--accent)", "stroke-width": 4, "stroke-dasharray": filled[s] === undefined ? "10 8" : null }, view);
+        text(view, x, 196, S.labels ? S.labels[s] : `place ${s + 1}`, { "font-size": 22, fill: "#8a7764" });
+        if (filled[s] !== undefined) {
+          emoji(view, x, 106, FRIENDS[filled[s]][0], 70);
+          text(view, x, 246, `${S.n - s}`, { "font-size": 40, fill: "var(--accent-dark)" });
+          if (s < S.k - 1 && filled[s + 1] !== undefined) text(view, x + 75, 246, "×", { "font-size": 34, fill: "#4d3c2e" });
+        }
+      }
+      for (let i = 0; i < S.n; i++) {
+        const x = 500 + (i - (S.n - 1) / 2) * 120;
+        emoji(view, x, 400, FRIENDS[i][0], 64, { opacity: filled.includes(i) ? 0.2 : 1 });
+      }
+      text(view, 500, 510, `${S.n} candidates`, { "font-size": 24, fill: "#4d3c2e" });
+    };
+    const ask = () => {
+      draw();
+      if (step < S.k) {
+        const right = S.n - step;
+        const opts = [right - 1, right, right + 1].filter((x) => x >= 1);
+        choices($("[data-answer]"), opts.map((o) => ({ label: String(o), v: o })), (c, b) => answer(c.v, b));
+        say(step === 0 ? `${S.n} friends; ${S.k === S.n ? "all of them" : S.k} will ${S.what}. How many could take ${S.labels ? `the ${S.labels[0]}` : "the first place"}?` : `${step} ${step === 1 ? "friend is" : "friends are"} placed. How many could take ${S.labels ? `the ${S.labels[step]}` : `place ${step + 1}`}?`);
+      } else {
+        const sum = range(0, S.k - 1).reduce((s, j) => s + (S.n - j), 0);
+        const opts = distinctNum(product, [sum, product / (S.k > 1 ? S.k : 1) | 0, S.n * S.k, product * 2]);
+        choices($("[data-answer]"), opts.map((o) => ({ label: String(o), v: o })), (c, b) => answer(c.v, b));
+        say(`Every choice for one place can be combined with every choice for the next. So how many arrangements in all?`);
+      }
+    };
+    const answer = async (v, button) => {
+      if (!alive() || busy) return;
+      window.OC?.touch();
+      const right = step < S.k ? S.n - step : product;
+      if (v === right) {
+        button.classList.add("right");
+        MUSIC.play("xylophone", 76 + step * 2, { gain: 0.35 });
+        if (step < S.k) {
+          filled[step] = range(0, S.n - 1).find((i) => !filled.includes(i));
+          step += 1;
+          say(step === 1 ? `Correct: any of the ${S.n}.` : `Correct: one has been used, so ${S.n - step + 1} remain.`);
+          busy = true;
+          await wait(1600);
+          busy = false;
+          if (alive()) ask();
+        } else {
+          busy = true;
+          MUSIC.chime();
+          window.OC?.count("arrangements reasoned");
+          say(`Correct: ${range(0, S.k - 1).map((j) => S.n - j).join(" × ")} = ${product}. We multiply, rather than add, because each choice for one place pairs with every choice for the next.`);
+          await wait(5200);
+          if (!alive()) return;
+          if (round + 1 < SLOTS.length) slots(round + 1, 0);
+          else finishGame("c3", my, "All six rounds complete. When order matters and nothing repeats, the number of choices shrinks by one at each place.").then(() => alive() && start(level));
+        }
+      } else {
+        button.classList.add("wrong");
+        MUSIC.oops();
+        tries += 1;
+        say(step < S.k ? `Not quite. Consider: how many friends have already been placed, and can anyone be placed twice?` : `Not quite. Consider a tree diagram: ${S.n} first branches, each splitting into ${S.n - 1}. Do branches add or multiply?`);
+      }
+    };
+    ask();
+  };
+  start(level);
+}
+
+// ---------- 4. Handshakes & pairs ----------
+const PEOPLE = ["🦊", "🐻", "🐰", "🐸", "🐼", "🐵", "🦉"];
+function handshakes() {
+  const my = token;
+  const alive = () => my === token;
+  let level = shell.progress().c4?.level || "easy";
+  const start = (lv) => {
+    level = lv;
+    if (lv === "hard") return runPuzzles("c4", "hard", PAIR_HARD, { title: "Pairs & choosing", onLevel: start });
+    build(0);
+  };
+  const PLAN = { easy: [3, 4, 4, 5], medium: [5, 6, 6] };
+  const build = (round) => {
+    if (!alive()) return;
+    const n = PLAN[level][round];
+    const total = (n * (n - 1)) / 2;
+    const done = new Set();
+    let sel = null;
+    let claims = 0;
+    let busy = false;
+    panel(`${levelRow(level)}<div class="ap-buttons cn-act"><button type="button" data-do="done" class="primary">✓ Everyone has shaken hands</button></div><div class="ap-row cn-ans" data-answer></div>`);
+    onLevels("c4", start);
+    status(`Group ${round + 1} of ${PLAN[level].length} · ${n} people`);
+    fresh();
+    const cx = 300;
+    const cy = 285;
+    const R = 205;
+    const pos = range(0, n - 1).map((i) => [cx + R * Math.cos((i / n) * Math.PI * 2 - Math.PI / 2), cy + R * Math.sin((i / n) * Math.PI * 2 - Math.PI / 2)]);
+    const lines = el("g", {}, view);
+    const rings = pos.map(([x, y], i) => {
+      const g = el("g", { class: "cn-person", "data-i": i }, view);
+      const ring = el("circle", { cx: x, cy: y, r: 46, fill: "#fffaf2", stroke: "#eadfcd", "stroke-width": 4 }, g);
+      emoji(g, x, y - 2, PEOPLE[i], 60);
+      return ring;
+    });
+    const countText = text(view, 790, 80, "Handshakes: 0", { "font-size": 32, fill: "#2b1d12" });
+    const side = el("g", {}, view);
+    view.addEventListener("pointerdown", (event) => {
+      const g = event.target.closest(".cn-person");
+      if (!g || !alive() || busy) return;
+      window.OC?.touch();
+      const i = Number(g.dataset.i);
+      if (sel === null || sel === i) {
+        sel = sel === i ? null : i;
+        rings.forEach((r, k) => r.setAttribute("stroke", k === sel ? "var(--accent)" : "#eadfcd"));
+        return;
+      }
+      const key = [Math.min(sel, i), Math.max(sel, i)].join(",");
+      sel = null;
+      rings.forEach((r) => r.setAttribute("stroke", "#eadfcd"));
+      if (done.has(key)) {
+        MUSIC.oops();
+        return say("Those two have already shaken hands. Each pair shakes hands exactly once.");
+      }
+      done.add(key);
+      const [a, b] = key.split(",").map(Number);
+      el("line", { x1: pos[a][0], y1: pos[a][1], x2: pos[b][0], y2: pos[b][1], stroke: "var(--accent)", "stroke-width": 5, "stroke-linecap": "round" }, lines);
+      MUSIC.play("xylophone", 72 + Math.min(24, done.size * 2), { gain: 0.3 });
+      countText.textContent = `Handshakes: ${done.size}`;
+    });
+    const next = async () => {
+      await wait(1000);
+      if (!alive()) return;
+      if (round + 1 < PLAN[level].length) build(round + 1);
+      else finishGame("c4", my, "Every group is complete. Each pair is counted once: n × (n − 1) ÷ 2.").then(() => alive() && start(level));
+    };
+    $("[data-panel]").onclick = async (event) => {
+      const b = event.target.closest("[data-do]");
+      if (!b || !alive() || busy) return;
+      window.OC?.touch();
+      claims += 1;
+      if (done.size < total) {
+        MUSIC.oops();
+        const short = range(0, n - 1).find((i) => [...done].filter((k) => k.split(",").map(Number).includes(i)).length < n - 1);
+        if (claims === 1) say(`Not quite. Consider the ${FRIENDS.find((f) => f[0] === PEOPLE[short])?.[1] || "first person"}: should it have ${n - 1} lines? Count them.`);
+        else {
+          say(`${total - done.size} handshake${total - done.size === 1 ? " is" : "s are"} missing: the dashed lines show where.`);
+          pairs(n).forEach(([a, c]) => !done.has(`${a},${c}`) && el("line", { x1: pos[a][0], y1: pos[a][1], x2: pos[c][0], y2: pos[c][1], stroke: "#e0603a", "stroke-width": 3, "stroke-dasharray": "10 8" }, lines));
+        }
+        return;
+      }
+      busy = true;
+      MUSIC.chime();
+      window.OC?.count("handshake groups");
+      const terms = range(1, n - 1).reverse();
+      terms.forEach((t, k) => text(side, 790, 150 + k * 44, `${PEOPLE[k]} ${t} new`, { "font-size": 26, fill: "#4d3c2e" }));
+      text(side, 790, 160 + terms.length * 44, `${terms.join(" + ")} = ${total}`, { "font-size": 28, fill: "var(--accent-dark)" });
+      text(side, 790, 204 + terms.length * 44, `${n} × ${n - 1} ÷ 2 = ${total}`, { "font-size": 28, fill: "var(--accent-dark)" });
+      say(`Correct: ${total} handshakes. The first person shakes ${n - 1} new hands, the next ${n - 2}${n > 3 ? ", and so on" : ""}: ${terms.join(" + ")} = ${total}. Or: ${n} people × ${n - 1} hands each counts every handshake twice, so divide by 2.`);
+      if (level === "medium") {
+        await wait(5200);
+        if (!alive()) return;
+        const m = n + pickInt(4, 8);
+        const ans = (m * (m - 1)) / 2;
+        let tries = 0;
+        say(`Now predict without drawing: how many handshakes for ${m} people?`);
+        choices($("[data-answer]"), distinctNum(ans, [m * (m - 1), m * 2, ans + m]).map((o) => ({ label: String(o), v: o })), async (c, btn) => {
+          if (!alive() || btn.classList.contains("right")) return;
+          tries += 1;
+          if (c.v === ans) {
+            btn.classList.add("right");
+            MUSIC.chime();
+            say(`Correct: ${m} × ${m - 1} ÷ 2 = ${ans}.`);
+            await wait(3000);
+            next();
+          } else {
+            btn.classList.add("wrong");
+            MUSIC.oops();
+            if (tries === 1) say(`Not quite. Consider: ${m} people each shake ${m - 1} hands. Has each handshake been counted once or twice?`);
+            else {
+              say(`The answer is ${ans}: ${m} × ${m - 1} = ${m * (m - 1)} counts each handshake twice, so halve it.`);
+              await wait(4500);
+              next();
+            }
+          }
+        });
+      } else {
+        await wait(5600);
+        next();
+      }
+    };
+    say(`Tap two people to make them shake hands. Every pair must shake hands exactly once, then press ✓.`);
+  };
+  start(level);
+}
+
+// ---------- 5. Probability ----------
+function probability() {
+  let level = shell.progress().c5?.level || "easy";
+  const start = (lv) => {
+    level = lv;
+    runPuzzles("c5", lv, PROB[lv], {
+      title: "Probability",
+      onLevel: start,
+      real: { icon: "🏠", title: "Try it for real", need: ["a bag", "10 small objects in two colours (for example 3 red and 7 blue buttons)", "paper and a pencil"], steps: ["Write the theoretical probability of drawing red.", "Draw one object without looking, record its colour, and put it back. Repeat 30 times.", "Compare the fraction of reds you recorded with your prediction."], note: "Do this with a grown-up. Keep small objects away from younger children." },
+    });
+  };
+  start(level);
+}
+
+// ---------- 6. Experiment lab ----------
+function lab() {
+  const my = token;
+  const alive = () => my === token;
+  const DEV = {
+    coin: { name: "coin", faces: ["H", "T"], labels: ["heads", "tails"], probs: [0.5, 0.5], colors: ["#f2c94c", "#c9a227"] },
+    die: { name: "die", faces: ["1", "2", "3", "4", "5", "6"], labels: ["1", "2", "3", "4", "5", "6"], probs: Array(6).fill(1 / 6), colors: ["#e53935", "#fb8c00", "#fdd835", "#43a047", "#1e88e5", "#8e24aa"] },
+    spinner: { name: "spinner", faces: ["red", "blue"], labels: ["red", "blue"], probs: [0.25, 0.75], colors: ["#e53935", "#1e88e5"] },
+  };
+  let dev = DEV.coin;
+  let counts = [0, 0];
+  let total = 0;
+  let last = null;
+  let busy = false;
+  let everTotal = 0;
+  panel(`<div class="ap-row"><div class="ap-chips" data-dev><button type="button" data-d="coin" aria-pressed="true">🪙 Coin</button><button type="button" data-d="die" aria-pressed="false">🎲 Die</button><button type="button" data-d="spinner" aria-pressed="false">🎡 Spinner ¼ red</button></div><p class="ap-status" data-status></p></div><div class="ap-buttons cn-act" data-runs><button type="button" data-n="1">× 1</button><button type="button" data-n="10">× 10</button><button type="button" data-n="100" class="primary">× 100</button><button type="button" data-n="0">↺ Reset</button><button type="button" data-n="-1">🏠</button></div>`);
+  const roll = () => {
+    const r = Math.random();
+    let acc = 0;
+    for (let i = 0; i < dev.probs.length; i++) {
+      acc += dev.probs[i];
+      if (r < acc) return i;
+    }
+    return dev.probs.length - 1;
+  };
+  const draw = () => {
+    fresh();
+    el("rect", { x: 30, y: 40, width: 300, height: 300, rx: 30, fill: "#fffaf2", stroke: "#eadfcd", "stroke-width": 3 }, view);
+    if (dev.name === "spinner") {
+      spinnerPic(4, 1, "#e53935")(el("g", { transform: "translate(80 110) scale(0.5)" }, view));
+      if (last !== null) text(view, 180, 320, dev.labels[last], { "font-size": 30, fill: dev.colors[last] });
+    } else {
+      el(dev.name === "coin" ? "circle" : "rect", dev.name === "coin" ? { cx: 180, cy: 180, r: 100, fill: "#f2c94c", stroke: "#b8820c", "stroke-width": 8, class: "cn-dev" } : { x: 90, y: 90, width: 180, height: 180, rx: 30, fill: "#fff", stroke: INK, "stroke-width": 6, class: "cn-dev" }, view);
+      text(view, 180, 210, last === null ? "?" : dev.faces[last], { "font-size": 90, fill: "#2b1d12", class: "cn-face" });
+    }
+    text(view, 180, 390, `Trials: ${total}`, { "font-size": 30, fill: "#2b1d12" });
+    // bars: percentage of trials, with a dashed theory line
+    const n = dev.faces.length;
+    const x0 = 380;
+    const bw = Math.min(110, 560 / n - 16);
+    const top = 70;
+    const baseY = 470;
+    const scale = (baseY - top) / (dev.name === "die" ? 0.5 : 1);
+    text(view, 670, 40, dev.name === "die" ? "Share of trials (axis to 50%)" : "Share of trials (axis to 100%)", { "font-size": 22, fill: "#8a7764" });
+    el("line", { x1: x0 - 10, x2: 980, y1: baseY, y2: baseY, stroke: INK, "stroke-width": 3 }, view);
+    dev.faces.forEach((f, i) => {
+      const x = x0 + i * (580 / n) + (580 / n - bw) / 2;
+      const share = total ? counts[i] / total : 0;
+      el("rect", { x, y: baseY - share * scale, width: bw, height: share * scale, rx: 8, fill: dev.colors[i], stroke: INK, "stroke-width": 2 }, view);
+      const ty = baseY - dev.probs[i] * scale;
+      el("line", { x1: x - 8, x2: x + bw + 8, y1: ty, y2: ty, stroke: "#2b1d12", "stroke-width": 3, "stroke-dasharray": "8 6" }, view);
+      text(view, x + bw / 2, baseY + 32, dev.faces[i], { "font-size": 26, fill: "#2b1d12" });
+      text(view, x + bw / 2, baseY + 60, counts[i], { "font-size": 22, fill: "#4d3c2e", "font-weight": 600 });
+      if (total) text(view, x + bw / 2, Math.min(baseY - share * scale, ty) - 10, `${Math.round(share * 100)}%`, { "font-size": 22, fill: "#4d3c2e" });
+    });
+    status(`Theory: ${dev.name === "die" ? "1/6 each" : dev.name === "coin" ? "1/2 each" : "red 1/4, blue 3/4"} (dashed lines)`);
+  };
+  const reset = (d) => {
+    dev = DEV[d] || dev;
+    counts = dev.faces.map(() => 0);
+    total = 0;
+    last = null;
+    draw();
+  };
+  const run = async (k) => {
+    if (busy || !alive()) return;
+    busy = true;
+    window.OC?.touch();
+    if (k === 1) {
+      for (let s = 0; s < 6 && alive(); s++) {
+        last = Math.floor(Math.random() * dev.faces.length);
+        draw();
+        MUSIC.play("woodblock", 79, { gain: 0.2 });
+        await wait(90);
+      }
+      last = roll();
+      counts[last] += 1;
+      total += 1;
+      draw();
+    } else {
+      const steps = k === 10 ? 10 : 20;
+      const per = k / steps;
+      for (let s = 0; s < steps && alive(); s++) {
+        for (let j = 0; j < per; j++) {
+          last = roll();
+          counts[last] += 1;
+          total += 1;
+        }
+        draw();
+        if (s % 2 === 0) MUSIC.play("woodblock", 72, { gain: 0.12 });
+        await wait(k === 10 ? 150 : 60);
+      }
+    }
+    everTotal += k;
+    window.OC?.count("experiment trials", k);
+    busy = false;
+    if (!alive()) return;
+    const worst = Math.max(...dev.probs.map((p, i) => Math.abs(counts[i] / total - p)));
+    if (total < 30) say(`With only ${total} trial${total === 1 ? "" : "s"}, the shares can be far from the theory. Before running more, predict: will the bars move towards the dashed lines?`);
+    else say(`After ${total} trials the largest gap from the theory is ${Math.round(worst * 100)} percentage point${Math.round(worst * 100) === 1 ? "" : "s"}. ${total >= 300 ? "With many trials, experimental probability tends to settle near the theoretical probability (the law of large numbers)." : "Run more trials: what happens to the gap?"}`);
+    if (everTotal >= 200 && !shell.progress().c6?.done) {
+      shell.mark("c6", { done: true });
+      await wait(3500);
+      if (!alive()) return;
+      await explainCard("c6");
+    }
+  };
+  $("[data-dev]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-d]");
+    if (!b || busy) return;
+    document.querySelectorAll("[data-d]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    reset(b.dataset.d);
+    say(`The ${DEV[b.dataset.d].name}. Each dashed line marks the theoretical probability. Run trials and watch the bars.`);
+  });
+  $("[data-runs]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-n]");
+    if (!b) return;
+    const k = Number(b.dataset.n);
+    if (k === 0 && !busy) return reset();
+    if (k === -1)
+      return card({
+        icon: "🏠",
+        title: "Try it for real",
+        need: ["a coin", "paper and a pencil"],
+        steps: ["Predict how many heads you will get in 20 tosses.", "Toss the coin 20 times and keep a tally chart of heads and tails.", "Combine your results with a grown-up's 20 tosses. Is the share of heads for 40 tosses closer to one half?"],
+        note: "Toss over a soft surface, with a grown-up nearby.",
+      });
+    run(k);
+  });
+  reset("coin");
+  say("An experiment: run trials and compare what happens (experimental probability) with what theory predicts (the dashed lines).");
+}
+
+// ---------- 7. Counting puzzles ----------
+function puzzles() {
+  let level = shell.progress().c7?.level || "easy";
+  const start = (lv) => {
+    level = lv;
+    runPuzzles("c7", lv, PUZ[lv], { title: "Counting puzzles", onLevel: start });
+  };
+  start(level);
+}
+
+// ---------- See it ----------
+function seeIt() {
+  const my = token;
+  explain(
+    [
+      { say: "Why study counting and probability? Clever counting tells us how many possibilities exist without listing them all, and probability measures how likely each one is. Both appear in codes, games, science and forecasts.", draw: everyday([["👕", "Choosing outfits"], ["🔐", "Lock codes"], ["🎲", "Games of chance"], ["🌦️", "Weather forecasts"]]) },
+      {
+        say: "Two shirts and three pairs of trousers. Every shirt can be worn with every pair of trousers, so there are 2 × 3 = 6 outfits, not 2 + 3.",
+        async draw(v, api) {
+          const sh = [[200, 160, 0], [200, 400, 1]];
+          const tr = [[760, 110, 0], [760, 280, 1], [760, 450, 2]];
+          sh.forEach(([x, y, i]) => shirt(v, x, y, SHIRTS[i][0], 1.3));
+          tr.forEach(([x, y, i]) => trousers(v, x, y, BOTTOMS[i][0], 1.1));
+          const t = text(v, 500, 540, "", { "font-size": 32, fill: "var(--accent-dark)" });
+          let k = 0;
+          for (const [sx, sy] of sh)
+            for (const [tx, ty] of tr) {
+              const ln = el("line", { x1: sx + 80, y1: sy, x2: sx + 80, y2: sy, stroke: "var(--accent)", "stroke-width": 5, "stroke-linecap": "round" }, v);
+              await api.tween(700, (p) => (ln.setAttribute("x2", sx + 80 + (tx - 60 - sx - 80) * p), ln.setAttribute("y2", sy + (ty - sy) * p)));
+              k += 1;
+              t.textContent = `${k} outfit${k > 1 ? "s" : ""}`;
+              MUSIC.play("xylophone", 72 + k * 2, { gain: 0.3 });
+              await api.wait(300);
+            }
+          t.textContent = "2 × 3 = 6 outfits";
+        },
+      },
+      {
+        say: "A tree diagram shows every possibility. Two containers, each with three flavours: the branches multiply, giving 2 × 3 = 6 leaves.",
+        async draw(v, api) {
+          view = v;
+          const tree = drawTree(TREES[0]);
+          tree.groups.forEach((g) => g.setAttribute("opacity", 0));
+          for (const g of tree.groups) {
+            await api.tween(800, (t) => g.setAttribute("opacity", t));
+            await api.wait(300);
+          }
+          for (let k = 0; k < tree.leafNodes.length; k++) {
+            const l = tree.leafNodes[k];
+            text(v, Number(l.dataset.x) + 50, Number(l.dataset.y) + 8, k + 1, { "font-size": 24, fill: "var(--accent-dark)" });
+            MUSIC.play("xylophone", 72 + k * 2, { gain: 0.3 });
+            await api.wait(450);
+          }
+        },
+      },
+      {
+        say: "Arrangements: three friends can stand in line in 3 × 2 × 1 = 6 orders. Three can stand first, then two remain for second place, then one for the last.",
+        async draw(v, api) {
+          const P = perms([0, 1, 2]);
+          for (let k = 0; k < P.length; k++) {
+            const g = el("g", { opacity: 0 }, v);
+            const x = 110 + (k % 3) * 300;
+            const y = 90 + Math.floor(k / 3) * 190;
+            el("rect", { x: x - 40, y: y - 50, width: 260, height: 110, rx: 20, fill: "#fffaf2", stroke: "#eadfcd", "stroke-width": 3 }, g);
+            P[k].forEach((id, j) => emoji(g, x + j * 90, y, FRIENDS[id][0], 64));
+            await api.tween(600, (t) => g.setAttribute("opacity", t));
+            MUSIC.play("xylophone", 72 + k * 2, { gain: 0.3 });
+            await api.wait(350);
+          }
+          text(v, 500, 520, "3 × 2 × 1 = 6", { "font-size": 40, fill: "var(--accent-dark)" });
+        },
+      },
+      {
+        say: "Handshakes: among five people, the first shakes 4 new hands, the next 3, then 2, then 1. 4 + 3 + 2 + 1 = 10, which equals 5 × 4 ÷ 2.",
+        async draw(v, api) {
+          const n = 5;
+          const pos = range(0, n - 1).map((i) => [330 + 200 * Math.cos((i / n) * Math.PI * 2 - Math.PI / 2), 290 + 200 * Math.sin((i / n) * Math.PI * 2 - Math.PI / 2)]);
+          const lines = el("g", {}, v);
+          pos.forEach(([x, y], i) => emoji(v, x, y, PEOPLE[i], 60));
+          let k = 0;
+          for (let a = 0; a < n; a++) {
+            for (let b = a + 1; b < n; b++) {
+              const ln = el("line", { x1: pos[a][0], y1: pos[a][1], x2: pos[a][0], y2: pos[a][1], stroke: ["#e53935", "#1e88e5", "#43a047", "#fb8c00"][a], "stroke-width": 5 }, lines);
+              await api.tween(450, (t) => (ln.setAttribute("x2", pos[a][0] + (pos[b][0] - pos[a][0]) * t), ln.setAttribute("y2", pos[a][1] + (pos[b][1] - pos[a][1]) * t)));
+              k += 1;
+            }
+            if (a < n - 1) text(v, 800, 120 + a * 60, `${PEOPLE[a]} ${n - 1 - a} new`, { "font-size": 30, fill: "#4d3c2e" });
+            await api.wait(300);
+          }
+          text(v, 800, 440, "4 + 3 + 2 + 1 = 10", { "font-size": 32, fill: "var(--accent-dark)" });
+          text(v, 800, 490, "5 × 4 ÷ 2 = 10", { "font-size": 32, fill: "var(--accent-dark)" });
+        },
+      },
+      {
+        say: "Probability measures likelihood from 0 (impossible) to 1 (certain). This spinner has four equal parts and one is red, so the probability of red is 1 out of 4, written 1/4.",
+        async draw(v, api) {
+          const g = el("g", { transform: "translate(80 60) scale(1.05)" }, v);
+          spinnerPic(4, 1, "#e53935")(g);
+          const arrow = g.lastChild.previousSibling;
+          let turn = 0;
+          await api.tween(2600, (t) => {
+            turn = t * 1035;
+            arrow.setAttribute("transform", `rotate(${turn} 200 180)`);
+          });
+          const scale = el("g", {}, v);
+          el("rect", { x: 560, y: 260, width: 380, height: 18, rx: 9, fill: "#eadfcd" }, scale);
+          [["0", 560, "impossible"], ["1/2", 750, "even"], ["1", 940, "certain"]].forEach(([l, x, w]) => {
+            text(scale, x, 316, l, { "font-size": 26, fill: "#2b1d12" });
+            text(scale, x, 350, w, { "font-size": 22, fill: "#8a7764" });
+          });
+          const dot = el("circle", { cx: 560, cy: 269, r: 16, fill: "#e53935" }, scale);
+          await api.tween(1200, (t) => dot.setAttribute("cx", 560 + t * 95));
+          text(v, 655, 220, "P(red) = 1/4", { "font-size": 34, fill: "var(--accent-dark)" });
+        },
+      },
+      {
+        say: "Theory predicts; experiments test. Toss a coin many times: the share of heads wobbles at first, then settles near one half. This is called the law of large numbers.",
+        async draw(v, api) {
+          el("line", { x1: 100, x2: 940, y1: 470, y2: 470, stroke: INK, "stroke-width": 3 }, v);
+          el("line", { x1: 100, x2: 100, y1: 60, y2: 470, stroke: INK, "stroke-width": 3 }, v);
+          el("line", { x1: 100, x2: 940, y1: 265, y2: 265, stroke: "#2b1d12", "stroke-width": 3, "stroke-dasharray": "10 8" }, v);
+          text(v, 70, 272, "½", { "font-size": 30, fill: "#2b1d12" });
+          text(v, 520, 520, "number of tosses →", { "font-size": 24, fill: "#8a7764" });
+          text(v, 300, 50, "share of heads", { "font-size": 24, fill: "#8a7764" });
+          const path = el("path", { d: "M100 265", fill: "none", stroke: "#e0603a", "stroke-width": 4 }, v);
+          let heads = 0;
+          let d = "";
+          const N = 300;
+          const seq = range(1, N).map(() => Math.random() < 0.5);
+          await api.tween(4200, (t) => {
+            const upto = Math.max(1, Math.round(t * N));
+            heads = seq.slice(0, upto).filter(Boolean).length;
+            d = "M" + range(1, upto).map((k) => `${100 + (k / N) * 840} ${470 - (seq.slice(0, k).filter(Boolean).length / k) * 410}`).join("L");
+            path.setAttribute("d", d);
+          });
+          text(v, 800, 120, `${heads} heads in ${N}`, { "font-size": 28, fill: "#e0603a" });
+        },
+      },
+    ],
+    { alive: () => my === token, onDone: () => shell.go("c1"), title: "Counting & Probability", doneLabel: "▶ Begin" }
+  );
+}
+
+const units = { c0: seeIt, c1: outfits, c2: trees, c3: arrangements, c4: handshakes, c5: probability, c6: lab, c7: puzzles };
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    c0: { icon: "👀", title: "See it", steps: ["Watch and listen to each scene.", "Press Next ▶ to continue.", "Press Begin when you are ready."] },
+    c1: { icon: "👕", title: "Systematic lists", steps: ["Tap one item from each row to build an outfit.", "Build every possible outfit; the table keeps them organised.", "Press ✓ when you believe the list is complete."] },
+    c2: { icon: "🌳", title: "Tree diagrams", steps: ["Read the choices and watch the tree grow.", "Count the leaves, or multiply the stages.", "Choose the total number of possibilities."] },
+    c3: { icon: "🚶", title: "Arrangements", steps: ["Grade 4: tap animals to build every line order.", "Grades 5–6: decide how many choices each place has.", "Grades 7–8: solve arrangement problems with restrictions."] },
+    c4: { icon: "🤝", title: "Handshakes & pairs", steps: ["Tap two people to make them shake hands.", "Every pair shakes hands exactly once.", "Press ✓, then see why the total is n × (n − 1) ÷ 2."] },
+    c5: { icon: "🎲", title: "Probability", steps: ["Read the situation and look at the picture.", "Choose the probability or the likelihood word.", "After an attempt, 💡 offers a guiding question."] },
+    c6: { icon: "🧪", title: "Experiment lab", steps: ["Choose a coin, a die or a spinner.", "Run 1, 10 or 100 trials.", "Compare the bars with the dashed theory lines."] },
+    c7: { icon: "🧩", title: "Counting puzzles", steps: ["Read the puzzle and study the picture.", "Enter your answer and press ✓.", "After an attempt, use 💡 hints; after two, 📖 the solution."] },
+  },
+  start: "c0",
+  onStop() {
+    token += 1;
+    stage.onpointerdown = null;
+    stage.querySelector(".cn-real")?.remove();
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Math",
+  activity: "Counting & Probability",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 77, 78, 79, 80, 81, 82, 84, 86, 88, 90, 92, 96]);
+MUSIC.preload("woodblock", [72, 79]);
+</script>
+</body>
+</html>

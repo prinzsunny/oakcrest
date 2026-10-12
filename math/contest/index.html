@@ -1,0 +1,2496 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contest Room · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="math">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Contest Room</b><small>Math · Advanced</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, pickInt, wait, confetti, PRAISE, KIND, choices, explain, everyday, emoji, numpad } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "ct0", label: "See it", icon: "👀" },
+  { id: "ct1", label: "1. Number sense room", icon: "🔢" },
+  { id: "ct2", label: "2. Logic & patterns room", icon: "🧠" },
+  { id: "ct3", label: "3. Geometry & shapes room", icon: "📐" },
+  { id: "ct4", label: "4. Counting room", icon: "🎲" },
+  { id: "ct5", label: "5. Word problems room", icon: "📖" },
+  { id: "ct6", label: "6. Monthly mock contest", icon: "🏅" },
+];
+
+function fresh() {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+}
+
+const ctStyle = document.createElement("style");
+ctStyle.textContent = `
+.ct-tile{cursor:pointer}
+.ct-ans .kt-choices button{min-height:52px;min-width:86px;font-size:20px;border-radius:18px}
+.ct-tools button{min-height:46px}
+.ct-tools button[data-pulse]{animation:ap-pulse 1.4s ease-in-out infinite}
+.ct-real{position:absolute;inset:0;z-index:7;display:grid;place-items:center;padding:10px;background:rgba(245,239,228,.93)}
+.ct-real-card{max-width:600px;width:100%;max-height:100%;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 22px;border-radius:28px;background:#fff;box-shadow:0 8px 0 #ece3d6,0 18px 40px rgba(70,40,15,.18)}
+.ct-real-head{display:flex;align-items:center;gap:12px}
+.ct-real-head span{display:grid;place-items:center;width:58px;height:58px;border-radius:50%;background:var(--accent-soft);font-size:32px}
+.ct-real-card h2{margin:0;color:#2b1d12;font:900 clamp(20px,3vw,27px)/1.15 var(--sans)}
+.ct-real-card ol{margin:0;padding-left:1.4em;display:grid;gap:4px;text-align:left;width:100%;color:#2b1d12;font:700 clamp(15px,2vw,19px)/1.35 var(--sans)}
+.ct-need{margin:0;color:#4d3c2e;font:700 clamp(15px,2vw,18px)/1.35 var(--sans)}
+.ct-tip{margin:0;padding:6px 12px;border-radius:12px;background:#fff4dc;color:#7a4a10;font:800 clamp(14px,1.8vw,16px)/1.3 var(--sans)}
+.ap-panel .ap-say{flex-shrink:0}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){
+ .ct-ans .kt-choices button{min-height:40px;min-width:62px;font-size:16px;padding:0 10px}
+ .ct-tools button{min-height:36px;font-size:13px;padding:0 10px}
+}
+@media (max-height:460px){.ct-lab{display:none}.ct-tools button{min-width:44px;font-size:17px}
+ .ct-real-card{padding:10px 14px;gap:5px}
+}
+@media (max-width:420px){.ct-tools{gap:5px}.ct-tools button{padding:0 10px;font-size:14px}}
+`;
+document.head.appendChild(ctStyle);
+
+// ---------- small helpers ----------
+const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+const only = (list) => (list.length === 1 ? list[0] : NaN);
+const perms = (list) => (list.length <= 1 ? [list] : list.flatMap((x, i) => perms([...list.slice(0, i), ...list.slice(i + 1)]).map((p) => [x, ...p])));
+const pairs = (n) => range(0, n - 1).flatMap((i) => range(i + 1, n - 1).map((j) => [i, j]));
+const squaresIn = (n) => range(1, n).reduce((s, k) => s + (n - k + 1) ** 2, 0);
+const rectsIn = (cols, rows) => pairs(cols + 1).length * pairs(rows + 1).length;
+const perimeterOf = (cells) => {
+  const set = new Set(cells.map(([x, y]) => `${x},${y}`));
+  let p = 0;
+  for (const [x, y] of cells) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (!set.has(`${x + dx},${y + dy}`)) p += 1;
+  return p;
+};
+
+// Wrapped text in the SVG. Returns the number of lines.
+function para(parent, x, y, str, { size = 30, width = 900, lh = 1.32, fill = "#2b1d12", weight = 700, anchor = "start" } = {}) {
+  const maxChars = Math.max(8, Math.floor(width / (size * 0.53)));
+  const lines = [];
+  for (const block of String(str).split("\n")) {
+    let line = "";
+    for (const word of block.split(" ")) {
+      if (line && (line + " " + word).length > maxChars) {
+        lines.push(line);
+        line = word;
+      } else line = line ? `${line} ${word}` : word;
+    }
+    lines.push(line);
+  }
+  if (parent) lines.forEach((ln, i) => text(parent, x, y + i * size * lh, ln, { "font-size": size, fill, "font-weight": weight, "text-anchor": anchor }));
+  return lines.length;
+}
+const fitSize = (str, width, maxH, start = 32, min = 22) => {
+  let size = start;
+  while (size > min && para(null, 0, 0, str, { size, width }) * size * 1.32 > maxH) size -= 2;
+  return size;
+};
+
+// ---------- picture helpers (each problem picture draws in a 420 x 360 box) ----------
+const INK = "#5a4130";
+function gridPic(g, cols, rows, cell, x0, y0, attrs = {}) {
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++) el("rect", { x: x0 + c * cell, y: y0 + r * cell, width: cell, height: cell, fill: "#fff", stroke: INK, "stroke-width": 4, ...attrs }, g);
+}
+function cellsPic(g, cells, cell, x0, y0, fill = "#f2c94c") {
+  for (const [x, y] of cells) el("rect", { x: x0 + x * cell, y: y0 + y * cell, width: cell, height: cell, fill, stroke: INK, "stroke-width": 4 }, g);
+}
+function label(g, x, y, s, size = 26, fill = "#2b1d12", extra = {}) {
+  return text(g, x, y, s, { "font-size": size, fill, ...extra });
+}
+function shirt(g, x, y, color, s = 1) {
+  el("path", { d: "M-20 -35L-42 -28L-56 -6L-40 2L-30 -10V36H30V-10L40 2L56 -6L42 -28L20 -35Q0 -20 -20 -35Z", fill: color, stroke: INK, "stroke-width": 3 / s, "stroke-linejoin": "round", transform: `translate(${x} ${y}) scale(${s})` }, g);
+}
+function shorts(g, x, y, color, s = 1) {
+  el("path", { d: "M-32 -28H32L36 28H6L0 -2L-6 28H-36Z", fill: color, stroke: INK, "stroke-width": 3 / s, "stroke-linejoin": "round", transform: `translate(${x} ${y}) scale(${s})` }, g);
+}
+
+// ---------- the problems (all original) ----------
+// lvl 0 = Kangaroo grades 3–4 flavour, 1 = grades 5–6 / MOEMS E, 2 = harder MOEMS / early AMC 8.
+// Multiple choice: opts (5 values) and ans (the right value). Numeric: no opts, ans is a whole number.
+// calc() works the answer out again by brute force or arithmetic, so the tests can check every key.
+const ROOMS = {
+  ct1: {
+    name: "Number sense",
+    problems: [
+      {
+        lvl: 0,
+        q: "What is the smallest whole number whose digits add up to 25?",
+        opts: [799, 889, 979, 997, 1699],
+        ans: 799,
+        idea: "Fewest digits first, then the smallest front digit",
+        hints: ["Could a 2-digit number work? What is the largest digit sum a 2-digit number can have?", "A 3-digit number can reach 25. To make it small, should the big digits go at the front or the back?", "Make the ones and tens digits as large as possible (9 and 9). What must the hundreds digit be?"],
+        sol: ["The largest digit sum with 2 digits is 9 + 9 = 18, too small. So we need at least 3 digits, and any 3-digit number is smaller than any 4-digit number.", "To keep a 3-digit number small, its hundreds digit must be as small as possible, so the tens and ones digits should be as large as possible: 9 and 9.", "25 − 9 − 9 = 7, so the number is 799. The answer is 799."],
+        calc: () => range(1, 9999).find((n) => String(n).split("").reduce((s, c) => s + Number(c), 0) === 25),
+      },
+      {
+        lvl: 0,
+        q: "In the subtraction 9▢2 − ▢57 = 365, each ▢ hides one digit (the two hidden digits may differ). What is the sum of the two hidden digits?",
+        opts: [5, 6, 7, 8, 9],
+        ans: 7,
+        idea: "Undo subtraction with addition",
+        hints: ["Subtraction can be checked by addition. What is ▢57 + 365?", "Add the ones: 7 + 5 = 12. Write 2, carry 1. Now the tens: 5 + 6 + 1. What do you write, and do you carry?", "The total must be 9▢2. Which hundreds digit in ▢57 makes the hundreds come to 9?"],
+        sol: ["If 9▢2 − ▢57 = 365, then ▢57 + 365 = 9▢2.", "Ones: 7 + 5 = 12, write 2 and carry 1. Tens: 5 + 6 + 1 = 12, write 2 and carry 1. So the first hidden digit is 2.", "Hundreds: ▢ + 3 + 1 = 9, so the second hidden digit is 5. Check: 922 − 557 = 365. The sum is 2 + 5 = 7."],
+        calc: () => only(range(0, 9).flatMap((a) => range(1, 9).filter((b) => 900 + 10 * a + 2 - (100 * b + 57) === 365).map((b) => a + b))),
+      },
+      {
+        lvl: 0,
+        q: "I am a 3-digit number with three different digits that add up to 15. My hundreds digit is twice my tens digit, and my ones digit is the largest of my three digits. What number am I?",
+        opts: [249, 429, 483, 843, 924],
+        ans: 429,
+        idea: "List the cases a clue allows",
+        hints: ["The hundreds digit is twice the tens digit. Which pairs are possible: tens 1, hundreds 2; tens 2, hundreds 4; …?", "For each pair, what must the ones digit be so that all three add to 15?", "Now test the last clue: in which case is the ones digit the largest digit?"],
+        sol: ["Possible (hundreds, tens) pairs: (2, 1), (4, 2), (6, 3), (8, 4).", "The ones digit makes the total 15: 12, 9, 6, 3. A digit cannot be 12, so the candidates are 429, 636 and 843; 636 repeats a digit.", "Only in 429 is the ones digit the largest. The answer is 429."],
+        calc: () => only(range(100, 999).filter((n) => { const [h, t, o] = String(n).split("").map(Number); return new Set([h, t, o]).size === 3 && h + t + o === 15 && h === 2 * t && o > h && o > t; })),
+      },
+      {
+        lvl: 0,
+        q: "Three different whole numbers, each greater than 1, multiply to make 60. What is the largest possible sum of the three numbers?",
+        opts: [12, 13, 14, 15, 17],
+        ans: 15,
+        idea: "Make an organised list",
+        hints: ["Start with the smallest number being 2. Which pairs of different numbers multiply to make 30?", "Now try the smallest number being 3. Which pairs multiply to make 20?", "Write the sum of every triple you found. Which is largest?"],
+        sol: ["Smallest number 2: the other two multiply to 30, giving 2 × 3 × 10 and 2 × 5 × 6.", "Smallest number 3: the other two multiply to 20, giving 3 × 4 × 5. (Smallest 4 or more is impossible: 4 × 5 × 6 is already 120.)", "Sums: 2 + 3 + 10 = 15, 2 + 5 + 6 = 13, 3 + 4 + 5 = 12. The largest is 15."],
+        calc: () => Math.max(...range(2, 60).flatMap((a) => range(a + 1, 60).flatMap((b) => range(b + 1, 60).filter((c) => a * b * c === 60).map((c) => a + b + c)))),
+      },
+      {
+        lvl: 1,
+        q: "What is 99 + 99 + 99 + 99 + 99?",
+        opts: [485, 495, 499, 500, 505],
+        ans: 495,
+        idea: "Use a friendly number",
+        hints: ["99 is very close to a nicer number. Which one?", "What would 100 + 100 + 100 + 100 + 100 be?", "Each 99 is 1 less than 100. How much too big is 500?"],
+        sol: ["Each 99 is 100 − 1.", "Five hundreds make 500, but we added 1 too much five times.", "500 − 5 = 495. The answer is 495."],
+        calc: () => 99 * 5,
+      },
+      {
+        lvl: 1,
+        q: "How many whole numbers from 1 to 50 have at least one digit 3?",
+        opts: [5, 10, 13, 14, 15],
+        ans: 14,
+        idea: "Make an organised list",
+        hints: ["Which numbers have 3 in the ones place? List them.", "Now which numbers have 3 in the tens place?", "Did you count 33 twice? Count it only once."],
+        sol: ["3 in the ones place: 3, 13, 23, 33, 43. That is 5 numbers.", "3 in the tens place: 30 to 39. That is 10 numbers, and 33 is already counted.", "5 + 10 − 1 = 14. The answer is 14."],
+        calc: () => range(1, 50).filter((n) => String(n).includes("3")).length,
+      },
+      {
+        lvl: 1,
+        q: "Three numbers in a row (like 4, 5, 6) add up to 48. What is the biggest of the three?",
+        opts: [15, 16, 17, 18, 19],
+        ans: 17,
+        idea: "Use the middle",
+        hints: ["If the three numbers were all equal, what would each one be?", "48 ÷ 3 is the middle number. Why?", "The middle number is 16. What comes just after it?"],
+        sol: ["In three numbers in a row, the small one is 1 less than the middle and the big one is 1 more. They balance.", "So all three are like the middle number: 48 ÷ 3 = 16.", "The numbers are 15, 16, 17. Check: 15 + 16 + 17 = 48. The biggest is 17."],
+        calc: () => only(range(1, 48).filter((n) => n + (n + 1) + (n + 2) === 48)) + 2,
+      },
+      {
+        lvl: 1,
+        q: "I am a 2-digit number less than 50. If you divide me by 2, by 3 or by 5, there is always 1 left over. What number am I?",
+        opts: [11, 16, 21, 31, 41],
+        ans: 31,
+        idea: "Find what fits every clue",
+        hints: ["Pick a choice. What is left over when you divide it by 2?", "Which numbers leave nothing over for 2, 3 and 5 all at once?", "30 shares evenly into 2s, 3s and 5s. What about 1 more than 30?"],
+        sol: ["A number that leaves 1 over each time is 1 more than a number that 2, 3 and 5 all share into evenly.", "The smallest number that 2, 3 and 5 all go into is 30. The next is 60, which is too big.", "30 + 1 = 31. Check: 31 = 15 twos + 1 = 10 threes + 1 = 6 fives + 1. The answer is 31."],
+        calc: () => only(range(10, 49).filter((n) => n % 2 === 1 && n % 3 === 1 && n % 5 === 1)),
+      },
+      {
+        lvl: 2,
+        q: "Multiply twenty 2s together: 2 × 2 × 2 × … × 2 (twenty factors of 2). What is the ones digit of the answer?",
+        opts: [0, 2, 4, 6, 8],
+        ans: 6,
+        idea: "Find a pattern",
+        hints: ["Work out the first few: 2, 4, 8, 16, 32 … Look only at the ones digits.", "The ones digits go 2, 4, 8, 6, 2, 4, 8, 6 … How long is the pattern?", "The pattern repeats every 4. Which ones digit is in place 4, 8, 12, 16, 20?"],
+        sol: ["Ones digits of 2, 4, 8, 16, 32, 64, 128, 256 are 2, 4, 8, 6, 2, 4, 8, 6.", "The pattern 2, 4, 8, 6 repeats every 4 steps. Places 4, 8, 12, 16 and 20 always end in 6.", "So twenty 2s multiplied end in 6. (It is 1,048,576.) The answer is 6."],
+        calc: () => Number(2n ** 20n % 10n),
+      },
+      {
+        lvl: 2,
+        q: "Use each of the digits 1, 2, 3, 4, 5 and 6 exactly once to make two 3-digit numbers. What is the smallest possible sum of the two numbers?",
+        ans: 381,
+        idea: "Put small digits in valuable places",
+        hints: ["Which place contributes most to the sum: hundreds, tens or ones?", "Which two digits should occupy the hundreds places if the sum is to be small?", "Hundreds digits 1 and 2, tens digits 3 and 4, ones digits 5 and 6. Does the pairing within each place matter?"],
+        sol: ["A hundreds digit counts 100 times, a tens digit 10 times and a ones digit once, so the smallest digits belong in the most valuable places.", "Hundreds: 1 and 2 give 300. Tens: 3 and 4 give 70. Ones: 5 and 6 give 11.", "300 + 70 + 11 = 381, for example 135 + 246. The pairing within a place does not change the sum. The answer is 381."],
+        calc: () => Math.min(...perms([1, 2, 3, 4, 5, 6]).map(([a, b, c, d, e, f]) => 100 * a + 10 * b + c + 100 * d + 10 * e + f)),
+      },
+      {
+        lvl: 2,
+        q: "A book has pages numbered 1 to 120. How many digits are printed to number all the pages?",
+        ans: 252,
+        idea: "Split into groups",
+        hints: ["Which page numbers use just 1 digit? How many are there?", "Which page numbers use 2 digits? How many?", "Pages 100 to 120 use 3 digits each. How many pages is that? Careful: count both ends."],
+        sol: ["Pages 1 to 9: 9 pages × 1 digit = 9 digits.", "Pages 10 to 99: 90 pages × 2 digits = 180 digits.", "Pages 100 to 120: 21 pages × 3 digits = 63 digits.", "9 + 180 + 63 = 252. The answer is 252."],
+        calc: () => range(1, 120).map(String).join("").length,
+      },
+      {
+        lvl: 2,
+        q: "Two whole numbers multiply to 36 and add up to 13. What is the difference between them?",
+        ans: 5,
+        idea: "Make an organised list",
+        hints: ["Which pairs of numbers multiply to make 36? Start with 1 × 36.", "List them all: 1 × 36, 2 × 18 … Which pair adds to 13?", "You found the pair. Now take the smaller one from the bigger one."],
+        sol: ["Factor pairs of 36: 1 × 36, 2 × 18, 3 × 12, 4 × 9, 6 × 6.", "Their sums: 37, 20, 15, 13, 12. Only 4 and 9 add to 13.", "9 − 4 = 5. The answer is 5."],
+        calc: () => only(range(1, 36).filter((a) => 36 % a === 0 && a <= 36 / a && a + 36 / a === 13).map((a) => 36 / a - a)),
+      },
+    ],
+  },
+  ct2: {
+    name: "Logic & patterns",
+    problems: [
+      {
+        lvl: 0,
+        q: "Five children compare heights. Ben is taller than Cara but shorter than Dev. Eva is shorter than Cara. Finn is taller than Dev. Who is in the middle when they stand from shortest to tallest?",
+        opts: ["Ben", "Cara", "Dev", "Eva", "Finn"],
+        ans: "Ben",
+        idea: "Build the order one clue at a time",
+        hints: ["Start with the first clue. Put Cara, Ben and Dev in order from shortest to tallest.", "Where does Eva go? Where does Finn go?", "Now write all five in order. Who is third?"],
+        sol: ["Ben is taller than Cara and shorter than Dev: Cara, Ben, Dev.", "Eva is shorter than Cara, so she comes first. Finn is taller than Dev, so he comes last: Eva, Cara, Ben, Dev, Finn.", "The middle (third) child is Ben."],
+        calc: () => {
+          const ok = perms(["Ben", "Cara", "Dev", "Eva", "Finn"]).filter((p) => { const i = (x) => p.indexOf(x); return i("Ben") > i("Cara") && i("Ben") < i("Dev") && i("Eva") < i("Cara") && i("Finn") > i("Dev"); });
+          return only(ok)[2];
+        },
+      },
+      {
+        lvl: 0,
+        q: "In a sequence, every number after the first two is the sum of the two numbers just before it. The 3rd number is 7 and the 5th number is 18. What is the 1st number?",
+        opts: [1, 2, 3, 4, 5],
+        ans: 3,
+        idea: "Work backward",
+        hints: ["The 5th number is the sum of the 3rd and 4th. What must the 4th be?", "The 4th number is the sum of the 2nd and 3rd. What must the 2nd be?", "The 3rd number is the sum of the 1st and 2nd. What must the 1st be?"],
+        sol: ["5th = 3rd + 4th, so 18 = 7 + 4th, and the 4th number is 11.", "4th = 2nd + 3rd, so 11 = 2nd + 7, and the 2nd number is 4.", "3rd = 1st + 2nd, so 7 = 1st + 4, and the 1st number is 3. Check: 3, 4, 7, 11, 18. The answer is 3."],
+        calc: () => only(range(0, 20).flatMap((a) => range(0, 20).filter((b) => { const t = [a, b]; while (t.length < 5) t.push(t[t.length - 1] + t[t.length - 2]); return t[2] === 7 && t[4] === 18; }).map(() => a))),
+      },
+      {
+        lvl: 0,
+        q: "Of three friends, exactly one always lies and the other two always tell the truth. Amy says: 'Ben is the liar.' Ben says: 'I am not the liar.' Cal says: 'Amy is the liar.' Who is the liar?",
+        opts: ["Amy", "Ben", "Cal", "Any of them", "Can't tell"],
+        ans: "Amy",
+        idea: "Test each case",
+        hints: ["Suppose Ben is the liar. Then Amy and Cal tell the truth. Is what Cal says true?", "Suppose Cal is the liar. Then Amy tells the truth. Does that fit?", "Suppose Amy is the liar. Check all three statements."],
+        sol: ["If Ben were the liar, Cal would be truthful, but Cal says Amy is the liar. Contradiction.", "If Cal were the liar, Amy would be truthful, so Ben would be the liar too. But there is only one liar. Contradiction.", "If Amy is the liar: Amy's statement is false (Ben is truthful), Ben's is true and Cal's is true. Everything fits. Amy is the liar."],
+        calc: () => {
+          const ok = ["Amy", "Ben", "Cal"].filter((L) => { const says = { Amy: L === "Ben", Ben: L !== "Ben", Cal: L === "Amy" }; return Object.entries(says).every(([who, s]) => s === (who !== L)); });
+          return only(ok);
+        },
+      },
+      {
+        lvl: 0,
+        q: "On a balance, 3 apples weigh the same as 2 pears, and 1 pear weighs the same as 3 plums. How many plums weigh the same as 4 apples?",
+        opts: [6, 8, 9, 10, 12],
+        ans: 8,
+        idea: "Swap equal amounts",
+        hints: ["2 pears balance 3 apples. How many plums is 2 pears?", "So 3 apples balance 6 plums. How many plums balance 1 apple?", "Now how many plums balance 4 apples?"],
+        sol: ["1 pear = 3 plums, so 2 pears = 6 plums.", "3 apples = 2 pears = 6 plums, so 1 apple = 2 plums.", "4 apples = 4 × 2 = 8 plums. The answer is 8."],
+        calc: () => only([...new Set(range(1, 30).flatMap((ap) => range(1, 30).flatMap((pe) => range(1, 30).filter((pl) => 3 * ap === 2 * pe && pe === 3 * pl).map((pl) => (4 * ap) / pl))))]),
+        pic(g) {
+          el("line", { x1: 40, x2: 380, y1: 150, y2: 150, stroke: INK, "stroke-width": 6, "stroke-linecap": "round" }, g);
+          el("path", { d: "M210 150L180 230H240Z", fill: "#c98c58", stroke: INK, "stroke-width": 4 }, g);
+          [70, 120, 170].forEach((x) => emoji(g, x, 115, "🍎", 48));
+          [270, 330].forEach((x) => emoji(g, x, 115, "🍐", 48));
+          emoji(g, 110, 300, "🍐", 48);
+          label(g, 170, 316, "=", 40);
+          [230, 285, 340].forEach((x) => el("circle", { cx: x, cy: 300, r: 20, fill: "#8e5bd0", stroke: INK, "stroke-width": 3 }, g));
+          label(g, 285, 360, "plums", 24, "#8a7764");
+        },
+      },
+      {
+        lvl: 1,
+        q: "A prize is in one of three boxes. Box A's sign says: 'The prize is in here.' Box B's sign says: 'The prize is not in here.' Box C's sign says: 'The prize is not in box A.' Exactly one sign is true. Where is the prize?",
+        opts: ["Box A", "Box B", "Box C", "Any box", "No box"],
+        ans: "Box B",
+        idea: "Test each case",
+        hints: ["Pretend the prize is in box A. Which signs would be true?", "Now pretend it is in box B. Count the true signs. Then try box C.", "We need exactly one true sign. Which box gives exactly one?"],
+        sol: ["If the prize is in A: sign A is true and sign B is true. That is 2 true signs. No.", "If the prize is in B: sign A is false, sign B is false, sign C is true. Exactly 1 true sign. Yes!", "If the prize is in C: sign B and sign C are both true. No.", "The prize is in box B."],
+        calc: () => {
+          const ok = ["A", "B", "C"].filter((p) => [p === "A", p !== "B", p !== "A"].filter(Boolean).length === 1);
+          return `Box ${only(ok)}`;
+        },
+        pic(g) {
+          ["A", "B", "C"].forEach((b, i) => {
+            const x = 10 + i * 140;
+            el("rect", { x, y: 150, width: 120, height: 110, rx: 10, fill: ["#f2c94c", "#a9d4f5", "#9fd3a8"][i], stroke: INK, "stroke-width": 4 }, g);
+            label(g, x + 60, 222, b, 48);
+            el("rect", { x: x + 4, y: 40, width: 112, height: 86, rx: 10, fill: "#fff", stroke: INK, "stroke-width": 3 }, g);
+            const lines = [["Prize", "is here"], ["Prize is", "NOT here"], ["NOT in", "box A"]][i];
+            lines.forEach((ln, j) => label(g, x + 60, 76 + j * 30, ln, 22));
+            el("line", { x1: x + 60, x2: x + 60, y1: 126, y2: 150, stroke: INK, "stroke-width": 4 }, g);
+          });
+          label(g, 210, 320, "Only 1 sign is true.", 28, "var(--accent-dark)");
+        },
+      },
+      {
+        lvl: 1,
+        q: "In the pattern 1, 1, 2, 3, 5, 8, … each number is the sum of the two numbers before it. What is the 10th number?",
+        opts: [34, 45, 50, 55, 89],
+        ans: 55,
+        idea: "Continue the pattern carefully",
+        hints: ["How was 8 made from the two numbers before it?", "Write the next one: 5 + 8 = ? Keep a count of which number you are on.", "Numbers 7, 8 and 9 are 13, 21 and 34. What is the 10th?"],
+        sol: ["Keep adding the last two: 1, 1, 2, 3, 5, 8, 13, 21, 34, 55.", "Count them: 55 is the 10th number. The answer is 55."],
+        calc: () => {
+          const f = [1, 1];
+          while (f.length < 10) f.push(f[f.length - 1] + f[f.length - 2]);
+          return f[9];
+        },
+      },
+      {
+        lvl: 1,
+        q: "Matchsticks make squares in a row. 1 square uses 4 sticks, 2 squares use 7 sticks and 3 squares use 10 sticks. How many sticks make 10 squares in a row?",
+        opts: [30, 31, 33, 40, 41],
+        ans: 31,
+        idea: "Find a pattern",
+        hints: ["How many more sticks does each new square need?", "Why does a new square need only 3 sticks, not 4?", "Start with 4 sticks, then add 3 for each of the other 9 squares."],
+        sol: ["Each new square shares one side with the square before, so it needs only 3 new sticks.", "The first square needs 4. The next 9 squares need 9 × 3 = 27.", "4 + 27 = 31. The answer is 31."],
+        calc: () => {
+          const n = 10;
+          const edges = new Set();
+          for (let i = 0; i < n; i++) ["t", "b", "l", "r"].forEach((s) => edges.add(s === "l" ? `v${i}` : s === "r" ? `v${i + 1}` : `${s}${i}`));
+          return edges.size;
+        },
+        pic(g) {
+          const stick = (x1, y1, x2, y2) => {
+            el("line", { x1, y1, x2, y2, stroke: "#c98c58", "stroke-width": 9, "stroke-linecap": "round" }, g);
+            el("circle", { cx: x2, cy: y2, r: 7, fill: "#e53935" }, g);
+          };
+          [1, 2, 3].forEach((n, row) => {
+            const y = 30 + row * 110;
+            for (let i = 0; i < n; i++) {
+              const x = 20 + i * 70;
+              stick(x, y, x + 64, y);
+              stick(x, y + 70, x + 64, y + 70);
+              stick(x, y + 4, x, y + 66);
+              if (i === n - 1) stick(x + 70, y + 4, x + 70, y + 66);
+            }
+            label(g, 330, y + 46, `${3 * n + 1} sticks`, 26);
+          });
+        },
+      },
+      {
+        lvl: 1,
+        q: "A and B stand for two different digits, and B is not 0. A + A + A equals the 2-digit number BA (tens digit B, ones digit A). What digit is A?",
+        opts: [0, 3, 5, 6, 9],
+        ans: 5,
+        idea: "Guess and check",
+        hints: ["Try A = 3. What is 3 + 3 + 3? Does it end in 3?", "The answer of A + A + A must end in the digit A. Which digits do that?", "Try A = 5: 5 + 5 + 5 = 15. Does it end in 5? Is B different from A?"],
+        sol: ["A + A + A must end with the digit A.", "Try them: 3 + 3 + 3 = 9 (no), 6 + 6 + 6 = 18 (no), 9 + 9 + 9 = 27 (no), 5 + 5 + 5 = 15 (yes!).", "So A = 5 and B = 1. The answer is 5."],
+        calc: () => only(range(0, 9).flatMap((a) => range(1, 9).filter((b) => a !== b && 3 * a === 10 * b + a).map(() => a))),
+      },
+      {
+        lvl: 2,
+        q: "A frog is at the bottom of a well 10 metres deep. Each day it climbs up 3 metres. Each night it slides down 2 metres. On which day does it reach the top?",
+        ans: 8,
+        idea: "Draw a picture, be careful at the end",
+        hints: ["After one whole day and night, how much higher is the frog?", "Does the frog slide back on the day it reaches the top?", "At the start of which day is the frog only 3 metres from the top?"],
+        sol: ["Each day and night together, the frog goes up 3 − 2 = 1 metre.", "After 7 days and nights it is at 7 metres.", "On day 8 it climbs 3 metres: 7 + 3 = 10. It is out before night, so no sliding!", "The answer is day 8 (not day 10)."],
+        calc: () => {
+          let h = 0;
+          for (let day = 1; day < 100; day++) {
+            h += 3;
+            if (h >= 10) return day;
+            h -= 2;
+          }
+          return NaN;
+        },
+        pic(g) {
+          el("rect", { x: 120, y: 10, width: 170, height: 330, fill: "#d6ecf7", stroke: INK, "stroke-width": 4 }, g);
+          for (let m = 0; m <= 10; m++) {
+            const y = 340 - m * 33;
+            el("line", { x1: 290, x2: 310, y1: y, y2: y, stroke: INK, "stroke-width": 3 }, g);
+            if (m % 2 === 0) label(g, 340, y + 8, `${m} m`, 22, "#4d3c2e");
+          }
+          emoji(g, 205, 300, "🐸", 54);
+          el("path", { d: "M80 300V200M70 214L80 200L90 214", stroke: "#22a05a", "stroke-width": 5, fill: "none" }, g);
+          label(g, 60, 186, "+3", 26, "#22a05a");
+          el("path", { d: "M80 120V180M70 166L80 180L90 166", stroke: "#e0603a", "stroke-width": 5, fill: "none" }, g);
+          label(g, 60, 110, "−2", 26, "#e0603a");
+        },
+      },
+      {
+        lvl: 2,
+        q: "Today is a Monday. What day of the week will it be 1000 days from today?",
+        opts: ["Friday", "Saturday", "Sunday", "Monday", "Tuesday"],
+        ans: "Sunday",
+        idea: "Count in whole weeks (remainders)",
+        hints: ["After exactly 7 days, what day is it again?", "How many whole weeks fit into 1000 days, and how many days are left over?", "1000 = 7 × 142 + 6. Which day is 6 days after Monday?"],
+        sol: ["Every 7 days the weekday repeats, so only the remainder after dividing by 7 matters.", "1000 ÷ 7 = 142 remainder 6 (because 7 × 142 = 994).", "Six days after Monday is Sunday. The answer is Sunday."],
+        calc: () => ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][1000 % 7],
+        pic(g) {
+          const days = ["M", "T", "W", "T", "F", "S", "S"];
+          days.forEach((d, i) => label(g, 30 + i * 56, 30, d, 24, i === 0 ? "var(--accent-dark)" : "#4d3c2e"));
+          label(g, 200, 350, "Day 0 = Monday. Day 1000 = ?", 24, "var(--accent-dark)");
+          for (let n = 1; n <= 28; n++) {
+            const c = (n - 1) % 7;
+            const r = Math.floor((n - 1) / 7);
+            el("rect", { x: 6 + c * 56, y: 46 + r * 56, width: 50, height: 50, rx: 8, fill: "#fff", stroke: "#d9cdb5", "stroke-width": 2 }, g);
+            label(g, 31 + c * 56, 80 + r * 56, n - 1, 22, "#4d3c2e");
+          }
+        },
+      },
+      {
+        lvl: 2,
+        q: "On an island, knights always tell the truth and knaves always lie. Every islander is one or the other. You meet two islanders, P and Q. P says: 'At least one of us two is a knave.' What are P and Q?",
+        opts: ["Both knights", "Both knaves", "P knight, Q knave", "P knave, Q knight", "Can't tell"],
+        ans: "P knight, Q knave",
+        idea: "Test each case",
+        hints: ["Suppose P is a knave. Then is P's sentence true or false?", "If P is a knave, the sentence 'at least one of us is a knave' is true. Can a knave say something true?", "So P must be a knight, and the sentence is true. Who is the knave?"],
+        sol: ["If P were a knave, then 'at least one of us is a knave' would be true. But knaves never say true things. So P is not a knave.", "So P is a knight, and the sentence is true: at least one of them is a knave.", "P is not the knave, so Q is. Answer: P is a knight and Q is a knave."],
+        calc: () => {
+          const ok = [];
+          for (const p of ["knight", "knave"])
+            for (const q of ["knight", "knave"]) {
+              const said = p === "knave" || q === "knave";
+              if ((p === "knight") === said) ok.push(`P ${p}, Q ${q}`);
+            }
+          return only(ok);
+        },
+      },
+      {
+        lvl: 2,
+        q: "Write the counting numbers in one long row: 123456789101112131415… What is the 25th digit?",
+        ans: 7,
+        idea: "Count in groups",
+        hints: ["How many digits do the numbers 1 to 9 use?", "After 9 digits, each number uses 2 digits. How many more digits do you need to reach 25?", "16 more digits is 8 two-digit numbers: 10, 11, … which is the 8th one? Its last digit is the 25th."],
+        sol: ["1 to 9 use 9 digits. We need 25 − 9 = 16 more.", "16 digits is 8 two-digit numbers: 10, 11, 12, 13, 14, 15, 16, 17.", "The 25th digit is the last digit of 17. The answer is 7."],
+        calc: () => Number(range(1, 30).join("")[24]),
+      },
+    ],
+  },
+  ct3: {
+    name: "Geometry & shapes",
+    problems: [
+      {
+        lvl: 0,
+        q: "Three lines go from the top corner of a big triangle down to its bottom side, as in the picture. How many triangles of any size are in the picture?",
+        opts: [4, 7, 8, 10, 12],
+        ans: 10,
+        idea: "Count by choosing two sides",
+        hints: ["Every triangle in the picture has its top at the top corner. What forms its bottom side?", "The bottom side of the big triangle is split at 5 points (both ends and the 3 marks). A triangle's base runs from one of these points to another.", "How many ways can you choose 2 of the 5 points?"],
+        sol: ["Every triangle has its top corner at the top and its base along the bottom, from one marked point to another.", "There are 5 points on the bottom. Pairs: from the first point 4, from the second 3, then 2, then 1.", "4 + 3 + 2 + 1 = 10 triangles. The answer is 10."],
+        calc: () => pairs(5).length,
+        pic(g) {
+          el("path", { d: "M200 20L20 320H380Z", fill: "#fde9b6", stroke: INK, "stroke-width": 5, "stroke-linejoin": "round" }, g);
+          [100, 190, 290].forEach((x) => el("line", { x1: 200, y1: 20, x2: x, y2: 320, stroke: INK, "stroke-width": 5 }, g));
+        },
+      },
+      {
+        lvl: 0,
+        q: "Three identical rectangles are placed side by side to make a square, as in the picture. The perimeter of the square is 36 cm. What is the perimeter of one rectangle?",
+        opts: [12, 18, 20, 24, 27],
+        ans: 24,
+        idea: "Find the side lengths first",
+        hints: ["The square has 4 equal sides. How long is one side?", "The three rectangles share the square's side equally. How wide is one rectangle?", "One rectangle is 9 cm long and 3 cm wide. Add its four sides."],
+        sol: ["The square's side is 36 ÷ 4 = 9 cm.", "Each rectangle is as long as the square (9 cm) and a third as wide: 9 ÷ 3 = 3 cm.", "Perimeter of one rectangle: 9 + 3 + 9 + 3 = 24 cm. The answer is 24."],
+        calc: () => { const side = range(1, 36).find((s) => 4 * s === 36); const w = range(1, side).find((x) => 3 * x === side); return 2 * (side + w); },
+        pic(g) {
+          [0, 1, 2].forEach((i) => el("rect", { x: 60 + i * 100, y: 20, width: 100, height: 300, fill: ["#fde9b6", "#a9d4f5", "#9fd3a8"][i], stroke: INK, "stroke-width": 5 }, g));
+        },
+      },
+      {
+        lvl: 0,
+        q: "A rectangle has a perimeter of 30 cm. Its length is twice its width. What is its area in square centimetres?",
+        opts: [36, 45, 50, 56, 60],
+        ans: 50,
+        idea: "Count equal parts",
+        hints: ["Draw it. If the width is one part, how many parts is the length?", "Go all the way around: width, length, width, length. How many equal parts is that in total?", "6 parts make 30 cm. How long is one part? Then find the length and width."],
+        sol: ["Call the width 1 part; the length is 2 parts. All the way round is 1 + 2 + 1 + 2 = 6 parts.", "6 parts = 30 cm, so 1 part = 5 cm. The width is 5 cm and the length 10 cm.", "Area = 10 × 5 = 50 square centimetres. The answer is 50."],
+        calc: () => only(range(1, 30).flatMap((w) => range(1, 30).filter((l) => l === 2 * w && 2 * (l + w) === 30).map((l) => l * w))),
+        pic(g) {
+          el("rect", { x: 30, y: 90, width: 340, height: 170, fill: "#fde9b6", stroke: INK, "stroke-width": 5 }, g);
+          el("line", { x1: 200, x2: 200, y1: 90, y2: 260, stroke: INK, "stroke-width": 3, "stroke-dasharray": "10 8" }, g);
+          label(g, 200, 300, "perimeter 30 cm", 26, "var(--accent-dark)");
+        },
+      },
+      {
+        lvl: 0,
+        q: "A 3 by 3 by 3 cube is built from 27 small cubes. The 8 small cubes at the corners are removed. How many faces of small cubes can now be seen on the outside of the solid, counting the bottom?",
+        opts: [42, 48, 54, 60, 66],
+        ans: 54,
+        idea: "Track what each change adds and removes",
+        hints: ["Before anything is removed, how many small faces are on the outside? (Each big face shows 3 × 3.)", "When one corner cube is pulled out, how many outside faces disappear with it?", "How many faces of the neighbouring cubes become visible in the hole?"],
+        sol: ["The whole cube shows 6 × 9 = 54 small faces.", "Removing a corner cube takes away its 3 outside faces, but uncovers 3 faces of its 3 neighbours.", "So each removal changes nothing: 54 − 3 + 3 = 54, eight times over. The answer is 54."],
+        calc: () => {
+          const has = (x, y, z) => [x, y, z].every((v) => v >= 0 && v < 3) && ![x, y, z].every((v) => v !== 1);
+          let n = 0;
+          for (let x = 0; x < 3; x++) for (let y = 0; y < 3; y++) for (let z = 0; z < 3; z++) if (has(x, y, z)) for (const [a, b, c] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) if (!has(x + a, y + b, z + c)) n += 1;
+          return n;
+        },
+      },
+      {
+        lvl: 1,
+        q: "A square has a perimeter of 40 cm. It is cut in half to make two equal rectangles. What is the perimeter of one rectangle?",
+        opts: [20, 25, 30, 35, 40],
+        ans: 30,
+        idea: "Draw a picture",
+        hints: ["How long is one side of the square?", "Draw the cut. How long and how wide is each rectangle?", "The rectangle is 10 cm by 5 cm. Add all four sides."],
+        sol: ["A square has 4 equal sides: 40 ÷ 4 = 10 cm.", "Cutting it in half makes a rectangle 10 cm long and 5 cm wide.", "10 + 5 + 10 + 5 = 30. The answer is 30 cm."],
+        calc: () => {
+          const s = 40 / 4;
+          return 2 * (s + s / 2);
+        },
+        pic(g) {
+          el("rect", { x: 70, y: 30, width: 280, height: 280, fill: "#fde9b6", stroke: INK, "stroke-width": 5 }, g);
+          el("line", { x1: 70, x2: 350, y1: 170, y2: 170, stroke: "#e0603a", "stroke-width": 5, "stroke-dasharray": "14 10" }, g);
+          emoji(g, 380, 170, "✂️", 40);
+        },
+      },
+      {
+        lvl: 1,
+        q: "A big cube is built from 27 small cubes (3 by 3 by 3). The outside of the big cube is painted. How many small cubes have paint on exactly 2 faces?",
+        opts: [6, 8, 12, 18, 24],
+        ans: 12,
+        idea: "Sort by position",
+        hints: ["Where are the cubes with 3 painted faces?", "Cubes with exactly 2 painted faces sit on an edge, but not at a corner. How many edges does a cube have?", "Each edge has 3 small cubes. Two are corners. How many are left on each edge?"],
+        sol: ["Corner cubes have 3 painted faces. Cubes in the middle of an edge have exactly 2.", "A cube has 12 edges. Each edge has 3 small cubes: 2 corners and 1 middle.", "12 edges × 1 middle cube = 12. The answer is 12."],
+        calc: () => {
+          let n = 0;
+          for (const x of [0, 1, 2]) for (const y of [0, 1, 2]) for (const z of [0, 1, 2]) if ([x, y, z].filter((v) => v !== 1).length === 2) n += 1;
+          return n;
+        },
+        pic(g) {
+          const s = 52;
+          const iso = (x, y, z) => [200 + (x - y) * s * 0.87, 120 + (x + y) * s * 0.5 - z * s];
+          const face = (pts, fill) => el("path", { d: `M${pts.map((p) => p.join(" ")).join("L")}Z`, fill, stroke: INK, "stroke-width": 2.5, "stroke-linejoin": "round" }, g);
+          for (let i = 0; i < 3; i++)
+            for (let j = 0; j < 3; j++) {
+              face([iso(i, j, 3), iso(i + 1, j, 3), iso(i + 1, j + 1, 3), iso(i, j + 1, 3)], "#f7d36b");
+              face([iso(3, i, 3 - j), iso(3, i + 1, 3 - j), iso(3, i + 1, 2 - j), iso(3, i, 2 - j)], "#e0a33a");
+              face([iso(i, 3, 3 - j), iso(i + 1, 3, 3 - j), iso(i + 1, 3, 2 - j), iso(i, 3, 2 - j)], "#c98420");
+            }
+        },
+      },
+      {
+        lvl: 1,
+        q: "How many squares of any size are in this 3 by 3 grid?",
+        opts: [9, 10, 13, 14, 16],
+        ans: 14,
+        idea: "Count by size",
+        hints: ["How many 1 by 1 squares?", "Now look for 2 by 2 squares. They overlap! How many can you find?", "9 small, 4 middle-sized, and how many 3 by 3?"],
+        sol: ["1 by 1 squares: 9.", "2 by 2 squares: 4 (top-left, top-right, bottom-left, bottom-right).", "3 by 3 squares: 1, the whole grid.", "9 + 4 + 1 = 14. The answer is 14."],
+        calc: () => squaresIn(3),
+        pic(g) {
+          gridPic(g, 3, 3, 100, 60, 20);
+        },
+      },
+      {
+        lvl: 1,
+        q: "At 4 o'clock, what is the smaller angle between the hour hand and the minute hand of a clock?",
+        opts: [30, 60, 90, 120, 150],
+        ans: 120,
+        idea: "Use what you know about a full turn",
+        hints: ["A full turn is 360 degrees. The clock face is split into how many hour spaces?", "How many degrees is one hour space?", "From 12 to 4 is 4 hour spaces. 4 × 30 = ?"],
+        sol: ["A full turn is 360°. There are 12 hour spaces, so each one is 360 ÷ 12 = 30°.", "At 4 o'clock the minute hand points at 12 and the hour hand at 4: that is 4 spaces apart.", "4 × 30° = 120°. The answer is 120°."],
+        calc: () => {
+          const a = (4 * 30) % 360;
+          return Math.min(a, 360 - a);
+        },
+        pic(g) {
+          el("circle", { cx: 200, cy: 180, r: 160, fill: "#fff", stroke: INK, "stroke-width": 6 }, g);
+          for (let h = 1; h <= 12; h++) {
+            const a = (h / 12) * Math.PI * 2;
+            label(g, 200 + Math.sin(a) * 128, 190 - Math.cos(a) * 128, h, 26, "#4d3c2e");
+          }
+          el("line", { x1: 200, y1: 180, x2: 200, y2: 50, stroke: INK, "stroke-width": 6, "stroke-linecap": "round" }, g);
+          const a4 = (4 / 12) * Math.PI * 2;
+          el("line", { x1: 200, y1: 180, x2: 200 + Math.sin(a4) * 85, y2: 180 - Math.cos(a4) * 85, stroke: "#e0603a", "stroke-width": 9, "stroke-linecap": "round" }, g);
+          el("circle", { cx: 200, cy: 180, r: 9, fill: INK }, g);
+        },
+      },
+      {
+        lvl: 2,
+        q: "A rectangle has an area of 24 square units, and its side lengths are whole numbers. How many different perimeters are possible?",
+        opts: [3, 4, 5, 6, 8],
+        ans: 4,
+        idea: "Make an organised list",
+        hints: ["Which whole-number side lengths multiply to 24? Start with 1 by 24.", "List every pair: 1 × 24, 2 × 12 … Did you find them all?", "Now find the perimeter of each one. Are any the same?"],
+        sol: ["Side pairs with area 24: 1 × 24, 2 × 12, 3 × 8, 4 × 6.", "Perimeters: 50, 28, 22 and 20. All different.", "So there are 4 possible perimeters."],
+        calc: () => new Set(range(1, 24).filter((a) => 24 % a === 0 && a <= 24 / a).map((a) => 2 * (a + 24 / a))).size,
+      },
+      {
+        lvl: 2,
+        q: "Four rectangles, each 7 by 3, are placed around a square hole to make one big square (see the picture). What is the area of the square hole?",
+        ans: 16,
+        idea: "Big minus the parts",
+        hints: ["How long is a side of the big square? Look along the top edge.", "What is the area of the big square? And of the 4 rectangles together?", "The hole is what is left: big square minus the 4 rectangles."],
+        sol: ["Along each edge of the big square you see one long side and one short side: 7 + 3 = 10. Big square = 10 × 10 = 100.", "The 4 rectangles cover 4 × (7 × 3) = 84.", "The hole is 100 − 84 = 16. (Its side is 7 − 3 = 4.) The answer is 16."],
+        calc: () => (7 + 3) ** 2 - 4 * 7 * 3,
+        pic(g) {
+          const u = 30;
+          const x0 = 60;
+          const y0 = 20;
+          const r = (x, y, w, h, f) => el("rect", { x: x0 + x * u, y: y0 + y * u, width: w * u, height: h * u, fill: f, stroke: INK, "stroke-width": 4 }, g);
+          r(0, 0, 7, 3, "#f2c94c");
+          r(7, 0, 3, 7, "#a9d4f5");
+          r(3, 7, 7, 3, "#9fd3a8");
+          r(0, 3, 3, 7, "#f5b5a8");
+          r(3, 3, 4, 4, "#fff");
+          label(g, x0 + 5 * u, y0 + 5.4 * u, "?", 44, "var(--accent-dark)");
+          label(g, x0 + 3.5 * u, y0 + 1.9 * u, "7", 26);
+          label(g, x0 + 8.5 * u, y0 + 1.9 * u, "3", 26);
+        },
+      },
+      {
+        lvl: 2,
+        q: "How many rectangles of any size are in this 2 by 3 grid? (Squares count as rectangles.)",
+        ans: 18,
+        idea: "Choose two lines each way",
+        hints: ["A rectangle needs a left side and a right side. How many up-and-down lines are there?", "How many ways can you pick 2 of the 4 up-and-down lines?", "Now pick 2 of the 3 across lines. Multiply the two counts."],
+        sol: ["Every rectangle is made by picking 2 of the 4 up-and-down lines and 2 of the 3 across lines.", "Picking 2 of 4 lines: 6 ways. Picking 2 of 3 lines: 3 ways.", "6 × 3 = 18. The answer is 18."],
+        calc: () => rectsIn(3, 2),
+        pic(g) {
+          gridPic(g, 3, 2, 110, 40, 50);
+        },
+      },
+      {
+        lvl: 2,
+        q: "A staircase is made of unit squares: columns of 1, 2, 3 and 4 squares side by side (see the picture). What is its perimeter?",
+        ans: 16,
+        idea: "Push the steps out",
+        hints: ["Walk around the outside. Which edges are hard to count?", "Imagine pushing the steps out to make a rectangle. Does the perimeter change?", "The steps push out into a 4 by 4 square. What is the perimeter of that square?"],
+        sol: ["The step edges going up add to 4 and the step edges going across add to 4, just like the sides of a 4 by 4 square.", "So the staircase has the same perimeter as a 4 by 4 square.", "4 + 4 + 4 + 4 = 16. The answer is 16."],
+        calc: () => perimeterOf(range(0, 3).flatMap((c) => range(0, c).map((k) => [c, 3 - k]))),
+        pic(g) {
+          cellsPic(g, range(0, 3).flatMap((c) => range(0, c).map((k) => [c, 3 - k])), 75, 50, 20, "#9fd3a8");
+        },
+      },
+    ],
+  },
+  ct4: {
+    name: "Counting",
+    problems: [
+      {
+        lvl: 0,
+        q: "How many 3-digit even numbers can be written using only the digits 1, 2, 3 and 4? Digits may be repeated (for example, 112).",
+        opts: [12, 16, 24, 32, 64],
+        ans: 32,
+        idea: "Fill the most restricted place first",
+        hints: ["Which place decides whether the number is even? Which digits can go there?", "How many choices are there for the hundreds digit? For the tens digit?", "Multiply the numbers of choices for the three places."],
+        sol: ["An even number ends in an even digit, so the ones digit is 2 or 4: 2 choices.", "The hundreds and tens digits can each be any of the 4 digits: 4 choices each.", "4 × 4 × 2 = 32. The answer is 32."],
+        calc: () => range(100, 999).filter((n) => n % 2 === 0 && String(n).split("").every((c) => "1234".includes(c))).length,
+      },
+      {
+        lvl: 0,
+        q: "In how many different ways can you make 50 cents using 5-cent, 10-cent and 25-cent coins? (You may use any number of each, and the order does not matter.)",
+        opts: [6, 8, 9, 10, 12],
+        ans: 10,
+        idea: "Make an organised list",
+        hints: ["Sort by the biggest coin. How many 25-cent coins can you use: 0, 1 or 2?", "With one 25-cent coin, 25 cents are left. In how many ways can 10s and 5s make 25?", "With no 25-cent coin, how many ways can 10s and 5s make 50? Add all the cases."],
+        sol: ["Two 25s: 1 way. One 25: the other 25 cents use 0, 1 or 2 tens (the rest in fives): 3 ways.", "No 25s: 50 cents use 0, 1, 2, 3, 4 or 5 tens: 6 ways.", "1 + 3 + 6 = 10. The answer is 10."],
+        calc: () => range(0, 2).flatMap((q) => range(0, 5).flatMap((d) => range(0, 10).filter((f) => 25 * q + 10 * d + 5 * f === 50))).length,
+      },
+      {
+        lvl: 0,
+        q: "A flag has 4 stripes. Each stripe is red, white or blue, and two stripes next to each other must be different colours. How many different flags are possible?",
+        opts: [12, 18, 24, 27, 81],
+        ans: 24,
+        idea: "Fill the places one at a time",
+        hints: ["How many colours can the first stripe be?", "The second stripe must differ from the first. How many choices does it have?", "Each later stripe only has to differ from the one just before it. Multiply the choices."],
+        sol: ["The first stripe: 3 choices.", "Each of the next three stripes must avoid only the colour just above it: 2 choices each.", "3 × 2 × 2 × 2 = 24. The answer is 24."],
+        calc: () => { let n = 0; for (let k = 0; k < 81; k++) { const c = [k % 3, Math.floor(k / 3) % 3, Math.floor(k / 9) % 3, Math.floor(k / 27)]; if (c.every((x, i) => i === 0 || x !== c[i - 1])) n += 1; } return n; },
+        pic(g) {
+          el("line", { x1: 40, x2: 40, y1: 20, y2: 340, stroke: INK, "stroke-width": 8, "stroke-linecap": "round" }, g);
+          ["#e53935", "#fff", "#1e88e5", "#e53935"].forEach((c, i) => el("rect", { x: 44, y: 30 + i * 50, width: 300, height: 50, fill: c, stroke: INK, "stroke-width": 3 }, g));
+          label(g, 200, 290, "one example", 24, "#8a7764");
+        },
+      },
+      {
+        lvl: 0,
+        q: "A number is called climbing if each digit is larger than the digit before it, like 247. How many 3-digit climbing numbers use only the digits 1, 2, 3, 4 and 5?",
+        opts: [6, 8, 10, 12, 15],
+        ans: 10,
+        idea: "Choose, then the order is forced",
+        hints: ["Once you choose which three digits to use, how many climbing orders are there?", "So you only need to count the ways to choose 3 of the 5 digits. Start a list: 123, 124, 125, …", "Alternatively, choosing 3 digits to use is the same as choosing 2 digits to leave out."],
+        sol: ["Any three different digits can be arranged in exactly one climbing order, so we count the choices of three digits.", "Leaving out 2 of the 5 digits: 4 + 3 + 2 + 1 = 10 ways. (The list: 123, 124, 125, 134, 135, 145, 234, 235, 245, 345.)", "The answer is 10."],
+        calc: () => range(100, 999).filter((n) => { const d = String(n).split("").map(Number); return d.every((x) => x >= 1 && x <= 5) && d[0] < d[1] && d[1] < d[2]; }).length,
+      },
+      {
+        lvl: 1,
+        q: "In how many different orders can 4 friends stand in a line?",
+        opts: [4, 10, 12, 16, 24],
+        ans: 24,
+        idea: "Fill the spots one at a time",
+        hints: ["How many friends could stand in the first spot?", "Once the first spot is filled, how many could be second?", "4 choices, then 3, then 2, then 1. Multiply."],
+        sol: ["Spot 1: 4 choices. Spot 2: 3 left. Spot 3: 2 left. Spot 4: 1 left.", "4 × 3 × 2 × 1 = 24.", "The answer is 24."],
+        calc: () => perms([1, 2, 3, 4]).length,
+      },
+      {
+        lvl: 1,
+        q: "A pizza shop has 3 kinds of crust, 2 kinds of sauce and 4 toppings. You pick one crust, one sauce and one topping. How many different pizzas can you order?",
+        opts: [9, 12, 18, 24, 36],
+        ans: 24,
+        idea: "Multiply the choices",
+        hints: ["How many crust-and-sauce pairs are there?", "Each crust-and-sauce pair can have any of the 4 toppings.", "3 × 2 = 6 pairs. 6 × 4 = ?"],
+        sol: ["Crust and sauce: 3 × 2 = 6 ways.", "Each of those can have any of 4 toppings: 6 × 4 = 24.", "The answer is 24."],
+        calc: () => range(1, 3).flatMap((c) => range(1, 2).flatMap((s) => range(1, 4).map((t) => [c, s, t]))).length,
+      },
+      {
+        lvl: 1,
+        q: "How many 3-digit numbers have digits that add up to 4? (For example, 202.)",
+        opts: [6, 8, 10, 12, 15],
+        ans: 10,
+        idea: "Make an organised list",
+        hints: ["The first digit can't be 0. What can it be?", "If the first digit is 1, the other two digits add to 3. How many ways?", "Do the same for first digits 2, 3 and 4. Add them up."],
+        sol: ["First digit 1: the others add to 3: 103, 112, 121, 130. (4 numbers)", "First digit 2: 202, 211, 220 (3). First digit 3: 301, 310 (2). First digit 4: 400 (1).", "4 + 3 + 2 + 1 = 10. The answer is 10."],
+        calc: () => range(100, 999).filter((n) => [...String(n)].reduce((s, d) => s + Number(d), 0) === 4).length,
+      },
+      {
+        lvl: 1,
+        q: "You toss 3 coins. In how many ways can exactly 2 of them land heads?",
+        opts: [2, 3, 4, 6, 8],
+        ans: 3,
+        idea: "Make an organised list",
+        hints: ["Call the coins first, second and third. Which coin could be the tails one?", "If exactly 2 are heads, then exactly 1 is tails.", "The tails coin can be first, second or third. How many ways?"],
+        sol: ["Exactly 2 heads means exactly 1 tail.", "The tail can be the first coin (THH), second (HTH) or third (HHT).", "That is 3 ways."],
+        calc: () => range(0, 7).filter((m) => [0, 1, 2].filter((b) => (m >> b) & 1).length === 2).length,
+        pic(g) {
+          [0, 1, 2].forEach((i) => {
+            el("circle", { cx: 70 + i * 130, cy: 170, r: 56, fill: "#f2c94c", stroke: "#b8820c", "stroke-width": 6 }, g);
+            label(g, 70 + i * 130, 184, "?", 44, "#7a5a10");
+          });
+        },
+      },
+      {
+        lvl: 2,
+        q: "Walk along the lines from START to END, moving only right or up. How many different shortest paths are there on this 3 by 3 grid?",
+        ans: 20,
+        idea: "Count corner by corner",
+        hints: ["How many ways can you reach each corner on the bottom edge? On the left edge?", "To reach any other corner, you come from the left or from below. So add those two numbers.", "Fill in every corner like this. What number lands on END?"],
+        sol: ["Every corner on the bottom edge and left edge can be reached in only 1 way.", "Each other corner = the number to its left + the number below it. Rows above the bottom row (bottom row: 1, 1, 1, 1): 1, 2, 3, 4 then 1, 3, 6, 10 then 1, 4, 10, 20.", "END gets 20. The answer is 20."],
+        calc: () => {
+          const n = 3;
+          const grid = Array.from({ length: n + 1 }, () => Array(n + 1).fill(1));
+          for (let r = 1; r <= n; r++) for (let c = 1; c <= n; c++) grid[r][c] = grid[r - 1][c] + grid[r][c - 1];
+          return grid[n][n];
+        },
+        pic(g) {
+          gridPic(g, 3, 3, 95, 70, 30, { fill: "none" });
+          el("circle", { cx: 70, cy: 315, r: 13, fill: "#22a05a" }, g);
+          label(g, 70, 352, "START", 22, "#157a40");
+          el("circle", { cx: 355, cy: 30, r: 13, fill: "#e0603a" }, g);
+          label(g, 380, 76, "END", 22, "#b23a1c");
+        },
+      },
+      {
+        lvl: 2,
+        q: "How many whole numbers from 1 to 100 are multiples of 3 or multiples of 5 (or both)?",
+        ans: 47,
+        idea: "Count, then fix the double count",
+        hints: ["How many multiples of 3 are there up to 100?", "How many multiples of 5? Did any numbers get counted twice?", "Numbers like 15 and 30 are in both lists. How many multiples of 15 are there?"],
+        sol: ["Multiples of 3: 100 ÷ 3 is 33 with 1 left, so 33 of them. Multiples of 5: 20.", "Multiples of 15 (like 15, 30, 45) were counted twice: there are 6 of them.", "33 + 20 − 6 = 47. The answer is 47."],
+        calc: () => range(1, 100).filter((n) => n % 3 === 0 || n % 5 === 0).length,
+      },
+      {
+        lvl: 2,
+        q: "In a chess club, 8 players each play every other player exactly once. How many games are played?",
+        ans: 28,
+        idea: "Count, then halve the double count",
+        hints: ["How many games does one player play?", "If each of 8 players plays 7 games, is 8 × 7 too many? Why?", "Each game has 2 players, so it was counted twice."],
+        sol: ["Each player plays 7 games. 8 × 7 = 56.", "But each game was counted twice, once for each player.", "56 ÷ 2 = 28. (Or 7 + 6 + 5 + 4 + 3 + 2 + 1 = 28.) The answer is 28."],
+        calc: () => pairs(8).length,
+      },
+      {
+        lvl: 2,
+        q: "A diagonal joins two corners of a shape that are not next to each other. How many diagonals does an octagon (8 corners) have?",
+        ans: 20,
+        idea: "Count from one corner, then fix the double count",
+        hints: ["From one corner, which corners can you NOT draw a diagonal to?", "From each corner you can draw 5 diagonals. Why 5?", "8 corners × 5 counts every diagonal twice. Why?"],
+        sol: ["From one corner you can't join itself or its 2 neighbours, so you can join 8 − 3 = 5 corners.", "8 corners × 5 = 40, but each diagonal has two ends, so it was counted twice.", "40 ÷ 2 = 20. The answer is 20."],
+        calc: () => pairs(8).filter(([i, j]) => j - i !== 1 && j - i !== 7).length,
+        pic(g) {
+          const pts = range(0, 7).map((k) => [200 + 160 * Math.cos(((k + 0.5) / 8) * Math.PI * 2), 180 + 160 * Math.sin(((k + 0.5) / 8) * Math.PI * 2)]);
+          el("path", { d: `M${pts.map((p) => p.join(" ")).join("L")}Z`, fill: "#fde9b6", stroke: INK, "stroke-width": 5 }, g);
+          [2, 3, 4, 5, 6].forEach((k) => el("line", { x1: pts[0][0], y1: pts[0][1], x2: pts[k][0], y2: pts[k][1], stroke: "#e0603a", "stroke-width": 3 }, g));
+          pts.forEach(([x, y]) => el("circle", { cx: x, cy: y, r: 8, fill: INK }, g));
+        },
+      },
+    ],
+  },
+  ct5: {
+    name: "Word problems",
+    problems: [
+      {
+        lvl: 0,
+        q: "A pencil and two erasers cost 70 cents. Two pencils and one eraser cost 80 cents. How many cents do one pencil and one eraser cost together?",
+        opts: [40, 45, 50, 55, 60],
+        ans: 50,
+        idea: "Combine the facts",
+        hints: ["What would you get if you bought both groups together?", "Both groups together are 3 pencils and 3 erasers. What do they cost?", "3 pencils and 3 erasers are 3 sets of one pencil and one eraser."],
+        sol: ["Buy both groups: 1 pencil + 2 erasers + 2 pencils + 1 eraser = 3 pencils and 3 erasers, costing 70 + 80 = 150 cents.", "That is 3 identical sets of one pencil and one eraser.", "150 ÷ 3 = 50 cents. (A pencil is 30 cents and a eraser 20 cents.) The answer is 50."],
+        calc: () => only(range(1, 80).flatMap((p) => range(1, 80).filter((r) => p + 2 * r === 70 && 2 * p + r === 80).map((r) => p + r))),
+      },
+      {
+        lvl: 0,
+        q: "Every child in a class has a cat, a dog, or both. 18 children have a cat, 12 have a dog, and 7 have both. How many children are in the class?",
+        opts: [11, 23, 25, 30, 37],
+        ans: 23,
+        idea: "Count, then correct the double count",
+        hints: ["If you add 18 and 12, which children have you counted twice?", "The 7 children with both pets are in both groups. How many times should each be counted?", "18 + 12 counts them twice. Take them away once."],
+        sol: ["18 + 12 = 30 counts every child with a cat and every child with a dog.", "The 7 children with both are counted twice, once in each group.", "30 − 7 = 23. (11 cat only, 5 dog only, 7 both.) The answer is 23."],
+        calc: () => (18 - 7) + (12 - 7) + 7,
+        pic(g) {
+          el("circle", { cx: 150, cy: 180, r: 120, fill: "#f2c94c", "fill-opacity": 0.55, stroke: INK, "stroke-width": 4 }, g);
+          el("circle", { cx: 270, cy: 180, r: 120, fill: "#a9d4f5", "fill-opacity": 0.55, stroke: INK, "stroke-width": 4 }, g);
+          label(g, 110, 40, "cat 18", 26);
+          label(g, 310, 40, "dog 12", 26);
+          label(g, 210, 190, "7", 36, "var(--accent-dark)");
+        },
+      },
+      {
+        lvl: 0,
+        q: "A gardener gives away half of her apples and then 3 more. Then she gives away half of what is left and 3 more. Now she has 3 apples. How many apples did she have at the start?",
+        opts: [18, 24, 27, 30, 36],
+        ans: 30,
+        idea: "Work backward",
+        hints: ["Start at the end: 3 apples. Undo 'and 3 more': how many did she have before giving those 3 away?", "Undo 'half of what is left': if 6 is half, what was the whole?", "Do the same two undo steps again for the first round."],
+        sol: ["Second round, backward: 3 + 3 = 6 was half of what she had, so she had 12.", "First round, backward: 12 + 3 = 15 was half of the start, so she began with 30.", "Check: 30 → give 15 and 3 → 12 → give 6 and 3 → 3. The answer is 30."],
+        calc: () => only(range(1, 100).filter((n) => { if (n % 2) return false; let a = n / 2 - 3; if (a < 0 || a % 2) return false; a = a / 2 - 3; return a === 3; })),
+      },
+      {
+        lvl: 0,
+        q: "Ben has twice as many marbles as Cara. If Ben gives Cara 6 marbles, they will have the same number. How many marbles do they have altogether?",
+        opts: [18, 24, 30, 36, 48],
+        ans: 36,
+        idea: "Draw a bar model",
+        hints: ["Draw Cara's marbles as one bar and Ben's as two such bars. What is the difference between them?", "After Ben gives away 6, they are equal. How big was the gap between them to start with?", "The gap is one whole bar. So one bar is how many marbles?"],
+        sol: ["Giving 6 marbles closes a gap of 6 + 6 = 12 (Ben loses 6, Cara gains 6).", "The gap is one bar (Ben has 2 bars, Cara 1), so one bar is 12. Cara has 12 and Ben 24.", "12 + 24 = 36. Check: 24 − 6 = 18 = 12 + 6. The answer is 36."],
+        calc: () => only(range(1, 100).filter((c) => 2 * c - 6 === c + 6).map((c) => 3 * c)),
+      },
+      {
+        lvl: 1,
+        q: "I think of a number. I double it, then add 6. The answer is 30. What was my number?",
+        opts: [9, 12, 15, 18, 24],
+        ans: 12,
+        idea: "Work backward",
+        hints: ["What was the very last thing done? How can you undo it?", "Undo 'add 6': what is 30 − 6?", "Undo 'double': what is half of 24?"],
+        sol: ["Go backward and undo each step. The last step was add 6, so take 6 away: 30 − 6 = 24.", "Before that I doubled, so halve: 24 ÷ 2 = 12.", "Check: 12 × 2 + 6 = 30. The answer is 12."],
+        calc: () => only(range(0, 30).filter((n) => 2 * n + 6 === 30)),
+      },
+      {
+        lvl: 1,
+        q: "A farm has some chickens and some cows. There are 7 animals and 20 legs. How many cows are there?",
+        opts: [2, 3, 4, 5, 6],
+        ans: 3,
+        idea: "Guess and check",
+        hints: ["If all 7 animals were chickens, how many legs would there be?", "How many legs are missing? Each cow has 2 more legs than a chicken.", "6 missing legs, 2 extra legs per cow."],
+        sol: ["If all 7 were chickens: 7 × 2 = 14 legs. We need 20, so 6 legs are missing.", "Each cow has 2 more legs than a chicken. 6 ÷ 2 = 3 cows.", "Check: 3 cows (12 legs) + 4 chickens (8 legs) = 20. The answer is 3."],
+        calc: () => only(range(0, 7).filter((c) => 4 * c + 2 * (7 - c) === 20)),
+        pic(g) {
+          emoji(g, 120, 120, "🐔", 90);
+          emoji(g, 290, 120, "🐄", 90);
+          label(g, 205, 280, "7 animals · 20 legs", 30);
+        },
+      },
+      {
+        lvl: 1,
+        q: "A bottle and a cork cost 110 cents together. The bottle costs 100 cents more than the cork. How many cents does the cork cost?",
+        opts: [5, 10, 15, 50, 100],
+        ans: 5,
+        idea: "Check the quick answer",
+        hints: ["Many people say 10. Try it: if the cork is 10, what does the bottle cost?", "Does 10 + 110 make 110? What went wrong?", "Take away the extra 100 first, then share what is left into two equal parts."],
+        sol: ["Take away the bottle's extra 100 cents: 110 − 100 = 10.", "That 10 is shared equally: cork 5, and bottle 5 + 100 = 105.", "Check: 5 + 105 = 110 and 105 − 5 = 100. The answer is 5 cents."],
+        calc: () => only(range(0, 110).filter((c) => c + (c + 100) === 110)),
+      },
+      {
+        lvl: 1,
+        q: "A train leaves at 9:45 and the trip takes 1 hour 35 minutes. What time does it arrive?",
+        opts: ["10:20", "11:10", "11:20", "11:30", "12:20"],
+        ans: "11:20",
+        idea: "Jump to friendly times",
+        hints: ["Add the 1 hour first. What time is it?", "From 10:45, how many minutes to get to 11:00?", "You used 15 of the 35 minutes. How many are left to add after 11:00?"],
+        sol: ["9:45 + 1 hour = 10:45.", "10:45 + 15 minutes = 11:00. That leaves 35 − 15 = 20 minutes.", "11:00 + 20 minutes = 11:20. The answer is 11:20."],
+        calc: () => {
+          const m = 9 * 60 + 45 + 60 + 35;
+          return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+        },
+      },
+      {
+        lvl: 2,
+        q: "A tank is half full of water. After 12 more litres are poured in, it is three quarters full. How many litres does the full tank hold?",
+        ans: 48,
+        idea: "Draw a bar model",
+        hints: ["Draw the tank split into 4 equal parts. How many parts are full at the start?", "How many parts are full at the end? How many parts did the 12 litres fill?", "One quarter is 12 litres. How many quarters in the whole tank?"],
+        sol: ["Half full is 2 quarters. Three quarters full is 3 quarters.", "So the 12 litres filled exactly 1 quarter.", "The whole tank is 4 quarters: 4 × 12 = 48 litres. The answer is 48."],
+        calc: () => only(range(1, 200).filter((f) => f / 2 + 12 === (3 * f) / 4)),
+        pic(g) {
+          el("rect", { x: 130, y: 20, width: 160, height: 320, rx: 12, fill: "#fff", stroke: INK, "stroke-width": 5 }, g);
+          el("rect", { x: 133, y: 180, width: 154, height: 157, fill: "#7cc0ea" }, g);
+          el("rect", { x: 133, y: 100, width: 154, height: 80, fill: "#b9def5" }, g);
+          [100, 180, 260].forEach((y) => el("line", { x1: 130, x2: 290, y1: y, y2: y, stroke: INK, "stroke-width": 2, "stroke-dasharray": "8 6" }, g));
+          label(g, 350, 150, "+12 L", 28, "#1b6fa8");
+        },
+      },
+      {
+        lvl: 2,
+        q: "6 painters can paint a fence in 4 hours. Working at the same speed, how many hours would 8 painters take?",
+        ans: 3,
+        idea: "Find the total work",
+        hints: ["How many 'painter-hours' does the whole fence take?", "6 painters for 4 hours is 24 painter-hours. Does the fence need more work if more painters come?", "Share the 24 painter-hours among 8 painters."],
+        sol: ["The whole job is 6 × 4 = 24 painter-hours.", "With 8 painters sharing the same job: 24 ÷ 8 = 3.", "The answer is 3 hours. More painters, less time."],
+        calc: () => (6 * 4) / 8,
+      },
+      {
+        lvl: 2,
+        q: "You read 10 pages on the first day. Each day after that you read 5 more pages than the day before. How many pages have you read after 12 days altogether?",
+        ans: 450,
+        idea: "Pair the first and last terms",
+        hints: ["How many pages do you read on day 12? Each day adds 5, and there are 11 increases.", "Pair day 1 with day 12, day 2 with day 11, and so on. What does each pair total?", "How many such pairs are there?"],
+        sol: ["Day 12: 10 + 11 × 5 = 65 pages.", "Pair day 1 with day 12: 10 + 65 = 75. Day 2 with day 11: 15 + 60 = 75. Every pair totals 75.", "There are 6 pairs, so the total is 6 × 75 = 450. (This is the pairing trick from the well-known story of the young Carl Friedrich Gauss.) The answer is 450."],
+        calc: () => range(0, 11).reduce((s, d) => s + 10 + 5 * d, 0),
+      },
+      {
+        lvl: 2,
+        q: "A mother is 30 years old and her child is 6. In how many years will the mother be exactly 3 times as old as the child?",
+        ans: 6,
+        idea: "Make a table",
+        hints: ["Is the mother 3 times as old now? 3 × 6 = ?", "Both get 1 year older every year. Try 'in 2 years', 'in 4 years' … ", "The age gap is always 24. When is 24 equal to 2 times the child's age?"],
+        sol: ["Now: 30 and 6 (5 times as old). Each year both ages go up by 1.", "In 6 years: mother 36, child 12. 3 × 12 = 36. ✓", "The answer is 6 years."],
+        calc: () => only(range(0, 30).filter((x) => 30 + x === 3 * (6 + x))),
+      },
+    ],
+  },
+};
+const ROOM_IDS = ["ct1", "ct2", "ct3", "ct4", "ct5"];
+ROOM_IDS.forEach((rid) => ROOMS[rid].problems.forEach((p, i) => (p.id = `${rid}-${i + 1}`)));
+const LV = [
+  ["🐣", "Grade 4", "3-point"],
+  ["🦊", "Grade 5–6", "4-point"],
+  ["🦁", "Grade 7–8 · contest", "5-point"],
+];
+
+// ---------- generated "fresh numbers" problems (Set B): new numbers every visit ----------
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+const lcm = (a, b) => (a / gcd(a, b)) * b;
+const choose = (n, k) => (k < 0 || k > n ? 0 : range(1, k).reduce((acc, i) => (acc * (n - k + i)) / i, 1));
+const fmt = (n) => n.toLocaleString("en-US");
+// Five distinct options containing ans; numbers sorted like a contest paper.
+function mcOpts(ans, cands) {
+  const out = [ans];
+  for (const c of cands) if (out.length < 5 && !out.some((x) => String(x) === String(c)) && !(typeof c === "number" && (c < 0 || !Number.isFinite(c)))) out.push(c);
+  let k = 1;
+  while (out.length < 5 && typeof ans === "number") {
+    const c = ans + k * (k % 2 ? 1 : -1) * Math.ceil(k / 2);
+    if (c >= 0 && !out.includes(c)) out.push(c);
+    k += 1;
+  }
+  return typeof ans === "number" ? out.sort((a, b) => a - b) : KIT.shuffle(out);
+}
+
+const GEN = {
+  ct1: [
+    [0, () => {
+      const k = 4; // answers are typed on a 4-digit pad
+      const digits = KIT.shuffle(range(Math.random() < 0.5 ? 0 : 1, 9)).slice(0, k);
+      const desc = [...digits].sort((a, b) => b - a);
+      const asc = [...digits].sort((a, b) => a - b);
+      if (asc[0] === 0) [asc[0], asc[1]] = [asc[1], asc[0]];
+      const big = Number(desc.join(""));
+      const small = Number(asc.join(""));
+      const ans = big - small;
+      const zero = digits.includes(0);
+      return {
+        q: `Use each of the digits ${[...digits].sort((a, b) => a - b).join(", ")} exactly once to make the largest possible ${k}-digit number and the smallest possible ${k}-digit number. What is their difference?`,
+        ans,
+        idea: "Place value decides largest and smallest",
+        hints: ["Which place is worth the most? Which digit should go there to make the number as large as possible?", zero ? "For the smallest number, can 0 be the first digit of a " + k + "-digit number? What is the best you can do instead?" : "For the smallest number, put the smallest digit in the most valuable place, and so on.", "Now subtract carefully, column by column."],
+        sol: [`Largest: the digits from biggest to smallest, ${fmt(big)}.`, zero ? `Smallest: 0 cannot lead, so the smallest non-zero digit goes first, then 0, then the rest in increasing order: ${fmt(small)}.` : `Smallest: the digits from smallest to biggest, ${fmt(small)}.`, `${fmt(big)} − ${fmt(small)} = ${fmt(ans)}.`],
+        calc: () => {
+          const vals = perms(digits).filter((p) => p[0] !== 0).map((p) => Number(p.join("")));
+          return Math.max(...vals) - Math.min(...vals);
+        },
+      };
+    }],
+    [0, () => {
+      let a, d, n, last, ans;
+      do {
+        a = pickInt(2, 25);
+        d = pick([2, 3, 4, 5, 6]);
+        n = pickInt(8, 20);
+        last = a + (n - 1) * d;
+        ans = (n * (a + last)) / 2;
+      } while (ans > 9999);
+      return {
+        q: `What is ${a} + ${a + d} + ${a + 2 * d} + ${a + 3 * d} + … + ${last}? (The numbers grow by ${d} each time.)`,
+        ans,
+        idea: "Count the terms, then pair first with last",
+        hints: [`How many numbers are in the list? How many jumps of ${d} take you from ${a} to ${last}?`, `What is ${a} + ${last}? What is ${a + d} + ${last - d}?`, "Every pair of first-and-last has the same total. Writing the list twice, forwards and backwards, makes every column equal."],
+        sol: [`From ${a} to ${last} is ${last - a} = ${n - 1} jumps of ${d}, so there are ${n - 1} + 1 = ${n} numbers.`, `Pair the list with itself reversed: each column adds to ${a} + ${last} = ${a + last}, and there are ${n} columns, so twice the sum is ${n} × ${a + last} = ${n * (a + last)}.`, `The sum is half of that: ${ans}.`],
+        calc: () => { let s = 0; for (let x = a; x <= last; x += d) s += x; return s; },
+      };
+    }],
+    [1, () => {
+      const [a, b] = pick([[2, 3], [3, 5], [2, 5], [3, 4], [4, 6], [2, 7], [5, 6], [4, 10]]);
+      const N = pickInt(60, 200);
+      const l = lcm(a, b);
+      const ans = Math.floor(N / a) + Math.floor(N / b) - Math.floor(N / l);
+      return {
+        q: `How many whole numbers from 1 to ${N} are multiples of ${a} or multiples of ${b} (or both)?`,
+        ans,
+        idea: "Count, then correct the double count",
+        hints: [`How many multiples of ${a} are there up to ${N}?`, `How many multiples of ${b}? Were any numbers counted in both lists?`, `The numbers in both lists are the multiples of ${l}. How many are there?`],
+        sol: [`Multiples of ${a}: ${N} ÷ ${a} gives ${Math.floor(N / a)} (ignoring the remainder). Multiples of ${b}: ${Math.floor(N / b)}.`, `Numbers in both lists are multiples of ${l} (the least common multiple): ${Math.floor(N / l)} of them, counted twice.`, `${Math.floor(N / a)} + ${Math.floor(N / b)} − ${Math.floor(N / l)} = ${ans}.`],
+        calc: () => range(1, N).filter((x) => x % a === 0 || x % b === 0).length,
+      };
+    }],
+    [1, () => {
+      const set = pick([[2, 3, 4], [3, 4, 5], [2, 3, 5], [4, 5, 6], [2, 5, 7], [3, 5, 7], [2, 3, 7], [3, 4, 7], [4, 6, 9], [3, 8, 10], [4, 5, 9], [5, 6, 8], [2, 7, 9], [6, 8, 9]]);
+      const l = set.reduce(lcm);
+      const kind = pick(["short", "large", "count", "small"]);
+      if (kind === "short") {
+        const ans = l - 1;
+        return {
+          q: `What is the smallest positive whole number that leaves a remainder of ${set[0] - 1} when divided by ${set[0]}, a remainder of ${set[1] - 1} when divided by ${set[1]}, and a remainder of ${set[2] - 1} when divided by ${set[2]}?`,
+          ans,
+          idea: "One short of a common multiple",
+          hints: ["Each remainder is one less than its divisor. What happens to the number if you add 1?", `After adding 1, which numbers divide it exactly?`, `The smallest number that ${set.join(", ")} all divide is their least common multiple. Now undo the +1.`],
+          sol: [`Each remainder is one less than the divisor, so the number + 1 is divisible by ${set.join(", ")}.`, `The least common multiple of ${set.join(", ")} is ${l}, so the number + 1 is ${l}.`, `The number is ${l} − 1 = ${ans}.`],
+          calc: () => range(1, 5000).find((x) => set.every((m) => x % m === m - 1)),
+        };
+      }
+      const r = pickInt(1, set[0] - 1);
+      if (kind === "large") {
+        const ans = Math.floor((999 - r) / l) * l + r;
+        return {
+          q: `What is the largest three-digit number that leaves a remainder of ${r} when divided by ${set[0]}, by ${set[1]} and by ${set[2]}?`,
+          ans,
+          idea: "Common multiple plus the remainder",
+          hints: [`If you subtract ${r}, what must ${set.join(", ")} all do to the result?`, `So the number is (a multiple of ${l}) + ${r}. Why ${l}?`, `What is the largest multiple of ${l} that keeps the number at most 999?`],
+          sol: [`The number minus ${r} is a common multiple of ${set.join(", ")}, that is, a multiple of their least common multiple ${l}.`, `999 − ${r} = ${999 - r}, and the largest multiple of ${l} not above it is ${l} × ${Math.floor((999 - r) / l)} = ${ans - r}.`, `${ans - r} + ${r} = ${ans}.`],
+          calc: () => Math.max(...range(100, 999).filter((x) => set.every((m) => x % m === r))),
+        };
+      }
+      if (kind === "count") {
+        const N = pickInt(3, 9) * 100;
+        const ans = Math.floor((N - r) / l) + 1;
+        return {
+          q: `How many whole numbers from 1 to ${N} leave a remainder of ${r} when divided by ${set[0]}, by ${set[1]} and by ${set[2]}?`,
+          ans,
+          idea: "List them as an arithmetic sequence",
+          hints: [`What is the smallest such number? (Try the remainder itself.)`, `The numbers all have the form ${l} × k + ${r}. Why ${l}?`, `How many values of k (starting from 0) keep the number at most ${N}?`],
+          sol: [`Subtracting ${r} leaves a common multiple of ${set.join(", ")}, so the numbers are ${r}, ${r + l}, ${r + 2 * l}, … (steps of the least common multiple, ${l}).`, `The largest is ${l} × ${ans - 1} + ${r} = ${l * (ans - 1) + r}, which is at most ${N}.`, `k runs from 0 to ${ans - 1}: ${ans} numbers.`],
+          calc: () => range(1, N).filter((x) => set.every((m) => x % m === r)).length,
+        };
+      }
+      const ans = l + r;
+      return {
+        q: `What is the smallest whole number greater than 10 that leaves a remainder of ${r} when divided by ${set[0]}, by ${set[1]} and by ${set[2]}?`,
+        ans,
+        idea: "Use the least common multiple",
+        hints: [`If you subtract ${r} from the number, what do you know about the result?`, `The result must be a multiple of ${set.join(", ")} at once. What is the smallest such number?`, `The least common multiple is ${l}. Now add the remainder back.`],
+        sol: [`Subtracting ${r} leaves a number that ${set.join(", ")} all divide exactly.`, `The least common multiple (the smallest number all three divide) of ${set.join(", ")} is ${l}.`, `${l} + ${r} = ${ans}, which is greater than 10. The answer is ${ans}.`],
+        calc: () => range(11, 2000).find((x) => set.every((m) => x % m === r)),
+      };
+    }],
+    [2, () => {
+      const b = pick([2, 3, 4, 7, 8, 9]);
+      const n = pickInt(20, 99);
+      const cyc = [];
+      let v = b % 10;
+      while (!cyc.includes(v)) {
+        cyc.push(v);
+        v = (v * b) % 10;
+      }
+      const ans = cyc[(n - 1) % cyc.length];
+      return {
+        q: `${b} is multiplied by itself until there are ${n} factors of ${b} (that is, ${b} to the power ${n}). What is the ones digit of the result?`,
+        ans,
+        idea: "Find the repeating cycle",
+        hints: [`Compute the ones digits of ${b}, ${b} × ${b}, ${b} × ${b} × ${b}, … What do you notice?`, `The ones digits repeat in a cycle of length ${cyc.length}. Why can only the ones digit of the previous result matter?`, `Where does power ${n} fall in the cycle? Divide ${n} by ${cyc.length} and use the remainder.`],
+        sol: [`The ones digits of successive powers of ${b} are ${cyc.join(", ")}, then the cycle repeats (length ${cyc.length}).`, `${n} = ${cyc.length} × ${Math.floor((n - 1) / cyc.length)} + ${((n - 1) % cyc.length) + 1}, so power ${n} is in position ${((n - 1) % cyc.length) + 1} of the cycle.`, `That digit is ${ans}.`],
+        calc: () => Number(BigInt(b) ** BigInt(n) % 10n),
+      };
+    }],
+    [2, () => {
+      // N has at least two different primes and at least four prime factors in all, so listing divisors is slow.
+      let N, f;
+      do {
+        N = pickInt(36, 720);
+        f = {};
+        let m = N;
+        for (let p = 2; m > 1; p++) while (m % p === 0) (f[p] = (f[p] || 0) + 1), (m /= p);
+      } while (Object.keys(f).length < 2 || Object.values(f).reduce((s, e) => s + e, 0) < 4);
+      const sup = (e) => String(e).replace(/\d/g, (c) => "⁰¹²³⁴⁵⁶⁷⁸⁹"[c]);
+      const factor = Object.entries(f).map(([p, e]) => (e > 1 ? `${p}${sup(e)}` : p)).join(" × ");
+      if (f[2] && Math.random() < 0.5) {
+        const odd = Object.entries(f).filter(([p]) => p !== "2").reduce((s, [, e]) => s * (e + 1), 1);
+        const ans = f[2] * odd;
+        return {
+          q: `How many even whole numbers divide ${N} exactly (with no remainder)?`,
+          ans,
+          idea: "Prime factorisation with a condition",
+          hints: [`Write ${N} as a product of primes.`, "A divisor is even exactly when it uses at least one factor of 2. How many choices does that leave for the power of 2?", "The other primes are unrestricted. Multiply the numbers of choices."],
+          sol: [`${N} = ${factor}.`, `An even divisor uses 2 between 1 and ${f[2]} times: ${f[2]} choice${f[2] === 1 ? "" : "s"}. Each other prime with exponent e gives (e + 1) choices: ${odd} in all.`, `${f[2]} × ${odd} = ${ans} even divisors. (Check: all divisors minus odd divisors.)`],
+          calc: () => range(1, N).filter((d) => N % d === 0 && d % 2 === 0).length,
+        };
+      }
+      const ans = Object.values(f).reduce((s, e) => s * (e + 1), 1);
+      return {
+        q: `How many whole numbers divide ${N} exactly (with no remainder)? Count 1 and ${N} itself.`,
+        ans,
+        idea: "Prime factorisation",
+        hints: [`Write ${N} as a product of primes (numbers whose only divisors are 1 and themselves).`, `Every divisor is built by choosing how many of each prime to use. For a prime that appears e times, how many choices are there?`, "Multiply the numbers of choices together."],
+        sol: [`${N} = ${factor}.`, `For each prime you may use it 0, 1, … up to e times: that is (e + 1) choices. ${Object.values(f).map((e) => `(${e} + 1)`).join(" × ")}.`, `So ${N} has ${ans} divisors.`],
+        calc: () => range(1, N).filter((d) => N % d === 0).length,
+      };
+    }],
+  ],
+  ct2: [
+    [0, () => {
+      const a = pickInt(2, 15);
+      const d = pickInt(3, 9);
+      const k = pickInt(20, 60);
+      const t = a + (k - 1) * d;
+      const back = Math.random() < 0.5;
+      return {
+        q: back ? `The sequence ${a}, ${a + d}, ${a + 2 * d}, ${a + 3 * d}, … grows by the same amount each time. In which position is the number ${t}? (${a} is in position 1.)` : `The sequence ${a}, ${a + d}, ${a + 2 * d}, ${a + 3 * d}, … grows by the same amount each time. What is the number in position ${k}?`,
+        ans: back ? k : t,
+        idea: back ? "Count the jumps, then add one" : "Count the jumps",
+        hints: back ? ["By how much does each number grow?", `How far is it from ${a} to ${t}? How many jumps of ${d} is that?`, "Position 1 needs 0 jumps, position 2 needs 1 jump. So how does the number of jumps relate to the position?"] : ["By how much does each number grow?", `To reach position ${k} from position 1, how many jumps are needed? (Careful: not ${k}.)`, `${k - 1} jumps of ${d}. Add them to the first number.`],
+        sol: back ? [`Each number is ${d} more than the one before.`, `${t} − ${a} = ${t - a}, which is ${(t - a) / d} jumps of ${d}.`, `Position 1 needs 0 jumps, so ${k - 1} jumps lands on position ${k}.`] : [`Each number is ${d} more than the one before.`, `From position 1 to position ${k} there are ${k - 1} jumps: ${k - 1} × ${d} = ${(k - 1) * d}.`, `${a} + ${(k - 1) * d} = ${t}.`],
+        calc: () => {
+          let v = a;
+          let pos = 1;
+          while (back ? v < t : pos < k) (v += d), (pos += 1);
+          return back ? pos : v;
+        },
+      };
+    }],
+    [0, () => {
+      const all = ["red", "blue", "green", "yellow", "white"];
+      let pat;
+      do {
+        const m = pickInt(4, 7);
+        const cols = KIT.shuffle(all).slice(0, pickInt(2, 3));
+        pat = range(1, m).map(() => pick(cols));
+      } while (new Set(pat).size < 2 || pat[0] === pat[pat.length - 1] && Math.random() < 0.5);
+      const m = pat.length;
+      const target = pick([...new Set(pat)]);
+      const N = pickInt(30, 99);
+      const per = pat.filter((c) => c === target).length;
+      const full = Math.floor(N / m);
+      const rest = N % m;
+      const extra = pat.slice(0, rest).filter((c) => c === target).length;
+      const ans = full * per + extra;
+      return {
+        q: `Beads are threaded in a repeating pattern: ${pat.join(", ")}, then the pattern starts again. How many of the first ${N} beads are ${target}?`,
+        ans,
+        idea: "Count whole repeats, then the leftover",
+        hints: [`How many beads are in one repeat, and how many of them are ${target}?`, `How many complete repeats fit into ${N} beads? How many beads are left over?`, `Count the ${target} beads among the leftover beads at the start of a new repeat.`],
+        sol: [`One repeat has ${m} beads, ${per} of them ${target}.`, `${N} = ${m} × ${full} + ${rest}: ${full} complete repeats give ${full} × ${per} = ${full * per} ${target} beads.`, rest ? `The ${rest} leftover bead${rest === 1 ? " is" : "s are"} ${pat.slice(0, rest).join(", ")}, adding ${extra}. Total: ${ans}.` : `Nothing is left over. Total: ${ans}.`],
+        calc: () => {
+          const line = [];
+          while (line.length < N) line.push(...pat);
+          return line.slice(0, N).filter((c) => c === target).length;
+        },
+      };
+    }],
+    [1, () => {
+      const s = pickInt(0, 6);
+      const D = pickInt(40, 500);
+      const ans = DAYS[(s + D) % 7];
+      return {
+        q: `Today is a ${DAYS[s]}. What day of the week will it be ${D} days from today?`,
+        opts: mcOpts(ans, KIT.shuffle(DAYS)),
+        ans,
+        idea: "Count in whole weeks (remainders)",
+        hints: ["After exactly 7 days, which day is it?", `How many whole weeks are in ${D} days, and how many days remain?`, `Move forward only the remaining days from ${DAYS[s]}.`],
+        sol: ["Every 7 days the weekday repeats, so only the remainder after dividing by 7 matters.", `${D} = 7 × ${Math.floor(D / 7)} + ${D % 7}.`, `${D % 7} days after ${DAYS[s]} is ${ans}.`],
+        calc: () => {
+          let d = s;
+          for (let i = 0; i < D; i++) d = (d + 1) % 7;
+          return DAYS[d];
+        },
+      };
+    }],
+    [1, () => {
+      const [shape, a, d] = pick([["triangles", 3, 2], ["squares", 4, 3], ["pentagons", 5, 4], ["hexagons", 6, 5]]);
+      const n = pickInt(12, 40);
+      const ans = a + (n - 1) * d;
+      return {
+        q: `Matchsticks make ${shape} in a row, each new one sharing a side with the previous one. One shape uses ${a} sticks, two use ${a + d}, three use ${a + 2 * d}. How many sticks make ${n} ${shape} in a row?`,
+        ans,
+        idea: "Find the rule",
+        hints: ["How many sticks does each extra shape add?", `Why is it ${d} and not ${a}?`, `Start with ${a}, then add ${d} for each of the other ${n - 1} shapes.`],
+        sol: [`Each new shape shares one side, so it needs ${a} − 1 = ${d} new sticks.`, `The first shape needs ${a}; the other ${n - 1} need ${n - 1} × ${d} = ${(n - 1) * d}.`, `${a} + ${(n - 1) * d} = ${ans}.`],
+        calc: () => n * a - (n - 1),
+      };
+    }],
+    [2, () => {
+      // A random pair of statements (or one statement), kept only when exactly one case survives.
+      const LINES = [
+        ["{o} is a knight.", (m, o) => o],
+        ["{o} is a knave.", (m, o) => !o],
+        ["We are both knights.", (m, o) => m && o],
+        ["We are both knaves.", (m, o) => !m && !o],
+        ["{o} and I are the same type.", (m, o) => m === o],
+        ["{o} and I are different types.", (m, o) => m !== o],
+        ["At least one of us is a knave.", (m, o) => !m || !o],
+        ["At least one of us is a knight.", (m, o) => m || o],
+        ["Exactly one of us is a knight.", (m, o) => m !== o],
+        ["I am a knight and {o} is a knave.", (m, o) => m && !o],
+        ["I am a knave or {o} is a knight.", (m, o) => !m || o],
+        ["If {o} is a knight, then so am I.", (m, o) => !o || m],
+        ["{o} is a knave, or we are both knights.", (m, o) => !o || (m && o)],
+        ["Neither of us is a knight.", (m, o) => !m && !o],
+      ];
+      const name = (p, q) => (p && q ? "Both knights" : !p && !q ? "Both knaves" : p ? "P knight, Q knave" : "P knave, Q knight");
+      let S, solve;
+      do {
+        const lp = pick(LINES);
+        const lq = Math.random() < 0.25 ? null : pick(LINES);
+        S = {
+          text: `P says: '${lp[0].replace("{o}", "Q")}'` + (lq ? ` Q says: '${lq[0].replace("{o}", "P")}'` : ""),
+          says: [(p, q) => lp[1](p, q), lq ? (p, q) => lq[1](q, p) : null],
+        };
+        solve = () => {
+          const ok = [];
+          for (const p of [true, false])
+            for (const q of [true, false]) {
+              const [sp, sq] = S.says;
+              if (sp && sp(p, q) !== p) continue;
+              if (sq && sq(p, q) !== q) continue;
+              ok.push(name(p, q));
+            }
+          return only(ok);
+        };
+      } while (typeof solve() !== "string");
+      const ans = solve();
+      return {
+        q: `On an island, knights always tell the truth and knaves always lie. Every islander is one or the other. You meet two islanders, P and Q. ${S.text} What are P and Q?`,
+        opts: ["Both knights", "Both knaves", "P knight, Q knave", "P knave, Q knight", "Cannot be determined"],
+        ans,
+        idea: "Test each case",
+        hints: ["There are only four possibilities. List them.", "For each possibility, is every statement true when spoken by a knight and false when spoken by a knave?", "Exactly one possibility survives. Which one?"],
+        sol: ["Test all four cases. A case survives only if each knight's statement is true and each knave's statement is false.", [[true, true], [false, false], [true, false], [false, true]].map(([p, q]) => {
+          const [sp, sq] = S.says;
+          const bad = sp && sp(p, q) !== p ? "P" : sq && sq(p, q) !== q ? "Q" : "";
+          return `${name(p, q)}: ${bad ? `fails, because ${bad}'s statement would be ${(bad === "P" ? sp(p, q) : sq(p, q)) ? "true" : "false"}, which a ${(bad === "P" ? p : q) ? "knight" : "knave"} cannot say` : "consistent"}.`;
+        }).join(" "), `Only one case passes every test: ${ans}.`],
+        calc: solve,
+      };
+    }],
+    [2, () => {
+      const N = pickInt(40, 189);
+      const ans = Number(range(1, 200).join("")[N - 1]);
+      const into = N - 9;
+      const num = 9 + Math.ceil(into / 2);
+      return {
+        q: `Write the counting numbers in one long row: 123456789101112131415… What is digit number ${N} in this row?`,
+        ans,
+        idea: "Count in groups",
+        hints: ["How many digits do the numbers 1 to 9 use?", `How many more digits are needed after that, and how many digits does each two-digit number use?`, `Which two-digit number contains digit ${N}, and is it the first or second digit of that number?`],
+        sol: [`1 to 9 use 9 digits, so ${into} more digits are needed.`, `Two-digit numbers use 2 digits each. ${into} digits reach into two-digit number ${Math.ceil(into / 2)} (counting 10 as the first), which is ${num}.`, `Digit ${N} is the ${into % 2 ? "first" : "second"} digit of ${num}: ${ans}.`],
+        calc: () => {
+          let s = "";
+          for (let i = 1; s.length < N; i++) s += i;
+          return Number(s[N - 1]);
+        },
+      };
+    }],
+  ],
+  ct3: [
+    [0, () => {
+      const times = Math.random() < 0.5;
+      let Wd, L, P, r, dd;
+      if (times) {
+        r = pickInt(2, 4);
+        Wd = pickInt(2, 9);
+        L = r * Wd;
+      } else {
+        Wd = pickInt(3, 12);
+        dd = pickInt(2, 8);
+        L = Wd + dd;
+      }
+      P = 2 * (L + Wd);
+      const ans = L * Wd;
+      return {
+        q: times ? `A rectangle has a perimeter of ${P} cm. Its length is ${r === 2 ? "twice" : `${r} times`} its width. What is its area in square centimetres?` : `A rectangle has a perimeter of ${P} cm. Its length is ${dd} cm more than its width. What is its area in square centimetres?`,
+        ans,
+        idea: times ? "Count equal parts" : "Remove the extra, then share",
+        hints: times ? [`Call the width 1 part. How many parts is the length?`, `Going all the way around, how many parts is that in total?`, `${2 * (r + 1)} parts make ${P} cm. Find one part, then the length and width.`] : ["Half the perimeter is one length plus one width. What is it?", `If you take away the extra ${dd} cm, the length and width are equal. What is left?`, "Halve it to find the width, then find the length and multiply."],
+        sol: times ? [`The width is 1 part and the length ${r} parts, so the perimeter is ${r} + 1 + ${r} + 1 = ${2 * (r + 1)} parts.`, `${P} ÷ ${2 * (r + 1)} = ${Wd}, so the width is ${Wd} cm and the length ${L} cm.`, `Area = ${L} × ${Wd} = ${ans} square centimetres.`] : [`Length + width = ${P} ÷ 2 = ${L + Wd} cm.`, `Remove the extra ${dd}: ${L + Wd} − ${dd} = ${2 * Wd}, two equal widths, so the width is ${Wd} cm and the length ${L} cm.`, `Area = ${L} × ${Wd} = ${ans} square centimetres.`],
+        calc: () => only(range(1, P).flatMap((w) => range(1, P).filter((l) => 2 * (l + w) === P && (times ? l === r * w : l === w + dd)).map((l) => l * w))),
+        pic(g) {
+          const h = Math.max(70, Math.min(260, (340 * Wd) / L));
+          el("rect", { x: 30, y: 60, width: 340, height: h, fill: "#fde9b6", stroke: INK, "stroke-width": 5 }, g);
+          label(g, 200, 44, "length ?", 26, "var(--accent-dark)");
+          label(g, 200, 60 + h + 40, `perimeter ${P} cm`, 26);
+        },
+      };
+    }],
+    [0, () => {
+      const a = pickInt(6, 12);
+      const b = pickInt(5, 9);
+      const c = pickInt(2, a - 3);
+      const d = pickInt(2, b - 3);
+      const askP = Math.random() < 0.5;
+      const ans = askP ? 2 * (a + b) : a * b - c * d;
+      return {
+        q: askP ? `An L-shaped garden is a ${a} m by ${b} m rectangle with a ${c} m by ${d} m rectangle cut out of one corner. How many metres of fence go all the way around it?` : `An L-shaped garden is a ${a} m by ${b} m rectangle with a ${c} m by ${d} m rectangle cut out of one corner. What is its area in square metres?`,
+        ans,
+        idea: askP ? "Slide the edges outward" : "Whole minus the missing part",
+        hints: askP ? ["The L has six sides. Do you know all their lengths?", "Imagine sliding the two short inner edges outward until they lie on the outside of the full rectangle. What shape do you get?", "So the fence is as long as the perimeter of which rectangle?"] : ["What would the area be if the corner were not removed?", "What is the area of the removed corner?", "Subtract."],
+        sol: askP ? ["Cutting out a corner removes two pieces of fence and adds two new inner edges of exactly the same lengths.", `So the fence is as long as the full rectangle's perimeter: ${a} + ${b} + ${a} + ${b}.`, `${ans} metres.`] : [`Whole rectangle: ${a} × ${b} = ${a * b} m².`, `Removed corner: ${c} × ${d} = ${c * d} m².`, `${a * b} − ${c * d} = ${ans} m².`],
+        calc: () => {
+          const cells = [];
+          for (let x = 0; x < a; x++) for (let y = 0; y < b; y++) if (!(x >= a - c && y < d)) cells.push([x, y]);
+          return askP ? perimeterOf(cells) : cells.length;
+        },
+        pic(g) {
+          const u = Math.min(36, 380 / a, 300 / b);
+          const cells = [];
+          for (let x = 0; x < a; x++) for (let y = 0; y < b; y++) if (!(x >= a - c && y < d)) cells.push([x, y]);
+          cells.forEach(([x, y]) => el("rect", { x: 10 + x * u, y: 30 + y * u, width: u, height: u, fill: "#9fd3a8", stroke: "#6aa977", "stroke-width": 1 }, g));
+          label(g, 10 + (a * u) / 2, 22, `${a} m`, 24);
+          el("rect", { x: 10 + (a - c) * u, y: 30, width: c * u, height: d * u, fill: "none", stroke: "#a8632d", "stroke-width": 3, "stroke-dasharray": "8 6" }, g);
+          label(g, 10 + (a - c / 2) * u, 30 + (d * u) / 2 + 8, `${c} × ${d}`, 22, "#a8632d");
+        },
+      };
+    }],
+    [1, () => {
+      const n = pickInt(3, 6);
+      const w = pickInt(n, 9);
+      const minK = Math.random() < 0.4 ? 2 : 1;
+      const sizes = range(minK, n);
+      const ans = sizes.reduce((t, k) => t + (w - k + 1) * (n - k + 1), 0);
+      const grid = w === n ? `a ${n} by ${n} grid of small squares` : `a grid of small squares ${w} wide and ${n} tall`;
+      return {
+        q: minK === 1 ? `How many squares of any size are in ${grid}?` : `How many squares of size 2 by 2 or larger are in ${grid}?`,
+        ans,
+        idea: "Count by size",
+        hints: [minK === 1 ? "How many 1 by 1 squares are there?" : "Start with the 2 by 2 squares. Where can the top-left corner of one go?", `A k by k square needs k columns and k rows. In how many columns can its left edge start across a width of ${w}? In how many rows across a height of ${n}?`, `What is the largest square that fits? Add the counts for every size from ${minK} up to it.`],
+        sol: [`A k by k square can be placed in (${w} − k + 1) × (${n} − k + 1) positions, for k from ${minK} to ${n}.`, sizes.map((k) => `${k}×${k}: ${(w - k + 1) * (n - k + 1)}`).join(", ") + ".", `Total: ${sizes.map((k) => (w - k + 1) * (n - k + 1)).join(" + ")} = ${ans}.`],
+        calc: () => {
+          let c = 0;
+          for (let k = minK; k <= Math.min(w, n); k++) for (let x = 0; x + k <= w; x++) for (let y = 0; y + k <= n; y++) c += 1;
+          return c;
+        },
+        pic(g) {
+          const cell = Math.floor(Math.min(380 / w, 300 / n));
+          gridPic(g, w, n, cell, 10, 20);
+        },
+      };
+    }],
+    [1, () => {
+      // Even minutes keep every angle a whole number; never a time where the hands are exactly opposite
+      // (180°, where "the smaller angle" has no meaning) or exactly together.
+      let h, m, hand, diff, ans;
+      do {
+        h = pickInt(1, 12);
+        m = 2 * pickInt(0, 29);
+        hand = (h % 12) * 30 + m * 0.5;
+        diff = Math.abs(hand - m * 6);
+        ans = Math.min(diff, 360 - diff);
+      } while (ans === 180 || ans === 0 || (m % 10 && Math.random() < 0.5));
+      const mm2 = String(m).padStart(2, "0");
+      return {
+        q: `What is the smaller angle, in degrees, between the hour hand and the minute hand of a clock at ${h}:${mm2}?`,
+        ans,
+        idea: "Degrees per hour, degrees per minute",
+        hints: ["A full turn is 360°. How many degrees does the minute hand turn in one minute? The hour hand?", m ? `In ${m} minutes the hour hand has moved part of the way from ${h} towards the next number. How many degrees is that?` : "Where does each hand point?", "Find each hand's angle clockwise from 12, then subtract. If the difference is more than 180°, go the other way round."],
+        sol: ["The minute hand turns 360° in 60 minutes: 6° per minute. The hour hand turns 30° per hour: 0.5° per minute.", `Hour hand: ${h % 12} × 30 + ${m} × 0.5 = ${hand}°. Minute hand: ${m} × 6 = ${m * 6}°.`, `The difference is ${diff}°${diff > 180 ? `; the other way round is 360 − ${diff} = ${ans}°` : ""}. The smaller angle is ${ans}°.`],
+        calc: () => {
+          let hh = (h % 12) * 60 * 0.5;
+          let mm = 0;
+          for (let i = 0; i < m; i++) (hh += 0.5), (mm += 6);
+          const dd = Math.abs(hh - mm) % 360;
+          return Math.min(dd, 360 - dd);
+        },
+      };
+    }],
+    [2, () => {
+      const c = pickInt(2, 7);
+      const r = pickInt(2, Math.min(c, 5));
+      const all = choose(c + 1, 2) * choose(r + 1, 2);
+      const sq = range(1, r).reduce((t, k) => t + (c - k + 1) * (r - k + 1), 0);
+      const notSq = Math.random() < 0.5;
+      const ans = notSq ? all - sq : all;
+      return {
+        q: notSq ? `How many rectangles in a grid ${c} squares wide and ${r} squares tall are NOT squares?` : `How many rectangles of any size are in a grid ${c} squares wide and ${r} squares tall? (Squares count as rectangles.)`,
+        ans,
+        idea: notSq ? "All rectangles minus the squares" : "Choose two lines each way",
+        hints: ["A rectangle is fixed by its left and right sides and its top and bottom sides. Which grid lines can they lie on?", `There are ${c + 1} vertical lines and ${r + 1} horizontal lines. In how many ways can you choose 2 of each?`, notSq ? "Multiply to count all rectangles, then count the squares size by size and subtract." : "Multiply the two counts."],
+        sol: [`Each rectangle corresponds to a choice of 2 of the ${c + 1} vertical lines and 2 of the ${r + 1} horizontal lines.`, `Vertical pairs: ${choose(c + 1, 2)}. Horizontal pairs: ${choose(r + 1, 2)}. All rectangles: ${choose(c + 1, 2)} × ${choose(r + 1, 2)} = ${all}.`, notSq ? `Squares: ${range(1, r).map((k) => `${k}×${k}: ${(c - k + 1) * (r - k + 1)}`).join(", ")}, total ${sq}. Not squares: ${all} − ${sq} = ${ans}.` : `The answer is ${ans}.`],
+        calc: () => {
+          let n = 0;
+          for (let x1 = 0; x1 <= c; x1++) for (let x2 = x1 + 1; x2 <= c; x2++) for (let y1 = 0; y1 <= r; y1++) for (let y2 = y1 + 1; y2 <= r; y2++) if (!notSq || x2 - x1 !== y2 - y1) n += 1;
+          return n;
+        },
+        pic(g) {
+          const cell = Math.floor(Math.min(380 / c, 300 / r));
+          gridPic(g, c, r, cell, 10, 20);
+        },
+      };
+    }],
+    [2, () => {
+      const [a, b, c] = [pickInt(3, 7), pickInt(3, 7), pickInt(3, 7)].sort((x, y) => y - x);
+      const k = pick([0, 1, 2, "any"]);
+      const [A, B, C] = [a - 2, b - 2, c - 2];
+      const counts = [A * B * C, 2 * (A * B + B * C + A * C), 4 * (A + B + C), 8];
+      const ans = k === "any" ? a * b * c - counts[0] : counts[k];
+      const cube = a === b && b === c;
+      return {
+        q: `A ${a} × ${b} × ${c} ${cube ? "cube" : "box"} is built from ${a * b * c} small cubes and its whole outside is painted. How many small cubes have ${k === "any" ? "paint on at least one face" : k ? `paint on exactly ${k} face${k === 1 ? "" : "s"}` : "no paint at all"}?`,
+        ans,
+        idea: "Classify by position",
+        hints: ["Where are cubes with 3 painted faces? With 2? With 1? With 0?", "Corners have 3, edge cubes (not corners) have 2, face-centre cubes have 1, hidden inner cubes have 0.", `Strip off the outer layer: what is left is ${A} × ${B} × ${C}. Each edge loses its two corner cubes; each face keeps only its centre.`],
+        sol: ["Corners: 3 faces. Edges without corners: 2. Face centres: 1. Interior: 0.", `Interior: ${A} × ${B} × ${C} = ${counts[0]}. Face centres: 2 × (${A}×${B} + ${B}×${C} + ${A}×${C}) = ${counts[1]}. Edges: 4 × (${A} + ${B} + ${C}) = ${counts[2]}. Corners: 8.`, `${k === "any" ? `At least one painted face: ${a * b * c} − ${counts[0]}` : k ? `Exactly ${k} painted` : "No paint"} = ${ans}. (Check: ${counts.join(" + ")} = ${a * b * c}.)`],
+        calc: () => {
+          let n = 0;
+          for (let x = 0; x < a; x++) for (let y = 0; y < b; y++) for (let z = 0; z < c; z++) {
+            const f = [x === 0 || x === a - 1, y === 0 || y === b - 1, z === 0 || z === c - 1].filter(Boolean).length;
+            if (k === "any" ? f > 0 : f === k) n += 1;
+          }
+          return n;
+        },
+      };
+    }],
+  ],
+  ct4: [
+    [0, () => {
+      const a = pickInt(3, 7);
+      const b = pickInt(3, 6);
+      const c = Math.random() < 0.5 ? pickInt(2, 4) : 0;
+      const ans = (a * b - 1) * (c || 1);
+      return {
+        q: `You have ${a} shirts (one of them red)${c ? "," : " and"} ${b} pairs of trousers (one pair striped)${c ? ` and ${c} hats` : ""}. An outfit is one shirt${c ? ", one pair of trousers and one hat" : " and one pair of trousers"}. The red shirt must never be worn with the striped trousers. How many different outfits are possible?`,
+        ans,
+        idea: "Count everything, then remove what is forbidden",
+        hints: [`Ignore the rule for a moment. How many ${c ? "outfits" : "shirt-and-trousers pairs"} are there?`, `How many of those use both the red shirt and the striped trousers${c ? " (with any hat)" : ""}?`, "Subtract the forbidden ones."],
+        sol: [`Without the rule: ${a} × ${b}${c ? ` × ${c}` : ""} = ${a * b * (c || 1)}.`, c ? `Forbidden: red shirt with striped trousers, with any of the ${c} hats: ${c} outfits.` : "Forbidden: exactly 1 pair, red shirt with striped trousers.", `${a * b * (c || 1)} − ${c || 1} = ${ans}.`],
+        calc: () => range(1, a).flatMap((x) => range(1, b).flatMap((y) => range(1, c || 1).filter(() => !(x === 1 && y === 1)))).length,
+        pic(g) {
+          ["#e53935", "#1e88e5", "#f2c94c"].forEach((col, i) => shirt(g, 70 + i * 130, 90, col, 1.2));
+          label(g, 400, 100, "…", 40);
+          shorts(g, 135, 260, "#3f7d4e", 1.3);
+          [-24, -8, 8, 24].forEach((dx) => el("line", { x1: 135 + dx, x2: 135 + dx, y1: 228, y2: 258, stroke: "#fff", "stroke-width": 5 }, g));
+          shorts(g, 265, 260, "#8e5bd0", 1.3);
+          label(g, 400, 270, "…", 40);
+        },
+      };
+    }],
+    [0, () => {
+      const couples = Math.random() < 0.5;
+      if (couples) {
+        const k = pickInt(3, 15);
+        const n = 2 * k;
+        const ans = (n * (n - 2)) / 2;
+        return {
+          q: `${k} couples (${n} people) meet at a party. Everyone shakes hands once with every other person except their own partner. How many handshakes take place?`,
+          ans,
+          idea: "Count, then halve the double count",
+          hints: ["How many hands does one person shake? (Not their own, and not their partner's.)", `If each of ${n} people shakes ${n - 2} hands, what has been counted twice?`, "Each handshake involves two people, so halve."],
+          sol: [`Each person shakes hands with everyone except themselves and their partner: ${n} − 2 = ${n - 2} people.`, `${n} × ${n - 2} = ${n * (n - 2)} counts every handshake twice, once for each person in it.`, `${n * (n - 2)} ÷ 2 = ${ans} handshakes.`],
+          calc: () => pairs(n).filter(([i, j]) => Math.floor(i / 2) !== Math.floor(j / 2)).length,
+        };
+      }
+      const n = pickInt(6, 40);
+      const H = (n * (n - 1)) / 2;
+      return {
+        q: `At a meeting, every person shakes hands once with every other person. There are ${H} handshakes in all. How many people are at the meeting?`,
+        ans: n,
+        idea: "Build up the total person by person",
+        hints: ["When a second person arrives, how many handshakes are there? When a third arrives, how many new ones?", "Each new arrival shakes hands with everyone already there. So the totals are 1, 1 + 2, 1 + 2 + 3, …", `Keep adding until you reach ${H}. How many people does that take?`],
+        sol: ["The 2nd person adds 1 handshake, the 3rd adds 2, the 4th adds 3, and so on.", `1 + 2 + 3 + … + ${n - 1} = ${H}.`, `So there are ${n} people. (Check: ${n} × ${n - 1} ÷ 2 = ${H}.)`],
+        calc: () => range(2, 100).find((p) => pairs(p).length === H),
+      };
+    }],
+    [1, () => {
+      const n = pickInt(5, 15);
+      const k = pickInt(2, 3);
+      const rule = pick(["", "", "none", "some"]);
+      const P = (m, r) => range(0, r - 1).reduce((t, i) => t * (m - i), 1);
+      const ans = rule === "none" ? P(n - 1, k) : rule === "some" ? P(n, k) - P(n - 1, k) : P(n, k);
+      const medals = k === 3 ? "gold, silver and bronze" : "gold and silver";
+      return {
+        q: `${n} runners finish a race with no ties. In how many different ways can the ${medals} medals be awarded${rule === "none" ? " if the runner wearing number 1 wins no medal" : rule === "some" ? " so that the runner wearing number 1 wins one of them" : ""}?`,
+        ans,
+        idea: rule === "some" ? "All ways minus the ways without that runner" : "Fill the places one at a time",
+        hints: rule === "some" ? ["How many ways are there with no restriction?", "How many of those leave runner number 1 without a medal?", "Subtract. (Or: choose which medal runner 1 wins, then fill the others.)"] : ["How many runners could win gold?", "Once gold is decided, how many could win silver?", rule === "none" ? "Remove runner number 1 from the field first. How many runners remain?" : "Multiply the numbers of choices for each place."],
+        sol: rule === "some" ? [`No restriction: ${range(0, k - 1).map((i) => n - i).join(" × ")} = ${P(n, k)}.`, `Runner 1 without a medal: ${range(0, k - 1).map((i) => n - 1 - i).join(" × ")} = ${P(n - 1, k)}.`, `${P(n, k)} − ${P(n - 1, k)} = ${ans}. Check: ${k} medals for runner 1 × ${P(n - 1, k - 1)} ways to fill the rest = ${k * P(n - 1, k - 1)}.`] : [`${rule === "none" ? `Only ${n - 1} runners can win. ` : ""}Gold: ${n - (rule ? 1 : 0)} choices. Silver: ${n - (rule ? 1 : 0) - 1}.${k === 3 ? ` Bronze: ${n - (rule ? 1 : 0) - 2}.` : ""}`, `${range(0, k - 1).map((i) => n - (rule ? 1 : 0) - i).join(" × ")} = ${ans}.`],
+        calc: () => {
+          let c = 0;
+          const v = range(1, n);
+          const ok = (t) => (rule === "none" ? !t.includes(1) : rule === "some" ? t.includes(1) : true);
+          if (k === 2) v.forEach((a) => v.forEach((b) => a !== b && ok([a, b]) && c++));
+          else v.forEach((a) => v.forEach((b) => v.forEach((d) => a !== b && b !== d && a !== d && ok([a, b, d]) && c++)));
+          return c;
+        },
+      };
+    }],
+    [1, () => {
+      const s = pickInt(4, 9);
+      const k = pickInt(2, s > 5 ? 4 : 3);
+      const cond = pick(["", "even", "odd"]);
+      const digits = range(1, s);
+      const fit = cond === "even" ? digits.filter((d) => d % 2 === 0).length : cond === "odd" ? digits.filter((d) => d % 2).length : 0;
+      const P = (n, r) => range(0, r - 1).reduce((acc, i) => acc * (n - i), 1);
+      const ans = cond ? fit * P(s - 1, k - 1) : P(s, k);
+      return {
+        q: `How many ${k}-digit ${cond ? `${cond} ` : ""}numbers can be made from the digits 1 to ${s} if no digit is repeated?`,
+        ans,
+        idea: cond ? "Fill the restricted place first" : "Fill the places one at a time",
+        hints: cond ? [`Which place decides whether a number is ${cond}?`, `How many ${cond} digits are there from 1 to ${s}? Fill the ones place first.`, "Then fill the remaining places from the digits left."] : ["How many choices for the first digit?", "How many for the second, since a digit cannot repeat?", "Multiply."],
+        sol: cond ? [`A number is ${cond} exactly when its ones digit is ${cond}: ${fit} choices.`, k > 2 ? `The other ${k - 1} places use the remaining ${s - 1} digits: ${range(0, k - 2).map((i) => s - 1 - i).join(" × ")} = ${P(s - 1, k - 1)}.` : `The other place can use any of the remaining ${s - 1} digits: ${s - 1} choices.`, `${fit} × ${P(s - 1, k - 1)} = ${ans}.`] : [`${range(0, k - 1).map((i) => s - i).join(" × ")} = ${ans}.`, "Each place has one fewer choice because digits cannot repeat."],
+        calc: () => {
+          let c = 0;
+          for (let x = 10 ** (k - 1); x < 10 ** k; x++) {
+            const ds = String(x).split("").map(Number);
+            if (ds.some((d) => d < 1 || d > s) || new Set(ds).size !== k) continue;
+            if (cond === "even" && x % 2) continue;
+            if (cond === "odd" && x % 2 === 0) continue;
+            c += 1;
+          }
+          return c;
+        },
+      };
+    }],
+    [2, () => {
+      const c = pickInt(2, 7);
+      const r = pickInt(2, 5);
+      // Optional rule: the path must pass through, or must avoid, one marked inner corner (i right, j up).
+      const rule = pick(["", "via", "avoid"]);
+      const i = pickInt(1, c - 1);
+      const j = pickInt(1, r - 1);
+      const viaN = choose(i + j, j) * choose(c - i + r - j, r - j);
+      const ans = rule === "via" ? viaN : rule === "avoid" ? choose(c + r, r) - viaN : choose(c + r, r);
+      const mark = `the marked corner (${i} right and ${j} up from the start)`;
+      return {
+        q: `On a grid ${c} squares wide and ${r} squares tall, you walk along the lines from the bottom-left corner to the top-right corner, moving only right or up. How many different paths are there${rule === "via" ? ` that pass through ${mark}` : rule === "avoid" ? ` that avoid ${mark}` : ""}?`,
+        ans,
+        idea: rule ? "Split the walk at the marked corner" : "Count corner by corner (Pascal's triangle)",
+        hints: rule ? [`How many paths go from the start to the marked corner? (${i} right${i === 1 ? "" : "s"} and ${j} up${j === 1 ? "" : "s"} in some order.)`, `How many paths go from the marked corner to the end? (${c - i} right${c - i === 1 ? "" : "s"} and ${r - j} up${r - j === 1 ? "" : "s"}.)`, rule === "via" ? "Every first half can be joined to every second half. Multiply." : "Count all paths, count the ones through the marked corner, and subtract."] : ["How many ways are there to reach each corner on the bottom edge or the left edge?", "Any other corner is reached from the left or from below. How do the counts combine?", `Alternatively: every path is ${c + r} moves, ${r} of them up. In how many ways can you choose which moves are up?`],
+        sol: rule ? [`Start to marked corner: choose which ${j} of ${i + j} moves are up, ${choose(i + j, j)} ways. Marked corner to end: ${choose(c - i + r - j, r - j)} ways.`, `Through the marked corner: ${choose(i + j, j)} × ${choose(c - i + r - j, r - j)} = ${viaN}.`, rule === "via" ? `The answer is ${ans}.` : `All paths: ${choose(c + r, r)}. Avoiding the corner: ${choose(c + r, r)} − ${viaN} = ${ans}.`] : ["Each corner on the bottom or left edge can be reached in exactly 1 way.", "Every other corner's count is the sum of the counts to its left and below it (this builds Pascal's triangle).", `Equivalently, choose which ${r} of the ${c + r} moves are 'up': ${ans} paths.`],
+        calc: () => {
+          // Enumerate every right/up sequence and test it directly.
+          let n = 0;
+          const walk = (x, y, hit) => {
+            if (x === i && y === j) hit = true;
+            if (x === c && y === r) return void (n += rule === "via" ? +hit : rule === "avoid" ? +!hit : 1);
+            if (x < c) walk(x + 1, y, hit);
+            if (y < r) walk(x, y + 1, hit);
+          };
+          walk(0, 0, false);
+          return n;
+        },
+        pic(g) {
+          const cell = Math.floor(Math.min(320 / c, 260 / r));
+          gridPic(g, c, r, cell, 40, 30, { fill: "none" });
+          el("circle", { cx: 40, cy: 30 + r * cell, r: 12, fill: "#22a05a" }, g);
+          el("circle", { cx: 40 + c * cell, cy: 30, r: 12, fill: "#e0603a" }, g);
+          if (rule) el("circle", { cx: 40 + i * cell, cy: 30 + (r - j) * cell, r: 11, fill: rule === "via" ? "#1b6fa8" : "#fff", stroke: rule === "via" ? "#1b6fa8" : "#b23a1c", "stroke-width": 5 }, g);
+          label(g, 60, 30 + r * cell + 40, "START", 22, "#157a40");
+          label(g, 40 + c * cell, 18, "END", 22, "#b23a1c");
+        },
+      };
+    }],
+    [2, () => {
+      const L = pickInt(2, 4);
+      const d = pickInt(0, 9);
+      let e;
+      do e = pickInt(0, 9);
+      while (e === d);
+      const kind = pick(["least", "exactly", "distinct", "both"].filter((x) => !(x === "both" && L === 2)));
+      const pw = (b) => b ** L;
+      const Pd = range(0, L - 1).reduce((t, x) => t * (10 - x), 1);
+      const ans = kind === "least" ? pw(10) - pw(9) : kind === "exactly" ? L * 9 ** (L - 1) : kind === "distinct" ? pw(10) - Pd : pw(10) - 2 * pw(9) + pw(8);
+      const pows = (b) => Array(L).fill(b).join(" × ");
+      const T = {
+        least: [`contain at least one ${d}`, "Count the complement", ["How many codes are there in total?", `It is awkward to count 'at least one ${d}' directly. How many codes contain no ${d} at all?`, "Subtract."], [`Total codes: ${pows(10)} = ${pw(10)}.`, `Codes with no ${d}: each digit has 9 choices, so ${pows(9)} = ${pw(9)}.`, `At least one ${d}: ${pw(10)} − ${pw(9)} = ${ans}. Counting what you do not want (the complement) is often easier.`]],
+        exactly: [`contain exactly one ${d}`, "Choose the place, then fill the rest", [`In which position could the single ${d} sit? How many choices?`, `Every other position must avoid ${d}. How many choices does each have?`, "Multiply, and check that no code is counted twice."], [`The single ${d} can sit in any of ${L} positions.`, L > 2 ? `Each of the other ${L - 1} positions has 9 choices: ${Array(L - 1).fill(9).join(" × ")} = ${9 ** (L - 1)}.` : "The other position has 9 choices.", `${L} × ${9 ** (L - 1)} = ${ans}. No code is counted twice, because the position of its one ${d} is fixed.`]],
+        distinct: [`have at least two equal digits`, "Count the complement", ["How many codes are there in total?", "What is the opposite of 'at least two digits equal'?", "Count codes with all digits different, then subtract."], [`Total codes: ${pw(10)}.`, `All digits different: ${range(0, L - 1).map((x) => 10 - x).join(" × ")} = ${Pd}.`, `At least two equal: ${pw(10)} − ${Pd} = ${ans}.`]],
+        both: [`contain at least one ${d} and at least one ${e}`, "Inclusion and exclusion", ["How many codes in total? How many have no " + d + "? How many have no " + e + "?", `If you subtract both groups, which codes have you subtracted twice?`, `Codes with neither ${d} nor ${e} use only 8 digits. Add them back once.`], [`Total ${pw(10)}. No ${d}: ${pw(9)}. No ${e}: ${pw(9)}. Neither: ${pows(8)} = ${pw(8)}.`, `Codes missing ${d} or missing ${e}: ${pw(9)} + ${pw(9)} − ${pw(8)} = ${2 * pw(9) - pw(8)}.`, `Codes with both: ${pw(10)} − ${2 * pw(9) - pw(8)} = ${ans}.`]],
+      }[kind];
+      return {
+        q: `A lock code has ${L} digits, each from 0 to 9 (codes like ${"0".repeat(L)} are allowed). How many codes ${T[0]}?`,
+        ans,
+        idea: T[1],
+        hints: T[2],
+        sol: T[3],
+        calc: () => range(0, 10 ** L - 1).map((x) => String(x).padStart(L, "0")).filter((s) => {
+          const cnt = (ch) => s.split("").filter((y) => y === String(ch)).length;
+          return kind === "least" ? cnt(d) >= 1 : kind === "exactly" ? cnt(d) === 1 : kind === "distinct" ? new Set(s).size < L : cnt(d) >= 1 && cnt(e) >= 1;
+        }).length,
+      };
+    }],
+  ],
+  ct5: [
+    [0, () => {
+      const pool = [["spiders", 8], ["beetles", 6], ["birds", 2], ["dogs", 4]];
+      const [[an, al], [bn, bl]] = KIT.shuffle(pool).slice(0, 2);
+      const x = pickInt(2, 12);
+      const dd = pickInt(1, 6);
+      const y = x + dd;
+      const L = x * al + y * bl;
+      const cap = (s) => s[0].toUpperCase() + s.slice(1);
+      return {
+        q: `${cap(an)} have ${al} legs and ${bn} have ${bl} legs. A nature club counts them and finds ${dd} more ${bn} than ${an}, and ${L} legs altogether. How many ${an} are there?`,
+        ans: x,
+        idea: "Set the extra aside, then group",
+        hints: [`Set aside the ${dd} extra ${bn}. How many legs do they have?`, `What is left is an equal number of ${an} and ${bn}. How many legs does one ${an.slice(0, -1)}-and-${bn.slice(0, -1)} pair have?`, "Divide the remaining legs by the legs of one pair."],
+        sol: [`The ${dd} extra ${bn} have ${dd} × ${bl} = ${dd * bl} legs. ${L} − ${dd * bl} = ${L - dd * bl} legs remain.`, `The rest form pairs of one of each, with ${al} + ${bl} = ${al + bl} legs per pair.`, `${L - dd * bl} ÷ ${al + bl} = ${x}. Check: ${x} × ${al} + ${y} × ${bl} = ${L}. There are ${x} ${an}.`],
+        calc: () => only(range(0, 60).filter((s) => s * al + (s + dd) * bl === L)),
+      };
+    }],
+    [0, () => {
+      const kind = pickInt(0, 2);
+      if (kind === 0) {
+        const s = pickInt(2, 6);
+        const L = s * pickInt(4, 15);
+        const Wd = s * pickInt(2, 10);
+        const ans = (2 * (L + Wd)) / s;
+        return {
+          q: `A rectangular field is ${L} m long and ${Wd} m wide. Fence posts stand at every corner and every ${s} m along all four sides. How many posts are there?`,
+          ans,
+          idea: "Closed loop: posts = gaps",
+          hints: ["How long is the fence all the way around?", `How many ${s}-metre gaps is that?`, "On a straight fence there is one more post than gaps. What changes when the fence closes into a loop?"],
+          sol: [`The fence is ${L} + ${Wd} + ${L} + ${Wd} = ${2 * (L + Wd)} m long, so it has ${2 * (L + Wd)} ÷ ${s} = ${ans} gaps.`, "On a closed loop the last gap ends at the first post, so there are exactly as many posts as gaps.", `${ans} posts.`],
+          calc: () => {
+            const pts = new Set();
+            for (let x = 0; x <= L; x += s) (pts.add(`${x},0`), pts.add(`${x},${Wd}`));
+            for (let y = 0; y <= Wd; y += s) (pts.add(`0,${y}`), pts.add(`${L},${y}`));
+            return pts.size;
+          },
+        };
+      }
+      if (kind === 1) {
+        const s = pickInt(2, 6);
+        const posts = pickInt(6, 25);
+        const ans = (posts - 1) * s;
+        return {
+          q: `A straight row of ${posts} trees is planted with ${s} m between neighbouring trees. How many metres is it from the first tree to the last?`,
+          ans,
+          idea: "Gaps are one fewer than posts",
+          hints: ["Draw 3 trees. How many gaps are between them?", `So how many gaps are between ${posts} trees?`, `Multiply by ${s} m.`],
+          sol: [`Between ${posts} trees in a row there are ${posts} − 1 = ${posts - 1} gaps.`, `${posts - 1} × ${s} = ${ans} m.`],
+          calc: () => { let d = 0; for (let t = 2; t <= posts; t++) d += s; return d; },
+        };
+      }
+      const n = pickInt(4, 12);
+      const m = pickInt(2, 6);
+      const r = pickInt(1, 3);
+      const ans = (n - 1) * m + (n - 2) * r;
+      return {
+        q: `A log is cut into ${n} pieces. Each cut takes ${m} minutes, and the woodcutter rests ${r} minute${r === 1 ? "" : "s"} between one cut and the next. How many minutes pass from the start of the first cut to the end of the last?`,
+        ans,
+        idea: "Count cuts and rests separately",
+        hints: ["How many cuts make 2 pieces? 3 pieces?", `So how many cuts make ${n} pieces? How many rests come between those cuts?`, "Add the cutting time and the resting time."],
+        sol: [`Each cut adds one piece, so ${n} pieces need ${n - 1} cuts, taking ${n - 1} × ${m} = ${(n - 1) * m} minutes.`, `Rests come only between cuts: ${n - 2} rests, taking ${(n - 2) * r} minutes.`, `${(n - 1) * m} + ${(n - 2) * r} = ${ans} minutes.`],
+        calc: () => {
+          let pieces = 1;
+          let t = 0;
+          while (pieces < n) {
+            if (pieces > 1) t += r;
+            t += m;
+            pieces += 1;
+          }
+          return t;
+        },
+      };
+    }],
+    [1, () => {
+      const x = pickInt(3, 25);
+      const a = pickInt(2, 5);
+      const b = pickInt(3, 20);
+      const c = a * x + b;
+      return {
+        q: `I think of a number, multiply it by ${a}, then add ${b}. The result is ${c}. What was my number?`,
+        ans: x,
+        idea: "Work backward",
+        hints: ["What was the last operation? What undoes it?", `Undo 'add ${b}': ${c} − ${b} = ?`, `Undo 'multiply by ${a}': divide by ${a}.`],
+        sol: [`Undo the steps in reverse order. ${c} − ${b} = ${c - b}.`, `${c - b} ÷ ${a} = ${x}.`, `Check: ${x} × ${a} + ${b} = ${c}.`],
+        calc: () => range(0, 200).find((n) => a * n + b === c),
+      };
+    }],
+    [1, () => {
+      const H = pickInt(8, 20);
+      const cows = pickInt(1, H - 1);
+      const legs = 4 * cows + 2 * (H - cows);
+      return {
+        q: `A farm has only chickens and cows: ${H} animals with ${legs} legs in total. How many cows are there?`,
+        ans: cows,
+        idea: "Suppose, then adjust",
+        hints: [`Suppose all ${H} animals were chickens. How many legs would that be?`, "How many legs are missing, and how many extra legs does each cow add?", "Divide."],
+        sol: [`If all were chickens: ${H} × 2 = ${2 * H} legs. We need ${legs}: ${legs - 2 * H} missing.`, `Each cow adds 2 legs: ${legs - 2 * H} ÷ 2 = ${cows} cows.`, `Check: ${cows} × 4 + ${H - cows} × 2 = ${legs}.`],
+        calc: () => only(range(0, H).filter((c) => 4 * c + 2 * (H - c) === legs)),
+      };
+    }],
+    [2, () => {
+      // Two fractions in lowest terms (denominators 2 to 10), the second larger than the first.
+      let p1, p2, q1, q2;
+      do {
+        p2 = pickInt(2, 10);
+        q2 = pickInt(2, 10);
+        p1 = pickInt(1, p2 - 1);
+        q1 = pickInt(1, q2 - 1);
+      } while (gcd(p1, p2) !== 1 || gcd(q1, q2) !== 1 || q1 * p2 <= p1 * q2 || (p2 * q2) / gcd(p2, q2) > 40);
+      const den = (p2 * q2) / gcd(p2, q2);
+      const step = (q1 * den) / q2 - (p1 * den) / p2;
+      const F = den * pickInt(1, 4) * (step > 1 ? 1 : 2);
+      const x = (F * (q1 * p2 - p1 * q2)) / (p2 * q2);
+      const g0 = gcd(q1 * p2 - p1 * q2, p2 * q2);
+      const [fn, fd] = [(q1 * p2 - p1 * q2) / g0, (p2 * q2) / g0];
+      return {
+        q: `A tank is ${p1}/${p2} full. After ${x} more litres are poured in, it is ${q1}/${q2} full. How many litres does the full tank hold?`,
+        ans: F,
+        idea: "The added amount is a fraction of the whole",
+        hints: [`What fraction of the tank did the ${x} litres fill?`, `${q1}/${q2} − ${p1}/${p2}: rewrite both with a common denominator.`, `If that fraction of the tank is ${x} litres, how big is the whole?`],
+        sol: [`${q1}/${q2} − ${p1}/${p2} = ${q1 * p2 - p1 * q2}/${p2 * q2}${g0 > 1 ? ` = ${fn}/${fd}` : ""} of the tank.`, `So ${fn}/${fd} of the tank is ${x} litres${fn > 1 ? `, and 1/${fd} of the tank is ${x} ÷ ${fn} = ${x / fn} litre${x / fn === 1 ? "" : "s"}` : ""}.`, `The whole tank is ${fd} × ${x / fn} = ${F} litres.`],
+        calc: () => range(1, 3000).find((f) => Math.abs((f * p1) / p2 + x - (f * q1) / q2) < 1e-9),
+      };
+    }],
+    [2, () => {
+      let C;
+      let x;
+      let k;
+      let P;
+      do {
+        C = pickInt(3, 12);
+        x = pickInt(1, 15);
+        k = pickInt(2, 4);
+        P = k * (C + x) - x;
+      } while (P - C < 20 || P > 60);
+      return {
+        q: `A parent is ${P} years old and their child is ${C}. In how many years will the parent be exactly ${k} times as old as the child?`,
+        ans: x,
+        idea: "The age gap never changes",
+        hints: ["What is the difference between their ages now? Will it change?", `When the parent is ${k} times the child's age, the gap equals how many times the child's age?`, `The gap is ${P - C}. Solve (${k} − 1) × child's age = ${P - C}.`],
+        sol: [`The gap is always ${P} − ${C} = ${P - C} years.`, `If the parent is ${k} times the child's age, the gap is ${k - 1} times the child's age, so the child will be ${P - C} ÷ ${k - 1} = ${(P - C) / (k - 1)}.`, `The child is ${C} now, so that is in ${(P - C) / (k - 1)} − ${C} = ${x} year${x === 1 ? "" : "s"}.`],
+        calc: () => range(0, 60).find((y) => P + y === k * (C + y)),
+      };
+    }],
+  ],
+};
+function freshSet(rid) {
+  const out = [];
+  for (let lv = 0; lv < 3; lv++) {
+    const ts = GEN[rid].filter(([l]) => l === lv).map(([, f]) => f);
+    for (let k = 0; k < 4; k++) {
+      let p;
+      let guard = 0;
+      do p = ts[k % ts.length]();
+      while (guard++ < 20 && out.some((o) => o.q === p.q));
+      out.push({ ...p, lvl: lv, id: `${rid}-g${lv}${k}` });
+    }
+  }
+  return out;
+}
+window.__CT = { ROOMS, GEN, freshSet };
+
+// ---------- shared drawing of one problem ----------
+const LETTERS = "ABCDE";
+const letterOf = (p, v) => LETTERS[p.opts.findIndex((o) => String(o) === String(v))];
+// Long options (sentences) are shown in full on the stage; the buttons then carry only the letter.
+const optLabel = (p, k) => (p.opts.some((o) => String(o).length > 9) ? `(${LETTERS[k]})` : `${LETTERS[k]}) ${p.opts[k]}`);
+const answerText = (p) => (p.opts ? `(${letterOf(p, p.ans)}) ${p.ans}` : String(p.ans));
+function drawProblem(p, tag) {
+  fresh();
+  el("rect", { x: 14, y: 14, width: 972, height: 532, rx: 26, fill: "#fffaf2", stroke: "#eadfcd", "stroke-width": 3 }, view);
+  text(view, 44, 60, tag, { "text-anchor": "start", "font-size": 24, fill: "var(--accent-dark)" });
+  const hasOpts = Boolean(p.opts);
+  const long = hasOpts && p.opts.some((o) => String(o).length > 9);
+  const width = p.pic ? 470 : 912;
+  const bottom = hasOpts ? (long ? 440 : 470) : 530;
+  const size = fitSize(p.q, width, bottom - 112, p.pic ? 30 : 34, 22);
+  para(view, 44, 112, p.q, { size, width });
+  if (p.pic) {
+    const g = el("g", { transform: `translate(552 ${hasOpts ? 88 : 120}) scale(${hasOpts ? (long ? 0.86 : 0.95) : 1})` }, view);
+    p.pic(g);
+  }
+  if (hasOpts) {
+    const top = long ? 438 : 470;
+    el("line", { x1: 44, x2: 956, y1: top, y2: top, stroke: "#eadfcd", "stroke-width": 3 }, view);
+    p.opts.forEach((o, i) => {
+      const cols = long ? 3 : 5;
+      const slot = 912 / cols;
+      const cx = 44 + slot * (i % cols) + slot / 2;
+      const y = long ? 478 + Math.floor(i / 3) * 44 : 516;
+      text(view, cx, y, `(${LETTERS[i]}) ${o}`, { "font-size": long ? 24 : 28, fill: "#2b1d12", class: `ct-opt ct-opt-${i}` });
+    });
+  }
+}
+
+// The worked solution with its key idea named, and an Explain-it line.
+function drawSolution(p, extra = "") {
+  fresh();
+  el("rect", { x: 14, y: 14, width: 972, height: 532, rx: 26, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, view);
+  const ideaText = `Key idea: ${p.idea}`;
+  const pw = Math.min(900, ideaText.length * 14.5 + 60);
+  el("rect", { x: 40, y: 32, width: pw, height: 52, rx: 26, fill: "var(--accent-soft)" }, view);
+  text(view, 64, 67, `🔑 ${ideaText}`, { "text-anchor": "start", "font-size": 27, fill: "var(--accent-dark)" });
+  const steps = p.sol;
+  let size = 28;
+  const total = (s) => steps.reduce((h, st) => h + para(null, 0, 0, st, { size: s, width: 860 }) * s * 1.3 + 14, 0);
+  while (size > 21 && total(size) > 340) size -= 1;
+  let y = 128;
+  const groups = [];
+  steps.forEach((st, i) => {
+    const g = el("g", { opacity: 0 }, view);
+    el("circle", { cx: 60, cy: y - size * 0.35, r: 17, fill: "var(--accent)" }, g);
+    text(g, 60, y - size * 0.35 + 7, i + 1, { "font-size": 20, fill: "#fff" });
+    const lines = para(g, 92, y, st, { size, width: 860, lh: 1.3 });
+    y += lines * size * 1.3 + 14;
+    groups.push(g);
+  });
+  const note = el("g", { opacity: 0 }, view);
+  el("rect", { x: 40, y: 474, width: 920, height: 56, rx: 16, fill: "#fff4dc" }, note);
+  text(note, 500, 510, extra || "Explain it: in 2–4 sentences, say why the key idea works here.", { "font-size": 23, fill: "#7a4a10" });
+  groups.push(note);
+  return groups;
+}
+async function revealSteps(groups, alive) {
+  for (const g of groups) {
+    if (!alive()) return;
+    if (KIT.still.matches) g.setAttribute("opacity", 1);
+    else
+      for (let k = 1; k <= 10; k++) {
+        if (!alive()) return;
+        g.setAttribute("opacity", k / 10);
+        await wait(40);
+      }
+    await wait(500);
+  }
+}
+
+// Off-screen card (Solution Notebook / Explain it).
+function realCard({ icon = "📓", title, need = [], steps = [], note: tip = "", button = "✓ Done" }) {
+  return new Promise((resolve) => {
+    stage.querySelector(".ct-real")?.remove();
+    const box = document.createElement("div");
+    box.className = "ct-real";
+    box.innerHTML = `<div class="ct-real-card" role="dialog" aria-label="${title}"><div class="ct-real-head"><span aria-hidden="true">${icon}</span><h2>${title}</h2></div>${need.length ? `<p class="ct-need"><b>You need:</b> ${need.join(" · ")}</p>` : ""}<ol>${steps.map((s) => `<li>${s}</li>`).join("")}</ol>${tip ? `<p class="ct-tip">${tip}</p>` : ""}<button type="button" class="kt-go">${button}</button></div>`;
+    stage.appendChild(box);
+    VOICE.speak(`${title}. ${need.length ? `You need: ${need.join(", ")}. ` : ""}${steps.join(" ")} ${tip}`);
+    box.querySelector(".kt-go").addEventListener("click", () => {
+      VOICE.hush();
+      box.remove();
+      window.OC?.touch();
+      resolve();
+    });
+  });
+}
+const explainCard = (roomName) =>
+  realCard({
+    icon: "🗣️",
+    title: "Explain it",
+    steps: [
+      `Choose one ${roomName.toLowerCase()} problem you worked on today.`,
+      "In 2–4 full sentences, explain to a grown-up (or write): what the problem asked, which strategy you chose and why, and how you checked the answer.",
+      "Then copy the key idea into your Solution Notebook, with a small diagram if one helped.",
+    ],
+    note: "Mathematicians must communicate their reasoning, not merely find answers. A clear explanation is part of the solution.",
+  });
+
+const CORRECT = ["Correct.", "Correct. Your method held up.", "Correct. That was careful reasoning.", "Correct. You persisted through the difficult part."];
+const NOTQUITE = ["Not quite. Consider what the question asks, and test your answer against every condition.", "Not quite. Reread the problem slowly: what is known, and what is wanted?", "Not quite. Mistakes are how we learn. Which step deserves a second look?"];
+
+// ---------- a topic room: Set A (12 classic problems) or Set B (12 fresh, generated) ----------
+function room(id) {
+  const my = token;
+  const R = ROOMS[id];
+  const saved = shell.progress()[id] || {};
+  const solved = new Set(saved.solved || []);
+  const tried = new Set(saved.tried || []);
+  let set = saved.set === "B" ? "B" : "A";
+  let freshList = freshSet(id);
+  let explained = false;
+  const alive = () => my === token;
+  const list = () => (set === "A" ? R.problems : freshList);
+  const save = () => {
+    const classic = R.problems.filter((p) => solved.has(p.id)).length;
+    shell.mark(id, { solved: [...solved].filter((x) => !x.includes("-g")), tried: [...tried].filter((x) => !x.includes("-g")), set, ...(classic >= 8 ? { done: true } : {}) });
+  };
+  const countSolved = () => list().filter((p) => solved.has(p.id)).length;
+
+  const showList = (intro) => {
+    if (!alive()) return;
+    fresh();
+    text(view, 500, 48, `${R.name} · ${set === "A" ? "Set A (classic)" : "Set B (fresh numbers)"}`, { "font-size": 32, fill: "#2b1d12" });
+    LV.forEach(([icon, name, pts], lv) => {
+      const y = 82 + lv * 156;
+      text(view, 36, y + 58, `${icon} ${name.split(" · ")[0]}`, { "text-anchor": "start", "font-size": 27, fill: "#4d3c2e" });
+      text(view, 36, y + 92, lv === 2 ? `contest · ${pts}` : pts, { "text-anchor": "start", "font-size": 22, fill: "#8a7764", "font-weight": 600 });
+      list()
+        .filter((p) => p.lvl === lv)
+        .forEach((p, k) => {
+          const idx = list().indexOf(p);
+          const g = el("g", { class: "ct-tile", "data-i": idx, transform: `translate(${300 + k * 168} ${y})` }, view);
+          const ok = solved.has(p.id);
+          el("rect", { width: 150, height: 132, rx: 22, fill: ok ? "#e3f4e7" : tried.has(p.id) ? "#fff4dc" : "#fff", stroke: ok ? "#2e7d46" : "var(--accent)", "stroke-width": 4 }, g);
+          text(g, 75, 84, idx + 1, { "font-size": 50, fill: "#2b1d12" });
+          if (ok) text(g, 128, 34, "✓", { "font-size": 30, fill: "#2e7d46" });
+          if (p.pic) text(g, 26, 34, "🖼️", { "font-size": 20 });
+        });
+    });
+    view.addEventListener("pointerdown", (event) => {
+      const t = event.target.closest(".ct-tile");
+      if (t) open(Number(t.dataset.i));
+    });
+    panel(`<div class="ap-row"><div class="ap-chips" data-sets><button type="button" data-s="A" aria-pressed="${set === "A"}">Set A · classic</button><button type="button" data-s="B" aria-pressed="${set === "B"}">Set B · fresh numbers</button><button type="button" data-s="X">🗣️ Explain it</button></div><p class="ap-status" data-status>Solved ${countSolved()} of 12</p></div>`);
+    $("[data-sets]").addEventListener("click", (event) => {
+      const b = event.target.closest("[data-s]");
+      if (!b || !alive()) return;
+      window.OC?.touch();
+      if (b.dataset.s === "X") return explainCard(R.name).then(() => alive() && showList());
+      if (b.dataset.s === "B" && set === "B") freshList = freshSet(id);
+      set = b.dataset.s;
+      save();
+      showList(set === "B" ? "Set B: twelve problems built from new numbers each time you open it. Press Set B again for another twelve." : "Set A: the twelve classic problems of this room.");
+    });
+    say(intro || (countSolved() ? `Choose a problem. You have solved ${countSolved()} of these twelve.` : "Choose a problem. Grade 4 problems are in the top row; contest problems are at the bottom."));
+  };
+
+  const open = (i) => {
+    if (!alive()) return;
+    window.OC?.touch();
+    const p = list()[i];
+    let tries = 0;
+    let hint = 0;
+    let right = false;
+    let showing = "problem";
+    const tag = `${R.name} · ${set} ${i + 1} · ${LV[p.lvl][0]} ${LV[p.lvl][1]}`;
+    panel(`<div class="ap-row ct-ans" data-answer></div><div class="ap-row"><p class="ap-status" data-status></p><div class="ap-chips ct-tools" data-tools><button type="button" data-t="read" aria-label="Read it to me">🔊</button><button type="button" data-t="hint" aria-label="Hint">💡<span class="ct-lab"> Hint</span></button><button type="button" data-t="sol" aria-label="Solution">📖<span class="ct-lab"> Solution</span></button><button type="button" data-t="list" aria-label="Problem list">☰<span class="ct-lab"> List</span></button><button type="button" data-t="next" aria-label="Next">Next ▶</button></div></div>`);
+    const status = () => ($("[data-status]").textContent = right ? "✓ Solved" : hint ? `Hint ${hint} of 3` : tries ? `Attempts: ${tries}` : `${LV[p.lvl][0]} ${set}${i + 1}`);
+    const pulse = (t, on = true) => {
+      document.querySelectorAll("[data-tools] [data-pulse]").forEach((b) => b.removeAttribute("data-pulse"));
+      if (on) $(`[data-t="${t}"]`)?.setAttribute("data-pulse", "");
+    };
+    const showProblem = () => {
+      showing = "problem";
+      drawProblem(p, tag);
+      $('[data-t="sol"]').innerHTML = `📖<span class="ct-lab"> Solution</span>`;
+    };
+    const showSol = async () => {
+      showing = "sol";
+      $('[data-t="sol"]').innerHTML = `🧩<span class="ct-lab"> Problem</span>`;
+      const groups = drawSolution(p);
+      say(`<b>Key idea: ${p.idea}.</b> ${right ? "" : `The answer is <b>${answerText(p)}</b>. `}Study each step, then explain the idea aloud in your own words.`, { voice: false });
+      VOICE.speak(`Key idea: ${p.idea}. ${p.sol.join(" ")}`);
+      await revealSteps(groups, () => alive() && showing === "sol");
+    };
+    let pad = null;
+    const answer = async (v, button) => {
+      if (!alive() || right) return;
+      window.OC?.touch();
+      tries += 1;
+      tried.add(p.id);
+      const ok = String(v) === String(p.ans);
+      if (ok) {
+        right = true;
+        button?.classList.add("right");
+        MUSIC.chime();
+        const first = !solved.has(p.id);
+        solved.add(p.id);
+        save();
+        if (first) window.OC?.count("contest problems solved");
+        if (showing !== "problem") showProblem();
+        const at = p.opts ? p.opts.findIndex((o) => String(o) === String(p.ans)) : -1;
+        if (at >= 0) view.querySelector(`.ct-opt-${at}`)?.setAttribute("fill", "#22a05a");
+        say(`${pick(CORRECT)} The answer is ${answerText(p)}. Open the solution to compare your method with the key idea: <b>${p.idea}</b>.`);
+        pulse("sol");
+        const lvDone = list().filter((q) => q.lvl === p.lvl).every((q) => solved.has(q.id));
+        if (first && (lvDone || countSolved() === 12)) {
+          confetti();
+          await wait(1500);
+          if (alive()) say(countSolved() === 12 ? "All twelve problems in this set are solved. That persistence through the hardest problems is what contest preparation is made of." : `Every ${LV[p.lvl][1]} problem in this set is solved.`);
+        }
+      } else {
+        button?.classList.add("wrong");
+        MUSIC.oops();
+        pad?.clear();
+        if (tries === 1) {
+          say(`${pick(NOTQUITE)} Try again, or press 💡 for a guiding question.`);
+          pulse("hint");
+        } else {
+          say("Not quite. After two honest attempts, studying the solution is the right move: press 📖. Or attempt it once more.");
+          pulse("sol");
+        }
+      }
+      status();
+    };
+    const setupAnswer = () => {
+      const host = $("[data-answer]");
+      if (p.opts)
+        choices(
+          host,
+          p.opts.map((o, k) => ({ label: optLabel(p, k), v: o })),
+          (c, b) => answer(c.v, b)
+        );
+      else pad = numpad(host, { onEnter: (v) => answer(v), max: 4 });
+    };
+    $("[data-tools]").addEventListener("click", (event) => {
+      const b = event.target.closest("[data-t]");
+      if (!b || !alive()) return;
+      window.OC?.touch();
+      const t = b.dataset.t;
+      if (t === "read") {
+        VOICE.speak(`${p.q} ${p.opts ? p.opts.map((o, k) => `${LETTERS[k]}: ${o}.`).join(" ") : ""}`);
+      } else if (t === "hint") {
+        if (!tries && !right) return say("Make an attempt first. A reasoned answer is valuable even when it is wrong, and the hint will mean more afterwards.");
+        if (hint >= 3) return say(`💡 That was the final hint: ${p.hints[2]} ${tries >= 2 ? "The solution is also available." : ""}`);
+        hint += 1;
+        pulse("", false);
+        say(`💡 ${p.hints[hint - 1]}`);
+        status();
+      } else if (t === "sol") {
+        if (showing === "sol") {
+          showProblem();
+          say("The problem again.", { voice: false });
+          return;
+        }
+        if (!right && tries < 2) return say(tries ? "Attempt it once more first. Productive struggle (working on a problem you cannot yet solve) is how mathematical skill grows." : "Attempt the problem first. The solution opens after two attempts.");
+        pulse("", false);
+        showSol();
+      } else if (t === "list") {
+        VOICE.hush();
+        showList();
+      } else if (t === "next") {
+        VOICE.hush();
+        const nextUp = () => (i + 1 < 12 ? open(i + 1) : showList("That was the last problem in this set. Choose any problem to revisit, or switch sets."));
+        if (right && !explained && countSolved() >= 4) {
+          explained = true;
+          explainCard(R.name).then(() => alive() && nextUp());
+          return;
+        }
+        nextUp();
+      }
+    });
+    showProblem();
+    setupAnswer();
+    status();
+    say(`Read the problem carefully. ${p.opts ? "Choose A, B, C, D or E." : "Enter your answer and press ✓."}`, { voice: false });
+    VOICE.speak(`${p.q} ${p.opts ? p.opts.map((o, k) => `${LETTERS[k]}: ${o}.`).join(" ") : "Enter your answer."}`);
+  };
+  showList();
+}
+
+// ---------- monthly mock contest ----------
+function seeded(seed) {
+  let s = seed >>> 0 || 1;
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+}
+function mockSet(date = new Date()) {
+  const seed = date.getFullYear() * 12 + date.getMonth();
+  const rnd = seeded(seed * 7919);
+  const solvedAll = new Set(ROOM_IDS.flatMap((rid) => shell.progress()[rid]?.solved || []));
+  const list = [];
+  for (let lv = 0; lv < 3; lv++) {
+    const skip = (seed + lv * 2) % 5;
+    ROOM_IDS.forEach((rid, r) => {
+      if (r === skip) return;
+      const pool = ROOMS[rid].problems.filter((p) => p.lvl === lv);
+      const unseen = pool.filter((p) => !solvedAll.has(p.id));
+      const from = unseen.length ? unseen : pool;
+      list.push({ rid, p: from[Math.floor(rnd() * from.length)] });
+    });
+  }
+  return { seed, list };
+}
+
+function mock() {
+  const my = token;
+  const alive = () => my === token;
+  const saved = shell.progress().ct6 || {};
+  let timerOn = Boolean(saved.timer);
+  const month = new Date().toLocaleString("en", { month: "long", year: "numeric" });
+  let set = null;
+  let answers = [];
+  let at = 0;
+  let endAt = 0;
+  let ticking = null;
+  const stopTimer = () => {
+    if (ticking) clearInterval(ticking);
+    ticking = null;
+  };
+  const minsLeft = () => Math.max(0, Math.ceil((endAt - Date.now()) / 60000));
+
+  const intro = () => {
+    stopTimer();
+    fresh();
+    el("rect", { x: 60, y: 30, width: 880, height: 500, rx: 30, fill: "#fffaf2", stroke: "var(--accent)", "stroke-width": 4 }, view);
+    emoji(view, 500, 100, "🏅", 80);
+    text(view, 500, 200, `Mock contest · ${month}`, { "font-size": 40, fill: "#2b1d12" });
+    const rows = ["12 problems: 4 at grade 4, 4 at grade 5–6, 4 at contest level", "Answer each one, or skip and return to it later", "No hints during the contest, as in a real one", "Afterwards: the topics to revisit, and every solution"];
+    rows.forEach((r, i) => text(view, 500, 270 + i * 52, `• ${r}`, { "font-size": 26, fill: "#4d3c2e", "font-weight": 700 }));
+    panel(`<div class="ap-chips" data-mk><button type="button" data-m="start" aria-pressed="true">▶ Begin</button><button type="button" data-m="timer" aria-pressed="${timerOn}">⏳ Grown-up timer (30 min): ${timerOn ? "On" : "Off"}</button></div>`);
+    say(`This month's practice contest. Work carefully; it is not a race. ${timerOn ? "A gentle 30-minute timer is on; it never affects the results." : ""}`);
+    $("[data-mk]").addEventListener("click", (event) => {
+      const b = event.target.closest("[data-m]");
+      if (!b || !alive()) return;
+      window.OC?.touch();
+      if (b.dataset.m === "timer") {
+        timerOn = !timerOn;
+        shell.mark("ct6", { timer: timerOn });
+        b.setAttribute("aria-pressed", String(timerOn));
+        b.textContent = `⏳ Grown-up timer (30 min): ${timerOn ? "On" : "Off"}`;
+        say(timerOn ? "The timer is on. It only shows the minutes remaining and never changes the results." : "The timer is off. Take the time you need.");
+      } else begin();
+    });
+  };
+
+  const begin = () => {
+    set = mockSet();
+    window.__CT.mockNow = set;
+    answers = Array(set.list.length).fill(null);
+    at = 0;
+    if (timerOn) {
+      endAt = Date.now() + 30 * 60000;
+      ticking = setInterval(() => {
+        if (!alive()) return stopTimer();
+        const s = $("[data-clock]");
+        if (s) s.textContent = `⏳ ${minsLeft()} min`;
+        if (Date.now() >= endAt) {
+          stopTimer();
+          if (s) s.textContent = "⏳ Time";
+          say("The 30 minutes are over. Finish the problem in front of you, then press 🏁 Finish.");
+        }
+      }, 5000);
+    }
+    show();
+  };
+
+  const show = () => {
+    if (!alive()) return;
+    const { rid, p } = set.list[at];
+    drawProblem(p, `Mock contest · ${at + 1} of 12 · ${LV[p.lvl][0]} ${LV[p.lvl][2]} · ${ROOMS[rid].name}`);
+    panel(`<div class="ap-row ct-ans" data-answer></div><div class="ap-row"><p class="ap-status" data-status>${at + 1} of 12${answers[at] !== null ? " · answered" : ""}</p>${timerOn ? `<p class="ap-status" data-clock>⏳ ${ticking ? `${minsLeft()} min` : "Time"}</p>` : ""}<div class="ap-chips ct-tools" data-tools><button type="button" data-t="read" aria-label="Read it to me">🔊</button><button type="button" data-t="back" aria-label="Previous">◀</button><button type="button" data-t="skip">Skip ▶</button><button type="button" data-t="finish">🏁 Finish</button></div></div>`);
+    const host = $("[data-answer]");
+    const record = (v, button) => {
+      if (!alive()) return;
+      window.OC?.touch();
+      answers[at] = v;
+      MUSIC.play("woodblock", 79, { gain: 0.3 });
+      button?.classList.add("right");
+      if (at + 1 < 12) {
+        at += 1;
+        setTimeout(() => alive() && show(), 450);
+      } else say("That was the final problem. Press 🏁 Finish when ready, or ◀ to review your answers.");
+    };
+    if (p.opts) choices(host, p.opts.map((o, k) => ({ label: optLabel(p, k), v: o })), (c, b) => record(c.v, b));
+    else {
+      const pad = numpad(host, { onEnter: (v) => record(v), max: 4 });
+      if (answers[at] !== null) pad.set(answers[at]);
+    }
+    if (p.opts && answers[at] !== null) host.querySelectorAll("[data-c]")[p.opts.indexOf(answers[at])]?.classList.add("right");
+    $("[data-tools]").addEventListener("click", (event) => {
+      const b = event.target.closest("[data-t]");
+      if (!b || !alive()) return;
+      window.OC?.touch();
+      const t = b.dataset.t;
+      if (t === "read") VOICE.speak(`${p.q} ${p.opts ? p.opts.map((o, k) => `${LETTERS[k]}: ${o}.`).join(" ") : ""}`);
+      else if (t === "back" && at > 0) {
+        at -= 1;
+        show();
+      } else if (t === "skip") {
+        if (at + 1 < 12) {
+          at += 1;
+          show();
+        } else say("This is the final problem. Press 🏁 Finish when ready.");
+      } else if (t === "finish") {
+        const left = answers.filter((a) => a === null).length;
+        if (left && !b.dataset.sure) {
+          b.dataset.sure = "1";
+          b.textContent = "🏁 Confirm";
+          return say(`${left} ${left === 1 ? "problem has" : "problems have"} no answer. Press 🏁 again to finish anyway.`);
+        }
+        results();
+      }
+    });
+    say(`Problem ${at + 1}. ${p.opts ? "Choose A to E." : "Enter the answer and press ✓."}`, { voice: false });
+    VOICE.speak(`Problem ${at + 1}. ${p.q} ${p.opts ? p.opts.map((o, k) => `${LETTERS[k]}: ${o}.`).join(" ") : ""}`);
+  };
+
+  const results = () => {
+    stopTimer();
+    if (!alive()) return;
+    const ok = set.list.map(({ p }, i) => answers[i] !== null && String(answers[i]) === String(p.ans));
+    const total = ok.filter(Boolean).length;
+    const byRoom = ROOM_IDS.map((rid) => {
+      const idx = set.list.map((x, i) => (x.rid === rid ? i : -1)).filter((i) => i >= 0);
+      return { rid, n: idx.length, right: idx.filter((i) => ok[i]).length };
+    });
+    const revisit = byRoom.filter((r) => r.n && r.right < r.n);
+    shell.mark("ct6", { done: true, [`m${set.seed}`]: total });
+    window.OC?.count("mock contests finished");
+    fresh();
+    el("rect", { x: 40, y: 20, width: 920, height: 520, rx: 28, fill: "#fffaf2", stroke: "var(--accent)", "stroke-width": 4 }, view);
+    text(view, 500, 72, `Mock contest · ${month}`, { "font-size": 34, fill: "#2b1d12" });
+    text(view, 500, 112, total ? `${total} of 12 correct. Where to concentrate next:` : "Where to concentrate next:", { "font-size": 25, fill: "#4d3c2e", "font-weight": 700 });
+    byRoom.forEach((r, k) => {
+      const y = 150 + k * 62;
+      const good = r.right === r.n;
+      el("rect", { x: 90, y, width: 820, height: 52, rx: 16, fill: good ? "#e3f4e7" : "#fff4dc" }, view);
+      text(view, 116, y + 35, ROOMS[r.rid].name, { "text-anchor": "start", "font-size": 26, fill: "#2b1d12" });
+      for (let d = 0; d < r.n; d++) el("circle", { cx: 560 + d * 36, cy: y + 26, r: 13, fill: d < r.right ? "#22a05a" : "#fff", stroke: d < r.right ? "#157a40" : "#c9b8a1", "stroke-width": 3 }, view);
+      text(view, 880, y + 35, good ? "✓ secure" : "↻ revisit", { "text-anchor": "end", "font-size": 24, fill: good ? "#2e7d46" : "#a8632d" });
+    });
+    const first = [...revisit].sort((a, b) => a.right / a.n - b.right / b.n).slice(0, 2).map((r) => ROOMS[r.rid].name);
+    text(view, 500, 500, revisit.length ? `Begin with the ${first.join(" and the ")} room${first.length > 1 ? "s" : ""}.` : "Every topic was secure. Try Set B in each room.", { "font-size": 26, fill: "var(--accent-dark)" });
+    if (total >= 6) confetti();
+    panel(`<div class="ap-chips" data-rs><button type="button" data-r="review" aria-pressed="true">📖 Review solutions</button><button type="button" data-r="again">↺ Back to start</button></div>`);
+    say("The contest is complete. The review is where most of the learning happens: compare your reasoning with each worked solution.");
+    $("[data-rs]").addEventListener("click", (event) => {
+      const b = event.target.closest("[data-r]");
+      if (!b || !alive()) return;
+      if (b.dataset.r === "review") review(0);
+      else intro();
+    });
+  };
+
+  const review = (i) => {
+    if (!alive()) return;
+    const { p } = set.list[i];
+    const yours = answers[i] === null ? "no answer" : p.opts ? `(${letterOf(p, answers[i])}) ${answers[i]}` : answers[i];
+    const good = String(answers[i]) === String(p.ans);
+    let showing = "sol";
+    const groups = drawSolution(p, `Your answer: ${yours} · correct answer: ${answerText(p)}${good ? " ✓" : ""}`);
+    revealSteps(groups, () => alive() && showing === "sol");
+    panel(`<div class="ap-row"><p class="ap-status">Review ${i + 1} of 12</p><div class="ap-chips ct-tools" data-rv><button type="button" data-v="prev" aria-label="Previous">◀</button><button type="button" data-v="flip">🧩 Problem</button><button type="button" data-v="next">${i + 1 < 12 ? "Next ▶" : "✓ Done"}</button></div></div>`);
+    say(`${good ? "Correct." : `Not quite: the answer is <b>${answerText(p)}</b>.`} Key idea: <b>${p.idea}</b>.`, { voice: false });
+    VOICE.speak(`${good ? "Correct." : `The answer is ${p.ans}.`} Key idea: ${p.idea}. ${p.sol.join(" ")}`);
+    $("[data-rv]").addEventListener("click", (event) => {
+      const b = event.target.closest("[data-v]");
+      if (!b || !alive()) return;
+      VOICE.hush();
+      if (b.dataset.v === "prev" && i > 0) review(i - 1);
+      else if (b.dataset.v === "next") {
+        if (i + 1 < 12) review(i + 1);
+        else
+          realCard({
+            icon: "🗣️",
+            title: "Explain it",
+            need: ["your Solution Notebook", "a pencil"],
+            steps: ["Choose one problem you missed.", "Write its key idea at the top of a page and solve it again without looking.", "Then explain your solution aloud to a grown-up in 2–4 full sentences: the strategy, why it works, and how you checked."],
+            note: "Next month, notice whether that topic feels more secure.",
+          }).then(() => alive() && intro());
+      } else if (b.dataset.v === "flip") {
+        if (showing === "sol") {
+          showing = "problem";
+          drawProblem(p, `Review ${i + 1} of 12`);
+          b.textContent = "📖 Solution";
+        } else review(i);
+      }
+    });
+  };
+  intro();
+  return stopTimer;
+}
+
+// ---------- See it ----------
+function seeIt() {
+  const my = token;
+  explain(
+    [
+      { say: "Why study contest problems? They are puzzles worth solving for their own sake. They train you to think flexibly, to persist, and to explain your reasoning, skills that serve every subject.", draw: everyday([["🧩", "Puzzles for their own sake"], ["🧠", "Flexible thinking"], ["🔍", "New strategies"], ["🗣️", "Explaining ideas"]]) },
+      {
+        say: "Contest problems are designed to be difficult. Being stuck is not failure; it is the normal state of a mathematician at work. Each attempt carries you higher, like a climber on a wall.",
+        async draw(v, api) {
+          el("rect", { x: 330, y: 30, width: 340, height: 500, rx: 20, fill: "#e8d6bd", stroke: INK, "stroke-width": 4 }, v);
+          const holds = [[400, 470], [560, 420], [430, 350], [590, 290], [420, 220], [580, 150], [470, 90]];
+          holds.forEach(([x, y], i) => el("ellipse", { cx: x, cy: y, rx: 22, ry: 14, fill: ["#e53935", "#1e88e5", "#43a047", "#fb8c00"][i % 4] }, v));
+          el("path", { d: "M500 70V20", stroke: INK, "stroke-width": 4 }, v);
+          el("path", { d: "M500 20L540 32L500 44Z", fill: "#e53935" }, v);
+          const me = el("g", { transform: "translate(400 470)" }, v);
+          emoji(me, 0, -30, "🧗", 64);
+          const notes = [["Attempt 1: slipped", 290, "#a8632d"], ["Attempt 2: higher", 190, "#a8632d"], ["Attempt 3: summit", 90, "#2e7d46"]];
+          let pos = [400, 470];
+          const steps = [[3, 0], [5, 3], [6, 6]];
+          for (let k = 0; k < 3; k++) {
+            const [up, back] = steps[k];
+            const to = holds[up];
+            await api.tween(1300, (t) => me.setAttribute("transform", `translate(${pos[0] + (to[0] - pos[0]) * t} ${pos[1] + (to[1] - pos[1]) * t})`));
+            pos = to;
+            text(v, k === 1 ? 830 : 170, notes[k][1] + 20, notes[k][0], { "font-size": 28, fill: notes[k][2] });
+            MUSIC.play("xylophone", [76, 79, 84][k], { gain: 0.35 });
+            await api.wait(700);
+            if (k === 0) {
+              const from = holds[back];
+              await api.tween(900, (t) => me.setAttribute("transform", `translate(${pos[0] + (from[0] - pos[0]) * t} ${pos[1] + (from[1] - pos[1]) * t})`));
+              pos = from;
+              await api.wait(500);
+            }
+          }
+        },
+      },
+      {
+        say: "The mathematician George Pólya described four phases of problem solving. Phase 1, understand: read slowly and separate what is known from what is wanted.",
+        async draw(v, api) {
+          el("rect", { x: 80, y: 40, width: 840, height: 230, rx: 24, fill: "#fffaf2", stroke: "#eadfcd", "stroke-width": 3 }, v);
+          para(v, 110, 100, "A snail is at the bottom of a well 5 metres deep. Each day it climbs up 2 metres. Each night it slides down 1 metre. On which day does it get out?", { size: 30, width: 780 });
+          await api.wait(1200);
+          const know = el("g", { opacity: 0 }, v);
+          el("rect", { x: 80, y: 300, width: 400, height: 210, rx: 24, fill: "#e3f4e7" }, know);
+          text(know, 280, 350, "Known", { "font-size": 32, fill: "#2e7d46" });
+          ["5 m deep", "up 2 m each day", "down 1 m each night"].forEach((s, i) => text(know, 280, 395 + i * 38, s, { "font-size": 28, fill: "#2b1d12" }));
+          await api.tween(800, (t) => know.setAttribute("opacity", t));
+          await api.wait(900);
+          const want = el("g", { opacity: 0 }, v);
+          el("rect", { x: 520, y: 300, width: 400, height: 210, rx: 24, fill: "#fff4dc" }, want);
+          text(want, 720, 350, "Wanted", { "font-size": 32, fill: "#a8632d" });
+          text(want, 720, 410, "the day on which", { "font-size": 30, fill: "#2b1d12" });
+          text(want, 720, 448, "it escapes", { "font-size": 30, fill: "#2b1d12" });
+          await api.tween(800, (t) => want.setAttribute("opacity", t));
+        },
+      },
+      {
+        say: "Phase 2, plan: choose a strategy (a general method) from your toolkit. For the snail, a diagram will make the situation visible.",
+        async draw(v, api) {
+          const tools = [["✏️", "Draw a diagram"], ["📋", "Organised list"], ["🔁", "Find a pattern"], ["⏪", "Work backward"], ["🎯", "Guess and check"], ["🔬", "Smaller case"]];
+          for (let i = 0; i < tools.length; i++) {
+            const x = 110 + (i % 3) * 280;
+            const y = 70 + Math.floor(i / 3) * 230;
+            const g = el("g", { opacity: 0 }, v);
+            el("rect", { x: x - 10, y, width: 250, height: 190, rx: 24, fill: i === 0 ? "var(--accent-soft)" : "#fff", stroke: i === 0 ? "var(--accent)" : "#e2d6c4", "stroke-width": i === 0 ? 6 : 3 }, g);
+            emoji(g, x + 115, y + 70, tools[i][0], 64);
+            text(g, x + 115, y + 160, tools[i][1], { "font-size": 26, fill: "#2b1d12" });
+            await api.tween(450, (t) => g.setAttribute("opacity", t));
+            await api.wait(250);
+          }
+        },
+      },
+      {
+        say: "Phase 3, carry out the plan. Each day the snail rises 2 metres and each night falls 1. On day 4 it climbs from 3 metres to 5 metres and escapes before nightfall.",
+        async draw(v, api) {
+          const y0 = 500;
+          const m = 88;
+          el("rect", { x: 380, y: y0 - 5 * m, width: 200, height: 5 * m, fill: "#d6ecf7", stroke: INK, "stroke-width": 4 }, v);
+          for (let k = 0; k <= 5; k++) {
+            el("line", { x1: 580, x2: 605, y1: y0 - k * m, y2: y0 - k * m, stroke: INK, "stroke-width": 3 }, v);
+            text(v, 650, y0 - k * m + 9, `${k} m`, { "font-size": 26, fill: "#4d3c2e" });
+          }
+          const snail = el("g", {}, v);
+          emoji(snail, 0, 0, "🐌", 50);
+          let h = 0;
+          const put = (val) => snail.setAttribute("transform", `translate(480 ${y0 - val * m - 28})`);
+          put(0);
+          for (let day = 1; day <= 4; day++) {
+            await api.tween(1100, (t) => put(h + 2 * t));
+            h += 2;
+            MUSIC.play("xylophone", 72 + day * 2, { gain: 0.35 });
+            if (h >= 5) {
+              text(v, 200, 100 + (day - 1) * 70, `Day ${day}: escapes`, { "font-size": 30, fill: "#2e7d46" });
+              break;
+            }
+            await api.wait(300);
+            await api.tween(800, (t) => put(h - t));
+            h -= 1;
+            text(v, 200, 100 + (day - 1) * 70, `Day ${day}: ${h + 1} m, then ${h} m`, { "font-size": 26, fill: "#4d3c2e" });
+            await api.wait(400);
+          }
+        },
+      },
+      {
+        say: "Phase 4, look back: did we answer the question asked, and is the answer reasonable? The tempting answer of 5 days ignores that the snail escapes before it can slide back.",
+        async draw(v, api) {
+          const rows = [["Did we answer the question asked?", "Day 4 ✓"], ["Is it reasonable?", "3 m + 2 m = 5 m ✓"], ["What was the trap?", "5 m ÷ 1 m per day = 5 days ✗"]];
+          for (let i = 0; i < rows.length; i++) {
+            const g = el("g", { opacity: 0 }, v);
+            el("rect", { x: 100, y: 70 + i * 150, width: 800, height: 120, rx: 24, fill: i === 2 ? "#fff4dc" : "#e3f4e7" }, g);
+            text(g, 140, 125 + i * 150, rows[i][0], { "text-anchor": "start", "font-size": 32, fill: "#2b1d12" });
+            text(g, 140, 168 + i * 150, rows[i][1], { "text-anchor": "start", "font-size": 28, fill: i === 2 ? "#a8632d" : "#2e7d46" });
+            await api.tween(600, (t) => g.setAttribute("opacity", t));
+            await api.wait(1200);
+          }
+        },
+      },
+      {
+        say: "In each room: five choices, A to E, or a number to enter. Hints appear only after an attempt. Then study the worked solution and explain its key idea in your own words, aloud or in your Solution Notebook.",
+        async draw(v, api) {
+          const items = [["🅰️", "Choose A to E"], ["💡", "3 hints, after an attempt"], ["📖", "Worked solution"], ["🗣️", "Explain it"]];
+          for (let i = 0; i < items.length; i++) {
+            const g = el("g", { opacity: 0 }, v);
+            const x = 70 + i * 225;
+            el("rect", { x, y: 140, width: 205, height: 260, rx: 26, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, g);
+            el("circle", { cx: x + 102, cy: 240, r: 66, fill: "var(--accent-soft)" }, g);
+            emoji(g, x + 102, 238, items[i][0], 74);
+            para(g, x + 102, 350, items[i][1], { size: 24, width: 190, anchor: "middle" });
+            await api.tween(500, (t) => g.setAttribute("opacity", t));
+            await api.wait(500);
+          }
+        },
+      },
+    ],
+    { alive: () => my === token, onDone: () => shell.go("ct1"), title: "Contest Room", doneLabel: "▶ Begin" }
+  );
+}
+
+let stopMock = null;
+const units = {
+  ct0: seeIt,
+  ct1: () => room("ct1"),
+  ct2: () => room("ct2"),
+  ct3: () => room("ct3"),
+  ct4: () => room("ct4"),
+  ct5: () => room("ct5"),
+  ct6: () => (stopMock = mock()),
+};
+
+const roomHow = (icon, title) => ({ icon, title, steps: ["Choose a problem. Set B gives twelve new ones each time.", "Answer it. After an attempt, 💡 offers a guiding question.", "Study 📖 the solution, then explain its key idea in your own words."] });
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    ct0: { icon: "👀", title: "See it", steps: ["Watch and listen to each scene.", "Press Next ▶ to continue.", "Press Begin when you are ready."] },
+    ct1: roomHow("🔢", "Number sense room"),
+    ct2: roomHow("🧠", "Logic & patterns room"),
+    ct3: roomHow("📐", "Geometry & shapes room"),
+    ct4: roomHow("🎲", "Counting room"),
+    ct5: roomHow("📖", "Word problems room"),
+    ct6: { icon: "🏅", title: "Monthly mock contest", steps: ["Answer twelve problems; skip one and return if needed.", "There are no hints during the contest, and it is not a race.", "Afterwards, see which topics to revisit and study every solution."] },
+  },
+  start: "ct0",
+  onStop() {
+    token += 1;
+    stopMock?.();
+    stopMock = null;
+    stage.querySelector(".ct-real")?.remove();
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Math",
+  activity: "Contest Room",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 78, 79, 80, 84]);
+MUSIC.preload("woodblock", [79]);
+</script>
+</body>
+</html>

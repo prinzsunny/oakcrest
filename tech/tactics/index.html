@@ -1,0 +1,2501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chess Tactics · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="tech">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Chess Tactics</b><small>Chess · Advanced</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>// ===== ENGINE START =====
+// A small, complete chess rules engine (no DOM): legal moves with check, pins, castling rights, en passant and
+// promotion; SAN notation; a mate solver; and a small alpha-beta search used to verify every puzzle.
+// The Node test (tactics.test.mjs) runs this section on its own: perft counts, then every puzzle.
+const FILES = "abcdefgh";
+const sqName = (s) => FILES[s & 7] + ((s >> 3) + 1);
+const sqOf = (n) => FILES.indexOf(n[0]) + (Number(n[1]) - 1) * 8;
+const colorOf = (p) => (p ? (p === p.toUpperCase() ? "w" : "b") : null);
+const other = (c) => (c === "w" ? "b" : "w");
+const KNIGHT = [[1, 2], [2, 1], [2, -1], [1, -2], [-1, -2], [-2, -1], [-2, 1], [-1, 2]];
+const KING = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+const ORTH = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const DIAG = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+const on = (f, r) => f >= 0 && f < 8 && r >= 0 && r < 8;
+const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+const valueOf = (p) => (p ? VALUE[p.toLowerCase()] : 0);
+
+function parseFEN(fen) {
+  const [rows, turn = "w", castle = "-", ep = "-"] = fen.trim().split(/\s+/);
+  const board = Array(64).fill(null);
+  rows.split("/").forEach((row, i) => {
+    let f = 0;
+    for (const c of row) {
+      if (/\d/.test(c)) f += Number(c);
+      else board[(7 - i) * 8 + f++] = c;
+    }
+  });
+  return { board, turn, castle: castle === "-" ? "" : castle, ep: ep === "-" ? -1 : sqOf(ep) };
+}
+function toFEN(pos) {
+  const rows = [];
+  for (let r = 7; r >= 0; r--) {
+    let row = "";
+    let gap = 0;
+    for (let f = 0; f < 8; f++) {
+      const p = pos.board[r * 8 + f];
+      if (!p) gap++;
+      else {
+        if (gap) row += gap;
+        gap = 0;
+        row += p;
+      }
+    }
+    rows.push(row + (gap || ""));
+  }
+  return `${rows.join("/")} ${pos.turn} ${pos.castle || "-"} ${pos.ep >= 0 ? sqName(pos.ep) : "-"}`;
+}
+
+// Squares the piece on s attacks (pawns: the two forward diagonals only).
+function attacksFrom(board, s) {
+  const p = board[s];
+  if (!p) return [];
+  const f = s & 7;
+  const r = s >> 3;
+  const out = [];
+  const t = p.toLowerCase();
+  const step = (list) => list.forEach(([df, dr]) => on(f + df, r + dr) && out.push((r + dr) * 8 + f + df));
+  const slide = (list) =>
+    list.forEach(([df, dr]) => {
+      let ff = f + df;
+      let rr = r + dr;
+      while (on(ff, rr)) {
+        out.push(rr * 8 + ff);
+        if (board[rr * 8 + ff]) break;
+        ff += df;
+        rr += dr;
+      }
+    });
+  if (t === "p") step([[-1, colorOf(p) === "w" ? 1 : -1], [1, colorOf(p) === "w" ? 1 : -1]]);
+  else if (t === "n") step(KNIGHT);
+  else if (t === "k") step(KING);
+  else if (t === "b") slide(DIAG);
+  else if (t === "r") slide(ORTH);
+  else if (t === "q") slide([...ORTH, ...DIAG]);
+  return out;
+}
+// Every piece of colour `by` that attacks square sq (looks outward from the square: fast).
+function attackers(board, sq, by) {
+  const out = [];
+  const f = sq & 7;
+  const r = sq >> 3;
+  const w = by === "w";
+  const is = (s, letters) => board[s] && colorOf(board[s]) === by && letters.includes(board[s].toLowerCase());
+  for (const [df, dr] of KNIGHT) if (on(f + df, r + dr) && is((r + dr) * 8 + f + df, "n")) out.push((r + dr) * 8 + f + df);
+  for (const [df, dr] of KING) if (on(f + df, r + dr) && is((r + dr) * 8 + f + df, "k")) out.push((r + dr) * 8 + f + df);
+  const pr = r + (w ? -1 : 1);
+  for (const df of [-1, 1]) if (on(f + df, pr) && is(pr * 8 + f + df, "p")) out.push(pr * 8 + f + df);
+  const ray = (dirs, letters) => {
+    for (const [df, dr] of dirs) {
+      let ff = f + df;
+      let rr = r + dr;
+      while (on(ff, rr)) {
+        const s = rr * 8 + ff;
+        if (board[s]) {
+          if (is(s, letters)) out.push(s);
+          break;
+        }
+        ff += df;
+        rr += dr;
+      }
+    }
+  };
+  ray(ORTH, "rq");
+  ray(DIAG, "bq");
+  return out;
+}
+const attacked = (board, sq, by) => attackers(board, sq, by).length > 0;
+const kingSq = (board, c) => board.indexOf(c === "w" ? "K" : "k");
+const inCheck = (pos, c = pos.turn) => {
+  const k = kingSq(pos.board, c);
+  return k >= 0 && attacked(pos.board, k, other(c));
+};
+
+function pseudoMoves(pos) {
+  const { board, turn } = pos;
+  const moves = [];
+  for (let s = 0; s < 64; s++) {
+    const p = board[s];
+    if (!p || colorOf(p) !== turn) continue;
+    const t = p.toLowerCase();
+    const f = s & 7;
+    const r = s >> 3;
+    const add = (to, extra = {}) => {
+      const tr = to >> 3;
+      if (t === "p" && (tr === 7 || tr === 0)) for (const promo of ["q", "r", "b", "n"]) moves.push({ from: s, to, piece: p, capture: board[to], promo, ...extra });
+      else moves.push({ from: s, to, piece: p, capture: board[to], ...extra });
+    };
+    if (t === "p") {
+      const dir = turn === "w" ? 1 : -1;
+      const one = s + dir * 8;
+      if (on(f, r + dir) && !board[one]) {
+        add(one);
+        const two = s + dir * 16;
+        if (r === (turn === "w" ? 1 : 6) && !board[two]) add(two, { double: true });
+      }
+      for (const df of [-1, 1]) {
+        if (!on(f + df, r + dir)) continue;
+        const to = (r + dir) * 8 + f + df;
+        if (board[to] && colorOf(board[to]) !== turn) add(to);
+        else if (to === pos.ep && !board[to]) moves.push({ from: s, to, piece: p, capture: turn === "w" ? "p" : "P", ep: true });
+      }
+    } else {
+      for (const to of attacksFrom(board, s)) if (!board[to] || colorOf(board[to]) !== turn) add(to);
+      if (t === "k") {
+        const home = turn === "w" ? 4 : 60;
+        const enemy = other(turn);
+        const rook = turn === "w" ? "R" : "r";
+        const [kSide, qSide] = turn === "w" ? ["K", "Q"] : ["k", "q"];
+        if (s === home && !attacked(board, home, enemy)) {
+          if (pos.castle.includes(kSide) && board[home + 3] === rook && !board[home + 1] && !board[home + 2] && !attacked(board, home + 1, enemy) && !attacked(board, home + 2, enemy)) moves.push({ from: s, to: home + 2, piece: p, castle: "k" });
+          if (pos.castle.includes(qSide) && board[home - 4] === rook && !board[home - 1] && !board[home - 2] && !board[home - 3] && !attacked(board, home - 1, enemy) && !attacked(board, home - 2, enemy)) moves.push({ from: s, to: home - 2, piece: p, castle: "q" });
+        }
+      }
+    }
+  }
+  return moves;
+}
+function makeMove(pos, m) {
+  const board = pos.board.slice();
+  const p = board[m.from];
+  board[m.from] = null;
+  board[m.to] = m.promo ? (colorOf(p) === "w" ? m.promo.toUpperCase() : m.promo) : p;
+  if (m.ep) board[m.to + (colorOf(p) === "w" ? -8 : 8)] = null;
+  if (m.castle === "k") {
+    board[m.from + 1] = board[m.from + 3];
+    board[m.from + 3] = null;
+  } else if (m.castle === "q") {
+    board[m.from - 1] = board[m.from - 4];
+    board[m.from - 4] = null;
+  }
+  let castle = pos.castle;
+  const drop = (chars) => (castle = [...castle].filter((c) => !chars.includes(c)).join(""));
+  if (p === "K") drop("KQ");
+  if (p === "k") drop("kq");
+  for (const [sq, c] of [[0, "Q"], [7, "K"], [56, "q"], [63, "k"]]) if (m.from === sq || m.to === sq) drop(c);
+  return { board, turn: other(pos.turn), castle, ep: m.double ? (m.from + m.to) / 2 : -1 };
+}
+const legalMoves = (pos) => pseudoMoves(pos).filter((m) => !inCheck(makeMove(pos, m), pos.turn));
+const isMate = (pos) => inCheck(pos) && legalMoves(pos).length === 0;
+const isStalemate = (pos) => !inCheck(pos) && legalMoves(pos).length === 0;
+function perft(pos, depth) {
+  if (!depth) return 1;
+  let n = 0;
+  for (const m of legalMoves(pos)) n += depth === 1 ? 1 : perft(makeMove(pos, m), depth - 1);
+  return n;
+}
+const uci = (m) => sqName(m.from) + sqName(m.to) + (m.promo || "");
+
+// Standard algebraic notation, with disambiguation, x, =Q, + and #.
+function san(pos, m) {
+  let s;
+  if (m.castle) s = m.castle === "k" ? "O-O" : "O-O-O";
+  else {
+    const t = m.piece.toLowerCase();
+    const cap = m.capture ? "x" : "";
+    if (t === "p") s = (cap ? FILES[m.from & 7] + "x" : "") + sqName(m.to) + (m.promo ? "=" + m.promo.toUpperCase() : "");
+    else {
+      const rivals = legalMoves(pos).filter((o) => o.piece === m.piece && o.to === m.to && o.from !== m.from);
+      let dis = "";
+      if (rivals.length) {
+        const sameFile = rivals.some((o) => (o.from & 7) === (m.from & 7));
+        const sameRank = rivals.some((o) => o.from >> 3 === m.from >> 3);
+        if (!sameFile) dis = FILES[m.from & 7];
+        else if (!sameRank) dis = String((m.from >> 3) + 1);
+        else dis = sqName(m.from);
+      }
+      s = t.toUpperCase() + dis + cap + sqName(m.to);
+    }
+  }
+  const after = makeMove(pos, m);
+  if (inCheck(after)) s += legalMoves(after).length ? "+" : "#";
+  return s;
+}
+// Find a legal move from UCI ("e2e4", "e7e8q") or SAN ("Nf3", "exd5", "O-O", "e8=Q+").
+function findMove(pos, str) {
+  const ms = legalMoves(pos);
+  const clean = str.replace(/[+#!?]/g, "").replace(/0/g, "O");
+  return ms.find((m) => uci(m) === clean) || ms.find((m) => san(pos, m).replace(/[+#]/g, "") === clean) || null;
+}
+// Play a list of moves; returns { positions, moves } or throws on an illegal move.
+function playLine(pos, list) {
+  const positions = [pos];
+  const moves = [];
+  for (const str of list) {
+    const m = findMove(positions[positions.length - 1], str);
+    if (!m) throw new Error(`illegal move ${str} in ${toFEN(positions[positions.length - 1])}`);
+    moves.push(m);
+    positions.push(makeMove(positions[positions.length - 1], m));
+  }
+  return { positions, moves };
+}
+const sanLine = (pos, list, startNo = 1) => {
+  const { positions, moves } = playLine(pos, list);
+  let out = "";
+  moves.forEach((m, i) => {
+    const p = positions[i];
+    if (p.turn === "w") out += `${startNo + Math.floor(i / 2)}. `;
+    else if (i === 0) out += `${startNo}… `;
+    out += san(p, m) + " ";
+  });
+  return out.trim();
+};
+
+// ---- mate solver: can the side to move force mate in n moves or fewer? ----
+function forcesMate(pos, n) {
+  for (const m of legalMoves(pos)) if (mateAfter(makeMove(pos, m), n)) return true;
+  return false;
+}
+// After our move: is it mate now, or does every reply still allow a forced mate in n - 1?
+function mateAfter(after, n) {
+  const replies = legalMoves(after);
+  if (!replies.length) return inCheck(after);
+  if (n <= 1) return false;
+  return replies.every((r) => forcesMate(makeMove(after, r), n - 1));
+}
+const mateKeys = (pos, n) => legalMoves(pos).filter((m) => mateAfter(makeMove(pos, m), n));
+const mates = (pos) => mateKeys(pos, 1);
+
+// ---- a small search (material only, mate aware) for verifying tactics ----
+const MATE = 100000;
+function evaluate(pos) {
+  let s = 0;
+  for (const p of pos.board) if (p) s += (colorOf(p) === "w" ? 100 : -100) * valueOf(p);
+  return pos.turn === "w" ? s : -s;
+}
+const ordered = (ms) => ms.sort((a, b) => valueOf(b.capture) * 10 - valueOf(b.piece) + (b.promo ? 80 : 0) - (valueOf(a.capture) * 10 - valueOf(a.piece) + (a.promo ? 80 : 0)));
+let NODES = 0;
+function quiesce(pos, alpha, beta, ply, qd = 0) {
+  NODES++;
+  const check = inCheck(pos);
+  if (check) {
+    const ms = legalMoves(pos);
+    if (!ms.length) return -MATE + ply;
+    if (qd > 8) return evaluate(pos);
+    for (const m of ordered(ms)) {
+      const score = -quiesce(makeMove(pos, m), -beta, -alpha, ply + 1, qd + 1);
+      if (score >= beta) return score;
+      if (score > alpha) alpha = score;
+    }
+    return alpha;
+  }
+  const stand = evaluate(pos);
+  if (stand >= beta) return stand;
+  if (stand > alpha) alpha = stand;
+  if (qd > 8) return alpha;
+  for (const m of ordered(pseudoMoves(pos).filter((x) => x.capture || x.promo === "q"))) {
+    const next = makeMove(pos, m);
+    if (inCheck(next, pos.turn)) continue;
+    const score = -quiesce(next, -beta, -alpha, ply + 1, qd + 1);
+    if (score >= beta) return score;
+    if (score > alpha) alpha = score;
+  }
+  return alpha;
+}
+function search(pos, depth, alpha = -MATE * 2, beta = MATE * 2, ply = 0) {
+  if (depth <= 0) return quiesce(pos, alpha, beta, ply);
+  NODES++;
+  const ms = legalMoves(pos);
+  if (!ms.length) return inCheck(pos) ? -MATE + ply : 0;
+  let best = -MATE * 2;
+  for (const m of ordered(ms)) {
+    const score = -search(makeMove(pos, m), depth - 1, -beta, -alpha, ply + 1);
+    if (score > best) best = score;
+    if (score > alpha) alpha = score;
+    if (alpha >= beta) break;
+  }
+  return best;
+}
+// Score of every root move (from the mover's side), best first. With a margin, moves that cannot come within
+// `margin` of the best are only bounded (bound: true, the true score is at most the number shown).
+function rootScores(pos, depth, margin = 0) {
+  const ms = ordered(legalMoves(pos));
+  const out = [];
+  let top = -MATE * 2;
+  for (const m of ms) {
+    const floor = margin ? top - margin : -MATE * 2;
+    const score = -search(makeMove(pos, m), depth - 1, -MATE * 2, -floor, 1);
+    const bound = margin > 0 && score <= floor;
+    out.push({ m, score, bound });
+    if (score > top) top = score;
+  }
+  return out.sort((a, b) => b.score - a.score);
+}
+// Principal line from a position (best move each ply, to depth).
+function bestLine(pos, depth) {
+  const line = [];
+  let p = pos;
+  for (let d = depth; d > 0; d--) {
+    const sc = rootScores(p, d);
+    if (!sc.length) break;
+    line.push(uci(sc[0].m));
+    p = makeMove(p, sc[0].m);
+  }
+  return line;
+}
+// A position is fair to show: one king each, no pawns on the end ranks, the side NOT to move is not in check.
+function sane(pos) {
+  const { board } = pos;
+  if (board.filter((p) => p === "K").length !== 1 || board.filter((p) => p === "k").length !== 1) return false;
+  for (let f = 0; f < 8; f++) if (/[pP]/.test(board[f] || "") || /[pP]/.test(board[56 + f] || "")) return false;
+  return !inCheck(pos, other(pos.turn));
+}
+
+// ===== THEMES START =====
+// Theme detectors: given a position and its verified line, say truthfully which tactic the key move is.
+// Used by the generator and by the Node test (each puzzle's theme must be detected in its own line).
+const RAYS = [...ORTH, ...DIAG];
+const slides = (p, df, dr) => {
+  const t = p.toLowerCase();
+  const diag = df !== 0 && dr !== 0;
+  return t === "q" || (t === "r" && !diag) || (t === "b" && diag);
+};
+// Pieces seen along one ray from s (in order), up to 2.
+function along(board, s, df, dr) {
+  const out = [];
+  let f = (s & 7) + df;
+  let r = (s >> 3) + dr;
+  while (on(f, r) && out.length < 2) {
+    const q = r * 8 + f;
+    if (board[q]) out.push(q);
+    f += df;
+    r += dr;
+  }
+  return out;
+}
+const isBlack = (p) => p && colorOf(p) === "b";
+const isWhite = (p) => p && colorOf(p) === "w";
+function detect(pos, line) {
+  const { positions, moves } = playLine(pos, line);
+  const key = moves[0];
+  const after = positions[1];
+  const b = after.board;
+  const found = {};
+  const later = moves.filter((m, i) => i > 0 && i % 2 === 0);
+  const P = b[key.to];
+  const checkers = attackers(b, kingSq(b, "b"), "w");
+  if (checkers.length >= 2) found.double = { checkers };
+  // discovered: a different white slider now hits a black king/valuable piece through key.from
+  for (let s = 0; s < 64; s++) {
+    if (!isWhite(b[s]) || s === key.to || !/[bqrBQR]/.test(b[s])) continue;
+    for (const [df, dr] of RAYS) {
+      if (!slides(b[s], df, dr)) continue;
+      const seen = along(b, s, df, dr);
+      if (!seen.length || !isBlack(b[seen[0]])) continue;
+      const before = along(pos.board, s, df, dr);
+      if (before[0] !== key.from) continue;
+      const T = seen[0];
+      if (b[T] === "k") found.discovered = { by: s, target: T, check: true };
+      else if (valueOf(b[T]) >= 3 && later.some((m) => m.from === s && m.to === T) && !found.discovered) found.discovered = { by: s, target: T, check: false };
+    }
+  }
+  if (found.discovered && found.discovered.check && !found.double) {
+    // the gain must come from the uncovered piece or the moved piece
+  }
+  // fork: the moved piece attacks two or more worthwhile targets and later captures one of them
+  if (later.length) {
+    const hits = attacksFrom(b, key.to).filter((t) => isBlack(b[t]) && (b[t] === "k" || valueOf(b[t]) > valueOf(P) || attackers(b, t, "b").length === 0));
+    if (hits.length >= 2 && later.some((m) => m.from === key.to && hits.includes(m.to) && m.capture)) found.fork = { piece: P.toLowerCase(), targets: hits };
+  }
+  // pin and skewer along a line from the moved slider
+  if (/[bqrBQR]/.test(P) && moves[2]) {
+    for (const [df, dr] of RAYS) {
+      if (!slides(P, df, dr)) continue;
+      const [x, y] = along(b, key.to, df, dr);
+      if (x === undefined || y === undefined || !isBlack(b[x]) || !isBlack(b[y])) continue;
+      if (b[x] !== "k" && (b[y] === "k" || valueOf(b[y]) > valueOf(b[x])) && later.some((m) => m.to === x && m.capture) && moves[1].from !== x) found.pin = { pinned: x, behind: y, absolute: b[y] === "k" };
+      if ((b[x] === "k" || valueOf(b[x]) > valueOf(b[y])) && moves[1].from === x && later.some((m) => m.from === key.to && m.to === y)) found.skewer = { front: x, back: y };
+    }
+  }
+  // removing the defender / overloading
+  if (moves[2] && moves[2].capture) {
+    const z = moves[2].to;
+    const defendedBefore = (d) => attacksFrom(pos.board, d).includes(z);
+    if (key.capture && isBlack(pos.board[key.to]) && defendedBefore(key.to) && moves[1].to !== z && key.to !== z) found.remove = { defender: key.to, target: z };
+    if (moves[1].to === key.to && moves[1].capture && z !== key.to && defendedBefore(moves[1].from) && attackers(pos.board, z, "b").length === 1 && attackers(pos.board, z, "b")[0] === moves[1].from)
+      found.overload = { defender: moves[1].from, first: key.to, target: z };
+  }
+  return found;
+}
+// Back-rank mate: the final mate lands on Black's back rank, and the king's own pawns block its escape.
+function backRank(pos, line) {
+  const { positions, moves } = playLine(pos, line);
+  const last = positions[positions.length - 1];
+  if (!isMate(last)) return false;
+  const m = moves[moves.length - 1];
+  const k = kingSq(last.board, "b");
+  if (k >> 3 !== 7 || m.to >> 3 !== 7 || !/[RQ]/.test(last.board[m.to])) return false;
+  const f = k & 7;
+  return [f - 1, f, f + 1].filter((x) => x >= 0 && x < 8).some((x) => /[p]/.test(last.board[48 + x] || ""));
+}
+// ===== THEMES END =====
+
+// ---- words: every explanation is built from the verified line, so it is true of the position shown ----
+const PNAME = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
+const pname = (p) => PNAME[p.toLowerCase()];
+const at = (board, s) => `${pname(board[s])} on ${sqName(s)}`;
+const listWords = (items) => (items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`);
+const THEME = {
+  fork: { name: "Fork", icon: "🍴", def: "A fork is one piece attacking two or more enemy pieces at once; the opponent can usually save only one." },
+  pin: { name: "Pin", icon: "📌", def: "A pin holds a piece in place because a more valuable piece stands behind it on the same line." },
+  skewer: { name: "Skewer", icon: "🍢", def: "A skewer attacks a valuable piece; when it steps aside, the piece behind it is captured." },
+  discovered: { name: "Discovered attack", icon: "🚪", def: "A discovered attack: one piece moves out of a line and uncovers an attack by the piece behind it." },
+  double: { name: "Double check", icon: "‼️", def: "Double check: two pieces give check at once, so the king must move." },
+  remove: { name: "Removing the defender", icon: "🛡️", def: "Removing the defender: capture the guard, and what it guarded falls." },
+  overload: { name: "Deflection and overloading", icon: "🏋️", def: "Deflection and overloading: a defender with two duties cannot perform both; force it to capture or move, and what it guarded falls." },
+  back: { name: "Back-rank mate", icon: "🧱", def: "A back-rank mate: a rook or queen checks along the last rank while the king's own pawns block its escape." },
+  mate1: { name: "Mate in 1", icon: "👑", def: "Checkmate in one move: check, and no legal reply escapes it." },
+  mate2: { name: "Mate in 2", icon: "♛", def: "Mate in two: a first move after which every Black reply allows checkmate." },
+};
+// Why a final position is checkmate: the check, the flight squares, and why the checker cannot be taken or blocked.
+function mateWhy(pos, m) {
+  const a = makeMove(pos, m);
+  const b = a.board;
+  const k = kingSq(b, "b");
+  const chk = attackers(b, k, "w");
+  const parts = [`${san(pos, m)}: the ${listWords(chk.map((s) => at(b, s)))} ${chk.length > 1 ? "give" : "gives"} check.`];
+  const blocked = [];
+  const covered = [];
+  const guarded = [];
+  const empty = b.slice();
+  empty[k] = null;
+  for (const [df, dr] of KING) {
+    const f = (k & 7) + df;
+    const r = (k >> 3) + dr;
+    if (!on(f, r)) continue;
+    const s = r * 8 + f;
+    if (b[s] && colorOf(b[s]) === "b") blocked.push(sqName(s));
+    else if (b[s]) {
+      if (!chk.includes(s)) guarded.push(`the ${at(b, s)}`);
+    } else {
+      const by = attackers(empty, s, "w");
+      if (by.length) covered.push(`${sqName(s)} (the ${at(b, by[0])})`);
+    }
+  }
+  if (blocked.length) parts.push(`Black's own pieces block ${listWords(blocked)}.`);
+  if (covered.length) parts.push(`White covers ${listWords(covered)}.`);
+  if (guarded.length) parts.push(`The king cannot capture ${listWords(guarded)}, because ${guarded.length > 1 ? "they are" : "it is"} protected.`);
+  if (chk.length > 1) parts.push("Two checks at once cannot both be blocked or captured.");
+  else {
+    const c = chk[0];
+    const takers = attackers(b, c, "b");
+    if (!takers.length) parts.push(`No Black piece can capture the ${pname(b[c])}.`);
+    else if (takers.every((s) => b[s] === "k")) parts.push(`The king cannot take the ${pname(b[c])}: it is protected.`);
+    else parts.push(`Capturing the ${pname(b[c])} is impossible here, because every capture would leave the king in check.`);
+    // a long-range check could in principle be blocked; say why it cannot
+    const gap = Math.max(Math.abs((c & 7) - (k & 7)), Math.abs((c >> 3) - (k >> 3)));
+    if (/[bqrBQR]/.test(b[c]) && gap > 1) parts.push("No Black piece can block the line between them.");
+  }
+  return parts.join(" ");
+}
+// What a puzzle teaches, in words, from its own verified line and detected theme.
+function lesson(p) {
+  const pos = parseFEN(p.fen);
+  const { positions, moves } = playLine(pos, p.line);
+  const sans = moves.map((m, i) => san(positions[i], m));
+  const b1 = positions[1].board;
+  const key = moves[0];
+  const full = sanLine(pos, p.line);
+  const th = p.m ? {} : detect(pos, p.line);
+  const info = th[p.t] || {};
+  // what changed hands along the whole line (1-3-3-5-9 count), so the summary is true of every step
+  const got = moves.filter((m, i) => i % 2 === 0 && m.capture).map((m) => m.capture);
+  const lost = moves.filter((m, i) => i % 2 === 1 && m.capture).map((m) => m.capture);
+  const promos = moves.filter((m, i) => i % 2 === 0 && m.promo).map((m) => m.promo);
+  const gotWords = [...got.map((c) => `the ${pname(c)}`), ...promos.map((c) => `a new ${pname(c)} by promotion`)];
+  const net = got.reduce((a, c) => a + valueOf(c), 0) + promos.reduce((a, c) => a + valueOf(c) - 1, 0) - lost.reduce((a, c) => a + valueOf(c), 0);
+  const wins = !gotWords.length ? "" : lost.length ? ` White gains ${listWords(gotWords)} and gives up the ${listWords(lost.map(pname))}: a net gain of ${net} points.` : ` White wins ${listWords(gotWords)}.`;
+  let why = "";
+  if (p.m) why = "";
+  else if (p.t === "fork") why = `${sans[0]} puts the ${pname(key.piece)} on ${sqName(key.to)}, where it attacks ${listWords(info.targets.filter((s) => valueOf(b1[s]) >= 3 || b1[s] === "k" || info.targets.length === 2).map((s) => "the " + at(b1, s)))} at once. Black cannot save everything.${wins}`;
+  else if (p.t === "pin") {
+    const kind = info.absolute ? "an absolute pin: moving it would expose the king, so it may not legally move" : `a relative pin: it may legally move, but then the ${pname(b1[info.behind])} behind it would be lost`;
+    why = `${sans[0]} pins the ${at(b1, info.pinned)} to the ${pname(b1[info.behind])} behind it. This is ${kind}. ${info.absolute ? "The pinned piece cannot escape." : "The pinned piece cannot step aside without exposing the piece behind it."}${wins}`;
+  } else if (p.t === "skewer") why = `${sans[0]} attacks the ${at(b1, info.front)}. The ${pname(b1[info.front])} ${b1[info.front] === "k" ? "must step aside" : "steps aside to avoid capture"} (${sans[1]}), and the ${pname(b1[info.back])} behind it on ${sqName(info.back)} is taken.`;
+  else if (p.t === "discovered") {
+    const by = at(b1, info.by);
+    why = info.check
+      ? `When the ${pname(key.piece)} leaves ${sqName(key.from)}, it uncovers the ${by}: discovered check. Black must spend the move answering the check, so White's next threat cannot also be stopped.${wins}`
+      : `When the ${pname(key.piece)} leaves ${sqName(key.from)}, it uncovers the ${by}, which now attacks the ${at(b1, info.target)}. Two threats arrive with one move.${wins}`;
+  } else if (p.t === "double") why = `${sans[0]} gives check from two pieces at once: ${listWords(info.checkers.map((s) => "the " + at(b1, s)))}. No single move can block or capture both, so the king must move.${wins}`;
+  else if (p.t === "remove") why = `The ${at(pos.board, info.defender)} was guarding ${sqName(info.target)}. ${sans[0]} removes it, and after ${sans[1]}, ${sans[2]} takes what it guarded${moves[2].capture ? ` (the ${pname(moves[2].capture)})` : ""}.`;
+  else if (p.t === "overload") why = `The ${at(pos.board, info.defender)} is the only guard of ${sqName(info.target)}. ${sans[0]} gives it a second duty on ${sqName(info.first)}, and it cannot do both: after ${sans[1]}, ${sans[2]} wins on ${sqName(info.target)}.`;
+  if (p.m) {
+    const dbl = attackers(b1, kingSq(b1, "b"), "w").length > 1 ? `${sans[0]} is a double check, so only a king move could help. ` : "";
+    if (p.m === 1 || p.line.length === 1) why = dbl + mateWhy(positions[positions.length - 2], moves[moves.length - 1]);
+    else {
+      const quiet = !inCheck(positions[1]) && !key.capture;
+      why = `${dbl}${sans[0]}${quiet ? " is a quiet move: it gives no check, yet every reply fails." : dbl ? "" : " is forcing."} Against ${sans[1]}, ${mateWhy(positions[2], moves[2])}`;
+    }
+  }
+  return { full, sans, why };
+}
+
+// 311 original positions, composed around each motif, proved by the in-app search and re-checked independently with Stockfish.
+const PUZ = [
+  {"id":"fork-001","t":"fork","fen":"6k1/8/8/5b2/6N1/6P1/7K/8 w - -","line":["g4h6","g8h8","h6f5"],"tags":["fork"],"lv":0},
+  {"id":"fork-002","t":"fork","fen":"3k4/8/8/8/3N1b2/7P/8/4K3 w - -","line":["d4e6","d8e7","e6f4"],"tags":["fork"],"lv":0},
+  {"id":"fork-003","t":"fork","fen":"4b3/7k/7p/7N/8/3P1P2/4K3/8 w - -","line":["h5f6","h7g6","f6e8"],"tags":["fork"],"lv":0},
+  {"id":"fork-006","t":"fork","fen":"5k2/6N1/p6p/8/3r4/6B1/8/6K1 w - -","line":["g7e6","f8g8","e6d4"],"tags":["fork"],"lv":0},
+  {"id":"fork-007","t":"fork","fen":"8/4r1k1/3N1p2/8/8/8/1P1P4/2K5 w - -","line":["d6f5","g7f8","f5e7"],"tags":["fork"],"lv":0},
+  {"id":"fork-008","t":"fork","fen":"8/5Nnk/8/8/8/5b2/BPP5/1K6 w - -","line":["f7g5","h7h8","g5f3"],"tags":["fork"],"lv":0},
+  {"id":"fork-009","t":"fork","fen":"4r3/7k/4p1p1/3N4/8/2P5/6B1/1K6 w - -","line":["d5f6","h7g7","f6e8"],"tags":["fork"],"lv":0},
+  {"id":"fork-011","t":"fork","fen":"5r2/2N1k3/4pp2/8/5N2/8/7P/7K w - -","line":["f4g6","e7f7","g6f8"],"tags":["fork"],"lv":0},
+  {"id":"fork-014","t":"fork","fen":"3k1rn1/5n2/8/6N1/2R5/8/8/5KR1 w - -","line":["g5e6","d8e7","e6f8"],"tags":["fork"],"lv":0},
+  {"id":"fork-015","t":"fork","fen":"1Q6/2N3q1/3P4/2b5/5k2/8/1P5K/8 w - -","line":["c7e6","f4e5","e6g7"],"tags":["fork"],"lv":0},
+  {"id":"fork-016","t":"fork","fen":"2k5/1p1N4/3P4/8/2b1P1b1/8/7B/7K w - -","line":["d7b6","c8d8","b6c4"],"tags":["fork"],"calc":1,"lv":0},
+  {"id":"fork-018","t":"fork","fen":"2k1r3/1p1p4/8/5P2/4N3/8/1P1P4/2K5 w - -","line":["e4d6","c8d8","d6e8"],"tags":["fork"],"calc":1,"lv":1},
+  {"id":"fork-019","t":"fork","fen":"4k3/1N2P2r/8/B7/4r3/8/P1P5/1K6 w - -","line":["b7d6","e8e7","d6e4"],"tags":["fork"],"lv":1},
+  {"id":"fork-020","t":"fork","fen":"2k5/1pp5/2r3N1/8/3P1P2/7P/6K1/8 w - -","line":["g6e7","c8d7","e7c6"],"tags":["fork"],"lv":1},
+  {"id":"fork-022","t":"fork","fen":"r3k3/3p1N2/b3N3/5B2/8/8/7P/6K1 w - -","line":["e6c7","e8f7","c7a8"],"tags":["fork"],"lv":1},
+  {"id":"fork-023","t":"fork","fen":"2N1N1k1/3b1p2/8/6p1/8/5p2/6PP/6K1 w - -","line":["e8f6","g8g7","f6d7"],"tags":["fork"],"lv":1},
+  {"id":"fork-024","t":"fork","fen":"7k/8/b2r2pN/3p3Q/2p5/7P/7K/8 w - -","line":["h5e5","h8h7","e5d6"],"ok":{"2":["h6f7"]},"tags":["fork"],"lv":1},
+  {"id":"fork-025","t":"fork","fen":"2k5/6rb/4N3/5Q2/8/8/1p2P1P1/5Kb1 w - -","line":["f5f8","c8d7","f8g7"],"tags":["fork"],"lv":1},
+  {"id":"fork-027","t":"fork","fen":"4k3/4pp2/8/1n2rb1Q/P7/8/5N2/6K1 w - -","line":["h5h8","e8d7","h8e5"],"tags":["fork"],"calc":1,"lv":1},
+  {"id":"fork-028","t":"fork","fen":"6k1/5pp1/6N1/3b4/1p6/3P4/1P1P4/2K5 w - -","line":["g6e7","g8h8","e7d5"],"tags":["fork"],"lv":1},
+  {"id":"fork-030","t":"fork","fen":"B4r2/1P2k3/3p4/4b2p/5N2/8/8/2KR4 w - -","line":["f4g6","e7f7","g6f8"],"tags":["fork"],"lv":1},
+  {"id":"fork-031","t":"fork","fen":"5k2/4p3/8/6r1/3N4/2Bn4/3P1PPP/6K1 w - -","line":["d4e6","f8g8","e6g5"],"tags":["fork"],"lv":1},
+  {"id":"fork-032","t":"fork","fen":"8/6k1/2b2p1p/6N1/3r4/1B5P/5PP1/5K2 w - -","line":["g5e6","g7h7","e6d4"],"tags":["fork"],"lv":2},
+  {"id":"fork-033","t":"fork","fen":"8/q3k3/7p/8/1N1p4/5P1P/r3NQK1/8 w - -","line":["b4c6","e7f7","c6a7"],"tags":["fork"],"lv":2},
+  {"id":"fork-034","t":"fork","fen":"4k3/3ppp1p/N7/3b4/8/8/1P1PPP2/2K5 w - -","line":["a6c7","e8f8","c7d5"],"tags":["fork"],"lv":2},
+  {"id":"fork-036","t":"fork","fen":"5b1k/5n2/4b1B1/1Q1n4/8/8/8/6K1 w - -","line":["b5e8","h8g7","e8e6"],"tags":["fork"],"lv":2},
+  {"id":"fork-038","t":"fork","fen":"3N3k/6pp/7q/1P3B2/8/8/P2PPP2/4K3 w - -","line":["d8f7","h8g8","f7h6"],"tags":["fork"],"calc":1,"lv":2},
+  {"id":"fork-040","t":"fork","fen":"1k5n/2p1Qq2/6b1/8/8/P1N5/4PPR1/b4K2 w - -","line":["e7d8","b8a7","d8h8"],"ok":{"2":["d8d4"]},"tags":["fork"],"lv":2},
+  {"id":"fork-041","t":"fork","fen":"3k1r2/pnr4P/8/2N5/2B5/4N2P/P7/6BK w - -","line":["c5e6","d8c8","e6f8"],"tags":["fork"],"lv":2},
+  {"id":"fork-043","t":"fork","fen":"3k4/8/N3B3/Nn2R3/3q1P2/6P1/3r1P1P/6K1 w - -","line":["a5c6","d8e8","c6d4"],"tags":["fork"],"calc":1,"lv":2},
+  {"id":"fork-045","t":"fork","fen":"2k5/1N1p4/5P2/1qnR1b2/4P3/1N3P2/4PP2/4K3 w - -","line":["b7d6","c8d8","d6b5"],"tags":["fork"],"lv":2},
+  {"id":"fork-046","t":"fork","fen":"3q4/2n1k3/N2p2P1/b3N2R/8/PP6/PP4P1/1K6 w - -","line":["e5c6","e7f6","c6d8"],"tags":["fork"],"lv":2},
+  {"id":"fork-048","t":"fork","fen":"3r1k2/4pp2/3N4/2q5/2N5/3P4/1B4PP/1R5K w - -","line":["d6b7","c5d5","b7d8"],"tags":["fork"],"lv":2},
+  {"id":"pin-050","t":"pin","fen":"8/3n2k1/1R5p/8/8/8/8/4K3 w - -","line":["b6b7","g7f6","b7d7"],"tags":["pin"],"lv":0},
+  {"id":"pin-052","t":"pin","fen":"3k4/8/8/8/3n4/1p6/1R5K/8 w - -","line":["b2d2","d8d7","d2d4"],"tags":["pin"],"lv":0},
+  {"id":"pin-055","t":"pin","fen":"3n2k1/5p1p/8/8/8/8/2R5/7K w - -","line":["c2c8","g8h8","c8d8"],"ok":{"2":["c8a8","c8b8","h1g1","h1g2","h1h2"]},"tags":["pin"],"lv":0},
+  {"id":"pin-056","t":"pin","fen":"7k/B5r1/8/8/8/5PP1/6K1/8 w - -","line":["a7d4","h8h7","d4g7"],"tags":["pin"],"lv":0},
+  {"id":"pin-058","t":"pin","fen":"8/4b2k/6pp/8/3R4/8/8/6K1 w - -","line":["d4d7","h7g7","d7e7"],"tags":["pin"],"lv":0},
+  {"id":"pin-059","t":"pin","fen":"6k1/8/4r3/1B6/8/8/3PP3/4K3 w - -","line":["b5c4","g8f7","c4e6"],"ok":{"2":["c4a2","c4b3","c4d5","d2d4","e1d1","e1f2","e2e4"]},"tags":["pin"],"lv":0},
+  {"id":"pin-060","t":"pin","fen":"8/8/6B1/1k6/2r5/8/5PP1/6K1 w - -","line":["g6d3","b5c5","d3c4"],"tags":["pin"],"lv":0},
+  {"id":"pin-061","t":"pin","fen":"1k2b3/pp6/8/8/8/6R1/7K/8 w - -","line":["g3g8","b8c8","g8e8"],"tags":["pin"],"lv":0},
+  {"id":"pin-062","t":"pin","fen":"2k5/8/p7/2n5/8/4P3/4K3/4R3 w - -","line":["e1c1","c8b8","c1c5"],"tags":["pin"],"lv":1},
+  {"id":"pin-063","t":"pin","fen":"8/2pp4/k7/8/8/n7/4R1K1/8 w - -","line":["e2a2","a6b6","a2a3"],"tags":["pin"],"lv":1},
+  {"id":"pin-065","t":"pin","fen":"3k4/2rp4/8/8/3B4/4P3/4K1N1/8 w - -","line":["d4b6","d8c8","b6c7"],"tags":["pin"],"lv":1},
+  {"id":"pin-066","t":"pin","fen":"8/3b2k1/6pp/8/8/P7/1R6/4K3 w - -","line":["b2b7","g7f6","b7d7"],"tags":["pin"],"lv":1},
+  {"id":"pin-067","t":"pin","fen":"8/6k1/4p3/8/8/4p1n1/4P2R/4K3 w - -","line":["h2g2","g7h6","g2g3"],"tags":["pin"],"lv":1},
+  {"id":"pin-068","t":"pin","fen":"6k1/3B1r2/7P/8/8/8/3P1P2/4K3 w - -","line":["d7e6","g8f8","e6f7"],"tags":["pin"],"lv":1},
+  {"id":"pin-070","t":"pin","fen":"k7/8/1p6/3n4/6B1/1p6/4P3/5K2 w - -","line":["g4f3","a8b8","f3d5"],"tags":["pin"],"lv":1},
+  {"id":"pin-075","t":"pin","fen":"2n2k2/4p1p1/8/8/R7/6PP/7K/8 w - -","line":["a4a8","f8g8","a8c8"],"ok":{"2":["a8b8","h2g2","h2h1"]},"tags":["pin"],"lv":1},
+  {"id":"pin-076","t":"pin","fen":"4bk2/5P2/R7/6N1/3b4/n7/4K3/8 w - -","line":["a6a8","f8e7","f7e8q"],"tags":["pin"],"lv":2},
+  {"id":"pin-077","t":"pin","fen":"8/4b2k/4p3/4p2p/1R6/8/1P1P4/2K5 w - -","line":["b4b7","h7g7","b7e7"],"tags":["pin"],"lv":2},
+  {"id":"pin-078","t":"pin","fen":"8/1b2k3/3p1p2/7p/4P3/8/R2P4/4K3 w - -","line":["a2a7","e7e6","a7b7"],"tags":["pin"],"lv":2},
+  {"id":"pin-080","t":"pin","fen":"3b2k1/5ppp/2R5/8/8/6P1/5P1P/6K1 w - -","line":["c6c8","g8f8","c8d8"],"tags":["pin"],"lv":2},
+  {"id":"pin-084","t":"pin","fen":"5k2/5pp1/8/2n2P2/7p/7P/1B5P/7K w - -","line":["b2a3","f8e7","a3c5"],"tags":["pin"],"lv":2},
+  {"id":"pin-086","t":"pin","fen":"6k1/2p4b/6P1/8/B1rB4/5PPP/6K1/8 w - -","line":["a4b3","h7g6","b3c4"],"tags":["pin"],"calc":1,"lv":2},
+  {"id":"pin-087","t":"pin","fen":"1B6/2n1k3/3ppp2/2p5/1R6/6PP/3b3K/8 w - -","line":["b4b7","e7d8","b7c7"],"tags":["pin"],"lv":2,"ok":{"2":["b8c7"]}},
+  {"id":"skewer-094","t":"skewer","fen":"n2k4/4p3/8/8/5R2/8/8/6K1 w - -","line":["f4f8","d8d7","f8a8"],"tags":["skewer"],"lv":0},
+  {"id":"skewer-095","t":"skewer","fen":"3k3n/3p4/8/8/6p1/8/1R6/1K6 w - -","line":["b2b8","d8c7","b8h8"],"tags":["skewer"],"lv":0},
+  {"id":"skewer-096","t":"skewer","fen":"8/3R4/3p4/8/1k6/1q6/R3K3/8 w - -","line":["d7b7","b4c3","b7b3"],"tags":["skewer"],"lv":0},
+  {"id":"skewer-098","t":"skewer","fen":"8/8/7B/4k3/8/8/1r4PP/6K1 w - -","line":["h6g7","e5f4","g7b2"],"tags":["skewer"],"lv":0},
+  {"id":"skewer-101","t":"skewer","fen":"2kr4/2pp4/8/8/8/5P2/R7/2K5 w - -","line":["a2a8","c8b7","a8d8"],"tags":["skewer"],"calc":1,"lv":0},
+  {"id":"skewer-102","t":"skewer","fen":"8/1r2k3/4p3/8/6R1/8/3P1P2/4K3 w - -","line":["g4g7","e7d6","g7b7"],"tags":["skewer"],"lv":0},
+  {"id":"skewer-103","t":"skewer","fen":"5b2/4k2b/3p4/8/5N2/2R5/7K/8 w - -","line":["c3c7","e7e8","c7h7"],"tags":["skewer"],"lv":0},
+  {"id":"skewer-104","t":"skewer","fen":"4B3/2p5/8/2Pk4/8/1b6/4P3/4K3 w - -","line":["e8f7","d5c5","f7b3"],"tags":["skewer"],"lv":0},
+  {"id":"skewer-106","t":"skewer","fen":"5k1b/5pp1/8/8/2R5/8/4P1P1/5K2 w - -","line":["c4c8","f8e7","c8h8"],"tags":["skewer"],"calc":1,"lv":0},
+  {"id":"skewer-107","t":"skewer","fen":"6kr/6pp/8/4R3/8/6PP/7K/8 w - -","line":["e5e8","g8f7","e8h8"],"tags":["skewer"],"calc":1,"lv":1},
+  {"id":"skewer-111","t":"skewer","fen":"B7/7r/5p2/5k2/8/5P2/2P3K1/6N1 w - -","line":["a8e4","f5g5","e4h7"],"tags":["skewer"],"lv":1},
+  {"id":"skewer-112","t":"skewer","fen":"8/3pp1b1/8/4k3/8/6P1/7P/4B1K1 w - -","line":["e1c3","e5f5","c3g7"],"tags":["skewer"],"lv":1},
+  {"id":"skewer-113","t":"skewer","fen":"8/4k2b/3pp3/R7/2P5/8/7P/5K2 w - -","line":["a5a7","e7f6","a7h7"],"tags":["skewer"],"lv":1},
+  {"id":"skewer-114","t":"skewer","fen":"8/1B4nN/4k3/7P/6r1/8/P7/5K2 w - -","line":["b7c8","e6f7","c8g4"],"tags":["skewer"],"lv":1},
+  {"id":"skewer-115","t":"skewer","fen":"1q3k2/8/8/4n3/8/7R/6PB/4NK2 w - -","line":["h3h8","f8e7","h8b8"],"tags":["skewer"],"lv":1},
+  {"id":"skewer-118","t":"skewer","fen":"4k1r1/3p1pn1/2R5/8/8/1P6/2N5/2K5 w - -","line":["c6c8","e8e7","c8g8"],"tags":["skewer"],"calc":1,"lv":1},
+  {"id":"skewer-120","t":"skewer","fen":"R7/4k2n/3pp3/6p1/6p1/8/PP6/1K6 w - -","line":["a8a7","e7f8","a7h7"],"tags":["skewer"],"lv":1},
+  {"id":"skewer-121","t":"skewer","fen":"8/2qk2N1/6P1/P7/1P6/8/2n2R1P/7K w - -","line":["f2f7","d7c8","f7c7"],"tags":["skewer"],"lv":1},
+  {"id":"skewer-123","t":"skewer","fen":"8/2rk4/8/8/n7/2N1b2P/3PP1R1/4K3 w - -","line":["g2g7","d7d8","g7c7"],"ok":{"2":["g7g8"]},"tags":["skewer"],"lv":2},
+  {"id":"skewer-129","t":"skewer","fen":"8/5pp1/3kq3/1R6/6N1/2p5/3PPP2/4K3 w - -","line":["b5b6","d6d7","b6e6"],"tags":["skewer"],"lv":2},
+  {"id":"skewer-132","t":"skewer","fen":"8/4k2q/4pp2/5p2/4r1B1/8/1R4PP/1Q5K w - -","line":["b2b7","e7f8","b7h7"],"tags":["skewer"],"lv":2},
+  {"id":"skewer-133","t":"skewer","fen":"6kr/8/5R1b/2P4b/5PP1/3n3P/1R5K/8 w - -","line":["b2b8","g8g7","b8h8"],"tags":["skewer"],"lv":2},
+  {"id":"skewer-134","t":"skewer","fen":"2B5/p4ppp/8/8/4n3/3k2P1/2RPn3/1K6 w - -","line":["c8a6","d3d4","a6e2"],"tags":["skewer"],"calc":1,"lv":2},
+  {"id":"skewer-135","t":"skewer","fen":"1r1k2n1/3pn3/4pB2/5PR1/6P1/5P1N/4K3/8 w - -","line":["g5g8","d8c7","g8b8"],"tags":["skewer"],"calc":1,"lv":2},
+  {"id":"skewer-136","t":"skewer","fen":"5kq1/1B3pp1/2P4P/3r3B/8/R7/3P2P1/7K w - -","line":["a3a8","f8e7","a8g8"],"tags":["skewer"],"calc":1,"lv":2},
+  {"id":"skewer-138","t":"skewer","fen":"1b2q3/1PBrk3/3p4/8/P4RPP/7B/3P1P2/4K3 w - -","line":["f4e4","e7f7","e4e8"],"tags":["skewer"],"lv":2},
+  {"id":"discovered-139","t":"discovered","fen":"8/3bk2r/4N3/8/8/4R3/8/6K1 w - -","line":["e6g5","e7f8","g5h7"],"tags":["discovered"],"lv":0},
+  {"id":"discovered-140","t":"discovered","fen":"8/3pk3/5R2/2b3B1/1n6/8/4K3/8 w - -","line":["f6c6","e7f7","c6c5"],"tags":["discovered"],"lv":0},
+  {"id":"discovered-149","t":"discovered","fen":"3R1Nk1/5r2/8/3b4/1P6/3PP3/4K2b/8 w - -","line":["f8e6","g8h7","d8d5"],"tags":["discovered"],"calc":1,"lv":0},
+  {"id":"discovered-155","t":"discovered","fen":"2R1Nk2/5n2/n7/8/2p2b2/5P2/3P3P/7K w - -","line":["e8c7","f8e7","c7a6"],"tags":["discovered"],"lv":0},
+  {"id":"discovered-159","t":"discovered","fen":"6k1/3r1N2/3N1p2/3Bp3/8/8/1b4PP/7K w - -","line":["f7e5","g8h8","e5d7"],"tags":["discovered"],"lv":1},
+  {"id":"discovered-165","t":"discovered","fen":"8/4kbn1/3n1R2/pp2p3/7Q/p1p5/8/2K5 w - -","line":["f6g6","e7d7","g6g7"],"tags":["discovered"],"lv":1},
+  {"id":"discovered-168","t":"discovered","fen":"1R1Nk3/6b1/8/5pb1/6p1/3P1P2/n3K2N/8 w - -","line":["d8e6","e8d7","e6g7"],"ok":{"2":["e6g5"]},"tags":["discovered","fork"],"lv":1},
+  {"id":"discovered-169","t":"discovered","fen":"2RNk1N1/4pp2/8/1P3b2/3n4/n1p1P3/8/4K3 w - -","line":["d8e6","e8d7","e6d4"],"tags":["discovered"],"calc":1,"lv":1},
+  {"id":"discovered-170","t":"discovered","fen":"1k3NR1/5p1P/6n1/1pb1p3/8/2pPP3/4K3/8 w - -","line":["f8g6","b8a7","h7h8q"],"tags":["discovered"],"lv":2},
+  {"id":"discovered-172","t":"discovered","fen":"1k6/1pb3n1/8/8/ppB2R1P/b5B1/7P/6K1 w - -","line":["f4f8","b8a7","g3c7"],"tags":["discovered"],"calc":1,"lv":2},
+  {"id":"discovered-180","t":"discovered","fen":"8/1b2kBR1/3pBp2/1b4p1/4p1p1/8/5PPP/6K1 w - -","line":["f7g8","e7f8","g7b7"],"ok":{"2":["g7f7"]},"tags":["discovered"],"lv":2},
+  {"id":"discovered-182","t":"discovered","fen":"3k4/1p1Bp3/5P2/r2R4/Pb1p4/4b3/1PPP3P/2K5 w - -","line":["d7b5","d8c8","d2e3"],"tags":["discovered"],"lv":2},
+  {"id":"double-184","t":"double","fen":"8/R1N1k3/8/1p6/5r2/8/8/4K3 w - -","line":["c7d5","e7d6","d5f4"],"tags":["double","discovered","fork"],"lv":0},
+  {"id":"double-189","t":"double","fen":"r3k3/8/4p1R1/N6B/1b6/4P3/4K3/2b5 w - -","line":["g6g8","e8d7","g8a8"],"tags":["double","discovered","skewer"],"lv":0},
+  {"id":"double-190","t":"double","fen":"1nk3NR/2pp4/6r1/8/8/3P1P2/4K3/8 w - -","line":["g8e7","c8b7","e7g6"],"tags":["double","discovered","fork"],"calc":1,"lv":0},
+  {"id":"double-192","t":"double","fen":"2k5/1N6/B2n4/pn6/4p3/8/PPP5/1K6 w - -","line":["b7d6","c8c7","d6e4"],"tags":["double","discovered","fork","remove"],"lv":0,"ok":{"2":["d6b5","d6c4"]}},
+  {"id":"double-193","t":"double","fen":"2k1N1R1/2p5/8/Pr6/r5P1/6PP/7K/8 w - -","line":["e8d6","c8d7","d6b5"],"tags":["double","discovered","fork"],"calc":1,"lv":1},
+  {"id":"double-194","t":"double","fen":"1b6/6Pk/n7/2pn3N/5P2/6PR/6K1/8 w - -","line":["h5f6","h7g7","f6d5"],"tags":["double","discovered","fork"],"calc":1,"lv":1},
+  {"id":"double-198","t":"double","fen":"3k1NR1/2pp4/4b3/6n1/4P3/pP5n/5NK1/8 w - -","line":["f8e6","d8e7","e6g5"],"tags":["double","discovered"],"calc":1,"lv":1},
+  {"id":"double-199","t":"double","fen":"5k2/4p3/5Nn1/6r1/1P3RP1/1bp5/2P2B2/1K6 w - -","line":["f6h7","f8g7","h7g5"],"tags":["double","discovered","fork"],"lv":1},
+  {"id":"double-201","t":"double","fen":"6k1/4nN2/2b5/5b2/pr1R1p2/1Q6/1PpP4/2K5 w - -","line":["f7h6","g8h7","b3b4"],"tags":["double","discovered"],"lv":2},
+  {"id":"double-203","t":"double","fen":"3k4/pnppR3/2P5/6Q1/7b/1p6/5PPr/6K1 w - -","line":["e7d7","d8c8","c6b7"],"tags":["double","discovered"],"lv":2},
+  {"id":"double-205","t":"double","fen":"1k3NQ1/pp3b2/5pn1/3p1p2/1b3p2/8/1PPP4/2K5 w - -","line":["f8d7","b8c7","g8f7"],"tags":["double","discovered"],"calc":1,"lv":2},
+  {"id":"double-206","t":"double","fen":"QN1k4/p2p1pn1/2b5/8/p6p/4n1b1/1P1PN3/2K5 w - -","line":["b8c6","d8c7","d2e3"],"tags":["double","discovered"],"calc":1,"lv":2},
+  {"id":"remove-209","t":"remove","fen":"8/2QBk3/1p4n1/1b3p2/2b5/8/8/7K w - -","line":["d7b5","e7f6","b5c4"],"tags":["remove","discovered"],"lv":0},
+  {"id":"remove-211","t":"remove","fen":"8/R1n3k1/2B2p2/1n6/8/3P4/4K3/8 w - -","line":["c6b5","g7g6","a7c7"],"tags":["remove"],"lv":0},
+  {"id":"remove-212","t":"remove","fen":"7k/1b5p/8/8/B2N4/2B3n1/2P1n3/1K6 w - -","line":["d4e2","h8g8","e2g3"],"ok":{"2":["a4b3"]},"tags":["remove","discovered"],"calc":1,"lv":0},
+  {"id":"remove-215","t":"remove","fen":"2k5/1np5/1BP5/b7/8/8/PPP5/1K6 w - -","line":["c6b7","c8b7","b6a5"],"tags":["remove"],"lv":0},
+  {"id":"remove-216","t":"remove","fen":"2B5/4R1Nk/6p1/2p2n2/6p1/6n1/6p1/6K1 w - -","line":["g7f5","h7g8","f5g3"],"ok":{"2":["c8e6"]},"tags":["remove","discovered"],"lv":0},
+  {"id":"remove-217","t":"remove","fen":"3k4/2np4/r2P4/2N5/8/2PPPP2/4K3/8 w - -","line":["d6c7","d8c7","c5a6"],"tags":["remove"],"calc":1,"lv":0},
+  {"id":"remove-218","t":"remove","fen":"8/4k3/2pp3B/4N3/p7/5n2/4Rp1n/2K5 w - -","line":["e5f3","e7f7","f3h2"],"tags":["remove","discovered"],"lv":1},
+  {"id":"remove-219","t":"remove","fen":"4b3/2n3k1/1bn1pN2/8/2Q5/8/P1P5/1K6 w - -","line":["f6e8","c7e8","c4c6"],"tags":["remove"],"lv":1},
+  {"id":"remove-222","t":"remove","fen":"3k2NQ/4p3/1b3n2/1p6/4b3/8/p5PP/7K w - -","line":["g8f6","d8c7","f6e4"],"tags":["remove","discovered"],"calc":1,"lv":1},
+  {"id":"remove-223","t":"remove","fen":"8/2Q2Bk1/2n3p1/3pp3/4b3/1p6/5p1P/5K2 w - -","line":["f7d5","g7h6","d5e4"],"tags":["remove","discovered","fork"],"calc":1,"lv":1},
+  {"id":"remove-227","t":"remove","fen":"6k1/5ppp/2q4r/2Q5/6N1/2P2PPP/6K1/8 w - -","line":["g4h6","g7h6","c5c6"],"tags":["remove"],"calc":1,"lv":1},
+  {"id":"remove-228","t":"remove","fen":"4n2k/6b1/5r1P/P3P3/3B4/P7/Pp1N4/1K6 w - -","line":["h6g7","h8g7","e5f6"],"tags":["remove"],"lv":2},
+  {"id":"remove-234","t":"remove","fen":"8/p3RB1k/8/3bN3/1P1pb1n1/2P5/2n3P1/5K2 w - -","line":["f7d5","h7h8","d5e4"],"tags":["remove","discovered"],"lv":2},
+  {"id":"remove-235","t":"remove","fen":"8/1RB1k2p/1b2pp2/8/1p6/P1p5/B4b1p/7K w - -","line":["c7b6","e7d6","b6f2"],"tags":["remove","discovered"],"lv":2},
+  {"id":"remove-236","t":"remove","fen":"3RB1k1/8/b7/Nb2P2n/5p2/8/1pnN2P1/6K1 w - -","line":["e8b5","g8f7","b5a6"],"tags":["remove","discovered"],"lv":2},
+  {"id":"remove-243","t":"remove","fen":"1k1N2Q1/5bp1/6q1/p7/1pp2N2/5b2/3PPP2/4K1B1 w - -","line":["d8f7","b8a7","f4g6"],"tags":["remove","discovered"],"lv":2},
+  {"id":"overload-251","t":"overload","fen":"5kr1/1N2pppP/8/6B1/p7/5P2/8/1K6 w - -","line":["g5e7","f8e7","h7g8q"],"tags":["overload"],"lv":0},
+  {"id":"overload-253","t":"overload","fen":"2k5/4n3/3P2B1/8/1p5b/6b1/2PP4/2K2N2 w - -","line":["d6e7","h4e7","f1g3"],"tags":["overload"],"calc":1,"lv":0},
+  {"id":"overload-255","t":"overload","fen":"8/1r4k1/PrbQ1ppp/8/5P2/6P1/5R1K/8 w - -","line":["a6b7","b6b7","d6c6"],"tags":["overload"],"calc":1,"lv":1},
+  {"id":"overload-256","t":"overload","fen":"4b3/4krp1/N2pP3/1n3R2/8/2N4P/6pK/8 w - -","line":["e6f7","e8f7","c3b5"],"tags":["overload"],"lv":1},
+  {"id":"overload-257","t":"overload","fen":"7k/B2r2p1/2P5/7p/b2R4/1b3PP1/2P3K1/8 w - -","line":["c6d7","a4d7","c2b3"],"tags":["overload"],"calc":1,"lv":2},
+  {"id":"overload-261","t":"overload","fen":"2k2b2/1p1p1R2/5pN1/3P4/1bB5/p1n4P/1P6/5K2 w - -","line":["b2c3","b4c3","g6f8"],"ok":{"2":["f7f8"]},"tags":["overload"],"lv":2},
+  {"id":"back-264","t":"back","fen":"4k3/3ppp2/8/1Q6/8/8/8/7K w - -","line":["b5b8"],"m":1,"tags":["back","mate1"],"lv":0},
+  {"id":"back-265","t":"back","fen":"2k5/1ppp4/8/8/8/8/8/6KQ w - -","line":["h1h8"],"m":1,"tags":["back","mate1"],"lv":0},
+  {"id":"back-266","t":"back","fen":"7k/6pp/8/8/3R4/8/6PP/7K w - -","line":["d4d8"],"m":1,"tags":["back","mate1"],"lv":0},
+  {"id":"back-267","t":"back","fen":"1kq5/p1p5/8/3Q4/8/7R/8/6K1 w - -","line":["h3b3","c8b7","d5d8"],"m":2,"keys":["h3b3"],"tags":["back","mate2"],"lv":0},
+  {"id":"back-268","t":"back","fen":"3b1k2/4ppp1/8/8/8/8/3R3K/8 w - -","line":["d2d8"],"m":1,"tags":["back","mate1"],"lv":0},
+  {"id":"back-269","t":"back","fen":"1k6/ppp5/8/8/8/8/6KR/7R w - -","line":["h2h8"],"m":1,"tags":["back","mate1"],"lv":0},
+  {"id":"back-270","t":"back","fen":"3q3k/6pp/3R4/8/8/8/5R1K/8 w - -","line":["d6d8"],"m":1,"tags":["back","mate1"],"lv":0},
+  {"id":"back-271","t":"back","fen":"5k2/4ppp1/8/5R2/8/7R/8/1K6 w - -","line":["h3h8"],"m":1,"tags":["back","mate1"],"lv":0},
+  {"id":"back-272","t":"back","fen":"2k5/1pp5/2Q5/8/8/8/5PP1/6K1 w - -","line":["c6e8"],"m":1,"tags":["back","mate1"],"lv":0},
+  {"id":"back-273","t":"back","fen":"6k1/5ppp/7p/R7/8/8/8/5K2 w - -","line":["a5a8"],"m":1,"tags":["back","mate1"],"lv":0},
+  {"id":"back-274","t":"back","fen":"4k3/3ppp2/8/8/8/8/4P3/1R2K3 w - -","line":["b1b8"],"m":1,"tags":["back","mate1"],"lv":0},
+  {"id":"back-275","t":"back","fen":"4k3/3ppp2/2R5/8/8/5Q2/8/6K1 w - -","line":["c6c8"],"m":1,"tags":["back","mate1"],"lv":0},
+  {"id":"back-276","t":"back","fen":"7k/6pp/3p4/8/8/8/1P6/2K2Q2 w - -","line":["f1f8"],"m":1,"tags":["back","mate1"],"lv":0},
+  {"id":"back-277","t":"back","fen":"2k4n/2pp4/4p3/4R3/8/5Q2/8/6K1 w - -","line":["f3a8"],"m":1,"tags":["back","mate1"],"lv":0},
+  {"id":"back-278","t":"back","fen":"2k5/1ppp4/6R1/8/8/3P1P2/4K3/8 w - -","line":["g6g8"],"m":1,"tags":["back","mate1"],"lv":0},
+  {"id":"back-279","t":"back","fen":"6kq/4pppp/8/8/8/8/4K3/R7 w - -","line":["a1a8"],"m":1,"tags":["back","mate1"],"lv":1},
+  {"id":"back-280","t":"back","fen":"1k6/ppp5/8/1Q6/8/6PP/7K/8 w - -","line":["b5e8"],"m":1,"tags":["back","mate1"],"lv":1},
+  {"id":"back-281","t":"back","fen":"1k6/ppppp3/8/6R1/8/8/6K1/8 w - -","line":["g5g8"],"m":1,"tags":["back","mate1"],"lv":1},
+  {"id":"back-282","t":"back","fen":"2k5/1ppp4/4R1pp/8/8/8/6K1/8 w - -","line":["e6e8"],"m":1,"tags":["back","mate1"],"lv":1},
+  {"id":"back-283","t":"back","fen":"4k3/3ppp2/8/Q7/8/R7/6P1/7K w - -","line":["a5a8"],"m":1,"tags":["back","mate1"],"lv":1},
+  {"id":"back-284","t":"back","fen":"3rk3/3ppp2/8/8/3Q4/8/7P/6K1 w - -","line":["d4h8"],"m":1,"tags":["back","mate1"],"lv":1},
+  {"id":"back-285","t":"back","fen":"5k2/4ppp1/5ppp/2R5/8/8/8/4K3 w - -","line":["c5c8"],"m":1,"tags":["back","mate1"],"lv":1},
+  {"id":"back-286","t":"back","fen":"5k2/4ppp1/7p/8/3R4/3Q4/6P1/6K1 w - -","line":["d4d8"],"m":1,"tags":["back","mate1"],"lv":1},
+  {"id":"back-287","t":"back","fen":"6k1/3ppppp/3R4/1Q6/8/8/8/6K1 w - -","line":["b5b8"],"m":1,"tags":["back","mate1"],"lv":1},
+  {"id":"back-288","t":"back","fen":"7k/6pp/8/8/7R/2Q5/3PPP2/4K3 w - -","line":["c3c8"],"m":1,"tags":["back","mate1"],"lv":1},
+  {"id":"back-289","t":"back","fen":"5k2/4ppp1/5Rpp/8/3R4/8/7K/8 w - -","line":["d4d8"],"m":1,"tags":["back","mate1"],"lv":1},
+  {"id":"back-290","t":"back","fen":"1k3q2/ppp5/8/8/1Q2R3/8/5P2/4K3 w - -","line":["b4f8"],"m":1,"tags":["back","mate1"],"lv":1},
+  {"id":"back-291","t":"back","fen":"1k6/ppp5/2R5/8/8/6PP/7K/4R3 w - -","line":["e1e8"],"m":1,"tags":["back","mate1"],"lv":1},
+  {"id":"back-292","t":"back","fen":"3bk3/3ppp2/8/8/8/6PP/7K/Q7 w - -","line":["a1h8"],"m":1,"tags":["back","mate1"],"lv":1},
+  {"id":"back-293","t":"back","fen":"2r1k3/3ppp2/8/7Q/R7/5P2/6K1/8 w - -","line":["h5h8"],"m":1,"tags":["back","mate1"],"lv":1},
+  {"id":"back-294","t":"back","fen":"5k2/4ppp1/8/8/3Q4/3PPP2/4K3/8 w - -","line":["d4d8"],"m":1,"tags":["back","mate1"],"lv":2},
+  {"id":"back-295","t":"back","fen":"1k1r4/ppp5/3R4/8/8/8/5PPP/6K1 w - -","line":["d6d8"],"m":1,"tags":["back","mate1"],"lv":2},
+  {"id":"back-296","t":"back","fen":"7k/6pp/3ppp2/2R5/8/8/P1P5/1K6 w - -","line":["c5c8"],"m":1,"tags":["back","mate1"],"lv":2},
+  {"id":"back-297","t":"back","fen":"2n2k2/4ppp1/8/8/8/5PP1/2Q3K1/4R3 w - -","line":["c2c8"],"m":1,"tags":["back","mate1"],"lv":2},
+  {"id":"back-298","t":"back","fen":"1k6/ppp5/5p2/8/R7/7Q/1P1P4/2K5 w - -","line":["h3h8"],"m":1,"tags":["back","mate1"],"lv":2},
+  {"id":"back-299","t":"back","fen":"4k1n1/3ppp2/1R6/8/8/8/PPP5/1K6 w - -","line":["b6b8"],"m":1,"tags":["back","mate1"],"lv":2},
+  {"id":"back-300","t":"back","fen":"6k1/5ppp/8/8/5R2/8/R2PPP2/4K3 w - -","line":["a2a8"],"m":1,"tags":["back","mate1"],"lv":2},
+  {"id":"back-301","t":"back","fen":"q1k5/1ppp2p1/8/1Q6/8/6PP/4R2K/8 w - -","line":["e2e8"],"m":1,"tags":["back","mate1"],"lv":2},
+  {"id":"back-302","t":"back","fen":"6kn/5ppp/6pp/8/8/R7/PP6/1K6 w - -","line":["a3a8"],"m":1,"tags":["back","mate1"],"lv":2},
+  {"id":"back-303","t":"back","fen":"2k5/1pp5/6pp/2Q5/8/3R4/5PPP/6K1 w - -","line":["c5f8"],"m":1,"tags":["back","mate1"],"lv":2},
+  {"id":"back-304","t":"back","fen":"n1k5/1ppp2p1/8/8/8/8/1PPP3R/2K5 w - -","line":["h2h8"],"m":1,"tags":["back","mate1"],"lv":2},
+  {"id":"back-305","t":"back","fen":"3b1k2/4ppp1/6pp/3R4/8/8/4PP2/5K2 w - -","line":["d5d8"],"m":1,"tags":["back","mate1"],"lv":2},
+  {"id":"back-306","t":"back","fen":"bk6/ppp5/8/8/8/8/3R1PPP/1R4K1 w - -","line":["d2d8"],"m":1,"tags":["back","mate1"],"lv":2},
+  {"id":"back-307","t":"back","fen":"1k1n4/ppp2ppp/8/8/Q7/8/3R4/7K w - -","line":["d2d8"],"m":1,"tags":["back","mate1"],"lv":2},
+  {"id":"back-308","t":"back","fen":"4k2b/3ppp2/8/8/5R2/2R5/4PPP1/5K2 w - -","line":["c3c8"],"m":1,"tags":["back","mate1"],"lv":2},
+  {"id":"mate1-309","t":"mate1","fen":"3k3r/1R6/8/8/8/8/6K1/7Q w - -","line":["h1h8"],"m":1,"tags":["mate1"],"lv":0},
+  {"id":"mate1-310","t":"mate1","fen":"7k/6pp/8/8/8/4R3/8/6K1 w - -","line":["e3e8"],"m":1,"tags":["mate1","back"],"lv":0},
+  {"id":"mate1-311","t":"mate1","fen":"4k3/8/4pQ2/8/8/3R4/8/7K w - -","line":["d3d8"],"m":1,"tags":["mate1"],"lv":0},
+  {"id":"mate1-312","t":"mate1","fen":"4k1N1/8/8/8/7Q/8/B7/2K5 w - -","line":["h4e7"],"m":1,"tags":["mate1"],"lv":0},
+  {"id":"mate1-313","t":"mate1","fen":"7k/6pp/8/8/8/7R/8/2K2Q2 w - -","line":["f1f8"],"m":1,"tags":["mate1","back"],"lv":0},
+  {"id":"mate1-314","t":"mate1","fen":"7k/7p/6Q1/8/8/8/2P5/2K2R2 w - -","line":["f1f8"],"m":1,"tags":["mate1","back"],"lv":0},
+  {"id":"mate1-315","t":"mate1","fen":"6k1/5Npp/8/8/8/8/4Q2K/8 w - -","line":["e2e8"],"m":1,"tags":["mate1","back"],"lv":0},
+  {"id":"mate1-316","t":"mate1","fen":"6k1/3Q4/2R5/8/8/8/1PP5/1K6 w - -","line":["c6c8"],"m":1,"tags":["mate1"],"lv":0},
+  {"id":"mate1-317","t":"mate1","fen":"4k3/2Q1p2p/8/8/8/4R3/8/6K1 w - -","line":["c7e7"],"m":1,"tags":["mate1"],"lv":0},
+  {"id":"mate1-318","t":"mate1","fen":"5k2/5pp1/5B2/8/8/2R5/8/1K6 w - -","line":["c3c8"],"m":1,"tags":["mate1","back"],"lv":0},
+  {"id":"mate1-319","t":"mate1","fen":"7k/6pp/8/7B/4R3/8/7K/8 w - -","line":["e4e8"],"m":1,"tags":["mate1","back"],"lv":0},
+  {"id":"mate1-320","t":"mate1","fen":"3R4/7k/3R2pp/8/8/8/8/6K1 w - -","line":["d6d7"],"m":1,"tags":["mate1"],"lv":0},
+  {"id":"mate1-321","t":"mate1","fen":"7k/6pp/B7/6P1/1R6/8/8/6K1 w - -","line":["b4b8"],"m":1,"tags":["mate1","back"],"lv":0},
+  {"id":"mate1-322","t":"mate1","fen":"4k3/3pp3/P7/5R2/1Q6/8/8/6K1 w - -","line":["b4b8"],"m":1,"tags":["mate1","back"],"lv":0},
+  {"id":"mate1-323","t":"mate1","fen":"3k4/2ppp3/8/5P2/3Q4/8/7K/8 w - -","line":["d4h8"],"m":1,"tags":["mate1","back"],"lv":0},
+  {"id":"mate1-324","t":"mate1","fen":"1k6/1pp5/4B3/8/3Q4/6R1/8/2K5 w - -","line":["g3g8"],"m":1,"tags":["mate1","back"],"lv":0},
+  {"id":"mate1-325","t":"mate1","fen":"7k/6pp/1R6/8/8/8/5P1P/6K1 w - -","line":["b6b8"],"m":1,"tags":["mate1","back"],"lv":0},
+  {"id":"mate1-326","t":"mate1","fen":"3k2n1/2pp4/8/8/8/8/1R6/2K1R3 w - -","line":["b2b8"],"m":1,"tags":["mate1","back"],"lv":0},
+  {"id":"mate1-327","t":"mate1","fen":"4k3/p5Q1/8/6B1/8/8/5PP1/6K1 w - -","line":["g7e7"],"m":1,"tags":["mate1"],"lv":0},
+  {"id":"mate1-328","t":"mate1","fen":"4k3/7Q/8/5Np1/q7/8/n7/6K1 w - -","line":["h7e7"],"m":1,"tags":["mate1"],"lv":0},
+  {"id":"mate1-329","t":"mate1","fen":"5k2/Q4pp1/8/8/8/8/PR6/1K6 w - -","line":["b2b8"],"m":1,"tags":["mate1","back"],"lv":0},
+  {"id":"mate1-330","t":"mate1","fen":"7k/6pp/8/4B3/4N3/8/Q7/2K5 w - -","line":["a2a8"],"m":1,"tags":["mate1","back"],"lv":0},
+  {"id":"mate1-331","t":"mate1","fen":"5k2/3Q1pp1/8/P7/8/7P/3P4/2K5 w - -","line":["d7d8"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-332","t":"mate1","fen":"8/5N1k/6pp/8/3Q4/8/6PP/6K1 w - -","line":["d4h8"],"m":1,"tags":["mate1"],"lv":1},
+  {"id":"mate1-333","t":"mate1","fen":"2k2b2/1ppp2N1/8/8/8/8/Q5K1/8 w - -","line":["a2a8"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-334","t":"mate1","fen":"7k/6pp/8/8/8/5RP1/3B1P1K/8 w - -","line":["f3f8"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-335","t":"mate1","fen":"2k5/1pp5/8/7Q/8/8/3P1P1P/6K1 w - -","line":["h5e8"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-336","t":"mate1","fen":"3k4/1BpppR2/8/8/8/8/5P2/6K1 w - -","line":["f7f8"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-337","t":"mate1","fen":"6k1/5ppp/8/8/8/3R4/1P6/2K3N1 w - -","line":["d3d8"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-338","t":"mate1","fen":"5k2/4pp2/5P2/6R1/7R/8/6P1/6K1 w - -","line":["h4h8"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-339","t":"mate1","fen":"3k4/1P1pp3/8/8/8/5PP1/1Q4K1/8 w - -","line":["b7b8q"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-340","t":"mate1","fen":"1k6/1pp5/4N3/2Q3R1/8/3n2P1/7K/8 w - -","line":["g5g8"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-341","t":"mate1","fen":"6k1/2R2ppp/8/8/8/8/2R3PP/7K w - -","line":["c7c8"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-342","t":"mate1","fen":"5k2/4ppp1/1r6/8/8/8/R1Q3K1/4R3 w - -","line":["c2c8"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-343","t":"mate1","fen":"4k3/2Qppp2/B3p3/8/8/6q1/8/7K w - -","line":["c7c8"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-344","t":"mate1","fen":"5k2/R5p1/1R5r/8/8/8/PP6/1K5n w - -","line":["b6b8"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-345","t":"mate1","fen":"5k2/Q4pp1/2R5/8/p7/8/1P6/bK6 w - -","line":["c6c8"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-346","t":"mate1","fen":"3kqn2/N2pp3/7Q/8/8/8/3n4/4K3 w - -","line":["h6b6"],"m":1,"tags":["mate1"],"lv":1},
+  {"id":"mate1-347","t":"mate1","fen":"5k2/4ppp1/8/4Q3/q6R/8/1P6/2K5 w - -","line":["h4h8"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-348","t":"mate1","fen":"5k2/4p1p1/6Q1/8/B7/6PP/7K/4N3 w - -","line":["g6e8"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-349","t":"mate1","fen":"5k2/5pp1/5Q2/8/8/5PPP/5bK1/8 w - -","line":["f6d8"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-350","t":"mate1","fen":"7k/6p1/8/8/r2B4/8/2B3PP/5RK1 w - -","line":["f1f8"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-351","t":"mate1","fen":"6k1/5ppp/8/4P1Q1/8/8/2N2r2/6K1 w - -","line":["g5d8"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-352","t":"mate1","fen":"2nk4/2ppp3/8/1R6/8/8/4P3/Q5K1 w - -","line":["a1h8"],"m":1,"tags":["mate1","back"],"lv":1},
+  {"id":"mate1-353","t":"mate1","fen":"5k2/4ppp1/3N3R/8/4p3/7P/6K1/8 w - -","line":["h6h8"],"m":1,"tags":["mate1","back"],"lv":2},
+  {"id":"mate1-354","t":"mate1","fen":"3k4/2ppp3/2Q5/6q1/8/P7/8/R3K3 w - -","line":["c6a8"],"m":1,"tags":["mate1","back"],"lv":2},
+  {"id":"mate1-355","t":"mate1","fen":"3Q4/6k1/6pp/R7/8/8/3BPP2/4K3 w - -","line":["a5a7"],"m":1,"tags":["mate1"],"lv":2},
+  {"id":"mate1-356","t":"mate1","fen":"2k5/1ppp4/8/6Q1/4p3/8/4K1R1/7N w - -","line":["g5g8"],"m":1,"tags":["mate1","back"],"lv":2},
+  {"id":"mate1-357","t":"mate1","fen":"6k1/5ppp/4R3/8/8/3PP3/4K3/6R1 w - -","line":["e6e8"],"m":1,"tags":["mate1","back"],"lv":2},
+  {"id":"mate1-358","t":"mate1","fen":"5k2/5pp1/8/R7/8/8/2bnQ1Kp/8 w - -","line":["a5a8"],"m":1,"tags":["mate1","back"],"lv":2},
+  {"id":"mate1-359","t":"mate1","fen":"1k3N2/pp6/5Q2/7P/8/8/6PP/6K1 w - -","line":["f6d8"],"m":1,"tags":["mate1","back"],"lv":2},
+  {"id":"mate1-360","t":"mate1","fen":"2kr4/1ppp4/8/5n2/8/8/1n6/Q4KR1 w - -","line":["a1a8"],"m":1,"tags":["mate1","back"],"lv":2},
+  {"id":"mate1-361","t":"mate1","fen":"4kN2/3ppp2/8/8/2R5/8/3N2PP/7K w - -","line":["c4c8"],"m":1,"tags":["mate1","back"],"lv":2},
+  {"id":"mate1-362","t":"mate1","fen":"5k2/4pppR/8/8/3B4/8/5PPP/6K1 w - -","line":["h7h8"],"m":1,"tags":["mate1","back"],"lv":2},
+  {"id":"mate1-363","t":"mate1","fen":"5k2/4ppp1/8/1R6/8/8/1PPP4/2K1N3 w - -","line":["b5b8"],"m":1,"tags":["mate1","back"],"lv":2},
+  {"id":"mate1-364","t":"mate1","fen":"1k6/p1p1r3/Q4b2/8/8/8/3R2K1/n5N1 w - -","line":["d2d8"],"m":1,"tags":["mate1","back"],"lv":2},
+  {"id":"mate1-365","t":"mate1","fen":"6k1/5ppp/5P2/8/8/8/4QPPP/6K1 w - -","line":["e2e8"],"m":1,"tags":["mate1","back"],"lv":2},
+  {"id":"mate1-366","t":"mate1","fen":"q2k4/R7/2r5/8/8/3PPP2/4K3/6Rr w - -","line":["g1g8"],"m":1,"tags":["mate1"],"lv":2},
+  {"id":"mate1-367","t":"mate1","fen":"6k1/5ppp/8/6N1/8/R7/PPP5/1K6 w - -","line":["a3a8"],"m":1,"tags":["mate1","back"],"lv":2},
+  {"id":"mate1-368","t":"mate1","fen":"2R2n1k/6pp/8/8/4r3/7Q/1PPP4/2K5 w - -","line":["c8f8"],"m":1,"tags":["mate1","back"],"lv":2},
+  {"id":"mate1-369","t":"mate1","fen":"3b2k1/6p1/8/8/1r3PR1/8/1Q3PPP/6K1 w - -","line":["b2g7"],"m":1,"tags":["mate1"],"lv":2},
+  {"id":"mate1-370","t":"mate1","fen":"7k/4N1pp/7b/2P5/8/8/3PP3/1R1bK3 w - -","line":["b1b8"],"m":1,"tags":["mate1","back"],"lv":2},
+  {"id":"mate1-371","t":"mate1","fen":"4k3/3ppp2/8/1q6/5bQ1/8/3PP3/4K2N w - -","line":["g4g8"],"m":1,"tags":["mate1","back"],"lv":2},
+  {"id":"mate1-372","t":"mate1","fen":"1k6/ppp5/p7/4p3/B7/5PRP/6K1/R7 w - -","line":["g3g8"],"m":1,"tags":["mate1","back"],"lv":2},
+  {"id":"mate1-373","t":"mate1","fen":"5k2/4ppp1/8/B2p2n1/Q7/8/2R3PP/6K1 w - -","line":["c2c8"],"m":1,"tags":["mate1","back"],"lv":2},
+  {"id":"mate1-374","t":"mate1","fen":"3k2qR/2ppp3/6N1/b7/8/8/PPP5/1K6 w - -","line":["h8g8"],"m":1,"tags":["mate1","back"],"lv":2},
+  {"id":"mate2-375","t":"mate2","fen":"7R/5Pk1/8/8/5P2/8/8/6K1 w - -","line":["f7f8q","g7g6","h8h6"],"m":2,"keys":["f7f8q"],"calc":1,"tags":["mate2"],"lv":0},
+  {"id":"mate2-376","t":"mate2","fen":"8/4k3/8/5Q2/3R4/8/5N2/2K5 w - -","line":["d4d7","e7e8","f5f7"],"m":2,"keys":["d4d7"],"calc":1,"tags":["mate2"],"lv":0},
+  {"id":"mate2-377","t":"mate2","fen":"7k/4P3/8/8/8/R2Q4/7K/8 w - -","line":["e7e8q","h8g7","d3g6"],"m":2,"keys":["e7e8q"],"calc":1,"tags":["mate2"],"lv":0},
+  {"id":"mate2-378","t":"mate2","fen":"8/6k1/2b2R2/8/2Q5/8/8/5K2 w - -","line":["c4f7","g7h8","f6h6"],"m":2,"keys":["c4f7"],"calc":1,"tags":["mate2"],"lv":0},
+  {"id":"mate2-379","t":"mate2","fen":"5k2/R7/5b2/1Q6/8/8/6P1/6K1 w - -","line":["b5b8","f6d8","b8d8"],"m":2,"keys":["b5b8"],"calc":1,"tags":["mate2"],"lv":0},
+  {"id":"mate2-380","t":"mate2","fen":"1k6/p1p5/8/8/2Q5/8/3R3P/7K w - -","line":["d2d8","b8b7","c4b5"],"m":2,"keys":["d2d8"],"calc":1,"tags":["mate2"],"lv":0},
+  {"id":"mate2-381","t":"mate2","fen":"4k3/5p2/8/6r1/3R4/8/7P/3Q3K w - -","line":["d4d8","e8e7","d1d6"],"m":2,"keys":["d4d8"],"calc":1,"tags":["mate2"],"lv":0},
+  {"id":"mate2-382","t":"mate2","fen":"6k1/N5p1/3n4/5Q2/7R/8/8/6K1 w - -","line":["f5e6","d6f7","e6e8"],"m":2,"keys":["f5e6"],"calc":1,"tags":["mate2","back"],"lv":0},
+  {"id":"mate2-383","t":"mate2","fen":"6k1/B5pp/N7/8/8/7Q/8/1K6 w - -","line":["h3e6","g8f8","a7c5"],"m":2,"keys":["h3e6"],"calc":1,"tags":["mate2"],"lv":0},
+  {"id":"mate2-384","t":"mate2","fen":"8/6k1/5r2/7B/8/5Q2/1B4b1/6K1 w - -","line":["f3f6","g7h7","f6g6"],"m":2,"keys":["f3f6"],"calc":1,"tags":["mate2"],"lv":0},
+  {"id":"mate2-385","t":"mate2","fen":"8/1p4k1/7p/7R/4RQ2/8/8/6K1 w - -","line":["e4e7","g7g8","f4b8"],"m":2,"keys":["e4e7"],"calc":1,"tags":["mate2"],"lv":0},
+  {"id":"mate2-386","t":"mate2","fen":"2k4r/1ppp4/8/5R2/8/5R2/8/6K1 w - -","line":["f5f8","h8f8","f3f8"],"m":2,"keys":["f5f8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":0},
+  {"id":"mate2-387","t":"mate2","fen":"1r1q3k/2R5/8/1p6/8/B7/4Q1K1/8 w - -","line":["e2h5","h8g8","h5h7"],"m":2,"keys":["e2h5"],"calc":1,"tags":["mate2"],"lv":0},
+  {"id":"mate2-388","t":"mate2","fen":"7k/8/8/8/2q2Q2/2b5/5R1P/B5K1 w - -","line":["f4h6","h8g8","f2f8"],"m":2,"keys":["f4h6"],"calc":1,"tags":["mate2"],"lv":0},
+  {"id":"mate2-389","t":"mate2","fen":"8/4P2k/6pp/8/8/5Q2/2P2n2/2K5 w - -","line":["f3f7","h7h8","e7e8q"],"m":2,"keys":["f3f7"],"calc":1,"tags":["mate2"],"lv":0},
+  {"id":"mate2-390","t":"mate2","fen":"7k/8/3n4/8/6Q1/B7/4N1PP/7K w - -","line":["a3b2","h8h7","g4g7"],"m":2,"keys":["a3b2"],"calc":1,"tags":["mate2"],"lv":0},
+  {"id":"mate2-391","t":"mate2","fen":"2B1B2k/8/Q7/8/8/8/5PPP/6K1 w - -","line":["a6h6","h8g8","c8e6"],"m":2,"keys":["a6h6"],"calc":1,"tags":["mate2"],"lv":0},
+  {"id":"mate2-392","t":"mate2","fen":"Bk6/p7/3n4/8/8/2Q5/3P4/2K3R1 w - -","line":["g1g8","d6e8","g8e8"],"m":2,"keys":["g1g8"],"calc":1,"tags":["mate2","back"],"lv":0},
+  {"id":"mate2-393","t":"mate2","fen":"8/p3p2k/6p1/5R2/8/8/3R4/4QK2 w - -","line":["e1e7","h7h6","d2h2"],"m":2,"keys":["e1e7"],"calc":1,"tags":["mate2"],"lv":0},
+  {"id":"mate2-394","t":"mate2","fen":"1k6/2R1r3/8/4R3/8/3P1P2/4K3/8 w - -","line":["e5e7","b8a8","c7c8"],"m":2,"keys":["e5e7"],"calc":1,"tags":["mate2"],"lv":0},
+  {"id":"mate2-395","t":"mate2","fen":"6k1/6pp/8/4p3/5Q2/3BR2P/7K/8 w - -","line":["d3c4","g8h8","f4f8"],"m":2,"keys":["d3c4"],"calc":1,"tags":["mate2","back"],"lv":0},
+  {"id":"mate2-396","t":"mate2","fen":"4k3/2P5/8/6Q1/8/6b1/b3PPP1/5K2 w - -","line":["c7c8q","e8f7","c8g8"],"m":2,"keys":["c7c8q"],"calc":1,"tags":["mate2"],"lv":0},
+  {"id":"mate2-397","t":"mate2","fen":"2k5/R1pp3R/8/8/n7/7n/b7/5K2 w - -","line":["h7h8","a2g8","h8g8"],"m":2,"keys":["h7h8"],"calc":1,"tags":["mate2","back"],"lv":0},
+  {"id":"mate2-398","t":"mate2","fen":"4B1k1/4Q2p/P7/7n/8/8/1PP5/2K5 w - -","line":["e7f7","g8h8","f7f8"],"m":2,"keys":["e7f7"],"calc":1,"tags":["mate2","back"],"lv":0},
+  {"id":"mate2-399","t":"mate2","fen":"1k6/8/8/8/R4R2/5P2/4K3/8 w - -","line":["f4f7","b8c8","a4a8"],"m":2,"keys":["f4f7"],"calc":1,"tags":["mate2"],"lv":1},
+  {"id":"mate2-400","t":"mate2","fen":"2q4k/4P1pp/8/6r1/3Q2R1/8/6K1/8 w - -","line":["d4d8","c8d8","e7d8q"],"m":2,"keys":["d4d8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":1},
+  {"id":"mate2-401","t":"mate2","fen":"6k1/Q2B2pp/8/8/8/8/3PPP2/4K3 w - -","line":["d7e6","g8f8","a7f7"],"m":2,"keys":["d7e6"],"calc":1,"tags":["mate2"],"lv":1},
+  {"id":"mate2-402","t":"mate2","fen":"8/7k/4NRpp/3R4/8/8/5PP1/6K1 w - -","line":["d5d7","h7h8","f6f8"],"m":2,"keys":["d5d7"],"calc":1,"tags":["mate2"],"lv":1},
+  {"id":"mate2-403","t":"mate2","fen":"6k1/6pp/B7/2P5/8/8/3QP1P1/5K2 w - -","line":["a6c4","g8h8","d2d8"],"m":2,"keys":["a6c4"],"calc":1,"tags":["mate2","back"],"lv":1},
+  {"id":"mate2-404","t":"mate2","fen":"8/7k/7p/5R2/8/8/1Q3RPP/1n5K w - -","line":["b2b7","h7h8","f5f8"],"m":2,"keys":["b2b7"],"calc":1,"tags":["mate2"],"lv":1},
+  {"id":"mate2-405","t":"mate2","fen":"7k/6pp/8/5b2/8/2R5/2RP1nb1/2K5 w - -","line":["c3c8","f5c8","c2c8"],"m":2,"keys":["c3c8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":1},
+  {"id":"mate2-406","t":"mate2","fen":"5k2/8/8/8/1R6/6PP/7K/1Q6 w - -","line":["b1h7","f8e8","b4b8"],"m":2,"keys":["b1h7"],"calc":1,"tags":["mate2"],"lv":1},
+  {"id":"mate2-407","t":"mate2","fen":"5k2/8/6Q1/6R1/8/4PP2/4K3/8 w - -","line":["g6h7","f8e8","g5g8"],"m":2,"keys":["g6h7"],"calc":1,"tags":["mate2"],"lv":1},
+  {"id":"mate2-408","t":"mate2","fen":"7k/7p/7P/2q2P2/8/3R4/3PPP2/4K3 w - -","line":["d3d8","c5f8","d8f8"],"m":2,"keys":["d3d8"],"calc":1,"tags":["mate2","back"],"lv":1},
+  {"id":"mate2-409","t":"mate2","fen":"6k1/5ppp/6R1/4b3/8/R2P2P1/7K/8 w - -","line":["a3a8","e5b8","a8b8"],"m":2,"keys":["a3a8"],"calc":1,"tags":["mate2","back"],"lv":1},
+  {"id":"mate2-410","t":"mate2","fen":"2k4r/1ppp2b1/4R3/8/6p1/7Q/8/7K w - -","line":["h3h8","g7h8","e6e8"],"m":2,"keys":["h3h8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":1},
+  {"id":"mate2-411","t":"mate2","fen":"2n4k/4b1pp/7p/8/3R3b/4Q3/7K/8 w - -","line":["d4d8","e7d8","e3e8"],"m":2,"keys":["d4d8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":1},
+  {"id":"mate2-412","t":"mate2","fen":"1k6/1p6/8/1P6/8/8/4Q2P/6K1 w - -","line":["b5b6","b8c8","e2e8"],"m":2,"keys":["b5b6"],"calc":1,"tags":["mate2","back"],"lv":1},
+  {"id":"mate2-413","t":"mate2","fen":"2k1NR2/8/8/8/6R1/7P/7K/8 w - -","line":["g4g7","c8b8","e8f6"],"m":2,"keys":["g4g7"],"calc":1,"tags":["mate2"],"lv":1},
+  {"id":"mate2-414","t":"mate2","fen":"2kq4/4P3/4r1N1/8/8/Q7/5PPP/6K1 w - -","line":["a3a8","c8c7","e7d8q"],"m":2,"keys":["a3a8"],"calc":1,"tags":["mate2"],"lv":1},
+  {"id":"mate2-415","t":"mate2","fen":"8/b5k1/1R3ppp/8/8/3Q1P1P/6K1/8 w - -","line":["b6b7","g7h8","d3d8"],"m":2,"keys":["b6b7"],"calc":1,"tags":["mate2"],"lv":1},
+  {"id":"mate2-416","t":"mate2","fen":"8/1P2k3/3pppP1/8/1b6/2R4P/6K1/8 w - -","line":["c3c7","e7d8","b7b8q"],"m":2,"keys":["c3c7"],"calc":1,"tags":["mate2"],"lv":1},
+  {"id":"mate2-417","t":"mate2","fen":"6k1/6p1/2Q3r1/3P1B2/8/4PP2/4K3/8 w - -","line":["f5g6","g8f8","c6e8"],"m":2,"keys":["f5g6"],"calc":1,"tags":["mate2","back"],"lv":1},
+  {"id":"mate2-418","t":"mate2","fen":"1k5q/ppp5/6R1/8/3P2R1/8/5N2/1K4b1 w - -","line":["g6g8","h8g8","g4g8"],"m":2,"keys":["g6g8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":1},
+  {"id":"mate2-419","t":"mate2","fen":"q3k3/3ppp2/8/8/8/8/1R1PP2p/1R2K3 w - -","line":["b2b8","a8b8","b1b8"],"m":2,"keys":["b2b8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":1},
+  {"id":"mate2-420","t":"mate2","fen":"7k/5R1p/8/8/n7/4B3/8/6K1 w - -","line":["e3h6","a4b6","f7f8"],"m":2,"keys":["e3h6"],"calc":1,"tags":["mate2","back"],"lv":1},
+  {"id":"mate2-421","t":"mate2","fen":"6k1/7p/7P/8/R7/8/1PP5/1K6 w - -","line":["a4f4","g8h8","f4f8"],"m":2,"keys":["a4f4"],"calc":1,"tags":["mate2","back"],"lv":1},
+  {"id":"mate2-422","t":"mate2","fen":"2k5/1ppp4/1P6/7b/B7/1q4P1/3Q3K/8 w - -","line":["d2d7","c8b8","d7d8"],"m":2,"keys":["d2d7"],"calc":1,"tags":["mate2","back"],"lv":1},
+  {"id":"mate2-423","t":"mate2","fen":"7k/6pp/5r2/6P1/8/3PPP2/1R2K2B/8 w - -","line":["b2b8","f6f8","b8f8"],"m":2,"keys":["b2b8"],"calc":1,"tags":["mate2","back"],"lv":2},
+  {"id":"mate2-424","t":"mate2","fen":"6k1/5p2/4Q3/8/4B3/8/4PP2/4K3 w - -","line":["e6h6","f7f6","e4d5"],"m":2,"keys":["e6h6"],"calc":1,"tags":["mate2"],"lv":2},
+  {"id":"mate2-425","t":"mate2","fen":"6k1/Q2N2pR/4r2P/6n1/8/8/4n1K1/4r3 w - -","line":["d7f6","e6f6","a7g7"],"m":2,"keys":["d7f6"],"calc":1,"sac":1,"tags":["mate2"],"lv":2},
+  {"id":"mate2-426","t":"mate2","fen":"1k6/5R2/8/5p2/8/1N6/6p1/R5K1 w - -","line":["a1e1","f5f4","e1e8"],"m":2,"keys":["a1e1"],"calc":1,"tags":["mate2"],"lv":2},
+  {"id":"mate2-427","t":"mate2","fen":"2q4k/6pp/8/2P2R2/5R2/3PPP2/2p1K3/8 w - -","line":["f5f8","c8f8","f4f8"],"m":2,"keys":["f5f8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":2},
+  {"id":"mate2-428","t":"mate2","fen":"6k1/4nppp/8/4R3/8/1rn4Q/6PP/6K1 w - -","line":["h3c8","e7c8","e5e8"],"m":2,"keys":["h3c8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":2},
+  {"id":"mate2-429","t":"mate2","fen":"7k/6p1/p4N1b/p7/8/p5RR/1p3p2/1K6 w - -","line":["h3h6","g7h6","g3g8"],"m":2,"keys":["h3h6"],"calc":1,"sac":1,"tags":["mate2"],"lv":2},
+  {"id":"mate2-430","t":"mate2","fen":"rk6/ppp3R1/8/2P3r1/8/8/PP6/1K4R1 w - -","line":["g7g8","g5g8","g1g8"],"m":2,"keys":["g7g8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":2},
+  {"id":"mate2-431","t":"mate2","fen":"1q2k3/1P1ppp2/3pp3/8/6B1/2R5/8/1R2K3 w - -","line":["c3c8","b8c8","b7c8q"],"m":2,"keys":["c3c8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":2},
+  {"id":"mate2-432","t":"mate2","fen":"1r5k/p2p2pp/8/4b3/8/1R2P2P/5RK1/8 w - -","line":["b3b8","e5b8","f2f8"],"m":2,"keys":["b3b8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":2},
+  {"id":"mate2-433","t":"mate2","fen":"1k6/ppp5/3p1p2/8/b7/4R3/n5P1/4R2K w - -","line":["e3e8","a4e8","e1e8"],"m":2,"keys":["e3e8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":2},
+  {"id":"mate2-434","t":"mate2","fen":"5k2/8/3N1P2/8/3Q4/3PPP2/4K3/8 w - -","line":["d4a7","f8g8","a7g7"],"m":2,"keys":["d4a7"],"calc":1,"tags":["mate2"],"lv":2},
+  {"id":"mate2-435","t":"mate2","fen":"5k2/4ppp1/3B4/b7/2R5/5PPP/4R1K1/8 w - -","line":["c4c8","a5d8","c8d8"],"m":2,"keys":["c4c8"],"calc":1,"tags":["mate2","back"],"lv":2},
+  {"id":"mate2-436","t":"mate2","fen":"n6k/p5pp/3n4/7p/4R1p1/4R3/1P1P4/2K5 w - -","line":["e4e8","d6e8","e3e8"],"m":2,"keys":["e4e8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":2},
+  {"id":"mate2-437","t":"mate2","fen":"2k4r/1ppp4/5R2/3pn3/8/8/1PPP4/2K2R2 w - -","line":["f6f8","h8f8","f1f8"],"m":2,"keys":["f6f8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":2},
+  {"id":"mate2-438","t":"mate2","fen":"1r4k1/P4ppp/1r3p2/3B3p/8/4R3/8/4R1K1 w - -","line":["e3e8","b8e8","e1e8"],"m":2,"keys":["e3e8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":2},
+  {"id":"mate2-439","t":"mate2","fen":"2n3k1/b4ppp/1p1n4/8/4R3/6P1/2Q1p1K1/8 w - -","line":["c2c8","d6c8","e4e8"],"m":2,"keys":["c2c8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":2},
+  {"id":"mate2-440","t":"mate2","fen":"6k1/5ppp/2n3pp/6n1/8/8/4Pb2/1Q1R1K2 w - -","line":["b1b8","c6b8","d1d8"],"m":2,"keys":["b1b8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":2},
+  {"id":"mate2-441","t":"mate2","fen":"8/q5k1/R3Bp1p/1p6/3Q4/8/4PPP1/4nK2 w - -","line":["a6a7","g7f8","d4d8"],"m":2,"keys":["a6a7"],"calc":1,"tags":["mate2"],"lv":2},
+  {"id":"mate2-442","t":"mate2","fen":"8/1b1r3k/4PQpp/3P4/1P3R1R/4p3/2q5/5K2 w - -","line":["h4h6","h7h6","f4h4"],"m":2,"keys":["h4h6"],"calc":1,"sac":1,"tags":["mate2"],"lv":2},
+  {"id":"mate2-443","t":"mate2","fen":"1q4k1/2p1Pppp/p7/PN5N/2RR4/3n4/8/1K6 w - -","line":["d4d8","b8d8","e7d8q"],"m":2,"keys":["d4d8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":2},
+  {"id":"mate2-444","t":"mate2","fen":"1k6/ppp3b1/3ppp1R/8/8/3P1PR1/rN2K3/8 w - -","line":["h6h8","g7h8","g3g8"],"m":2,"keys":["h6h8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":2},
+  {"id":"mate2-445","t":"mate2","fen":"2r1k3/p2ppp2/7n/P7/6Q1/2b5/PPPb4/1K4R1 w - -","line":["g4g8","h6g8","g1g8"],"m":2,"keys":["g4g8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":2},
+  {"id":"mate2-446","t":"mate2","fen":"q4k2/4pppp/1p1Q4/5n1p/4p1Rp/3R4/1PP5/1K6 w - -","line":["d6d8","a8d8","d3d8"],"m":2,"keys":["d6d8"],"calc":1,"sac":1,"tags":["mate2","back"],"lv":2},
+];
+// ===== ENGINE END =====
+
+const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, wait, confetti, PRAISE, choices, explain, everyday, emoji, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "tc0", label: "See it", icon: "👀" },
+  { id: "tc1", label: "1. Notation", icon: "✍️" },
+  { id: "tc2", label: "2. Piece values", icon: "⚖️" },
+  { id: "tc3", label: "3. Forks", icon: "🍴" },
+  { id: "tc4", label: "4. Pins", icon: "📌" },
+  { id: "tc5", label: "5. Skewers", icon: "🍢" },
+  { id: "tc6", label: "6. Discovered attacks", icon: "🚪" },
+  { id: "tc7", label: "7. Double check", icon: "‼️" },
+  { id: "tc8", label: "8. Remove the defender", icon: "🛡️" },
+  { id: "tc9", label: "9. Back-rank mate", icon: "🧱" },
+  { id: "tc10", label: "10. Mate in 1", icon: "👑" },
+  { id: "tc11", label: "11. Mate in 2", icon: "♛" },
+  { id: "tc12", label: "12. Find the best move", icon: "🎯" },
+  { id: "tc13", label: "13. Calculate", icon: "🧮" },
+];
+
+const ttStyle = document.createElement("style");
+ttStyle.textContent = `.tt-hit{cursor:pointer;touch-action:none}
+.tt-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px 10px}
+.tt-tools{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.tt-tools button{min-height:44px;padding:0 14px;border:0;border-radius:22px;background:#fff;box-shadow:0 3px 0 #e2d6c4;color:var(--ink);font:800 15px/1 var(--sans);cursor:pointer;touch-action:manipulation}
+.tt-tools button.primary{background:var(--accent);color:#fff;box-shadow:0 3px 0 var(--accent-dark)}
+.tt-tools button:disabled{opacity:.4;cursor:default}
+.tt-tools button:active{transform:translateY(2px)}
+.tt-line{margin:0;padding:6px 14px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 2px var(--accent-soft);color:var(--ink);font:800 17px/1.3 ui-monospace,Menlo,monospace;min-height:1.3em}
+.tt-line:empty,body:not(.tt-crop) .tt-line{display:none}
+.tt-card{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:7;width:min(640px,calc(100% - 20px));max-height:calc(100% - 20px);overflow:auto;display:flex;flex-direction:column;gap:8px;padding:14px 18px;border-radius:24px;background:#fff;box-shadow:0 8px 0 #ece3d6,0 18px 40px rgba(70,40,15,.2);color:#2b1d12;font:700 clamp(15px,2vw,18px)/1.4 var(--sans);text-align:left}
+.tt-card h2{margin:0;font:900 clamp(19px,2.6vw,25px)/1.2 var(--sans);color:var(--accent-dark)}
+.tt-card .tt-moves{margin:0;font:800 clamp(16px,2.1vw,19px)/1.35 ui-monospace,Menlo,monospace;color:#2b1d12;padding:6px 10px;border-radius:12px;background:var(--accent-soft)}
+.tt-card p{margin:0}
+.tt-card .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.tt-card button{min-height:48px;padding:0 18px;border:0;border-radius:18px;background:#fff;box-shadow:0 3px 0 #e2d6c4,0 0 0 2px #efe6d8;color:var(--ink);font:800 16px/1 var(--sans);cursor:pointer}
+.tt-card button.go{background:var(--accent);color:#fff;box-shadow:0 3px 0 var(--accent-dark)}
+.tt-card textarea{width:100%;min-height:76px;box-sizing:border-box;padding:8px 10px;border-radius:12px;border:2px solid var(--accent-soft);font:600 16px/1.4 var(--sans);resize:vertical}
+.tt-card .model{padding:8px 10px;border-radius:12px;background:#f4f8ee}
+.tt-card ol,.tt-card ul{margin:0;padding-left:1.3em;display:grid;gap:3px}
+.tt-card .safe{color:#8a4b12;font-size:.9em}
+.tt-pill{position:absolute;right:10px;bottom:10px;z-index:7;min-height:48px;padding:0 16px;border:0;border-radius:24px;background:var(--accent);color:#fff;box-shadow:0 3px 0 var(--accent-dark);font:800 16px/1 var(--sans);cursor:pointer}
+.tt-pick .kt-choices button{min-height:50px;font-size:17px}
+@media (max-height:460px){.tt-tools button{min-height:44px;padding:0 10px;font-size:14px}.tt-card{padding:8px 12px;gap:5px;font-size:13.5px;bottom:4px}.tt-card h2{font-size:17px}.tt-card button{min-height:44px;font-size:14px}.tt-line{font-size:14px;padding:3px 10px}.tt-pick .kt-choices button{min-height:44px;font-size:14px}.tt-card textarea{min-height:52px}}
+@media (max-width:420px){.tt-tools button{padding:0 10px;font-size:14px}.ap-chips button{padding:0 12px}}`;
+document.head.appendChild(ttStyle);
+
+const tween = (ms, fn, alive) =>
+  new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(true);
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!alive()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+
+// ---------- piece drawings (100 x 100 box, Staunton-style silhouettes, as in Chess School) ----------
+const BASE = "M22 90H78Q83 90 83 85V81Q83 76 78 76H22Q17 76 17 81V85Q17 90 22 90Z";
+const SHAPES = {
+  p: [["path", { d: "M33 77Q35 60 43 52H57Q65 60 67 77Z" }], ["ellipse", { cx: 50, cy: 52, rx: 15, ry: 4.5 }], ["circle", { cx: 50, cy: 36, r: 13 }]],
+  r: [["path", { d: "M31 77L34 42H66L69 77Z" }], ["path", { d: "M27 43V18H37V26H45V18H55V26H63V18H73V43Z" }], ["line", { x1: 34, x2: 66, y1: 43, y2: 43, d: 1 }]],
+  b: [["path", { d: "M33 77Q40 62 42 52H58Q60 62 67 77Z" }], ["ellipse", { cx: 50, cy: 52, rx: 15, ry: 4.5 }], ["path", { d: "M50 15C65 25 67 38 58 48H42C33 38 35 25 50 15Z" }], ["circle", { cx: 50, cy: 12, r: 5 }], ["line", { x1: 55, y1: 25, x2: 46, y2: 36, d: 1 }]],
+  q: [["path", { d: "M31 77Q38 58 40 48H60Q62 58 69 77Z" }], ["path", { d: "M30 49L23 22L37 36L43 15L50 33L57 15L63 36L77 22L70 49Z" }], ["circle", { cx: 23, cy: 20, r: 4.5 }], ["circle", { cx: 43, cy: 13, r: 4.5 }], ["circle", { cx: 57, cy: 13, r: 4.5 }], ["circle", { cx: 77, cy: 20, r: 4.5 }]],
+  k: [["path", { d: "M31 77Q38 58 40 48H60Q62 58 69 77Z" }], ["path", { d: "M31 49Q24 31 40 27H60Q76 31 69 49Z" }], ["path", { d: "M46 27V18H40V12H46V5H54V12H60V18H54V27Z" }]],
+  n: [["path", { d: "M30 77C29 63 39 56 46 49C40 49 33 53 27 55C21 53 19 46 23 40C29 30 37 24 41 16L45 9L50 17C65 20 75 34 73 52C72 63 68 70 70 77Z" }], ["circle", { cx: 44, cy: 28, r: 3.2, eye: 1 }], ["path", { d: "M52 20C62 26 66 38 64 52", d2: 1 }]],
+};
+function drawPiece(parent, p, x, y, size, extra = {}) {
+  const white = p === p.toUpperCase();
+  const fill = white ? "#fdf8ee" : "#3a3431";
+  const line = white ? "#2b1d12" : "#0f0c0a";
+  const g = el("g", { transform: `translate(${x} ${y}) scale(${size / 100})`, "pointer-events": "none", ...extra }, parent);
+  el("ellipse", { cx: 50, cy: 91, rx: 34, ry: 5, fill: "rgba(0,0,0,.18)" }, g);
+  for (const [tag, attrs] of SHAPES[p.toLowerCase()]) {
+    const a = { ...attrs };
+    if (a.d === 1 || a.d2 === 1) {
+      delete a.d2;
+      if (a.d === 1) delete a.d;
+      el(tag, { ...a, fill: "none", stroke: white ? "#2b1d12" : "#d9cfc2", "stroke-width": 3, "stroke-linecap": "round" }, g);
+    } else if (a.eye) el("circle", { cx: a.cx, cy: a.cy, r: a.r, fill: white ? "#2b1d12" : "#e9dfd2" }, g);
+    else el(tag, { ...a, fill, stroke: line, "stroke-width": 4, "stroke-linejoin": "round" }, g);
+  }
+  el("path", { d: BASE, fill, stroke: line, "stroke-width": 4 }, g);
+  return g;
+}
+
+// ---------- the board: tap a piece then a square, or drag ----------
+const BX = 52;
+const BY = 18;
+const SQ = 60;
+function fit() {
+  if (!view || !view.isConnected || view.classList.contains("kt-scene")) return;
+  const r = stage.clientWidth / Math.max(1, stage.clientHeight);
+  // a little hysteresis: showing the line row in the panel changes the stage height
+  const was = document.body.classList.contains("tt-crop");
+  const crop = was ? r < 1.6 : r < 1.45;
+  document.body.classList.toggle("tt-crop", crop);
+  view.setAttribute("viewBox", crop ? `${BX - 40} ${BY - 8} ${SQ * 8 + 50} ${SQ * 8 + 46}` : `0 0 ${W} ${H}`);
+  view.querySelectorAll(".tt-side").forEach((g) => (g.style.display = crop ? "none" : ""));
+}
+addEventListener("resize", fit);
+if (window.ResizeObserver) new ResizeObserver(() => fit()).observe(stage);
+function fresh() {
+  stage.querySelectorAll(".tt-card,.tt-pill").forEach((n) => n.remove());
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  fit();
+  return view;
+}
+const xy = (s) => [BX + (s & 7) * SQ, BY + (7 - (s >> 3)) * SQ];
+const center = (s) => {
+  const [x, y] = xy(s);
+  return [x + SQ / 2, y + SQ / 2];
+};
+function makeBoard(v) {
+  const g = el("g", {}, v);
+  el("rect", { x: BX - 8, y: BY - 8, width: SQ * 8 + 16, height: SQ * 8 + 16, rx: 12, fill: "#6b4a2f" }, g);
+  for (let s = 0; s < 64; s++) {
+    const [x, y] = xy(s);
+    el("rect", { x, y, width: SQ, height: SQ, fill: ((s & 7) + (s >> 3)) % 2 ? "#f3e2c2" : "#b98a5e" }, g);
+  }
+  for (let f = 0; f < 8; f++) text(g, BX + f * SQ + SQ / 2, BY + SQ * 8 + 30, FILES[f], { "font-size": 22, fill: "#6b4a2f" });
+  for (let r = 0; r < 8; r++) text(g, BX - 24, BY + (7 - r) * SQ + SQ / 2 + 8, r + 1, { "font-size": 22, fill: "#6b4a2f" });
+  const last = el("g", {}, v);
+  const marks = el("g", {}, v);
+  const pieces = el("g", {}, v);
+  const top = el("g", { "pointer-events": "none" }, v);
+  const hit = el("g", {}, v);
+  for (let s = 0; s < 64; s++) {
+    const [x, y] = xy(s);
+    el("rect", { x, y, width: SQ, height: SQ, fill: "transparent", class: "tt-hit", "data-sq": s }, hit);
+  }
+  const at = new Map();
+  let rules = null;
+  let sel = -1;
+  let drag = null;
+  const toSvg = (event) => {
+    const pt = v.createSVGPoint();
+    pt.x = event.clientX;
+    pt.y = event.clientY;
+    const m = v.getScreenCTM();
+    return m ? pt.matrixTransform(m.inverse()) : { x: 0, y: 0 };
+  };
+  const sqAt = (p) => {
+    const f = Math.floor((p.x - BX) / SQ);
+    const r = 7 - Math.floor((p.y - BY) / SQ);
+    return on(f, r) ? r * 8 + f : -1;
+  };
+  const showSel = () => {
+    marks.innerHTML = "";
+    if (sel < 0 || !rules) return;
+    api.mark(sel);
+    api.dots([...new Set(rules.targets(sel).map((m) => m.to))]);
+  };
+  const tryTo = (s) => {
+    const ms = rules.targets(sel).filter((m) => m.to === s);
+    if (!ms.length) return false;
+    sel = -1;
+    marks.innerHTML = "";
+    rules.onMove(ms);
+    return true;
+  };
+  const place = (s) => {
+    const g = at.get(s);
+    if (!g) return;
+    const [x, y] = xy(s);
+    g.setAttribute("transform", `translate(${x + 3} ${y + 3}) scale(${(SQ - 6) / 100})`);
+  };
+  hit.addEventListener("pointerdown", (event) => {
+    const r = event.target.closest("[data-sq]");
+    if (!r || !rules || rules.locked?.()) return;
+    event.preventDefault();
+    window.OC?.touch();
+    const s = Number(r.dataset.sq);
+    if (sel >= 0 && s !== sel && tryTo(s)) return;
+    if (rules.canPick(s)) {
+      sel = s;
+      MUSIC.play("woodblock", 79, { gain: 0.2 });
+      showSel();
+      const p0 = toSvg(event);
+      drag = { s, x: p0.x, y: p0.y, moved: false, id: event.pointerId };
+      try {
+        hit.setPointerCapture(event.pointerId);
+      } catch {}
+    } else if (sel >= 0) {
+      rules.onBad?.(sel, s);
+    } else rules.onEmpty?.(s);
+  });
+  hit.addEventListener("pointermove", (event) => {
+    if (!drag || event.pointerId !== drag.id) return;
+    const p = toSvg(event);
+    if (!drag.moved && Math.hypot(p.x - drag.x, p.y - drag.y) < 8) return;
+    drag.moved = true;
+    const g = at.get(drag.s);
+    if (g) {
+      pieces.appendChild(g);
+      g.setAttribute("transform", `translate(${p.x - SQ / 2 + 3} ${p.y - SQ / 2 - 6}) scale(${(SQ - 6) / 100})`);
+    }
+  });
+  const end = (event) => {
+    if (!drag || event.pointerId !== drag.id) return;
+    const d = drag;
+    drag = null;
+    if (!d.moved) return;
+    const s = sqAt(toSvg(event));
+    place(d.s);
+    if (s >= 0 && s !== d.s && sel >= 0) {
+      if (!tryTo(s)) rules.onBad?.(sel, s);
+    }
+  };
+  hit.addEventListener("pointerup", end);
+  hit.addEventListener("pointercancel", (event) => {
+    if (drag) place(drag.s);
+    drag = null;
+  });
+  const api = {
+    pos: null,
+    rules(r) {
+      rules = r;
+      sel = -1;
+      marks.innerHTML = "";
+    },
+    deselect() {
+      sel = -1;
+      marks.innerHTML = "";
+    },
+    set(pos) {
+      api.pos = pos;
+      pieces.innerHTML = "";
+      at.clear();
+      pos.board.forEach((p, s) => p && at.set(s, drawPiece(pieces, p, xy(s)[0] + 3, xy(s)[1] + 3, SQ - 6)));
+    },
+    clear() {
+      marks.innerHTML = "";
+      top.innerHTML = "";
+    },
+    lastMove(m) {
+      last.innerHTML = "";
+      if (!m) return;
+      for (const s of [m.from, m.to]) {
+        const [x, y] = xy(s);
+        el("rect", { x, y, width: SQ, height: SQ, fill: "rgba(255,207,58,.38)" }, last);
+      }
+    },
+    mark(s, color = "rgba(255,207,58,.65)") {
+      const [x, y] = xy(s);
+      el("rect", { x, y, width: SQ, height: SQ, fill: color }, marks);
+    },
+    ring(s, color = "#e0453a") {
+      const [cx, cy] = center(s);
+      el("circle", { cx, cy, r: SQ * 0.44, fill: "none", stroke: color, "stroke-width": 6 }, top);
+    },
+    dots(list) {
+      for (const s of list) {
+        const [cx, cy] = center(s);
+        if (api.pos.board[s]) el("circle", { cx, cy, r: SQ * 0.45, fill: "none", stroke: "rgba(37,99,235,.75)", "stroke-width": 6 }, marks);
+        else el("circle", { cx, cy, r: SQ * 0.16, fill: "rgba(37,99,235,.6)" }, marks);
+      }
+    },
+    arrow(from, to, color = "#2563eb") {
+      const [x1, y1] = center(from);
+      const [x2, y2] = center(to);
+      const a = Math.atan2(y2 - y1, x2 - x1);
+      el("line", { x1, y1, x2: x2 - Math.cos(a) * 18, y2: y2 - Math.sin(a) * 18, stroke: color, "stroke-width": 9, "stroke-linecap": "round", opacity: 0.85 }, top);
+      const h = 22;
+      el("path", { d: `M${x2} ${y2}L${x2 - Math.cos(a - 0.5) * h} ${y2 - Math.sin(a - 0.5) * h}L${x2 - Math.cos(a + 0.5) * h} ${y2 - Math.sin(a + 0.5) * h}Z`, fill: color, opacity: 0.9 }, top);
+    },
+    // animate a move, then show the new position
+    async play(m, alive, ms = 520) {
+      const g = at.get(m.from);
+      const after = makeMove(api.pos, m);
+      if (g) {
+        pieces.appendChild(g);
+        const [x1, y1] = xy(m.from);
+        const [x2, y2] = xy(m.to);
+        MUSIC.play("woodblock", 79, { gain: 0.25 });
+        const ok = await tween(ms, (t) => g.setAttribute("transform", `translate(${x1 + 3 + (x2 - x1) * t} ${y1 + 3 + (y2 - y1) * t}) scale(${(SQ - 6) / 100})`), alive);
+        if (!ok) return after;
+        MUSIC.play("woodblock", m.capture ? 67 : 72, { gain: 0.35 });
+      }
+      api.set(after);
+      api.lastMove(m);
+      return after;
+    },
+  };
+  return api;
+}
+
+// side card (hidden when the view is cropped to the board)
+function side(v, { title, sub, line = "", turn = "White to move" }) {
+  const g = el("g", { class: "tt-side" }, v);
+  el("rect", { x: 586, y: 18, width: 396, height: 496, rx: 26, fill: "#fbf6ee", stroke: "var(--accent-soft)", "stroke-width": 4 }, g);
+  el("rect", { x: 606, y: 38, width: 356, height: 70, rx: 18, fill: "var(--accent-soft)" }, g);
+  drawPiece(g, turn.startsWith("Black") ? "k" : "K", 614, 42, 62);
+  text(g, 810, 84, turn, { "font-size": 26, fill: "var(--accent-dark)" });
+  if (title) wrapText(g, 784, 160, title, 22, 36, "#2b1d12", 2);
+  if (sub) wrapText(g, 784, 252, sub, 30, 23, "#6b4a2f", 5);
+  const lt = el("g", { class: "tt-lineg" }, g);
+  setSideLine(v, line);
+  fit();
+  return g;
+}
+function wrapText(g, x, y, str, max, size, fill, maxLines = 4) {
+  const words = String(str).split(" ");
+  const lines = [];
+  for (const w of words) {
+    const l = lines[lines.length - 1];
+    if (l && (l + " " + w).length <= max) lines[lines.length - 1] = l + " " + w;
+    else lines.push(w);
+  }
+  lines.slice(0, maxLines).forEach((l, i) => text(g, x, y + i * (size + 8), l, { "font-size": size, fill }));
+}
+function setSideLine(v, line) {
+  const g = v.querySelector(".tt-lineg");
+  if (!g) return;
+  g.innerHTML = "";
+  if (!line) return;
+  text(g, 784, 428, "Line", { "font-size": 22, fill: "#6b4a2f" });
+  wrapText(g, 784, 462, line, 24, 26, "#2b1d12", 2);
+}
+
+
+// ---------- panel pieces ----------
+const LEVELS = [["🐣", "Core"], ["🦊", "Strong"], ["🦁", "Expert"]];
+const isW = (p) => p && p === p.toUpperCase();
+function head(level, { tools = true, extra = "", hint = true } = {}) {
+  return panel(
+    `<div class="tt-bar"><div class="ap-chips" data-levels>${LEVELS.map(([i, l], k) => `<button type="button" data-lv="${k}" aria-pressed="${k === level}">${i} ${l}</button>`).join("")}</div><p class="ap-status" data-status></p>${
+      tools ? `<div class="tt-tools">${extra}${hint ? '<button type="button" data-hint disabled>💡 Hint</button>' : ""}<button type="button" data-idea>📖 Idea</button><button type="button" data-explain>🗣️ Explain it</button></div>` : ""
+    }</div><p class="tt-line" data-line></p><div data-choices class="tt-pick"></div>`
+  );
+}
+const status = (str) => {
+  const s = $("[data-status]");
+  if (s) s.textContent = str;
+};
+const showLine = (str) => {
+  const s = $("[data-line]");
+  if (s) s.textContent = str;
+  if (view) setSideLine(view, str);
+};
+function onLevels(id, fn) {
+  $("[data-levels]")?.addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    shell.mark(id, { level: Number(b.dataset.lv) });
+    window.OC?.touch();
+    fn(Number(b.dataset.lv));
+  });
+}
+const savedLevel = (id) => {
+  const v = Number(shell.progress()[id]?.level);
+  return v === 0 || v === 1 || v === 2 ? v : 0;
+};
+
+// ---------- cards over the stage ----------
+function card(html, speech, { pill = "" } = {}) {
+  stage.querySelectorAll(".tt-card,.tt-pill").forEach((n) => n.remove());
+  const box = document.createElement("div");
+  box.className = "tt-card";
+  box.setAttribute("role", "dialog");
+  box.innerHTML = html;
+  stage.appendChild(box);
+  if (speech) VOICE.speak(speech);
+  // "Look at the board" folds the card into a pill and back
+  box.querySelector("[data-peek]")?.addEventListener("click", () => {
+    VOICE.hush();
+    box.hidden = true;
+    const p = document.createElement("button");
+    p.type = "button";
+    p.className = "tt-pill";
+    p.textContent = pill || "📖 Show the card";
+    stage.appendChild(p);
+    p.addEventListener("click", () => {
+      p.remove();
+      box.hidden = false;
+    });
+  });
+  return box;
+}
+const closeCards = () => stage.querySelectorAll(".tt-card,.tt-pill").forEach((n) => n.remove());
+
+const EXPLAIN = {
+  tc0: { prompt: "What is a tactic, and why must a move be tested against the opponent's best reply?", words: "forcing move, calculate, reply, evidence", model: "A tactic is a short sequence of forcing moves (checks, captures and threats) that wins material or gives checkmate. A move that looks clever is not yet proof; it works only if it succeeds against every reasonable reply. So I calculate: I list Black's best answers and check my plan against each one." },
+  tc1: { prompt: "Explain how to read the move Nbxd7+ aloud, symbol by symbol.", words: "piece letter, file, capture, square, check", model: "N means a knight moves. The b says which knight: the one on the b-file, because two knights could reach the square. The x means it captures, d7 is the square it lands on, and + means the move gives check." },
+  tc2: { prompt: "Why are the values 1, 3, 3, 5 and 9 a guideline rather than a law?", words: "material, activity, king safety, checkmate", model: "The numbers estimate how useful a piece usually is, so they help me judge trades. But the game is decided by checkmate, not by points. A queen sacrifice is correct when it forces mate or wins more than it gives up, so I must calculate the actual position rather than only count." },
+  tc3: { prompt: "Describe one fork you found today and why Black could not escape it.", words: "fork, attacks, at the same time, can only save one", model: "My knight moved to a square where it attacked the king and the queen at the same time. Because the king was in check, Black had to deal with the check first, so the queen could not also be saved. I captured it on the next move." },
+  tc4: { prompt: "Explain the difference between an absolute pin and a relative pin, with an example.", words: "pinned, behind, legal, king, more valuable", model: "In an absolute pin the piece behind is the king, so the pinned piece cannot legally move at all. In a relative pin the piece behind is valuable, such as a queen; the pinned piece may legally move, but then the more valuable piece is lost. Either way, the pinned piece is a target I can attack again." },
+  tc5: { prompt: "How is a skewer like a pin, and how is it different?", words: "line, front, behind, more valuable, step aside", model: "Both tactics use a rook, bishop or queen attacking two pieces on one line. In a pin the less valuable piece is in front; in a skewer the more valuable piece is in front, so it must step aside and the piece behind it is captured." },
+  tc6: { prompt: "Why is a discovered check usually so strong?", words: "uncover, check, two threats, one move", model: "When the front piece moves, it uncovers a check from the piece behind. Black must answer the check, so the piece that moved can capture or threaten something freely. One move creates two threats, and Black can meet only one." },
+  tc7: { prompt: "Why can a double check only be answered by a king move?", words: "two checks, block, capture, one move", model: "A block or a capture stops only one attacker. In a double check, two pieces attack the king at once, and a single move cannot block or capture both. Therefore the king itself must move, and if it has no safe square, it is checkmate." },
+  tc8: { prompt: "Explain removing the defender and overloading, using one puzzle from today.", words: "defender, guards, duty, capture, deflect", model: "A defender guards a piece or a square. If I capture that defender, or give it a second duty it cannot perform at the same time, what it guarded is left undefended. Then I win the piece, or reach the square, on the next move." },
+  tc9: { prompt: "What weakness makes a back-rank mate possible, and how can a player prevent it?", words: "back rank, pawns, escape square, luft", model: "The king sits on its first rank behind its own unmoved pawns, so a rook or queen check along that rank leaves it no escape square. A player can prevent it by moving one pawn forward early, making an escape square (called luft, German for air), or by keeping a rook guarding the rank." },
+  tc10: { prompt: "How do you check that a move is truly checkmate?", words: "check, escape squares, block, capture", model: "First the move must give check. Then I look at every square next to the king and confirm each is covered or occupied by its own pieces. Finally I confirm Black cannot capture the checking piece or block the line. Only when all three fail is it checkmate." },
+  tc11: { prompt: "In a mate in two, why must you consider every Black reply, not only the obvious one?", words: "every defence, forced, evidence, refutation", model: "A mate in two is only proven if mate follows after every legal reply. If even one defence avoids mate, the first move is refuted. So I list all of Black's replies, including surprising ones, and find a mate against each." },
+  tc12: { prompt: "Describe your thinking process for finding the best move in an unknown position.", words: "checks, captures, threats, candidate moves, verify", model: "I first look at checks, captures and threats for both sides, because forcing moves narrow Black's choices. I choose a few candidate moves and calculate Black's best reply to each. I choose the move whose result I can actually demonstrate, not the one that merely looks attractive." },
+  tc13: { prompt: "Explain why naming the whole line before moving improves your play.", words: "calculate, visualise, reply, check, revise", model: "Naming the line forces me to see the position in my mind after each move, including Black's strongest reply. If a step fails, I discover it before I commit, and I can revise my plan. This is how strong players avoid moves that only look good." },
+};
+function explainCard(id, onClose) {
+  const e = EXPLAIN[id];
+  const box = card(
+    `<h2>🗣️ Explain it</h2><p>${e.prompt}</p><p><b>Use these words:</b> ${e.words}</p><textarea aria-label="Your explanation" placeholder="Write 2–4 sentences here, or say them aloud to a grown-up."></textarea><p class="model" hidden><b>A model explanation:</b> ${e.model}</p><div class="row"><button type="button" data-model>I have explained it: show a model</button><button type="button" class="go" data-close>✓ Done</button></div>`,
+    `Explain it. ${e.prompt} Use these words: ${e.words}. Write two to four sentences, or say them aloud to a grown-up.`
+  );
+  box.addEventListener("click", (event) => {
+    if (event.target.closest("[data-model]")) {
+      VOICE.hush();
+      box.querySelector(".model").hidden = false;
+      event.target.closest("[data-model]").remove();
+      VOICE.speak(`A model explanation. ${e.model} Compare it with yours. Is every statement in yours true, and does each one support your conclusion?`);
+      window.OC?.count("explanations");
+    }
+    if (event.target.closest("[data-close]")) {
+      VOICE.hush();
+      box.remove();
+      window.OC?.touch();
+      onClose?.();
+    }
+  });
+}
+const IDEA = {
+  tc1: ["Algebraic notation", ["Files are the columns a to h; ranks are the rows 1 to 8. Every square has one name, such as e4.", "Piece letters: K king, Q queen, R rook, B bishop, N knight (K is taken). A pawn move has no letter: e4.", "x means captures (Nxe5); + check; # checkmate; O-O castles king side, O-O-O queen side; e8=Q promotes.", "If two identical pieces can reach a square, add the starting file or rank: Nbd7, R1e2."]],
+  tc2: ["Piece values", ["Pawn 1, knight 3, bishop 3, rook 5, queen 9. The king cannot be traded, so it has no number.", "Before capturing, count: what do I win, and what can Black take back?", "These are averages, a guideline and not a law. Checkmate outweighs any count, and an active piece can be worth more than a passive one."]],
+  tc3: ["Forks", [THEME.fork.def, "Knights are especially strong at forking: their L-shaped jump cannot be blocked, and they attack pieces that do not share a line.", "Queens fork along lines and diagonals; a pawn forks two pieces diagonally in front of it.", "Look for enemy pieces that are undefended or lined up a knight's jump apart, especially the king."]],
+  tc4: ["Pins", [THEME.pin.def, "Absolute pin: the piece behind is the king, so the pinned piece may not legally move.", "Relative pin: the piece behind is valuable, so moving is legal but costly.", "Once a piece is pinned, attack it again, often with a pawn."]],
+  tc5: ["Skewers", [THEME.skewer.def, "A skewer is a pin in reverse: the more valuable piece is in front.", "Checks along a line are the most common skewers: the king must move, and the piece behind falls."]],
+  tc6: ["Discovered attacks", [THEME.discovered.def, "If the uncovered attack hits the king, it is a discovered check, which is very powerful.", "The piece that moves is free to make a second threat, because Black must answer the first."]],
+  tc7: ["Double check", [THEME.double.def, "A block or a capture can stop only one checking piece.", "Double checks arise from discovered checks in which the moving piece also gives check."]],
+  tc8: ["Removing the defender", [THEME.remove.def, THEME.overload.def, "Ask of each Black piece: what is it guarding? Can I capture it or give it a second job?"]],
+  tc9: ["Back-rank mate", [THEME.back.def, "Check whether Black's king has an escape square on the second rank.", "If a Black piece guards the back rank, look for a way to deflect or exchange it first."]],
+  tc10: ["Mate in 1", ["Look at the Black king first: list its escape squares.", "Find a check that also covers every escape square, cannot be captured, and cannot be blocked.", "Consider every check, including surprising ones."]],
+  tc11: ["Mate in 2", [THEME.mate2.def, "The first move may be a check, a capture or a quiet move that sets up a threat.", "Test your first move against every Black reply; Black's answer will be played automatically."]],
+  tc12: ["Find the best move", ["No hint about the theme: identify it yourself.", "Search in this order: checks, captures, threats, for both sides.", "Choose candidates, calculate the best reply to each, then decide."]],
+  tc13: ["Calculate", ["Name the whole line before you touch a piece: your move, Black's strongest reply, your next move.", "Here you move pieces of both colours on a planning board; nothing is played until you check the line.", "If a step fails, undo and revise. Strong players test their ideas before they act."]],
+};
+function ideaCard(id, onClose) {
+  const [title, points] = IDEA[id];
+  const box = card(`<h2>📖 ${title}</h2><ul>${points.map((p) => `<li>${p}</li>`).join("")}</ul><div class="row"><button type="button" class="go" data-close>✓ Understood</button></div>`, `${title}. ${points.join(" ")}`);
+  box.querySelector("[data-close]").addEventListener("click", () => {
+    VOICE.hush();
+    box.remove();
+    onClose?.();
+  });
+}
+function realCard(onClose) {
+  const box = card(
+    `<h2>🏠 Try it for real</h2><p><b>You need:</b> a chessboard, a grown-up, paper and a pencil.</p><ol><li>Set up one puzzle from today on the real board.</li><li>Before touching a piece, write the whole line in notation, such as 1. Nf7+ Kg8 2. Nxd8.</li><li>Play it out with your grown-up taking Black and trying every defence.</li><li>Explain aloud why each Black reply fails.</li></ol><p class="safe">⚠️ Keep small chess pieces away from little ones who put things in their mouths.</p><div class="row"><button type="button" class="go" data-close>✓ Done</button></div>`,
+    "Try it for real. Set up one puzzle on a real board. Write the whole line in notation before touching a piece. Play it out with a grown-up taking Black, and explain why each reply fails."
+  );
+  box.querySelector("[data-close]").addEventListener("click", () => {
+    VOICE.hush();
+    box.remove();
+    onClose?.();
+  });
+}
+function wireTools(id, { hint } = {}) {
+  $("[data-idea]")?.addEventListener("click", () => {
+    VOICE.hush();
+    ideaCard(id);
+  });
+  $("[data-explain]")?.addEventListener("click", () => {
+    VOICE.hush();
+    explainCard(id);
+  });
+  if (hint) $("[data-hint]")?.addEventListener("click", hint);
+}
+const CORRECT = ["Correct.", "Correct, and well calculated.", "Correct. You tested the reply before moving.", "Correct. Precise work."];
+const EFFORT = ["You calculated before you moved.", "You kept looking for the strongest reply.", "You tested your ideas against the evidence on the board.", "You persisted through the difficult positions."];
+function finish(my, id, { solo, total, again }) {
+  confetti();
+  MUSIC.chime();
+  shell.mark(id, { done: true });
+  window.OC?.count("tactics sets");
+  if (my !== token) return;
+  const box = card(
+    `<h2>Set complete</h2><p>${pick(EFFORT)} Puzzles solved without the solution shown: <b>${solo} of ${total}</b>. Any that you saw revealed are worth setting up again tomorrow.</p><div class="row"><button type="button" class="go" data-ex>🗣️ Explain it</button><button type="button" data-real>🏠 Try it for real</button><button type="button" data-again>🔁 New set</button></div>`,
+    `Set complete. ${solo} of ${total} solved without the solution shown.`
+  );
+  say("Set complete. Now explain one idea from today in your own words.");
+  box.querySelector("[data-ex]").addEventListener("click", () => explainCard(id, () => finish(my, id, { solo, total, again })));
+  box.querySelector("[data-real]").addEventListener("click", () => realCard(() => finish(my, id, { solo, total, again })));
+  box.querySelector("[data-again]").addEventListener("click", () => {
+    closeCards();
+    again();
+  });
+}
+const promoPick = (host) =>
+  new Promise((resolve) => {
+    choices(host, [{ label: "♕ Queen", v: "q" }, { label: "♖ Rook", v: "r" }, { label: "♗ Bishop", v: "b" }, { label: "♘ Knight", v: "n" }], (c) => {
+      host.innerHTML = "";
+      resolve(c.v);
+    });
+  });
+// Unseen puzzles first, so repeat play stays fresh.
+function pickSet(id, bank, n) {
+  const seen = new Set(shell.progress()[id]?.seenIds || []);
+  const fresh1 = shuffle(bank.filter((p) => !seen.has(p.id)));
+  const old = shuffle(bank.filter((p) => seen.has(p.id)));
+  return [...fresh1, ...old].slice(0, n);
+}
+function remember(id, pid) {
+  const seenIds = [...(shell.progress()[id]?.seenIds || []).filter((x) => x !== pid), pid].slice(-150);
+  shell.mark(id, { seenIds });
+}
+
+
+// ---------- the puzzle drill: one engine for every tactic unit ----------
+// The lesson for the moves actually played. An accepted alternative final move (verified as equally strong) may
+// not repeat the exact pattern of the analysed line; then the analysed line's explanation is shown and labelled.
+function lessonFor(q, line) {
+  try {
+    if (q.m || detect(parseFEN(q.fen), line)[q.t]) return lesson({ ...q, line });
+  } catch (e) {}
+  const L = lesson(q);
+  return { ...L, full: sanLine(parseFEN(q.fen), line), why: `Your final move is as strong as the analysed line, ${L.full}. ${L.why}` };
+}
+const isMateKind = (q) => !!q.m;
+// Does move m at this ply solve the puzzle so far? (Every accepted move was verified by the Node test.)
+function accepts(q, ply, pos, m) {
+  const u = uci(m);
+  const after = makeMove(pos, m);
+  if (isMateKind(q)) {
+    if (ply === q.line.length - 1) return isMate(after);
+    return ply === 0 && (q.keys || [q.line[0]]).includes(u);
+  }
+  if (u === q.line[ply]) return true;
+  return ply === q.line.length - 1 && (q.ok?.[ply] || []).includes(u);
+}
+// Evidence for a wrong move: Black's strongest answer, found on the board.
+function refute(q, ply, pos, m) {
+  const after = makeMove(pos, m);
+  const s = san(pos, m);
+  if (isMateKind(q)) {
+    if (ply === q.line.length - 1) {
+      if (!inCheck(after)) return `${s} is not check, so Black may play any move at all.`;
+      const esc = legalMoves(after);
+      const run = esc.find((x) => x.piece === "k");
+      const r = run || esc[0];
+      return `${s} is check, but Black answers ${san(after, r)}${run ? ", and the king escapes" : r.capture ? ", capturing the checking piece" : ", blocking the line"}.`;
+    }
+    if (isMate(after)) return `${s} is checkmate already; that also wins.`;
+    if (!legalMoves(after).length) return `${s} leaves Black with no legal move while not in check: that is stalemate, a draw.`;
+    for (const d of legalMoves(after)) if (!mates(makeMove(after, d)).length) return `After ${s}, Black can answer ${san(after, d)}, and then no immediate checkmate exists. Which reply must your first move prevent?`;
+    return `After ${s}, Black still has a defence.`;
+  }
+  const rs = rootScores(after, 2, 0);
+  if (!rs.length) return `${s} leaves Black no moves: that is stalemate, a draw.`;
+  const r = rs[0].m;
+  // a move that also gains material is not called worthless: it is weaker than the key, which wins more
+  if (-rs[0].score - evaluate(pos) >= 200) return `${s} also gains material, but less than the strongest move here. Look for a move that wins more.`;
+  return `After ${s}, Black can answer ${san(after, r)}${r.capture ? `, capturing your ${pname(r.capture)}` : ""}, and White wins nothing clear.`;
+}
+const SOCRATIC = [
+  "What does that piece attack after the move? What can Black reply?",
+  "Which Black pieces are undefended, or standing on one line? Which move makes two threats at once?",
+  "Look for forcing moves first: checks, captures and threats. Which one leaves Black the fewest good replies?",
+];
+
+const MATE_Q = [
+  "After your move, which squares can the Black king still reach?",
+  "Which Black reply spoils your plan? Can a different first move take that reply away?",
+  "Consider every check first, then quiet moves that take squares from the king.",
+];
+function drill(id, cfg) {
+  const my = token;
+  const alive = () => my === token;
+  let level = savedLevel(id);
+  let list = [];
+  let round = 0;
+  let solo = 0;
+  let q = null;
+  let ply = 0;
+  let tries = 0;
+  let missed = false;
+  let hints = 0;
+  let busy = false;
+  let board;
+  let played = [];
+  head(level);
+  const start = () => {
+    const n = cfg.rounds || 8;
+    list = pickSet(id, cfg.bank(level), n);
+    // a small bank is topped up from the neighbouring levels
+    if (list.length < n) list = [...list, ...pickSet(id, [0, 1, 2].filter((l) => l !== level).flatMap((l) => cfg.bank(l)), n - list.length)];
+    round = 0;
+    solo = 0;
+    ask();
+  };
+  const startPos = () => parseFEN(q.fen);
+  const lineText = () => (played.length ? sanLine(startPos(), played) : "");
+  const ask = () => {
+    if (!alive()) return;
+    q = list[round];
+    ply = 0;
+    tries = 0;
+    missed = false;
+    hints = 0;
+    busy = false;
+    played = [];
+    closeCards();
+    fresh();
+    board = makeBoard(view);
+    board.set(startPos());
+    side(view, { title: cfg.title?.(q) || THEME[q.t]?.name || "Find the best move", sub: cfg.sub?.(q) || (q.m === 2 ? "Every Black reply must allow mate." : q.m === 1 ? "Checkmate in one move." : THEME[q.t]?.def || "") });
+    status(`${LEVELS[level][0]} Puzzle ${round + 1} of ${list.length}`);
+    showLine("");
+    $("[data-choices]").innerHTML = "";
+    const h = $("[data-hint]");
+    if (h) h.disabled = true;
+    say(cfg.prompt(q, round));
+    board.rules({
+      locked: () => busy,
+      canPick: (s) => board.pos.turn === "w" && isW(board.pos.board[s]),
+      targets: (s) => legalMoves(board.pos).filter((m) => m.from === s),
+      onMove: async (ms) => {
+        if (ms.length > 1) {
+          busy = true;
+          say("Choose the new piece.");
+          const v = await promoPick($("[data-choices]"));
+          busy = false;
+          return attempt(ms.find((m) => m.promo === v));
+        }
+        attempt(ms[0]);
+      },
+      onBad: (s, t) => {
+        if (t >= 0 && isW(board.pos.board[t])) return;
+        say(`The ${pname(board.pos.board[s])} cannot move there. Tap one of the blue dots, or choose another piece.`);
+      },
+    });
+  };
+  const attempt = async (m) => {
+    if (!alive() || busy) return;
+    const pos = board.pos;
+    if (accepts(q, ply, pos, m)) {
+      busy = true;
+      played.push(uci(m));
+      const after = await board.play(m, alive);
+      if (!alive()) return;
+      showLine(lineText());
+      if (ply >= q.line.length - 1 || isMate(after)) return solved(true);
+      // Black answers automatically: in a mate in 2, any defence (all were verified); otherwise the verified best reply
+      const reply = q.m === 2 && q.t !== "back" ? pick(legalMoves(after)) : findMove(after, q.line[ply + 1]);
+      say(`${pick(CORRECT)} Now Black replies…`);
+      await wait(700);
+      if (!alive()) return;
+      played.push(uci(reply));
+      await board.play(reply, alive, 650);
+      if (!alive()) return;
+      showLine(lineText());
+      ply += 2;
+      tries = 0;
+      busy = false;
+      say(`Black played ${san(after, reply)}. Your move: finish the job.`);
+      return;
+    }
+    tries += 1;
+    MUSIC.oops();
+    board.mark(m.to, "rgba(224,69,58,.4)");
+        const evidence = refute(q, ply, pos, m);
+    const h = $("[data-hint]");
+    if (h && hints < 2) h.disabled = false;
+    if (tries < 2) {
+      const qs = isMateKind(q) ? MATE_Q : SOCRATIC;
+      say(`Not quite. ${evidence} ${missed ? "" : "Mistakes are how we learn. "}${qs[(round + tries) % qs.length]}`);
+      missed = true;
+      setTimeout(() => alive() && !busy && board.clear(), 2600);
+      return;
+    }
+    busy = true;
+    missed = true;
+    await sayAsync(`Not quite. ${evidence} Let us look at the solution.`);
+    if (!alive()) return;
+    reveal();
+  };
+  const reveal = async () => {
+    busy = true;
+    board.clear();
+    let pos = board.pos;
+    const first = isMateKind(q) && ply === q.line.length - 1 ? mates(pos)[0] : findMove(pos, ply === 0 && q.keys ? q.keys[0] : q.line[ply]);
+    board.arrow(first.from, first.to, "#16a34a");
+    say(`The move is ${san(pos, first)}.`);
+    await wait(1600);
+    if (!alive()) return;
+    board.clear();
+    let m = first;
+    for (let i = ply; i < q.line.length; i++) {
+      played.push(uci(m));
+      pos = await board.play(m, alive, 650);
+      if (!alive()) return;
+      showLine(lineText());
+      if (i + 1 >= q.line.length || isMate(pos)) break;
+      await wait(500);
+      if (!alive()) return;
+      const nextU = q.line[i + 1];
+      m = findMove(pos, nextU) || (i + 1 === q.line.length - 1 && isMateKind(q) ? mates(pos)[0] : legalMoves(pos)[0]);
+      if (isMateKind(q) && i + 1 === q.line.length - 1) m = mates(pos)[0];
+    }
+    solved(false);
+  };
+  const solved = async (own) => {
+    busy = true;
+    if (own) {
+      solo += 1;
+      MUSIC.chime();
+      window.OC?.count("tactics solved");
+    }
+    remember(id, q.id);
+    const final = board.pos;
+    if (isMate(final)) board.mark(kingSq(final.board, "b"), "rgba(224,69,58,.5)");
+    const L = lessonFor(q, played);
+    if (cfg.quiz) {
+      say(own ? `${pick(CORRECT)} One more question.` : "One more question.");
+      await cfg.quiz(q, alive);
+      if (!alive()) return;
+    }
+    const extra = q.m === 2 ? ` Black had ${legalMoves(makeMove(startPos(), findMove(startPos(), played[0]))).length} legal replies; each one allows mate.` : "";
+    const head2 = own ? (missed ? "Correct, after a second look." : "Correct.") : "The solution";
+    const last = round + 1 >= list.length;
+    const box = card(
+      `<h2>${head2}</h2><p class="tt-moves">${L.full}</p><p>${L.why}${extra}</p><div class="row"><button type="button" class="go" data-next>${last ? "Finish ▶" : "Next puzzle ▶"}</button><button type="button" data-peek>👁 Look at the board</button></div>`,
+      `${head2} ${L.why}${extra}`
+    );
+    say(own ? `${head2} Read why it works, then continue.` : "Study the line, then try the next puzzle.");
+    box.querySelector("[data-next]").addEventListener("click", () => {
+      VOICE.hush();
+      round += 1;
+      if (round >= list.length) return finish(my, id, { solo, total: list.length, again: start });
+      ask();
+    });
+  };
+  const hint = () => {
+    if (!alive() || busy || hints >= 2 || !missed) return;
+    hints += 1;
+    window.OC?.touch();
+    if (hints === 1) say(cfg.hint ? cfg.hint(q) : isMateKind(q) ? MATE_Q[0] : SOCRATIC[1]);
+    else {
+      const pos = board.pos;
+      const m = isMateKind(q) && ply === q.line.length - 1 ? mates(pos)[0] : findMove(pos, ply === 0 && q.keys ? q.keys[0] : q.line[ply]);
+      board.clear();
+      board.mark(m.from, "rgba(37,160,90,.5)");
+      say(`Consider the ${pname(m.piece)} on ${sqName(m.from)}. Where could it go to create the most forcing threat?`);
+    }
+    const h = $("[data-hint]");
+    if (h && hints >= 2) h.disabled = true;
+  };
+  wireTools(id, { hint });
+  onLevels(id, (lv) => {
+    if (cfg.switchLevel && lv !== level) return cfg.switchLevel(lv);
+    level = lv;
+    start();
+  });
+  start();
+  window.__tt = {
+    q: () => q,
+    ply: () => ply,
+    busy: () => busy,
+    play: (u) => attempt(findMove(board.pos, u)),
+    solve: () => {
+      if (isMateKind(q) && ply === q.line.length - 1) return attempt(mates(board.pos)[0]);
+      return attempt(findMove(board.pos, ply === 0 && q.keys ? q.keys[0] : q.line[ply]));
+    },
+    wrong: () => {
+      const good = (m) => accepts(q, ply, board.pos, m);
+      return attempt(legalMoves(board.pos).find((m) => !good(m)));
+    },
+    hint,
+    next: () => document.querySelector("[data-next]")?.click(),
+    go: (r) => ((round = r), ask()),
+    list: () => list,
+  };
+}
+
+
+// ---------- See it: a board drawn inside a scene ----------
+function sceneBoard(v, fen, { x0 = 300, y0 = 36, sq = 54 } = {}) {
+  el("rect", { x: x0 - 7, y: y0 - 7, width: sq * 8 + 14, height: sq * 8 + 14, rx: 10, fill: "#6b4a2f" }, v);
+  for (let s = 0; s < 64; s++) el("rect", { x: x0 + (s & 7) * sq, y: y0 + (7 - (s >> 3)) * sq, width: sq, height: sq, fill: ((s & 7) + (s >> 3)) % 2 ? "#f3e2c2" : "#b98a5e" }, v);
+  for (let f = 0; f < 8; f++) text(v, x0 + f * sq + sq / 2, y0 + sq * 8 + 30, FILES[f], { "font-size": 22, fill: "#6b4a2f" });
+  for (let r = 0; r < 8; r++) text(v, x0 - 22, y0 + (7 - r) * sq + sq / 2 + 8, r + 1, { "font-size": 22, fill: "#6b4a2f" });
+  const layer = el("g", {}, v);
+  const over = el("g", {}, v);
+  const at = (s) => [x0 + (s & 7) * sq, y0 + (7 - (s >> 3)) * sq];
+  const gs = new Map();
+  let pos = parseFEN(fen);
+  const draw = () => {
+    layer.innerHTML = "";
+    gs.clear();
+    pos.board.forEach((p, s) => p && gs.set(s, drawPiece(layer, p, at(s)[0] + 2, at(s)[1] + 2, sq - 4)));
+  };
+  draw();
+  return {
+    at,
+    get pos() {
+      return pos;
+    },
+    arrow(from, to, color) {
+      const [x1, y1] = at(from).map((n) => n + sq / 2);
+      const [x2, y2] = at(to).map((n) => n + sq / 2);
+      const a = Math.atan2(y2 - y1, x2 - x1);
+      el("line", { x1, y1, x2: x2 - Math.cos(a) * 16, y2: y2 - Math.sin(a) * 16, stroke: color, "stroke-width": 8, "stroke-linecap": "round", opacity: 0.85 }, over);
+      el("path", { d: `M${x2} ${y2}L${x2 - Math.cos(a - 0.5) * 20} ${y2 - Math.sin(a - 0.5) * 20}L${x2 - Math.cos(a + 0.5) * 20} ${y2 - Math.sin(a + 0.5) * 20}Z`, fill: color, opacity: 0.9 }, over);
+    },
+    clear: () => (over.innerHTML = ""),
+    mark(s, color) {
+      const [x, y] = at(s);
+      el("rect", { x, y, width: sq, height: sq, fill: color }, over);
+    },
+    async move(str, api, ms = 900) {
+      const m = findMove(pos, str);
+      const g = gs.get(m.from);
+      const [x1, y1] = at(m.from);
+      const [x2, y2] = at(m.to);
+      layer.appendChild(g);
+      await api.tween(ms, (t) => g.setAttribute("transform", `translate(${x1 + 2 + (x2 - x1) * t} ${y1 + 2 + (y2 - y1) * t}) scale(${(sq - 4) / 100})`));
+      MUSIC.play("woodblock", m.capture ? 67 : 72, { gain: 0.35 });
+      pos = makeMove(pos, m);
+      draw();
+      return m;
+    },
+  };
+}
+const OPERA = "e4 e5 Nf3 d6 d4 Bg4 dxe5 Bxf3 Qxf3 dxe5 Bc4 Nf6 Qb3 Qe7 Nc3 c6 Bg5 b5 Nxb5 cxb5 Bxb5+ Nbd7 O-O-O Rd8 Rxd7 Rxd7 Rd1 Qe6 Bxd7+ Nxd7 Qb8+ Nxb8 Rd8#".split(" ");
+const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+const OPERA_AT = (n) => toFEN(playLine(parseFEN(START), OPERA.slice(0, n)).positions[n]);
+const FORK_DEMO = "r3k3/8/8/3N4/8/8/8/4K3 w - - 0 1";
+const FORK_LINE = ["Nc7+", "Kd7", "Nxa8"];
+const TRAP_DEMO = "1r2k3/1p6/8/8/8/8/1Q6/4K3 w - - 0 1";
+const TRAP_LINE = ["Qxb7", "Rxb7"];
+
+const label = (v, x, y, str, size = 26, fill = "#2b1d12") => text(v, x, y, str, { "font-size": size, fill });
+function seeIt() {
+  const my = token;
+  explain(
+    [
+      {
+        say: "A tactic is a short, forcing sequence of moves that wins material or gives checkmate. Solving tactics trains calculation: seeing several moves ahead and testing every reply, a habit as useful in mathematics, science and argument as in chess.",
+        draw: everyday([["🧮", "Calculation"], ["🔍", "Pattern recognition"], ["⚖️", "Weighing evidence"], ["🗣️", "Explaining reasons"]]),
+      },
+      {
+        say: "Forcing moves come first: checks, captures and threats. Here the knight jumps to c7 with check and attacks the rook at the same time, a fork. Black must answer the check, so the rook is lost.",
+        async draw(v, api) {
+          const b = sceneBoard(v, FORK_DEMO);
+          label(v, 150, 120, "Checks", 30, "#c0392b");
+          label(v, 150, 165, "Captures", 30, "#b45309");
+          label(v, 150, 210, "Threats", 30, "#2563eb");
+          await api.wait(1200);
+          await b.move(FORK_LINE[0], api);
+          b.arrow(sqOf("c7"), sqOf("e8"), "#c0392b");
+          b.arrow(sqOf("c7"), sqOf("a8"), "#b45309");
+          await api.wait(1800);
+          b.clear();
+          await b.move(FORK_LINE[1], api);
+          await api.wait(500);
+          await b.move(FORK_LINE[2], api);
+          label(v, 850, 280, "1. Nc7+ Kd7", 28);
+          label(v, 850, 320, "2. Nxa8", 28);
+          label(v, 850, 380, "+5 for White", 28, "#15803d");
+        },
+      },
+      {
+        say: "A move that looks good is only a hypothesis until it survives the opponent's best reply. Taking the pawn on b7 seems to win one point; the evidence, Black's reply, shows it loses the queen. Calculation means testing before trusting.",
+        async draw(v, api) {
+          const b = sceneBoard(v, TRAP_DEMO);
+          await api.wait(1000);
+          await b.move(TRAP_LINE[0], api);
+          label(v, 150, 200, "Looks like:", 26);
+          label(v, 150, 245, "+1", 44, "#15803d");
+          await api.wait(1500);
+          await b.move(TRAP_LINE[1], api);
+          label(v, 850, 200, "After the reply:", 26);
+          label(v, 850, 245, "−8", 44, "#c0392b");
+          label(v, 850, 330, "Test it first.", 28, "var(--accent-dark)");
+        },
+      },
+      {
+        say: "History. François-André Danican Philidor (1726 to 1795) was a French composer and the strongest player of his time. His book, L'Analyze des Échecs (Analysis of Chess), published in 1749 and later known as Analyse du jeu des Échecs, remained a standard manual for about a century; he argued that the arrangement of the pawns largely decides the game. In May 1783, at a chess club in London, he played three games at once without seeing the boards.",
+        async draw(v, api) {
+          el("line", { x1: 90, y1: 300, x2: 910, y2: 300, stroke: "#6b4a2f", "stroke-width": 6, "stroke-linecap": "round" }, v);
+          const marks = [[160, "1749", "Philidor's book"], [420, "1783", "3 blindfold games"], [700, "1858", "Morphy, Paris"]];
+          for (const [x, yr, what] of marks) {
+            const g = el("g", { opacity: 0 }, v);
+            el("circle", { cx: x, cy: 300, r: 16, fill: "var(--accent)" }, g);
+            label(g, x, 260, yr, 36, "var(--accent-dark)");
+            label(g, x, 350, what, 24);
+            await api.tween(500, (t) => g.setAttribute("opacity", t));
+            await api.wait(700);
+          }
+          emoji(v, 860, 140, "🎼", 70);
+          label(v, 500, 470, "Composer and chess master", 28, "#6b4a2f");
+        },
+      },
+      {
+        say: "In 1858, in a box at the Paris opera, Paul Morphy of New Orleans played the Duke of Brunswick and Count Isouard, who chose Black's moves together. Morphy developed quickly, then gave up his queen: 16. Qb8 check, knight takes, 17. Rd8 checkmate. Sources disagree about which opera was playing, a reminder to check what the evidence actually supports.",
+        async draw(v, api) {
+          const b = sceneBoard(v, OPERA_AT(30));
+          label(v, 150, 110, "The Opera", 28);
+          label(v, 150, 145, "Game, 1858", 28);
+          await api.wait(1400);
+          await b.move("Qb8+", api);
+          label(v, 850, 200, "16. Qb8+!", 30, "#c0392b");
+          await api.wait(1200);
+          await b.move("Nxb8", api);
+          label(v, 850, 245, "16… Nxb8", 30);
+          await api.wait(900);
+          await b.move("Rd8#", api);
+          label(v, 850, 290, "17. Rd8#", 30, "#c0392b");
+          b.mark(sqOf("e8"), "rgba(224,69,58,.45)");
+          label(v, 850, 380, "Queen given,", 26, "var(--accent-dark)");
+          label(v, 850, 414, "game won.", 26, "var(--accent-dark)");
+        },
+      },
+      {
+        say: "You will learn the standard patterns: forks, pins, skewers, discovered attacks, double check, removing the defender, and the back-rank mate. Each puzzle here was checked by a computer program that tried every reply.",
+        async draw(v, api) {
+          const keys = ["fork", "pin", "skewer", "discovered", "double", "remove", "overload", "back"];
+          for (let i = 0; i < keys.length; i++) {
+            const x = 140 + (i % 4) * 240;
+            const y = 150 + Math.floor(i / 4) * 210;
+            const g = el("g", { opacity: 0 }, v);
+            el("rect", { x: x - 105, y: y - 80, width: 210, height: 180, rx: 24, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, g);
+            emoji(g, x, y - 12, THEME[keys[i]].icon, 64);
+            const words = THEME[keys[i]].name.split(" ");
+            const l1 = words.length > 2 ? words.slice(0, 2).join(" ") : words[0];
+            const l2 = words.length > 2 ? words.slice(2).join(" ") : words.slice(1).join(" ");
+            label(g, x, y + 60, l1, 24);
+            if (l2) label(g, x, y + 88, l2, 24);
+            await api.tween(350, (t) => g.setAttribute("opacity", t));
+          }
+        },
+      },
+      {
+        say: "How you will work: try a move; if it fails, Ollie shows Black's reply as evidence and asks a question. After two tries the solution is shown with the reasons. In every unit, explain one idea in your own words.",
+        async draw(v, api) {
+          const steps = [["♟️", "Try a move"], ["❓", "Read the evidence"], ["📖", "Study the line"], ["🗣️", "Explain it"]];
+          for (let i = 0; i < steps.length; i++) {
+            const x = 140 + i * 240;
+            const g = el("g", { opacity: 0 }, v);
+            el("circle", { cx: x, cy: 230, r: 90, fill: "var(--accent-soft)" }, g);
+            emoji(g, x, 226, steps[i][0], 90);
+            label(g, x, 380, steps[i][1], 28);
+            if (i < 3) label(g, x + 120, 240, "→", 40, "var(--accent-dark)");
+            await api.tween(400, (t) => g.setAttribute("opacity", t));
+            await api.wait(300);
+          }
+        },
+      },
+    ],
+    { alive: () => my === token, onDone: () => shell.go("tc1"), title: "Chess Tactics" }
+  );
+}
+
+// ---------- 1. Notation ----------
+const NOTE_FENS = [
+  "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R w KQkq - 0 5",
+  "r3kb1r/ppp2ppp/2nqbn2/3pp3/3PP3/2NQBN2/PPP2PPP/R3KB1R w KQkq - 0 7",
+  "4k3/1P6/8/8/8/8/6K1/8 w - - 0 1",
+  "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 2",
+  "4k3/8/8/8/8/2N3N1/8/4K3 w - - 0 1",
+  "4k3/8/8/8/8/8/5PPP/R4RK1 w - - 0 1",
+  "4k3/8/8/8/R7/8/5PPP/R5K1 w - - 0 1",
+  "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+];
+const notePool = () => [...NOTE_FENS, OPERA_AT(10), OPERA_AT(14), OPERA_AT(20), OPERA_AT(24), OPERA_AT(28), ...PUZ.filter((p) => p.t !== "mate2").slice(0, 60).map((p) => p.fen)];
+function distractors(pos, m) {
+  const s = san(pos, m);
+  const out = new Set();
+  const core = s.replace(/[+#]/g, "");
+  const tail = s.slice(core.length);
+  const dest = sqName(m.to);
+  if (!m.castle) {
+    if (core.includes("x")) out.add(core.replace("x", "") + tail);
+    else if (m.piece.toLowerCase() !== "p") out.add(core.replace(dest, "x" + dest) + tail);
+    const swap = { N: "B", B: "N", R: "Q", Q: "R", K: "Q" };
+    if (/^[NBRQK]/.test(core)) out.add(swap[core[0]] + core.slice(1) + tail);
+    else out.add(core.replace(dest, FILES[(m.to & 7) ^ 1] + dest[1]) + tail);
+    const r = (m.to >> 3) + 1;
+    const r2 = r === 8 ? 7 : r + 1;
+    out.add(core.replace(dest, dest[0] + r2) + tail);
+    out.add(tail ? core : core + "+");
+  } else {
+    out.add(m.castle === "k" ? "O-O-O" : "O-O");
+    out.add(m.castle === "k" ? "Kg1" : "Kc1");
+    out.add(m.castle === "k" ? "Rf1" : "Rd1");
+  }
+  out.delete(s);
+  return shuffle([...out]).slice(0, 3);
+}
+const special = (pos, m) => {
+  const s = san(pos, m);
+  return /x|\+|#|=|O-O/.test(s) || /^[NBRQ][a-h1-8][a-hx]/.test(s);
+};
+function notation() {
+  const id = "tc1";
+  const my = token;
+  const alive = () => my === token;
+  let level = savedLevel(id);
+  let round = 0;
+  let solo = 0;
+  let tries = 0;
+  let busy = false;
+  let q = null;
+  let board;
+  const ROUNDS = 10;
+  head(level, { hint: false });
+  const say2 = (s) => say(s);
+  const ask = () => {
+    if (!alive()) return;
+    tries = 0;
+    busy = false;
+    closeCards();
+    fresh();
+    board = makeBoard(view);
+    $("[data-choices]").innerHTML = "";
+    showLine("");
+    status(`${LEVELS[level][0]} Question ${round + 1} of ${ROUNDS}`);
+    if (level === 0) {
+      const sq = Math.floor(Math.random() * 64);
+      board.set({ board: Array(64).fill(null), turn: "w", castle: "", ep: -1 });
+      if (round % 2 === 0) {
+        q = { kind: "tap", sq };
+        side(view, { title: "Tap the square", sub: sqName(sq) });
+        say2(`Tap the square ${sqName(sq)}. Read the file letter first, then the rank number.`);
+        board.rules({ locked: () => busy, canPick: () => false, targets: () => [], onMove() {}, onEmpty: (s) => answer(s === sq, s) });
+      } else {
+        q = { kind: "name", sq };
+        board.ring(sq);
+        side(view, { title: "Name the square", sub: "in the red ring" });
+        say2("What is the name of the square in the red ring?");
+        const opts = shuffle([sq, sq ^ 1, sq ^ 8, (sq + 18) % 64].filter((x, i, a) => a.indexOf(x) === i)).map((x) => ({ label: sqName(x), v: x }));
+        choices($("[data-choices]"), opts, (c, btn) => answer(c.v === sq, c.v, btn));
+        board.rules({ locked: () => true, canPick: () => false, targets: () => [], onMove() {} });
+      }
+      return;
+    }
+    const pool = notePool();
+    for (let t = 0; t < 200; t++) {
+      const pos = parseFEN(pick(pool));
+      const ms = legalMoves(pos);
+      if (!ms.length) continue;
+      const fancy = ms.filter((m) => special(pos, m));
+      const m = level === 2 || Math.random() < 0.6 ? pick(fancy.length ? fancy : ms) : pick(ms);
+      if (!m) continue;
+      q = { pos, m, s: san(pos, m) };
+      break;
+    }
+    board.set(q.pos);
+    if (level === 1) {
+      board.arrow(q.m.from, q.m.to);
+      side(view, { title: "Read the move", sub: "Which notation describes the arrow?" });
+      say2("White plays the move shown by the arrow. Which notation is correct?");
+      const opts = shuffle([q.s, ...distractors(q.pos, q.m)]).map((x) => ({ label: x, v: x }));
+      choices($("[data-choices]"), opts, (c, btn) => answer(c.v === q.s, c.v, btn));
+      board.rules({ locked: () => true, canPick: () => false, targets: () => [], onMove() {} });
+    } else {
+      side(view, { title: "Play the move", sub: q.s });
+      say2(`Play the move ${q.s} on the board.`);
+      board.rules({
+        locked: () => busy,
+        canPick: (s) => isW(board.pos.board[s]),
+        targets: (s) => legalMoves(board.pos).filter((m) => m.from === s),
+        onMove: async (ms) => {
+          let m = ms[0];
+          if (ms.length > 1) {
+            busy = true;
+            const v = await promoPick($("[data-choices]"));
+            busy = false;
+            m = ms.find((x) => x.promo === v);
+          }
+          answer(uci(m) === uci(q.m), m);
+        },
+      });
+    }
+  };
+  const decode = () => {
+    if (level === 0) return `${sqName(q.sq)}: file ${sqName(q.sq)[0]} (the column), rank ${sqName(q.sq)[1]} (the row).`;
+    const s = q.s;
+    const parts = [];
+    if (s.startsWith("O-O-O")) parts.push("O-O-O is castling on the queen side");
+    else if (s.startsWith("O-O")) parts.push("O-O is castling on the king side");
+    else {
+      parts.push(/^[NBRQK]/.test(s) ? `${s[0]} means ${pname(s[0])}` : "no capital letter means a pawn");
+      const dis = s.match(/^[NBRQK]([a-h1-8])(?=x?[a-h][1-8])/);
+      if (dis) parts.push(`${dis[1]} says which ${pname(s[0])}, because two could reach the square`);
+      if (s.includes("x")) parts.push(q.m.ep ? "x means captures (here en passant: the pawn captures a pawn that has just advanced two squares past it, as if it had moved only one)" : "x means captures");
+      parts.push(`${sqName(q.m.to)} is the destination square`);
+      if (s.includes("=")) parts.push(`=${q.m.promo.toUpperCase()} means the pawn promotes to a ${pname(q.m.promo)}`);
+    }
+    if (s.endsWith("+")) parts.push("+ means check");
+    if (s.endsWith("#")) parts.push("# means checkmate");
+    return `${s}: ${parts.join("; ")}.`;
+  };
+  const answer = async (right, v, btn) => {
+    if (!alive() || busy) return;
+    window.OC?.touch();
+    if (right) {
+      busy = true;
+      btn?.classList.add("right");
+      MUSIC.chime();
+      if (!tries) solo += 1;
+      board.clear();
+      if (level === 2) await board.play(q.m, alive);
+      if (level === 0 && q.kind === "tap") board.mark(q.sq, "rgba(34,160,90,.5)");
+      if (!alive()) return;
+      say(`${pick(CORRECT)} ${decode()}`);
+      return nextBtn();
+    }
+    tries += 1;
+    MUSIC.oops();
+    btn?.classList.add("wrong");
+    if (tries < 2) {
+      if (level === 0) say(q.kind === "tap" ? `That is ${sqName(v)}. Files run a to h from left to right; ranks run 1 to 8 from White's side. Try again.` : "Not quite. Find the letter below the column and the number beside the row.");
+      else if (level === 1) say(`Not quite. Check each symbol: which piece moves, does it capture, where does it land, and does it give check?`);
+      else say(`Not quite: that was ${san(board.pos, v)}. Read ${q.s} symbol by symbol: which piece, which square, and is it a capture?`);
+      return;
+    }
+    busy = true;
+    if (level === 0) board.mark(q.sq, "rgba(34,160,90,.5)");
+    if (level >= 1) board.arrow(q.m.from, q.m.to, "#16a34a");
+    say(`The answer: ${decode()}`);
+    nextBtn();
+  };
+  const nextBtn = () => {
+    const box = card(`<div class="row"><button type="button" class="go" data-next>${round + 1 >= ROUNDS ? "Finish ▶" : "Next ▶"}</button></div>`, "");
+    box.style.width = "auto";
+    box.querySelector("[data-next]").addEventListener("click", () => {
+      round += 1;
+      if (round >= ROUNDS) return finish(my, id, { solo, total: ROUNDS, again: () => ((round = 0), (solo = 0), ask()) });
+      ask();
+    });
+  };
+  wireTools(id);
+  onLevels(id, (lv) => {
+    level = lv;
+    round = 0;
+    solo = 0;
+    ask();
+  });
+  ask();
+  window.__tt = { q: () => q, answer: (v) => answer(v, v), next: () => document.querySelector("[data-next]")?.click(), level: () => level };
+}
+
+// ---------- 2. Piece values ----------
+const signed = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : "0");
+const tally = (board, c) => board.filter((p) => p && colorOf(p) === c && p.toLowerCase() !== "k").reduce((s, p) => s + valueOf(p), 0);
+const tallyWords = (board, c) => {
+  const ps = board.filter((p) => p && colorOf(p) === c && p.toLowerCase() !== "k").sort((a, b) => valueOf(b) - valueOf(a));
+  return ps.length ? `${ps.map((p) => valueOf(p)).join(" + ")} = ${tally(board, c)}` : "0";
+};
+// Single-exchange count used in the capture questions (it must agree with the search, or the position is rejected).
+function captureCount(pos, m) {
+  const after = makeMove(pos, m);
+  const back = attackers(after.board, m.to, "b").filter((s) => !inCheck(makeMove(after, { from: s, to: m.to, piece: after.board[s], capture: after.board[m.to] }), "b"));
+  return valueOf(m.capture) - (back.length ? valueOf(m.piece) : 0);
+}
+function captureQuestion() {
+  const kinds = ["Q", "R", "R", "B", "N", "N", "B", "P"];
+  const theirs = ["q", "r", "b", "n", "p", "p", "r", "n"];
+  for (let t = 0; t < 3000; t++) {
+    const b = Array(64).fill(null);
+    b[pick([6, 2, 4, 7])] = "K";
+    b[pick([62, 58, 60, 63])] = "k";
+    const put = (p, lo, hi) => {
+      for (let i = 0; i < 40; i++) {
+        const s = lo + Math.floor(Math.random() * (hi - lo + 1));
+        if (!b[s]) return (b[s] = p);
+      }
+    };
+    for (let i = 0; i < 3; i++) put(pick(kinds), 8, 47);
+    for (let i = 0; i < 4; i++) put(pick(theirs), 16, 55);
+    const pos = { board: b, turn: "w", castle: "", ep: -1 };
+    if (!sane(pos) || inCheck(pos, "w")) continue;
+    const caps = legalMoves(pos).filter((m) => m.capture && !m.promo);
+    if (caps.length < 2 || caps.length > 5) continue;
+    const base = evaluate(pos);
+    const rows = caps.map((m) => ({ m, n: captureCount(pos, m), true: -quiesce(makeMove(pos, m), -MATE * 2, MATE * 2, 1) - base }));
+    if (rows.some((r) => Math.abs(r.true - r.n * 100) > 0)) continue;
+    rows.sort((a, b2) => b2.n - a.n);
+    if (rows[0].n < 1 || rows[0].n - rows[1].n < 2 || !rows.some((r) => r.n < 0)) continue;
+    return { pos, rows };
+  }
+  return null;
+}
+function values() {
+  const id = "tc2";
+  const my = token;
+  const alive = () => my === token;
+  let level = savedLevel(id);
+  if (level === 2) return sacrifices();
+  let round = 0;
+  let solo = 0;
+  let tries = 0;
+  let busy = false;
+  let q = null;
+  let board;
+  const ROUNDS = 8;
+  head(level, { hint: false });
+  const ask = () => {
+    if (!alive()) return;
+    tries = 0;
+    busy = false;
+    closeCards();
+    fresh();
+    board = makeBoard(view);
+    $("[data-choices]").innerHTML = "";
+    showLine("");
+    status(`${LEVELS[level][0]} Question ${round + 1} of ${ROUNDS}`);
+    if (level === 0) {
+      const pool = PUZ.filter((p) => p.t !== "mate1");
+      let pos;
+      let d;
+      for (let t = 0; t < 50; t++) {
+        pos = parseFEN(pick(pool).fen);
+        d = tally(pos.board, "w") - tally(pos.board, "b");
+        if (d !== 0 || Math.random() < 0.2) break;
+      }
+      q = { pos, d };
+      board.set(pos);
+      side(view, { title: "Count the material", sub: "pawn 1 · knight 3 · bishop 3 · rook 5 · queen 9" });
+      say("Count the material for each side with 1, 3, 3, 5 and 9. Who is ahead, and by how much?");
+      const name = (x) => (x === 0 ? "Equal" : x > 0 ? `White +${x}` : `Black +${-x}`);
+      const opts = [...new Set([d, d + 1, d - 1, -d, d + 2, d - 2].map(name))].slice(0, 4);
+      if (!opts.includes(name(d))) opts[0] = name(d);
+      choices($("[data-choices]"), shuffle(opts).map((x) => ({ label: x, v: x })), (c, btn) => answer(c.v === name(d), btn));
+      board.rules({ locked: () => true, canPick: () => false, targets: () => [], onMove() {} });
+      return;
+    }
+    q = captureQuestion();
+    board.set(q.pos);
+    q.rows.forEach((r) => board.ring(r.m.to, "#b45309"));
+    side(view, { title: "Best capture", sub: "Which capture wins the most, after Black's best recapture?" });
+    say("Every ringed piece can be captured. Which capture wins the most material once Black recaptures? Count before you take.");
+    board.rules({
+      locked: () => busy,
+      canPick: (s) => isW(board.pos.board[s]) && q.rows.some((r) => r.m.from === s),
+      targets: (s) => q.rows.filter((r) => r.m.from === s).map((r) => r.m),
+      onMove: (ms) => answer(uci(ms[0]) === uci(q.rows[0].m), null, ms[0]),
+    });
+  };
+  const why = () => {
+    if (level === 0) return `White: ${tallyWords(q.pos.board, "w")}. Black: ${tallyWords(q.pos.board, "b")}.`;
+    return q.rows.map((r) => `${san(q.pos, r.m)}: wins ${valueOf(r.m.capture)}${r.n !== valueOf(r.m.capture) ? `, but Black recaptures the ${pname(r.m.piece)} (−${valueOf(r.m.piece)})` : ", and nothing can recapture"}, net ${signed(r.n)}`).join(". ") + ".";
+  };
+  const answer = async (right, btn, m) => {
+    if (!alive() || busy) return;
+    window.OC?.touch();
+    if (right) {
+      busy = true;
+      btn?.classList.add("right");
+      MUSIC.chime();
+      if (!tries) solo += 1;
+      board.clear();
+      if (m) await board.play(m, alive);
+      if (!alive()) return;
+      say(`${pick(CORRECT)} ${why()}`);
+      return nextBtn();
+    }
+    tries += 1;
+    MUSIC.oops();
+    btn?.classList.add("wrong");
+    if (tries < 2) {
+      if (level === 0) say("Not quite. Add each side separately, ignoring the kings, then subtract the smaller total from the larger.");
+      else {
+        const r = q.rows.find((x) => uci(x.m) === uci(m));
+        say(`Not quite. ${san(q.pos, m)} nets ${signed(r.n)}. Which Black pieces can take back on that square? Is another capture better?`);
+      }
+      return;
+    }
+    busy = true;
+    if (level === 1) board.arrow(q.rows[0].m.from, q.rows[0].m.to, "#16a34a");
+    say(`The answer: ${level === 0 ? (q.d === 0 ? "equal" : q.d > 0 ? `White is ahead by ${q.d}` : `Black is ahead by ${-q.d}`) : san(q.pos, q.rows[0].m)}. ${why()}`);
+    nextBtn();
+  };
+  const nextBtn = () => {
+    const box = card(`<div class="row"><button type="button" class="go" data-next>${round + 1 >= ROUNDS ? "Finish ▶" : "Next ▶"}</button><button type="button" data-peek>👁 Board</button></div>`, "");
+    box.style.width = "auto";
+    box.querySelector("[data-next]").addEventListener("click", () => {
+      round += 1;
+      if (round >= ROUNDS) return finish(my, id, { solo, total: ROUNDS, again: () => ((round = 0), (solo = 0), ask()) });
+      ask();
+    });
+  };
+  wireTools(id);
+  onLevels(id, (lv) => {
+    level = lv;
+    if (lv === 2) {
+      token += 1;
+      return values();
+    }
+    round = 0;
+    solo = 0;
+    ask();
+  });
+  ask();
+  window.__tt = { q: () => q, answer: (ok) => answer(ok, null, ok ? q.rows?.[0].m : q.rows?.[q.rows.length - 1].m), next: () => document.querySelector("[data-next]")?.click() };
+}
+// 🦁 in Piece values: the numbers are a guideline, not a law.
+function sacrifices() {
+  drill("tc2", {
+    bank: () => PUZ.filter((p) => p.sac),
+    rounds: 8,
+    title: () => "More than material",
+    sub: () => "Mate in 2",
+    prompt: (q, r) => (r === 0 ? "By counting alone, giving up a strong piece looks like a loss. Here a sacrifice forces mate in two. Find it." : "Find the sacrifice that forces mate in two."),
+    hint: () => "Which checks are available, even ones that give away material? After each, can Black escape?",
+    switchLevel: (lv) => {
+      token += 1;
+      values();
+    },
+  });
+}
+
+
+// ---------- 13. Calculate: name the whole line before any piece is played ----------
+function calculate() {
+  const id = "tc13";
+  const my = token;
+  const alive = () => my === token;
+  let level = savedLevel(id);
+  let list = [];
+  let round = 0;
+  let solo = 0;
+  let q = null;
+  let tries = 0;
+  let busy = false;
+  let board;
+  let plan = [];
+  let stack = [];
+  head(level, { extra: `<button type="button" data-undo>↩ Undo</button><button type="button" class="primary" data-check disabled>✓ Check my line</button>` });
+  const start = () => {
+    list = pickSet(id, PUZ.filter((p) => p.calc && p.lv === level), 8);
+    round = 0;
+    solo = 0;
+    ask();
+  };
+  const refresh = () => {
+    const pos = stack[stack.length - 1];
+    board.set(pos);
+    board.lastMove(null);
+    showLine(plan.length ? sanLine(stack[0], plan) : "");
+    const need = q.line.length;
+    $("[data-check]").disabled = plan.length !== need;
+    const view2 = view.querySelector(".tt-side text");
+    if (view2) view2.textContent = pos.turn === "w" ? "Plan White's move" : "Plan Black's reply";
+    if (plan.length === need) say("Your line is complete. Check it, or undo a step to revise it.");
+    else if (plan.length) say(pos.turn === "b" ? "Now Black's strongest reply: move a Black piece." : "Now White's next move.");
+  };
+  const ask = () => {
+    if (!alive()) return;
+    q = list[round];
+    tries = 0;
+    busy = false;
+    plan = [];
+    stack = [parseFEN(q.fen)];
+    closeCards();
+    fresh();
+    board = makeBoard(view);
+    side(view, { title: "Calculate", sub: `Plan ${q.line.length} moves: ${q.line.length === 3 ? "White, Black, White" : "W, B, W, B, W"}`, turn: "Plan White's move" });
+    status(`${LEVELS[level][0]} Line ${round + 1} of ${list.length} · ${q.m === 2 ? "mate in 2" : "win material"}`);
+    $("[data-choices]").innerHTML = "";
+    say(`Calculate the full line: ${q.line.length === 3 ? "your move, Black's best reply, and your next move" : "five moves, alternating"}. Move pieces of both colours here; nothing counts until you check the line.`);
+    refresh();
+    board.rules({
+      locked: () => busy,
+      canPick: (s) => plan.length < q.line.length && board.pos.board[s] && colorOf(board.pos.board[s]) === board.pos.turn,
+      targets: (s) => legalMoves(board.pos).filter((m) => m.from === s),
+      onMove: async (ms) => {
+        let m = ms[0];
+        if (ms.length > 1) {
+          busy = true;
+          const v = await promoPick($("[data-choices]"));
+          busy = false;
+          m = ms.find((x) => x.promo === v);
+        }
+        plan.push(uci(m));
+        stack.push(makeMove(board.pos, m));
+        MUSIC.play("woodblock", 76, { gain: 0.25 });
+        refresh();
+      },
+    });
+  };
+  // the first step of the plan that fails, with the evidence
+  const judge = () => {
+    for (let i = 0; i < plan.length; i++) {
+      const pos = stack[i];
+      const m = findMove(pos, plan[i]);
+      if (i % 2 === 0) {
+        if (!accepts(q, i, pos, m)) return { i, msg: i === 0 ? `Your first move fails. ${refute(q, 0, pos, m)}` : `After ${sanLine(stack[0], plan.slice(0, i))}, ${san(pos, m)} misses the point. ${refute(q, i, pos, m)}` };
+      } else if (q.m !== 2 && plan[i] !== q.line[i]) {
+        const best = findMove(pos, q.line[i]);
+        return { i, msg: `You predicted ${san(pos, m)} for Black, but Black's strongest reply is ${san(pos, best)}. Always assume the opponent finds the best defence.` };
+      }
+    }
+    return null;
+  };
+  const check = async () => {
+    if (!alive() || busy || plan.length !== q.line.length) return;
+    window.OC?.touch();
+    const bad = judge();
+    if (!bad) {
+      busy = true;
+      if (!tries) solo += 1;
+      MUSIC.chime();
+      window.OC?.count("lines calculated");
+      say(q.m === 2 ? `${pick(CORRECT)} Every step holds. Remember: in a real game Black may choose any of ${legalMoves(stack[1]).length} replies, and each one allows mate.` : `${pick(CORRECT)} Every step holds.`);
+      return show(true, plan);
+    }
+    tries += 1;
+    MUSIC.oops();
+    if (tries < 2) {
+      // keep the plan up to the faulty step so it can be revised
+      plan = plan.slice(0, bad.i);
+      stack = stack.slice(0, bad.i + 1);
+      refresh();
+      say(`Not quite. ${bad.msg} Revise from that step.`);
+      return;
+    }
+    busy = true;
+    say(`Not quite. ${bad.msg} Here is the verified line.`);
+    plan = [];
+    stack = [parseFEN(q.fen)];
+    refresh();
+    await wait(1200);
+    let pos = stack[0];
+    for (const u of q.line) {
+      if (!alive()) return;
+      pos = await board.play(findMove(pos, u), alive, 650);
+      await wait(350);
+    }
+    show(false, q.line);
+  };
+  const show = (own, line) => {
+    const L = lessonFor(q, line);
+    const last = round + 1 >= list.length;
+    const box = card(
+      `<h2>${own ? "Correct line" : "The verified line"}</h2><p class="tt-moves">${L.full}</p><p>${L.why}</p><div class="row"><button type="button" class="go" data-next>${last ? "Finish ▶" : "Next position ▶"}</button><button type="button" data-peek>👁 Look at the board</button></div>`,
+      L.why
+    );
+    remember(id, q.id);
+    box.querySelector("[data-next]").addEventListener("click", () => {
+      VOICE.hush();
+      round += 1;
+      if (round >= list.length) return finish(my, id, { solo, total: list.length, again: start });
+      ask();
+    });
+  };
+  $("[data-undo]").addEventListener("click", () => {
+    if (busy || !plan.length) return;
+    plan.pop();
+    stack.pop();
+    refresh();
+  });
+  $("[data-check]").addEventListener("click", check);
+  wireTools(id, {
+    hint: () => {
+      const h = $("[data-hint]");
+      if (!tries || busy) return;
+      say(`Start from the first move: ${q.m === 2 ? "which move leaves Black no safe reply?" : "which forcing move creates two threats?"} Consider the ${pname(findMove(stack[0], q.line[0]).piece)}.`);
+      if (h) h.disabled = true;
+    },
+  });
+  const enableHint = () => {
+    const h = $("[data-hint]");
+    if (h && tries) h.disabled = false;
+  };
+  $("[data-check]").addEventListener("click", () => setTimeout(enableHint, 50));
+  onLevels(id, (lv) => {
+    level = lv;
+    start();
+  });
+  start();
+  window.__tt = {
+    q: () => q,
+    plan: () => plan,
+    move: (u) => {
+      const m = findMove(board.pos, u);
+      plan.push(uci(m));
+      stack.push(makeMove(board.pos, m));
+      refresh();
+    },
+    check,
+    next: () => document.querySelector("[data-next]")?.click(),
+  };
+}
+
+// ---------- the units ----------
+const byTheme = (...ts) => (lv) => PUZ.filter((p) => ts.includes(p.t) && p.lv === lv);
+const THEMES_ALL = ["fork", "pin", "skewer", "discovered", "double", "remove", "overload", "back", "mate1", "mate2"];
+function themeQuiz(q, alive) {
+  return new Promise((resolve) => {
+    const right = q.tags || [q.t];
+    const others = shuffle(THEMES_ALL.filter((t) => !right.includes(t))).slice(0, 3);
+    const opts = shuffle([right[0], ...others]).map((t) => ({ label: `${THEME[t].icon} ${THEME[t].name}`, v: t }));
+    say("Which pattern was that?");
+    let tries = 0;
+    choices($("[data-choices]"), opts, (c, btn) => {
+      if (!alive()) return resolve();
+      if (right.includes(c.v)) {
+        btn.classList.add("right");
+        MUSIC.chime();
+        say(`Correct. ${THEME[c.v].def}`);
+        setTimeout(() => {
+          $("[data-choices]").innerHTML = "";
+          resolve();
+        }, 1600);
+        return;
+      }
+      tries += 1;
+      btn.classList.add("wrong");
+      MUSIC.oops();
+      if (tries < 2) return say(`Not quite. ${THEME[c.v].def} Did that happen here?`);
+      say(`It was: ${THEME[right[0]].name}. ${THEME[right[0]].def}`);
+      setTimeout(() => {
+        $("[data-choices]").innerHTML = "";
+        resolve();
+      }, 2600);
+    });
+  });
+}
+function pinQuiz(q, alive) {
+  const info = detect(parseFEN(q.fen), q.line).pin;
+  return new Promise((resolve) => {
+    if (!info) return resolve();
+    const right = info.absolute ? "abs" : "rel";
+    say("Was the pin absolute or relative?");
+    let tries = 0;
+    choices($("[data-choices]"), [{ label: "Absolute (king behind)", v: "abs" }, { label: "Relative (other piece behind)", v: "rel" }], (c, btn) => {
+      if (!alive()) return resolve();
+      const why = info.absolute ? "The king stood behind the pinned piece, so moving it was illegal." : "A piece other than the king stood behind, so moving was legal but would lose it.";
+      if (c.v === right || tries >= 1) {
+        btn.classList.add(c.v === right ? "right" : "wrong");
+        if (c.v === right) MUSIC.chime();
+        else MUSIC.oops();
+        say(`${c.v === right ? "Correct." : `It was ${info.absolute ? "absolute" : "relative"}.`} ${why}`);
+        setTimeout(() => {
+          $("[data-choices]").innerHTML = "";
+          resolve();
+        }, 1800);
+        return;
+      }
+      tries += 1;
+      btn.classList.add("wrong");
+      MUSIC.oops();
+      say("Not quite. Look at the piece standing behind the pinned one. Is it the king?");
+    });
+  });
+}
+const units = {
+  tc0: seeIt,
+  tc1: notation,
+  tc2: values,
+  tc3: () => drill("tc3", { bank: byTheme("fork"), prompt: (q, r) => (r === 0 ? "White to move. Find a fork: one move that attacks two targets at once." : "Find the fork."), hint: () => "Which Black pieces are undefended, or a single jump apart? Is there a check that also attacks something?" }),
+  tc4: () => drill("tc4", { bank: byTheme("pin"), quiz: pinQuiz, prompt: (q, r) => (r === 0 ? "White to move. Pin a Black piece to something more valuable behind it, and win material." : "Find the pin that wins material."), hint: () => "Which two Black pieces stand on one line? Which of your bishops, rooks or queen could aim along it?" }),
+  tc5: () => drill("tc5", { bank: byTheme("skewer"), prompt: (q, r) => (r === 0 ? "White to move. Attack a valuable piece so that, when it moves, the piece behind it falls." : "Find the skewer."), hint: () => "Is the king or queen standing in front of another piece on a line? Can you check or attack along that line?" }),
+  tc6: () => drill("tc6", { bank: byTheme("discovered"), prompt: (q, r) => (r === 0 ? "White to move. Move one piece out of the way to uncover an attack, and make a second threat with it." : "Find the discovered attack."), hint: () => "Which of your long-range pieces is blocked by your own piece? Where can the blocker go with a threat of its own?" }),
+  tc7: () => drill("tc7", { bank: byTheme("double"), prompt: (q, r) => (r === 0 ? "White to move. Give check with two pieces at once." : "Find the double check."), hint: () => "Which piece, if it moved, would uncover a check? Can it give check itself at the same time?" }),
+  tc8: () => drill("tc8", { bank: byTheme("remove", "overload"), prompt: (q, r) => (r === 0 ? "White to move. Find the defender that holds Black's position together, and remove or overload it." : "Remove or overload the defender."), hint: () => "Which Black piece guards something important? What happens if it is captured, or must recapture elsewhere?" }),
+  tc9: () => drill("tc9", { bank: byTheme("back"), title: () => "Back-rank mate", sub: (q) => (q.line.length > 1 ? "Mate in 2" : "Mate in 1"), prompt: (q) => (q.line.length > 1 ? "White to move. Mate in two along the back rank." : "White to move. Mate in one along the back rank."), hint: () => "Can the Black king step forward? If not, which piece can check it along its last rank, and what guards that rank?" }),
+  tc10: () => drill("tc10", { bank: byTheme("mate1"), rounds: 10, prompt: (q, r) => (r === 0 ? "White to move. Checkmate in one move. Start with the Black king's escape squares." : "Checkmate in one."), hint: () => "List every square next to the Black king. Which check covers all of them and cannot be captured or blocked?" }),
+  tc11: () => drill("tc11", { bank: byTheme("mate2"), prompt: (q, r) => (r === 0 ? "White to move. Mate in two: your first move, then Black's reply is played automatically, then you mate." : "Mate in two."), hint: () => "What would be mate if it were your move again? Which first move creates that threat while leaving Black no defence?" }),
+  tc12: () => drill("tc12", { bank: (lv) => PUZ.filter((p) => p.lv === lv), rounds: 10, quiz: themeQuiz, title: () => "Find the best move", sub: () => "Theme hidden", prompt: (q, r) => (r === 0 ? "White to move. Find the best move: no hint about the theme. Search checks, captures and threats." : "Find the best move.") }),
+  tc13: calculate,
+};
+
+const HOW = {
+  tc0: { icon: "👀", title: "See it", steps: ["Watch each scene and listen.", "Press Next ▶ to continue.", "Press Let's play when ready."] },
+  tc1: { icon: "✍️", title: "Notation", steps: ["🐣 squares, 🦊 read moves, 🦁 play moves.", "Tap a square, a choice, or move a piece.", "Read every symbol: piece, capture, square, check."] },
+  tc2: { icon: "⚖️", title: "Piece values", steps: ["Pawn 1, knight 3, bishop 3, rook 5, queen 9.", "🐣 count, 🦊 choose the best capture.", "🦁 find where mate outweighs material."] },
+  tc3: { icon: "🍴", title: "Forks", steps: ["Find one move that attacks two targets.", "Tap a piece and a square, or drag.", "Black replies; then collect the prize."] },
+  tc4: { icon: "📌", title: "Pins", steps: ["Pin a piece to a bigger one behind it.", "Win the pinned piece.", "Then say: absolute or relative?"] },
+  tc5: { icon: "🍢", title: "Skewers", steps: ["Attack the valuable piece in front.", "When it moves, take the piece behind.", "Look for checks along lines."] },
+  tc6: { icon: "🚪", title: "Discovered attacks", steps: ["Move a piece out of a line.", "Uncover an attack from behind it.", "Make a second threat with the moving piece."] },
+  tc7: { icon: "‼️", title: "Double check", steps: ["Give check with two pieces at once.", "The king must move.", "Then win material or mate."] },
+  tc8: { icon: "🛡️", title: "Remove the defender", steps: ["Find the Black piece that guards.", "Capture it, or overload it.", "Then take what it guarded."] },
+  tc9: { icon: "🧱", title: "Back-rank mate", steps: ["Check the king's escape squares.", "Mate along the last rank.", "Some need two moves."] },
+  tc10: { icon: "👑", title: "Mate in 1", steps: ["Find the Black king's escape squares.", "Find a check that covers them all.", "Any move that mates is correct."] },
+  tc11: { icon: "♛", title: "Mate in 2", steps: ["Play your first move.", "Black's reply is played for you.", "Then give checkmate."] },
+  tc12: { icon: "🎯", title: "Find the best move", steps: ["The theme is hidden.", "Search checks, captures, threats.", "Then name the pattern."] },
+  tc13: { icon: "🧮", title: "Calculate", steps: ["Plan the whole line on the board.", "Move both colours; nothing counts yet.", "Press ✓ Check my line."] },
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: HOW,
+  start: "tc0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+    closeCards();
+  },
+  subject: "Tech",
+  activity: "Chess Tactics",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("woodblock", [67, 72, 76, 79]);
+</script>
+</body>
+</html>

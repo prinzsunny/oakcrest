@@ -1,0 +1,2806 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Number Detective · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="math">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Number Detective</b><small>Math · Advanced</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, pickInt, wait, confetti, PRAISE, KIND, choices, explain, everyday, emoji, numpad, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "t0", label: "See it", icon: "👀" },
+  { id: "t1", label: "1. Primes", icon: "🔍" },
+  { id: "t2", label: "2. Factors & multiples", icon: "🌈" },
+  { id: "t3", label: "3. Divisibility rules", icon: "➗" },
+  { id: "t4", label: "4. Prime factor trees", icon: "🌳" },
+  { id: "t5", label: "5. GCF & LCM", icon: "🤝" },
+  { id: "t6", label: "6. Number puzzles", icon: "🧩" },
+];
+
+function fresh() {
+  stage.querySelector(".nt-real")?.remove();
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+}
+
+// ---------- number facts (every answer in the app is computed from these) ----------
+const isPrime = (n) => {
+  if (n < 2) return false;
+  for (let d = 2; d * d <= n; d++) if (n % d === 0) return false;
+  return true;
+};
+const factorsOf = (n) => {
+  const out = [];
+  for (let d = 1; d <= n; d++) if (n % d === 0) out.push(d);
+  return out;
+};
+const pairsOf = (n) => {
+  const out = [];
+  for (let a = 1; a * a <= n; a++) if (n % a === 0) out.push([a, n / a]);
+  return out;
+};
+const pfList = (n) => {
+  const out = [];
+  let m = n;
+  for (let d = 2; d * d <= m; d++) while (m % d === 0) {
+    out.push(d);
+    m /= d;
+  }
+  if (m > 1) out.push(m);
+  return out;
+};
+const pfCount = (n) => {
+  const c = new Map();
+  for (const p of pfList(n)) c.set(p, (c.get(p) || 0) + 1);
+  return c;
+};
+const SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+const sup = (k) => String(k).split("").map((c) => SUP[Number(c)]).join("");
+const expoOf = (map) => [...map].sort((a, b) => a[0] - b[0]).map(([p, k]) => (k > 1 ? `${p}${sup(k)}` : `${p}`)).join(" × ");
+const expo = (n) => expoOf(pfCount(n));
+const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+const lcm = (a, b) => (a / gcd(a, b)) * b;
+const digitSum = (n) => String(n).split("").reduce((s, d) => s + Number(d), 0);
+const smallestFactor = (n) => {
+  for (let d = 2; d * d <= n; d++) if (n % d === 0) return d;
+  return n;
+};
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const clockTime = (h, m) => `${h}:${String(m).padStart(2, "0")}`;
+
+// ---------- speech: superscripts read as "squared", "cubed", "to the power" ----------
+const spoken = (html) =>
+  String(html)
+    .replace(/(\d)([⁰¹²³⁴⁵⁶⁷⁸⁹]+)/g, (_, b, s) => {
+      const k = [...s].map((c) => SUP.indexOf(c)).join("");
+      return `${b} ${k === "2" ? "squared" : k === "3" ? "cubed" : `to the power ${k}`}`;
+    })
+    .replace(/√/g, "the square root of ")
+    .replace(/☐/g, " box ")
+    .replace(/\bGCF\b/g, "G C F")
+    .replace(/\bLCM\b/g, "L C M")
+    .replace(/\bR (\d)/g, "remainder $1");
+function talk(html, voiceText) {
+  say(html, { voice: false });
+  VOICE.speak(spoken(voiceText ?? html));
+}
+
+// ---------- drawing helpers ----------
+const INK = "#2b1d12";
+const SOFT = "#6b5642";
+const GREEN = "#2e9b50";
+const GOLD = "#f2a93b";
+const RAINBOW = ["#e53935", "#fb8c00", "#f2b705", "#43a047", "#1e88e5", "#5e35b1", "#8e24aa", "#ec407a", "#00897b", "#6d4c41"];
+const RIGHT = { x: 572, y: 16, w: 412, h: 528 };
+const BOTTOM = { x: 24, y: 330, w: 952, h: 216 };
+const LOW = { x: 24, y: 372, w: 952, h: 174 };
+const STOP = Symbol("stop");
+const anim = (alive) => ({
+  alive,
+  wait: (ms) => new Promise((res, rej) => setTimeout(() => (alive() ? res() : rej(STOP)), KIT.still.matches ? Math.min(ms, 150) : ms)),
+  tween: (ms, fn) =>
+    new Promise((res, rej) => {
+      if (KIT.still.matches) {
+        fn(1);
+        return res();
+      }
+      const t0 = performance.now();
+      const frame = (now) => {
+        if (!alive()) return rej(STOP);
+        const t = Math.min(1, (now - t0) / ms);
+        fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+        if (t < 1) requestAnimationFrame(frame);
+        else res();
+      };
+      requestAnimationFrame(frame);
+    }),
+});
+const quiet = (p) => Promise.resolve(p).catch((e) => (e === STOP ? null : console.error(e)));
+const lerp = (a, b, t) => a + (b - a) * t;
+
+function tag(parent, x, y, n, { r = 44, fill = "var(--accent)", color = "#fff", stroke = "#fff" } = {}) {
+  const g = el("g", { transform: `translate(${x} ${y})` }, parent);
+  el("circle", { r, fill, stroke, "stroke-width": 4 }, g);
+  const len = String(n).length;
+  const size = Math.max(22, r * (len <= 2 ? 0.95 : len === 3 ? 0.72 : len === 4 ? 0.56 : 0.46));
+  text(g, 0, size * 0.36, n, { "font-size": size, fill: color });
+  return g;
+}
+function wrap(line, per) {
+  const words = String(line).split(" ");
+  const rows = [];
+  for (const w of words) {
+    const last = rows[rows.length - 1];
+    if (last !== undefined && (last + " " + w).length <= per) rows[rows.length - 1] = last + " " + w;
+    else rows.push(w);
+  }
+  return rows;
+}
+// The notes card: "📁 The case" before solving, "🔎 How we know" after.
+function notes(lines, { title = "🔎 How we know", region = RIGHT, tone = "work" } = {}) {
+  view.querySelector(".nt-notes")?.remove();
+  const g = el("g", { class: "nt-notes" }, view);
+  let font = 26;
+  const fit = () => {
+    const per = Math.floor((region.w - 40) / (font * 0.54));
+    return lines.flatMap((l) => wrap(l, per));
+  };
+  let rows = fit();
+  while (60 + rows.length * font * 1.38 > region.h && font > 22) {
+    font -= 1;
+    rows = fit();
+  }
+  const lh = font * 1.38;
+  const h = Math.min(region.h, 62 + rows.length * lh);
+  const work = tone === "work";
+  el("rect", { x: region.x, y: region.y, width: region.w, height: h, rx: 24, fill: work ? "#f1faf3" : "#fff8ea", stroke: work ? "#8fcf9f" : "#e0b872", "stroke-width": 3 }, g);
+  text(g, region.x + 20, region.y + 38, title, { "font-size": 26, fill: work ? "#23733b" : "#8a5a12", "text-anchor": "start", "font-weight": 900 });
+  rows.forEach((r, i) => text(g, region.x + 20, region.y + 40 + (i + 1) * lh, r, { "font-size": font, fill: INK, "text-anchor": "start", "font-weight": 700 }));
+  return g;
+}
+const caseNotes = (lines, region = RIGHT) => notes(lines, { title: "📁 The case", region, tone: "case" });
+
+// Squares or counters that can glide into new rectangles.
+function counters(parent, n, { shape = "square", fill = "#f2a93b" } = {}) {
+  const items = [];
+  for (let i = 0; i < n; i++) {
+    const node = shape === "dot" ? el("circle", { r: 10, fill, stroke: "#fff", "stroke-width": 2 }, parent) : el("rect", { width: 10, height: 10, rx: 5, fill, stroke: "#fff", "stroke-width": 2 }, parent);
+    items.push({ node, x: 0, y: 0, s: 10 });
+  }
+  const layout = (rows, cols, box) => {
+    const s = Math.min(46, box.w / cols, box.h / rows);
+    const x0 = box.x + (box.w - s * cols) / 2;
+    const y0 = box.y + (box.h - s * rows) / 2;
+    return items.map((_, i) => ({ x: x0 + (i % cols) * s, y: y0 + Math.floor(i / cols) * s, s }));
+  };
+  const put = (targets, t = 1, from = null) => {
+    items.forEach((it, i) => {
+      const a = from ? from[i] : targets[i];
+      const b = targets[i];
+      const x = lerp(a.x, b.x, t);
+      const y = lerp(a.y, b.y, t);
+      const s = lerp(a.s, b.s, t);
+      it.x = x;
+      it.y = y;
+      it.s = s;
+      if (shape === "dot") {
+        it.node.setAttribute("cx", x + s / 2);
+        it.node.setAttribute("cy", y + s / 2);
+        it.node.setAttribute("r", s * 0.4);
+      } else {
+        it.node.setAttribute("x", x + 2);
+        it.node.setAttribute("y", y + 2);
+        it.node.setAttribute("width", Math.max(2, s - 4));
+        it.node.setAttribute("height", Math.max(2, s - 4));
+        it.node.setAttribute("rx", Math.min(8, s / 4));
+      }
+    });
+  };
+  return {
+    items,
+    layout,
+    put,
+    async move(api, targets, ms = 1100) {
+      const from = items.map((it) => ({ x: it.x, y: it.y, s: it.s }));
+      await api.tween(ms, (t) => put(targets, t, from));
+    },
+  };
+}
+
+function drawArray(parent, rows, cols, box, { fill = "#f2a93b", hideFrom = Infinity } = {}) {
+  const s = Math.min(46, box.w / cols, box.h / rows);
+  const x0 = box.x + (box.w - s * cols) / 2;
+  const y0 = box.y + (box.h - s * rows) / 2;
+  const g = el("g", {}, parent);
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++) el("rect", { x: x0 + c * s + 2, y: y0 + r * s + 2, width: s - 4, height: s - 4, rx: Math.min(8, s / 4), fill: c >= hideFrom ? "#ece3d3" : fill, class: c >= hideFrom ? "nt-hid" : null }, g);
+  return { g, s, x0, y0, w: s * cols, h: s * rows };
+}
+
+// Factor rainbow: factors in a row, an arc joins each pair that multiplies to n.
+async function rainbow(parent, n, api, { y = 300, left = 40, right = 960 } = {}) {
+  const f = factorsOf(n);
+  const k = f.length;
+  const step = Math.min(92, (right - left) / k);
+  const x0 = (left + right) / 2 - (step * k) / 2 + step / 2;
+  const xs = f.map((_, i) => x0 + i * step);
+  const tiles = f.map((v, i) => {
+    const g = el("g", { opacity: 0 }, parent);
+    el("rect", { x: xs[i] - step / 2 + 4, y, width: step - 8, height: 54, rx: 12, fill: "#fff", stroke: "#c9b8a1", "stroke-width": 3 }, g);
+    text(g, xs[i], y + 37, v, { "font-size": String(v).length > 2 ? 22 : 26, fill: INK });
+    return g;
+  });
+  for (const t of tiles) {
+    t.setAttribute("opacity", 1);
+    await api.wait(90);
+  }
+  for (let i = 0; i < Math.ceil(k / 2); i++) {
+    const j = k - 1 - i;
+    const color = RAINBOW[i % RAINBOW.length];
+    if (i === j) {
+      const ring = el("circle", { cx: xs[i], cy: y - 30, r: 24, fill: "none", stroke: color, "stroke-width": 6, opacity: 0 }, parent);
+      const lab = text(parent, xs[i], y - 66, "pairs with itself", { "font-size": 22, fill: color, opacity: 0 });
+      await api.tween(700, (t) => {
+        ring.setAttribute("opacity", t);
+        lab.setAttribute("opacity", t);
+      });
+    } else {
+      const rx = (xs[j] - xs[i]) / 2;
+      const ry = Math.min(y - 70, 26 + rx * 0.5);
+      const path = el("path", { d: `M${xs[i]} ${y - 4}A${rx} ${ry} 0 0 1 ${xs[j]} ${y - 4}`, fill: "none", stroke: color, "stroke-width": 7, "stroke-linecap": "round" }, parent);
+      const len = path.getTotalLength();
+      path.setAttribute("stroke-dasharray", len);
+      path.setAttribute("stroke-dashoffset", len);
+      await api.tween(650, (t) => path.setAttribute("stroke-dashoffset", len * (1 - t)));
+      MUSIC.play("xylophone", 72 + ((i * 2) % 14), { gain: 0.3 });
+    }
+  }
+  return xs;
+}
+
+// Venn diagram of prime factors: shared primes in the middle.
+function vennSplit(a, b) {
+  const ca = pfCount(a);
+  const cb = pfCount(b);
+  const left = [];
+  const mid = [];
+  const right = [];
+  for (const p of new Set([...ca.keys(), ...cb.keys()])) {
+    const x = ca.get(p) || 0;
+    const y = cb.get(p) || 0;
+    for (let i = 0; i < Math.min(x, y); i++) mid.push(p);
+    for (let i = 0; i < x - Math.min(x, y); i++) left.push(p);
+    for (let i = 0; i < y - Math.min(x, y); i++) right.push(p);
+  }
+  return { left: left.sort((p, q) => p - q), mid: mid.sort((p, q) => p - q), right: right.sort((p, q) => p - q) };
+}
+async function venn(parent, a, b, api, { cx = 285, cy = 300 } = {}) {
+  const { left, mid, right } = vennSplit(a, b);
+  el("circle", { cx: cx - 95, cy, r: 175, fill: "#ffb74d", "fill-opacity": 0.22, stroke: "#e08a1e", "stroke-width": 4 }, parent);
+  el("circle", { cx: cx + 95, cy, r: 175, fill: "#64b5f6", "fill-opacity": 0.22, stroke: "#1e78c8", "stroke-width": 4 }, parent);
+  text(parent, cx - 150, cy - 185, `${a}`, { "font-size": 34, fill: "#b8650a" });
+  text(parent, cx + 150, cy - 185, `${b}`, { "font-size": 34, fill: "#165fa0" });
+  text(parent, cx, cy + 205, "shared", { "font-size": 22, fill: SOFT });
+  const place = async (list, x, color) => {
+    const n = list.length;
+    const gap = Math.min(54, 290 / Math.max(1, n));
+    for (let i = 0; i < n; i++) {
+      const y = cy - ((n - 1) * gap) / 2 + i * gap;
+      const g = tag(parent, x, y, list[i], { r: 25, fill: color });
+      g.setAttribute("opacity", 0);
+      await api.tween(350, (t) => g.setAttribute("opacity", t));
+    }
+  };
+  await place(left, cx - 175, "#e08a1e");
+  await place(right, cx + 175, "#1e78c8");
+  await place(mid, cx, "#7b5ea7");
+  return { left, mid, right };
+}
+
+const EFFORT = ["Correct — and here is why.", "Correct. Your method was sound.", "Correct — a careful, systematic approach.", "Correct. Notice the reasoning:"];
+const NUDGE = ["Not quite. Consider:", "Not quite — mistakes are how we learn. Consider:", "Not yet. Consider:"];
+
+// ---------- panel rows ----------
+const LEVELS = [["easy", "🐣 Grade 4"], ["medium", "🦊 Grade 5–6"], ["hard", "🦁 Grade 7–8"]];
+const topRow = (level, modes, mode) =>
+  `<div class="ap-row nt-top">${modes ? `<div class="ap-chips" data-modes>${modes.map(([k, l]) => `<button type="button" data-md="${k}" aria-pressed="${k === mode}">${l}</button>`).join("")}</div>` : ""}<div class="ap-chips" data-levels>${LEVELS.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === level}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div>`;
+function bindTop(id, onLevel, onMode) {
+  $("[data-levels]")?.addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    shell.mark(id, { level: b.dataset.lv });
+    window.OC?.touch();
+    VOICE.hush();
+    onLevel(b.dataset.lv);
+  });
+  $("[data-modes]")?.addEventListener("click", (event) => {
+    const b = event.target.closest("[data-md]");
+    if (!b || b.getAttribute("aria-pressed") === "true") return;
+    window.OC?.touch();
+    onMode?.(b.dataset.md);
+  });
+}
+const setStatus = (s) => {
+  const b = $("[data-status]");
+  if (b) b.textContent = s;
+};
+
+// ---------- "🏠 Try it for real" ----------
+const REAL = {
+  t1: { title: "Try it for real: bean rectangles", need: ["20 dried beans or buttons", "Paper and a pencil"], steps: ["Count out 12 beans. Make every rectangle you can.", "Write each one down: 1 × 12, 2 × 6, 3 × 4.", "Now try 7, 11 and 15 beans.", "Only one rectangle, a single line? Then that number is prime. (1 bean is the exception: 1 is neither prime nor composite.)"], note: "Do this with a grown-up. Beans are not for mouths or noses." },
+  t2: { title: "Try it for real: a factor rainbow poster", need: ["A big sheet of paper", "Crayons or felt pens"], steps: ["Write the factors of 36 in a row: 1, 2, 3, 4, 6, 9, 12, 18, 36.", "Draw an arc joining each pair that makes 36.", "Which factor has no partner? Why?", "Make one for 24 too and hang them up."], note: "Ask a grown-up where you may hang your poster." },
+  t3: { title: "Try it for real: receipt detective", need: ["An old shopping receipt or a book", "A pencil"], steps: ["Find 5 big numbers on the receipt or page numbers in the book.", "Add up the digits of each number.", "Digit sum a multiple of 3? Then the number is too!", "Check with a grown-up's calculator."], note: "Use an old receipt, and ask a grown-up first." },
+  t4: { title: "Try it for real: a sticky-note tree", need: ["Sticky notes", "A marker", "A window or a door"], steps: ["Write 48 on a note at the top.", "Split it, for example 6 × 8. Stick two notes below.", "Keep splitting until every note is prime. Circle the primes.", "Ask a grown-up to build a different tree for 48. Same primes?"], note: "Ask a grown-up where sticky notes are allowed." },
+  t5: { title: "Try it for real: clap and stomp", need: ["You and a grown-up", "A little space"], steps: ["Count out loud from 1 to 24 together.", "You clap on every 3rd number. The grown-up stomps on every 4th.", "When do you both make a sound? That is a common multiple!", "Now try clapping every 2 and stomping every 5."], note: "Stomp gently and mind each other's toes." },
+  t6: { title: "Try it for real: calendar detective", need: ["A paper calendar", "A pencil"], steps: ["Find today on the calendar.", "Predict the weekday 30 days from now: 30 = 4 × 7 + 2.", "Count on the calendar to check your guess.", "Circle every prime-numbered date this month!"], note: "Ask a grown-up which calendar you may write on." },
+};
+function realCard(id) {
+  const t = REAL[id];
+  stage.querySelector(".nt-real")?.remove();
+  const box = document.createElement("div");
+  box.className = "nt-real";
+  box.innerHTML = `<div class="nt-real-card" role="dialog" aria-label="${t.title}"><div class="nt-real-head"><span aria-hidden="true">🏠</span><h2>${t.title}</h2></div><p class="nt-need"><b>You need:</b> ${t.need.join(" · ")}</p><ol>${t.steps.map((s) => `<li>${s}</li>`).join("")}</ol><p class="nt-tip">🤝 ${t.note}</p><button type="button" class="kt-go">✓ Got it!</button></div>`;
+  stage.appendChild(box);
+  VOICE.speak(spoken(`${t.title}. You need: ${t.need.join(", ")}. ${t.steps.join(" ")} ${t.note}`));
+  box.querySelector(".kt-go").addEventListener("click", () => {
+    VOICE.hush();
+    box.remove();
+    window.OC?.touch();
+  });
+}
+
+// "Explain it": every unit ends by asking for the reasoning in the learner's own words.
+const EXPLAIN = {
+  t0: "Explain the difference between a prime and a composite number, and why every whole number above 1 can be built from primes.",
+  t1: "Explain why, to test whether a number is prime, you only need to try primes up to its square root. Use 91 as your example.",
+  t2: "Explain why a number has an odd number of factors exactly when it is a perfect square (a number like 36 = 6 × 6).",
+  t3: "Explain, using place value, why the digit-sum test works for 9 but the last-two-digits test is needed for 4.",
+  t4: "Explain why two different factor trees for the same number always end with the same primes, and what an exponent records.",
+  t5: "Explain how a Venn diagram of prime factors gives both the GCF and the LCM, and why GCF × LCM equals the two numbers multiplied.",
+  t6: "Choose one puzzle you solved. Explain your method so clearly that someone else could use it on a new problem.",
+};
+function explainCard(id, y = 70) {
+  const g = el("g", { class: "nt-explain" }, view);
+  el("rect", { x: 70, y, width: 860, height: 330, rx: 30, fill: "#fff8ea", stroke: "#e0b872", "stroke-width": 4 }, g);
+  text(g, 110, y + 58, "💬 Explain it", { "font-size": 36, fill: "#8a5a12", "text-anchor": "start", "font-weight": 900 });
+  wrap(EXPLAIN[id], 50).forEach((line, i) => text(g, 110, y + 112 + i * 40, line, { "font-size": 30, fill: INK, "text-anchor": "start", "font-weight": 700 }));
+  text(g, 110, y + 300, "Use 2–4 full sentences: say them aloud to a grown-up, or write them down.", { "font-size": 23, fill: SOFT, "text-anchor": "start", "font-weight": 600 });
+  return g;
+}
+function finishGame(id, host, { R, first, noun, again }) {
+  fresh();
+  explainCard(id);
+  text(view, 500, 470, `Investigation complete: ${R} ${noun}`, { "font-size": 34, fill: INK });
+  text(view, 500, 514, `${first} solved at the first attempt · ${R - first} after reconsidering`, { "font-size": 24, fill: SOFT, "font-weight": 600 });
+  confetti();
+  MUSIC.chime();
+  shell.mark(id, { done: true });
+  setStatus("Explain it");
+  talk(`Investigation complete. Now answer the <b>Explain it</b> task above.`, `Investigation complete. You worked through all ${R} ${noun} and reasoned carefully. Now, explain it: ${EXPLAIN[id]}`);
+  host.classList.remove("nt-pick");
+  host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-said>✓ I explained it</button><button type="button" data-again>🔁 Again</button><button type="button" data-real>🏠 Try it for real</button></div>`;
+  host.onclick = (event) => {
+    if (event.target.closest("[data-said]")) {
+      window.OC?.touch();
+      window.OC?.count("explanations given");
+      event.target.closest("[data-said]").disabled = true;
+      talk("Well articulated. Explaining an idea in your own words is how understanding becomes permanent.");
+    } else if (event.target.closest("[data-again]")) {
+      window.OC?.touch();
+      again();
+    } else if (event.target.closest("[data-real]")) {
+      window.OC?.touch();
+      realCard(id);
+    }
+  };
+}
+
+// ---------- the case engine: ask, two honest tries, then the worked solution ----------
+// cfg: { make(level, round) -> q, count, noun, modes?, mode?, onMode?, R }
+// q: { draw(), ask, voice?, opts? [{label, v}], max?, ans, ok?(v), hint(v), why, work [lines], region?, onMiss?(v, api), after?(api, won) }
+function quiz(id, cfg) {
+  const my = token;
+  const R = cfg.R || 8;
+  let level = shell.progress()[id]?.level || "easy";
+  let round = 0;
+  let first = 0;
+  let tries = 0;
+  let q = null;
+  let busy = false;
+  let pad = null;
+  panel(`${topRow(level, cfg.modes, cfg.mode)}<div class="nt-in" data-in></div>`);
+  const host = $("[data-in]");
+  const status = () => setStatus(`${cfg.noun1 || "Case"} ${Math.min(round + 1, R)} of ${R}`);
+  const isRight = (v) => (q.ok ? q.ok(v) : v === q.ans);
+  const ask = () => {
+    if (my !== token) return;
+    tries = 0;
+    busy = false;
+    q = cfg.make(level, round);
+    const qq = q;
+    q.api = anim(() => my === token && q === qq);
+    fresh();
+    q.draw(q.api);
+    status();
+    host.onclick = null;
+    host.classList.toggle("nt-pick", !!q.opts);
+    if (q.opts) {
+      pad = null;
+      choices(host, q.opts, (o, b) => answer(o.v, b));
+    } else pad = numpad(host, { onEnter: (v) => answer(v), max: q.max || 4 });
+    talk(q.ask, q.voice);
+  };
+  const settle = async (won) => {
+    busy = true;
+    const qq = q;
+    host.querySelectorAll("button").forEach((b) => (b.disabled = true));
+    talk(won ? `${tries ? "Correct — your persistence paid off. Here is why:" : pick(EFFORT)} ${q.why}` : `Let us look at the reasoning. ${q.why}`);
+    if (q.work) notes(q.work, { region: q.region || RIGHT });
+    await quiet(q.after?.(q.api, won));
+    if (my !== token || q !== qq) return;
+    host.classList.remove("nt-pick");
+    host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-next>${round + 1 >= R ? "Finish ▶" : "Next ▶"}</button></div>`;
+    host.onclick = (event) => {
+      if (!event.target.closest("[data-next]")) return;
+      window.OC?.touch();
+      round += 1;
+      if (round >= R) finishGame(id, host, { R, first, noun: cfg.noun, again: restart });
+      else ask();
+    };
+  };
+  const answer = (v, button) => {
+    if (my !== token || busy) return;
+    window.OC?.touch();
+    if (isRight(v)) {
+      button?.classList.add("right");
+      MUSIC.chime();
+      if (tries === 0) first += 1;
+      window.OC?.count(cfg.count);
+      return settle(true);
+    }
+    tries += 1;
+    button?.classList.add("wrong");
+    MUSIC.oops();
+    if (tries < 2) {
+      pad?.clear();
+      quiet(q.onMiss?.(v, q.api));
+      talk(`${pick(NUDGE)} ${q.hint(v)}`);
+      return;
+    }
+    if (q.opts) {
+      const i = q.opts.findIndex((o) => isRight(o.v));
+      host.querySelectorAll("[data-c]")[i]?.classList.add("right");
+    } else pad?.set(q.ans);
+    settle(false);
+  };
+  const restart = () => {
+    round = 0;
+    first = 0;
+    ask();
+  };
+  bindTop(id, (lv) => {
+    level = lv;
+    restart();
+  }, cfg.onMode);
+  ask();
+}
+
+// Options helper: correct value plus distinct wrong values, sorted.
+const optsOf = (ans, wrongs, fmt = (v) => String(v)) => {
+  const set = [ans];
+  for (const w of wrongs) if (!set.includes(w) && set.length < 4) set.push(w);
+  return set.sort((a, b) => (typeof a === "number" ? a - b : 0)).map((v) => ({ label: fmt(v), v }));
+};
+const bagOf = () => {
+  const bags = {};
+  return (key, list) => {
+    if (!bags[key]?.length) bags[key] = shuffle(list);
+    return bags[key].pop();
+  };
+};
+
+// ================= See it =================
+function seeIt() {
+  const my = token;
+  explain(
+    [
+      {
+        say: "Why study number theory (the study of whole numbers and their hidden structure)? Primes protect secret codes on the internet; factors and multiples organise calendars, gears and musical rhythm.",
+        draw: everyday([["🔐", "Secret codes online"], ["📅", "Calendars and weeks"], ["⚙️", "Gears turning together"], ["🥁", "Music beats that meet"]]),
+      },
+      {
+        say: "Twelve squares can form several rectangles: 1 by 12, 2 by 6, and 3 by 4. Each rectangle shows a factor pair of 12.",
+        async draw(v, api) {
+          const c = counters(v, 12);
+          c.put(c.items.map(() => ({ x: pickInt(100, 860), y: pickInt(60, 380), s: 44 })));
+          const label = text(v, 500, 500, "", { "font-size": 46, fill: INK });
+          await api.wait(600);
+          for (const [r, k] of [[1, 12], [2, 6], [3, 4]]) {
+            label.textContent = "";
+            await c.move(api, c.layout(r, k, { x: 140, y: 60, w: 720, h: 360 }), 1300);
+            label.textContent = `${r} × ${k} = 12`;
+            MUSIC.play("xylophone", 72 + r * 2, { gain: 0.35 });
+            await api.wait(1500);
+          }
+          label.textContent = "Factors of 12: 1, 2, 3, 4, 6, 12";
+          label.setAttribute("font-size", 40);
+        },
+      },
+      {
+        say: "Seven squares resist this. Two rows leave one over; three rows leave one over. Seven forms only a single line, so it is prime: its only factors are 1 and itself.",
+        async draw(v, api) {
+          const c = counters(v, 7, { fill: "#43a047" });
+          const box = { x: 160, y: 80, w: 680, h: 300 };
+          c.put(c.layout(1, 7, box));
+          const label = text(v, 500, 470, "1 × 7", { "font-size": 46, fill: INK });
+          await api.wait(1800);
+          for (const rows of [2, 3]) {
+            const cols = Math.floor(7 / rows);
+            const s = 70;
+            const x0 = 500 - (cols * s) / 2;
+            const t = c.items.map((_, i) => (i < rows * cols ? { x: x0 + (i % cols) * s, y: 120 + Math.floor(i / cols) * s, s } : { x: x0 + cols * s + 60, y: 120, s }));
+            label.textContent = "";
+            await c.move(api, t, 1200);
+            const ring = el("circle", { cx: x0 + cols * s + 60 + s / 2, cy: 120 + s / 2, r: 46, fill: "none", stroke: "#e53935", "stroke-width": 5 }, v);
+            label.textContent = `${rows} rows: 1 left over`;
+            MUSIC.oops();
+            await api.wait(1800);
+            ring.remove();
+          }
+          await c.move(api, c.layout(1, 7, box), 1100);
+          label.textContent = "7 is PRIME: only 1 × 7";
+          label.setAttribute("fill", GREEN);
+          MUSIC.chime();
+        },
+      },
+      {
+        say: "Every whole number above 1 is a product of primes (a prime counts as a product of just one), as a wall is built from bricks. A factor tree reveals them: 60 = 2 × 2 × 3 × 5.",
+        async draw(v, api) {
+          const nodes = [
+            [60, 500, 70, null],
+            [6, 330, 190, 0],
+            [10, 670, 190, 0],
+            [2, 250, 320, 1],
+            [3, 410, 320, 1],
+            [2, 590, 320, 2],
+            [5, 750, 320, 2],
+          ];
+          const gs = [];
+          for (let i = 0; i < nodes.length; i++) {
+            const [n, x, y, p] = nodes[i];
+            if (p !== null) {
+              const [, px, py] = nodes[p];
+              const line = el("line", { x1: px, y1: py + 36, x2: px, y2: py + 36, stroke: "#8a6a4f", "stroke-width": 6, "stroke-linecap": "round" }, v);
+              await api.tween(600, (t) => {
+                line.setAttribute("x2", lerp(px, x, t));
+                line.setAttribute("y2", lerp(py + 36, y - 36, t));
+              });
+            }
+            const leaf = i >= 3;
+            const g = tag(v, x, y, n, { r: 40, fill: leaf ? "#e3f4e7" : "#fff", color: INK, stroke: leaf ? GREEN : "var(--accent)" });
+            g.querySelector("circle").setAttribute("stroke-width", 5);
+            gs.push(g);
+            MUSIC.play("xylophone", 72 + i * 2, { gain: 0.3 });
+            await api.wait(i === 0 ? 700 : 450);
+          }
+          const a = text(v, 500, 440, "60 = 2 × 2 × 3 × 5", { "font-size": 46, fill: INK, opacity: 0 });
+          await api.tween(700, (t) => a.setAttribute("opacity", t));
+          await api.wait(900);
+          const b = text(v, 500, 510, "= 2² × 3 × 5", { "font-size": 42, fill: GREEN, opacity: 0 });
+          await api.tween(700, (t) => b.setAttribute("opacity", t));
+        },
+      },
+      {
+        say: "Around 240 BC the Greek scholar Eratosthenes, who also estimated the size of the Earth, is credited with a sieve for finding primes: up to 100, keep 2, 3, 5 and 7 but cross out their other multiples, and the numbers that survive (apart from 1) are prime.",
+        async draw(v, api) {
+          const size = 64;
+          const x0 = 180;
+          const y0 = 64;
+          const cells = [];
+          for (let n = 1; n <= 50; n++) {
+            const g = el("g", { transform: `translate(${x0 + ((n - 1) % 10) * size} ${y0 + Math.floor((n - 1) / 10) * size})` }, v);
+            const rect = el("rect", { width: size - 6, height: size - 6, rx: 10, fill: n === 1 ? "#ece3d3" : "#fffcf6", stroke: "#d9cdb5", "stroke-width": 2 }, g);
+            text(g, (size - 6) / 2, 38, n, { "font-size": 26, fill: "#4d3c2e" });
+            cells[n] = { g, rect, out: n === 1 };
+          }
+          const cols = { 2: "#e53935", 3: "#1e88e5", 5: "#43a047", 7: "#8e24aa" };
+          const lab = text(v, 500, 440, "", { "font-size": 34, fill: INK });
+          for (const p of [2, 3, 5, 7]) {
+            el("circle", { cx: (size - 6) / 2, cy: (size - 6) / 2, r: 27, fill: "none", stroke: cols[p], "stroke-width": 5 }, cells[p].g);
+            lab.textContent = `Cross out multiples of ${p}`;
+            lab.setAttribute("fill", cols[p]);
+            await api.wait(700);
+            for (let m = 2 * p; m <= 50; m += p) {
+              if (cells[m].out) continue;
+              cells[m].out = true;
+              cells[m].rect.setAttribute("fill", "#efe7da");
+              el("line", { x1: 8, y1: size - 14, x2: size - 14, y2: 8, stroke: cols[p], "stroke-width": 5, "stroke-linecap": "round" }, cells[m].g);
+              await api.wait(110);
+            }
+            MUSIC.play("xylophone", 72 + p, { gain: 0.3 });
+            await api.wait(500);
+          }
+          let count = 0;
+          for (let n = 2; n <= 50; n++)
+            if (!cells[n].out) {
+              count += 1;
+              cells[n].rect.setAttribute("fill", "#c8ecd2");
+              await api.wait(90);
+            }
+          lab.textContent = `${count} primes up to 50!`;
+          lab.setAttribute("fill", GREEN);
+          MUSIC.chime();
+        },
+      },
+      {
+        say: "A drum strikes every 4 beats and a bell every 6. They coincide on beat 12, then 24. 12 is their least common multiple (LCM): the smallest positive number that both 4 and 6 divide.",
+        async draw(v, api) {
+          const xs = (i) => 112 + (i - 1) * 35;
+          emoji(v, 50, 220, "🥁", 50);
+          emoji(v, 50, 330, "🔔", 50);
+          const dots = [];
+          for (let i = 1; i <= 24; i++) {
+            const d4 = el("circle", { cx: xs(i), cy: 220, r: 13, fill: i % 4 ? "#f0e8dc" : "#f6c9a8" }, v);
+            const d6 = el("circle", { cx: xs(i), cy: 330, r: 13, fill: i % 6 ? "#f0e8dc" : "#b9dcf5" }, v);
+            text(v, xs(i), 410, i, { "font-size": 22, fill: i % 12 ? "#9a8a76" : INK });
+            dots[i] = [d4, d6];
+          }
+          const head = el("rect", { x: xs(1) - 16, y: 180, width: 32, height: 250, rx: 14, fill: "var(--accent)", opacity: 0.18 }, v);
+          const lab = text(v, 500, 110, "", { "font-size": 40, fill: INK });
+          for (let i = 1; i <= 24; i++) {
+            head.setAttribute("x", xs(i) - 16);
+            const drum = i % 4 === 0;
+            const bell = i % 6 === 0;
+            if (drum) {
+              dots[i][0].setAttribute("fill", "#e0603a");
+              MUSIC.play("woodblock", 72, { gain: 0.5 });
+            }
+            if (bell) {
+              dots[i][1].setAttribute("fill", "#1e88e5");
+              MUSIC.play("xylophone", 84, { gain: 0.4 });
+            }
+            if (drum && bell) {
+              el("rect", { x: xs(i) - 22, y: 190, width: 44, height: 170, rx: 20, fill: "none", stroke: GOLD, "stroke-width": 6 }, v);
+              lab.textContent = `Together on beat ${i}!`;
+            }
+            await api.wait(430);
+          }
+          lab.textContent = "LCM of 4 and 6 = 12";
+          lab.setAttribute("fill", GREEN);
+        },
+      },
+      {
+        say: "Why does the digit sum test for 9? Each hundred is 99 + 1 and each ten is 9 + 1, so 234 leaves 2 + 3 + 4 = 9 beyond a multiple of 9. Hence 234 is divisible by 9.",
+        async draw(v, api) {
+          const parts = [
+            ["2", "hundreds", "2 × (99 + 1)", "#e0603a"],
+            ["3", "tens", "3 × (9 + 1)", "#1e88e5"],
+            ["4", "ones", "4", "#43a047"],
+          ];
+          const xs = [250, 500, 750];
+          for (let i = 0; i < 3; i++) {
+            const [d, name, split, col] = parts[i];
+            const g = el("g", { opacity: 0 }, v);
+            el("rect", { x: xs[i] - 70, y: 40, width: 140, height: 150, rx: 22, fill: "#fff", stroke: col, "stroke-width": 5 }, g);
+            text(g, xs[i], 150, d, { "font-size": 100, fill: col });
+            text(g, xs[i], 226, name, { "font-size": 28, fill: SOFT });
+            await api.tween(500, (t) => g.setAttribute("opacity", t));
+          }
+          await api.wait(800);
+          for (let i = 0; i < 3; i++) {
+            const [d, , split, col] = parts[i];
+            const g = el("g", { opacity: 0 }, v);
+            text(g, xs[i], 290, split, { "font-size": 30, fill: INK });
+            text(g, xs[i], 340, `leftover ${d}`, { "font-size": 28, fill: col });
+            await api.tween(600, (t) => g.setAttribute("opacity", t));
+            await api.wait(900);
+          }
+          const sum = text(v, 500, 430, "2 + 3 + 4 = 9", { "font-size": 46, fill: INK, opacity: 0 });
+          await api.tween(700, (t) => sum.setAttribute("opacity", t));
+          await api.wait(800);
+          const ok = text(v, 500, 500, "234 ÷ 9 = 26 exactly ✓", { "font-size": 40, fill: GREEN, opacity: 0 });
+          await api.tween(700, (t) => ok.setAttribute("opacity", t));
+          MUSIC.chime();
+        },
+      },
+      {
+        say: `Explain it, in two to four sentences: ${EXPLAIN.t0}`,
+        async draw(v, api) {
+          view = v;
+          const g = explainCard("t0", 100);
+          g.setAttribute("opacity", 0);
+          await api.tween(700, (t) => g.setAttribute("opacity", t));
+          window.OC?.count("explanations prompted");
+        },
+      },
+    ],
+    { alive: () => my === token, onDone: () => shell.go("t1"), title: "Number Detective" }
+  );
+}
+
+// ================= 1. Primes =================
+const PMODES = [["sieve", "🧹 Sieve"], ["test", "❓ Prime?"]];
+const switchPrimeMode = (m) => {
+  shell.mark("t1", { mode: m });
+  token += 1;
+  VOICE.hush();
+  units.t1();
+};
+const TEST_PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23];
+
+function primeCase(level, round) {
+  if (level === "hard" && round === 2) return oneCase();
+  if ((level === "medium" && round === 3) || (level === "hard" && (round === 3 || round === 4))) return whichPrimeCase(level);
+  if ((level === "medium" && round >= 6) || (level === "hard" && round >= 5)) return twinCase(level);
+  const [lo, hi] = level === "easy" ? [2, 30] : level === "medium" ? [31, 200] : [201, 500];
+  const tricky = level === "easy" ? [9, 15, 21, 25, 27] : level === "medium" ? [49, 51, 57, 77, 87, 91, 93, 119, 121, 133, 143, 161, 169, 187] : [209, 221, 247, 253, 289, 299, 323, 341, 361, 377, 391, 403, 437, 451, 481, 493];
+  const wantPrime = Math.random() < 0.45;
+  let n;
+  if (!wantPrime && Math.random() < 0.5) n = pick(tricky);
+  else do n = pickInt(lo, hi);
+  while (isPrime(n) !== wantPrime);
+  return numberCase(n, level);
+}
+function numberCase(n, level) {
+  const prime = isPrime(n);
+  const d = prime ? null : smallestFactor(n);
+  let strip = [];
+  const tested = TEST_PRIMES.filter((p) => p * p <= n);
+  const next = TEST_PRIMES.find((p) => p * p > n) || 29;
+  const shown = TEST_PRIMES.filter((p) => p <= Math.max(7, next));
+  const tw = Math.min(84, 510 / shown.length);
+  let cs = null;
+  const work = prime
+    ? tested.length
+      ? [`Try primes p with p × p ≤ ${n}:`, ...tested.map((p) => `${n} ÷ ${p} = ${Math.floor(n / p)} R ${n % p}`), `${next} × ${next} = ${next * next} > ${n}, so stop.`, `${n} is PRIME: factors 1 and ${n} only.`]
+      : [`${n} has only two factors: 1 and ${n}.`, `${n} is PRIME.`]
+    : [`${n} ÷ ${d} = ${n / d}, nothing left over.`, `So ${n} = ${d} × ${n / d}.`, `Factors: ${factorsOf(n).join(", ")}.`, `More than 2 factors, so ${n} is COMPOSITE.`];
+  return {
+    ask: `Is <b>${n}</b> prime or composite? Tap your answer.`,
+    opts: [{ label: "🟢 Prime", v: "prime" }, { label: "🧱 Composite", v: "comp" }, ...(level === "hard" ? [{ label: "⚪ Neither", v: "neither" }] : [])],
+    ans: prime ? "prime" : "comp",
+    draw() {
+      tag(view, 285, 92, n, { r: 70 });
+      if (n <= 30) {
+        cs = counters(view, n);
+        cs.put(cs.layout(Math.ceil(n / 10), 10, { x: 40, y: 180, w: 490, h: 150 }));
+      }
+      text(view, 285, n <= 30 ? 380 : 260, "Test strip: divide by small primes", { "font-size": 22, fill: SOFT });
+      strip = shown.map((p, i) => {
+        const g = el("g", { transform: `translate(${285 - (shown.length * tw) / 2 + i * tw + 4} ${n <= 30 ? 400 : 290})` }, view);
+        const r = el("rect", { width: tw - 8, height: 76, rx: 16, fill: "#fff", stroke: "#c9b8a1", "stroke-width": 3 }, g);
+        text(g, (tw - 8) / 2, 50, `÷${p}`, { "font-size": tw < 70 ? 23 : 28, fill: INK });
+        const mark = text(g, (tw - 8) / 2, 112, "", { "font-size": 30, fill: INK });
+        return { r, mark, p };
+      });
+      caseNotes([`Is ${n} prime or composite?`, "Prime: exactly 2 factors, 1 and itself.", "Composite: more than 2 factors.", level === "easy" ? "Can the squares form equal rows?" : "Test small primes. When may you stop?"]);
+    },
+    hint(v) {
+      if (v === "neither") return `Neither is only for the number 1. Does ${n} have exactly two factors, or more?`;
+      if (v === "prime") {
+        const clue = n % 2 === 0 ? "Look at the ones digit." : n % 3 === 0 ? "What do the digits add up to?" : n % 5 === 0 ? "Look at the last digit." : "Have you tried 7, 11, 13, 17 and 19?";
+        return `Can you split ${n} into equal groups another way? ${clue}`;
+      }
+      return `Which two numbers, not 1, multiply to make ${n}? Which primes did you try?`;
+    },
+    why: prime ? `No small prime divides ${n} evenly. Its only factors are 1 and ${n}, so it is prime.` : `${n} = ${d} × ${n / d}, so it has more than two factors. It is composite.`,
+    work,
+    async after(api) {
+      for (const s of strip) {
+        if (d && s.p === d) {
+          s.r.setAttribute("fill", "#c8ecd2");
+          s.mark.textContent = "✓";
+          s.mark.setAttribute("fill", GREEN);
+          MUSIC.play("xylophone", 84, { gain: 0.35 });
+          break;
+        }
+        if (s.p * s.p > n) {
+          s.r.setAttribute("fill", "#f3eee6");
+          s.mark.textContent = "–";
+          continue;
+        }
+        s.r.setAttribute("fill", "#fde2dc");
+        s.mark.textContent = "✗";
+        s.mark.setAttribute("fill", "#c0392b");
+        await api.wait(350);
+      }
+      if (cs && d) await cs.move(api, cs.layout(d, n / d, { x: 40, y: 175, w: 490, h: 170 }), 1200);
+      else if (cs) await cs.move(api, cs.layout(1, n, { x: 30, y: 230, w: 510, h: 60 }), 1200);
+    },
+  };
+}
+function whichPrimeCase(level) {
+  const [lo, hi] = level === "hard" ? [201, 500] : [51, 200];
+  let ans;
+  do ans = pickInt(lo, hi);
+  while (!isPrime(ans));
+  const others = [];
+  while (others.length < 3) {
+    const x = pickInt(lo, hi) | 1;
+    if (!isPrime(x) && x % 5 !== 0 && !others.includes(x) && (x % 3 !== 0 || Math.random() < 0.3)) others.push(x);
+  }
+  const opts = optsOf(ans, others);
+  return {
+    ask: "Exactly one of these numbers is prime. Which one?",
+    opts,
+    ans,
+    draw() {
+      opts.forEach((o, i) => tag(view, 150 + (i % 2) * 270, 130 + Math.floor(i / 2) * 230, o.v, { r: 80, fill: "#c98c58" }));
+      caseNotes(["Exactly one of these four numbers is prime.", "The other three are composite (each has a factor other than 1 and itself).", "Which is prime? Find a factor of each of the others."]);
+    },
+    hint: (v) => `Test ${v}: try dividing by 3, 7, 11, 13, 17 and 19. Does any of them divide it exactly?`,
+    why: `${ans} has no prime factor up to √${ans}, so it is prime. Each of the others has a factor other than 1 and itself.`,
+    work: [...others.map((x) => `${x} = ${smallestFactor(x)} × ${x / smallestFactor(x)}`), `${ans}: no prime up to √${ans} divides it.`, `So ${ans} is the prime.`],
+  };
+}
+function oneCase() {
+  return {
+    ask: "Is <b>1</b> prime, composite, or neither?",
+    opts: [{ label: "🟢 Prime", v: "prime" }, { label: "🧱 Composite", v: "comp" }, { label: "⚪ Neither", v: "neither" }],
+    ans: "neither",
+    draw() {
+      tag(view, 285, 160, 1, { r: 90 });
+      el("rect", { x: 255, y: 320, width: 60, height: 60, rx: 12, fill: "#f2a93b" }, view);
+      text(view, 285, 430, "1 square: only 1 × 1", { "font-size": 26, fill: SOFT });
+      caseNotes(["Is 1 prime, composite or neither?", "Prime: exactly 2 factors.", "Composite: more than 2.", "How many factors does 1 have?"]);
+    },
+    hint: () => "Count the factors of 1. Is that exactly two? More than two?",
+    why: "1 has only one factor, itself. A prime needs exactly two. So 1 is neither prime nor composite.",
+    work: ["Factors of 1: just 1.", "Prime = exactly 2 factors.", "Composite = more than 2.", "1 has ONE factor, so it is neither!", "This way every number has just one prime factorization."],
+  };
+}
+function twinCase(level) {
+  const twins = [];
+  const [lo, hi] = level === "hard" ? [201, 497] : [3, 197];
+  for (let a = lo; a <= hi; a++) if (isPrime(a) && isPrime(a + 2)) twins.push(a);
+  let a;
+  const yes = Math.random() < 0.5;
+  if (yes) a = pick(twins);
+  else
+    do a = pickInt(lo, hi) | 1;
+    while (twins.includes(a) || !(isPrime(a) || isPrime(a + 2)));
+  const b = a + 2;
+  const desc = (n) => (isPrime(n) ? `${n} is prime ✓` : `${n} = ${smallestFactor(n)} × ${n / smallestFactor(n)} ✗`);
+  return {
+    ask: `Are <b>${a}</b> and <b>${b}</b> twin primes?`,
+    opts: [{ label: "👯 Yes, twins", v: true }, { label: "🚫 No", v: false }],
+    ans: yes,
+    draw() {
+      tag(view, 160, 150, a, { r: 72 });
+      tag(view, 410, 150, b, { r: 72 });
+      text(view, 285, 160, "+2", { "font-size": 40, fill: SOFT });
+      emoji(view, 285, 340, "👯", 110);
+      caseNotes(["Twin primes are two primes that are 2 apart, like 11 and 13.", `Are ${a} and ${b} twin primes?`, "Check each number!"]);
+    },
+    hint: () => `Twins must BOTH be prime. Is ${a} prime? Is ${b} prime? Test small primes.`,
+    why: yes ? `${a} and ${b} are both prime and 2 apart, so they are twin primes.` : `${isPrime(a) ? b : a} is not prime, so they are not twin primes.`,
+    work: [desc(a), desc(b), yes ? "Both prime, 2 apart: twin primes!" : "Not both prime: not twins."],
+  };
+}
+
+function sieveGame() {
+  const my = token;
+  const id = "t1";
+  let level = shell.progress()[id]?.level || "easy";
+  panel(`${topRow(level, PMODES, "sieve")}<div class="nt-in" data-in></div>`);
+  const host = $("[data-in]");
+  let limit, cols, size, x0, y0, cells, found, phase, cur, tries, busy;
+  let gen = 0;
+  let api = null;
+  const COLORS = { 2: "#e53935", 3: "#1e88e5", 5: "#43a047", 7: "#8e24aa", 11: "#fb8c00", 13: "#00897b" };
+  const nextClear = () => {
+    for (let n = 2; n <= limit; n++) if (!cells[n].out && !cells[n].prime) return n;
+    return null;
+  };
+  const cross = (m, p) => {
+    const c = cells[m];
+    c.out = p;
+    c.rect.setAttribute("fill", "#efe7da");
+    c.label.setAttribute("fill", "#a8977f");
+    el("line", { x1: 7, y1: size - 13, x2: size - 13, y2: 7, stroke: COLORS[p] || INK, "stroke-width": 4, "stroke-linecap": "round", "pointer-events": "none" }, c.g);
+  };
+  const circle = (n, color = GREEN) => {
+    const c = cells[n];
+    c.prime = true;
+    c.rect.setAttribute("fill", "#d6f1dd");
+    el("circle", { cx: (size - 6) / 2, cy: (size - 6) / 2, r: size / 2 - 5, fill: "none", stroke: color, "stroke-width": 4, "pointer-events": "none" }, c.g);
+  };
+  const pulse = (n, on) => cells[n]?.rect.classList.toggle("nt-glowfill", on);
+  const side = () => {
+    const list = found.length > 8 ? `${found.length} so far, latest ${found.slice(-3).join(", ")}` : found.join(", ") || "none yet";
+    if (limit === 100) notes([`Primes circled: ${list}`, phase === "start" ? `Which multiple of ${cur} is the first still clear?` : "Tap the first clear number.", "Crossed out = has a smaller factor."], { title: "🧹 Sieve notes", region: { x: 584, y: 22, w: 400, h: 516 }, tone: "case" });
+    else {
+      view.querySelector(".nt-notes")?.remove();
+      const g = el("g", { class: "nt-notes" }, view);
+      text(g, 500, 530, `Primes circled: ${list}`, { "font-size": 26, fill: INK });
+    }
+    setStatus(`Primes circled: ${found.length}`);
+  };
+  const start = () => {
+    limit = level === "hard" ? 200 : 100;
+    cols = limit === 100 ? 10 : 20;
+    size = limit === 100 ? 52 : 46;
+    x0 = limit === 100 ? 34 : 40;
+    y0 = limit === 100 ? 20 : 12;
+    cells = [];
+    found = [];
+    phase = "prime";
+    cur = 0;
+    tries = 0;
+    busy = false;
+    const g0 = ++gen;
+    api = anim(() => my === token && g0 === gen);
+    fresh();
+    for (let n = 1; n <= limit; n++) {
+      const g = el("g", { class: "nt-cell", "data-n": n, transform: `translate(${x0 + ((n - 1) % cols) * size} ${y0 + Math.floor((n - 1) / cols) * size})` }, view);
+      const rect = el("rect", { width: size - 6, height: size - 6, rx: 9, fill: n === 1 ? "#e6dccd" : "#fffcf6", stroke: "#d9cdb5", "stroke-width": 2 }, g);
+      const label = text(g, (size - 6) / 2, (size - 6) / 2 + 8, n, { "font-size": 22, fill: n === 1 ? "#9a8a76" : "#4d3c2e" });
+      cells[n] = { g, rect, label, out: n === 1 ? 1 : 0, prime: false };
+    }
+    view.addEventListener("pointerdown", (event) => {
+      const g = event.target.closest(".nt-cell");
+      if (g) tap(Number(g.dataset.n));
+    });
+    host.innerHTML = `<div class="ap-buttons"><button type="button" data-redo>🔁 Start again</button></div>`;
+    host.onclick = (e) => e.target.closest("[data-redo]") && (window.OC?.touch(), start());
+    side();
+    talk(`The sieve of Eratosthenes, up to ${limit}. 1 is shaded: it has only one factor, so it is not prime. Tap the first number that is not crossed out.`);
+  };
+  const finishSieve = async () => {
+    const p = nextClear();
+    busy = true;
+    talk(`Stop and consider: the next clear number is ${p}, and ${p} × ${p} = ${p * p}, which exceeds ${limit}. Any composite up to ${limit} has a prime factor smaller than ${p}, so every clear number left is prime.`);
+    await api.wait(2600);
+    for (let n = 2; n <= limit; n++) if (!cells[n].out && !cells[n].prime) {
+      circle(n);
+      found.push(n);
+      await api.wait(limit === 100 ? 90 : 50);
+    }
+    const count = found.length;
+    side();
+    MUSIC.chime();
+    confetti();
+    shell.mark(id, { done: true });
+    window.OC?.count("sieves finished");
+    await api.wait(1600);
+    talk(`The sieve is complete: ${count} primes up to ${limit}. Now answer the <b>Explain it</b> task above.`, `The sieve is complete: ${count} primes up to ${limit}, found methodically, exactly as Eratosthenes did. Now, explain it: ${EXPLAIN.t1}`);
+    const g = explainCard("t1", 110);
+    g.setAttribute("opacity", 0.97);
+    host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-said>✓ I explained it</button><button type="button" data-redo>🔁 Again</button><button type="button" data-test>❓ Prime?</button><button type="button" data-real>🏠 Try it for real</button></div>`;
+    host.onclick = (e) => {
+      window.OC?.touch();
+      if (e.target.closest("[data-said]")) {
+        window.OC?.count("explanations given");
+        e.target.closest("[data-said]").disabled = true;
+        view.querySelector(".nt-explain")?.remove();
+        talk("Well articulated. Look again at the grid: every circled number is prime.");
+      } else if (e.target.closest("[data-redo]")) start();
+      else if (e.target.closest("[data-test]")) switchPrimeMode("test");
+      else if (e.target.closest("[data-real]")) realCard(id);
+    };
+  };
+  const crossAll = async (p) => {
+    busy = true;
+    const list = [];
+    for (let m = 2 * p; m <= limit; m += p) if (!cells[m].out) list.push(m);
+    const per = Math.max(30, Math.min(140, 2200 / Math.max(1, list.length)));
+    for (let i = 0; i < list.length; i++) {
+      cross(list[i], p);
+      if (i % 3 === 0) MUSIC.play("woodblock", 79, { gain: 0.15 });
+      await api.wait(per);
+    }
+    busy = false;
+    phase = "prime";
+    tries = 0;
+    side();
+    const nx = nextClear();
+    if (nx * nx > limit) return finishSieve();
+    talk(`Every multiple of ${p} is now crossed out, because each has ${p} as a factor. Tap the next clear number.`);
+  };
+  const tap = (n) => {
+    if (my !== token || busy) return;
+    window.OC?.touch();
+    const c = cells[n];
+    if (phase === "prime") {
+      const want = nextClear();
+      if (n === want) {
+        pulse(want, false);
+        circle(n, COLORS[n]);
+        found.push(n);
+        cur = n;
+        MUSIC.chime();
+        window.OC?.count("primes circled");
+        tries = 0;
+        if (level === "easy") {
+          talk(`Correct: ${n} is prime, since no smaller prime crossed it out. Watch as every multiple of ${n} is crossed out.`);
+          quiet(crossAll(n));
+        } else {
+          phase = "start";
+          side();
+          talk(`Correct: ${n} is prime. Which multiple of ${n} is the first one still clear? Tap it.`);
+        }
+        return;
+      }
+      tries += 1;
+      MUSIC.oops();
+      if (n === 1) talk(`Not quite. 1 has only one factor, so it is not prime. Which clear number comes next?`);
+      else if (c.out) talk(`Not quite. ${n} is crossed out because ${n} = ${c.out} × ${n / c.out}. Look for the first number still clear.`);
+      else if (c.prime) talk(`${n} is already circled. Which is the first clear number now?`);
+      else talk(`Not quite. Consider: is there a smaller number before ${n} that is still clear?`);
+      if (tries >= 2) {
+        pulse(want, true);
+        talk(`Look at the highlighted box: ${want} is the first clear number. No smaller prime divides it, so it is prime. Tap it.`);
+      }
+      return;
+    }
+    // phase "start": the first multiple of cur still clear is cur × cur
+    const p = cur;
+    if (n === p * p) {
+      pulse(n, false);
+      MUSIC.chime();
+      talk(p === 2 ? `Correct: 2 × 2 = 4 is the first multiple of 2 after 2 itself.` : `Correct: ${p} × ${p} = ${p * p}. Each smaller multiple, such as 2 × ${p}, has a smaller prime factor and was already crossed out.`);
+      quiet(api.wait(1800).then(() => crossAll(p)));
+      busy = true;
+      return;
+    }
+    tries += 1;
+    MUSIC.oops();
+    if (n % p !== 0) talk(`Not quite. Is ${n} a multiple of ${p}? Count by ${p}s: ${p}, ${2 * p}, ${3 * p}… Which one is still clear?`);
+    else if (n < p * p) talk(`Not quite. ${n} = ${p} × ${n / p} is already crossed out, because ${n / p} is smaller than ${p}. Try a bigger multiple of ${p}.`);
+    else talk(`Consider: ${n} is a multiple of ${p}, but is there a smaller one that is still clear?`);
+    if (tries >= 2) {
+      pulse(p * p, true);
+      talk(`Look at the highlighted box: ${p} × ${p} = ${p * p}. Every smaller multiple of ${p} has a smaller factor, so it is already crossed out. Tap ${p * p}.`);
+    }
+  };
+  bindTop(id, (lv) => {
+    level = lv;
+    token += 1;
+    VOICE.hush();
+    sieveGame();
+  }, switchPrimeMode);
+  start();
+}
+
+// ================= 2. Factors & multiples =================
+function factorCases() {
+  const take = bagOf();
+  return (level, round) => {
+    if (level === "easy") {
+      const kind = take("e", ["pairs", "factor", "multiple", "missing", "pairs", "factor", "multiple", "missing"]);
+      if (kind === "pairs") return pairsCase(take("ep", [12, 16, 18, 20, 24, 28, 30, 32, 36]));
+      if (kind === "factor") return factorCase(take("ef", [12, 15, 16, 18, 20, 21, 24, 27, 28, 30]));
+      if (kind === "multiple") return multipleCase(pickInt(3, 9));
+      return missingCase();
+    }
+    if (level === "medium") {
+      const kind = take("m", ["count", "notfactor", "countpf", "odd", "exactly3", "pairs", "count", "notfactor"]);
+      if (kind === "countpf") return countPfCase(take("mc2", [24, 36, 40, 48, 54, 72, 80, 96, 100, 108, 112, 135, 144, 162, 200, 225]));
+      if (kind === "odd") return oddCase();
+      if (kind === "exactly3") return exactly3Case();
+      if (kind === "count") return countCase(take("mc", [36, 40, 42, 45, 48, 50, 54, 56, 60, 63, 64, 72, 80, 84, 90, 96, 100]));
+      if (kind === "notfactor") return notFactorCase(take("mn", [36, 40, 42, 48, 54, 56, 60, 63, 64, 72, 75, 80, 84, 90, 96]));
+      if (kind === "pairs") return pairsCase(take("mp", [40, 42, 45, 48, 54, 56, 60]));
+      if (kind === "multiple") return multipleCase(pickInt(6, 12), true);
+      return missingCase(true);
+    }
+    const kind = take("h", ["countbig", "smallestk", "oddcount", "exactly3", "countbig", "smallestk", "odd", "countpf"]);
+    if (kind === "countpf") return countPfCase(take("hc", [24, 36, 40, 48, 54, 72, 80, 96, 100, 108, 112, 135, 144, 162, 200, 225]));
+    if (kind === "countbig") return countPfCase(bigComposite());
+    if (kind === "smallestk") return smallestKCase();
+    if (kind === "oddcount") return oddCountCase();
+    if (kind === "odd") return oddCase();
+    return exactly3Case();
+  };
+}
+function pairsCase(n) {
+  const pairs = pairsOf(n);
+  return {
+    ask: `How many different rectangles can <b>${n}</b> squares make? Type the number.`,
+    max: 2,
+    ans: pairs.length,
+    region: BOTTOM,
+    draw() {
+      const strip = drawArray(view, 1, n, { x: 30, y: 40, w: 940, h: 40 });
+      text(view, 500, strip.y0 - 8 + strip.h + 40, `1 × ${n}: one long row`, { "font-size": 24, fill: SOFT });
+      caseNotes([`${n} squares in one long row make one rectangle: 1 × ${n}.`, `How many DIFFERENT rectangles can ${n} squares make?`, "2 × 3 and 3 × 2 count as the same one."], BOTTOM);
+    },
+    hint: () => `Try 2 rows: do the squares split evenly? Then 3 rows, 4 rows… When do the pairs start to repeat?`,
+    why: `${n} has ${pairs.length} factor pairs, so it makes ${pairs.length} different rectangles.`,
+    work: [`Factor pairs of ${n}: ${pairs.map(([a, b]) => `${a} × ${b}`).join(",  ")}`, `That is ${pairs.length} different rectangles.`, `After √${n} the pairs just turn around, so we can stop.`],
+    async after(api) {
+      const rest = pairs.filter(([a]) => a > 1);
+      const sumW = rest.reduce((s, [, b]) => s + b, 0);
+      const maxA = Math.max(...rest.map(([a]) => a));
+      const s = Math.min(26, (920 - 30 * (rest.length - 1)) / sumW, 150 / maxA);
+      let x = 500 - (sumW * s + 30 * (rest.length - 1)) / 2;
+      for (const [a, b] of rest) {
+        const g = el("g", { opacity: 0 }, view);
+        drawArray(g, a, b, { x, y: 160, w: b * s, h: a * s }, { fill: RAINBOW[a % RAINBOW.length] });
+        text(g, x + (b * s) / 2, 150, `${a} × ${b}`, { "font-size": 24, fill: INK });
+        await api.tween(600, (t) => g.setAttribute("opacity", t));
+        MUSIC.play("xylophone", 72 + a * 2, { gain: 0.3 });
+        x += b * s + 30;
+      }
+    },
+  };
+}
+function factorCase(n) {
+  const fs = factorsOf(n).filter((f) => f > 1 && f < n);
+  const f = pick(fs);
+  const non = shuffle([...Array(n).keys()].filter((x) => x > 1 && n % x !== 0)).slice(0, 3);
+  let cs;
+  return {
+    ask: `Which number is a factor of <b>${n}</b>?`,
+    opts: optsOf(f, non),
+    ans: f,
+    draw() {
+      tag(view, 285, 78, n, { r: 58 });
+      cs = counters(view, n);
+      cs.put(cs.layout(Math.ceil(n / 10), 10, { x: 40, y: 160, w: 490, h: 200 }));
+      text(view, 285, 420, `${n} squares`, { "font-size": 26, fill: SOFT });
+      caseNotes([`Which number is a factor of ${n}?`, `A factor divides ${n} with nothing left over.`, `Think: can ${n} squares make equal rows?`]);
+    },
+    hint: (v) => `Share ${n} squares into ${v} equal rows. Is anything left over?`,
+    why: `${n} ÷ ${f} = ${n / f} with nothing left over, so ${f} is a factor of ${n}.`,
+    work: [`${n} ÷ ${f} = ${n / f}, nothing left.`, `${n} = ${f} × ${n / f}, so ${f} is a factor.`, ...non.map((x) => `${n} ÷ ${x} = ${Math.floor(n / x)} R ${n % x}: not a factor.`)],
+    async after(api) {
+      await cs.move(api, cs.layout(f, n / f, { x: 40, y: 150, w: 490, h: 240 }), 1300);
+      text(view, 285, 450, `${f} rows of ${n / f}`, { "font-size": 30, fill: GREEN });
+    },
+  };
+}
+function multipleCase(k, big = false) {
+  const m = big ? pickInt(7, 12) : pickInt(3, 9);
+  const ans = k * m;
+  const wrong = shuffle([ans - 1, ans + 1, ans + 2, ans - 2, ans + k - 1, ans - k + 1].filter((x) => x > 0 && x % k !== 0)).slice(0, 3);
+  const opts = optsOf(ans, wrong);
+  const max = Math.max(...opts.map((o) => o.v)) + 2;
+  const X = (v) => 50 + (v / max) * 900;
+  const Y = 230;
+  let frog;
+  let solving = false;
+  const hop = async (api, from, to) => {
+    const x1 = X(from);
+    const x2 = X(to);
+    const path = el("path", { d: `M${x1} ${Y - 8}Q${(x1 + x2) / 2} ${Y - 110} ${x2} ${Y - 8}`, fill: "none", stroke: "#e0603a", "stroke-width": 5, "stroke-linecap": "round" }, view);
+    const len = path.getTotalLength();
+    path.setAttribute("stroke-dasharray", len);
+    await api.tween(500, (t) => {
+      path.setAttribute("stroke-dashoffset", len * (1 - t));
+      const p = path.getPointAtLength(len * t);
+      frog.setAttribute("transform", `translate(${p.x} ${p.y - 30})`);
+    });
+    text(view, x2, Y + 44, to, { "font-size": 24, fill: "#c0392b" });
+    MUSIC.play("xylophone", 72 + Math.min(24, (to / k) * 2), { gain: 0.3 });
+  };
+  return {
+    ask: `Which number is a multiple of <b>${k}</b>?`,
+    opts,
+    ans,
+    region: BOTTOM,
+    draw(api) {
+      el("line", { x1: 30, x2: 970, y1: Y, y2: Y, stroke: "#5a4130", "stroke-width": 5, "stroke-linecap": "round" }, view);
+      for (let v = 0; v <= max; v++) if (v % k === 0) el("line", { x1: X(v), x2: X(v), y1: Y - 12, y2: Y + 12, stroke: "#5a4130", "stroke-width": 4 }, view);
+      text(view, X(0), Y + 44, 0, { "font-size": 24, fill: "#4d3c2e" });
+      frog = el("g", { transform: `translate(${X(0)} ${Y - 30})` }, view);
+      emoji(frog, 0, 0, "🐸", 46);
+      caseNotes([`Which number is a multiple of ${k}?`, `Multiples of ${k} are the numbers you land on when you count by ${k}s.`], BOTTOM);
+      const intro = anim(() => api.alive() && !solving);
+      quiet((async () => {
+        for (let i = 0; i < 3; i++) await hop(intro, i * k, (i + 1) * k);
+        text(view, X(3 * k) + 40, Y - 30, "…", { "font-size": 40, fill: SOFT });
+      })());
+    },
+    hint: (v) => `Count by ${k}s: ${k}, ${2 * k}, ${3 * k}… Do you land exactly on ${v}?`,
+    why: `${k} × ${m} = ${ans}, so ${ans} is a multiple of ${k}.`,
+    work: [`${k} × ${m} = ${ans}: a multiple of ${k}.`, ...wrong.filter((w) => opts.some((o) => o.v === w)).map((w) => `${w} ÷ ${k} = ${Math.floor(w / k)} R ${w % k}: not a multiple.`)],
+    async after(api) {
+      solving = true;
+      await api.wait(60);
+      view.querySelectorAll("path").forEach((p) => p.remove());
+      for (let i = 0; i < m; i++) await hop(api, i * k, (i + 1) * k);
+    },
+  };
+}
+function missingCase(big = false) {
+  let a, b;
+  do {
+    a = pickInt(big ? 4 : 2, big ? 9 : 6);
+    b = pickInt(big ? 6 : 3, big ? 12 : 9);
+  } while (a === b);
+  const n = a * b;
+  let arr;
+  return {
+    ask: `${n} = ${a} × ? Type the missing factor.`,
+    max: 2,
+    ans: b,
+    draw() {
+      arr = drawArray(view, a, b, { x: 40, y: 60, w: 500, h: 380 }, { hideFrom: 2 });
+      text(view, arr.x0 + arr.s * 2 + (arr.w - arr.s * 2) / 2, arr.y0 + arr.h / 2 + 24, "?", { "font-size": 70, fill: "#9a8a76", class: "nt-q" });
+      text(view, 285, 500, `${n} squares in ${a} rows`, { "font-size": 26, fill: SOFT });
+      caseNotes([`${n} = ${a} × ?`, `${a} equal rows. How many in each row?`]);
+    },
+    hint: () => `What times ${a} makes ${n}? Try counting by ${a}s.`,
+    why: `${a} × ${b} = ${n}, so the missing factor is ${b}. ${n} ÷ ${a} = ${b}.`,
+    work: [`${a} × ${b} = ${n}`, `Count by ${a}s, ${b} times: ${Array.from({ length: b }, (_, i) => a * (i + 1)).join(", ")}`, `So ${n} ÷ ${a} = ${b}.`],
+    async after(api) {
+      view.querySelector(".nt-q")?.remove();
+      const hid = [...view.querySelectorAll(".nt-hid")];
+      for (const r of hid) r.setAttribute("fill", "#f2a93b");
+      await api.wait(300);
+    },
+  };
+}
+function countCase(n) {
+  const f = factorsOf(n);
+  const pairs = pairsOf(n);
+  return {
+    ask: `How many factors does <b>${n}</b> have? Type the number.`,
+    max: 2,
+    ans: f.length,
+    region: LOW,
+    draw() {
+      tag(view, 500, 170, n, { r: 90 });
+      caseNotes([`How many factors does ${n} have?`, `Find the factor pairs: 1 × ${n}, 2 × ?, 3 × ?…`], LOW);
+    },
+    hint: () => `List the pairs: 1 × ${n}, then try 2, 3, 4… Each pair gives 2 factors. Did you check up to √${n}?`,
+    why: `${n} has ${f.length} factors.${Math.sqrt(n) % 1 === 0 ? ` ${Math.sqrt(n)} pairs with itself, so it counts once.` : " Each pair gives two."}`,
+    work: [`Pairs: ${pairs.map(([a, b]) => `${a} × ${b}`).join(", ")}`, `Factors: ${f.join(", ")}`, `That is ${f.length} factors.`],
+    async after(api) {
+      view.querySelectorAll("g").forEach((g) => g.classList.contains("nt-notes") || g.remove());
+      await rainbow(view, n, api, { y: 300 });
+    },
+  };
+}
+function notFactorCase(n) {
+  const fs = factorsOf(n).filter((x) => x > 1 && x < n);
+  const non = pick([...Array(n).keys()].filter((x) => x > 2 && n % x !== 0 && x < n / 2 + 4));
+  const right = shuffle(fs).slice(0, 3);
+  return {
+    ask: `Which number is NOT a factor of <b>${n}</b>?`,
+    opts: optsOf(non, right),
+    ans: non,
+    region: LOW,
+    draw() {
+      tag(view, 500, 170, n, { r: 90 });
+      caseNotes([`Which number is NOT a factor of ${n}?`, "A factor divides with nothing left over."], LOW);
+    },
+    hint: (v) => `${n} ÷ ${v}: is anything left over? Test each choice.`,
+    why: `${n} ÷ ${non} = ${Math.floor(n / non)} remainder ${n % non}, so ${non} is not a factor.`,
+    work: [`Factors of ${n}: ${factorsOf(n).join(", ")}`, `${non} is missing: ${n} ÷ ${non} = ${Math.floor(n / non)} R ${n % non}.`],
+    async after(api) {
+      view.querySelectorAll("g").forEach((g) => g.classList.contains("nt-notes") || g.remove());
+      await rainbow(view, n, api, { y: 300 });
+    },
+  };
+}
+function bigComposite() {
+  for (;;) {
+    const ps = shuffle([2, 3, 5, 7, 11]).slice(0, pickInt(2, 3));
+    let n = 1;
+    for (const p of ps) n *= p ** pickInt(1, p < 5 ? 4 : 2);
+    if (n >= 200 && n <= 5000) return n;
+  }
+}
+function smallestKCase() {
+  const k = pick([4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 24]);
+  let ans = 1;
+  while (factorsOf(ans).length !== k) ans += 1;
+  const fmt = [...pfCount(ans)].sort((a, b) => a[0] - b[0]);
+  return {
+    ask: `What is the smallest number with exactly ${k} factors?`,
+    max: 4,
+    ans,
+    draw() {
+      emoji(view, 285, 200, "🔎", 160);
+      tag(view, 285, 420, k, { r: 70 });
+      caseNotes([`Find the smallest whole number with exactly ${k} factors.`, "Recall: if n = p^a × q^b × … with p, q, … different primes, n has (a+1)(b+1)… factors.", "Which exponent patterns give " + k + "?"]);
+    },
+    hint: () => `Write ${k} as a product of numbers, each one more than an exponent. Then give the biggest exponents to the smallest primes.`,
+    why: `${ans} = ${expo(ans)}, which has ${fmt.map(([, e]) => `(${e}+1)`).join(" × ")} = ${k} factors, and no smaller number does.`,
+    work: [`Factor count = product of (exponent + 1).`, `${k} = ${fmt.map(([, e]) => e + 1).join(" × ")} → exponents ${fmt.map(([, e]) => e).join(", ")}`, "Biggest exponents on the smallest primes:", `${expo(ans)} = ${ans}`, `Checking every smaller number confirms none has ${k} factors.`],
+  };
+}
+function oddCountCase() {
+  const N = pick([30, 50, 80, 100, 150, 200, 250, 300, 400, 500, 750, 1000]);
+  const ans = Math.floor(Math.sqrt(N));
+  return {
+    ask: `How many whole numbers from 1 to ${N} have an ODD number of factors?`,
+    max: 3,
+    ans,
+    draw() {
+      emoji(view, 285, 230, "🌈", 160);
+      caseNotes([`How many numbers from 1 to ${N} have an odd number of factors?`, "Think about factor pairs. When does a factor lack a partner?"]);
+    },
+    hint: () => `Factors pair up as a × b. Which numbers have a factor paired with itself? How many of those are there up to ${N}?`,
+    why: `Only perfect squares have an odd number of factors. The squares up to ${N} are 1², 2², …, ${ans}², so there are ${ans}.`,
+    work: ["Factors pair up: a × b.", "Only a perfect square has a pair a × a, counted once.", `Squares up to ${N}: 1, 4, 9, …, ${ans * ans}`, `${ans}² = ${ans * ans} ≤ ${N} < ${(ans + 1) ** 2} = ${ans + 1}²`, `So ${ans} numbers.`],
+  };
+}
+function countPfCase(n) {
+  const c = [...pfCount(n)].sort((a, b) => a[0] - b[0]);
+  if (c.length !== 2) return countPf3Case(n, c);
+  const [[p, a], [q, b]] = c;
+  const ans = (a + 1) * (b + 1);
+  return {
+    ask: `${n} = ${expo(n)}. How many factors does ${n} have?`,
+    max: 2,
+    ans,
+    draw() {
+      tag(view, 285, 80, n, { r: 60 });
+      text(view, 285, 200, `${n} = ${expo(n)}`, { "font-size": 40, fill: INK });
+      emoji(view, 285, 330, "🧱", 110);
+      caseNotes([`${n} = ${expo(n)}`, `How many factors does ${n} have?`, "Idea: every factor is built from these same prime bricks."]);
+    },
+    hint: () => `Every factor uses some ${p}s and some ${q}s. How many ways to choose the ${p}s, from none up to ${a}? And the ${q}s?`,
+    why: `A factor can have 0 to ${a} ${p}s, that is ${a + 1} ways, and 0 to ${b} ${q}s, ${b + 1} ways. ${a + 1} × ${b + 1} = ${ans} factors.`,
+    work: [`Choices for ${p}: ${p}⁰ to ${p}${sup(a)} → ${a + 1} ways`, `Choices for ${q}: ${q}⁰ to ${q}${sup(b)} → ${b + 1} ways`, `${a + 1} × ${b + 1} = ${ans} factors`, "The table shows every one!"],
+    async after(api) {
+      view.querySelectorAll("g:not(.nt-notes), text").forEach((g) => g.closest(".nt-notes") || g.remove());
+      const cw = Math.min(100, 520 / (b + 2));
+      const ch = Math.min(72, 470 / (a + 2));
+      const x0 = 285 - (cw * (b + 2)) / 2;
+      const y0 = 40;
+      text(view, x0 + cw / 2, y0 + ch / 2 + 9, "×", { "font-size": 28, fill: SOFT });
+      for (let j = 0; j <= b; j++) text(view, x0 + cw * (j + 1.5), y0 + ch / 2 + 9, `${q}${sup(j)}`, { "font-size": 26, fill: "#1e78c8" });
+      for (let i = 0; i <= a; i++) {
+        text(view, x0 + cw / 2, y0 + ch * (i + 1.5) + 9, `${p}${sup(i)}`, { "font-size": 26, fill: "#e08a1e" });
+        for (let j = 0; j <= b; j++) {
+          const g = el("g", { opacity: 0 }, view);
+          el("rect", { x: x0 + cw * (j + 1) + 3, y: y0 + ch * (i + 1) + 3, width: cw - 6, height: ch - 6, rx: 10, fill: "#fff", stroke: "#c9b8a1", "stroke-width": 2 }, g);
+          const v = p ** i * q ** j;
+          text(g, x0 + cw * (j + 1.5), y0 + ch * (i + 1.5) + 8, v, { "font-size": String(v).length > 2 ? 22 : 24, fill: INK });
+          await api.tween(160, (t) => g.setAttribute("opacity", t));
+        }
+      }
+    },
+  };
+}
+function countPf3Case(n, c) {
+  const ans = c.reduce((s, [, e]) => s * (e + 1), 1);
+  return {
+    ask: `${n} = ${expo(n)}. How many factors does ${n} have?`,
+    max: 3,
+    ans,
+    draw() {
+      tag(view, 285, 90, n, { r: 66 });
+      text(view, 285, 220, `${n} = ${expo(n)}`, { "font-size": 38, fill: INK });
+      emoji(view, 285, 360, "🧱", 100);
+      caseNotes([`${n} = ${expo(n)}`, `How many factors does ${n} have?`, "Every factor is built by choosing how many of each prime to use."]);
+    },
+    hint: () => `For each prime, how many choices are there (from none up to all of its copies)? How do independent choices combine?`,
+    why: `Each prime offers (exponent + 1) choices, and the choices are independent, so multiply: ${c.map(([, e]) => e + 1).join(" × ")} = ${ans}.`,
+    work: [...c.map(([p, e]) => `${p}: ${p}⁰ to ${p}${sup(e)} → ${e + 1} choices`), `${c.map(([, e]) => e + 1).join(" × ")} = ${ans} factors`, "This is the multiplication principle of counting."],
+    async after(api) {
+      const t = text(view, 285, 500, `${c.map(([, e]) => `(${e}+1)`).join(" × ")} = ${ans}`, { "font-size": 36, fill: GREEN, opacity: 0 });
+      await api.tween(700, (x) => t.setAttribute("opacity", x));
+    },
+  };
+}
+function oddCase() {
+  const sq = pick([16, 25, 36, 49, 64, 81, 100]);
+  const non = shuffle([sq - 1, sq + 1, sq + 2, sq - 2, sq + 4, sq - 4].filter((x) => Math.sqrt(x) % 1 !== 0)).slice(0, 3);
+  const r = Math.sqrt(sq);
+  return {
+    ask: "Which number has an ODD number of factors?",
+    opts: optsOf(sq, non),
+    ans: sq,
+    region: LOW,
+    draw() {
+      emoji(view, 500, 170, "🌈", 150);
+      caseNotes(["Which number has an ODD number of factors?", "Think about how factors come in pairs."], LOW);
+    },
+    hint: (v) => `Factors come in pairs, like 1 × ${v}. When could a factor have no partner?`,
+    why: `${sq} = ${r} × ${r}. ${r} pairs with itself, so it counts once, and ${sq} has ${factorsOf(sq).length} factors, an odd number. Only square numbers do this.`,
+    work: [`Factors pair up: a × b. But ${sq} = ${r} × ${r}: ${r} pairs with itself!`, `So ${sq} has ${factorsOf(sq).length} factors, an odd number.`, `Only square numbers do this. ${non.map((x) => `${x} has ${factorsOf(x).length}`).join(", ")}.`],
+    async after(api) {
+      view.querySelectorAll("g:not(.nt-notes), text").forEach((g) => g.closest(".nt-notes") || g.remove());
+      await rainbow(view, sq, api, { y: 300 });
+    },
+  };
+}
+function exactly3Case() {
+  const p = pick([2, 3, 5, 7, 11, 13]);
+  const ans = p * p;
+  const pool = shuffle([pick([17, 19, 23, 29, 31, 37]), pick([8, 27]), pick([15, 21, 35, 33]), pick([16, 81]), pick([10, 14, 22, 26])]).filter((x) => factorsOf(x).length !== 3);
+  const others = pool.slice(0, 3);
+  const opts = optsOf(ans, others);
+  return {
+    ask: "Which number has exactly 3 factors?",
+    opts,
+    ans,
+    draw() {
+      emoji(view, 285, 230, "🔍", 160);
+      caseNotes(["Which number has exactly 3 factors?", "List the factors of each choice.", "What kind of number could it be?"]);
+    },
+    hint: (v) => `List the factors of ${v}. How many are there? Which number has a factor that pairs with itself?`,
+    why: `${ans} = ${p} × ${p}. Its factors are 1, ${p} and ${ans}: exactly 3. A prime squared always has 3 factors.`,
+    work: [...opts.map((o) => `${o.v}: ${factorsOf(o.v).join(", ")} (${factorsOf(o.v).length})`), `Exactly 3 = a prime squared: ${p}².`],
+    async after(api) {
+      view.querySelectorAll("g:not(.nt-notes), text").forEach((g) => g.closest(".nt-notes") || g.remove());
+      opts.forEach((o, i) => {
+        const yes = o.v === ans;
+        tag(view, 150 + (i % 2) * 270, 150 + Math.floor(i / 2) * 230, o.v, { r: 70, fill: yes ? GREEN : "#c9b8a1" });
+        text(view, 150 + (i % 2) * 270, 260 + Math.floor(i / 2) * 230, `${factorsOf(o.v).length} factors`, { "font-size": 26, fill: yes ? GREEN : SOFT });
+      });
+      await api.wait(200);
+    },
+  };
+}
+
+// ================= 3. Divisibility rules =================
+const RULES = {
+  2: { rule: "Rule for 2: the ones digit is even.", why: "Why? 10 = 2 × 5, so every ten, hundred and thousand is already a multiple of 2; only the ones digit decides.", take: 1 },
+  5: { rule: "Rule for 5: the ones digit is 0 or 5.", why: "Why? 10 = 5 × 2, so every ten, hundred and thousand is already a multiple of 5; only the ones digit decides.", take: 1 },
+  10: { rule: "Rule for 10: the ones digit is 0.", why: "Why? Tens, hundreds… are all groups of 10 already.", take: 1 },
+  4: { rule: "Rule for 4: the number formed by the last two digits is divisible by 4.", why: "Why? 100 = 4 × 25, so every hundred (and so every thousand) is a multiple of 4; only the last two digits can leave a remainder.", take: 2 },
+  8: { rule: "Rule for 8: the number formed by the last three digits is divisible by 8.", why: "Why? 1000 = 8 × 125, so every thousand is a multiple of 8; only the last three digits can leave a remainder.", take: 3 },
+  3: { rule: "Rule for 3: the digit sum is divisible by 3.", why: "Why? 10 = 9 + 1 and 100 = 99 + 1, and 9 and 99 are multiples of 3. Each ten or hundred leaves 1 over, so the number differs from its digit sum by a multiple of 3.", take: "sum" },
+  9: { rule: "Rule for 9: the digit sum is divisible by 9.", why: "Why? 10 = 9 + 1 and 100 = 99 + 1, so each ten or hundred leaves 1 over a multiple of 9: the number differs from its digit sum by a multiple of 9.", take: "sum" },
+  6: { rule: "Rule for 6: it passes the rules for 2 AND 3.", why: "Why? 6 = 2 × 3, and 2 and 3 share no common factor except 1, so a number divisible by both is divisible by 6.", take: "six" },
+  12: { rule: "Rule for 12: it passes the tests for 3 AND 4.", why: "Why? 12 = 3 × 4, and 3 and 4 share no common factor (they are coprime).", parts: [3, 4] },
+  15: { rule: "Rule for 15: it passes the tests for 3 AND 5.", why: "Why? 15 = 3 × 5, and 3 and 5 are coprime.", parts: [3, 5] },
+  18: { rule: "Rule for 18: it passes the tests for 2 AND 9.", why: "Why? 18 = 2 × 9, and 2 and 9 are coprime.", parts: [2, 9] },
+  24: { rule: "Rule for 24: it passes the tests for 3 AND 8.", why: "Why? 24 = 3 × 8, and 3 and 8 are coprime. (4 and 6 would not do: they share 2.)", parts: [3, 8] },
+  36: { rule: "Rule for 36: it passes the tests for 4 AND 9.", why: "Why? 36 = 4 × 9, and 4 and 9 are coprime.", parts: [4, 9] },
+  11: { rule: "Rule for 11: add and subtract the digits in turn, starting with + on the ones digit; the result is 0 or a multiple of 11.", why: "Why? 10 = 11 − 1, 100 = 99 + 1, 1000 = 1001 − 1: each place is a multiple of 11, plus or minus 1.", take: "alt" },
+};
+const altSum = (n) => {
+  const ds = String(n).split("").map(Number).reverse();
+  return ds.reduce((s, d, i) => s + (i % 2 ? -d : d), 0);
+};
+function ruleWork(n, d) {
+  const s = String(n);
+  const r = RULES[d];
+  const yes = n % d === 0;
+  const lines = [r.rule];
+  if (r.parts) {
+    for (const d2 of r.parts) {
+      const sub = ruleWork(n, d2);
+      lines.push(`Test ${d2}: ${sub[1]}`);
+    }
+  } else if (typeof r.take === "number") {
+    const tail = Number(s.slice(-r.take));
+    lines.push(r.take === 1 ? `Ones digit: ${tail} ${tail % d === 0 ? "✓" : "✗"}` : `Last ${r.take} digits: ${tail}. ${tail} ÷ ${d} = ${Math.floor(tail / d)} R ${tail % d}.`);
+  } else if (r.take === "sum" || r.take === "six") {
+    const ds = digitSum(n);
+    if (r.take === "six") lines.push(`Ones digit ${s.slice(-1)}: ${Number(s.slice(-1)) % 2 === 0 ? "even ✓" : "odd ✗"}`);
+    lines.push(`Digit sum: ${s.split("").join(" + ")} = ${ds}. ${ds % 3 === 0 ? "÷ 3 ✓" : "÷ 3 ✗"}${r.take === "sum" && d === 9 ? (ds % 9 === 0 ? ", ÷ 9 ✓" : ", ÷ 9 ✗") : ""}`);
+  } else {
+    const ds = s.split("").map(Number);
+    const L = ds.length;
+    const expr = ds.map((x, i) => `${i === 0 ? ((L - 1 - i) % 2 ? "−" : "") : (L - 1 - i) % 2 ? " − " : " + "}${x}`).join("");
+    lines.push(`${expr} = ${altSum(n)}. ${altSum(n) % 11 === 0 ? "÷ 11 ✓" : "÷ 11 ✗"}`);
+  }
+  lines.push(yes ? `So ${n} IS divisible by ${d}: ${n} = ${d} × ${n / d}.` : `So ${n} is NOT divisible by ${d}.`);
+  lines.push(r.why);
+  return lines;
+}
+function digitTiles(n, { missing = -1 } = {}) {
+  const s = String(n);
+  const names = ["1s", "10s", "100s", "1000s", "10⁴s", "10⁵s", "10⁶s"];
+  const w = 112;
+  const x0 = 560 - (s.length * w) / 2;
+  return s.split("").map((ch, i) => {
+    const g = el("g", { transform: `translate(${x0 + i * w} 28)` }, view);
+    const r = el("rect", { width: w - 12, height: 128, rx: 20, fill: i === missing ? "#fff4dc" : "#fff", stroke: i === missing ? GOLD : "#c9b8a1", "stroke-width": i === missing ? 5 : 3, "stroke-dasharray": i === missing ? "12 8" : null }, g);
+    const t = text(g, (w - 12) / 2, 98, i === missing ? "?" : ch, { "font-size": 84, fill: i === missing ? GOLD : INK });
+    text(g, (w - 12) / 2, 160, names[s.length - 1 - i], { "font-size": 22, fill: SOFT, "font-weight": 600 });
+    const sign = text(g, -6, 76, "", { "font-size": 32, fill: "#8e24aa" });
+    return { g, r, t, sign, cx: x0 + i * w + (w - 12) / 2 };
+  });
+}
+function lightDigits(tiles, n, d) {
+  if (RULES[d].parts) return RULES[d].parts.forEach((d2) => lightDigits(tiles, n, d2));
+  const take = RULES[d].take;
+  const L = tiles.length;
+  tiles.forEach((t, i) => {
+    const fromEnd = L - 1 - i;
+    let on = false;
+    if (typeof take === "number") on = fromEnd < take;
+    else if (take === "six") on = true;
+    else on = true;
+    if (on) t.r.setAttribute("fill", typeof take === "number" || (take === "six" && fromEnd === 0) ? "#ffe9a8" : "#e3f4e7");
+    if (take === "alt") t.sign.textContent = fromEnd % 2 ? "−" : "+";
+    if ((take === "sum" || take === "six") && i > 0) t.sign.textContent = "+";
+  });
+}
+function divCases() {
+  const take = bagOf();
+  return (level, round) => {
+    const ds = level === "easy" ? [2, 5, 10, 3, 9, 4] : level === "medium" ? [3, 4, 6, 8, 9, 11] : [8, 11, 12, 15, 18, 24, 36];
+    if ((level === "medium" && round >= 5) || (level === "hard" && round >= 4 && round % 2 === 0)) return missingDigitCase(level === "medium" ? pick([3, 9, 11]) : pick([9, 11]), level);
+    const d = take(level, ds);
+    const digits = level === "easy" ? pickInt(2, 3) : level === "medium" ? pickInt(4, 5) : pickInt(5, 7);
+    const lo = 10 ** (digits - 1);
+    const hi = 10 ** digits - 1;
+    const yes = Math.random() < 0.5;
+    let n;
+    do {
+      n = yes ? d * pickInt(Math.ceil(lo / d), Math.floor(hi / d)) : pickInt(lo, hi);
+    } while ((n % d === 0) !== yes || (d === 6 && !yes && Math.random() < 0.5 && n % 2 !== 0));
+    return divCase(n, d);
+  };
+}
+function divCase(n, d) {
+  let tiles;
+  const yes = n % d === 0;
+  return {
+    ask: `Is <b>${n}</b> divisible by <b>${d}</b>?`,
+    opts: [{ label: "✓ Yes", v: true }, { label: "✗ No", v: false }],
+    ans: yes,
+    region: { x: 24, y: 214, w: 952, h: 332 },
+    draw() {
+      tag(view, 80, 92, `÷${d}`, { r: 58 });
+      tiles = digitTiles(n);
+      caseNotes([`Is ${n} divisible by ${d}?`, `Divisible means it splits into groups of ${d} with nothing left over.`, `Which digits matter for ${d}?`], { x: 24, y: 214, w: 952, h: 332 });
+    },
+    hint: () => `${RULES[d].rule} What do you get for ${n}?`,
+    onMiss() {
+      lightDigits(tiles, n, d);
+    },
+    why: `${RULES[d].rule.replace(/^Rule for \d+: /, "The rule: ")} ${yes ? `So ${n} is divisible by ${d}.` : `So ${n} is not divisible by ${d}.`}`,
+    work: ruleWork(n, d),
+    async after() {
+      lightDigits(tiles, n, d);
+    },
+  };
+}
+function missingDigitCase(d, level) {
+  const len = level === "medium" ? 4 : pickInt(5, 6);
+  let n, pos, digit, wrong;
+  for (;;) {
+    n = d * pickInt(Math.ceil(10 ** (len - 1) / d), Math.floor((10 ** len - 1) / d));
+    pos = pickInt(1, len - 1);
+    const s = String(n);
+    digit = Number(s[pos]);
+    const valid = [];
+    for (let x = 0; x <= 9; x++) if (Number(s.slice(0, pos) + x + s.slice(pos + 1)) % d === 0) valid.push(x);
+    const bad = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter((x) => !valid.includes(x));
+    if (bad.length >= 3) {
+      wrong = shuffle(bad).slice(0, 3);
+      break;
+    }
+  }
+  const s = String(n);
+  const shown = s.slice(0, pos) + "☐" + s.slice(pos + 1);
+  const rest = s.split("").filter((_, i) => i !== pos).map(Number);
+  let tiles;
+  const work =
+    d === 11
+      ? [RULES[11].rule, `With ${digit}: ${altSum(n)} → ÷ 11 ✓`, `So the digit is ${digit}: ${n} = 11 × ${n / 11}.`, RULES[11].why]
+      : [RULES[d].rule, `The other digits add to ${rest.join(" + ")} = ${rest.reduce((a, b) => a + b, 0)}.`, `${rest.reduce((a, b) => a + b, 0)} + ${digit} = ${digitSum(n)}, a multiple of ${d} ✓`, `Of the choices, only ${digit} works: ${n} = ${d} × ${n / d}.`];
+  return {
+    ask: `Which digit makes <b>${shown}</b> divisible by <b>${d}</b>?`,
+    voice: `Which digit goes in the box, so the number is divisible by ${d}?`,
+    opts: optsOf(digit, wrong),
+    ans: digit,
+    region: { x: 24, y: 214, w: 952, h: 332 },
+    draw() {
+      tag(view, 80, 92, `÷${d}`, { r: 58 });
+      tiles = digitTiles(n, { missing: pos });
+      caseNotes([`Which digit makes ${shown} divisible by ${d}?`, `What do you know about the rule for ${d}?`], { x: 24, y: 214, w: 952, h: 332 });
+    },
+    hint: (v) => (d === 11 ? `Try ${v}: add and subtract the digits in turn. Is the result 0 or a multiple of 11?` : `What do the other digits add up to? What must the total be for ${d}?`),
+    why: d === 11 ? `With ${digit}, the plus-minus sum is ${altSum(n)}, a multiple of 11.` : `The digits must add to a multiple of ${d}. With ${digit} they add to ${digitSum(n)}.`,
+    work,
+    async after() {
+      tiles[pos].t.textContent = digit;
+      tiles[pos].t.setAttribute("fill", GREEN);
+      lightDigits(tiles, n, d);
+    },
+  };
+}
+
+// ================= 4. Prime factor trees =================
+const TREES = {
+  easy: [12, 18, 20, 24, 28, 30, 36, 40, 42, 44, 45, 50, 52, 54, 56, 60, 63, 66, 70],
+  medium: [72, 84, 90, 96, 100, 108, 120, 126, 132, 140, 150, 168, 180, 196, 198],
+  hard: [],
+};
+TREES.easy.push(72, 84, 90, 96, 100);
+TREES.medium.push(210, 252, 300, 330, 360, 378, 420, 450, 462, 500, 504, 540, 600, 630, 660, 700, 756, 792, 840, 900, 990);
+for (let n = 1000; n <= 6000; n++) {
+  const ps = pfList(n);
+  if (ps.length >= 4 && ps.length <= 6 && new Set(ps).size >= 3 && ps[ps.length - 1] <= 31) TREES.hard.push(n);
+}
+function treeGame() {
+  const my = token;
+  const id = "t4";
+  const R = 6;
+  let level = shell.progress()[id]?.level || "easy";
+  let round = 0;
+  let first = 0;
+  let miss = 0;
+  let root = null;
+  let N = 0;
+  let busy = false;
+  let tries = 0;
+  const take = bagOf();
+  const api = anim(() => my === token);
+  panel(`${topRow(level)}<div class="nt-in nt-pick" data-in></div>`);
+  const host = $("[data-in]");
+  const leaves = (node, out = []) => {
+    if (node.kids) node.kids.forEach((k) => leaves(k, out));
+    else out.push(node);
+    return out;
+  };
+  const all = (node, out = []) => {
+    out.push(node);
+    node.kids?.forEach((k) => all(k, out));
+    return out;
+  };
+  const layout = () => {
+    const ls = leaves(root);
+    const step = Math.min(110, 540 / ls.length);
+    const x0 = 285 - (step * ls.length) / 2 + step / 2;
+    ls.forEach((l, i) => (l.nx = x0 + i * step));
+    const fix = (node, depth) => {
+      node.ny = 52 + depth * 88;
+      if (node.kids) {
+        node.kids.forEach((k) => fix(k, depth + 1));
+        node.nx = (node.kids[0].nx + node.kids[1].nx) / 2;
+      }
+    };
+    fix(root, 0);
+  };
+  let lines;
+  const drawNode = (node) => {
+    const prime = isPrime(node.n);
+    node.g = el("g", { class: "nt-node" }, view);
+    node.c = el("circle", { r: 33, fill: prime ? "#e3f4e7" : "#fff", stroke: prime ? GREEN : "var(--accent)", "stroke-width": 5 }, node.g);
+    const len = String(node.n).length;
+    text(node.g, 0, len > 3 ? 8 : len > 2 ? 9 : 10, node.n, { "font-size": len > 3 ? 21 : len > 2 ? 26 : 29, fill: INK });
+  };
+  const paint = (t = 1) => {
+    lines.innerHTML = "";
+    for (const node of all(root)) {
+      node.x = lerp(node.ox ?? node.nx, node.nx, t);
+      node.y = lerp(node.oy ?? node.ny, node.ny, t);
+      node.g.setAttribute("transform", `translate(${node.x} ${node.y})`);
+    }
+    for (const node of all(root)) if (node.kids) for (const k of node.kids) el("line", { x1: node.x, y1: node.y + 30, x2: k.x, y2: k.y - 30, stroke: "#8a6a4f", "stroke-width": 5, "stroke-linecap": "round" }, lines);
+  };
+  const bricks = () => {
+    const ps = leaves(root).filter((l) => isPrime(l.n)).map((l) => l.n).sort((a, b) => a - b);
+    caseNotes([`Build a factor tree for ${N}.`, "Split until every leaf is PRIME.", `Prime bricks: ${ps.length ? ps.join(", ") : "none yet"}`]);
+  };
+  const current = () => all(root).find((n) => !n.kids && !isPrime(n.n));
+  const newTree = () => {
+    if (my !== token) return;
+    N = take(level, TREES[level].filter((n) => pfList(n).length <= 6));
+    root = { n: N };
+    miss = 0;
+    tries = 0;
+    busy = false;
+    fresh();
+    lines = el("g", {}, view);
+    drawNode(root);
+    layout();
+    paint();
+    bricks();
+    setStatus(`Tree ${round + 1} of ${R}`);
+    step(`Build a factor tree for ${N}. Tap two factors whose product is ${N}.`);
+  };
+  const step = (lead) => {
+    const cur = current();
+    view.querySelectorAll(".nt-glow").forEach((c) => c.classList.remove("nt-glow"));
+    if (!cur) return expoQ(lead);
+    cur.c.classList.add("nt-glow");
+    const valid = pairsOf(cur.n).filter(([a]) => a > 1);
+    const show = valid.length > 4 ? [valid[0], ...shuffle(valid.slice(1)).slice(0, 3)] : valid;
+    const [a, b] = pick(show);
+    let wrong = [a, b + 1];
+    if (a * (b + 1) === cur.n || valid.some(([x, y]) => x === a && y === b + 1)) wrong = [a + 1, b];
+    const opts = shuffle([...show.map(([x, y]) => ({ label: `${x} × ${y}`, v: [x, y] })), { label: `${wrong[0]} × ${wrong[1]}`, v: wrong }]).sort((p, q) => p.v[0] - q.v[0]);
+    tries = 0;
+    choices(host, opts, (o, button) => split(cur, o.v, button));
+    talk(lead || `Now split ${cur.n}: tap two factors whose product is ${cur.n}.`);
+  };
+  const split = async (node, [a, b], button) => {
+    if (my !== token || busy) return;
+    window.OC?.touch();
+    if (a * b !== node.n) {
+      MUSIC.oops();
+      button.classList.add("wrong");
+      miss += 1;
+      tries += 1;
+      talk(`${pick(NUDGE)} Check it: ${a} × ${b} = ${a * b}. Is that ${node.n}?`);
+      return;
+    }
+    busy = true;
+    MUSIC.chime();
+    node.kids = [{ n: a }, { n: b }];
+    for (const node2 of all(root)) {
+      node2.ox = node2.nx;
+      node2.oy = node2.ny;
+    }
+    node.kids.forEach((k) => {
+      k.ox = node.nx;
+      k.oy = node.ny;
+      drawNode(k);
+    });
+    layout();
+    const myRoot = root;
+    await quiet(api.tween(800, paint));
+    if (my !== token || root !== myRoot) return;
+    bricks();
+    busy = false;
+    const pr = node.kids.filter((k) => isPrime(k.n)).map((k) => k.n);
+    const lead = `${a} × ${b} = ${node.n}. ${pr.length ? `${[...new Set(pr)].join(" and ")} ${pr.length > 1 && pr[0] !== pr[1] ? "are" : "is"} prime, so ${pr.length > 1 ? "those branches stop" : "that branch stops"}. ` : ""}`;
+    const nx = current();
+    step(nx ? `${lead}Now split ${nx.n}.` : lead);
+  };
+  const expoQ = (lead = "") => {
+    const ps = pfList(N);
+    const map = pfCount(N);
+    const right = expo(N);
+    const wrongs = new Set();
+    const entries = [...map];
+    // swap exponents
+    if (entries.length >= 2 && entries[0][1] !== entries[1][1]) {
+      const m2 = new Map(map);
+      m2.set(entries[0][0], entries[1][1]);
+      m2.set(entries[1][0], entries[0][1]);
+      wrongs.add(expoOf(m2));
+    }
+    // one brick too many / too few
+    const m3 = new Map(map);
+    m3.set(entries[0][0], entries[0][1] + 1);
+    wrongs.add(expoOf(m3));
+    const big = entries.find(([, k]) => k >= 2);
+    if (big) {
+      const m4 = new Map(map);
+      m4.set(big[0], big[1] - 1);
+      if (m4.get(big[0]) === 0) m4.delete(big[0]);
+      wrongs.add(expoOf(m4));
+      // a non-prime brick: p^2 written as a number
+      const m5 = new Map(map);
+      m5.set(big[0], big[1] - 2);
+      if (m5.get(big[0]) === 0) m5.delete(big[0]);
+      wrongs.add(`${expoOf(m5)}${m5.size ? " × " : ""}${big[0] * big[0]}`);
+    } else {
+      const m6 = new Map(map);
+      const lastP = entries[entries.length - 1][0];
+      m6.set(lastP, 2);
+      wrongs.add(expoOf(m6));
+    }
+    if (entries.length >= 2) {
+      const m7 = new Map(map);
+      const [p1, p2] = [entries[0][0], entries[1][0]];
+      m7.set(p1, m7.get(p1) - 1);
+      m7.set(p2, m7.get(p2) - 1);
+      for (const key of [p1, p2]) if (m7.get(key) === 0) m7.delete(key);
+      wrongs.add(`${p1 * p2}${m7.size ? " × " : ""}${expoOf(m7)}`);
+    }
+    wrongs.delete(right);
+    const opts = shuffle([right, ...shuffle([...wrongs]).slice(0, 3)]).map((s) => ({ label: s, v: s }));
+    let t2 = 0;
+    choices(host, opts, (o, button) => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      if (o.v === right) {
+        button.classList.add("right");
+        MUSIC.chime();
+        return done(true, t2);
+      }
+      t2 += 1;
+      miss += 1;
+      button.classList.add("wrong");
+      MUSIC.oops();
+      if (t2 < 2) talk(`${pick(NUDGE)} how many ${ps[0]}s are among the leaves? Is every number in each choice prime?`);
+      else {
+        host.querySelectorAll("[data-c]")[opts.findIndex((x) => x.v === right)]?.classList.add("right");
+        done(false, t2);
+      }
+    });
+    talk(`${lead}Every leaf is now prime. Which expression writes ${N} as a product of primes, using exponents?`);
+  };
+  const done = (won, t2) => {
+    busy = true;
+    const ps = pfList(N);
+    const map = [...pfCount(N)];
+    const nf = map.reduce((s, [, k]) => s * (k + 1), 1);
+    if (miss === 0) first += 1;
+    window.OC?.count("trees built");
+    const work = [`${N} = ${ps.join(" × ")}`, `= ${expo(N)}`, "An exponent counts how many times a prime repeats.", "Any tree for this number ends with the same primes!"];
+    if (level !== "easy") work.push(`Factors: ${map.map(([, k]) => `(${k}+1)`).join(" × ")} = ${nf}`);
+    notes(work);
+    talk(`${won ? (t2 ? "Correct — your persistence paid off." : "Correct.") : "Here is the reasoning."} ${N} = ${expo(N)}. Any factor tree for ${N} ends with these same primes; this is the Fundamental Theorem of Arithmetic.`);
+    host.classList.remove("nt-pick");
+    host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-next>${round + 1 >= R ? "Finish ▶" : "Next tree ▶"}</button></div>`;
+    host.onclick = (event) => {
+      if (!event.target.closest("[data-next]")) return;
+      window.OC?.touch();
+      round += 1;
+      if (round >= R)
+        finishGame(id, host, {
+          R,
+          first,
+          noun: "trees",
+          again: () => {
+            round = 0;
+            first = 0;
+            host.classList.add("nt-pick");
+            newTree();
+          },
+        });
+      else {
+        host.classList.add("nt-pick");
+        newTree();
+      }
+    };
+  };
+  bindTop(id, (lv) => {
+    level = lv;
+    round = 0;
+    first = 0;
+    host.classList.add("nt-pick");
+    newTree();
+  });
+  newTree();
+}
+
+// ================= 5. GCF & LCM =================
+function gcfCases() {
+  const take = bagOf();
+  return (level) => {
+    if (level === "easy") {
+      const kind = take("e", ["gcf", "lcm", "beads", "beats", "gcf", "lcm", "beads", "beats"]);
+      return { gcf: listGcfCase, lcm: listLcmCase, beads: beadsCase, beats: beatsCase }[kind]();
+    }
+    if (level === "medium") {
+      const kind = take("m", ["vgcf", "vlcm", "tiles", "bus", "three", "product", "vgcf", "vlcm", "tiles", "bus", "gears"]);
+      return { vgcf: () => vennCase("gcf", 200), vlcm: () => vennCase("lcm", 60), tiles: tilesCase, bus: busCase, three: threeCase, product: productCase, gears: gearsCase }[kind]();
+    }
+    const kind = take("h", ["gcf3", "range", "soldiers", "product", "gears", "vbig", "gcf3", "range", "soldiers", "vbig", "three"]);
+    return { gcf3: gcf3Case, range: lcmRangeCase, soldiers: soldiersCase, three: threeCase, product: productCase, gears: gearsCase, vbig: () => vennCase(pick(["gcf", "lcm"]), 2000) }[kind]();
+  };
+}
+const tileRow = (y, label, list, color) => {
+  text(view, 70, y + 40, label, { "font-size": 30, fill: color });
+  const step = Math.min(78, 820 / list.length);
+  return list.map((v, i) => {
+    const g = el("g", { transform: `translate(${140 + i * step} ${y})` }, view);
+    const r = el("rect", { width: step - 8, height: 60, rx: 14, fill: "#fff", stroke: "#c9b8a1", "stroke-width": 3 }, g);
+    text(g, (step - 8) / 2, 40, v, { "font-size": String(v).length > 2 ? 22 : 26, fill: INK });
+    return { v, r, g };
+  });
+};
+function listGcfCase() {
+  let a, b;
+  do {
+    a = pickInt(8, 30);
+    b = pickInt(8, 30);
+  } while (a === b || gcd(a, b) < 2 || gcd(a, b) === Math.min(a, b));
+  const g = gcd(a, b);
+  const common = factorsOf(g);
+  const wrongs = shuffle([...common.filter((x) => x < g && x > 1), ...factorsOf(a).filter((x) => b % x !== 0 && x < a), ...factorsOf(b).filter((x) => a % x !== 0 && x < b), a * b > 60 ? 0 : a * b].filter((x) => x > 0 && x !== g));
+  let rows = null;
+  const show = () => {
+    if (rows) return;
+    rows = [tileRow(70, a, factorsOf(a), "#e08a1e"), tileRow(190, b, factorsOf(b), "#1e78c8")];
+  };
+  return {
+    ask: `What is the GCF, the greatest common factor, of <b>${a}</b> and <b>${b}</b>?`,
+    opts: optsOf(g, wrongs),
+    ans: g,
+    region: LOW,
+    draw() {
+      tag(view, 330, 170, a, { r: 80, fill: "#e08a1e" });
+      tag(view, 670, 170, b, { r: 80, fill: "#1e78c8" });
+      caseNotes([`Find the biggest number that divides BOTH ${a} and ${b}.`, "GCF = greatest common factor."], LOW);
+    },
+    hint: () => `List the factors of ${a} and of ${b}. Which numbers are in both lists? Which is biggest?`,
+    onMiss() {
+      view.querySelectorAll("g:not(.nt-notes)").forEach((x) => x.closest(".nt-notes") || x.remove());
+      show();
+    },
+    why: `The common factors of ${a} and ${b} are ${common.join(", ")}. The greatest is ${g}.`,
+    work: [`Factors of ${a}: ${factorsOf(a).join(", ")}`, `Factors of ${b}: ${factorsOf(b).join(", ")}`, `In both: ${common.join(", ")} → GCF = ${g}`],
+    async after(api) {
+      view.querySelectorAll("g:not(.nt-notes)").forEach((x) => x.closest(".nt-notes") || x.remove());
+      show();
+      for (const row of rows)
+        for (const t of row)
+          if (common.includes(t.v)) {
+            t.r.setAttribute("fill", t.v === g ? "#ffe9a8" : "#e3f4e7");
+            t.r.setAttribute("stroke", t.v === g ? GOLD : GREEN);
+            await api.wait(200);
+          }
+    },
+  };
+}
+function listLcmCase() {
+  let a, b;
+  do {
+    a = pickInt(2, 10);
+    b = pickInt(2, 10);
+  } while (a >= b || b % a === 0 || lcm(a, b) / a > 10 || lcm(a, b) > 60);
+  const L = lcm(a, b);
+  const wrongs = shuffle([a * b !== L ? a * b : 2 * L, 2 * L, b * 2 !== L ? b * 2 : b * 3, a * (L / a - 1) || a, L + a]).filter((x) => x !== L);
+  let rows = null;
+  const show = (n) => {
+    view.querySelectorAll("g:not(.nt-notes), text").forEach((x) => x.closest(".nt-notes") || x.remove());
+    rows = [tileRow(70, a, Array.from({ length: n ? Math.floor(L / a) + 1 : 3 }, (_, i) => a * (i + 1)), "#e08a1e"), tileRow(190, b, Array.from({ length: n ? Math.floor(L / b) + 1 : 3 }, (_, i) => b * (i + 1)), "#1e78c8")];
+    if (!n) rows.forEach((row, k) => text(view, 140 + 3 * 78 + 30, 70 + k * 120 + 42, "…", { "font-size": 40, fill: SOFT }));
+  };
+  return {
+    ask: `What is the LCM, the least common multiple, of <b>${a}</b> and <b>${b}</b>?`,
+    opts: optsOf(L, wrongs),
+    ans: L,
+    region: LOW,
+    draw() {
+      show(false);
+      caseNotes([`Find the smallest number that is a multiple of BOTH ${a} and ${b}.`, "LCM = least common multiple."], LOW);
+    },
+    hint: () => `Keep counting by ${a}s and by ${b}s. Where do the two lists first meet?`,
+    onMiss() {
+      show(true);
+    },
+    why: `Count by ${a}s and by ${b}s. The first number in both lists is ${L}.`,
+    work: [`Multiples of ${a}: ${Array.from({ length: L / a }, (_, i) => a * (i + 1)).join(", ")}`, `Multiples of ${b}: ${Array.from({ length: L / b }, (_, i) => b * (i + 1)).join(", ")}`, `First in both: ${L} → LCM = ${L}`],
+    async after(api) {
+      show(true);
+      for (const row of rows)
+        for (const t of row)
+          if (t.v === L) {
+            t.r.setAttribute("fill", "#ffe9a8");
+            t.r.setAttribute("stroke", GOLD);
+            await api.wait(300);
+          }
+    },
+  };
+}
+function beadsCase() {
+  let a, b;
+  do {
+    a = pickInt(6, 24);
+    b = pickInt(6, 24);
+  } while (a === b || gcd(a, b) < 2 || gcd(a, b) > 8);
+  const g = gcd(a, b);
+  const wrongs = shuffle([...factorsOf(g).filter((x) => x > 1 && x < g), ...[g + 1, g + 2, g * 2, Math.min(a, b)].filter((x) => a % x || b % x)]);
+  return {
+    ask: `${a} red and ${b} blue beads go into matching bags, none left over. What is the greatest number of bags?`,
+    opts: optsOf(g, wrongs),
+    ans: g,
+    draw() {
+      const put = (n, y, color) => {
+        for (let i = 0; i < n; i++) el("circle", { cx: 50 + (i % 12) * 40, cy: y + Math.floor(i / 12) * 40, r: 15, fill: color, stroke: "#fff", "stroke-width": 2 }, view);
+      };
+      put(a, 70, "#e53935");
+      put(b, 230, "#1e88e5");
+      caseNotes([`You have ${a} red beads and ${b} blue beads.`, "Every bag must be exactly the same, with no beads left over.", "What is the GREATEST number of bags you can make?"]);
+    },
+    hint: (v) => `With ${v} bags, do the ${a} red beads share evenly? Do the ${b} blue beads? Which numbers divide both?`,
+    why: `The number of bags must divide ${a} and ${b}. The greatest common factor is ${g}: ${g} bags, each with ${a / g} red and ${b / g} blue.`,
+    work: [`Bags must divide ${a} and ${b}.`, `Common factors: ${factorsOf(g).join(", ")}`, `Greatest: ${g} = GCF(${a}, ${b})`, `Each bag: ${a / g} red + ${b / g} blue.`],
+    async after(api) {
+      view.querySelectorAll("circle").forEach((c) => c.remove());
+      const w = Math.min(120, 520 / g);
+      for (let i = 0; i < g; i++) {
+        const x = 285 - (g * w) / 2 + i * w + w / 2;
+        const grp = el("g", { opacity: 0 }, view);
+        emoji(grp, x, 180, "👜", Math.min(80, w - 10));
+        text(grp, x, 290, `${a / g}🔴`, { "font-size": 24, fill: INK });
+        text(grp, x, 330, `${b / g}🔵`, { "font-size": 24, fill: INK });
+        await api.tween(350, (t) => grp.setAttribute("opacity", t));
+      }
+    },
+  };
+}
+function beatsCase() {
+  let a, b;
+  do {
+    a = pickInt(2, 6);
+    b = pickInt(3, 8);
+  } while (a >= b || b % a === 0 || lcm(a, b) > 24);
+  const L = lcm(a, b);
+  const wrongs = shuffle([a * b !== L ? a * b : 2 * L, 2 * L, b * 2 !== L ? b * 2 : b * 3, L - a > b ? L - a : L + b]).filter((x) => x !== L && x > 0);
+  return {
+    ask: `A drum plays every ${a} beats, a bell every ${b} beats. On which beat do they first play together?`,
+    opts: optsOf(L, wrongs),
+    ans: L,
+    region: LOW,
+    draw() {
+      emoji(view, 60, 120, "🥁", 70);
+      emoji(view, 60, 250, "🔔", 70);
+      text(view, 230, 132, `every ${a} beats`, { "font-size": 30, fill: "#c0392b" });
+      text(view, 230, 262, `every ${b} beats`, { "font-size": 30, fill: "#1e78c8" });
+      caseNotes([`Drum: every ${a} beats. Bell: every ${b} beats.`, "When do they FIRST play on the same beat?"], LOW);
+    },
+    hint: () => `Count the drum beats: ${a}, ${2 * a}, ${3 * a}… and the bell beats: ${b}, ${2 * b}… Where do they meet?`,
+    why: `Drum: ${a}, ${2 * a}, ${3 * a}… Bell: ${b}, ${2 * b}… The first beat in both is ${L}, the LCM.`,
+    work: [`Drum: ${Array.from({ length: L / a }, (_, i) => a * (i + 1)).join(", ")}`, `Bell: ${Array.from({ length: L / b }, (_, i) => b * (i + 1)).join(", ")}`, `First together: beat ${L} = LCM(${a}, ${b})`],
+    async after(api) {
+      view.querySelectorAll("text").forEach((t) => t.closest(".nt-notes") || t.remove());
+      const n = Math.min(24, L + 2);
+      const step = Math.min(38, 800 / n);
+      const xs = (i) => 150 + (i - 1) * step;
+      const dots = [];
+      for (let i = 1; i <= n; i++) {
+        dots[i] = [el("circle", { cx: xs(i), cy: 132, r: 13, fill: "#f0e8dc" }, view), el("circle", { cx: xs(i), cy: 262, r: 13, fill: "#f0e8dc" }, view)];
+        text(view, xs(i), 330, i, { "font-size": 22, fill: "#9a8a76" });
+      }
+      for (let i = 1; i <= n; i++) {
+        if (i % a === 0) {
+          dots[i][0].setAttribute("fill", "#e0603a");
+          MUSIC.play("woodblock", 72, { gain: 0.5 });
+        }
+        if (i % b === 0) {
+          dots[i][1].setAttribute("fill", "#1e88e5");
+          MUSIC.play("xylophone", 84, { gain: 0.4 });
+        }
+        if (i === L) el("rect", { x: xs(i) - 20, y: 100, width: 40, height: 194, rx: 18, fill: "none", stroke: GOLD, "stroke-width": 6 }, view);
+        await api.wait(360);
+      }
+    },
+  };
+}
+function vennCase(kind, max) {
+  let a, b;
+  do {
+    a = pickInt(12, max);
+    b = pickInt(12, max);
+  } while (a === b || gcd(a, b) < 2 || gcd(a, b) === Math.min(a, b) || pfList(a).length + pfList(b).length > 9 || (kind === "lcm" && lcm(a, b) > 999));
+  const g = gcd(a, b);
+  const L = lcm(a, b);
+  const { left, mid, right } = vennSplit(a, b);
+  const ans = kind === "gcf" ? g : L;
+  return {
+    ask: kind === "gcf" ? `Find the GCF of <b>${a}</b> and <b>${b}</b>. Type it.` : `Find the LCM of <b>${a}</b> and <b>${b}</b>. Type it.`,
+    max: 4,
+    ans,
+    draw() {
+      tag(view, 150, 110, a, { r: 66, fill: "#e08a1e" });
+      tag(view, 420, 110, b, { r: 66, fill: "#1e78c8" });
+      text(view, 285, 270, `${a} = ${pfList(a).join(" × ")}`, { "font-size": 30, fill: "#b8650a" });
+      text(view, 285, 330, `${b} = ${pfList(b).join(" × ")}`, { "font-size": 30, fill: "#165fa0" });
+      caseNotes([`Find the ${kind === "gcf" ? "GCF (greatest common factor)" : "LCM (least common multiple)"} of ${a} and ${b}.`, "Use the prime bricks!", kind === "gcf" ? "Which primes do BOTH share?" : "The LCM needs every brick of each number."]);
+    },
+    hint: () => (kind === "gcf" ? `Which prime bricks are in both ${a} and ${b}? Multiply only the shared ones.` : `Put the shared bricks in once, then add the extra bricks from each number. Multiply them all.`),
+    why: kind === "gcf" ? `The shared primes are ${mid.join(" × ")}, so the GCF is ${g}.` : `Multiply everything in the Venn diagram: ${[...left, ...mid, ...right].join(" × ")} = ${L}.`,
+    work:
+      kind === "gcf"
+        ? [`${a} = ${pfList(a).join(" × ")}`, `${b} = ${pfList(b).join(" × ")}`, `Shared (middle): ${mid.join(" × ")}`, `GCF = ${g}`, "GCF = multiply the middle."]
+        : [`Only ${a}: ${left.join(" × ") || "–"}`, `Shared: ${mid.join(" × ")}`, `Only ${b}: ${right.join(" × ") || "–"}`, `LCM = ${[...left, ...mid, ...right].join(" × ")} = ${L}`, "LCM = multiply everything in the Venn."],
+    async after(api) {
+      view.querySelectorAll("g:not(.nt-notes), text").forEach((x) => x.closest(".nt-notes") || x.remove());
+      await venn(view, a, b, api);
+    },
+  };
+}
+function tilesCase() {
+  let w, h;
+  do {
+    w = pickInt(12, 48);
+    h = pickInt(8, 36);
+  } while (w <= h || gcd(w, h) < 3 || gcd(w, h) === h || w / gcd(w, h) > 12);
+  const g = gcd(w, h);
+  const s = Math.min(480 / w, 380 / h);
+  const x0 = 285 - (w * s) / 2;
+  const y0 = 70;
+  return {
+    ask: `A floor is ${w} by ${h} feet. What is the biggest square tile that covers it exactly? Type its side.`,
+    max: 2,
+    ans: g,
+    draw() {
+      el("rect", { x: x0, y: y0, width: w * s, height: h * s, fill: "#e8d3b4", stroke: "#8a6a4f", "stroke-width": 5 }, view);
+      text(view, 285, y0 - 16, `${w} ft`, { "font-size": 28, fill: SOFT });
+      text(view, x0 - 14, y0 + (h * s) / 2, `${h} ft`, { "font-size": 28, fill: SOFT, "text-anchor": "end" });
+      caseNotes([`A floor is ${w} feet by ${h} feet.`, "You want square tiles, all the same size, with no cutting.", "What is the BIGGEST tile side that fits exactly?"]);
+    },
+    hint: (v) => `Does ${v} go into ${w} exactly? Into ${h}? The side must divide both.`,
+    why: `The tile side must divide ${w} and ${h}. The greatest common factor is ${g}, so ${g} by ${g} foot tiles: ${w / g} across and ${h / g} down.`,
+    work: [`Side must divide ${w} and ${h}.`, `${w} = ${pfList(w).join(" × ")}`, `${h} = ${pfList(h).join(" × ")}`, `GCF = ${g}`, `${w / g} × ${h / g} = ${(w / g) * (h / g)} tiles of ${g} × ${g}.`],
+    async after(api) {
+      for (let i = 1; i < w / g; i++) {
+        el("line", { x1: x0 + i * g * s, x2: x0 + i * g * s, y1: y0, y2: y0 + h * s, stroke: "#8a6a4f", "stroke-width": 3 }, view);
+        await api.wait(120);
+      }
+      for (let j = 1; j < h / g; j++) {
+        el("line", { x1: x0, x2: x0 + w * s, y1: y0 + j * g * s, y2: y0 + j * g * s, stroke: "#8a6a4f", "stroke-width": 3 }, view);
+        await api.wait(120);
+      }
+      text(view, 285, y0 + h * s + 50, `${g} × ${g} tiles`, { "font-size": 30, fill: GREEN });
+    },
+  };
+}
+function busCase() {
+  let a, b;
+  do {
+    a = pick([6, 8, 9, 10, 12, 15, 18, 20]);
+    b = pick([8, 10, 12, 15, 16, 18, 20, 24, 25, 30]);
+  } while (a >= b || b % a === 0 || lcm(a, b) > 120 || lcm(a, b) / a > 10);
+  const L = lcm(a, b);
+  const time = clockTime(8 + Math.floor(L / 60), L % 60);
+  const X = (m) => 40 + (m / L) * 480;
+  return {
+    ask: `Bus A leaves every ${a} minutes, bus B every ${b} minutes. Both leave at 8:00. How many minutes until they leave together again?`,
+    max: 3,
+    ans: L,
+    draw() {
+      emoji(view, 110, 110, "🚌", 90);
+      emoji(view, 110, 260, "🚎", 90);
+      text(view, 330, 122, `every ${a} min`, { "font-size": 32, fill: "#c0392b" });
+      text(view, 330, 272, `every ${b} min`, { "font-size": 32, fill: "#1e78c8" });
+      text(view, 285, 400, "Both leave at 8:00 🕗", { "font-size": 30, fill: INK });
+      caseNotes([`Bus A leaves every ${a} minutes.`, `Bus B leaves every ${b} minutes.`, "Both leave at 8:00.", "How many minutes until they leave together again?"]);
+    },
+    hint: () => `List bus A times: ${a}, ${2 * a}, ${3 * a}… and bus B: ${b}, ${2 * b}… What is the first number in both?`,
+    why: `The first number in both lists is ${L}, the LCM. They leave together at ${time}.`,
+    work: [`A: ${Array.from({ length: L / a }, (_, i) => a * (i + 1)).join(", ")}`, `B: ${Array.from({ length: L / b }, (_, i) => b * (i + 1)).join(", ")}`, `LCM(${a}, ${b}) = ${L} minutes`, `Together again at ${time}.`],
+    async after(api) {
+      view.querySelectorAll("text").forEach((t) => t.closest(".nt-notes") || t.remove());
+      for (const [k, y, col] of [[a, 160, "#c0392b"], [b, 320, "#1e78c8"]]) {
+        el("line", { x1: 40, x2: 520, y1: y, y2: y, stroke: "#5a4130", "stroke-width": 4 }, view);
+        for (let m = 0; m <= L; m += k) {
+          el("circle", { cx: X(m), cy: y, r: 10, fill: m === L ? GOLD : col }, view);
+          await api.wait(110);
+        }
+      }
+      text(view, X(0), 380, "8:00", { "font-size": 24, fill: SOFT });
+      text(view, X(L) - 10, 380, time, { "font-size": 26, fill: GREEN });
+      text(view, 285, 450, `${L} minutes later`, { "font-size": 32, fill: GREEN });
+    },
+  };
+}
+function threeCase() {
+  const sets = [];
+  for (let a = 2; a <= 12; a++) for (let b = a + 1; b <= 15; b++) for (let c = b + 1; c <= 20; c++) {
+    const L = lcm(lcm(a, b), c);
+    if (L <= 120 && L !== c && L !== a * b * c && c % b && b % a && c % a) sets.push([a, b, c]);
+  }
+  const [a, b, c] = pick(sets);
+  const L = lcm(lcm(a, b), c);
+  const primes = [...new Set([...pfList(a), ...pfList(b), ...pfList(c)])].sort((x, y) => x - y);
+  const top = primes.map((p) => {
+    const k = Math.max(...[a, b, c].map((n) => pfCount(n).get(p) || 0));
+    return k > 1 ? `${p}${sup(k)}` : `${p}`;
+  });
+  return {
+    ask: `What is the LCM of <b>${a}</b>, <b>${b}</b> and <b>${c}</b>? Type it.`,
+    max: 3,
+    ans: L,
+    draw() {
+      [a, b, c].forEach((n, i) => {
+        tag(view, 110 + i * 175, 110, n, { r: 62, fill: ["#e08a1e", "#1e78c8", "#8e24aa"][i] });
+        text(view, 110 + i * 175, 230, expo(n), { "font-size": 28, fill: INK });
+      });
+      caseNotes([`Find the LCM of ${a}, ${b} and ${c}.`, "It must contain every prime brick of each number.", "Use the biggest power of each prime."]);
+    },
+    hint: () => `For each prime, which number has the most copies of it? Take that many.`,
+    why: `Take the biggest power of each prime: ${top.join(" × ")} = ${L}.`,
+    work: [`${a} = ${expo(a)}, ${b} = ${expo(b)}, ${c} = ${expo(c)}`, `Biggest powers: ${top.join(" × ")}`, `LCM = ${L}`, `Check: ${L} ÷ ${a} = ${L / a}, ${L} ÷ ${b} = ${L / b}, ${L} ÷ ${c} = ${L / c}`],
+    async after(api) {
+      const t = text(view, 285, 360, `LCM = ${top.join(" × ")} = ${L}`, { "font-size": 34, fill: GREEN, opacity: 0 });
+      await api.tween(700, (x) => t.setAttribute("opacity", x));
+    },
+  };
+}
+function productCase() {
+  let a, b;
+  do {
+    a = pickInt(6, 40);
+    b = pickInt(6, 40);
+  } while (a === b || gcd(a, b) < 2 || gcd(a, b) === Math.min(a, b));
+  const g = gcd(a, b);
+  const L = lcm(a, b);
+  return {
+    ask: `Two numbers have GCF ${g} and LCM ${L}. One number is ${a}. What is the other?`,
+    max: 3,
+    ans: b,
+    draw() {
+      tag(view, 150, 120, a, { r: 66, fill: "#e08a1e" });
+      tag(view, 420, 120, "?", { r: 66, fill: "#1e78c8" });
+      text(view, 285, 290, `GCF = ${g}`, { "font-size": 36, fill: INK });
+      text(view, 285, 350, `LCM = ${L}`, { "font-size": 36, fill: INK });
+      caseNotes([`Two numbers have GCF ${g} and LCM ${L}.`, `One of them is ${a}.`, "What is the other number?", "Big idea: GCF × LCM = the two numbers multiplied."]);
+    },
+    hint: () => `GCF × LCM = ${a} × ?. What is ${g} × ${L}? Then divide by ${a}.`,
+    why: `GCF times LCM equals the two numbers multiplied: ${g} × ${L} = ${g * L}, and ${g * L} ÷ ${a} = ${b}.`,
+    work: [`GCF × LCM = a × b`, `${g} × ${L} = ${g * L}`, `${g * L} ÷ ${a} = ${b}`, `Check: GCF(${a}, ${b}) = ${gcd(a, b)}, LCM = ${lcm(a, b)} ✓`, "Why? The Venn middle is counted in both."],
+    async after(api) {
+      view.querySelectorAll("g:not(.nt-notes), text").forEach((x) => x.closest(".nt-notes") || x.remove());
+      await venn(view, a, b, api);
+    },
+  };
+}
+function gcf3Case() {
+  let a, b, c, g;
+  do {
+    g = pickInt(4, 40);
+    a = g * pickInt(2, 25);
+    b = g * pickInt(2, 25);
+    c = g * pickInt(2, 25);
+    g = gcd(gcd(a, b), c);
+  } while (a === b || b === c || a === c || Math.max(a, b, c) > 999 || g < 4);
+  const common = [...pfCount(g)];
+  return {
+    ask: `What is the GCF of <b>${a}</b>, <b>${b}</b> and <b>${c}</b>? Type it.`,
+    max: 3,
+    ans: g,
+    draw() {
+      [a, b, c].forEach((n, i) => {
+        tag(view, 110 + i * 175, 110, n, { r: 62, fill: ["#e08a1e", "#1e78c8", "#8e24aa"][i] });
+        text(view, 110 + i * 175, 230, expo(n), { "font-size": 26, fill: INK });
+      });
+      caseNotes([`Find the GCF of ${a}, ${b} and ${c}.`, "The GCF may use only primes that ALL three share.", "Use the smallest power of each shared prime."]);
+    },
+    hint: () => `Which primes appear in all three factorizations? For each, what is the smallest exponent among the three?`,
+    why: `The primes shared by all three, each at its smallest power, give ${expo(g)} = ${g}.`,
+    work: [`${a} = ${expo(a)}`, `${b} = ${expo(b)}`, `${c} = ${expo(c)}`, `Shared, smallest powers: ${common.map(([p, k]) => (k > 1 ? `${p}${sup(k)}` : p)).join(" × ")}`, `GCF = ${g}`],
+    async after(api) {
+      const t = text(view, 285, 360, `GCF = ${expo(g)} = ${g}`, { "font-size": 34, fill: GREEN, opacity: 0 });
+      await api.tween(700, (x) => t.setAttribute("opacity", x));
+    },
+  };
+}
+function lcmRangeCase() {
+  const n = pickInt(5, 16);
+  let L = 1;
+  for (let i = 2; i <= n; i++) L = lcm(L, i);
+  const powers = [];
+  for (let p = 2; p <= n; p++)
+    if (isPrime(p)) {
+      let q = p;
+      while (q * p <= n) q *= p;
+      powers.push(q);
+    }
+  return {
+    ask: `What is the smallest number that every whole number from 1 to ${n} divides exactly?`,
+    max: 6,
+    ans: L,
+    draw() {
+      emoji(view, 285, 160, "🧮", 130);
+      text(view, 285, 360, `1, 2, 3, …, ${n}`, { "font-size": 40, fill: INK });
+      caseNotes([`Find the smallest number divisible by every number from 1 to ${n}.`, "This is LCM(1, 2, …, " + n + ").", "Which prime powers are needed?"]);
+    },
+    hint: () => `For each prime up to ${n}, what is its highest power that is still at most ${n}? Multiply those.`,
+    why: `The LCM needs the highest power of each prime up to ${n}: ${powers.join(" × ")} = ${L}.`,
+    work: [`Primes up to ${n}: ${powers.map((q) => smallestFactor(q)).join(", ")}`, `Highest powers ≤ ${n}: ${powers.join(", ")}`, `LCM = ${powers.join(" × ")} = ${L}`, "Every number 1 to " + n + " is built from these powers."],
+  };
+}
+function soldiersCase() {
+  const sets = [[3, 4, 5], [2, 3, 4, 5], [4, 5, 6], [3, 5, 7], [2, 3, 4, 5, 6], [5, 6, 8], [3, 4, 7], [6, 8, 9]];
+  const ns = pick(sets);
+  const L = ns.reduce((x, y) => lcm(x, y), 1);
+  let ans = 1;
+  while (!ns.every((d) => ans % d === d - 1)) ans += 1;
+  return {
+    ask: `A marching band lines up in rows of ${ns.join(", ")}. Each time, the last row is one player short. What is the smallest possible band size?`,
+    max: 4,
+    ans,
+    draw() {
+      emoji(view, 285, 190, "🎺", 150);
+      caseNotes([`In rows of ${ns.join(", or ")}, the last row is always ONE player short.`, "What is the smallest possible number of players?", "Consider: what if one more player joined?"]);
+    },
+    hint: () => `If one player joined, every row would be full. So the band size plus 1 is a common multiple of ${ns.join(", ")}.`,
+    why: `Band + 1 must be a multiple of the LCM, ${L}. The smallest band is ${L} − 1 = ${ans}.`,
+    work: ["One short in every arrangement → band + 1 divides evenly.", `LCM(${ns.join(", ")}) = ${L}`, `Band = ${L} − 1 = ${ans}`, `Check: ${ns.map((d) => `${ans} ÷ ${d} = ${Math.floor(ans / d)} R ${ans % d}`).join(", ")}`],
+  };
+}
+function gear(parent, x, y, teeth, color, k = 1) {
+  const r = teeth * 5.2 * k;
+  const g = el("g", { transform: `translate(${x} ${y})` }, parent);
+  const spin = el("g", {}, g);
+  for (let i = 0; i < teeth; i++) el("rect", { x: -7, y: -r - 12, width: 14, height: 18, rx: 3, fill: color, transform: `rotate(${(360 / teeth) * i})` }, spin);
+  el("circle", { r, fill: color }, spin);
+  el("circle", { r: r * 0.35, fill: "#fffcf6" }, spin);
+  el("circle", { cx: 0, cy: -r + 14, r: 9, fill: "#e53935", stroke: "#fff", "stroke-width": 3 }, spin);
+  text(g, 0, 10, teeth, { "font-size": 26, fill: INK });
+  return { g, spin, r };
+}
+function gearsCase() {
+  let a, b;
+  do {
+    a = pick([6, 8, 9, 10, 12]);
+    b = pick([8, 9, 10, 12, 14, 15, 16, 18]);
+  } while (a >= b || b % a === 0 || lcm(a, b) / a > 5);
+  const L = lcm(a, b);
+  const ans = L / a;
+  let small, big;
+  return {
+    ask: `A gear with ${a} teeth turns a gear with ${b} teeth. How many turns of the small gear until both red marks are back at the top?`,
+    max: 2,
+    ans,
+    draw() {
+      const k = Math.min(2.2, 220 / ((a + b) * 5.2));
+      const ra = a * 5.2 * k;
+      const rb = b * 5.2 * k;
+      const x0 = 285 - (ra + rb + 14) / 2;
+      small = gear(view, x0, 300, a, "#f2b46a", k);
+      big = gear(view, x0 + ra + rb + 14, 300, b, "#8fc1e8", k);
+      caseNotes([`Small gear: ${a} teeth. Big gear: ${b} teeth.`, "The red marks start at the top.", "How many full turns of the SMALL gear until both marks are back at the top?"]);
+    },
+    hint: () => `Count teeth that pass: the small gear passes ${a} teeth each turn. When is the number of teeth a multiple of ${a} and of ${b}?`,
+    why: `Both marks return when the teeth passed is a multiple of ${a} and of ${b}. The LCM is ${L}, and ${L} ÷ ${a} = ${ans} turns of the small gear.`,
+    work: [`Teeth passed: a multiple of ${a} AND ${b}.`, `LCM(${a}, ${b}) = ${L} teeth`, `Small gear: ${L} ÷ ${a} = ${ans} turns`, `Big gear: ${L} ÷ ${b} = ${L / b} turns`],
+    async after(api) {
+      const ms = 1300 * ans;
+      await api.tween(ms, (t) => {
+        const teethPassed = t * L;
+        small.spin.setAttribute("transform", `rotate(${(teethPassed / a) * 360})`);
+        big.spin.setAttribute("transform", `rotate(${(-teethPassed / b) * 360})`);
+      });
+      MUSIC.chime();
+    },
+  };
+}
+
+// ================= 6. Number puzzles =================
+function clockFace(cx, cy, r) {
+  el("circle", { cx, cy, r, fill: "#fffcf6", stroke: "#8a6a4f", "stroke-width": 8 }, view);
+  for (let h = 1; h <= 12; h++) {
+    const a = (h / 12) * Math.PI * 2;
+    text(view, cx + Math.sin(a) * (r - 34), cy - Math.cos(a) * (r - 34) + 10, h, { "font-size": 28, fill: INK });
+  }
+  const hand = el("line", { x1: cx, y1: cy, x2: cx, y2: cy - r * 0.55, stroke: "var(--accent)", "stroke-width": 12, "stroke-linecap": "round" }, view);
+  el("circle", { cx, cy, r: 12, fill: INK }, view);
+  return (hour) => hand.setAttribute("transform", `rotate(${hour * 30} ${cx} ${cy})`);
+}
+function caseArt(glyph, nums = []) {
+  emoji(view, 285, 170, glyph, 150);
+  nums.forEach((n, i) => tag(view, 285 + (i - (nums.length - 1) / 2) * 150, 390, n, { r: 58 }));
+}
+function puzzleCases() {
+  const take = bagOf();
+  return (level) => {
+    const kinds = {
+      easy: ["clock", "week", "dsum", "count", "share", "clock", "week", "share"],
+      medium: ["week", "riddle", "ones", "smallest", "rem1", "incl", "zeros", "aliquot", "count", "crt"],
+      hard: ["incl", "ones", "zeros", "aliquot", "crt", "powmod", "primecount", "week", "rem1", "smallest"],
+    }[level];
+    const k = take(level, kinds);
+    return PUZZLES[k](level);
+  };
+}
+const PUZZLES = {
+  clock(level) {
+    const h = pickInt(1, 12);
+    const k = level === "easy" ? pickInt(5, 30) : pickInt(30, 100);
+    const ans = ((h - 1 + k) % 12) + 1;
+    let setHand;
+    const q = Math.floor(k / 12);
+    const r = k % 12;
+    return {
+      ask: `It is ${h} o'clock. What time will it be in ${k} hours? Type the hour.`,
+      max: 2,
+      ans,
+      draw() {
+        setHand = clockFace(285, 280, 220);
+        setHand(h);
+        caseNotes([`It is ${h} o'clock.`, `What time will it be in ${k} hours?`, "Clue: what happens every 12 hours?"]);
+      },
+      hint: () => `Every 12 hours the hand comes back to the same place. How many hours are left after the full turns?`,
+      why: `${k} hours is ${q} full turns and ${r} more hours. ${h} plus ${r} hours on the clock is ${ans} o'clock.`,
+      work: ["12 hours = one full turn.", `${k} = 12 × ${q} + ${r}`, "Full turns change nothing.", `${h} o'clock + ${r} hours → ${ans} o'clock`],
+      async after(api) {
+        await api.tween(Math.min(3000, 400 + k * 40), (t) => setHand(h + t * k));
+      },
+    };
+  },
+  week(level) {
+    const start = pickInt(0, 6);
+    const k = level === "easy" ? pickInt(8, 30) : level === "medium" ? pickInt(50, 400) : pickInt(500, 1000);
+    const ans = (start + k) % 7;
+    const wrong = shuffle([0, 1, 2, 3, 4, 5, 6].filter((d) => d !== ans)).slice(0, 3);
+    const r = k % 7;
+    let cells;
+    return {
+      ask: `Today is ${DAYS[start]}. What day will it be in ${k} days?`,
+      opts: optsOf(ans, wrong, (d) => DAYS[d]),
+      ans,
+      draw() {
+        cells = DAYS.map((d, i) => {
+          const x = 40 + i * 74;
+          const rect = el("rect", { x, y: 230, width: 66, height: 90, rx: 14, fill: i === start ? "#ffe9a8" : "#fff", stroke: "#c9b8a1", "stroke-width": 3 }, view);
+          text(view, x + 33, 286, d.slice(0, 2), { "font-size": 30, fill: INK });
+          return { rect, x };
+        });
+        emoji(view, 285, 120, "📅", 110);
+        caseNotes([`Today is ${DAYS[start]}.`, `What day will it be in ${k} days?`, "Clue: what happens every 7 days?"]);
+      },
+      hint: () => `Every 7 days it is the same weekday again. How many days are left over after the full weeks?`,
+      why: `${k} days is ${Math.floor(k / 7)} full weeks and ${r} more days. ${r} days after ${DAYS[start]} is ${DAYS[ans]}.`,
+      work: ["7 days later = the same weekday.", `${k} = 7 × ${Math.floor(k / 7)} + ${r}`, `Move ${r} day${r === 1 ? "" : "s"} on from ${DAYS[start]}.`, `→ ${DAYS[ans]}`],
+      async after(api) {
+        for (let i = 1; i <= r; i++) {
+          const d = (start + i) % 7;
+          cells[d].rect.setAttribute("fill", i === r ? "#c8ecd2" : "#f3eee6");
+          MUSIC.play("xylophone", 72 + i * 2, { gain: 0.3 });
+          await api.wait(450);
+        }
+      },
+    };
+  },
+  dsum() {
+    const n = pickInt(1000, 9999);
+    const ds = String(n).split("");
+    return {
+      ask: `What is the digit sum of <b>${n}</b>? Add its digits.`,
+      max: 2,
+      ans: digitSum(n),
+      draw() {
+        caseArt("🔢");
+        text(view, 285, 420, ds.join("  "), { "font-size": 80, fill: INK });
+        caseNotes([`What is the digit sum of ${n}?`, "Add up the digits."]);
+      },
+      hint: () => `Add them one at a time: ${ds[0]} + ${ds[1]} is…? Then add ${ds[2]}.`,
+      why: `${ds.join(" + ")} = ${digitSum(n)}.`,
+      work: [`${ds.join(" + ")} = ${digitSum(n)}`, digitSum(n) % 3 === 0 ? `${digitSum(n)} is a multiple of 3, so ${n} is too!` : `${digitSum(n)} is not a multiple of 3, so neither is ${n}.`],
+    };
+  },
+  count(level) {
+    const s = level === "easy" ? pickInt(3, 9) : pickInt(10, 15);
+    const list = [];
+    for (let n = 10; n <= 99; n++) if (digitSum(n) === s) list.push(n);
+    return {
+      ask: `How many 2-digit numbers have digits that add up to ${s}?`,
+      max: 2,
+      ans: list.length,
+      draw() {
+        caseArt("🧮", [s]);
+        caseNotes([`How many 2-digit numbers have digits that add up to ${s}?`, "Example: 23 has digits 2 and 3, which add up to 5.", "Be systematic: start with the tens digit 1."]);
+      },
+      hint: () => `Go in order: tens digit 1, then 2, then 3… What must the ones digit be each time? Can it be more than 9?`,
+      why: `They are ${list.join(", ")}. That is ${list.length} numbers.`,
+      work: ["Go through the tens digits in order:", list.join(", "), `That is ${list.length} numbers.`, s > 9 ? "The ones digit can't be more than 9, so small tens digits don't work." : "Tens digit 1 up to the sum, ones digit makes up the rest."],
+    };
+  },
+  share() {
+    const d = pickInt(3, 9);
+    const n = d * pickInt(3, 10) + pickInt(1, d - 1);
+    return {
+      ask: `${n} stickers are shared equally by ${d} friends. How many are left over?`,
+      max: 1,
+      ans: n % d,
+      draw() {
+        caseArt("⭐", [n, d]);
+        caseNotes([`${n} stickers are shared equally by ${d} friends.`, "Each friend gets the same number.", "How many stickers are left over?"]);
+      },
+      hint: () => `What is the biggest multiple of ${d} that is not more than ${n}?`,
+      why: `${d} × ${Math.floor(n / d)} = ${d * Math.floor(n / d)}, and ${n} − ${d * Math.floor(n / d)} = ${n % d} left over.`,
+      work: [`${n} ÷ ${d} = ${Math.floor(n / d)} R ${n % d}`, `Each friend gets ${Math.floor(n / d)}.`, `${d} × ${Math.floor(n / d)} = ${d * Math.floor(n / d)}`, `${n} − ${d * Math.floor(n / d)} = ${n % d} left over.`],
+    };
+  },
+  riddle() {
+    for (;;) {
+      const [a, b] = pick([[2, 3], [3, 4], [2, 5], [3, 5], [4, 6], [2, 7], [3, 7], [4, 5], [6, 4], [6, 9]]);
+      const L = lcm(a, b);
+      const cands = [];
+      for (let n = 10; n <= 99; n++) if (n % L === 0) cands.push(n);
+      const sums = cands.map(digitSum);
+      const unique = cands.filter((n, i) => sums.filter((s) => s === sums[i]).length === 1);
+      if (cands.length < 3 || !unique.length) continue;
+      const ans = pick(unique);
+      const s = digitSum(ans);
+      const check = [];
+      for (let n = 10; n <= 99; n++) if (n % a === 0 && n % b === 0 && digitSum(n) === s) check.push(n);
+      if (check.length !== 1) continue;
+      return {
+        ask: `I am a 2-digit number, a multiple of ${a} and of ${b}. My digits add up to ${s}. Who am I?`,
+        max: 2,
+        ans,
+        draw() {
+          caseArt("🕵️", [a, b]);
+          caseNotes(["I am a 2-digit number.", `I am a multiple of ${a} and of ${b}.`, `My digits add up to ${s}.`, "Who am I?"]);
+        },
+        hint: () => `A multiple of ${a} and ${b} is a multiple of their LCM. What is it? List those multiples.`,
+        why: `Multiples of both are multiples of ${L}: ${cands.join(", ")}. Only ${ans} has digits adding to ${s}.`,
+        work: [`Multiple of ${a} and ${b} → multiple of LCM ${L}.`, `2-digit ones: ${cands.join(", ")}`, `Digit sums: ${cands.map((n) => digitSum(n)).join(", ")}`, `Only ${ans} adds to ${s}.`],
+      };
+    }
+  },
+  ones(level) {
+    const base = pick([2, 3, 7, 8]);
+    const n = level === "hard" ? pickInt(20, 99) : pickInt(5, 14);
+    const cyc = [];
+    let v = base % 10;
+    while (!cyc.includes(v)) {
+      cyc.push(v);
+      v = (v * base) % 10;
+    }
+    let ans = 1;
+    for (let i = 0; i < n; i++) ans = (ans * base) % 10;
+    const len = cyc.length;
+    const r = n % len;
+    return {
+      ask: `What is the ones digit of ${base}${sup(n)}?`,
+      max: 1,
+      ans,
+      draw() {
+        caseArt("🔁");
+        text(view, 285, 420, `${base}${sup(n)}`, { "font-size": 90, fill: INK });
+        caseNotes([`What is the ones digit of ${base}${sup(n)}?`, `That means ${base} multiplied by itself ${n} times!`, "Clue: look for a pattern in the ones digits."]);
+      },
+      hint: () => `Work out ${base}¹, ${base}², ${base}³, ${base}⁴. Look only at the ones digits. What pattern do you see?`,
+      why: `The ones digits go ${cyc.join(", ")} and repeat every ${len}. ${n} leaves remainder ${r} when divided by ${len}, so the ones digit is ${ans}.`,
+      work: [`Ones digits of ${base}¹, ${base}², …: ${cyc.join(", ")}, then repeat.`, `The cycle is ${len} long.`, `${n} = ${len} × ${Math.floor(n / len)} + ${r}`, `Position ${r || len} in the cycle → ${ans}`],
+    };
+  },
+  smallest() {
+    const s = pickInt(10, 22);
+    let ans = 1;
+    while (digitSum(ans) !== s) ans += 1;
+    const nines = Math.floor(s / 9);
+    const lead = s % 9;
+    return {
+      ask: `What is the smallest number whose digits add up to ${s}?`,
+      max: 4,
+      ans,
+      draw() {
+        caseArt("🔎", [s]);
+        caseNotes([`What is the smallest number whose digits add up to ${s}?`, "Clue: fewer digits make a smaller number."]);
+      },
+      hint: () => `Use as few digits as you can. Which digit is the biggest? Where should the smallest digit go?`,
+      why: `Use as many 9s as possible to keep it short: ${s} = ${lead ? `${lead} + ` : ""}${Array(nines).fill(9).join(" + ")}. Smallest digit first: ${ans}.`,
+      work: ["Fewer digits = smaller number.", "9 is the biggest digit, so use 9s.", `${s} = ${lead ? `${lead} + ` : ""}${Array(nines).fill(9).join(" + ")}`, `Smallest digit in front: ${ans}`],
+    };
+  },
+  rem1(level) {
+    const sets = level === "hard" ? [[2, 3, 4], [3, 4, 5], [2, 5, 6], [4, 5, 6], [2, 3, 7]] : [[2, 3], [3, 4], [4, 5], [3, 5], [4, 6], [5, 6]];
+    const ns = pick(sets);
+    const L = ns.reduce((x, y) => lcm(x, y), 1);
+    let ans = 2;
+    while (!ns.every((d) => ans % d === 1)) ans += 1;
+    return {
+      ask: `What is the smallest number bigger than 1 that leaves remainder 1 when divided by ${ns.join(", ")}?`,
+      voice: `What is the smallest number bigger than 1 that leaves remainder 1 when divided by each of ${ns.join(", ")}?`,
+      max: 3,
+      ans,
+      draw() {
+        caseArt("🍪", ns);
+        caseNotes([`Find the smallest number bigger than 1 that leaves remainder 1 when divided by each of ${ns.join(", ")}.`, "Clue: what if you took 1 away?"]);
+      },
+      hint: () => `If the number leaves 1 over, then the number minus 1 divides by ${ns.join(" and ")}. What is the smallest such number?`,
+      why: `The number minus 1 must be a common multiple. The LCM is ${L}, so the answer is ${L} + 1 = ${ans}.`,
+      work: ["Remainder 1 → the number − 1 divides evenly.", `LCM(${ns.join(", ")}) = ${L}`, `${L} + 1 = ${ans}`, `Check: ${ns.map((d) => `${ans} ÷ ${d} = ${Math.floor(ans / d)} R 1`).join(", ")}`],
+    };
+  },
+  incl(level) {
+    const N = level === "hard" ? pick([300, 500, 600, 1000, 2000]) : pick([50, 60, 100, 120, 200]);
+    let a, b;
+    do {
+      a = pickInt(2, 7);
+      b = pickInt(3, 9);
+    } while (a >= b || b % a === 0);
+    let ans = 0;
+    for (let n = 1; n <= N; n++) if (n % a === 0 || n % b === 0) ans += 1;
+    const A = Math.floor(N / a);
+    const B = Math.floor(N / b);
+    const L = lcm(a, b);
+    const C = Math.floor(N / L);
+    return {
+      ask: `How many numbers from 1 to ${N} are multiples of ${a} or ${b} (or both)?`,
+      max: 4,
+      ans,
+      draw() {
+        caseArt("🧺", [a, b]);
+        caseNotes([`How many numbers from 1 to ${N} are multiples of ${a} or of ${b}?`, "Numbers that are multiples of both count only once!"]);
+      },
+      hint: () => `How many multiples of ${a}? Of ${b}? Some numbers were counted twice. Which ones?`,
+      why: `${A} multiples of ${a}, plus ${B} multiples of ${b}, minus ${C} counted twice (multiples of ${L}): ${ans}.`,
+      work: [`Multiples of ${a}: ${N} ÷ ${a} → ${A}`, `Multiples of ${b}: ${N} ÷ ${b} → ${B}`, `Both = multiples of ${L}: ${C}`, `Counted twice, so ${A} + ${B} − ${C} = ${ans}`],
+    };
+  },
+  zeros(level) {
+    const n = level === "hard" ? pickInt(25, 120) : pickInt(10, 30);
+    let f = 1n;
+    for (let i = 2n; i <= BigInt(n); i++) f *= i;
+    const s = f.toString();
+    const ans = s.length - s.replace(/0+$/, "").length;
+    return {
+      ask: `${n}! means 1 × 2 × 3 × … × ${n}. How many zeros are at the end of ${n}!?`,
+      voice: `${n} factorial means 1 times 2 times 3, all the way up to ${n}. How many zeros are at the end of ${n} factorial?`,
+      max: 2,
+      ans,
+      draw() {
+        caseArt("0️⃣", [`${n}!`]);
+        caseNotes([`${n}! = 1 × 2 × 3 × … × ${n}`, "How many zeros are at the end of the answer?", "Clue: where does a zero at the end come from?"]);
+      },
+      hint: () => `A zero at the end comes from a 10 = 2 × 5. Which is rarer in 1 to ${n}: 2s or 5s?`,
+      why: `Each zero needs a factor 2 and a factor 5, and 5s are scarcer. Count multiples of 5, then extra 5s from multiples of 25${n >= 125 ? " and 125" : ""}: ${ans} zeros.`,
+      work: ["Each final zero = a 10 = 2 × 5.", "2s are plentiful, so count the 5s.", `Multiples of 5 up to ${n}: ${Math.floor(n / 5)}`, ...(n >= 25 ? [`Multiples of 25 (an extra 5 each): ${Math.floor(n / 25)}`] : []), ...(n >= 125 ? [`Multiples of 125: ${Math.floor(n / 125)}`] : []), `→ ${ans} zeros`],
+    };
+  },
+  aliquot() {
+    const n = pick([6, 12, 16, 18, 20, 24, 28, 30, 36]);
+    const fs = factorsOf(n).filter((x) => x < n);
+    const ans = fs.reduce((x, y) => x + y, 0);
+    return {
+      ask: `Add up all the factors of ${n} that are smaller than ${n}. What do you get?`,
+      max: 3,
+      ans,
+      draw() {
+        caseArt("➕", [n]);
+        caseNotes([`Add up all the factors of ${n} that are smaller than ${n}.`, "Find the factor pairs first."]);
+      },
+      hint: () => `List the factor pairs of ${n}: 1 × ${n}, 2 × ?… Leave out ${n} itself. Did you get them all?`,
+      why: `${fs.join(" + ")} = ${ans}.${ans === n ? ` That equals ${n}! ${n} is a perfect number.` : ""}`,
+      work: [`Factors below ${n}: ${fs.join(", ")}`, `${fs.join(" + ")} = ${ans}`, ans === n ? `${ans} = ${n}: a PERFECT number!` : ans > n ? `${ans} > ${n}: an "abundant" number.` : `${ans} < ${n}: a "deficient" number.`],
+    };
+  },
+  powmod() {
+    const base = pick([2, 3, 5, 7]);
+    const m = pick([3, 5, 7, 9, 11, 13].filter((x) => x % base !== 0 && x !== base));
+    const n = pickInt(20, 200);
+    const cyc = [];
+    let v = base % m;
+    while (!cyc.includes(v)) {
+      cyc.push(v);
+      v = (v * base) % m;
+    }
+    let ans = 1;
+    for (let i = 0; i < n; i++) ans = (ans * base) % m;
+    const len = cyc.length;
+    const r = n % len;
+    return {
+      ask: `What is the remainder when ${base}${sup(n)} is divided by ${m}?`,
+      max: 2,
+      ans,
+      draw() {
+        caseArt("🔁");
+        text(view, 285, 420, `${base}${sup(n)} ÷ ${m}`, { "font-size": 72, fill: INK });
+        caseNotes([`What is the remainder when ${base}${sup(n)} is divided by ${m}?`, "The number itself is enormous. Look for a repeating pattern in the remainders instead (clock arithmetic)."]);
+      },
+      hint: () => `Find the remainders of ${base}¹, ${base}², ${base}³, … when divided by ${m}. Multiply only the remainders each time. When does the pattern repeat?`,
+      why: `The remainders cycle ${cyc.join(", ")} with length ${len}. ${n} leaves ${r} when divided by ${len}, so the remainder is ${ans}.`,
+      work: [`Remainders of ${base}¹, ${base}², … ÷ ${m}: ${cyc.join(", ")}, then repeat.`, `Cycle length ${len}.`, `${n} = ${len} × ${Math.floor(n / len)} + ${r}`, `Position ${r || len} in the cycle → ${ans}`],
+    };
+  },
+  primecount() {
+    const a = pickInt(5, 45) * 10;
+    const b = a + pick([30, 40, 50]);
+    const list = [];
+    for (let n = a; n <= b; n++) if (isPrime(n)) list.push(n);
+    return {
+      ask: `How many prime numbers are there between ${a} and ${b}?`,
+      max: 2,
+      ans: list.length,
+      draw() {
+        caseArt("🔍", [a, b]);
+        caseNotes([`How many primes lie between ${a} and ${b}?`, "Be systematic: discard evens and multiples of 5 first, then test 3, 7, 11, 13, 17, 19."]);
+      },
+      hint: () => `Only odd numbers not ending in 5 can be prime here. Test each candidate by the primes up to √${b}. Which survive?`,
+      why: `The primes are ${list.join(", ")}: ${list.length} in all.`,
+      work: [`Candidates: odd, not ending in 5.`, `Test by primes up to √${b} (≈ ${Math.floor(Math.sqrt(b))}).`, `Primes: ${list.join(", ")}`, `Count: ${list.length}`],
+    };
+  },
+  crt() {
+    const [a, b] = pick([[3, 4], [3, 5], [4, 5], [5, 6], [4, 7], [3, 7]]);
+    // Different remainders: equal ones make the answer 1 itself, a trick rather than a puzzle.
+    const r1 = pickInt(1, a - 1);
+    let r2;
+    do r2 = pickInt(1, b - 1);
+    while (r2 === r1);
+    let ans = 1;
+    while (!(ans % a === r1 && ans % b === r2)) ans += 1;
+    const list = [];
+    for (let n = r1; n <= ans; n += a) list.push(n);
+    return {
+      ask: `What is the smallest number that leaves remainder ${r1} when divided by ${a}, and remainder ${r2} when divided by ${b}?`,
+      max: 2,
+      ans,
+      draw() {
+        caseArt("🧩", [a, b]);
+        caseNotes([`Find the smallest number that leaves remainder ${r1} when divided by ${a},`, `and remainder ${r2} when divided by ${b}.`]);
+      },
+      hint: () => `List numbers with remainder ${r1} when divided by ${a}: ${r1}, ${r1 + a}, ${r1 + 2 * a}… Which one has remainder ${r2} when divided by ${b}?`,
+      why: `Numbers with remainder ${r1} for ${a}: ${list.join(", ")}. The first with remainder ${r2} for ${b} is ${ans}.`,
+      work: [`Remainder ${r1} when ÷ ${a}: ${list.join(", ")}`, `Test each ÷ ${b}: ${list.map((n) => `${n} R ${n % b}`).join(", ")}`, `First with R ${r2}: ${ans}`],
+    };
+  },
+};
+
+// ================= wiring =================
+const units = {
+  t0: seeIt,
+  t1() {
+    const mode = shell.progress().t1?.mode || "sieve";
+    if (mode === "sieve") sieveGame();
+    else quiz("t1", { modes: PMODES, mode, onMode: switchPrimeMode, make: primeCase, count: "numbers tested", noun: "numbers", noun1: "Number" });
+  },
+  t2: () => quiz("t2", { make: factorCases(), count: "factor cases", noun: "cases" }),
+  t3: () => quiz("t3", { make: divCases(), count: "rules used", noun: "cases" }),
+  t4: treeGame,
+  t5: () => quiz("t5", { make: gcfCases(), count: "GCF and LCM cases", noun: "cases" }),
+  t6: () => quiz("t6", { make: puzzleCases(), count: "puzzles solved", noun: "puzzles", noun1: "Puzzle" }),
+};
+
+const ntStyle = document.createElement("style");
+ntStyle.textContent = `
+.ap-panel .ap-say{flex-shrink:0}
+.nt-in{display:flex;justify-content:center;width:100%}
+.nt-pick .kt-choices button{min-height:54px;min-width:80px;font-size:21px;border-radius:20px}
+.nt-cell,.nt-node{cursor:pointer}
+.nt-glow{animation:nt-glow 1.2s ease-in-out infinite}
+@keyframes nt-glow{0%,100%{stroke-opacity:1;stroke-width:5}50%{stroke-opacity:.35;stroke-width:9}}
+.nt-glowfill{animation:nt-glowfill 1.1s ease-in-out infinite}
+@keyframes nt-glowfill{0%,100%{fill:#fffcf6}50%{fill:#ffd36b}}
+.nt-real{position:absolute;inset:0;z-index:7;display:grid;place-items:center;padding:10px;background:rgba(245,239,228,.94)}
+.nt-real-card{max-width:620px;width:100%;max-height:100%;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 22px;border-radius:28px;background:#fff;box-shadow:0 8px 0 #ece3d6,0 18px 40px rgba(70,40,15,.18)}
+.nt-real-head{display:flex;align-items:center;gap:12px}
+.nt-real-head span{display:grid;place-items:center;width:56px;height:56px;flex:none;border-radius:50%;background:var(--accent-soft);font-size:30px}
+.nt-real-card h2{margin:0;color:#2b1d12;font:900 clamp(19px,2.8vw,26px)/1.15 var(--sans)}
+.nt-need{margin:0;color:#4d3c2e;font:700 clamp(14px,2vw,18px)/1.35 var(--sans);text-align:center}
+.nt-real-card ol{margin:0;padding-left:1.4em;display:grid;gap:4px;text-align:left;width:100%;color:#2b1d12;font:700 clamp(14px,2vw,19px)/1.35 var(--sans)}
+.nt-tip{margin:0;padding:6px 12px;border-radius:12px;background:#fff4dc;color:#7a4a10;font:800 clamp(13px,1.8vw,16px)/1.3 var(--sans)}
+@media (max-width:420px) and (max-height:720px){.ap-panel .ap-say{font-size:14.5px;line-height:1.28;padding-top:6px;padding-bottom:6px}}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){
+ .nt-pick .kt-choices button{min-height:42px;min-width:60px;font-size:17px;padding:0 12px}
+ .nt-real-card{padding:8px 12px;gap:4px}.nt-real-head span{width:38px;height:38px;font-size:20px}.nt-real-card ol{font-size:13.5px}.nt-need{font-size:13.5px}.nt-tip{font-size:12.5px}
+ .nt-real .kt-go{min-height:42px;font-size:17px;margin-top:2px}
+}
+`;
+document.head.appendChild(ntStyle);
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    t0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    t1: { icon: "🔍", title: "Primes", steps: ["Pick 🧹 Sieve or ❓ Prime? at the top.", "Sieve: tap the first number that is not crossed out.", "Prime?: tap Prime or Composite, then read why."] },
+    t2: { icon: "🌈", title: "Factors & multiples", steps: ["Look at the picture and read the case.", "Tap an answer, or type it and press ✓.", "Read the green notes to see why."] },
+    t3: { icon: "➗", title: "Divisibility rules", steps: ["Look at the digits of the big number.", "Think: which digits matter for this rule?", "Tap your answer, then read why the rule works."] },
+    t4: { icon: "🌳", title: "Prime factor trees", steps: ["Tap two numbers that multiply to the glowing number.", "Keep splitting until every leaf is prime.", "Then pick the answer with exponents."] },
+    t5: { icon: "🤝", title: "GCF & LCM", steps: ["Read the case in the notes.", "Tap or type your answer.", "Watch the picture show why."] },
+    t6: { icon: "🧩", title: "Number puzzles", steps: ["Read the case on the right.", "Think, then type your answer and press ✓.", "Read the worked solution, step by step."] },
+  },
+  start: "t0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Math",
+  activity: "Number Detective",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 77, 79, 81, 83, 84, 86, 88, 91, 96]);
+MUSIC.preload("woodblock", [72, 79]);
+</script>
+</body>
+</html>

@@ -69,6 +69,60 @@
     const pick = (HINT[path] && parts.find((p) => HINT[path].test(p))) || parts[0];
     return pick.replace(/^[^:]*?(Beast Academy \d\w|Explode the Code Book [\d½]+|Story of the World|Zoology|Building Thinking Skills|Mind Benders|Word Roots Beginning|Drawing with Children|Famous Artists|Ear Training|Rhythm Studio|Music Theory|Latin|Lab|Logic Lab)[^:]*:\s*/, "").replace(/\.$/, "");
   };
+  // ───────────── Year 1 courses (course/<id>/, 32 lessons each) ─────────────
+  // Each course was written against the 32 school weeks of the family plan (weeks 1–35 without the breaks),
+  // so lesson N belongs to school week N: math follows Beast Academy's order, history Story of the World,
+  // character the year's virtue order, science alternates zoology and labs. Coding starts in January, as the
+  // family plan says, and spreads its 32 lessons over the weeks from then to the end of the year.
+  const COURSE_DATA = window.OCCOURSES || {};
+  const BUILT = new Set(window.OCAPPS || []);
+  const built = (path) => BUILT.has(path.replace(/\/$/, ""));
+  // [course id, lane it sits beside, record group]; the order is the screen priority within the budget.
+  const COURSES = [
+    ["math", "math", "Math"], ["reading", "readAloud", "Reading & Writing"], ["writing", "writing", "Reading & Writing"],
+    ["history", "history", "History & Social Studies"], ["science", "science", "Science"], ["words", "words", "Languages"],
+    ["logic", "logic", "Math"], ["rhetoric", "readAloud", "Reading & Writing"], ["character", "virtue", "Life Skills"],
+    ["music", "music", "Music"], ["coding", "scratch", "Tech"],
+  ].filter(([id]) => COURSE_DATA[id]);
+  const SCHOOL = DATA.weeks.map((wk, i) => (i < 35 && ["learn", "review", "light"].includes(wk.type) ? i : -1)).filter((i) => i >= 0);
+  const spread = (slots, n) => {
+    const at = new Map();
+    for (let k = 0; k < n; k++) {
+      const w = slots[Math.min(slots.length - 1, Math.floor((k * slots.length) / n))];
+      at.set(w, [...(at.get(w) || []), k]);
+    }
+    return at;
+  };
+  const SCHEDULE = Object.fromEntries(
+    COURSES.map(([id]) => {
+      const n = COURSE_DATA[id].lessons.length;
+      const slots = id === "coding" ? DATA.weeks.map((wk, i) => (i >= 12 && wk.type !== "break" ? i : -1)).filter((i) => i >= 0) : SCHOOL;
+      return [id, spread(slots, n)];
+    }),
+  );
+  // Course lessons due in week w: [{ id, n (1-based), title, lane, group }].
+  const lessonsOf = (w) =>
+    COURSES.flatMap(([id, lane, group]) => (SCHEDULE[id].get(w) || []).map((k) => ({ id, n: k + 1, title: COURSE_DATA[id].lessons[k], lane, group, course: COURSE_DATA[id] })));
+  // The week in which a course lesson is planned (0-based week index), for the curriculum and checks.
+  const weekOfLesson = (id, n) => {
+    for (const [w, ks] of SCHEDULE[id] || []) if (ks.includes(n - 1)) return w;
+    return -1;
+  };
+
+  // Advanced apps: optional practice that fits the week's subject. Optional items never use the screen budget.
+  const ADVANCED = [
+    ["mental", "math/mastery/", "Times Tables Mastery", "Today's spaced retrieval set and one strategy (about 10 minutes).", (w) => w >= 12],
+    ["math", "math/geometry/", "Geometry Pro", "Measurement, area and perimeter at the next level (about 10 minutes).", (w, wk) => /Measurement|area|perimeter|shape/i.test(wk.math?.[0] || "")],
+    ["phonics", "reading/spelling/", "Spelling & Cursive", "One spelling rule and a line of joined handwriting (about 10 minutes).", (w) => w >= 8],
+    ["chess", "tech/tactics/", "Chess Tactics", "Three tactics puzzles: find the fork, pin or mate before moving (about 10 minutes).", (w) => w >= 12],
+    ["logic", "tech/logicpro/", "Logic Pro", "One deduction grid or knights-and-knaves puzzle, reasoned aloud (about 10 minutes).", (w) => w >= 12],
+    ["music", "music/grades/", "Theory Grades 1–2", "One theory topic: keys, intervals or time signatures (about 10 minutes).", (w) => w >= 12],
+    ["history", "history/geography/", "World Geography", "Find this week's places: latitude, longitude and the map (about 10 minutes).", (w, wk) => /map|Nile|Africa|India|China|Greece|Rome|Persia|Americas/i.test(wk.history?.[0] || "")],
+    ["science", "science/earth/", "Earth Science", "Connect this week's science to the Earth itself (about 10 minutes).", (w, wk) => /Earth|crystal|compass/i.test(wk.science?.[0] || "")],
+    ["extra", "history/middleages/", "The Middle Ages", "A first look at the Middle Ages, alongside Story of the World Vol. 2 (about 10 minutes).", (w) => w >= 45],
+  ];
+  const ADV_PER_WEEK = 3;
+
   const settings = (learner) => {
     const s = read("oc-year", {})[learner]?.settings || {};
     return { start: s.start || DATA.start, days: s.days || [2, 4, 6, 0], screen: s.screen ?? 30, soroban: s.soroban ?? true };
@@ -106,14 +160,20 @@
     const quiet = week.type === "break" || week.type === "summer";
     const items = [];
     const push = (it) => items.push({ screen: false, ...it });
+    const due = lessonsOf(w);
+    const covered = new Set(due.map((l) => l.lane));
     if (!quiet) push({ key: "devotion", lane: "family", icon: "🙏", label: "Family time", what: "Morning prayer or quiet reflection, in your family's own way (5–10 min).", minutes: 10, times: 0, group: "Life Skills", optional: true });
     for (const [field, label, icon, minutes, times, group] of LANES) {
       const v = week[field];
       if (!v) continue;
       const [what, path] = v;
       // In quiet weeks everything is light: once or twice, never daily book work.
-      push({ key: field, lane: field, icon, label, what, minutes: quiet ? Math.min(minutes, 20) : minutes, times: quiet && field !== "readAloud" ? (field === "music" ? 0 : 1) : times, group, path: "" });
+      // The read-aloud links to the reading log (an off-screen book, logged in a minute).
+      const own = field === "readAloud" && built("reading/booklog/") ? "reading/booklog/" : "";
+      push({ key: field, lane: field, icon, label, what, minutes: quiet ? Math.min(minutes, 20) : minutes, times: quiet && field !== "readAloud" ? (field === "music" ? 0 : 1) : times, group, path: own });
       // Website practice for that subject: short, later in the day, counts toward the screen budget.
+      // When a course lesson covers the subject this week, the lesson is the screen work instead.
+      if (path && !quiet && covered.has(field)) continue;
       if (path && !quiet) push({ key: `${field}-site`, lane: field, icon: "💻", label: `Practice: ${APPS[path] || label.split(" (")[0]}`, what: `On OakCrest, about 10 minutes. This week: ${topicOf(what, path)}.`, minutes: 10, times: field === "math" || field === "phonics" ? 2 : 1, group, path, screen: true });
       else if (path && quiet && field === "mental") push({ key: `${field}-site`, lane: field, icon: "💻", label: "Practice: math games", what: "Math games on OakCrest (about 10 minutes).", minutes: 10, times: 1, group, path, screen: true });
     }
@@ -129,7 +189,26 @@
       push({ key: "heritage", lane: "languages", icon: "🗣️", label: "Home language", what: "Heritage-language lesson with the tutor (about 30 minutes). Video calls with grandparents in the home language count too.", minutes: 30, times: 1, group: "Languages", evening: true });
       if (w >= 27) push({ key: "money", lane: "life", icon: "🫙", label: "Money jars", what: "Sort this week's allowance into three jars: give, save, spend. Talk about one choice.", minutes: 10, times: 1, group: "Life Skills", evening: true });
       if (week.type === "review") push({ key: "poetry", lane: "reading", icon: "🫖", label: "Poetry teatime", what: "Tea at a special table: read poems aloud together. She recites the poem she is learning.", minutes: 20, times: 1, group: "Reading & Writing", evening: true });
-      if (w >= 12) push({ key: "scratch", lane: "tech", icon: "🐱", label: "Coding (exploring)", what: "Scratch or Code the Robot, just exploring (30 minutes a week, no pressure).", minutes: 30, times: 1, group: "Tech", path: "tech/code/", screen: true });
+      if (w >= 12 && !covered.has("scratch")) push({ key: "scratch", lane: "tech", icon: "🐱", label: "Coding (exploring)", what: "Scratch or Code the Robot, just exploring (30 minutes a week, no pressure).", minutes: 30, times: 1, group: "Tech", path: "tech/code/", screen: true });
+    }
+    // This week's course lessons: one lesson of each course, screen time, beside its subject.
+    for (const l of due)
+      push({ key: `course-${l.id}${l.n}`, lane: l.lane, with: l.lane, icon: l.course.icon, label: `Lesson ${l.n}: ${l.title}`, what: `${l.course.title} course, lesson ${l.n} of ${l.course.lessons.length}: slides, practice and the challenge set. Then explain the main idea aloud in 2–4 sentences.`, minutes: 15, times: 1, group: l.group, path: `course/${l.id}/#l${l.n}`, screen: true, course: l.id, lesson: l.n });
+    // Summer and the first weeks of Year 2: time to finish any course lesson that was left for later.
+    if (w >= 35 && COURSES.length)
+      push({ key: "catchup", lane: "courses", icon: "🎓", label: "Course catch-up", what: "Finish one Year 1 course lesson that was left for later, or redo the one you found hardest. Explain its main idea aloud afterwards.", minutes: 15, times: quiet ? 3 : 1, group: "Other", path: "curriculum/#courses", screen: true });
+    // Optional advanced practice that matches the week (at most three, never counted in the screen budget).
+    if (!quiet) {
+      let n = 0;
+      const codingLesson = due.find((l) => l.id === "coding")?.n || 0;
+      const adv = [...ADVANCED];
+      if (w >= 12) adv.splice(5, 0, ["scratch", codingLesson >= 18 ? "tech/python/" : "tech/blocks/", codingLesson >= 18 ? "First Python" : "Block Coding Studio", codingLesson >= 18 ? "Type and run a short Python program from this week's coding lesson (about 10 minutes)." : "Build one small program with loops and conditions (about 10 minutes).", () => true]);
+      for (const [field, path, name, what, fits] of adv) {
+        if (n >= ADV_PER_WEEK) break;
+        if (!built(path) || !(field === "scratch" || field === "extra" || week[field]) || !fits(w, week)) continue;
+        n += 1;
+        push({ key: `adv-${path.split("/")[1]}`, lane: field, icon: "🚀", label: `Advanced: ${name}`, what, minutes: 10, times: 1, group: "Other", path, screen: true, optional: true, adv: true });
+      }
     }
     push({ key: "pe", lane: "pe", icon: "🤸", label: "Move and play outside", what: "At least 30 minutes outdoors, plus ballet or swimming on lesson days.", minutes: 30, times: 0, group: "PE & Movement" });
     if (!quiet) push({ key: "review", lane: "life", icon: "🌙", label: "Day review", what: "Before bed: what I did, what I learned, what I will do tomorrow. She says it; you write it in her journal.", minutes: 5, times: 0, group: "Life Skills" });
@@ -147,7 +226,15 @@
   // Order in the day: family time, math first, then language, then knowledge, read-aloud, afternoon practice, screens last.
   const ORDER = ["devotion", "math", "zaccaro", "mental", "phonics", "writing", "freewrite", "words", "science", "storysci", "how", "history", "logic", "readAloud", "think", "art", "music", "chess", "heritage", "nature", "virtue", "extra", "pe", "poetry", "money", "fred", "review", "soroban", "scratch"];
   const SCREEN_FIRST = ["how", "soroban"];
-  const rank = (it) => (it.screen ? 100 + (SCREEN_FIRST.includes(it.key) ? SCREEN_FIRST.indexOf(it.key) : 10 + ORDER.indexOf(it.key.replace("-site", ""))) : ORDER.indexOf(it.key));
+  // Screens last in the day: the machine, soroban, course lessons (in priority order), app practice, catch-up, optional advanced.
+  const rank = (it) => {
+    if (!it.screen) return ORDER.indexOf(it.key);
+    if (SCREEN_FIRST.includes(it.key)) return 100 + SCREEN_FIRST.indexOf(it.key);
+    if (it.course) return 110 + COURSES.findIndex(([id]) => id === it.course);
+    if (it.adv) return 300;
+    if (it.key === "catchup") return 250;
+    return 150 + ORDER.indexOf(it.key.replace("-site", ""));
+  };
 
   // Spread a week's items over its school days: daily items every day, the rest balanced by minutes.
   function daysOf(learner, w) {
@@ -164,13 +251,18 @@
     const all = itemsOf(learner, w);
     for (const it of all.filter((i) => i.times === 0)) for (const d of days) d.items.push(it);
     // Spread the rest: most frequent first, each copy to the least-loaded day that doesn't have it yet.
-    const rest = all.filter((i) => i.times > 0).sort((a, b) => b.times - a.times || b.minutes - a.minutes);
+    // Screen items are placed after the rest, in priority order, so the most important ones fit the budget first.
+    const rest = all.filter((i) => i.times > 0).sort((a, b) => a.screen - b.screen || (a.screen ? rank(a) - rank(b) : b.times - a.times || b.minutes - a.minutes));
     const load = (d) => d.items.reduce((m, i) => m + i.minutes, 0);
     for (const it of rest) {
       const copies = Math.min(it.times, days.length);
       for (let c = 0; c < copies; c++) {
-        const options = days.filter((d) => !d.items.includes(it));
-        options.sort((a, b) => (it.screen ? a.items.filter((i) => i.screen).length - b.items.filter((i) => i.screen).length : 0) || load(a) - load(b));
+        const free = days.filter((d) => !d.items.includes(it));
+        // A course lesson goes on a day that already has its subject, when there is one.
+        const beside = it.with ? free.filter((d) => d.items.some((i) => i.key === it.with)) : [];
+        const options = beside.length ? beside : free;
+        const screenOf = (d) => d.items.filter((i) => i.screen && !i.adv).reduce((m, i) => m + i.minutes, 0);
+        options.sort((a, b) => (it.screen ? screenOf(a) - screenOf(b) : 0) || load(a) - load(b));
         options[0]?.items.push(it);
       }
     }
@@ -181,9 +273,10 @@
       // Keep screens inside the budget: extra screen items become optional for that day.
       let used = 0;
       d.items = d.items.map((it) => {
-        if (!it.screen) return it;
+        if (!it.screen || it.adv) return it;
+        if (used + it.minutes > s.screen) return { ...it, optional: true, over: true };
         used += it.minutes;
-        return used > s.screen ? { ...it, optional: true, over: true } : it;
+        return it;
       });
       d.minutes = d.items.filter((i) => !i.optional && !i.after).reduce((m, i) => m + i.minutes, 0);
       d.afterMinutes = d.items.filter((i) => !i.optional && i.after).reduce((m, i) => m + i.minutes, 0);
@@ -195,5 +288,5 @@
   const tickKey = (w, dayIso, item) => `${w}:${dayIso}:${item.key}`;
   const checkKey = (w) => `check:${w}`;
 
-  window.YEAR = { DATA, QUESTIONS, LANES, settings, setSettings, ticks, setTick, weekStart, weekIndexOf, itemsOf, daysOf, tickKey, checkKey, iso };
+  window.YEAR = { DATA, QUESTIONS, LANES, COURSES, SCHEDULE, SCHOOL, lessonsOf, weekOfLesson, settings, setSettings, ticks, setTick, weekStart, weekIndexOf, itemsOf, daysOf, tickKey, checkKey, iso };
 })();

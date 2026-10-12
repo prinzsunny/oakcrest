@@ -1,0 +1,2246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pre-Algebra · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="math">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Pre-Algebra</b><small>Math · Advanced</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, pickInt, wait, confetti, PRAISE, KIND, choices, explain, everyday, emoji, numpad } = KIT;
+const shuffle = KIT.shuffle;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+const INK = "#2b1d12";
+const BROWN = "#5a4130";
+const RED = "#e0533d";
+const BLUE = "#2f80d1";
+const GOLD = "#f2b631";
+const GREEN = "#2e9d4a";
+const PURPLE = "#7e57c2";
+const PAPER = "#fffcf6";
+const WOOD = "#c98c58";
+let token = 0;
+let view = null;
+// The current problem and step, for automated checks.
+const AL = (window.AL = { q: null, step: null, makers: {} });
+
+const UNITS = [
+  { id: "al0", label: "1. See it", icon: "👀" },
+  { id: "al1", label: "2. Expressions", icon: "🔤" },
+  { id: "al2", label: "3. Balance equations", icon: "⚖️" },
+  { id: "al3", label: "4. Patterns to rules", icon: "🔺" },
+  { id: "al4", label: "5. Negative numbers", icon: "🌡️" },
+  { id: "al5", label: "6. Coordinate plane", icon: "📍" },
+  { id: "al6", label: "7. Word problems", icon: "📝" },
+];
+
+const fresh = () => {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+};
+// On a tall phone screen, zoom the picture to its main part so it is big enough to tap.
+const fitRect = (x, y, w, h) => {
+  const r = stage.getBoundingClientRect();
+  if (!view || r.height < r.width * 0.9) return false;
+  view.setAttribute("viewBox", `${x} ${y} ${w} ${h}`);
+  return true;
+};
+const EFFORT = ["Your persistence paid off.", "That was careful, deliberate reasoning.", "You checked your work, as a mathematician should.", "You chose a sound strategy.", "You reasoned it through step by step."];
+const GENTLE = "Not quite. Mistakes are how we learn, so let us look at why.";
+const fmt = (n) => (n < 0 ? `−${-n}` : `${n}`);
+const par = (n) => (n < 0 ? `(${fmt(n)})` : `${n}`);
+const term = (a, v = "x") => (a === 1 ? v : a === -1 ? `−${v}` : `${fmt(a)}${v}`);
+const poly = (a, b, v = "x") => {
+  const parts = [];
+  if (a) parts.push(term(a, v));
+  if (b) parts.push(parts.length ? (b > 0 ? `+ ${b}` : `− ${-b}`) : fmt(b));
+  return parts.join(" ") || "0";
+};
+// Words for the voice: negative numbers, minus, squared, degrees.
+const talk = (s) =>
+  String(s)
+    .replace(/<[^>]+>/g, " ")
+    .replace(/(^|[\s(=:,])−([\dnx])/g, "$1negative $2")
+    .replace(/−/g, " minus ")
+    .replace(/²/g, " squared")
+    .replace(/°/g, " degrees")
+    .replace(/\+/g, " plus ")
+    .replace(/¢/g, " cents");
+const tell = (html, spoken) => {
+  say(html, { voice: false });
+  VOICE.speak(talk(spoken ?? html));
+};
+const tellAsync = (html, spoken) => {
+  say(html, { voice: false });
+  return VOICE.speakAsync(talk(spoken ?? html));
+};
+
+const LEVELS = [["easy", "🐣 Grade 4"], ["medium", "🦊 Grade 5–6"], ["hard", "🦁 Grade 7–8"]];
+const levelChips = (cur) => `<div class="ap-chips" data-levels>${LEVELS.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div>`;
+const tween = (ms, fn, alive) =>
+  new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(true);
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!alive()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+const STOP = Symbol("stop");
+const runner = (alive) => ({
+  alive,
+  wait: (ms) => new Promise((res, rej) => setTimeout(() => (alive() ? res() : rej(STOP)), KIT.still.matches ? Math.min(ms, 150) : ms)),
+  tween: (ms, fn) => tween(ms, fn, alive).then((ok) => (ok && alive() ? undefined : Promise.reject(STOP))),
+});
+const quiet = (p) => p.catch((e) => (e === STOP ? null : console.error(e)));
+const fadeIn = (R, node, ms = 600) => {
+  node.setAttribute("opacity", 0);
+  return R.tween(ms, (t) => node.setAttribute("opacity", t));
+};
+// Wrap words into SVG lines.
+function lines(parent, x, y, str, { size = 30, width = 50, gap = 1.3, ...attrs } = {}) {
+  const out = [];
+  for (const word of String(str).split(" ")) {
+    const last = out[out.length - 1];
+    if (last && (last + " " + word).length <= width) out[out.length - 1] = last + " " + word;
+    else out.push(word);
+  }
+  return out.map((line, i) => text(parent, x, y + i * size * gap, line, { "font-size": size, fill: INK, ...attrs }));
+}
+function calmEnd(lines2, glyph = "🌟") {
+  fresh();
+  emoji(view, 500, 160, glyph, 120);
+  lines2.forEach((line, i) => text(view, 500, 320 + i * 56, line, { "font-size": i ? 32 : 46, fill: i ? BROWN : INK }));
+}
+const svgPoint = (v, event) => new DOMPoint(event.clientX, event.clientY).matrixTransform(v.getScreenCTM().inverse());
+
+// "🏠 Try it for real": an offline activity with a grown-up.
+function realCard({ icon = "🏠", title, need = [], steps = [], note: tip = "" }) {
+  return new Promise((resolve) => {
+    stage.querySelector(".al-real")?.remove();
+    const box = document.createElement("div");
+    box.className = "al-real";
+    box.innerHTML = `<div class="al-real-card" role="dialog" aria-label="${title}"><div class="al-real-head"><span aria-hidden="true">${icon}</span><h2>${title}</h2></div>${need.length ? `<p class="al-need"><b>You need:</b> ${need.join(" · ")}</p>` : ""}<ol>${steps.map((s) => `<li>${s}</li>`).join("")}</ol>${tip ? `<p class="al-tip">⚠️ ${tip}</p>` : ""}<button type="button" class="kt-go">✓ Understood</button></div>`;
+    stage.appendChild(box);
+    VOICE.speak(talk(`${title}. ${need.length ? `You need: ${need.join(", ")}. ` : ""}${steps.join(" ")} ${tip}`));
+    box.querySelector(".kt-go").addEventListener("click", () => {
+      VOICE.hush();
+      box.remove();
+      window.OC?.touch();
+      resolve();
+    });
+  });
+}
+
+// "Explain it": put the reasoning into words (aloud to a grown-up, or in writing), then compare with a model answer.
+function explainCard({ prompt, model }) {
+  return new Promise((resolve) => {
+    stage.querySelector(".al-real")?.remove();
+    const box = document.createElement("div");
+    box.className = "al-real";
+    box.innerHTML = `<div class="al-real-card" role="dialog" aria-label="Explain it"><div class="al-real-head"><span aria-hidden="true">✍️</span><h2>Explain it</h2></div><p class="al-need">${prompt}</p><p class="al-need"><small>Answer in 2 to 4 full sentences, aloud to a grown-up or in your notebook.</small></p><p class="al-model" hidden><b>One strong answer:</b> ${model}</p><div class="ap-buttons"><button type="button" data-show>Show a model answer</button><button type="button" class="primary" data-done>✓ I explained it</button></div></div>`;
+    stage.appendChild(box);
+    VOICE.speak(talk(`Explain it. ${prompt} Answer in two to four full sentences.`));
+    box.querySelector("[data-show]").addEventListener("click", (event) => {
+      const m = box.querySelector(".al-model");
+      m.hidden = false;
+      event.target.disabled = true;
+      VOICE.speak(talk(m.textContent));
+    });
+    box.querySelector("[data-done]").addEventListener("click", () => {
+      VOICE.hush();
+      box.remove();
+      window.OC?.touch();
+      window.OC?.count("explanations");
+      resolve();
+    });
+  });
+}
+
+const alStyle = document.createElement("style");
+alStyle.textContent = `
+.ap-panel .ap-say{flex-shrink:0}
+.al-ans{width:100%;display:flex;justify-content:center}
+.al-ans .kt-choices button{min-height:52px;font-size:20px;font-family:ui-rounded,system-ui,sans-serif}
+.al-tap,.al-cell{cursor:pointer}
+.al-real{position:absolute;inset:0;z-index:7;display:grid;place-items:center;padding:10px;background:rgba(245,239,228,.93)}
+.al-real-card{max-width:600px;width:100%;max-height:100%;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 22px;border-radius:28px;background:#fff;box-shadow:0 8px 0 #ece3d6,0 18px 40px rgba(70,40,15,.18)}
+.al-real-head{display:flex;align-items:center;gap:12px}
+.al-real-head span{display:grid;place-items:center;width:58px;height:58px;border-radius:50%;background:var(--accent-soft);font-size:32px}
+.al-real-card h2{margin:0;color:#2b1d12;font:900 clamp(20px,3vw,27px)/1.15 var(--sans)}
+.al-need{margin:0;color:#4d3c2e;font:700 clamp(15px,2vw,18px)/1.35 var(--sans);text-align:center}
+.al-real-card ol{margin:0;padding-left:1.4em;display:grid;gap:4px;text-align:left;width:100%;color:#2b1d12;font:700 clamp(15px,2vw,19px)/1.35 var(--sans)}
+.al-model{margin:0;padding:8px 12px;border-radius:12px;background:#eef6ee;color:#1f4d2b;font:700 clamp(14px,1.8vw,17px)/1.35 var(--sans);text-align:left}
+.al-model[hidden]{display:none}
+.al-real-card .ap-buttons button{min-height:48px}
+.al-tip{margin:0;padding:6px 12px;border-radius:12px;background:#fff4dc;color:#7a4a10;font:800 clamp(14px,1.8vw,16px)/1.3 var(--sans)}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){
+ .al-ans .kt-choices button{min-height:44px;font-size:16px;padding:0 12px}
+ .al-real-card{padding:8px 12px;gap:4px}.al-real-head span{width:40px;height:40px;font-size:22px}.al-real-card ol{font-size:14px}.al-need{font-size:14px}
+}
+`;
+document.head.appendChild(alStyle);
+
+// ---------- A shared problem runner ----------
+// make(level, round) returns { draw(view, ctx), steps: [step], why }.
+// A step: { ask, speak?, options? | pad? | tap?, ans | test(v), hint(v), why, win?(ctx), miss?(ctx, v), reveal?(ctx) }.
+function quiz(id, { total = 8, make, label = "Problem", count = "problems solved", end, real, explainTask }) {
+  const my = token;
+  const alive = () => my === token;
+  const R = runner(alive);
+  const level = shell.progress()[id]?.level || "easy";
+  let round = 0;
+  let clean = 0;
+  let q = null;
+  let si = 0;
+  let tries = 0;
+  let missed = false;
+  let busy = false;
+  let pad = null;
+  panel(`<div class="ap-row">${levelChips(level)}<p class="ap-status" data-status></p></div><div class="al-ans" data-ans></div>`);
+  $("[data-levels]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    window.OC?.touch();
+    shell.mark(id, { level: b.dataset.lv });
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  });
+  const host = () => $("[data-ans]");
+  const step = () => q?.steps[si];
+  const ctx = { R, alive, level, tap: (v) => step()?.tap && check(v), get view() { return view; } };
+  const setInput = () => {
+    const s = step();
+    const box = host();
+    box.onclick = null;
+    pad = null;
+    if (s.options) choices(box, s.options.map((o) => (typeof o === "object" ? o : { label: String(o), v: o })), (c, b) => check(c.v, b));
+    else if (s.pad) pad = numpad(box, { onEnter: (v) => check(v), max: 4 });
+    else box.innerHTML = "";
+  };
+  const ask = () => {
+    const s = step();
+    tries = 0;
+    busy = false;
+    AL.step = s;
+    setInput();
+    tell(s.ask, s.speak);
+  };
+  const start = () => {
+    q = make(level, round);
+    AL.q = q;
+    si = 0;
+    missed = false;
+    fresh();
+    q.draw(view, ctx);
+    $("[data-status]").textContent = `${label} ${round + 1} of ${total}`;
+    ask();
+  };
+  const advance = async (s) => {
+    if (s.win) await s.win(ctx);
+    si += 1;
+    if (si < q.steps.length) return ask();
+    if (!missed) clean += 1;
+    window.OC?.count(count);
+    await tellAsync(`${missed ? pick(EFFORT) : "Correct."} ${q.why || ""}`);
+    if (!alive()) return;
+    await R.wait(1400);
+    round += 1;
+    if (round >= total) return finish();
+    start();
+  };
+  const check = (v, button) =>
+    quiet(
+      (async () => {
+        if (!alive() || busy || !q) return;
+        const s = step();
+        window.OC?.touch();
+        const ok = s.test ? s.test(v) : v === s.ans;
+        if (s.ignore?.(v)) return tell(s.ignore(v));
+        if (ok) {
+          busy = true;
+          button?.classList.add("right");
+          MUSIC.chime();
+          return advance(s);
+        }
+        tries += 1;
+        missed = true;
+        button?.classList.add("wrong");
+        MUSIC.oops();
+        pad?.clear();
+        if (tries === 1) {
+          tell(`Not quite. Consider: ${s.hint(v)}`);
+          if (s.miss) {
+            busy = true;
+            await s.miss(ctx, v);
+            busy = false;
+          }
+          return;
+        }
+        busy = true;
+        if (s.miss) await s.miss(ctx, v);
+        const box = host();
+        box.onclick = null;
+        box.innerHTML = "";
+        if (s.reveal) await s.reveal(ctx);
+        await tellAsync(`${GENTLE} ${s.why}`);
+        if (!alive()) return;
+        box.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-next>Continue ▶</button></div>`;
+        box.onclick = (event) => {
+          if (!event.target.closest("[data-next]")) return;
+          box.onclick = null;
+          box.innerHTML = "";
+          window.OC?.touch();
+          quiet(advance(s));
+        };
+      })()
+    );
+  const finish = async () => {
+    confetti();
+    shell.mark(id, { done: true });
+    calmEnd([end || `${total} problems solved.`, `${clean} of ${total} solved on the first try.`, pick(EFFORT)], "🌟");
+    host().innerHTML = "";
+    host().onclick = null;
+    $("[data-status]").textContent = "All done";
+    AL.step = null;
+    await tellAsync(`${end || `${total} problems solved.`} ${clean} on the first attempt. ${pick(EFFORT)}`);
+    if (!alive()) return;
+    if (explainTask) await explainCard(explainTask);
+    if (!alive()) return;
+    if (real) await realCard(real);
+    if (alive()) tell("Choose a level above to continue, or take a well-earned break.");
+  };
+  start();
+  return ctx;
+}
+
+// ---------- A pan balance ----------
+function balance(parent, anim) {
+  const g = el("g", {}, parent);
+  el("rect", { x: 390, y: 522, width: 220, height: 24, rx: 10, fill: "#8a5a35" }, g);
+  el("path", { d: "M500 396L444 524H556Z", fill: WOOD, stroke: "#8a5a35", "stroke-width": 3, "stroke-linejoin": "round" }, g);
+  const beam = el("rect", { x: 210, y: 388, width: 580, height: 16, rx: 8, fill: "#a8632d" }, g);
+  const pans = [-1, 1].map((side) => {
+    const px = 500 + side * 250;
+    const pan = el("g", {}, g);
+    el("rect", { x: px - 7, y: 338, width: 14, height: 54, fill: "#8a5a35" }, pan);
+    el("rect", { x: px - 158, y: 326, width: 316, height: 18, rx: 9, fill: "#e0b98a", stroke: "#8a5a35", "stroke-width": 3 }, pan);
+    const items = el("g", {}, pan);
+    return { px, pan, items, x: [], u: [] };
+  });
+  el("circle", { cx: 500, cy: 396, r: 14, fill: GOLD, stroke: "#8a5a35", "stroke-width": 3 }, g);
+  const tilt = (deg) => {
+    beam.setAttribute("transform", `rotate(${deg} 500 396)`);
+    const dy = 250 * Math.sin((deg * Math.PI) / 180);
+    pans[0].pan.setAttribute("transform", `translate(0 ${-dy})`);
+    pans[1].pan.setAttribute("transform", `translate(0 ${dy})`);
+  };
+  const fill = (state) => {
+    pans.forEach((p, i) => {
+      const st = i ? state.R : state.L;
+      p.items.innerHTML = "";
+      p.x = [];
+      p.u = [];
+      for (let k = 0; k < st.x; k++) {
+        const row = Math.floor(k / 4);
+        const inRow = Math.min(4, st.x - row * 4);
+        const cx = p.px - (inRow * 68 - 8) / 2 + (k % 4) * 68;
+        const y = 326 - 62 - row * 66;
+        const b = el("g", {}, p.items);
+        el("rect", { x: cx, y, width: 60, height: 60, rx: 10, fill: PURPLE, stroke: "#4a2f86", "stroke-width": 3 }, b);
+        text(b, cx + 30, y + 42, "x", { "font-size": 40, fill: "#fff", "font-style": "italic" });
+        p.x.push(b);
+      }
+      const base = 326 - Math.ceil(st.x / 4) * 66;
+      for (let k = 0; k < st.u; k++) {
+        const row = Math.floor(k / 8);
+        const inRow = Math.min(8, st.u - row * 8);
+        const cx = p.px - (inRow * 37 - 5) / 2 + (k % 8) * 37;
+        const y = base - 35 - row * 36;
+        p.u.push(el("rect", { x: cx, y, width: 32, height: 32, rx: 6, fill: GOLD, stroke: "#b07a12", "stroke-width": 2.5 }, p.items));
+      }
+    });
+  };
+  const pickOut = (spec) => {
+    const gone = [];
+    pans.forEach((p, i) => {
+      const s = (i ? spec.R : spec.L) || {};
+      if (s.x) gone.push(...p.x.slice(p.x.length - s.x));
+      if (s.u) gone.push(...p.u.slice(p.u.length - s.u));
+    });
+    return gone;
+  };
+  const remove = (spec) => {
+    const gone = pickOut(spec);
+    return anim.tween(1000, (t) =>
+      gone.forEach((n) => {
+        n.setAttribute("opacity", 1 - t);
+        n.setAttribute("transform", `translate(0 ${-60 * t})`);
+      })
+    );
+  };
+  // Show what happens if only one side changes: those things fade, the scale tips, then all comes back.
+  const wobble = async (spec, dir) => {
+    const gone = pickOut(spec);
+    await anim.tween(500, (t) => gone.forEach((n) => n.setAttribute("opacity", 1 - 0.8 * t)));
+    await anim.tween(800, (t) => tilt(dir * 10 * t));
+    await anim.wait(1300);
+    await anim.tween(800, (t) => tilt(dir * 10 * (1 - t)));
+    await anim.tween(400, (t) => gone.forEach((n) => n.setAttribute("opacity", 0.2 + 0.8 * t)));
+  };
+  return { g, fill, remove, tilt, wobble };
+}
+const side = (s) => poly(s.x, s.u);
+
+// ---------- Growing dot pattern figure: b grey dots, then k columns of a dots ----------
+function dotFigure(parent, cx, bottom, k, a, b, { gap = 24, r = 9, mark = true } = {}) {
+  const g = el("g", {}, parent);
+  const cols = k + (b ? 1 : 0);
+  const x0 = cx - ((cols - 1) * gap) / 2;
+  for (let j = 0; j < b; j++) el("circle", { cx: x0, cy: bottom - j * gap, r, fill: "#a99a88" }, g);
+  for (let c = 0; c < k; c++)
+    for (let j = 0; j < a; j++) el("circle", { cx: x0 + (c + (b ? 1 : 0)) * gap, cy: bottom - j * gap, r, fill: mark && c === k - 1 && k > 1 ? BLUE : GREEN }, g);
+  return g;
+}
+
+// ---------- Coordinate grid ----------
+function plane(parent, { xmin, xmax, ymin, ymax, ox, oy, cell, ycell = cell, ystep = 1, labels = true }) {
+  const g = el("g", {}, parent);
+  const px = (x) => ox + x * cell;
+  const py = (y) => oy - (y / ystep) * ycell;
+  el("rect", { x: px(xmin) - 6, y: py(ymax) - 6, width: (xmax - xmin) * cell + 12, height: ((ymax - ymin) / ystep) * ycell + 12, rx: 10, fill: PAPER }, g);
+  for (let x = xmin; x <= xmax; x++) el("line", { x1: px(x), x2: px(x), y1: py(ymin), y2: py(ymax), stroke: x === 0 ? BROWN : "#e2d6c4", "stroke-width": x === 0 ? 4 : 2 }, g);
+  for (let y = ymin; y <= ymax; y += ystep) el("line", { x1: px(xmin), x2: px(xmax), y1: py(y), y2: py(y), stroke: y === 0 ? BROWN : "#e2d6c4", "stroke-width": y === 0 ? 4 : 2 }, g);
+  if (labels) {
+    const fs = cell < 48 ? 22 : 24;
+    // Number the axes along the grid's bottom and left edges, so labels never sit on top of plotted points.
+    for (let x = xmin; x <= xmax; x++) if (x || xmin < 0) text(g, px(x), py(ymin) + 32, fmt(x), { "font-size": fs, fill: "#6d5847" });
+    for (let y = ymin; y <= ymax; y += ystep) if (y || ymin < 0) text(g, px(xmin) - 16, py(y) + 8, fmt(y), { "font-size": fs, fill: "#6d5847", "text-anchor": "end" });
+    if (xmin >= 0 && ymin >= 0) text(g, px(0) - 14, py(0) + 28, "0", { "font-size": fs, fill: "#6d5847", "text-anchor": "end" });
+    text(g, px(xmax) + 22, py(Math.max(ymin, 0)) + 8, "x", { "font-size": 28, fill: BROWN, "font-style": "italic" });
+    text(g, px(Math.max(xmin, 0)), py(ymax) - 14, "y", { "font-size": 28, fill: BROWN, "font-style": "italic" });
+  }
+  return { g, px, py };
+}
+const dot = (parent, x, y, color = RED, r = 12) => el("circle", { cx: x, cy: y, r, fill: color, stroke: "#fff", "stroke-width": 3 }, parent);
+
+// ---------- Number line −10..10 for negatives ----------
+function numberLine(parent, y = 440) {
+  const g = el("g", {}, parent);
+  const nx = (n) => 500 + n * 42;
+  el("line", { x1: nx(-10) - 26, x2: nx(10) + 26, y1: y, y2: y, stroke: BROWN, "stroke-width": 5, "stroke-linecap": "round" }, g);
+  el("rect", { x: nx(-10) - 20, y: y - 6, width: 10 * 42 + 20, height: 12, fill: "#a9d4f5", opacity: 0.5 }, g);
+  el("rect", { x: nx(0), y: y - 6, width: 10 * 42 + 20, height: 12, fill: "#f8c9a0", opacity: 0.5 }, g);
+  for (let n = -10; n <= 10; n++) {
+    el("line", { x1: nx(n), x2: nx(n), y1: y - (n ? 12 : 18), y2: y + (n ? 12 : 18), stroke: BROWN, "stroke-width": n ? 3 : 5 }, g);
+    if (n % 2 === 0 || n === -1 || n === 1) text(g, nx(n), y + 44, fmt(n), { "font-size": 24, fill: n < 0 ? "#2361a8" : n > 0 ? "#a8632d" : INK });
+  }
+  return { g, nx, y };
+}
+async function hops(parent, R, line, from, by) {
+  const pin = el("g", {}, parent);
+  el("circle", { cx: 0, cy: 0, r: 15, fill: by < 0 ? BLUE : RED, stroke: "#fff", "stroke-width": 3 }, pin);
+  const place = (n, lift = 0) => pin.setAttribute("transform", `translate(${line.nx(n)} ${line.y - 24 - lift})`);
+  place(from);
+  const dir = Math.sign(by);
+  for (let k = 0; k < Math.abs(by); k++) {
+    const a = from + k * dir;
+    el("path", { d: `M${line.nx(a)} ${line.y - 18}Q${line.nx(a + dir / 2)} ${line.y - 60} ${line.nx(a + dir)} ${line.y - 18}`, fill: "none", stroke: by < 0 ? BLUE : RED, "stroke-width": 3 }, parent);
+    await R.tween(320, (t) => place(a + dir * t, Math.sin(t * Math.PI) * 34));
+    MUSIC.play("xylophone", 84 + Math.max(-12, Math.min(12, a + dir)), { gain: 0.3 });
+  }
+  return pin;
+}
+
+// =====================================================================
+const units = {
+  // ---------------- See it ----------------
+  al0() {
+    const my = token;
+    explain(
+      [
+        {
+          say: "Algebra lets us find an unknown number from the clues we do know. Its name comes from al-jabr, Arabic for “restoring”, in a book by the scholar Muhammad ibn Musa al-Khwarizmi, written in Baghdad around 820 CE.",
+          draw: everyday([["🛒", "How much can I buy?"], ["🧁", "Recipes for more people"], ["🎮", "Rules in games"], ["🚀", "Building rockets"]]),
+        },
+        {
+          say: "A variable (a letter that stands for a number we do not yet know, or one that can change) is like a closed box. If x + 3 = 7, the box must hold 4, since 4 + 3 = 7.",
+          async draw(v, api) {
+            const eq = text(v, 500, 90, "x + 3 = 7", { "font-size": 64, fill: INK, opacity: 0 });
+            await api.tween(600, (t) => eq.setAttribute("opacity", t));
+            const box = el("g", { opacity: 0 }, v);
+            el("rect", { x: 90, y: 230, width: 140, height: 140, rx: 16, fill: PURPLE, stroke: "#4a2f86", "stroke-width": 4 }, box);
+            const lid = el("rect", { x: 80, y: 214, width: 160, height: 26, rx: 8, fill: "#9d7fe0", stroke: "#4a2f86", "stroke-width": 4 }, box);
+            text(box, 160, 330, "x", { "font-size": 80, fill: "#fff", "font-style": "italic" });
+            text(box, 300, 330, "+", { "font-size": 64, fill: INK });
+            for (let i = 0; i < 3; i++) el("rect", { x: 350 + i * 50, y: 280, width: 42, height: 42, rx: 7, fill: GOLD, stroke: "#b07a12", "stroke-width": 3 }, box);
+            text(box, 530, 330, "=", { "font-size": 64, fill: INK });
+            for (let i = 0; i < 7; i++) el("rect", { x: 580 + (i % 7) * 52, y: 280, width: 42, height: 42, rx: 7, fill: GOLD, stroke: "#b07a12", "stroke-width": 3 }, box);
+            await api.tween(800, (t) => box.setAttribute("opacity", t));
+            await api.wait(1800);
+            await api.tween(900, (t) => lid.setAttribute("transform", `rotate(${-70 * t} 80 228)`));
+            const inside = el("g", {}, v);
+            for (let i = 0; i < 4; i++) {
+              const c = el("rect", { x: 100 + (i % 2) * 64, y: 150 - Math.floor(i / 2) * 56, width: 46, height: 46, rx: 7, fill: GOLD, stroke: "#b07a12", "stroke-width": 3, opacity: 0 }, inside);
+              await api.tween(350, (t) => c.setAttribute("opacity", t));
+              MUSIC.play("xylophone", 76 + i * 2, { gain: 0.35 });
+            }
+            const ans = text(v, 500, 490, "x = 4, because 4 + 3 = 7", { "font-size": 46, fill: GREEN, opacity: 0 });
+            await api.tween(700, (t) => ans.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "An equation (a statement that two amounts are equal) behaves like a level balance. The equals sign means “has the same value as”, not “here comes the answer”. Remove 3 cubes from both pans and it remains level, which leaves x alone: x = 4.",
+          async draw(v, api) {
+            const eq = text(v, 500, 80, "x + 3 = 7", { "font-size": 60, fill: INK });
+            const bal = balance(v, api);
+            bal.fill({ L: { x: 1, u: 3 }, R: { x: 0, u: 7 } });
+            await api.wait(2600);
+            await bal.remove({ L: { u: 3 }, R: { u: 3 } });
+            bal.fill({ L: { x: 1, u: 0 }, R: { x: 0, u: 4 } });
+            MUSIC.chime();
+            eq.textContent = "x = 4";
+            eq.setAttribute("fill", GREEN);
+            await api.wait(800);
+            const note = text(v, 500, 150, "Do the same to both sides.", { "font-size": 36, fill: "var(--accent-dark)", opacity: 0 });
+            await api.tween(600, (t) => note.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "A riddle: I double a number, add 1, and obtain 9. Work backwards with inverse operations (steps that undo each other): 9 minus 1 is 8, and half of 8 is 4.",
+          async draw(v, api) {
+            const node = (x, y, label, color = "#fff") => {
+              const g = el("g", { opacity: 0 }, v);
+              el("rect", { x: x - 62, y: y - 46, width: 124, height: 92, rx: 18, fill: color, stroke: BROWN, "stroke-width": 4 }, g);
+              const t = text(g, x, y + 18, label, { "font-size": 50, fill: INK });
+              return { g, t };
+            };
+            const arrow = (x1, x2, y, label, color) => {
+              const g = el("g", { opacity: 0 }, v);
+              el("line", { x1, x2, y1: y, y2: y, stroke: color, "stroke-width": 6, "stroke-linecap": "round" }, g);
+              const d = Math.sign(x2 - x1);
+              el("path", { d: `M${x2} ${y}l${-d * 18} -12v24Z`, fill: color }, g);
+              text(g, (x1 + x2) / 2, y - 18, label, { "font-size": 34, fill: color });
+              return g;
+            };
+            const xs = [160, 500, 840];
+            const a = node(xs[0], 170, "?", "#ede5fb");
+            const b = node(xs[1], 170, "");
+            const c = node(xs[2], 170, "9", "#fdf0d2");
+            const f1 = arrow(230, 430, 170, "× 2", PURPLE);
+            const f2 = arrow(570, 770, 170, "+ 1", PURPLE);
+            for (const g of [a.g, f1, b.g, f2, c.g]) await api.tween(450, (t) => g.setAttribute("opacity", t));
+            await api.wait(2400);
+            text(v, 500, 300, "Go backwards and undo each step:", { "font-size": 32, fill: BROWN });
+            const c2 = node(xs[2], 400, "9", "#fdf0d2");
+            await api.tween(400, (t) => c2.g.setAttribute("opacity", t));
+            const g1 = arrow(770, 570, 400, "− 1", GREEN);
+            await api.tween(500, (t) => g1.setAttribute("opacity", t));
+            const b2 = node(xs[1], 400, "8");
+            await api.tween(500, (t) => b2.g.setAttribute("opacity", t));
+            const g2 = arrow(430, 230, 400, "÷ 2", GREEN);
+            await api.tween(500, (t) => g2.setAttribute("opacity", t));
+            const a2 = node(xs[0], 400, "4", "#dff3e4");
+            await api.tween(500, (t) => a2.g.setAttribute("opacity", t));
+            MUSIC.chime();
+            a.t.textContent = "4";
+            b.t.textContent = "8";
+            const ans = text(v, 500, 520, "The secret number is 4", { "font-size": 40, fill: GREEN, opacity: 0 });
+            await api.tween(600, (t) => ans.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "A growing pattern follows a rule. Each figure adds 3 dots to a single grey dot, so figure n has 3n + 1 dots, and figure 10 has 31.",
+          async draw(v, api) {
+            const xs = [170, 400, 630];
+            for (let k = 1; k <= 3; k++) {
+              const f = dotFigure(v, xs[k - 1], 230, k, 3, 1, { gap: 30, r: 11 });
+              f.setAttribute("opacity", 0);
+              text(v, xs[k - 1], 290, `Figure ${k}`, { "font-size": 28, fill: BROWN });
+              await api.tween(500, (t) => f.setAttribute("opacity", t));
+              await api.wait(500);
+            }
+            text(v, 860, 200, "Figure 10?", { "font-size": 34, fill: INK });
+            text(v, 140, 380, "Figure", { "font-size": 28, fill: BROWN, "text-anchor": "start" });
+            text(v, 140, 440, "Dots", { "font-size": 28, fill: BROWN, "text-anchor": "start" });
+            const cols = [300, 400, 500, 640];
+            ["1", "2", "3", "n"].forEach((s, i) => text(v, cols[i], 380, s, { "font-size": 32, fill: INK }));
+            text(v, 570, 380, "…", { "font-size": 32, fill: INK });
+            for (const [i, n] of [4, 7, 10].entries()) {
+              const t = text(v, cols[i], 440, n, { "font-size": 34, fill: GREEN, opacity: 0 });
+              await api.tween(400, (s) => t.setAttribute("opacity", s));
+              MUSIC.play("xylophone", 76 + i * 3, { gain: 0.35 });
+            }
+            const rule = text(v, 640, 440, "3n + 1", { "font-size": 34, fill: PURPLE, opacity: 0 });
+            await api.tween(700, (t) => rule.setAttribute("opacity", t));
+            const ten = text(v, 500, 520, "Figure 10: 3 × 10 + 1 = 31 dots", { "font-size": 38, fill: INK, opacity: 0 });
+            await api.wait(800);
+            await api.tween(700, (t) => ten.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "Negative numbers describe amounts below zero. If it is 3 degrees and the temperature falls by 5 degrees, it becomes negative 2 degrees.",
+          async draw(v, api) {
+            const ty = (n) => 300 - n * 34;
+            el("rect", { x: 170, y: ty(6) - 10, width: 50, height: ty(-6) - ty(6) + 20, rx: 25, fill: "#fff", stroke: BROWN, "stroke-width": 4 }, v);
+            el("circle", { cx: 195, cy: ty(-6) + 40, r: 40, fill: RED, stroke: BROWN, "stroke-width": 4 }, v);
+            const red = el("rect", { x: 182, y: ty(3), width: 26, height: ty(-6) + 20 - ty(3), fill: RED }, v);
+            for (let n = -6; n <= 6; n++) {
+              el("line", { x1: 220, x2: n % 2 ? 236 : 246, y1: ty(n), y2: ty(n), stroke: BROWN, "stroke-width": 3 }, v);
+              if (n % 2 === 0 || n === 3 || n === -2) text(v, 258, ty(n) + 9, fmt(n) + "°", { "font-size": 26, fill: n < 0 ? "#2361a8" : n > 0 ? "#a8632d" : INK, "text-anchor": "start" });
+            }
+            el("rect", { x: 140, y: ty(0) - 2, width: 200, height: 4, fill: INK, opacity: 0.2 }, v);
+            emoji(v, 620, 140, "☀️", 90);
+            const snow = emoji(v, 620, 340, "❄️", 90, { opacity: 0 });
+            const t1 = text(v, 680, 150, "", { "font-size": 40, fill: INK, "text-anchor": "start" });
+            t1.textContent = "3°";
+            await api.wait(1800);
+            for (let k = 1; k <= 5; k++) {
+              await api.tween(450, (t) => {
+                const top = ty(3 - (k - 1) - t);
+                red.setAttribute("y", top);
+                red.setAttribute("height", ty(-6) + 20 - top);
+              });
+              MUSIC.play("xylophone", 84 - k * 2, { gain: 0.35 });
+            }
+            await api.tween(600, (t) => snow.setAttribute("opacity", t));
+            text(v, 680, 350, "−2°", { "font-size": 40, fill: "#2361a8", "text-anchor": "start" });
+            const s = text(v, 640, 480, "3 − 5 = −2", { "font-size": 48, fill: INK, opacity: 0 });
+            await api.tween(600, (t) => s.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "A positive and a negative counter form a zero pair: together they are worth nothing. In 4 + negative 3, three pairs cancel and 1 remains.",
+          async draw(v, api) {
+            const eq = text(v, 500, 80, "4 + (−3) = ?", { "font-size": 56, fill: INK });
+            const cs = [];
+            for (let i = 0; i < 4; i++) {
+              const g = el("g", { transform: `translate(${200 + i * 100} 220)` }, v);
+              el("circle", { r: 36, fill: GOLD, stroke: "#b07a12", "stroke-width": 3 }, g);
+              text(g, 0, 15, "+", { "font-size": 46, fill: INK });
+              cs.push(g);
+            }
+            const neg = [];
+            for (let i = 0; i < 3; i++) {
+              const g = el("g", { transform: `translate(${200 + i * 100} 360)`, opacity: 0 }, v);
+              el("circle", { r: 36, fill: RED, stroke: "#9b2f1f", "stroke-width": 3 }, g);
+              text(g, 0, 15, "−", { "font-size": 46, fill: "#fff" });
+              neg.push(g);
+              await api.tween(400, (t) => g.setAttribute("opacity", t));
+            }
+            await api.wait(1500);
+            for (let i = 0; i < 3; i++) {
+              const ring = el("rect", { x: 150 + i * 100, y: 170, width: 100, height: 240, rx: 46, fill: "none", stroke: GREEN, "stroke-width": 5, "stroke-dasharray": "10 8" }, v);
+              text(v, 200 + i * 100, 460, "0", { "font-size": 40, fill: GREEN });
+              MUSIC.play("xylophone", 79 + i * 2, { gain: 0.35 });
+              await api.wait(500);
+              await api.tween(600, (t) => {
+                cs[i].setAttribute("opacity", 1 - t);
+                neg[i].setAttribute("opacity", 1 - t);
+                ring.setAttribute("opacity", 1 - t * 0.6);
+              });
+            }
+            eq.textContent = "4 + (−3) = 1";
+            eq.setAttribute("fill", GREEN);
+            MUSIC.chime();
+            text(v, 800, 300, "1 remains", { "font-size": 44, fill: INK });
+          },
+        },
+        {
+          say: "The coordinate plane is a map for numbers, named after René Descartes, who developed the idea in the 1630s, as Pierre de Fermat also did. The ordered pair (3, 4) means 3 units across, then 4 units up.",
+          async draw(v, api) {
+            const p = plane(v, { xmin: 0, xmax: 6, ymin: 0, ymax: 6, ox: 120, oy: 490, cell: 70 });
+            const walker = el("g", {}, v);
+            const pin = dot(walker, p.px(0), p.py(0), RED, 16);
+            await api.wait(1400);
+            const path = el("path", { d: "", fill: "none", stroke: RED, "stroke-width": 6, "stroke-linecap": "round" }, v);
+            await api.tween(1200, (t) => {
+              pin.setAttribute("cx", p.px(3 * t));
+              path.setAttribute("d", `M${p.px(0)} ${p.py(0)}H${p.px(3 * t)}`);
+            });
+            text(v, p.px(1.5), p.py(0) - 14, "3 right", { "font-size": 26, fill: RED });
+            await api.tween(1200, (t) => {
+              pin.setAttribute("cy", p.py(4 * t));
+              path.setAttribute("d", `M${p.px(0)} ${p.py(0)}H${p.px(3)}V${p.py(4 * t)}`);
+            });
+            text(v, p.px(3) + 16, p.py(2), "4 up", { "font-size": 26, fill: RED, "text-anchor": "start" });
+            MUSIC.chime();
+            text(v, p.px(3), p.py(4) - 26, "(3, 4)", { "font-size": 34, fill: INK });
+            const card = el("g", { opacity: 0 }, v);
+            el("rect", { x: 650, y: 150, width: 300, height: 220, rx: 22, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, card);
+            text(card, 800, 220, "(3, 4)", { "font-size": 56, fill: INK });
+            text(card, 800, 280, "x first: across →", { "font-size": 28, fill: BROWN });
+            text(card, 800, 330, "y next: up ↑", { "font-size": 28, fill: BROWN });
+            await api.tween(700, (t) => card.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "Explain it: in two to four sentences, tell a grown-up what a variable is and how a balance helps you solve an equation.",
+          async draw(v, api) {
+            const card = el("g", { opacity: 0 }, v);
+            el("rect", { x: 90, y: 60, width: 820, height: 440, rx: 30, fill: "#fff", stroke: "var(--accent)", "stroke-width": 5 }, card);
+            emoji(card, 500, 140, "✍️", 80);
+            text(card, 500, 250, "Explain it", { "font-size": 52, fill: INK });
+            lines(card, 500, 320, "What is a variable? How does a balance help you solve an equation?", { size: 34, width: 40, fill: BROWN });
+            text(card, 500, 450, "Use 2 to 4 full sentences.", { "font-size": 28, fill: "var(--accent-dark)" });
+            await api.tween(800, (t) => card.setAttribute("opacity", t));
+          },
+        },
+      ],
+      { alive: () => my === token, onDone: () => shell.go("al1"), title: "Pre-Algebra" }
+    );
+  },
+
+  // ---------------- Expressions ----------------
+  al1() {
+    quiz("al1", { explainTask: { prompt: 'Why can 3x and 2x be combined into 5x, but 3x and 2 cannot be combined? Use the tiles in your answer.', model: '3x and 2x are like terms: both count x tiles, so 3 of them and 2 more make 5 of them. A 1 tile is a different size from an x tile, so 3x + 2 cannot be squashed into one term, just as 3 apples and 2 pears are not 5 apples.' }, total: 9, make: AL.makers.al1, label: "Problem", count: "expressions" });
+  },
+
+  // ---------------- Balance equations ----------------
+  al2() {
+    quiz("al2", { explainTask: { prompt: 'Why must you always do the same thing to both sides of an equation? What would happen to the balance if you did not?', model: 'An equation says both sides are equal, like a level balance. If I remove the same amount from both pans, they stay equal, so the new equation is still true. If I change only one side, the balance tips and the statement is no longer true, so any answer I find could be wrong.' },
+      total: 8,
+      make: AL.makers.al2,
+      label: "Equation",
+      count: "equations solved",
+      end: "Eight equations solved.",
+      real: {
+        title: "Try it for real: a coat-hanger balance",
+        need: ["a coat hanger", "2 paper cups", "string and tape", "about 20 same coins", "2 small envelopes"],
+        steps: [
+          "Tape a cup to each end of the hanger and hang it up.",
+          "Put one envelope in each cup, so they weigh the same.",
+          "A grown-up hides some coins in the left envelope: that is x.",
+          "Add 2 coins to the left cup, then add coins to the right until it is level.",
+          "Take 2 coins off both sides. Count the right side: that count is x. Open the envelope to check.",
+        ],
+        note: "Do this with a grown-up. Keep coins away from babies.",
+      },
+    });
+  },
+
+  // ---------------- Patterns to rules ----------------
+  al3() {
+    quiz("al3", { explainTask: { prompt: 'How can you find the number of dots in figure 100 without drawing figures 4 to 99?', model: 'I look at how much each figure grows; that number multiplies n. Then I find what is left over when n is 1, which is the constant. With a rule such as 3n + 1, figure 100 has 3 × 100 + 1 = 301 dots, with no drawing needed.' },
+      total: 8,
+      make: AL.makers.al3,
+      label: "Pattern",
+      count: "patterns solved",
+      end: "Eight pattern rules found.",
+      real: {
+        title: "Try it for real: a growing pattern",
+        need: ["toothpicks or building bricks", "paper and pencil"],
+        steps: ["Make 1 square from 4 toothpicks.", "Add squares in a row: 2 squares, then 3 squares.", "Count the toothpicks each time and make a table.", "Find the rule: how many for 10 squares?"],
+        note: "Do this with a grown-up. Toothpicks are sharp: be careful.",
+      },
+    });
+  },
+
+  // ---------------- Negative numbers ----------------
+  al4() {
+    quiz("al4", { explainTask: { prompt: 'Explain why 5 − (−3) equals 8, using either zero pairs or the number line.', model: 'Subtracting a number means adding its opposite, so 5 − (−3) = 5 + 3 = 8. With counters: to take away three negatives from 5 positives, I first add three zero pairs, then remove the three negatives, leaving 8 positives.' },
+      total: 8,
+      make: AL.makers.al4,
+      label: "Problem",
+      count: "integer problems",
+      end: "Eight integer problems solved.",
+      real: {
+        title: "Try it for real: a cold-day number line",
+        need: ["chalk or tape", "a thermometer (or the weather app with a grown-up)"],
+        steps: ["Draw a number line on the ground from −10 to 10.", "Stand on today's temperature.", "Jump left when it gets colder, right when it gets warmer.", "Ask: what if it got 8 degrees colder tonight?"],
+        note: "Do this with a grown-up, away from cars and roads.",
+      },
+    });
+  },
+
+  // ---------------- Coordinate plane ----------------
+  al5() {
+    quiz("al5", { explainTask: { prompt: 'Why does the order of the numbers in (2, 5) matter? Describe how (2, 5) and (5, 2) differ.', model: 'An ordered pair always gives the x-coordinate first, then the y-coordinate. (2, 5) is 2 across and 5 up, while (5, 2) is 5 across and 2 up, so they are different points. Swapping the order moves the point to a mirror position across the line y = x.' },
+      total: 8,
+      make: AL.makers.al5,
+      label: "Point",
+      count: "points plotted",
+      end: "Eight coordinate problems solved.",
+      real: {
+        title: "Try it for real: graph-paper hide and seek",
+        need: ["2 sheets of graph paper", "2 pencils"],
+        steps: ["Each of you draws axes from 0 to 8.", "Secretly mark 3 points on your sheet.", "Take turns calling a point like (4, 2).", "Say 'hit' or 'miss'. Locate all 3 hidden points."],
+        note: "Play with a grown-up or a friend.",
+      },
+    });
+  },
+
+  // ---------------- Word problems ----------------
+  al6() {
+    quiz("al6", { explainTask: { prompt: 'Choose one problem you solved. Explain how you turned the words into an equation, and how you checked your answer.', model: 'First I let n stand for the number I wanted to find. Then I translated each phrase into symbols, such as "three times as old" into 3n, and set the two equal amounts on each side of the equals sign. After solving, I put my answer back into the story to see that every fact was true.' },
+      total: 8,
+      make: AL.makers.al6,
+      label: "Story",
+      count: "word problems",
+      end: "Eight word problems solved.",
+      real: {
+        title: "Try it for real: a think-of-a-number trick",
+        need: ["a grown-up", "paper and pencil"],
+        steps: [
+          "Ask a grown-up to think of a number and keep it secret.",
+          "Say: double it, add 10, halve it, then take away the number you started with.",
+          "Tell them: your answer is 5! It always is.",
+          "Draw a box for the number to see why: (2 boxes + 10) ÷ 2 = box + 5. Take the box away: 5.",
+        ],
+      },
+    });
+  },
+};
+
+// =====================================================================
+// Problem makers (pure: each returns the picture, the steps and the answers)
+
+// Deal items from a shuffled deck so a game does not repeat a template until the deck is used up.
+const DECKS = {};
+function deal(key, list) {
+  if (!DECKS[key]?.length) DECKS[key] = shuffle(list);
+  return DECKS[key].pop();
+}
+
+// ---- Expressions ----
+// Grade 7–8: expand brackets with the distributive law, then collect like terms.
+function simplifyMaker() {
+  let a;
+  let b;
+  let c;
+  let d;
+  let sgn;
+  let A;
+  let B;
+  do {
+    a = pickInt(2, 6);
+    b = pickInt(1, 7) * pick([1, -1]);
+    c = pickInt(1, 9);
+    d = pickInt(1, 12);
+    sgn = pick([1, -1]);
+    A = a - c;
+    B = a * b + sgn * d;
+  } while (!A || !B);
+  const inner = `x ${b < 0 ? "−" : "+"} ${Math.abs(b)}`;
+  const expr = `${a}(${inner}) − ${term(c)} ${sgn < 0 ? "−" : "+"} ${d}`;
+  const ans = poly(A, B);
+  const opts = new Set([ans]);
+  for (const o of [poly(A, b + sgn * d), poly(a + c, B), poly(A, a * b - sgn * d), poly(A, -B), poly(A + 1, B)]) if (opts.size < 4 && o !== ans) opts.add(o);
+  const work = [`${a}(${inner}) = ${poly(a, a * b)}`, `${poly(a, a * b)} − ${term(c)} ${sgn < 0 ? "−" : "+"} ${d}`, `= ${ans}`];
+  let lines3 = [];
+  const show = async (ctx, color) => {
+    for (let i = 0; i < 3; i++) {
+      lines3[i].textContent = work[i];
+      lines3[i].setAttribute("fill", color);
+      await fadeIn(ctx.R, lines3[i], 450);
+    }
+  };
+  return {
+    draw(v) {
+      text(v, 500, 70, "Simplify: expand, then collect like terms", { "font-size": 32, fill: BROWN });
+      el("rect", { x: 120, y: 100, width: 760, height: 130, rx: 26, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, v);
+      text(v, 500, 190, expr, { "font-size": 60, fill: INK });
+      lines3 = [0, 1, 2].map((i) => text(v, 500, 310 + i * 70, "", { "font-size": 44, fill: GREEN }));
+    },
+    steps: [
+      {
+        ask: `Simplify ${expr}.`,
+        options: shuffle([...opts]),
+        ans,
+        hint: () => `The ${a} multiplies BOTH terms inside the brackets. What is ${a} × ${par(b)}? Then which terms contain x, and which are plain numbers?`,
+        why: `By the distributive law, ${a}(${inner}) = ${poly(a, a * b)}. Collecting like terms gives ${ans}.`,
+        win: (ctx) => show(ctx, GREEN),
+        reveal: (ctx) => show(ctx, PURPLE),
+      },
+    ],
+    why: "",
+    check: { kind: "simplify", expr, ans, A, B },
+  };
+}
+
+AL.makers.al1 = (level, round) => {
+  const kinds = level === "hard" ? ["words", "eval", "simplify", "tiles"] : ["words", "eval", "tiles"];
+  const kind = kinds[round % kinds.length];
+  const a = pickInt(2, 9);
+  let b = pickInt(2, 9);
+  if (kind === "simplify") return simplifyMaker();
+  if (kind === "words") {
+    const T = {
+      easy: [
+        () => [`${b} more than n`, `n + ${b}`, [`${b}n`, `n − ${b}`], `"More than" means add ${b} to n: n + ${b}.`],
+        () => [`${b} less than n`, `n − ${b}`, [`${b} − n`, `n + ${b}`], `"${b} less than n" starts at n and takes ${b} away: n − ${b}.`],
+        () => [`${a} groups of n`, `${a}n`, [`n + ${a}`, `n ÷ ${a}`], `${a} groups of n is ${a} times n, written ${a}n.`],
+        () => [`n shared equally into ${a} groups`, `n ÷ ${a}`, [`${a} ÷ n`, `${a}n`], `Sharing n into ${a} groups is n ÷ ${a}.`],
+      ],
+      medium: [
+        () => [`${a} times n, then add ${b}`, `${a}n + ${b}`, [`${a}(n + ${b})`, a === b ? `n + ${a + b}` : `${b}n + ${a}`], `First ${a} times n is ${a}n, then add ${b}: ${a}n + ${b}.`],
+        () => [`${b} less than ${a} times n`, `${a}n − ${b}`, [`${b} − ${a}n`, `${a}(n − ${b})`], `Start with ${a}n, then take ${b} away: ${a}n − ${b}.`],
+        () => [`half of n, plus ${b}`, `n ÷ 2 + ${b}`, [`(n + ${b}) ÷ 2`, `2n + ${b}`], `Half of n is n ÷ 2. Then add ${b}.`],
+        () => [`n plus ${b}, then all of it times ${a}`, `${a}(n + ${b})`, [`${a}n + ${b}`, `${a} + n + ${b}`], `"All of it" means the brackets: ${a}(n + ${b}).`],
+        () => [`${a} times the sum of n and ${b}`, `${a}(n + ${b})`, [`${a}n + ${b}`, `${a} + n + ${b}`], `"The sum" is made first, so it goes in brackets: ${a}(n + ${b}).`],
+        () => [`the sum of n and ${b}, divided by ${a}`, `(n + ${b}) ÷ ${a}`, [`n + ${b} ÷ ${a}`, `${a} ÷ (n + ${b})`], `The whole sum is divided, so it needs brackets: (n + ${b}) ÷ ${a}.`],
+        () => [`${b} less than the square of n`, `n² − ${b}`, [`2n − ${b}`, `${b} − n²`], `The square of n is n × n, written n². Then take ${b} away.`],
+        () => [`the product of n and ${a}, decreased by ${b}`, `${a}n − ${b}`, [`${a}(n − ${b})`, `${b} − ${a}n`], `Product means multiply: ${a}n. Decreased by ${b}: ${a}n − ${b}.`],
+      ],
+      hard: [
+        () => [`the square of the sum of n and ${b}`, `(n + ${b})²`, [`n² + ${b}`, `n² + ${b * b}`], `The sum n + ${b} is formed first, then the whole sum is squared: (n + ${b})².`],
+        () => [`the difference of ${a}n and ${b}, halved`, `(${a}n − ${b}) ÷ 2`, [`${a}n − ${b} ÷ 2`, `${a}(n − ${b}) ÷ 2`], `The whole difference is halved, so it needs brackets: (${a}n − ${b}) ÷ 2.`],
+        () => [`the opposite of n, increased by ${b}`, `−n + ${b}`, [`−(n + ${b})`, `n − ${b}`], `The opposite of n is −n; increasing it by ${b} gives −n + ${b}.`],
+        () => [`${a} less than the cube of n`, `n³ − ${a}`, [`3n − ${a}`, `${a} − n³`], `The cube of n is n × n × n, written n³. ${a} less than it is n³ − ${a}.`],
+        () => [`the quotient of n and ${a}, squared`, `(n ÷ ${a})²`, [`n² ÷ ${a}`, `n ÷ ${a}²`], `The quotient n ÷ ${a} is found first and then squared, so it sits in brackets.`],
+        () => [`${a} times the difference of n and ${b}, plus n`, `${a}(n − ${b}) + n`, [`${a}n − ${b} + n`, `${a}(n − ${b} + n)`], `Only the difference is multiplied by ${a}; the extra n is added afterwards.`],
+        () => [`the mean (average) of n and ${b}`, `(n + ${b}) ÷ 2`, [`n + ${b} ÷ 2`, `2(n + ${b})`], `A mean adds the values and divides by how many there are: (n + ${b}) ÷ 2.`],
+        () => [`twice n, subtracted from ${a * 5}`, `${a * 5} − 2n`, [`2n − ${a * 5}`, `2(n − ${a * 5})`], `"Subtracted from ${a * 5}" means ${a * 5} comes first: ${a * 5} − 2n.`],
+      ],
+    };
+    const [words, ans, wrong, why] = pick(level === "medium" ? [...T.medium] : T[level])();
+    return {
+      draw(v) {
+        text(v, 500, 70, "Which expression means:", { "font-size": 32, fill: BROWN });
+        el("rect", { x: 70, y: 110, width: 860, height: 170, rx: 26, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, v);
+        lines(v, 500, 185, `“${words}”`, { size: 44, width: 34 });
+        const bag = el("g", {}, v);
+        el("path", { d: "M440 360q-50 0 -60 80q-6 70 120 70q126 0 120 -70q-10 -80 -60 -80z", fill: "#d9b48a", stroke: "#8a5a35", "stroke-width": 4 }, bag);
+        el("rect", { x: 455, y: 340, width: 90, height: 26, rx: 10, fill: "#a8632d" }, bag);
+        text(bag, 500, 470, "n", { "font-size": 64, fill: INK, "font-style": "italic" });
+        text(v, 790, 450, "n = a number", { "font-size": 28, fill: BROWN });
+        text(v, 790, 486, "we don't know yet", { "font-size": 28, fill: BROWN });
+      },
+      steps: [{ ask: `Which expression means “${words}”?`, options: shuffle([ans, ...wrong]), ans, hint: () => "Read the words slowly. What happens to n first? Which button says that?", why }],
+      why: "",
+      check: { kind, ans },
+    };
+  }
+  if (kind === "eval") {
+    let n;
+    let expr;
+    let work;
+    let ans;
+    const f = pickInt(0, 2);
+    if (level === "easy") {
+      n = pickInt(2, 9);
+      if (f === 0) [expr, ans, work] = [`n + ${b}`, n + b, `${n} + ${b} = ${n + b}`];
+      else if (f === 1) [expr, ans, work] = [`${a}n`, a * n, `${a} × ${n} = ${a * n}`];
+      else {
+        n = pickInt(b + 1, b + 12);
+        [expr, ans, work] = [`n − ${b}`, n - b, `${n} − ${b} = ${n - b}`];
+      }
+    } else if (level === "medium" && Math.random() < 0.5) {
+      n = pickInt(2, 12);
+      if (f === 0) [expr, ans, work] = [`${a}n + ${b}`, a * n + b, `${a} × ${n} + ${b} = ${a * n} + ${b} = ${a * n + b}`];
+      else if (f === 1) {
+        n = pickInt(3, 12);
+        b = pickInt(1, Math.min(9, a * n - 1));
+        [expr, ans, work] = [`${a}n − ${b}`, a * n - b, `${a} × ${n} − ${b} = ${a * n} − ${b} = ${a * n - b}`];
+      } else {
+        const k = pickInt(2, 9);
+        n = a * k;
+        [expr, ans, work] = [`n ÷ ${a} + ${b}`, k + b, `${n} ÷ ${a} + ${b} = ${k} + ${b} = ${k + b}`];
+      }
+    } else if (level === "hard") {
+      const c = pickInt(1, a - 1);
+      const g = pickInt(0, 3);
+      if (g === 0) {
+        n = pickInt(2, 12);
+        [expr, ans, work] = [`${a}(n + ${b}) − ${c}n`, a * (n + b) - c * n, `${a} × ${n + b} − ${c} × ${n} = ${a * (n + b)} − ${c * n} = ${a * (n + b) - c * n}`];
+      } else if (g === 1) {
+        n = pickInt(b + 1, b + 8);
+        const d = pickInt(1, 20);
+        [expr, ans, work] = [`n² − ${b}n + ${d}`, n * n - b * n + d, `${n * n} − ${b * n} + ${d} = ${n * n - b * n + d}`];
+      } else if (g === 2) {
+        n = pickInt(b + 1, b + 9);
+        [expr, ans, work] = [`(n − ${b})²`, (n - b) ** 2, `(${n} − ${b})² = ${n - b}² = ${(n - b) ** 2}`];
+      } else {
+        n = pickInt(2, 6);
+        [expr, ans, work] = [`n³ + ${b}`, n ** 3 + b, `${n} × ${n} × ${n} + ${b} = ${n ** 3} + ${b} = ${n ** 3 + b}`];
+      }
+    } else {
+      n = pickInt(2, 9);
+      if (f === 0) [expr, ans, work] = [`${a}(n + ${b})`, a * (n + b), `${a} × (${n} + ${b}) = ${a} × ${n + b} = ${a * (n + b)}`];
+      else if (f === 1) [expr, ans, work] = [`n² + ${b}`, n * n + b, `${n} × ${n} + ${b} = ${n * n} + ${b} = ${n * n + b}`];
+      else {
+        const k = pickInt(2, 9);
+        n = a * k - b;
+        if (n < 1) n += a * 2;
+        const kk = (n + b) / a;
+        [expr, ans, work] = [`(n + ${b}) ÷ ${a}`, kk, `(${n} + ${b}) ÷ ${a} = ${n + b} ÷ ${a} = ${kk}`];
+      }
+    }
+    let workText;
+    return {
+      draw(v) {
+        text(v, 500, 70, "Substitute: replace n with its value", { "font-size": 32, fill: BROWN });
+        el("rect", { x: 200, y: 100, width: 600, height: 130, rx: 26, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, v);
+        text(v, 500, 190, expr, { "font-size": 72, fill: INK });
+        const g = el("g", {}, v);
+        el("rect", { x: 330, y: 260, width: 340, height: 96, rx: 22, fill: "#ede5fb", stroke: PURPLE, "stroke-width": 4 }, g);
+        text(g, 500, 326, `n = ${n}`, { "font-size": 56, fill: PURPLE });
+        workText = text(v, 500, 450, "", { "font-size": 42, fill: GREEN });
+      },
+      steps: [
+        {
+          ask: `What is ${expr} when n = ${n}?`,
+          pad: true,
+          ans,
+          hint: () => `Replace n with ${n}. ${/\(/.test(expr) ? "Evaluate the brackets first." : /n³/.test(expr) ? "n³ means n × n × n." : /n²/.test(expr) ? "n² means n × n." : "By the agreed order of operations, multiply and divide before you add and subtract."} What do you get?`,
+          why: `${work}.`,
+          win: async (ctx) => {
+            workText.textContent = work;
+            await fadeIn(ctx.R, workText);
+          },
+          reveal: async (ctx) => {
+            workText.textContent = work;
+            await fadeIn(ctx.R, workText);
+          },
+        },
+      ],
+      why: `${work}.`,
+      check: { kind, expr, n, ans },
+    };
+  }
+  // tiles: collect like terms
+  let parts;
+  if (level === "easy") parts = [[pickInt(1, 3), "x"], [pickInt(1, 4), "1"], [pickInt(1, 3), "x"], [pickInt(1, 4), "1"]];
+  else if (level === "medium" && round % 2 === 0) parts = shuffle([[pickInt(1, 4), "x"], [pickInt(1, 5), "1"], [pickInt(1, 3), "x"], [pickInt(1, 5), "1"]]);
+  else {
+    const A = pickInt(3, 5);
+    const C = pickInt(1, A - 1);
+    const B = pickInt(1, 6);
+    const D = pickInt(1, 6);
+    parts = pick([
+      [[A, "x"], [B, "1"], [-C, "x"], [-D, "1"]],
+      [[B, "1"], [A, "x"], [-D, "1"], [-C, "x"]],
+      [[A, "x"], [-D, "1"], [-C, "x"], [B, "1"]],
+    ]);
+  }
+  const X = parts.filter((p) => p[1] === "x").reduce((s, p) => s + p[0], 0);
+  const U = parts.filter((p) => p[1] === "1").reduce((s, p) => s + p[0], 0);
+  const exprStr = parts.map(([c, t], i) => (i === 0 ? (t === "x" ? term(c) : fmt(c)) : `${c < 0 ? "−" : "+"} ${t === "x" ? term(Math.abs(c)) : Math.abs(c)}`)).join(" ");
+  const ans = poly(X, U);
+  const neg = parts.some((p) => p[0] < 0);
+  const absSum = parts.reduce((s, p) => s + Math.abs(p[0]), 0);
+  const opts = new Set([ans]);
+  if (neg) {
+    opts.add(poly(parts.filter((p) => p[1] === "x").reduce((s, p) => s + Math.abs(p[0]), 0), parts.filter((p) => p[1] === "1").reduce((s, p) => s + Math.abs(p[0]), 0)));
+    if (X + U > 0) opts.add(term(X + U));
+  } else {
+    opts.add(`${absSum}x`);
+    opts.add(poly(U, X));
+  }
+  const pool = [poly(X + 1, U), poly(X, U + 1), poly(X, U - 1)];
+  while (opts.size < 3) opts.add(pool.shift());
+  const tiles = [];
+  for (const [c, t] of parts) for (let k = 0; k < Math.abs(c); k++) tiles.push({ t, neg: c < 0 });
+  let nodes = [];
+  const place = (n, x, y) => n.setAttribute("transform", `translate(${x} ${y})`);
+  const sortTiles = async (ctx) => {
+    const xs = nodes.filter((n) => n.t === "x");
+    const us = nodes.filter((n) => n.t === "1");
+    const goal = new Map();
+    const lay = (list, x0, y, w) => {
+      const pos = list.filter((n) => !n.neg);
+      const neg = list.filter((n) => n.neg);
+      pos.forEach((n, i) => goal.set(n, [x0 + i * w, y]));
+      neg.forEach((n, i) => goal.set(n, [x0 + i * w, y + (n.t === "x" ? 150 : 70)]));
+    };
+    lay(xs, 70, 150, 56);
+    lay(us, 600, 210, 56);
+    const from = new Map(nodes.map((n) => [n, n.at]));
+    await ctx.R.tween(1100, (t) => nodes.forEach((n) => {
+      const [x1, y1] = from.get(n);
+      const [x2, y2] = goal.get(n);
+      place(n.g, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t);
+    }));
+    nodes.forEach((n) => (n.at = goal.get(n)));
+    // zero pairs vanish
+    const gone = [];
+    for (const t of ["x", "1"]) {
+      const pos = nodes.filter((n) => n.t === t && !n.neg);
+      const neg = nodes.filter((n) => n.t === t && n.neg);
+      for (let i = 0; i < Math.min(pos.length, neg.length); i++) gone.push(pos[i], neg[i]);
+    }
+    if (gone.length) {
+      await ctx.R.wait(500);
+      await ctx.R.tween(900, (t) => gone.forEach((n) => n.g.setAttribute("opacity", 1 - t * 0.85)));
+    }
+  };
+  let result;
+  return {
+    draw(v) {
+      text(v, 500, 70, exprStr, { "font-size": 52, fill: INK });
+      let x = 50;
+      for (const tile of tiles) {
+        const g = el("g", { class: "al-tile" }, v);
+        const color = tile.neg ? RED : tile.t === "x" ? GREEN : GOLD;
+        if (tile.t === "x") {
+          el("rect", { x: 0, y: 0, width: 44, height: 140, rx: 8, fill: color, stroke: "#fff", "stroke-width": 3 }, g);
+          text(g, 22, 82, tile.neg ? "−x" : "x", { "font-size": 30, fill: "#fff", "font-style": "italic" });
+        } else {
+          el("rect", { x: 0, y: 0, width: 44, height: 44, rx: 8, fill: color, stroke: "#fff", "stroke-width": 3 }, g);
+          text(g, 22, 33, tile.neg ? "−1" : "1", { "font-size": tile.neg ? 24 : 28, fill: tile.neg ? "#fff" : INK });
+        }
+        const at = [x, tile.t === "x" ? 160 : 256];
+        place(g, ...at);
+        nodes.push({ g, t: tile.t, neg: tile.neg, at });
+        x += Math.min(58, 900 / tiles.length);
+      }
+      text(v, 290, 520, "green x tile = x", { "font-size": 24, fill: GREEN });
+      text(v, 710, 520, neg ? "red = minus" : "yellow tile = 1", { "font-size": 24, fill: neg ? RED : "#a8632d" });
+      result = text(v, 500, 470, "", { "font-size": 46, fill: GREEN });
+    },
+    steps: [
+      {
+        ask: "Put the same tiles together. Which is the simpler expression?",
+        options: shuffle([...opts]),
+        ans,
+        hint: () => (neg ? "How many green x tiles? Each red −x cancels one green x. Do the same with the 1 tiles." : "Count only the green x tiles. Then count only the yellow 1 tiles. Can x tiles and 1 tiles join?"),
+        why: `${neg ? "Zero pairs cancel. " : "x tiles only join x tiles, and 1 tiles only join 1 tiles. "}${exprStr} = ${ans}.`,
+        win: async (ctx) => {
+          await sortTiles(ctx);
+          result.textContent = `= ${ans}`;
+          await fadeIn(ctx.R, result);
+        },
+        reveal: async (ctx) => {
+          await sortTiles(ctx);
+          result.textContent = `= ${ans}`;
+          await fadeIn(ctx.R, result);
+        },
+      },
+    ],
+    why: "Like terms join like terms.",
+    check: { kind, parts, ans, X, U },
+  };
+};
+
+// ---- Balance equations ----
+AL.makers.al2 = (level) => {
+  let bracket = null;
+  let L;
+  let Rt;
+  let x;
+  if (level === "easy") {
+    x = pickInt(2, 9);
+    if (Math.random() < 0.55) {
+      const b = pickInt(2, 8);
+      L = { x: 1, u: b };
+      Rt = { x: 0, u: x + b };
+    } else {
+      const a = pickInt(2, 4);
+      x = pickInt(2, a === 4 ? 5 : 6);
+      L = { x: a, u: 0 };
+      Rt = { x: 0, u: a * x };
+    }
+  } else if (level === "medium" && Math.random() < 0.5) {
+    const a = pickInt(2, 4);
+    x = pickInt(2, a === 4 ? 4 : 5);
+    const b = pickInt(1, Math.min(8, 20 - a * x));
+    L = { x: a, u: b };
+    Rt = { x: 0, u: a * x + b };
+  } else if (level === "hard" && Math.random() < 0.55) {
+    for (;;) {
+      const k = pickInt(2, 3);
+      const m = pickInt(1, 3);
+      const d = pickInt(0, 1);
+      x = pickInt(2, 5);
+      const e = (k - d) * x + k * m;
+      if (e <= 20) {
+        L = { x: k, u: k * m };
+        Rt = { x: d, u: e };
+        bracket = { k, m };
+        break;
+      }
+    }
+  } else {
+    for (;;) {
+      const d = pickInt(1, 2);
+      const a = d + pickInt(1, 2);
+      x = pickInt(2, 5);
+      const b = pickInt(1, 6);
+      const e = (a - d) * x + b;
+      if (e <= 14) {
+        L = { x: a, u: b };
+        Rt = { x: d, u: e };
+        break;
+      }
+    }
+  }
+  const start = { L: { ...L }, R: { ...Rt } };
+  const original = bracket ? `${bracket.k}(x + ${bracket.m}) = ${side(Rt)}` : `${side(L)} = ${side(Rt)}`;
+  const weight = (st) => [st.L.x * x + st.L.u, st.R.x * x + st.R.u];
+  let bal;
+  let eqText;
+  let checkText;
+  const steps = [];
+  let st = { L: { ...L }, R: { ...Rt } };
+  const moveStep = (kind, k) => {
+    const before = { L: { ...st.L }, R: { ...st.R } };
+    let after;
+    let removeSpec;
+    let oneSpec;
+    let labels;
+    let hint;
+    let why;
+    if (kind === "subX") {
+      after = { L: { x: before.L.x - k, u: before.L.u }, R: { x: before.R.x - k, u: before.R.u } };
+      removeSpec = { L: { x: k }, R: { x: k } };
+      oneSpec = { R: { x: k } };
+      labels = [`−${term(k)}: both sides`, `−${term(k)}: right only`, `−${k} 🟨: both sides`];
+      hint = (v) => (v === "one" ? "the scale tipped, because only one side changed. What operation keeps both sides equal?" : "Which things are on BOTH pans? Can we take the x boxes off?");
+      why = `There are x boxes on both sides. Take ${k === 1 ? "one" : k} off BOTH sides and the scale stays level.`;
+    } else if (kind === "subU") {
+      after = { L: { x: before.L.x, u: 0 }, R: { x: before.R.x, u: before.R.u - k } };
+      removeSpec = { L: { u: k }, R: { u: k } };
+      oneSpec = { L: { u: k } };
+      labels = [`−${k} 🟨: both sides`, `−${k} 🟨: left only`, `+${k} 🟨: both sides`];
+      hint = (v) => (v === "one" ? "the scale tipped, because only one side changed. What operation keeps both sides equal?" : "That keeps it level, but now even more cubes sit with x. What would leave x alone?");
+      why = `Take ${k} cubes off BOTH sides. The scale stays level, and the x boxes are left alone.`;
+    } else {
+      after = { L: { x: 1, u: 0 }, R: { x: 0, u: before.R.u / k } };
+      removeSpec = { L: { x: k - 1 }, R: { u: before.R.u - before.R.u / k } };
+      oneSpec = { L: { x: k - 1 } };
+      labels = [`÷${k}: both sides`, `÷${k}: left only`, `−${k} 🟨: both sides`];
+      hint = (v) => (v === "one" ? "the scale tipped. Whatever we do to one side, we must also do to…?" : `We want just ONE x box. If ${k} boxes balance ${before.R.u} cubes, what does one box balance?`);
+      why = `${k} boxes balance ${before.R.u} cubes. Share both sides into ${k} equal groups: 1 box balances ${before.R.u / k} cubes.`;
+    }
+    st = after;
+    const options = shuffle([
+      { label: labels[0], v: "ok" },
+      { label: labels[1], v: "one" },
+      { label: labels[2], v: "other" },
+    ]);
+    const finishMove = async (ctx) => {
+      await bal.remove(removeSpec);
+      bal.fill(after);
+      eqText.textContent = `${side(after.L)} = ${side(after.R)}`;
+      MUSIC.play("xylophone", 84, { gain: 0.35 });
+      await fadeIn(ctx.R, eqText, 500);
+    };
+    return {
+      ask: steps.length ? "Correct. What is the next move?" : `${original}. Which move keeps the balance level and brings x closer to standing alone?`,
+      options,
+      ans: "ok",
+      hint,
+      why,
+      miss: async (ctx, v) => {
+        if (v !== "one") return;
+        const tmp = JSON.parse(JSON.stringify(before));
+        if (oneSpec.L) {
+          tmp.L.x -= oneSpec.L.x || 0;
+          tmp.L.u -= oneSpec.L.u || 0;
+        }
+        if (oneSpec.R) {
+          tmp.R.x -= oneSpec.R.x || 0;
+          tmp.R.u -= oneSpec.R.u || 0;
+        }
+        if (kind === "div") tmp.L = { x: 1, u: 0 };
+        const [lw, rw] = weight(tmp);
+        await bal.wobble(oneSpec, Math.sign(rw - lw));
+      },
+      win: finishMove,
+      reveal: async () => {},
+    };
+  };
+  if (bracket) {
+    const { k, m } = bracket;
+    const good = `${k}x + ${k * m}`;
+    steps.push({
+      ask: `First expand (multiply out) the brackets. What equals ${k}(x + ${m})?`,
+      options: shuffle([good, `${k}x + ${m}`, `${k + m}x`]),
+      ans: good,
+      hint: () => `${k}(x + ${m}) means ${k} groups of (x + ${m}). Look at the left pan: how many x boxes and how many cubes are there?`,
+      why: `By the distributive law (multiplying each term inside the brackets), ${k}(x + ${m}) = ${k}x + ${k * m}: ${k} groups, each holding one x and ${m} cubes.`,
+      win: async (ctx) => {
+        eqText.textContent = `${side(L)} = ${side(Rt)}`;
+        await fadeIn(ctx.R, eqText, 500);
+      },
+    });
+  }
+  if (st.R.x > 0) steps.push(moveStep("subX", st.R.x));
+  if (st.L.u > 0) steps.push(moveStep("subU", st.L.u));
+  if (st.L.x > 1) steps.push(moveStep("div", st.L.x));
+  const sub = (s) => {
+    const p = [];
+    if (s.x) p.push(s.x === 1 ? `${x}` : `${s.x} × ${x}`);
+    if (s.u) p.push(`${s.u}`);
+    return p.join(" + ");
+  };
+  const lv = start.L.x * x + start.L.u;
+  const rv = start.R.x * x + start.R.u;
+  const leftSub = bracket ? `${bracket.k} × (${x} + ${bracket.m})` : sub(start.L);
+  const checkLine = start.R.x ? `Check: ${leftSub} = ${lv}, ${sub(start.R)} = ${rv} ✓` : `Check: ${leftSub} = ${lv} ✓`;
+  steps.push({
+    ask: "Now one x box balances the cubes. What is x?",
+    pad: true,
+    ans: x,
+    hint: () => "Look at the scale. One x box is on the left. How many cubes are on the right?",
+    why: `x = ${x}: one box balances ${x} cubes.`,
+    win: async (ctx) => {
+      eqText.textContent = `x = ${x}`;
+      eqText.setAttribute("fill", GREEN);
+      checkText.textContent = checkLine;
+      await fadeIn(ctx.R, checkText);
+    },
+  });
+  return {
+    draw(v, ctx) {
+      eqText = text(v, 500, 76, original, { "font-size": 58, fill: INK });
+      checkText = text(v, 500, 132, "", { "font-size": 32, fill: GREEN });
+      bal = balance(v, ctx.R);
+      bal.fill(start);
+    },
+    steps,
+    why: "You kept the scale level at every step.",
+    check: { x, L, R: Rt, original, bracket },
+  };
+};
+
+// ---- Patterns to rules ----
+AL.makers.al3 = (level, round) => {
+  // shape: "lin" (a·n + b), "sq" (n² + b) or "pr" (n(n + 1) + b)
+  let shape = "lin";
+  let a = 0;
+  let b;
+  if (level === "easy") {
+    a = pickInt(2, 4);
+    b = pickInt(0, 2);
+  } else if (level === "hard" && round % 2 === 0) {
+    shape = pick(["sq", "sq", "pr"]);
+    b = pickInt(0, 4);
+  } else {
+    a = pickInt(2, level === "hard" ? 7 : 5);
+    b = pickInt(level === "hard" ? 1 : 0, level === "hard" ? 6 : 4);
+  }
+  const f = shape === "lin" ? (n) => a * n + b : shape === "sq" ? (n) => n * n + b : (n) => n * (n + 1) + b;
+  const height = (k) => (shape === "lin" ? a : shape === "sq" ? k : k + 1);
+  const lin = (p, q) => poly(p, q, "n");
+  const ruleOf = shape === "lin" ? lin(a, b) : shape === "sq" ? `n²${b ? ` + ${b}` : ""}` : `n(n + 1)${b ? ` + ${b}` : ""}`;
+  let target;
+  let reverse = false;
+  if (level === "easy") target = pick([4, 5, 6]);
+  else if (level === "medium") {
+    reverse = round % 4 === 3;
+    target = reverse ? pickInt(12, 30) : pick([10, 12, 15, 20, 25]);
+  } else if (shape === "lin") {
+    reverse = round % 4 === 3;
+    target = reverse ? pickInt(20, 60) : pick([50, 75, 100, 250]);
+  } else {
+    reverse = round % 4 === 2;
+    target = reverse ? pickInt(6, 15) : pick([10, 12, 15, 20]);
+  }
+  let qText;
+  let cell;
+  const fill = () => {
+    qText.textContent = `${f(target)} dots`;
+    qText.setAttribute("fill", GREEN);
+    cell.textContent = reverse ? `${target}` : `${f(target)}`;
+    cell.setAttribute("fill", GREEN);
+  };
+  const steps = [];
+  const askRule = level === "hard" || (level === "medium" && round % 2 === 1);
+  if (askRule) {
+    const cands = shape === "lin"
+      ? [[lin(1, a + b - 1), (n) => n + a + b - 1], [lin(a + b, 0), (n) => (a + b) * n], [lin(a + 1, b - 1), (n) => (a + 1) * n + b - 1], [lin(a, b + 1), (n) => a * n + b + 1]]
+      : [[lin(f(2) - f(1), 2 * f(1) - f(2)), (n) => (f(2) - f(1)) * n + 2 * f(1) - f(2)], [`n²${b + 1 ? ` + ${b + 1}` : ""}`, (n) => n * n + b + 1], [`2n²${b - 1 > 0 ? ` + ${b - 1}` : b - 1 < 0 ? ` − ${1 - b}` : ""}`, (n) => 2 * n * n + b - 1], [shape === "sq" ? `n(n + 1)${b ? ` + ${b}` : ""}` : `n²${b ? ` + ${b}` : ""}`, shape === "sq" ? (n) => n * (n + 1) + b : (n) => n * n + b]];
+    const opts = new Set([ruleOf]);
+    for (const [label, fn] of shuffle(cands)) if (opts.size < 3 && label !== ruleOf && ![1, 2, 3].every((n) => fn(n) === f(n))) opts.add(label);
+    steps.push({
+      ask: "Which rule gives the number of dots in figure n?",
+      options: shuffle([...opts]),
+      ans: ruleOf,
+      hint: () => `Test each rule on figures 1, 2 and 3. A rule must give ${f(1)}, ${f(2)} and ${f(3)}; one success is not enough.`,
+      why:
+        shape === "lin"
+          ? `Each figure adds ${a} dots (the rate of growth), and ${b ? `${b} grey dot${b === 1 ? " is" : "s are"} always there` : "there are no extra grey dots"} (the constant is ${b}): ${ruleOf}.`
+          : shape === "sq"
+            ? `Figure n is an n by n square of dots${b ? ` plus ${b} grey` : ""}, so the rule is ${ruleOf}. The growth is not constant (it adds 3, then 5, then 7), so no rule of the form an + b fits.`
+            : `Figure n is a rectangle n wide and n + 1 tall${b ? ` plus ${b} grey` : ""}: ${ruleOf}. The growth increases each time, so a linear rule cannot fit.`,
+    });
+  }
+  const val = f(target);
+  let work;
+  if (shape === "lin") work = reverse ? `${lin(a, b)} = ${val}, so ${a}n = ${val - b}, and n = ${target}` : `${a} × ${target}${b ? ` + ${b}` : ""} = ${val}`;
+  else if (shape === "sq") work = reverse ? `n²${b ? ` + ${b}` : ""} = ${val}, so n² = ${val - b}, and n = ${target}` : `${target}²${b ? ` + ${b}` : ""} = ${target * target}${b ? ` + ${b}` : ""} = ${val}`;
+  else work = reverse ? `n(n + 1)${b ? ` + ${b}` : ""} = ${val}, so n(n + 1) = ${val - b} = ${target} × ${target + 1}, and n = ${target}` : `${target} × ${target + 1}${b ? ` + ${b}` : ""} = ${val}`;
+  steps.push({
+    ask: reverse ? `Which figure has ${val} dots?` : `How many dots are in figure ${target}?`,
+    pad: true,
+    ans: reverse ? target : val,
+    hint: () =>
+      level === "easy"
+        ? "How many dots does each new figure add? Continue the pattern from figure 3."
+        : reverse
+          ? `Run the rule ${ruleOf} backwards, undoing each operation in reverse order.`
+          : shape === "lin"
+            ? `Figure ${target} has ${target} columns of ${a}${b ? ` and ${b} grey dots` : ""}. Can you write that as a calculation?`
+            : `Describe figure ${target}: how wide is it, and how tall?`,
+    why: level === "easy" ? `Each figure adds ${a}. ${work} dots.` : `${work}.`,
+    win: async (ctx) => {
+      fill();
+      await ctx.R.wait(300);
+    },
+    reveal: async () => fill(),
+  });
+  return {
+    draw(v) {
+      const xs = [130, 330, 530];
+      for (let k = 1; k <= 3; k++) {
+        dotFigure(v, xs[k - 1], 280, k, height(k), b, { mark: shape === "lin" });
+        text(v, xs[k - 1], 330, `Figure ${k}`, { "font-size": 26, fill: BROWN });
+      }
+      el("rect", { x: 680, y: 70, width: 290, height: 250, rx: 24, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, v);
+      text(v, 825, 140, reverse ? "Figure ?" : `Figure ${target}`, { "font-size": 38, fill: INK });
+      qText = text(v, 825, 230, reverse ? `${val} dots` : "? dots", { "font-size": 42, fill: reverse ? INK : "var(--accent-dark)" });
+      text(v, 825, 290, askRule ? "Find the rule first" : "", { "font-size": 24, fill: BROWN });
+      const cols = [280, 390, 500, 610, 760];
+      el("rect", { x: 40, y: 370, width: 880, height: 160, rx: 20, fill: PAPER, stroke: "#e2d6c4", "stroke-width": 3 }, v);
+      el("line", { x1: 40, x2: 920, y1: 450, y2: 450, stroke: "#e2d6c4", "stroke-width": 3 }, v);
+      text(v, 70, 425, "Figure", { "font-size": 30, fill: BROWN, "text-anchor": "start" });
+      text(v, 70, 505, "Dots", { "font-size": 30, fill: BROWN, "text-anchor": "start" });
+      ["1", "2", "3", "…"].forEach((s, i) => text(v, cols[i], 425, s, { "font-size": 34, fill: INK }));
+      [f(1), f(2), f(3), "…"].forEach((s, i) => text(v, cols[i], 505, s, { "font-size": 34, fill: GREEN }));
+      const head = text(v, cols[4], 425, reverse ? "?" : target, { "font-size": 34, fill: reverse ? "var(--accent-dark)" : INK });
+      const low = text(v, cols[4], 505, reverse ? val : "?", { "font-size": 34, fill: reverse ? GREEN : "var(--accent-dark)" });
+      cell = reverse ? head : low;
+    },
+    steps,
+    why: `The rule is ${ruleOf}.`,
+    check: { shape, a, b, target, reverse, f, rule: ruleOf },
+  };
+};
+
+// ---- Negative numbers ----
+AL.makers.al4 = (level, round) => {
+  const plan = {
+    easy: ["temp", "elev", "temp", "cmp", "elev", "temp", "cmp", "elev"],
+    medium: ["add", "sub", "add", "cmp", "sub", "temp", "add", "sub"],
+    hard: ["sub", "mul", "multi", "cmp", "mul", "multi", "sub", "mul"],
+  }[level];
+  const kind = plan[round % 8];
+  let line;
+  let from;
+  let by;
+  let ans;
+  let story;
+  let expr;
+  let speak;
+  let opts;
+  let hint;
+  let why;
+  let counters = null;
+  let mulAlt = null;
+  let mid = null;
+  if (kind === "cmp") {
+    const p = pickInt(-9, -1);
+    let q = pickInt(-9, level === "easy" ? -1 : 6);
+    while (q === p) q = pickInt(-9, 6);
+    const word = level === "easy" ? "colder" : level === "medium" ? "warmer" : "greater";
+    ans = word === "warmer" || word === "greater" ? Math.max(p, q) : Math.min(p, q);
+    story = word === "greater" ? `Which is greater: ${fmt(p)} or ${fmt(q)}?` : `Which is ${word}: ${fmt(p)}° or ${fmt(q)}°?`;
+    opts = [p, q].sort((m, n) => m - n);
+    hint = () => `Find both numbers on the line. Which one is further ${word === "colder" ? "left" : "right"}?`;
+    why = `${fmt(ans)} is further ${word === "colder" ? "left" : "right"} on the number line, so it is ${word}.`;
+    return {
+      draw(v) {
+        el("rect", { x: 100, y: 60, width: 800, height: 170, rx: 26, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, v);
+        emoji(v, 180, 140, word === "greater" ? "⚖️" : "🌡️", 80);
+        text(v, 560, 165, story, { "font-size": story.length > 26 ? 40 : 46, fill: INK });
+        line = numberLine(v);
+        for (const n of [p, q]) {
+          dot(v, line.nx(n), line.y, PURPLE, 13);
+          text(v, line.nx(n), line.y - 30, fmt(n), { "font-size": 30, fill: PURPLE });
+        }
+      },
+      steps: [{ ask: story, options: opts.map((n) => ({ label: word === "greater" ? fmt(n) : `${fmt(n)}°`, v: n })), ans, hint, why }],
+      why: "Further right is greater. Further left is smaller.",
+      check: { kind, p, q, ans },
+    };
+  }
+  if (kind === "temp") {
+    const colder = Math.random() < 0.65;
+    if (colder) {
+      from = pickInt(-3, 8);
+      by = -pickInt(3, 9);
+      if (from + by < -10) by = -10 - from;
+      if (from + by >= 0) by = -(from + pickInt(1, 4));
+    } else {
+      from = pickInt(-9, -2);
+      by = pickInt(2, 9);
+      if (from + by > 10) by = 10 - from;
+    }
+    ans = from + by;
+    story = `It is ${fmt(from)}°. It gets ${Math.abs(by)}° ${by < 0 ? "colder" : "warmer"}.`;
+    expr = `${fmt(from)} ${by < 0 ? "−" : "+"} ${Math.abs(by)} = ?`;
+    hint = () => `${by < 0 ? "Colder means move left" : "Warmer means move right"} from ${fmt(from)}. Count ${Math.abs(by)} steps. Where do you land?`;
+    why = `Start at ${fmt(from)}, move ${Math.abs(by)} ${by < 0 ? "left" : "right"}: ${fmt(from)} ${by < 0 ? "−" : "+"} ${Math.abs(by)} = ${fmt(ans)}.`;
+  } else if (kind === "elev") {
+    const down = Math.random() < 0.65;
+    if (down) {
+      from = pickInt(-2, 6);
+      by = -pickInt(2, 8);
+      if (from + by >= 0) by = -(from + pickInt(1, 3));
+      if (from + by < -6) by = -6 - from;
+    } else {
+      from = pickInt(-6, -2);
+      by = pickInt(2, 9);
+    }
+    ans = from + by;
+    story = `The lift is on floor ${fmt(from)}. It goes ${by < 0 ? "down" : "up"} ${Math.abs(by)} floors.`;
+    expr = `${fmt(from)} ${by < 0 ? "−" : "+"} ${Math.abs(by)} = ?`;
+    hint = () => `Floor 0 is the ground. Below it are floors −1, −2… Go ${by < 0 ? "down (left)" : "up (right)"} ${Math.abs(by)} from ${fmt(from)}.`;
+    why = `${fmt(from)} ${by < 0 ? "−" : "+"} ${Math.abs(by)} = ${fmt(ans)}. ${ans < 0 ? `That is ${-ans} floor${ans === -1 ? "" : "s"} below the ground.` : ""}`;
+  } else if (kind === "add") {
+    let p;
+    let q;
+    do {
+      p = pickInt(-9, 9);
+      q = pickInt(-9, 9);
+    } while (!p || !q || (p > 0 && q > 0) || Math.abs(p + q) > 10 || (p < 0 && q < 0 && level === "medium"));
+    from = p;
+    by = q;
+    ans = p + q;
+    expr = `${fmt(p)} + ${par(q)} = ?`;
+    counters = [p, q];
+    hint = () => (p * q < 0 ? "Pair each yellow + with a red −. Each pair makes zero. What is left?" : "Both are negative: put the red counters together. How many reds?");
+    why = p * q < 0 ? `${Math.min(Math.abs(p), Math.abs(q))} zero pairs cancel, and ${fmt(ans)} is left. ${fmt(p)} + ${par(q)} = ${fmt(ans)}.` : `${-p} reds and ${-q} reds make ${-ans} reds: ${fmt(ans)}.`;
+  } else if (kind === "mul") {
+    let p;
+    let q;
+    do {
+      p = pickInt(-9, 9);
+      q = pickInt(-9, 9);
+    } while (!p || !q || (p > 0 && q > 0) || Math.abs(p) === 1 || Math.abs(q) === 1);
+    const div = Math.random() < 0.4;
+    from = null;
+    ans = div ? p : p * q;
+    expr = div ? `${fmt(p * q)} ÷ ${par(q)} = ?` : `${fmt(p)} × ${par(q)} = ?`;
+    const same = div ? p * q * q > 0 : p * q > 0;
+    hint = () => `First ${div ? "divide" : "multiply"} the sizes, ignoring signs. Then decide: are the two signs the same or different?`;
+    why = `${div ? `${Math.abs(p * q)} ÷ ${Math.abs(q)}` : `${Math.abs(p)} × ${Math.abs(q)}`} = ${Math.abs(ans)}. The signs are ${same ? "the same, so the answer is positive" : "different, so the answer is negative"}: ${fmt(ans)}.`;
+    // Give the reason, not only the sign rule.
+    const groups = q > 0 ? `${q} groups of ${fmt(p)} make ${fmt(p * q)}` : `${fmt(p)} × ${par(q)} = ${par(q)} × ${p}, and ${p} groups of ${fmt(q)} make ${fmt(p * q)}`;
+    const pattern = `${fmt(p)} × 1 = ${fmt(p)} and ${fmt(p)} × 0 = 0: each time the multiplier drops by 1, the product rises by ${-p}, so ${fmt(p)} × (−1) = ${-p}, and ${fmt(p)} × ${par(q)} = ${p * q}`;
+    const reason = div ? `Division undoes multiplication: ${fmt(ans)} × ${par(q)} = ${fmt(p * q)}.` : p * q > 0 ? `Why? ${pattern}.` : `Why? ${groups}.`;
+    why = `${why} ${reason}`;
+    mulAlt = div ? [-ans, p * q + q, ans + (ans > 0 ? 1 : -1)] : [-ans, p + q, p - q];
+  } else if (kind === "multi") {
+    let p;
+    let q;
+    let r;
+    do {
+      p = pickInt(-9, 9);
+      q = pickInt(-9, 9);
+      r = pickInt(-9, 9);
+    } while (!q || !r || Math.abs(p + q) > 10 || Math.abs(p + q - r) > 10 || !(q < 0 || r < 0) || p + q - r === 0);
+    from = p;
+    by = q - r;
+    mid = [q, -r];
+    ans = p + q - r;
+    expr = `${fmt(p)} + ${par(q)} − ${par(r)} = ?`;
+    hint = () => `Work from left to right. What is ${fmt(p)} + ${par(q)}? Then remember that subtracting ${par(r)} means adding ${par(-r)}.`;
+    why = `${fmt(p)} + ${par(q)} = ${fmt(p + q)}, and ${fmt(p + q)} − ${par(r)} = ${fmt(p + q)} + ${par(-r)} = ${fmt(ans)}.`;
+  } else {
+    let p;
+    let q;
+    do {
+      p = pickInt(-8, 8);
+      q = pickInt(-8, 8);
+    } while (!q || Math.abs(p - q) > 10 || !(p - q < 0 || q < 0));
+    from = p;
+    by = -q;
+    ans = p - q;
+    expr = `${fmt(p)} − ${par(q)} = ?`;
+    hint = () => `Subtracting is adding the opposite. ${fmt(p)} − ${par(q)} is the same as ${fmt(p)} + ${par(-q)}. Which way do you move?`;
+    why = `${fmt(p)} − ${par(q)} = ${fmt(p)} + ${par(-q)} = ${fmt(ans)}.`;
+  }
+  // options: the answer and common slips (sign flips, wrong direction)
+  const o = new Set([ans]);
+  for (const c of mulAlt || [-ans, from - by, -(from - by), ans + 1, ans - 1, ans + 2]) if (o.size < 4 && Math.abs(c) <= 100) o.add(c);
+  for (const c of [ans + 1, ans - 1, ans + 2]) if (o.size < 4) o.add(c);
+  opts = [...o].sort((m, n) => m - n);
+  let exprText;
+  const show = async (ctx) => {
+    if (counters) await pairUp(ctx);
+    else if (mid) {
+      await hops(ctx.view, ctx.R, line, from, mid[0]);
+      await hops(ctx.view, ctx.R, line, from + mid[0], mid[1]);
+    } else if (from !== null) await hops(ctx.view, ctx.R, line, from, by);
+    else await ctx.R.wait(400);
+    exprText.textContent = expr.replace("?", fmt(ans));
+    exprText.setAttribute("fill", GREEN);
+  };
+  let pieces = [];
+  const pairUp = async (ctx) => {
+    const [p, q] = counters;
+    const pos = pieces.filter((c) => c.s > 0);
+    const neg = pieces.filter((c) => c.s < 0);
+    const n = Math.min(pos.length, neg.length);
+    for (let i = 0; i < n; i++) {
+      const [a1, b1] = [pos[i], neg[i]];
+      const ring = el("line", { x1: a1.x, y1: a1.y, x2: b1.x, y2: b1.y, stroke: GREEN, "stroke-width": 5, "stroke-dasharray": "8 6" }, ctx.view);
+      MUSIC.play("xylophone", 79 + (i % 6) * 2, { gain: 0.3 });
+      await ctx.R.tween(450, (t) => {
+        a1.g.setAttribute("opacity", 1 - t * 0.85);
+        b1.g.setAttribute("opacity", 1 - t * 0.85);
+        ring.setAttribute("opacity", 1 - t);
+      });
+    }
+    await ctx.R.wait(300);
+    await hops(ctx.view, ctx.R, line, 0, ans);
+    void p;
+    void q;
+  };
+  speak = story ? `${story} What is it now?` : `What is ${expr.replace(" = ?", "")}?`;
+  return {
+    draw(v, ctx) {
+      line = numberLine(v);
+      if (story) {
+        el("rect", { x: 60, y: 30, width: 880, height: 150, rx: 26, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, v);
+        emoji(v, 140, 104, kind === "temp" ? (by < 0 ? "🥶" : "☀️") : "🛗", 76);
+        lines(v, 560, 92, story, { size: 36, width: 38 });
+        exprText = text(v, 500, 280, expr, { "font-size": 52, fill: INK });
+        dot(v, line.nx(from), line.y, PURPLE, 12);
+      } else {
+        if (kind === "mul") line.g.setAttribute("opacity", 0.35);
+        exprText = text(v, 500, 80, expr, { "font-size": 62, fill: INK });
+        if (counters) {
+          const [p, q] = counters;
+          const put = (n, x0, label) => {
+            text(v, x0 + 150, 140, label, { "font-size": 26, fill: BROWN });
+            for (let i = 0; i < Math.abs(n); i++) {
+              const x = x0 + 30 + (i % 6) * 52;
+              const y = 190 + Math.floor(i / 6) * 52;
+              const g = el("g", {}, v);
+              el("circle", { cx: x, cy: y, r: 22, fill: n > 0 ? GOLD : RED, stroke: n > 0 ? "#b07a12" : "#9b2f1f", "stroke-width": 3 }, g);
+              text(g, x, y + 10, n > 0 ? "+" : "−", { "font-size": 30, fill: n > 0 ? INK : "#fff" });
+              pieces.push({ g, x, y, s: Math.sign(n) });
+            }
+          };
+          put(p, 120, fmt(p));
+          put(q, 580, par(q));
+        } else {
+          el("rect", { x: 150, y: 140, width: 700, height: 110, rx: 22, fill: "#ede5fb", opacity: 0.6 }, v);
+          if (kind === "mul") {
+            text(v, 500, 186, "same signs → positive", { "font-size": 32, fill: PURPLE });
+            text(v, 500, 230, "different signs → negative", { "font-size": 32, fill: PURPLE });
+          } else text(v, 500, 210, "subtracting = adding the opposite", { "font-size": 32, fill: PURPLE });
+        }
+      }
+      void ctx;
+    },
+    steps: [
+      {
+        ask: story ? `${story} What is it now?` : `What is ${expr.replace(" = ?", "")}?`,
+        speak,
+        options: opts.map((n) => ({ label: kind === "temp" ? `${fmt(n)}°` : fmt(n), v: n })),
+        ans,
+        hint,
+        why,
+        win: show,
+        reveal: show,
+      },
+    ],
+    why: "",
+    check: { kind, from, by, ans, expr, mid },
+  };
+};
+
+// ---- Coordinate plane ----
+AL.makers.al5 = (level, round) => {
+  const plan = {
+    easy: ["plot", "plot", "plot", "name", "plot", "plot", "name", "plot"],
+    medium: ["plot", "rect", "name", "line", "plot", "rect", "name", "line"],
+    hard: ["reflect", "translate", "area", "rect", "reflect", "line", "translate", "area"],
+  }[level];
+  const kind = plan[round % 8];
+  const q1 = level === "easy";
+  const G = q1 ? { xmin: 0, xmax: 8, ymin: 0, ymax: 8, ox: 110, oy: 500, cell: 54 } : { xmin: -5, xmax: 5, ymin: -5, ymax: 5, ox: 300, oy: 278, cell: 44 };
+  const pt = (s) => `(${fmt(s[0])}, ${fmt(s[1])})`;
+  const rnd = () => {
+    if (q1) return [pickInt(1, 8), pickInt(1, 8)];
+    let p;
+    do p = [pickInt(-5, 5), pickInt(-5, 5)];
+    while (!p[0] || !p[1] || (level === "medium" && round < 2 && p[0] > 0 && p[1] > 0));
+    return p;
+  };
+  let gr;
+  let marks;
+  let card;
+  const tapper = (v, ctx, grid) => {
+    marks = el("g", {}, v);
+    const hit = el("rect", { class: "al-tap", x: grid.px(G.xmin) - G.cell / 2, y: grid.py(G.ymax) - G.cell / 2, width: (G.xmax - G.xmin + 1) * G.cell, height: (G.ymax - G.ymin + 1) * G.cell, fill: "transparent" }, v);
+    hit.addEventListener("pointerdown", (event) => {
+      const p = svgPoint(v, event);
+      const x = Math.round((p.x - G.ox) / G.cell);
+      const y = Math.round((G.oy - p.y) / G.cell);
+      if (x < G.xmin || x > G.xmax || y < G.ymin || y > G.ymax) return;
+      ctx.tap([x, y]);
+    });
+  };
+  const sideCard = (v, lines2) => {
+    card = el("g", {}, v);
+    const x0 = q1 ? 640 : 590;
+    el("rect", { x: x0, y: 70, width: 960 - x0, height: 300, rx: 24, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, card);
+    lines2.forEach(([s, size, color], i) => text(card, (x0 + 960) / 2, 150 + i * 70, s, { "font-size": size, fill: color || INK }));
+  };
+  const fit = () => fitRect(G.ox + G.xmin * G.cell - 60, G.oy - G.ymax * G.cell - 50, (G.xmax - G.xmin) * G.cell + 110, (G.ymax - G.ymin) * G.cell + 100);
+  const walk = async (ctx, [x, y], color = GREEN) => {
+    const path = el("path", { d: "", fill: "none", stroke: color, "stroke-width": 6, "stroke-linecap": "round", opacity: 0.8 }, marks);
+    await ctx.R.tween(700, (t) => path.setAttribute("d", `M${gr.px(0)} ${gr.py(0)}H${gr.px(x * t)}`));
+    await ctx.R.tween(700, (t) => path.setAttribute("d", `M${gr.px(0)} ${gr.py(0)}H${gr.px(x)}V${gr.py(y * t)}`));
+    dot(marks, gr.px(x), gr.py(y), color, 14);
+  };
+  const missTap = async (ctx, v) => {
+    const d = dot(marks, gr.px(v[0]), gr.py(v[1]), "#a99a88", 11);
+    const t = text(marks, gr.px(v[0]), gr.py(v[1]) - 20, pt(v), { "font-size": 24, fill: BROWN });
+    await ctx.R.wait(1800);
+    d.remove();
+    t.remove();
+  };
+  if (kind === "plot") {
+    const s = rnd();
+    return {
+      draw(v, ctx) {
+        gr = plane(v, G);
+        sideCard(v, [["Tap the point", 30, BROWN], [pt(s), 64], ["x across →", 28, BROWN], ["y up ↑", 28, BROWN]]);
+        tapper(v, ctx, gr);
+        if (fit()) card.setAttribute("display", "none");
+      },
+      steps: [
+        {
+          ask: `Tap the point ${pt(s)}.`,
+          tap: true,
+          test: (v) => v[0] === s[0] && v[1] === s[1],
+          hint: (v) => (v[0] === s[1] && v[1] === s[0] ? `you reversed the order. The x-coordinate comes first: go ${s[0] < 0 ? "left" : "right"} ${Math.abs(s[0])}, then ${s[1] < 0 ? "down" : "up"} ${Math.abs(s[1])}.` : `You tapped ${pt(v)}. Start at 0. Which way is x = ${fmt(s[0])}? Then which way is y = ${fmt(s[1])}?`),
+          why: `Start at 0, go ${s[0] < 0 ? "left" : "right"} ${Math.abs(s[0])}, then ${s[1] < 0 ? "down" : "up"} ${Math.abs(s[1])}.`,
+          miss: missTap,
+          win: (ctx) => walk(ctx, s),
+          reveal: (ctx) => walk(ctx, s, PURPLE),
+        },
+      ],
+      why: `That is ${pt(s)}.`,
+      check: { kind, s },
+    };
+  }
+  if (kind === "name") {
+    let s = rnd();
+    while (Math.abs(s[0]) === Math.abs(s[1])) s = rnd();
+    const o = new Set([pt(s), pt([s[1], s[0]])]);
+    for (const c of q1 ? [[s[0] + 1, s[1]], [s[0], s[1] - 1]] : [[-s[0], s[1]], [s[0], -s[1]], [-s[1], -s[0]]]) if (o.size < 4) o.add(pt(c));
+    return {
+      draw(v) {
+        gr = plane(v, G);
+        marks = el("g", {}, v);
+        dot(v, gr.px(s[0]), gr.py(s[1]), RED, 15);
+        sideCard(v, [["Name the", 30, BROWN], ["red point", 40], ["(x, y)", 36, PURPLE]]);
+        if (fit()) card.setAttribute("display", "none");
+      },
+      steps: [
+        {
+          ask: "What are the coordinates of the red point?",
+          options: shuffle([...o]),
+          ans: pt(s),
+          hint: () => "From 0, how far across is the point (x)? Then how far up or down (y)? Left and down are negative.",
+          why: `The point is ${Math.abs(s[0])} ${s[0] < 0 ? "left" : "right"} and ${Math.abs(s[1])} ${s[1] < 0 ? "down" : "up"}: ${pt(s)}.`,
+          win: (ctx) => walk(ctx, s),
+          reveal: (ctx) => walk(ctx, s, PURPLE),
+        },
+      ],
+      why: "x first, then y.",
+      check: { kind, s },
+    };
+  }
+  if (kind === "reflect" || kind === "translate") {
+    let s0;
+    let target;
+    let how;
+    let why2;
+    if (kind === "reflect") {
+      const axis = pick(["x", "y"]);
+      s0 = rnd();
+      target = axis === "x" ? [s0[0], -s0[1]] : [-s0[0], s0[1]];
+      how = `Reflect in the ${axis}-axis`;
+      why2 = `A reflection in the ${axis}-axis keeps the ${axis === "x" ? "x" : "y"}-coordinate and changes the sign of the ${axis === "x" ? "y" : "x"}-coordinate: ${pt(s0)} becomes ${pt(target)}.`;
+    } else {
+      let dx;
+      let dy;
+      do {
+        s0 = rnd();
+        dx = pickInt(-5, 5);
+        dy = pickInt(-5, 5);
+        target = [s0[0] + dx, s0[1] + dy];
+      } while (!dx || !dy || Math.abs(target[0]) > 5 || Math.abs(target[1]) > 5);
+      how = `Move ${Math.abs(dx)} ${dx < 0 ? "left" : "right"}, ${Math.abs(dy)} ${dy < 0 ? "down" : "up"}`;
+      why2 = `A translation (a slide) adds to each coordinate: ${fmt(s0[0])} + ${par(dx)} = ${fmt(target[0])} and ${fmt(s0[1])} + ${par(dy)} = ${fmt(target[1])}, giving ${pt(target)}.`;
+    }
+    return {
+      draw(v, ctx) {
+        gr = plane(v, G);
+        if (kind === "reflect") {
+          const axisLine = how.endsWith("x-axis") ? { x1: gr.px(-5), x2: gr.px(5), y1: gr.py(0), y2: gr.py(0) } : { x1: gr.px(0), x2: gr.px(0), y1: gr.py(-5), y2: gr.py(5) };
+          el("line", { ...axisLine, stroke: PURPLE, "stroke-width": 7, opacity: 0.5 }, v);
+        }
+        dot(v, gr.px(s0[0]), gr.py(s0[1]), BLUE, 14);
+        text(v, gr.px(s0[0]), gr.py(s0[1]) - 22, pt(s0), { "font-size": 24, fill: INK });
+        sideCard(v, [[kind === "reflect" ? "Reflection" : "Translation", 34], [how, 24, BROWN], [`Start ${pt(s0)}`, 30, BLUE], ["Tap the image", 26, BROWN]]);
+        tapper(v, ctx, gr);
+        if (fit()) card.setAttribute("display", "none");
+      },
+      steps: [
+        {
+          ask: `${how}: tap where ${pt(s0)} lands.`,
+          tap: true,
+          test: (v) => v[0] === target[0] && v[1] === target[1],
+          hint: () => (kind === "reflect" ? "Imagine folding the grid along the purple axis. Which coordinate stays the same, and which changes sign?" : "Treat the two moves separately. Which coordinate does a left or right move change? Which does up or down change?"),
+          why: why2,
+          miss: missTap,
+          win: (ctx) => walk(ctx, target),
+          reveal: (ctx) => walk(ctx, target, PURPLE),
+        },
+      ],
+      why: `The image is ${pt(target)}.`,
+      check: { kind, s: s0, target },
+    };
+  }
+  if (kind === "area") {
+    let x1;
+    let x2;
+    let y1;
+    let y2;
+    do {
+      x1 = pickInt(-5, 3);
+      x2 = pickInt(x1 + 2, 5);
+      y1 = pickInt(-5, 3);
+      y2 = pickInt(y1 + 2, 5);
+    } while (!(x1 < 0 && y1 < 0));
+    const perim = Math.random() < 0.35;
+    const w = x2 - x1;
+    const h = y2 - y1;
+    const ans = perim ? 2 * (w + h) : w * h;
+    const cs = [[x1, y1], [x2, y1], [x2, y2], [x1, y2]];
+    return {
+      draw(v) {
+        gr = plane(v, G);
+        marks = el("g", {}, v);
+        el("polygon", { points: cs.map((c) => `${gr.px(c[0])},${gr.py(c[1])}`).join(" "), fill: "var(--accent-soft)", opacity: 0.7, stroke: BLUE, "stroke-width": 4 }, v);
+        for (const c of cs) {
+          dot(v, gr.px(c[0]), gr.py(c[1]), BLUE, 11);
+          text(v, gr.px(c[0]), gr.py(c[1]) + (c[1] === y1 ? 34 : -18), pt(c), { "font-size": 22, fill: INK });
+        }
+        sideCard(v, [["Rectangle", 34], [perim ? "Find its perimeter" : "Find its area", 30, BROWN], ["1 square = 1 unit", 24, BROWN]]);
+        if (fit()) card.setAttribute("display", "none");
+      },
+      steps: [
+        {
+          ask: `Use the coordinates of the corners. What is the ${perim ? "perimeter" : "area"} of the rectangle?`,
+          pad: true,
+          ans,
+          hint: () => "The width is the distance between the two x-coordinates; the height is the distance between the two y-coordinates. Distance across zero adds both parts.",
+          why: `Width = ${fmt(x2)} − ${par(x1)} = ${w}; height = ${fmt(y2)} − ${par(y1)} = ${h}. ${perim ? `Perimeter = 2 × (${w} + ${h}) = ${ans}` : `Area = ${w} × ${h} = ${ans} square units`}.`,
+        },
+      ],
+      why: "Distance between coordinates is the larger minus the smaller.",
+      check: { kind, x1, x2, y1, y2, perim, ans },
+    };
+  }
+  if (kind === "rect") {
+    let x1;
+    let x2;
+    let y1;
+    let y2;
+    do {
+      x1 = pickInt(-5, 4);
+      x2 = pickInt(x1 + 2, 5);
+      y1 = pickInt(-5, 4);
+      y2 = pickInt(y1 + 2, 5);
+    } while (!(x1 < 0 || y1 < 0));
+    const corners = shuffle([[x1, y1], [x2, y1], [x2, y2], [x1, y2]]);
+    const miss4 = corners[3];
+    const shown = corners.slice(0, 3);
+    return {
+      draw(v, ctx) {
+        gr = plane(v, G);
+        const order = [[x1, y1], [x2, y1], [x2, y2], [x1, y2]];
+        const i = order.findIndex((c) => c[0] === miss4[0] && c[1] === miss4[1]);
+        const path = [order[(i + 1) % 4], order[(i + 2) % 4], order[(i + 3) % 4]];
+        el("polyline", { points: path.map((c) => `${gr.px(c[0])},${gr.py(c[1])}`).join(" "), fill: "none", stroke: BLUE, "stroke-width": 5 }, v);
+        for (const c of shown) {
+          dot(v, gr.px(c[0]), gr.py(c[1]), BLUE, 13);
+          text(v, gr.px(c[0]), gr.py(c[1]) + (c[1] === y1 ? 34 : -20), pt(c), { "font-size": 24, fill: INK });
+        }
+        sideCard(v, [["Make a", 30, BROWN], ["rectangle", 44], ["Tap the 4th corner", 28, BROWN]]);
+        tapper(v, ctx, gr);
+        if (fit()) card.setAttribute("display", "none");
+      },
+      steps: [
+        {
+          ask: "Three corners of a rectangle are shown. Tap the fourth corner.",
+          tap: true,
+          test: (v) => v[0] === miss4[0] && v[1] === miss4[1],
+          hint: () => "A rectangle's sides go straight across and straight up. Which x is used by two corners? Which y?",
+          why: `Each x and each y is used by two corners, so the last corner is ${pt(miss4)}.`,
+          miss: missTap,
+          win: async (ctx) => {
+            dot(marks, gr.px(miss4[0]), gr.py(miss4[1]), GREEN, 14);
+            const poly2 = el("polygon", { points: [[x1, y1], [x2, y1], [x2, y2], [x1, y2]].map((c) => `${gr.px(c[0])},${gr.py(c[1])}`).join(" "), fill: "var(--accent-soft)", opacity: 0, stroke: GREEN, "stroke-width": 4 }, marks);
+            await ctx.R.tween(700, (t) => poly2.setAttribute("opacity", 0.6 * t));
+          },
+          reveal: async (ctx) => {
+            dot(marks, gr.px(miss4[0]), gr.py(miss4[1]), PURPLE, 14);
+            await ctx.R.wait(400);
+          },
+        },
+      ],
+      why: `The corner is ${pt(miss4)}.`,
+      check: { kind, miss4, shown },
+    };
+  }
+  // line graph: a plant grows a cm each week from b cm
+  const a = pickInt(1, 2);
+  const b = pickInt(1, 4);
+  const k = pickInt(3, 7);
+  const LG = { xmin: 0, xmax: 8, ymin: 0, ymax: 20, ystep: 2, ox: 120, oy: 500, cell: 54, ycell: 43 };
+  return {
+    draw(v) {
+      gr = plane(v, LG);
+      marks = el("g", {}, v);
+      const pts = [];
+      for (let x = 0; x <= 8; x++) if (a * x + b <= 20) pts.push([x, a * x + b]);
+      el("polyline", { points: pts.map((p) => `${gr.px(p[0])},${gr.py(p[1])}`).join(" "), fill: "none", stroke: GREEN, "stroke-width": 5 }, v);
+      for (const p of pts) dot(v, gr.px(p[0]), gr.py(p[1]), GREEN, 8);
+      text(v, gr.px(4), 548, "weeks", { "font-size": 24, fill: BROWN });
+      text(v, 40, 50, "cm", { "font-size": 24, fill: BROWN });
+      el("rect", { x: 640, y: 70, width: 320, height: 300, rx: 24, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, v);
+      emoji(v, 800, 140, "🌱", 70);
+      text(v, 800, 240, "How tall after", { "font-size": 30, fill: BROWN });
+      text(v, 800, 300, `${k} weeks?`, { "font-size": 44, fill: INK });
+    },
+    steps: [
+      {
+        ask: `The graph shows a plant growing. How tall is it after ${k} weeks, in cm?`,
+        pad: true,
+        ans: a * k + b,
+        hint: () => `Find ${k} on the weeks line. Go straight up to the green line, then straight across to the cm numbers.`,
+        why: `At week ${k} the line is at ${a * k + b} cm. It starts at ${b} and grows ${a} each week: ${b} + ${a} × ${k} = ${a * k + b}.`,
+        win: async (ctx) => {
+          const y = a * k + b;
+          const path = el("path", { d: "", fill: "none", stroke: PURPLE, "stroke-width": 4, "stroke-dasharray": "10 6" }, marks);
+          await ctx.R.tween(900, (t) => path.setAttribute("d", `M${gr.px(k)} ${gr.py(0)}V${gr.py(y * t)}`));
+          await ctx.R.tween(900, (t) => path.setAttribute("d", `M${gr.px(k)} ${gr.py(0)}V${gr.py(y)}H${gr.px(k - k * t)}`));
+          text(marks, gr.px(k) + 14, gr.py(y) - 14, `${y} cm`, { "font-size": 28, fill: PURPLE, "text-anchor": "start" });
+        },
+      },
+    ],
+    why: "Reading a graph: across first, then up, then across to the scale.",
+    check: { kind, a, b, k },
+  };
+};
+
+// ---- Word problems ----
+AL.makers.al6 = (level, round) => {
+  const T = {
+    easy: [
+      () => {
+        const p = pickInt(5, 30);
+        const k = pickInt(3, 12);
+        const t = p + k;
+        return { story: `A box of crayons and ${k} loose crayons make ${t} crayons in all. How many crayons are in the box?`, eq: `n + ${k} = ${t}`, wrong: [`n − ${k} = ${t}`, `${k}n = ${t}`], ans: p, work: [`n + ${k} = ${t}`, `n = ${t} − ${k}`, `n = ${p}`], check: `${p} + ${k} = ${t} ✓`, ok: (n) => n + k === t };
+      },
+      () => {
+        const g = pickInt(3, 9);
+        const e = pickInt(3, 12);
+        return { story: `${g} bags hold ${g * e} apples in all, the same number in each bag. How many apples are in one bag?`, eq: `${g}n = ${g * e}`, wrong: [`n + ${g} = ${g * e}`, `n ÷ ${g} = ${g * e}`], ans: e, work: [`${g}n = ${g * e}`, `n = ${g * e} ÷ ${g}`, `n = ${e}`], check: `${g} × ${e} = ${g * e} ✓`, ok: (n) => g * n === g * e };
+      },
+      () => {
+        const n0 = pickInt(4, 40);
+        const k = pickInt(5, 20);
+        return { story: `I think of a number. I add ${k} and get ${n0 + k}. What is my number?`, eq: `n + ${k} = ${n0 + k}`, wrong: [`n − ${k} = ${n0 + k}`, `${k}n = ${n0 + k}`], ans: n0, work: [`n + ${k} = ${n0 + k}`, `n = ${n0 + k} − ${k}`, `n = ${n0}`], check: `${n0} + ${k} = ${n0 + k} ✓`, ok: (n) => n + k === n0 + k };
+      },
+      () => {
+        const k = pickInt(3, 11);
+        const n0 = pickInt(k + 4, 40);
+        return { story: `You had some stickers. You gave away ${k} and have ${n0 - k} left. How many did you have at first?`, eq: `n − ${k} = ${n0 - k}`, wrong: [`n + ${k} = ${n0 - k}`, `${k} − n = ${n0 - k}`], ans: n0, work: [`n − ${k} = ${n0 - k}`, `n = ${n0 - k} + ${k}`, `n = ${n0}`], check: `${n0} − ${k} = ${n0 - k} ✓`, ok: (n) => n - k === n0 - k };
+      },
+      () => {
+        const g = pickInt(3, 8);
+        const e = pickInt(4, 12);
+        return { story: `A ribbon is cut into ${g} equal pieces. Each piece is ${e} cm long. How long was the ribbon?`, eq: `n ÷ ${g} = ${e}`, wrong: [`${g}n = ${e}`, `n − ${g} = ${e}`], ans: g * e, work: [`n ÷ ${g} = ${e}`, `n = ${e} × ${g}`, `n = ${g * e}`], check: `${g * e} ÷ ${g} = ${e} ✓`, ok: (n) => n / g === e };
+      },
+    ],
+    medium: [
+      () => {
+        const n0 = pickInt(3, 15);
+        const a = pickInt(2, 5);
+        let b = pickInt(2, 12);
+        if (b === a) b += 1;
+        const t = a * n0 + b;
+        return { story: `I think of a number. I multiply it by ${a}, then add ${b}. I get ${t}. What is my number?`, eq: `${a}n + ${b} = ${t}`, wrong: [`${a}(n + ${b}) = ${t}`, `${b}n + ${a} = ${t}`], ans: n0, work: [`${a}n + ${b} = ${t}`, `${a}n = ${t - b}   (take ${b} from both sides)`, `n = ${n0}   (split into ${a} groups)`], check: `${a} × ${n0} + ${b} = ${t} ✓`, ok: (n) => a * n + b === t };
+      },
+      () => {
+        const f = pickInt(3, 8);
+        let r = pickInt(2, 5);
+        if (r === f) r += 1;
+        const n0 = pickInt(3, 9);
+        const t = f + r * n0;
+        return { story: `Entry to a fair costs $${f}. Each ride costs $${r}. You spend $${t} in all. How many rides did you go on?`, eq: `${f} + ${r}n = ${t}`, wrong: [`${r} + ${f}n = ${t}`, `${f + r}n = ${t}`], ans: n0, work: [`${f} + ${r}n = ${t}`, `${r}n = ${t - f}   (take ${f} from both sides)`, `n = ${n0}   (split into ${r} groups)`], check: `${f} + ${r} × ${n0} = ${t} ✓`, ok: (n) => f + r * n === t };
+      },
+      () => {
+        const k = pickInt(3, 5);
+        const lo = Math.ceil(24 / k);
+        const hi = Math.floor(45 / k);
+        const c = pickInt(lo, hi);
+        const t = c * (k + 1);
+        return { story: `A mother is ${k} times as old as her son. Together they are ${t} years old. How old is the son?`, eq: `n + ${k}n = ${t}`, wrong: [`${k}n = ${t}`, `n + ${k} = ${t}`], ans: c, work: [`n + ${k}n = ${t}`, `${k + 1}n = ${t}`, `n = ${c}`], check: `${c} + ${k * c} = ${t} ✓ (mother ${k * c})`, ok: (n) => n + k * n === t };
+      },
+      () => {
+        const s = pickInt(5, 30);
+        const d = pickInt(2, 12);
+        const t = 2 * s + d;
+        return { story: `Two numbers add up to ${t}. One is ${d} more than the other. What is the smaller number?`, eq: `n + (n + ${d}) = ${t}`, wrong: [`n + ${d} = ${t}`, `2n = ${t}`], ans: s, work: [`n + n + ${d} = ${t}`, `2n = ${t - d}`, `n = ${s}`], check: `${s} + ${s + d} = ${t} ✓`, ok: (n) => n + n + d === t };
+      },
+      () => {
+        const w = pickInt(3, 12);
+        const d = pickInt(2, 8);
+        const P = 2 * (2 * w + d);
+        return { story: `A rectangle is ${d} cm longer than it is wide. Its perimeter is ${P} cm. How wide is it?`, eq: `2(n + n + ${d}) = ${P}`, wrong: [`n + n + ${d} = ${P}`, `4n = ${P}`], ans: w, work: [`2(2n + ${d}) = ${P}`, `2n + ${d} = ${P / 2}`, `2n = ${P / 2 - d},  n = ${w}`], check: `2 × (${w} + ${w + d}) = ${P} ✓`, ok: (n) => 2 * (n + n + d) === P };
+      },
+      () => {
+        let n0;
+        let a;
+        let b;
+        let c;
+        do {
+          n0 = pickInt(4, 20);
+          a = pickInt(2, 4);
+          b = pickInt(1, 9);
+          c = (a - 1) * n0 - b;
+        } while (c < 2 || c > 40);
+        return { story: `I think of a number. If I multiply it by ${a} and subtract ${b}, I get the same as when I add ${c} to it. What is my number?`, eq: `${a}n − ${b} = n + ${c}`, wrong: [`${a}n + ${b} = n + ${c}`, `${a}n − ${b} = ${c}`], ans: n0, work: [`${a}n − ${b} = n + ${c}`, `${a - 1}n − ${b} = ${c}   (take n from both sides)`, `${a - 1}n = ${c + b},  n = ${n0}`], check: `${a} × ${n0} − ${b} = ${a * n0 - b} and ${n0} + ${c} = ${n0 + c} ✓`, ok: (n) => a * n - b === n + c };
+      },
+      () => {
+        const n0 = pickInt(8, 40);
+        const t = 3 * n0 + 3;
+        return { story: `Three counting numbers in a row add up to ${t}. What is the smallest one?`, eq: `n + (n + 1) + (n + 2) = ${t}`, wrong: [`3n + 1 = ${t}`, `n + 1 + 2 = ${t}`], ans: n0, work: [`3n + 3 = ${t}`, `3n = ${t - 3}`, `n = ${n0}`], check: `${n0} + ${n0 + 1} + ${n0 + 2} = ${t} ✓`, ok: (n) => n + n + 1 + n + 2 === t };
+      },
+    ],
+    hard: [
+      () => {
+        let k;
+        let C;
+        let n0;
+        let G;
+        do {
+          k = pickInt(2, 4);
+          C = pickInt(3, 12);
+          n0 = pickInt(2, 20);
+          G = k * (C + n0) - n0;
+        } while (G < 55 || G > 90);
+        return { story: `A grandpa is ${G} and a child is ${C}. In how many years will the grandpa be ${k} times as old as the child?`, eq: `${G} + n = ${k}(${C} + n)`, wrong: [`${G} + n = ${k} × ${C}`, `${G} = ${k}(${C} + n)`], ans: n0, work: [`${G} + n = ${k * C} + ${k}n`, `${G - k * C} = ${k - 1}n   (take n and ${k * C} from both sides)`, `n = ${n0}`], check: `In ${n0} years: ${G + n0} and ${C + n0}. ${C + n0} × ${k} = ${G + n0} ✓`, ok: (n) => G + n === k * (C + n) };
+      },
+      () => {
+        let c;
+        let t;
+        let k;
+        let D;
+        do {
+          c = pickInt(4, 12);
+          t = pickInt(2, 8);
+          k = pickInt(2, 3);
+          D = (k - 1) * (c + t);
+        } while (c + D < 24 || c + D > 50);
+        return { story: `A parent is ${D} years older than a child. In ${t} years, the parent will be ${k} times as old as the child. How old is the child now?`, eq: `n + ${D + t} = ${k}(n + ${t})`, wrong: [`n + ${D} = ${k}n`, `n + ${D + t} = ${k}n + ${t}`], ans: c, work: [`n + ${D + t} = ${k}n + ${k * t}`, `${D + t - k * t} = ${k - 1}n`, `n = ${c}`], check: `In ${t} years: child ${c + t}, parent ${c + D + t} = ${k} × ${c + t} ✓`, ok: (n) => n + D + t === k * (n + t) };
+      },
+      () => {
+        const N = pickInt(8, 20);
+        let t = pickInt(2, N - 2);
+        if (t * 2 === N) t += 1;
+        const V = 10 * t + 5 * (N - t);
+        return { story: `You have ${N} coins. Some are 5¢ and the rest are 10¢. Together they make ${V}¢. How many 10¢ coins are there?`, eq: `10n + 5(${N} − n) = ${V}`, wrong: [`10n + 5n = ${V}`, `10n + 5 × ${N} = ${V}`], ans: t, work: [`10n + ${5 * N} − 5n = ${V}`, `5n = ${V - 5 * N}`, `n = ${t}`], check: `${t} × 10¢ + ${N - t} × 5¢ = ${10 * t + 5 * (N - t)}¢ ✓`, ok: (n) => 10 * n + 5 * (N - n) === V };
+      },
+      () => {
+        const v1 = pickInt(8, 14) * 5;
+        const v2 = pickInt(8, 16) * 5;
+        const t = pickInt(2, 5);
+        const D = (v1 + v2) * t;
+        return { story: `Two trains start ${D} km apart and travel toward each other, one at ${v1} km/h and the other at ${v2} km/h. After how many hours do they meet?`, eq: `${v1}n + ${v2}n = ${D}`, wrong: [`${v1}n = ${v2}n + ${D}`, `${v1 + v2} + n = ${D}`], ans: t, work: [`${v1}n + ${v2}n = ${D}`, `${v1 + v2}n = ${D}   (the gap closes ${v1 + v2} km each hour)`, `n = ${t}`], check: `${v1} × ${t} + ${v2} × ${t} = ${D} km ✓`, ok: (n) => v1 * n + v2 * n === D };
+      },
+      () => {
+        const A = pickInt(9, 16);
+        const C = pickInt(4, A - 3);
+        const N = pickInt(12, 30);
+        let k = pickInt(2, N - 2);
+        if (2 * k === N) k += 1;
+        const V = A * k + C * (N - k);
+        return { story: `A school play sold ${N} tickets. Adult tickets cost $${A} and child tickets cost $${C}. Sales totalled $${V}. How many adult tickets were sold?`, eq: `${A}n + ${C}(${N} − n) = ${V}`, wrong: [`${A}n + ${C}n = ${V}`, `${A}n + ${C} × ${N} = ${V}`], ans: k, work: [`${A}n + ${C * N} − ${C}n = ${V}`, `${A - C}n = ${V - C * N}`, `n = ${k}`], check: `${k} × $${A} + ${N - k} × $${C} = $${V} ✓`, ok: (n) => A * n + C * (N - n) === V };
+      },
+      () => {
+        let n0;
+        let d;
+        do {
+          n0 = pickInt(3, 20);
+          d = pickInt(1, 15);
+        } while (d >= 2 * n0);
+        const P = 4 * n0 + d;
+        return { story: `In a triangle, one side is twice the shortest side and the third side is ${d} cm longer than the shortest. The perimeter is ${P} cm. How long is the shortest side?`, eq: `n + 2n + (n + ${d}) = ${P}`, wrong: [`n + 2 + n + ${d} = ${P}`, `2n + ${d} = ${P}`], ans: n0, work: [`4n + ${d} = ${P}`, `4n = ${P - d}`, `n = ${n0}`], check: `${n0} + ${2 * n0} + ${n0 + d} = ${P} ✓`, ok: (n) => n + 2 * n + n + d === P };
+      },
+      () => {
+        const n0 = pickInt(5, 40) * 2;
+        const S = 3 * n0 + 6;
+        return { story: `Three consecutive even numbers (even numbers in a row, such as 10, 12, 14) add up to ${S}. What is the smallest?`, eq: `n + (n + 2) + (n + 4) = ${S}`, wrong: [`n + (n + 1) + (n + 2) = ${S}`, `3n + 2 = ${S}`], ans: n0, work: [`3n + 6 = ${S}`, `3n = ${S - 6}`, `n = ${n0}`], check: `${n0} + ${n0 + 2} + ${n0 + 4} = ${S} ✓`, ok: (n) => 3 * n + 6 === S };
+      },
+      () => {
+        let M;
+        let r;
+        do {
+          M = pickInt(70, 90);
+          r = pickInt(1, 4);
+        } while (M + 5 * r > 100);
+        return { story: `The mean (average) of your 4 test scores is ${M}. What must you score on the 5th test to raise the mean to exactly ${M + r}?`, eq: `(${4 * M} + n) ÷ 5 = ${M + r}`, wrong: [`(${M} + n) ÷ 2 = ${M + r}`, `${4 * M} + n = ${M + r}`], ans: M + 5 * r, work: [`The 4 scores total 4 × ${M} = ${4 * M}`, `${4 * M} + n = 5 × ${M + r} = ${5 * (M + r)}`, `n = ${M + 5 * r}`], check: `(${4 * M} + ${M + 5 * r}) ÷ 5 = ${M + r} ✓`, ok: (n) => (4 * M + n) / 5 === M + r };
+      },
+      () => {
+        let n0;
+        let a;
+        let b;
+        let c;
+        let d;
+        do {
+          n0 = pickInt(3, 15);
+          a = pickInt(4, 7);
+          c = pickInt(2, a - 1);
+          b = pickInt(1, 20);
+          d = (a - c) * n0 + b;
+          // The wrong equations must not happen to share the answer.
+        } while (d > 99 || (a + c) * n0 === b + d || a * n0 + b === c + d * n0);
+        return { story: `${a} times a mystery number, plus ${b}, equals ${c} times the same number, plus ${d}. What is the number?`, eq: `${a}n + ${b} = ${c}n + ${d}`, wrong: [`${a}n + ${b} = ${c} + ${d}n`, `${a + c}n = ${b + d}`], ans: n0, work: [`${a}n + ${b} = ${c}n + ${d}`, `${a - c}n + ${b} = ${d}   (take ${c}n from both sides)`, `${a - c}n = ${d - b},  n = ${n0}`], check: `${a} × ${n0} + ${b} = ${a * n0 + b} = ${c} × ${n0} + ${d} ✓`, ok: (n) => a * n + b === c * n + d };
+      },
+    ],
+  };
+  const p = deal(`al6${level}`, T[level])();
+  let eqText;
+  let work = [];
+  const showWork = async (ctx, color = GREEN) => {
+    for (let i = 0; i < p.work.length; i++) {
+      work[i].textContent = p.work[i];
+      work[i].setAttribute("fill", color === GREEN ? INK : PURPLE);
+      await fadeIn(ctx.R, work[i], 450);
+    }
+    work[3].textContent = p.check;
+    await fadeIn(ctx.R, work[3], 500);
+  };
+  return {
+    draw(v) {
+      // On a tall phone screen, use a taller drawing with bigger, shorter lines.
+      const r = stage.getBoundingClientRect();
+      const tall = r.width > 0 && r.width < 700 && innerHeight > innerWidth;
+      const VH = tall ? 900 : H;
+      if (tall) v.setAttribute("viewBox", `0 0 1000 ${VH}`);
+      const size = tall ? 50 : 32;
+      const card = el("rect", { x: 20, y: 16, width: 960, height: 228, rx: 26, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, v);
+      const ls = lines(v, 500, 16 + size * 1.6, p.story, { size, width: tall ? 32 : 50 });
+      const bottom = 16 + size * 1.6 + (ls.length - 1) * size * 1.3 + size * 0.9;
+      card.setAttribute("height", Math.max(tall ? 0 : 228, bottom - 16));
+      const top = Math.max(tall ? bottom : 244, 244) + (tall ? 80 : 56);
+      const big = tall ? 48 : 32;
+      eqText = text(v, 500, top, "Which equation fits? (n = the unknown)", { "font-size": tall ? 40 : 32, fill: BROWN });
+      const gap = tall ? Math.min(80, (VH - top - 40) / 4) : 50;
+      work = [0, 1, 2, 3].map((i) => text(v, 500, top + 60 + i * gap, "", { "font-size": i === 3 ? big - 4 : big, fill: i === 3 ? GREEN : INK }));
+    },
+    steps: [
+      {
+        ask: "Read the story. Which equation fits it?",
+        speak: `${p.story} Which equation fits?`,
+        options: shuffle([p.eq, ...p.wrong]),
+        ans: p.eq,
+        hint: () => "Read it again slowly. What is n? What happens to n first, and then what? Which equation says that?",
+        why: `n is what we want to find. The story says ${p.eq}.`,
+        win: async (ctx) => {
+          eqText.textContent = p.eq;
+          eqText.setAttribute("font-size", Number(eqText.getAttribute("font-size")) > 32 ? 54 : 44);
+          eqText.setAttribute("fill", PURPLE);
+          await fadeIn(ctx.R, eqText, 500);
+        },
+      },
+      {
+        ask: "Now solve it. What is n?",
+        pad: true,
+        ans: p.ans,
+        hint: () => "Use the balance idea: what would you undo first? Do the same to both sides.",
+        why: `n = ${p.ans}.`,
+        win: (ctx) => showWork(ctx),
+        reveal: (ctx) => showWork(ctx, PURPLE),
+      },
+    ],
+    why: "You turned words into an equation and checked it.",
+    check: p,
+  };
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    al0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    al1: { icon: "🔤", title: "Expressions", steps: ["A variable is a letter that stands for a number: one we do not know yet, or one that can change.", "Translate words into symbols, substitute values, or simplify.", "Choose an answer, or type it on the keypad."] },
+    al2: { icon: "⚖️", title: "Balance equations", steps: ["The balance is level: the equals sign means both sides have the same value.", "Choose a move that does the same to both sides.", "When x stands alone, type its value."] },
+    al3: { icon: "🔺", title: "Patterns to rules", steps: ["Study how the dots grow from figure to figure.", "Find the rule that gives the dots in figure n.", "Use the rule to reach a distant figure."] },
+    al4: { icon: "🌡️", title: "Negative numbers", steps: ["Numbers below zero are negative.", "On the line, left is smaller and right is greater.", "Choose the answer that the reasoning gives."] },
+    al5: { icon: "📍", title: "Coordinate plane", steps: ["A point is written (x, y): across first, then up or down.", "Tap the grid to plot a point.", "Read coordinates to find lengths, areas and images."] },
+    al6: { icon: "📝", title: "Word problems", steps: ["Read the problem and decide what n stands for.", "Choose the equation that matches the words.", "Solve it, then check the answer in the story."] },
+  },
+  start: "al0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+    stage.querySelector(".al-real")?.remove();
+  },
+  subject: "Math",
+  activity: "Pre-Algebra",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 77, 79, 81, 82, 83, 84, 86, 88, 90, 91, 93, 96]);
+</script>
+</body>
+</html>

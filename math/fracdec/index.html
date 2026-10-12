@@ -1,0 +1,2820 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fractions & Decimals Pro · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="math">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Fractions & Decimals Pro</b><small>Math · Advanced</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, pickInt, wait, confetti, PRAISE, KIND, choices, explain, everyday, emoji, numpad, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "fd0", label: "See it", icon: "👀" },
+  { id: "fd1", label: "1. Equivalent & simplest", icon: "🧱" },
+  { id: "fd2", label: "2. Compare & order", icon: "⚖️" },
+  { id: "fd3", label: "3. Add & subtract", icon: "➕" },
+  { id: "fd4", label: "4. Multiply fractions", icon: "✖️" },
+  { id: "fd5", label: "5. Decimals to thousandths", icon: "🔢" },
+  { id: "fd6", label: "6. Fraction, decimal, percent", icon: "💯" },
+  { id: "fd7", label: "7. Ratios & rates", icon: "🍋" },
+];
+
+function fresh() {
+  stage.querySelector(".fd-real")?.remove();
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+}
+
+// ---------- colours ----------
+const INK = "#2b1d12";
+const MUTED = "#8a7764";
+const LINE = "#5a4130";
+const PAPER = "#fffcf6";
+const Y = "#f6c453";
+const B = "#86c5ee";
+const G = "#7fcf95";
+const RED = "#ef8a6f";
+const ACC = "var(--accent-dark)";
+
+// ---------- maths helpers ----------
+const gcd = (a, b) => (b ? gcd(b, a % b) : Math.abs(a));
+const lcm = (a, b) => (a / gcd(a, b)) * b;
+const simp = (n, d) => {
+  const g = gcd(n, d) || 1;
+  return [n / g, d / g];
+};
+const fmt = (x) => String(Number(x.toFixed(6)));
+const money = (cents) => `$${(cents / 100).toFixed(2)}`;
+const same = (v, ans) => typeof v === "string" && v !== "" && v !== "." && Math.abs(Number(v) - ans) < 1e-6;
+const factors = (n) => {
+  const out = [];
+  for (let i = 1; i <= n; i++) if (n % i === 0) out.push(i);
+  return out;
+};
+const primes = (n) => {
+  const out = [];
+  for (let p = 2; n > 1; p++) while (n % p === 0) (out.push(p), (n /= p));
+  return out;
+};
+const sharedPrimes = (a, b) => {
+  const pb = primes(b);
+  const out = [];
+  for (const p of primes(a)) {
+    const i = pb.indexOf(p);
+    if (i >= 0) (out.push(p), pb.splice(i, 1));
+  }
+  return out;
+};
+const multiples = (n, upto) => {
+  const out = [];
+  for (let m = n; m <= upto; m += n) out.push(m);
+  return out;
+};
+const PLURAL = { 1: "wholes", 2: "halves", 3: "thirds", 4: "quarters", 5: "fifths", 6: "sixths", 7: "sevenths", 8: "eighths", 9: "ninths", 10: "tenths", 11: "elevenths", 12: "twelfths", 20: "twentieths", 100: "hundredths" };
+const ONE = { 1: "whole", 2: "half", 3: "third", 4: "quarter", 5: "fifth", 6: "sixth", 7: "seventh", 8: "eighth", 9: "ninth", 10: "tenth", 11: "eleventh", 12: "twelfth" };
+const plural = (d) => PLURAL[d] || `${d}ths`;
+const single = (d) => ONE[d] || `${d}th`;
+
+// ---------- html helpers (the voice reads these as "3 quarters", "2 and 1 half") ----------
+const fr = (n, d) => `<span class="fr"><sup>${n}</sup><sub>${d}</sub></span>`;
+const mixHtml = (w, n, d) => (!n ? `${w}` : !w ? fr(n, d) : `${w}<span class="fd-and"> and </span>${fr(n, d)}`);
+const valHtml = (n, d) => (n === 0 ? "0" : mixHtml(Math.floor(n / d), n % d, d));
+const simplest = (n, d) => {
+  const [a, b] = simp(n, d);
+  return valHtml(a, b);
+};
+// The same value as an SVG row item: "3", [n, d] or [w, n, d].
+const itemOf = (n, d) => (n % d === 0 ? String(n / d) : n < d ? [n, d] : [Math.floor(n / d), n % d, d]);
+
+// ---------- SVG helpers ----------
+function T(parent, x, y, str, size = 30, fill = INK, attrs = {}) {
+  return text(parent, x, y, str, { "font-size": size, fill, ...attrs });
+}
+function fracSvg(parent, x, y, n, d, size = 40, fill = INK) {
+  const g = el("g", { "pointer-events": "none" }, parent);
+  const len = Math.max(String(n).length, String(d).length);
+  const half = size * (0.36 + 0.3 * (len - 1));
+  text(g, x, y - size * 0.18, n, { "font-size": size, fill: n === "?" ? ACC : fill });
+  el("line", { x1: x - half, x2: x + half, y1: y, y2: y, stroke: fill, "stroke-width": Math.max(3, size / 11), "stroke-linecap": "round" }, g);
+  text(g, x, y + size * 0.82, d, { "font-size": size, fill: d === "?" ? ACC : fill });
+  return g;
+}
+const fw = (n, d, s) => s * (0.62 * Math.max(String(n).length, String(d).length) + 0.55);
+const ww = (w, s) => s * (0.62 * String(w).length + 0.25);
+const wOf = (it, s) => (Array.isArray(it) ? (it.length === 3 ? ww(it[0], s) + fw(it[1], it[2], s) : fw(it[0], it[1], s)) : s * (0.58 * String(it).length + 0.45));
+// A maths row centred on cx; y is the fraction-bar line. Items: "+", 3, [n, d], [w, n, d].
+function rowSvg(parent, cx, y, items, s = 44, fill = INK) {
+  const g = el("g", { "pointer-events": "none" }, parent);
+  const ws = items.map((it) => wOf(it, s));
+  let at = cx - ws.reduce((a, b) => a + b, 0) / 2;
+  items.forEach((it, i) => {
+    if (Array.isArray(it) && it.length === 3) {
+      const a = ww(it[0], s);
+      text(g, at + a / 2 - s * 0.05, y + s * 0.38, it[0], { "font-size": s * 1.1, fill: it[0] === "?" ? ACC : fill });
+      fracSvg(g, at + a + fw(it[1], it[2], s) / 2, y, it[1], it[2], s, fill);
+    } else if (Array.isArray(it)) fracSvg(g, at + ws[i] / 2, y, it[0], it[1], s, fill);
+    else text(g, at + ws[i] / 2, y + s * 0.38, it, { "font-size": s * 1.1, fill: it === "?" ? ACC : fill });
+    at += ws[i];
+  });
+  return g;
+}
+function wrapSvg(parent, x, y, str, size = 28, max = 44, attrs = {}) {
+  const lines = [];
+  for (const word of str.split(" ")) {
+    const last = lines[lines.length - 1];
+    if (last && (last + " " + word).length <= max) lines[lines.length - 1] = last + " " + word;
+    else lines.push(word);
+  }
+  lines.forEach((line, i) => text(parent, x, y + i * size * 1.25, line, { "font-size": size, fill: INK, ...attrs }));
+  return lines.length;
+}
+// A fraction bar: d equal parts, parts [from, from + n) shaded.
+function barSvg(parent, x, y, w, h, d, n, color = Y, { labels = true, from = 0 } = {}) {
+  const g = el("g", {}, parent);
+  const cells = [];
+  for (let i = 0; i < d; i++) {
+    cells.push(el("rect", { x: x + (i * w) / d, y, width: w / d, height: h, fill: i >= from && i < from + n ? color : PAPER, stroke: LINE, "stroke-width": 3 }, g));
+    if (labels && w / d >= 50) text(g, x + ((i + 0.5) * w) / d, y + h / 2 + 8, d === 1 ? "1" : `1/${d}`, { "font-size": 22, fill: LINE, "pointer-events": "none" });
+  }
+  return { g, cells };
+}
+// Dashed cut lines that split a bar into L parts (faded in later).
+function cutsSvg(parent, x, y, w, h, L) {
+  const g = el("g", { opacity: 0, "pointer-events": "none" }, parent);
+  for (let i = 1; i < L; i++) el("line", { x1: x + (i * w) / L, x2: x + (i * w) / L, y1: y, y2: y + h, stroke: ACC, "stroke-width": 3, "stroke-dasharray": "8 6" }, g);
+  return g;
+}
+// A 10 x 10 hundred grid, filled column by column (so a column is a tenth). k may be fractional.
+function gridSvg(parent, x, y, c, k = 0, color = B) {
+  const g = el("g", {}, parent);
+  const cells = [];
+  for (let i = 0; i < 100; i++) cells.push(el("rect", { x: x + Math.floor(i / 10) * c, y: y + (i % 10) * c, width: c, height: c, fill: PAPER, stroke: "#c9b8a1", "stroke-width": 1.5 }, g));
+  const extra = el("g", {}, g);
+  el("rect", { x, y, width: 10 * c, height: 10 * c, fill: "none", stroke: LINE, "stroke-width": 4, rx: 3 }, g);
+  const shade = (k2, col = color) => {
+    extra.innerHTML = "";
+    cells.forEach((r, i) => r.setAttribute("fill", i < Math.floor(k2 + 1e-9) ? col : PAPER));
+    const part = k2 - Math.floor(k2 + 1e-9);
+    if (part > 1e-6) {
+      const i = Math.floor(k2);
+      el("rect", { x: x + Math.floor(i / 10) * c, y: y + (i % 10) * c, width: c, height: c * part, fill: col }, extra);
+    }
+  };
+  shade(k);
+  return { g, cells, shade };
+}
+// A number line from lo to hi with labelled ticks.
+function lineSvg(parent, x0, x1, y, ticks) {
+  const g = el("g", {}, parent);
+  el("line", { x1: x0 - 16, x2: x1 + 16, y1: y, y2: y, stroke: LINE, "stroke-width": 5, "stroke-linecap": "round" }, g);
+  for (const [t, label, big] of ticks) {
+    const x = x0 + t * (x1 - x0);
+    el("line", { x1: x, x2: x, y1: y - (big ? 16 : 9), y2: y + (big ? 16 : 9), stroke: LINE, "stroke-width": big ? 4 : 2.5 }, g);
+    if (label !== "") {
+      if (Array.isArray(label)) fracSvg(g, x, y + 46, label[0], label[1], 24, LINE);
+      else T(g, x, y + 44, label, 24, LINE);
+    }
+  }
+  return g;
+}
+const fade = (node, ms, alive) => tween(ms, (t) => node.setAttribute("opacity", t), alive);
+const tween = (ms, fn, alive = () => true) =>
+  new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(true);
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!alive()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+// Boxes of a tape diagram, all the same unit size.
+function tapeRow(parent, x, y, n, label, color, w = 66, h = 56) {
+  const g = el("g", {}, parent);
+  T(g, x - 16, y + h / 2 + 9, label, 26, INK, { "text-anchor": "end" });
+  const texts = [];
+  for (let i = 0; i < n; i++) {
+    el("rect", { x: x + i * w, y, width: w, height: h, rx: 6, fill: color, stroke: LINE, "stroke-width": 3 }, g);
+    texts.push(T(g, x + i * w + w / 2, y + h / 2 + 10, "", 28, INK));
+  }
+  return { g, texts, end: x + n * w };
+}
+
+// ---------- the simplest-form choice step (shared) ----------
+function formStep(n, d, show) {
+  const [sn, sd] = simp(n, d);
+  const w = Math.floor(sn / sd);
+  const r = sn % sd;
+  const right = valHtml(sn, sd);
+  const improper = n >= d;
+  const cands = [];
+  const add = (html, val, equal = false) => {
+    if (html === right || cands.some((c) => c.label === html)) return;
+    if (!equal && Math.abs(val - n / d) < 1e-9) return;
+    cands.push({ label: html, equal });
+  };
+  add(fr(n, d), n / d, true);
+  if (!improper) {
+    if (d !== sd) add(fr(sn, d), sn / d);
+    if (n !== sn) add(fr(n, sd), n / sd);
+    add(fr(sn + 1 < sd ? sn + 1 : sn - 1 || 1, sd), (sn + 1 < sd ? sn + 1 : sn - 1 || 1) / sd);
+    add(fr(sd, sn + sd), sd / (sn + sd));
+  } else if (r) {
+    if (d !== sd) add(mixHtml(w, r, d), w + r / d);
+    add(mixHtml(w + 1, r, sd), w + 1 + r / sd);
+    if (sd - r !== r) add(mixHtml(w, sd - r, sd), w + (sd - r) / sd);
+    if (w > 1) add(mixHtml(w - 1, r, sd), w - 1 + r / sd);
+    add(mixHtml(w, r, sd + 1), w + r / (sd + 1));
+  } else {
+    add(String(w + 1), w + 1);
+    if (w > 1) add(String(w - 1), w - 1);
+    add(mixHtml(w, 1, d), w + 1 / d);
+  }
+  const eq = cands.filter((c) => c.equal);
+  const wrong = shuffle(cands.filter((c) => !c.equal));
+  const picked = [...eq, ...wrong].slice(0, 3);
+  const opts = shuffle([{ label: right, v: "R" }, ...picked.map((c, i) => ({ label: c.label, v: `W${i}` }))]);
+  const g = gcd(n, d);
+  return {
+    type: "choice",
+    form: true,
+    opts,
+    ans: "R",
+    value: [sn, sd],
+    ask: improper ? `Write ${fr(n, d)} as a ${r ? "mixed" : "whole"} number in simplest form. Tap it.` : `Write ${fr(n, d)} in simplest form. Tap it.`,
+    hint: improper ? `How many groups of ${d} fit in ${n}, and what is left over?${g > 1 ? ` Can the numerator (the top number) and denominator (the bottom number) both be divided by ${g === 2 ? "2" : "the same number"}?` : ""}` : `What is the biggest number that divides both ${n} and ${d}?`,
+    why: improper
+      ? `${n} ÷ ${d} = ${Math.floor(n / d)} whole${Math.floor(n / d) === 1 ? "" : "s"}${n % d ? ` and ${n % d} left over` : ""}.${g > 1 && r ? ` Then divide the numerator and denominator by ${gcd(n % d, d)}.` : ""} So ${fr(n, d)} = ${right}.`
+      : `Divide the numerator (the top number) and the denominator (the bottom number) by ${g}: ${n} ÷ ${g} = ${sn} and ${d} ÷ ${g} = ${sd}. So ${fr(n, d)} = ${right}.`,
+    show,
+  };
+}
+
+// ---------- level chips ----------
+const LEVELS = [["easy", "🐣 Gr 4"], ["medium", "🦊 Gr 5–6"], ["hard", "🦁 Gr 7–8"]];
+const OOPS = ["Not quite. Consider:", "Not quite. Mistakes are how we learn. Consider:", "Not quite. Look again:"];
+const GOOD = ["Correct, and here is why:", "Correct. The reasoning:", "Correct. Notice the method:"];
+const GRIT = ["You persisted through that one. The full reasoning:", "Worked through. Here is the complete argument:", "That one required care. The reasoning:"];
+const R = 8;
+
+// ---------- "🏠 Try it for real" ----------
+const TRY = {
+  fd1: {
+    title: "A paper fraction wall",
+    need: ["6 paper strips, all the same length", "Crayons", "Scissors (a grown-up helps)", "Tape"],
+    steps: ["Keep 1 strip whole: that is 1.", "Fold the others into halves, thirds, quarters, sixths and eighths.", "Colour and label every piece.", "Stack them. Which pieces line up with 1/2?"],
+    safe: "Use scissors with a grown-up.",
+  },
+  fd2: {
+    title: "A fraction line on the floor",
+    need: ["Masking tape", "A metre stick or tape measure", "Paper cards and a pen"],
+    steps: ["Tape a line 1 metre long. Mark 0, 1/2 and 1.", "Write fractions on cards: 1/3, 3/4, 2/5, 5/8…", "Put each card where it belongs.", "Check with the metre stick: 3/4 is at 75 cm."],
+    safe: "Do this with a grown-up, on a clear floor.",
+  },
+  fd3: {
+    title: "Measuring-cup maths",
+    need: ["Measuring cups: 1/2, 1/3, 1/4", "A clear jug with cup marks", "Water and a towel"],
+    steps: ["Guess first: 1/2 cup + 1/4 cup = ?", "Pour them into the jug and read the mark.", "Try 1/2 + 1/3. Is it more or less than 1 cup?", "Write down what you found."],
+    safe: "Cold water only, with a grown-up.",
+  },
+  fd4: {
+    title: "Fold a fraction of a fraction",
+    need: ["A square of paper", "Two crayons"],
+    steps: ["Fold the paper into 3 strips. Colour 2 of them yellow: 2/3.", "Fold it the other way in half.", "Shade half of the paper blue over the yellow.", "Unfold. Count the green boxes: 2 of 6, which equals 1/3."],
+    safe: "Ask a grown-up to help you fold neatly.",
+  },
+  fd5: {
+    title: "Measure to the millimetre",
+    need: ["A tape measure or ruler with mm", "A notebook", "5 things: a book, a spoon, a shoe…"],
+    steps: ["Measure each thing in millimetres.", "Write it in metres: 235 mm = 0.235 m.", "Put them in order, shortest to longest.", "Which two are closest? Find the difference."],
+    safe: "With a grown-up. Metal tape measures retract quickly.",
+  },
+  fd6: {
+    title: "Percent hunt",
+    need: ["Squared paper", "A pencil", "Food packets or a shop flyer"],
+    steps: ["Find 3 percent signs on packets or sale signs.", "Draw a 10 by 10 square for each one.", "Shade the percent: 30% is 30 little squares.", "Write each one as a decimal and a fraction too."],
+    safe: "Do this with a grown-up.",
+  },
+  fd7: {
+    title: "Scale a real recipe",
+    need: ["A small cup to measure with", "Juice and water", "A jug and two glasses"],
+    steps: ["Mix 2 cups of juice with 3 cups of water. Taste.", "Now make a double batch: 4 cups juice, 6 cups water.", "Does it taste the same? Explain why it should.", "What if you only doubled the juice?"],
+    safe: "With a grown-up. Wash your hands first.",
+  },
+};
+// "Explain it": articulate the reasoning in 2–4 sentences, then compare with a model answer.
+const EXPLAIN = {
+  fd1: [
+    { q: "Why does multiplying the numerator (top number) and denominator (bottom number) of a fraction by the same number leave its value unchanged?", a: "Multiplying the numerator and denominator by 3 is the same as multiplying by 3/3, which equals 1. Multiplying by 1 changes nothing. On the bar, every piece is cut into 3, so there are 3 times as many pieces, each a third as big." },
+    { q: "Why does dividing by the greatest common factor give simplest form in one step?", a: "The greatest common factor removes every factor the numerator and denominator share, all at once. Afterwards they share only 1, so nothing more can be divided out. A smaller common factor would leave some sharing behind." },
+    { q: "Two fractions are equivalent. What is the same about them, and what is different?", a: "Their value is the same: they mark the same point on the number line. The size and number of pieces differ: one uses fewer, larger pieces, the other more, smaller ones." },
+  ],
+  fd2: [
+    { q: "Explain why 2/5 is greater than 2/7, even though 7 is greater than 5.", a: "Both fractions have 2 pieces. Cutting a whole into 7 makes smaller pieces than cutting it into 5. Two larger pieces are more than two smaller ones, so 2/5 is greater." },
+    { q: "Describe two different strategies for comparing 5/8 and 3/5.", a: "One strategy is a common denominator: 25/40 and 24/40, so 5/8 is greater. Another is to compare each to a benchmark (a reference value): both exceed 1/2, by 1/8 and 1/10, and 1/8 is larger, so 5/8 is greater." },
+    { q: "Why does adding the numerators and adding the denominators of two fractions give a fraction between them?", a: "Picture a team that wins 1 of 3 games and another that wins 1 of 2. Together they win 2 of 5. The combined rate must lie between the two separate rates, just as a mixture lies between its ingredients." },
+  ],
+  fd3: [
+    { q: "Why can't you simply add the numerators and add the denominators when adding fractions?", a: "The denominator (bottom number) names the size of the pieces. Halves and thirds are different sizes, so they cannot be counted together. First cut both into a common size, such as sixths; then the numerators count pieces of the same size." },
+    { q: "Explain regrouping (trading 1 whole for pieces) in 5 1/4 − 2 3/4.", a: "There is only 1/4, too little to take away 3/4. Trade one of the 5 wholes for 4/4, giving 4 and 5/4. Now 5/4 − 3/4 = 2/4 and 4 − 2 = 2, so the answer is 2 2/4, which is 2 1/2." },
+    { q: "Why is the least common denominator the most convenient choice?", a: "Any common multiple works, but the least one keeps the numbers small. Smaller numbers mean easier arithmetic and less simplifying at the end." },
+  ],
+  fd4: [
+    { q: "Using the area model, explain why 1/2 × 2/3 = 2/6.", a: "Cut a square into 3 columns and shade 2: that is 2/3. Cut it into 2 rows and take 1: half of the shaded part. The overlap is 2 boxes out of 6 in the whole, so the product is 2/6, which is 1/3." },
+    { q: "Why can multiplying by a fraction make a number smaller?", a: "Multiplying by 1/2 means taking half of something. Any fraction between 0 and 1 takes only part of the amount, so for a positive starting number the product is smaller. So the rule 'multiplying always makes bigger' is false: it holds only when you multiply by a number greater than 1." },
+    { q: "Why does dividing by 1/4 give the same answer as multiplying by 4?", a: "Dividing by 1/4 asks how many quarters fit. Each whole contains 4 quarters, so the count is 4 times the number of wholes. That is why we multiply by the reciprocal (the fraction flipped)." },
+  ],
+  fd5: [
+    { q: "Explain why 0.5 is greater than 0.45, even though 45 is greater than 5.", a: "Place value decides. 0.5 is 5 tenths, which is 50 hundredths; 0.45 is only 45 hundredths. Writing 0.50 makes both use hundredths, and 50 is more than 45." },
+    { q: "Why must the decimal points be lined up when you add or subtract decimals?", a: "Lining up the points lines up the places: tenths under tenths, hundredths under hundredths. You can only add amounts of the same kind, just as you add ones to ones." },
+    { q: "How do you round 3.476 to the nearest tenth, and why?", a: "It lies between 3.4 and 3.5. The halfway point is 3.45, and 3.476 is past it, so it is closer to 3.5. The hundredths digit, 7, tells you this at a glance: more than halfway, so round up. (A number exactly halfway, such as 3.45, is rounded up by the usual convention, an agreed rule rather than a fact about numbers.)" },
+  ],
+  fd6: [
+    { q: "Explain why 3/4, 0.75 and 75% are three names for the same amount.", a: "Percent means per hundred (out of 100). 3/4 = 75/100 after multiplying the numerator and denominator by 25. 75 hundredths is written 0.75 as a decimal and 75% as a percent." },
+    { q: "Why is 1/8 equal to 12.5%?", a: "1/4 is 25%, and 1/8 is half of 1/4. Half of 25 is 12.5, so 1/8 is 12.5%, or 0.125 as a decimal." },
+    { q: "A price rises 10%, then falls 10%. Is it back where it started? Explain.", a: "No. The 10% fall is taken from the larger, raised price, so it removes more than the rise added. From $100: up to $110, then down $11 to $99." },
+  ],
+  fd7: [
+    { q: "What is a ratio, and why must both parts be multiplied by the same number when scaling a recipe?", a: "A ratio compares two quantities, such as 2 lemons to 3 cups of water. Multiplying both by the same number keeps that comparison, so the taste stays the same. Changing only one part alters the balance." },
+    { q: "What is a unit rate, and why is it useful for finding the better buy?", a: "A unit rate is the amount for exactly one unit, such as the price of one item. Two packs of different sizes cannot be compared directly, but their prices for one item can." },
+    { q: "Explain how a tape diagram solves: red to blue is 3 to 5, with 40 marbles in all.", a: "Draw 3 equal boxes for red and 5 for blue: 8 units in total. 40 marbles fill 8 units, so each unit is 5. Red is 3 × 5 = 15 and blue is 5 × 5 = 25." },
+  ],
+};
+function tryCard(id) {
+  const t = TRY[id];
+  stage.querySelector(".fd-real")?.remove();
+  const box = document.createElement("div");
+  box.className = "fd-real";
+  box.innerHTML = `<div class="fd-real-card" role="dialog" aria-label="Try it for real"><h2>🏠 Try it for real: ${t.title}</h2><p class="fd-need"><b>You need:</b> ${t.need.join(" · ")}</p><ol>${t.steps.map((s) => `<li>${s}</li>`).join("")}</ol><p class="fd-safe">🤝 ${t.safe}</p><button type="button" class="kt-go">✓ Got it</button></div>`;
+  stage.appendChild(box);
+  VOICE.speak(`Try it for real: ${t.title}. You need: ${t.need.join(", ")}. ${t.steps.join(" ")} ${t.safe}`);
+  box.querySelector(".kt-go").addEventListener("click", () => {
+    VOICE.hush();
+    box.remove();
+    window.OC?.touch();
+  });
+}
+
+// ---------- a keypad with an optional decimal point ----------
+function fdPad(host, { dot = false, onEnter, max = 7 } = {}) {
+  const keys = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, ...(dot ? ["."] : []), "⌫", "✓"];
+  host.innerHTML = `<div class="kt-pad fd-pad"><output class="kt-entry" data-entry>?</output><div class="kt-keys fd-keys${dot ? " fd-dot" : ""}">${keys
+    .map((k) => `<button type="button" data-k="${k}"${k === "✓" ? ' class="ok"' : ""} aria-label="${k === "⌫" ? "Delete" : k === "✓" ? "Enter" : k === "." ? "Point" : k}">${k}</button>`)
+    .join("")}</div></div>`;
+  let value = "";
+  const out = $("[data-entry]", host);
+  const show = () => (out.textContent = value || "?");
+  const press = (k) => {
+    if (k === "⌫") value = value.slice(0, -1);
+    else if (k === "✓") {
+      if (value) onEnter?.(value);
+      return;
+    } else if (k === ".") {
+      if (!value.includes(".") && value.length < max) value = (value || "0") + ".";
+    } else if (value.length < max) value = value === "0" ? String(k) : value + k;
+    show();
+  };
+  host.onclick = (event) => {
+    const key = event.target.closest("[data-k]");
+    if (key) press(key.dataset.k);
+  };
+  if (host._padKeys) removeEventListener("keydown", host._padKeys);
+  const onKey = (event) => {
+    if (!host.isConnected || !host.contains(out)) return removeEventListener("keydown", onKey);
+    if (event.target.closest?.("input, select, textarea")) return;
+    if (/^[0-9]$/.test(event.key)) press(event.key);
+    else if (event.key === "." && dot) press(".");
+    else if (event.key === "Backspace") press("⌫");
+    else if (event.key === "Enter") {
+      event.preventDefault();
+      press("✓");
+    }
+  };
+  host._padKeys = onKey;
+  addEventListener("keydown", onKey);
+  host._pad = {
+    clear() {
+      value = "";
+      show();
+    },
+  };
+  return host._pad;
+}
+
+// ---------- the game engine: problems made of steps; hints after a try; answer + why after 2 tries ----------
+function game(id, cfg) {
+  const my = token;
+  const alive = () => my === token;
+  let level = shell.progress()[id]?.level || "easy";
+  let round = 0;
+  let clean = 0;
+  let q = null;
+  let si = 0;
+  let tries = 0;
+  let missed = false;
+  let busy = false;
+  let ctx = {};
+  let picked = [];
+  let gen = 0;
+  panel(`<div class="fd-in" data-in></div><div class="ap-row"><div class="ap-chips" data-levels>${LEVELS.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === level}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div>`);
+  const box = $("[data-in]");
+  const setStatus = (s) => {
+    const n = $("[data-status]");
+    if (n) n.textContent = s;
+  };
+  const goBtn = (label, fn) => {
+    box.className = "fd-in";
+    box._pad = null;
+    box.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-go>${label}</button></div>`;
+    box.onclick = (event) => {
+      if (!event.target.closest("[data-go]") || !alive()) return;
+      box.onclick = null;
+      window.OC?.touch();
+      fn();
+    };
+  };
+  const badge = (card, n, color = "var(--accent)") => {
+    const g = el("g", { class: "fd-badge", "pointer-events": "none" }, view);
+    el("circle", { cx: card.dataset.bx, cy: card.dataset.by, r: 26, fill: color, stroke: "#fff", "stroke-width": 4 }, g);
+    T(g, Number(card.dataset.bx), Number(card.dataset.by) + 10, n, 28, "#fff");
+  };
+  const clearPicks = () => {
+    picked = [];
+    view.querySelectorAll(".fd-badge").forEach((b) => b.remove());
+  };
+  const onStageTap = (event) => {
+    const st = q?.steps[si];
+    if (!alive() || busy || !st || st.type !== "order") return;
+    const card = event.target.closest(".fd-card");
+    if (!card || picked.includes(card.dataset.id)) return;
+    window.OC?.touch();
+    picked.push(card.dataset.id);
+    badge(card, picked.length);
+    MUSIC.play("xylophone", 72 + picked.length * 4, { gain: 0.35 });
+    if (picked.length === st.ans.split(",").length) check(st, picked.join(","));
+  };
+  const problem = () => {
+    if (!alive()) return;
+    if (round >= R) return finish();
+    q = cfg.make(level, round);
+    gen += 1;
+    window.__fd.q = q;
+    window.__fd.step = () => q.steps[si];
+    si = 0;
+    missed = false;
+    fresh();
+    ctx = q.draw(view) || {};
+    view.addEventListener("pointerdown", onStageTap);
+    setStatus(`Problem ${round + 1} of ${R}`);
+    ask("");
+  };
+  const ask = (prefix) => {
+    const st = q.steps[si];
+    tries = 0;
+    picked = [];
+    busy = false;
+    say(`${prefix}${st.ask}`);
+    if (st.type === "pad") {
+      box.className = "fd-in";
+      fdPad(box, { dot: !!st.dot, onEnter: (v) => check(st, v) });
+    } else if (st.type === "choice") {
+      box.className = "fd-in fd-pick";
+      box._pad = null;
+      choices(box, st.opts, (o, button) => check(st, o.v, button));
+    } else {
+      box.className = "fd-in";
+      box._pad = null;
+      box.innerHTML = `<div class="ap-buttons"><button type="button" data-redo>↺ Start over</button></div>`;
+      box.onclick = (event) => {
+        if (event.target.closest("[data-redo]") && !busy) clearPicks();
+      };
+    }
+  };
+  const check = async (st, v, button) => {
+    if (!alive() || busy) return;
+    window.OC?.touch();
+    const ok = st.type === "pad" ? same(v, st.ans) : v === st.ans;
+    const g0 = gen;
+    if (ok) {
+      busy = true;
+      button?.classList.add("right");
+      MUSIC.chime();
+      st.show?.(ctx);
+      await wait(900);
+      if (!alive() || g0 !== gen) return;
+      advance("Correct. ");
+      return;
+    }
+    if (st.type === "pad" && st.near?.(Number(v))) {
+      say(st.nearSay(Number(v)));
+      box._pad?.clear();
+      return;
+    }
+    tries += 1;
+    missed = true;
+    MUSIC.oops();
+    if (button) {
+      button.classList.add("wrong");
+      button.disabled = true;
+    }
+    if (tries === 1) {
+      say(`${pick(OOPS)} ${st.hint}`);
+      box._pad?.clear();
+      if (st.type === "order") {
+        busy = true;
+        await wait(1200);
+        if (!alive() || g0 !== gen) return;
+        clearPicks();
+        busy = false;
+      }
+      return;
+    }
+    busy = true;
+    if (st.type === "order") {
+      clearPicks();
+      st.ans.split(",").forEach((cid, i) => {
+        const card = view.querySelector(`.fd-card[data-id="${cid}"]`);
+        if (card) badge(card, i + 1, "#22a05a");
+      });
+    }
+    st.show?.(ctx);
+    say(`Let's look why. ${st.why}`);
+    goBtn("Got it ▶", () => advance(""));
+  };
+  const advance = (prefix) => {
+    si += 1;
+    if (si < q.steps.length) ask(prefix);
+    else solved();
+  };
+  const solved = () => {
+    round += 1;
+    if (!missed) clean += 1;
+    window.OC?.count(cfg.count);
+    q.finish?.(ctx);
+    say(`${missed ? pick(GRIT) : pick(GOOD)} ${q.why}`);
+    setStatus(`${round} of ${R} done`);
+    goBtn(round >= R ? "Finish ▶" : "Next problem ▶", problem);
+  };
+  const finish = () => {
+    fresh();
+    const ex = pick(EXPLAIN[id]);
+    el("rect", { x: 40, y: 24, width: 920, height: 512, rx: 34, fill: PAPER, stroke: "var(--accent)", "stroke-width": 5 }, view);
+    T(view, 500, 84, `${R} problems complete · ${clean} correct on the first attempt`, 28, MUTED);
+    T(view, 500, 150, "Explain it", 46, ACC);
+    wrapSvg(view, 500, 215, ex.q, 31, 52);
+    const model = el("g", { opacity: 0 }, view);
+    el("line", { x1: 120, x2: 880, y1: 352, y2: 352, stroke: "#e2d6c4", "stroke-width": 3 }, model);
+    T(model, 500, 388, "One strong answer:", 24, MUTED);
+    wrapSvg(model, 500, 428, ex.a, 25, 66, { "font-weight": 600 });
+    confetti();
+    MUSIC.chime();
+    shell.mark(id, { done: true });
+    setStatus("Set complete");
+    say(`Set complete. Now explain it: ${ex.q} Say your answer aloud to a grown-up, or write it, in two to four sentences.`);
+    box.className = "fd-in";
+    box._pad = null;
+    box.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-x="model">💬 I explained it</button><button type="button" data-x="try">🏠 Try it for real</button><button type="button" data-x="again">🔁 New set</button></div>`;
+    box.onclick = (event) => {
+      const b = event.target.closest("[data-x]");
+      if (!b || !alive()) return;
+      window.OC?.touch();
+      if (b.dataset.x === "model") {
+        window.OC?.count("explanations");
+        fade(model, 600, alive);
+        b.disabled = true;
+        say(`Compare your explanation with this one. ${ex.a}`);
+      } else if (b.dataset.x === "try") tryCard(id);
+      else {
+        round = 0;
+        clean = 0;
+        problem();
+      }
+    };
+  };
+  $("[data-levels]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b || !alive()) return;
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    level = b.dataset.lv;
+    shell.mark(id, { level });
+    window.OC?.touch();
+    VOICE.hush();
+    round = 0;
+    clean = 0;
+    problem();
+  });
+  problem();
+}
+
+// =====================================================================
+// Problem makers. Each returns { meta, draw(view) -> ctx, steps: [...], why, finish(ctx)? }.
+// =====================================================================
+const MAKE = {};
+
+// ---------- 1. Equivalent & simplest form ----------
+const WALL = [1, 2, 3, 4, 6, 8, 12];
+function qEquiv() {
+  const DEN = [2, 3, 4, 6, 8, 12];
+  let b, n, d;
+  do {
+    b = pick(DEN);
+    n = pickInt(1, b - 1);
+    d = pick(DEN);
+  } while (d === b || (n * d) % b);
+  const m = (n * d) / b;
+  const [sn, sd] = simp(n, b);
+  const rule = d % b === 0 ? `Multiply the numerator (top number) and denominator (bottom number) by ${d / b}: ${n} × ${d / b} = ${m}.` : b % d === 0 ? `Divide the numerator (top number) and denominator (bottom number) by ${b / d}: ${n} ÷ ${b / d} = ${m}.` : `Both are equal to ${fr(sn, sd)}.`;
+  const X0 = 28;
+  const WW = 650;
+  return {
+    meta: { type: "equiv", n, b, d },
+    draw(v) {
+      const rows = {};
+      WALL.forEach((den, i) => {
+        rows[den] = barSvg(v, X0, 26 + i * 66, WW, 58, den, den === b ? n : 0, Y, { labels: true });
+      });
+      el("line", { x1: X0 + (WW * n) / b, x2: X0 + (WW * n) / b, y1: 14, y2: 26 + 7 * 66 + 2, stroke: ACC, "stroke-width": 5, "stroke-dasharray": "12 8" }, v);
+      const eq = { g: rowSvg(v, 845, 230, [[n, b], "=", ["?", d]], 60) };
+      T(v, 845, 400, `Find the ${plural(d)} row`, 26, MUTED);
+      return { rows, eq, v };
+    },
+    steps: [
+      {
+        type: "pad",
+        ans: m,
+        ask: `How many ${plural(d)} make ${fr(n, b)}? Use the wall.`,
+        hint: `Find the ${plural(d)} row. Where does the dashed line cross it?`,
+        why: `Count the ${plural(d)} up to the dashed line: ${m}. ${rule}`,
+        show(c) {
+          c.rows[d].cells.forEach((r, i) => i < m && r.setAttribute("fill", B));
+          c.eq.g.remove();
+          c.eq.g = rowSvg(c.v, 845, 230, [[n, b], "=", [m, d]], 60);
+        },
+      },
+    ],
+    why: `${fr(n, b)} = ${fr(m, d)}. Same length on the wall, so the same amount. ${rule}`,
+  };
+}
+function qSimplify(big) {
+  let p, qd, g;
+  if (!big) {
+    do {
+      qd = pickInt(2, 9);
+      p = pickInt(1, qd - 1);
+    } while (gcd(p, qd) !== 1);
+    g = pickInt(2, Math.floor(36 / qd));
+  } else {
+    do {
+      qd = pickInt(3, 15);
+      p = pickInt(1, qd - 1);
+      g = pick([12, 14, 15, 16, 18, 21, 24]);
+    } while (gcd(p, qd) !== 1 || qd * g > 300);
+  }
+  const n = p * g;
+  const d = qd * g;
+  const sh = sharedPrimes(n, d);
+  return {
+    meta: { type: "simplify", n, d },
+    draw(v) {
+      const c = { v };
+      c.eq = rowSvg(v, 500, 92, [[n, d], "=", ["?", "?"]], 58);
+      c.render = (a, b2) => {
+        c.eq.remove();
+        c.eq = rowSvg(v, 500, 92, [[n, d], "=", [a, b2]], 58);
+      };
+      if (!big) {
+        c.bar = barSvg(v, 60, 250, 880, 90, d, n, Y, { labels: false });
+        T(v, 500, 225, `${d} equal pieces, ${n} shaded`, 26, MUTED);
+      } else {
+        c.lines = el("g", {}, v);
+      }
+      return c;
+    },
+    steps: [
+      {
+        type: "pad",
+        ans: g,
+        ask: `Simplify ${fr(n, d)}. First: what is the greatest common factor of ${n} and ${d}?`,
+        near: (v) => v > 1 && v < g && n % v === 0 && d % v === 0,
+        nearSay: (v) => `${v} is a common factor, but not the greatest. Is there a larger number that divides both ${n} and ${d}?`,
+        hint: big ? `Break ${n} and ${d} into prime factors. Which primes do they share?` : `Which numbers divide both ${n} and ${d}? Try 2, 3, 5… Which is the biggest?`,
+        why: big
+          ? `${n} = ${primes(n).join(" × ")} and ${d} = ${primes(d).join(" × ")}. They share ${sh.join(" × ")} = ${g}.`
+          : `Factors of ${n}: ${factors(n).join(", ")}. Factors of ${d}: ${factors(d).join(", ")}. The biggest one in both lists is ${g}.`,
+        show(c) {
+          if (!big) {
+            for (let k = 0; k < qd; k++) {
+              el("rect", { x: 60 + (k * 880) / qd, y: 244, width: 880 / qd, height: 102, rx: 8, fill: "none", stroke: ACC, "stroke-width": 7 }, c.v);
+              T(c.v, 60 + ((k + 0.5) * 880) / qd, 390, `${g}`, 26, ACC);
+            }
+            T(c.v, 500, 440, `Groups of ${g}`, 28, ACC);
+          } else {
+            T(c.lines, 500, 250, `${n} = ${primes(n).join(" × ")}`, 36);
+            T(c.lines, 500, 320, `${d} = ${primes(d).join(" × ")}`, 36);
+            T(c.lines, 500, 395, `shared: ${sh.join(" × ")} = ${g}`, 36, ACC);
+          }
+        },
+      },
+      {
+        type: "pad",
+        ans: p,
+        ask: `${n} ÷ ${g} = ? That is the new numerator (top number).`,
+        hint: `How many ${g}s fit into ${n}?`,
+        why: `${g} × ${p} = ${n}, so ${n} ÷ ${g} = ${p}.`,
+        show: (c) => c.render(p, "?"),
+      },
+      {
+        type: "pad",
+        ans: qd,
+        ask: `${d} ÷ ${g} = ? That is the new denominator (bottom number).`,
+        hint: `How many ${g}s fit into ${d}?`,
+        why: `${g} × ${qd} = ${d}, so ${d} ÷ ${g} = ${qd}.`,
+        show(c) {
+          c.render(p, qd);
+          if (!big) T(c.v, 500, 500, `${p} of ${qd} groups are shaded`, 28, INK);
+          else T(c.lines, 500, 470, `÷ ${g} on numerator and denominator`, 30, MUTED);
+        },
+      },
+    ],
+    why: `${fr(n, d)} = ${fr(p, qd)}. ${p} and ${qd} share no factor except 1, so it is in simplest form.`,
+  };
+}
+function qTape() {
+  let p, qd;
+  do {
+    qd = pickInt(3, 9);
+    p = pickInt(1, qd - 1);
+  } while (gcd(p, qd) !== 1 || (qd - p === 1 && Math.random() < 0.6));
+  const k = pickInt(2, 9);
+  const sum = Math.random() < 0.5;
+  const S = sum ? (p + qd) * k : (qd - p) * k;
+  const units = sum ? p + qd : qd - p;
+  return {
+    meta: { type: "tape", p, q: qd, sum, S },
+    draw(v) {
+      wrapSvg(v, 500, 52, sum ? `A fraction equals ${p}/${qd}. Its numerator and denominator add up to ${S}. What is the numerator?` : `A fraction equals ${p}/${qd}. Its denominator is ${S} more than its numerator. What is the numerator?`, 30, 50);
+      const top = tapeRow(v, 210, 190, p, "numerator", Y);
+      const bot = tapeRow(v, 210, 290, qd, "denominator", B);
+      if (sum) {
+        const x = Math.max(top.end, bot.end) + 30;
+        el("path", { d: `M${x} 190 q 22 0 22 22 V 300 q 0 22 22 22 q -22 0 -22 22 V 324 q 0 22 -22 22`, fill: "none", stroke: ACC, "stroke-width": 4 }, v);
+        T(v, x + 110, 278, `${S}`, 40, ACC);
+        T(v, x + 110, 312, "in all", 24, ACC);
+      } else {
+        const x0 = 210 + p * 66;
+        el("rect", { x: x0 - 4, y: 284, width: (qd - p) * 66 + 8, height: 68, rx: 10, fill: "none", stroke: ACC, "stroke-width": 5, "stroke-dasharray": "10 6" }, v);
+        T(v, x0 + ((qd - p) * 66) / 2, 395, `${S} more`, 32, ACC);
+      }
+      return { v, top, bot };
+    },
+    steps: [
+      sum
+        ? { type: "pad", ans: units, ask: `The numerator (top number) is ${p} equal unit${p === 1 ? "" : "s"} and the denominator (bottom number) is ${qd} units. How many units in all?`, hint: "Count all the boxes in both rows of the picture.", why: `${p} + ${qd} = ${units} units.` }
+        : { type: "pad", ans: units, ask: `The numerator (top number) is ${p} unit${p === 1 ? "" : "s"} and the denominator (bottom number) is ${qd} units. How many more units does the denominator have?`, hint: "Count the boxes inside the dashed frame.", why: `${qd} − ${p} = ${units} more units.` },
+      {
+        type: "pad",
+        ans: k,
+        ask: `${units} units are ${S}. So one unit is ${S} ÷ ${units} = ?`,
+        hint: `Share ${S} equally into ${units} boxes. How much in each?`,
+        why: `${units} × ${k} = ${S}, so one unit is ${k}.`,
+        show(c) {
+          [...c.top.texts, ...c.bot.texts].forEach((t) => (t.textContent = k));
+        },
+      },
+      {
+        type: "pad",
+        ans: p * k,
+        ask: `The numerator is ${p} unit${p === 1 ? "" : "s"} of ${k}. What is the numerator?`,
+        hint: `${p} boxes with ${k} in each. How much is that?`,
+        why: `${p} × ${k} = ${p * k}.`,
+        show(c) {
+          rowSvg(c.v, 500, 470, [[p * k, qd * k], "=", [p, qd]], 40);
+        },
+      },
+    ],
+    why: `The fraction is ${fr(p * k, qd * k)}. Check: ${sum ? `${p * k} + ${qd * k} = ${S}` : `${qd * k} − ${p * k} = ${S}`}, and dividing by ${k} gives ${fr(p, qd)}.`,
+  };
+}
+MAKE.fd1 = (level, round) => (level === "easy" ? (round % 3 === 2 ? qSimplify(false) : qEquiv()) : level === "medium" ? (round % 3 === 2 ? qTape() : qSimplify(round % 2 === 1)) : [() => qSimplify(true), qTape, () => qCountReduced()][round % 3]());
+
+// ---------- 2. Compare & order ----------
+const cmpWord = (a, b) => (a[0] * b[1] > b[0] * a[1] ? 1 : a[0] * b[1] < b[0] * a[1] ? -1 : 0);
+function lcdLine(list) {
+  const L = list.reduce((m, f) => lcm(m, f[1]), 1);
+  return { L, html: list.map((f) => `${fr(f[0], f[1])} = ${fr((f[0] * L) / f[1], L)}`).join(", ") };
+}
+function qCompare(level) {
+  let a, b, kind;
+  if (level === "easy") {
+    kind = pick(["den", "num", "rel", "half"]);
+    if (kind === "den") {
+      const d = pickInt(3, 12);
+      const [x, y] = shuffle([...Array(d - 1).keys()].map((i) => i + 1)).slice(0, 2);
+      a = [x, d];
+      b = [y, d];
+    } else if (kind === "num") {
+      const n = pickInt(1, 4);
+      const [d1, d2] = shuffle([...Array(12 - n).keys()].map((i) => i + n + 1)).slice(0, 2);
+      a = [n, d1];
+      b = [n, d2];
+    } else if (kind === "rel") {
+      let d1, k;
+      do {
+        d1 = pick([2, 3, 4, 5, 6]);
+        k = pick([2, 3]);
+      } while (d1 * k > 12);
+      a = [pickInt(1, d1 - 1), d1];
+      b = [pickInt(1, d1 * k - 1), d1 * k];
+    } else {
+      const d1 = pickInt(3, 12);
+      const d2 = pickInt(3, 12);
+      a = [pickInt(1, Math.ceil(d1 / 2) - 1), d1];
+      b = [pickInt(Math.floor(d2 / 2) + 1, d2 - 1), d2];
+    }
+  } else {
+    kind = "any";
+    if (Math.random() < 0.2) {
+      let sn, sd, k1, k2;
+      do {
+        sd = pickInt(2, 6);
+        sn = pickInt(1, sd - 1);
+        k1 = pickInt(1, Math.floor(12 / sd));
+        k2 = pickInt(1, Math.floor(12 / sd));
+      } while (gcd(sn, sd) !== 1 || k1 === k2);
+      a = [sn * k1, sd * k1];
+      b = [sn * k2, sd * k2];
+    } else {
+      do {
+        const d1 = pickInt(3, 12);
+        const d2 = pickInt(3, 12);
+        a = [pickInt(1, d1 - 1), d1];
+        b = [pickInt(1, d2 - 1), d2];
+      } while (a[1] === b[1] || a[0] === b[0] || cmpWord(a, b) === 0 || Math.abs(a[0] / a[1] - b[0] / b[1]) > 0.25);
+    }
+  }
+  if (Math.random() < 0.5) [a, b] = [b, a];
+  const c = cmpWord(a, b);
+  const ans = c > 0 ? "a" : c < 0 ? "b" : "eq";
+  const big = c >= 0 ? a : b;
+  const small = c >= 0 ? b : a;
+  const { L } = lcdLine([a, b]);
+  const A = (a[0] * L) / a[1];
+  const Bn = (b[0] * L) / b[1];
+  let why;
+  if (c === 0) why = `${fr(a[0], a[1])} = ${fr(A, L)} and ${fr(b[0], b[1])} = ${fr(Bn, L)}. They are equal: equivalent fractions.`;
+  else if (kind === "den") why = `Same size pieces (equal denominators, the bottom numbers), so compare the numerators (the top numbers): ${big[0]} is more than ${small[0]}. So ${fr(...big)} is greater.`;
+  else if (kind === "num") why = `Both have ${a[0]} piece${a[0] === 1 ? "" : "s"}. ${plural(big[1])} are bigger pieces than ${plural(small[1])}, so ${fr(...big)} is greater.`;
+  else if (kind === "half") why = `${fr(...small)} is less than one half, and ${fr(...big)} is more than one half. So ${fr(...big)} is greater.`;
+  else why = `Make the denominators (the bottom numbers) the same: ${fr(a[0], a[1])} = ${fr(A, L)} and ${fr(b[0], b[1])} = ${fr(Bn, L)}. ${Math.max(A, Bn)} is more than ${Math.min(A, Bn)}, so ${fr(...big)} is greater.`;
+  const hint = { den: "The pieces are the same size. Which one has more pieces?", num: `Both have ${a[0]} piece${a[0] === 1 ? "" : "s"}. Which pieces are bigger: ${plural(a[1])} or ${plural(b[1])}?`, rel: "Can you cut the bigger pieces again so both have the same denominator (bottom number)?", half: "Is each one more than one half, or less?", any: "Is each one more or less than one half? Or make the denominators (the bottom numbers) the same." }[kind];
+  return {
+    meta: { type: "compare", a, b },
+    draw(v) {
+      const ctx = { v };
+      fracSvg(v, 260, 100, a[0], a[1], 66);
+      fracSvg(v, 740, 100, b[0], b[1], 66);
+      ctx.mid = T(v, 500, 125, "?", 70, ACC);
+      ctx.pics = el("g", { opacity: 0 }, v);
+      fracSvg(ctx.pics, 140, 262, a[0], a[1], 30);
+      barSvg(ctx.pics, 200, 230, 600, 64, a[1], a[0], Y, { labels: false });
+      fracSvg(ctx.pics, 140, 352, b[0], b[1], 30);
+      barSvg(ctx.pics, 200, 320, 600, 64, b[1], b[0], B, { labels: false });
+      lineSvg(v, 200, 800, 470, [[0, "0", true], [0.5, [1, 2], true], [1, "1", true]]);
+      ctx.dots = el("g", { opacity: 0 }, v);
+      [[a, Y, -1], [b, B, 1]].forEach(([f, col, side]) => {
+        const x = 200 + (600 * f[0]) / f[1];
+        el("circle", { cx: x, cy: 470, r: 13, fill: col, stroke: LINE, "stroke-width": 3 }, ctx.dots);
+        fracSvg(ctx.dots, x + side * 36, 432, f[0], f[1], 22);
+      });
+      return ctx;
+    },
+    steps: [
+      {
+        type: "choice",
+        opts: [{ label: fr(a[0], a[1]), v: "a" }, { label: "=", v: "eq" }, { label: fr(b[0], b[1]), v: "b" }],
+        ans,
+        ask: `Which is greater, ${fr(a[0], a[1])} or ${fr(b[0], b[1])}? Tap it. Tap = if they are equal.`,
+        hint,
+        why,
+      },
+    ],
+    finish(cx) {
+      cx.mid.textContent = c > 0 ? ">" : c < 0 ? "<" : "=";
+      fade(cx.pics, 700);
+      fade(cx.dots, 700);
+    },
+    why,
+  };
+}
+const REDUCED = [];
+for (let d = 2; d <= 12; d++) for (let n = 1; n < d; n++) if (gcd(n, d) === 1) REDUCED.push([n, d]);
+function qOrder() {
+  let list, L;
+  do {
+    list = shuffle(REDUCED).slice(0, 3);
+    L = list.reduce((m, f) => lcm(m, f[1]), 1);
+  } while (L > 120 || new Set(list.map((f) => f[1])).size < 2 || list.some((f, i) => list.some((g2, j) => i !== j && Math.abs(f[0] / f[1] - g2[0] / g2[1]) < 0.02)) || Math.max(...list.map((f) => f[0] / f[1])) - Math.min(...list.map((f) => f[0] / f[1])) > 0.6);
+  const ids = ["A", "B", "C"];
+  const sorted = list.map((f, i) => [f, ids[i]]).sort((x, y) => x[0][0] / x[0][1] - y[0][0] / y[0][1]);
+  const ans = sorted.map((s) => s[1]).join(",");
+  const lines = list.map((f) => `${fr(f[0], f[1])} = ${fr((f[0] * L) / f[1], L)}`).join(", ");
+  const why = `Make the denominators (the bottom numbers) all ${L}: ${lines}. So the order is ${sorted.map((s) => fr(s[0][0], s[0][1])).join(", ")}.`;
+  return {
+    meta: { type: "order", list },
+    draw(v) {
+      const ctx = { v };
+      list.forEach((f, i) => {
+        const x = 200 + i * 300;
+        const g = el("g", { class: "fd-card", "data-id": ids[i], "data-bx": x + 90, "data-by": 70 }, v);
+        el("rect", { x: x - 110, y: 60, width: 220, height: 220, rx: 30, fill: PAPER, stroke: "var(--accent)", "stroke-width": 5 }, g);
+        fracSvg(g, x, 170, f[0], f[1], 76);
+      });
+      lineSvg(v, 150, 850, 430, [[0, "0", true], [0.5, [1, 2], true], [1, "1", true]]);
+      ctx.dots = el("g", { opacity: 0 }, v);
+      sorted.forEach(([f], i) => {
+        const x = 150 + (700 * f[0]) / f[1];
+        el("circle", { cx: x, cy: 430, r: 12, fill: [Y, B, G][i], stroke: LINE, "stroke-width": 3 }, ctx.dots);
+        fracSvg(ctx.dots, x, i % 2 ? 330 : 382, f[0], f[1], 24);
+      });
+      return ctx;
+    },
+    steps: [
+      {
+        type: "order",
+        ans,
+        ask: "Tap the three fractions in order, from smallest to largest.",
+        hint: "Which ones are less than one half? Can you make all the denominators (bottom numbers) the same?",
+        why,
+        show: (c) => fade(c.dots, 700),
+      },
+    ],
+    finish: (c) => fade(c.dots, 700),
+    why,
+  };
+}
+function qBetween() {
+  const pool = REDUCED.filter((f) => f[1] <= 8);
+  let lo, hi, mid, L;
+  do {
+    [lo, hi] = shuffle(pool).slice(0, 2);
+    if (cmpWord(lo, hi) > 0) [lo, hi] = [hi, lo];
+    mid = simp(lo[0] + hi[0], lo[1] + hi[1]);
+    L = lcm(lcm(lo[1], hi[1]), mid[1]);
+  } while (cmpWord(lo, hi) === 0 || hi[0] / hi[1] - lo[0] / lo[1] > 0.34 || hi[0] / hi[1] - lo[0] / lo[1] < 0.06 || L > 120);
+  const val = (f) => f[0] / f[1];
+  const outside = REDUCED.filter((f) => f[1] <= 12 && (val(f) <= val(lo) + 1e-9 || val(f) >= val(hi) - 1e-9))
+    .map((f) => [f, Math.min(Math.abs(val(f) - val(lo)), Math.abs(val(f) - val(hi)))])
+    .sort((x, y) => x[1] - y[1])
+    .slice(0, 9)
+    .map((x) => x[0]);
+  const wrong = [];
+  for (const f of shuffle(outside)) if (wrong.length < 3 && !wrong.some((w) => cmpWord(w, f) === 0)) wrong.push(f);
+  // A sneaky one: an end point written another way (it is not between).
+  if (lo[1] * 2 <= 12 && Math.random() < 0.5) {
+    wrong[0] = [lo[0] * 2, lo[1] * 2];
+    for (let i = wrong.length - 1; i > 0; i--) if (cmpWord(wrong[i], lo) === 0) wrong.splice(i, 1);
+  }
+  const opts = shuffle([{ label: fr(mid[0], mid[1]), v: "R" }, ...wrong.map((f, i) => ({ label: fr(f[0], f[1]), v: `W${i}`, f }))]);
+  const why = `With denominator ${L}: ${fr(lo[0], lo[1])} = ${fr((lo[0] * L) / lo[1], L)}, ${fr(mid[0], mid[1])} = ${fr((mid[0] * L) / mid[1], L)}, ${fr(hi[0], hi[1])} = ${fr((hi[0] * L) / hi[1], L)}. A useful fact: adding the numerators and adding the denominators, ${fr(lo[0] + hi[0], lo[1] + hi[1])}, always lands strictly between two different positive fractions. (This is called the mediant. It is not how to add fractions.)`;
+  return {
+    meta: { type: "between", lo, hi, mid, wrong },
+    draw(v) {
+      const ctx = { v };
+      const X = (f) => 120 + 760 * val(f);
+      T(v, 500, 70, "Which fraction is strictly between them?", 34);
+      lineSvg(v, 120, 880, 330, [[0, "0", true], [0.5, "", false], [1, "1", true]]);
+      el("rect", { x: X(lo), y: 300, width: X(hi) - X(lo), height: 60, rx: 10, fill: "var(--accent-soft)", opacity: 0.8 }, v);
+      [lo, hi].forEach((f) => {
+        el("circle", { cx: X(f), cy: 330, r: 13, fill: Y, stroke: LINE, "stroke-width": 3 }, v);
+        fracSvg(v, X(f), 225, f[0], f[1], 46);
+      });
+      ctx.dots = el("g", { opacity: 0 }, v);
+      el("circle", { cx: X(mid), cy: 330, r: 13, fill: G, stroke: LINE, "stroke-width": 3 }, ctx.dots);
+      fracSvg(ctx.dots, X(mid), 430, mid[0], mid[1], 40);
+      return ctx;
+    },
+    steps: [{ type: "choice", opts, ans: "R", ask: `Which fraction is strictly between ${fr(lo[0], lo[1])} and ${fr(hi[0], hi[1])} (greater than the first, less than the second)? Tap it.`, hint: "Make the denominators (bottom numbers) of all the fractions the same. Which one lands in the middle?", why }],
+    finish: (c) => fade(c.dots, 700),
+    why,
+  };
+}
+MAKE.fd2 = (level, round) => (level === "hard" ? [qOrder, qBetween, qCross][round % 3]() : level === "medium" && round % 3 === 2 ? qOrder() : qCompare(level));
+
+// ---------- 3. Add & subtract with unlike denominators ----------
+function lcdStep(b1, b2, L, show) {
+  return {
+    type: "pad",
+    ans: L,
+    ask: `First, cut both into the same size pieces. What is the smallest common denominator of ${b1} and ${b2}?`,
+    near: (v) => v > L && v % b1 === 0 && v % b2 === 0,
+    nearSay: (v) => `${v} works, but there is a smaller one. Try again.`,
+    hint: `List the multiples of ${b1} and of ${b2}. Which number comes first in both lists?`,
+    why: `Multiples of ${b1}: ${multiples(b1, L).join(", ")}. Multiples of ${b2}: ${multiples(b2, L).join(", ")}. The first one in both lists is ${L}.`,
+    show,
+  };
+}
+function rewriteStep(a, b, L, show, lead = "") {
+  return {
+    type: "pad",
+    ans: (a * L) / b,
+    ask: `${lead}${fr(a, b)} = how many ${plural(L)}?`,
+    hint: `Each ${single(b)} is cut into ${L / b} pieces. How many pieces is ${a} ${a === 1 ? single(b) : plural(b)}?`,
+    why: `${a} × ${L / b} = ${(a * L) / b}. So ${fr(a, b)} = ${fr((a * L) / b, L)}.`,
+    show,
+  };
+}
+function qAddSub(level) {
+  let b1, b2;
+  if (level === "easy") {
+    [b1, b2] = shuffle(pick([[2, 4], [2, 6], [2, 8], [3, 6], [4, 8], [3, 12], [4, 12], [5, 10], [6, 12], [2, 10]]));
+  } else {
+    do {
+      b1 = pickInt(2, 12);
+      b2 = pickInt(2, 12);
+    } while (b1 === b2 || lcm(b1, b2) > 36 || lcm(b1, b2) === Math.max(b1, b2));
+  }
+  let a1, a2;
+  do a1 = pickInt(1, b1 - 1);
+  while (gcd(a1, b1) > 1);
+  do a2 = pickInt(1, b2 - 1);
+  while (gcd(a2, b2) > 1);
+  let op = pick(["+", "−"]);
+  if (op === "−") {
+    const c = cmpWord([a1, b1], [a2, b2]);
+    if (c === 0) op = "+";
+    else if (c < 0) [a1, b1, a2, b2] = [a2, b2, a1, b1];
+  }
+  const L = lcm(b1, b2);
+  const x = (a1 * L) / b1;
+  const y = (a2 * L) / b2;
+  const r = op === "+" ? x + y : x - y;
+  const BX = 200;
+  const BW = 600;
+  const steps = [];
+  const label = (c, i, n) => {
+    c.lab[i]?.remove();
+    c.lab[i] = rowSvg(c.v, 900, i === 0 ? 182 : 272, ["=", [n, L]], 30);
+  };
+  steps.push(
+    lcdStep(b1, b2, L, (c) => {
+      c.cut1.setAttribute("opacity", 1);
+      c.cut2.setAttribute("opacity", 1);
+      if (b1 === L) label(c, 0, x);
+      if (b2 === L) label(c, 1, y);
+    })
+  );
+  if (b1 !== L) steps.push(rewriteStep(a1, b1, L, (c) => label(c, 0, x)));
+  if (b2 !== L) steps.push(rewriteStep(a2, b2, L, (c) => label(c, 1, y)));
+  steps.push({
+    type: "pad",
+    ans: r,
+    ask: `${fr(x, L)} ${op} ${fr(y, L)} = how many ${plural(L)}?`,
+    hint: `The pieces are the same size now. ${op === "+" ? "Add" : "Take away"} the numerators (top numbers). The denominator stays ${L}.`,
+    why: `${x} ${op} ${y} = ${r}. So the answer is ${fr(r, L)}.`,
+    show(c) {
+      const bars = Math.max(1, Math.ceil(r / L));
+      const h = bars > 1 ? 46 : 64;
+      for (let k = 0; k < bars; k++) {
+        const yy = 372 + k * (h + 10);
+        for (let i = 0; i < L; i++) {
+          const idx = k * L + i;
+          let fill = PAPER;
+          if (op === "+") fill = idx < x ? Y : idx < x + y ? B : PAPER;
+          else fill = idx < r ? Y : idx < x ? "#f3e3c3" : PAPER;
+          el("rect", { x: BX + (i * BW) / L, y: yy, width: BW / L, height: h, fill, stroke: LINE, "stroke-width": 2.5 }, c.v);
+        }
+      }
+      rowSvg(c.v, 120, 372 + (bars * (h + 10)) / 2 - 5, [[r, L]], 30);
+    },
+  });
+  if (gcd(r, L) > 1 || r >= L) steps.push(formStep(r, L, (c) => rowSvg(c.v, 900, 400, ["=", itemOf(...simp(r, L))], 30)));
+  const why = `${fr(a1, b1)} ${op} ${fr(a2, b2)} = ${fr(x, L)} ${op} ${fr(y, L)} = ${fr(r, L)}${gcd(r, L) > 1 || r >= L ? ` = ${simplest(r, L)}` : ""}.`;
+  return {
+    meta: { type: "addsub", a: [a1, b1], b: [a2, b2], op },
+    draw(v) {
+      const c = { v, lab: [] };
+      rowSvg(v, 500, 66, [[a1, b1], op, [a2, b2], "=", "?"], 44);
+      fracSvg(v, 120, 182, a1, b1, 30);
+      barSvg(v, BX, 150, BW, 64, b1, a1, Y, { labels: false });
+      c.cut1 = cutsSvg(v, BX, 150, BW, 64, L);
+      fracSvg(v, 120, 272, a2, b2, 30);
+      barSvg(v, BX, 240, BW, 64, b2, a2, B, { labels: false });
+      c.cut2 = cutsSvg(v, BX, 240, BW, 64, L);
+      return c;
+    },
+    steps,
+    why,
+  };
+}
+function qMixed(sub) {
+  let b1, b2, L, a1, a2, x, y, w1, w2;
+  do {
+    b1 = pickInt(2, 10);
+    b2 = pickInt(2, 10);
+    L = lcm(b1, b2);
+    a1 = pickInt(1, b1 - 1);
+    a2 = pickInt(1, b2 - 1);
+    x = (a1 * L) / b1;
+    y = (a2 * L) / b2;
+  } while (L > 30 || gcd(a1, b1) > 1 || gcd(a2, b2) > 1 || (b1 === b2 && Math.random() < 0.8) || (sub ? x >= y : x + y <= L));
+  if (sub) {
+    w1 = pickInt(3, 7);
+    w2 = pickInt(1, w1 - 1);
+  } else {
+    w1 = pickInt(1, 5);
+    w2 = pickInt(1, 5);
+  }
+  const op = sub ? "−" : "+";
+  const W = sub ? w1 - 1 - w2 : w1 + w2 + 1;
+  const Rn = sub ? x + L - y : x + y - L;
+  const steps = [];
+  const known = { x: b1 === L, y: b2 === L };
+  const line1 = (c) => {
+    c.l1?.remove();
+    c.l1 = rowSvg(c.v, 500, 172, ["=", [w1, known.x ? x : "?", L], op, [w2, known.y ? y : "?", L]], 36);
+  };
+  steps.push(lcdStep(b1, b2, L, line1));
+  if (b1 !== L)
+    steps.push(
+      rewriteStep(a1, b1, L, (c) => {
+        known.x = true;
+        line1(c);
+      }, `In ${mixHtml(w1, a1, b1)}: `)
+    );
+  if (b2 !== L)
+    steps.push(
+      rewriteStep(a2, b2, L, (c) => {
+        known.y = true;
+        line1(c);
+      }, `In ${mixHtml(w2, a2, b2)}: `)
+    );
+  if (sub) {
+    steps.push({
+      type: "pad",
+      ans: x + L,
+      ask: `${fr(x, L)} is less than ${fr(y, L)}, so trade 1 whole for ${fr(L, L)}. ${x} + ${L} = how many ${plural(L)}?`,
+      hint: `One whole is ${L} ${plural(L)}. Add it to the ${x} you have.`,
+      why: `${x} + ${L} = ${x + L}. So ${mixHtml(w1, x, L)} is the same as ${mixHtml(w1 - 1, x + L, L)}.`,
+      show: (c) => rowSvg(c.v, 500, 262, ["=", [w1 - 1, x + L, L], "−", [w2, y, L]], 36),
+    });
+    steps.push({ type: "pad", ans: W, ask: `Now the wholes: ${w1 - 1} − ${w2} = ?`, hint: `You traded one whole, so you have ${w1 - 1} wholes now.`, why: `${w1 - 1} − ${w2} = ${W}.`, show: (c) => (c.W = W) });
+    steps.push({
+      type: "pad",
+      ans: Rn,
+      ask: `And the fractions: ${fr(x + L, L)} − ${fr(y, L)} = how many ${plural(L)}?`,
+      hint: "Subtract the numerators. The denominator stays the same.",
+      why: `${x + L} − ${y} = ${Rn}.`,
+      show: (c) => rowSvg(c.v, 500, 352, ["=", Rn ? (W ? [W, Rn, L] : [Rn, L]) : String(W)], 36),
+    });
+  } else {
+    steps.push({
+      type: "pad",
+      ans: x + y,
+      ask: `Add the fractions: ${fr(x, L)} + ${fr(y, L)} = how many ${plural(L)}?`,
+      hint: "Add the numerators. The denominator stays the same.",
+      why: `${x} + ${y} = ${x + y}.`,
+      show: (c) => rowSvg(c.v, 500, 262, ["=", w1 + w2, "+", [x + y, L]], 36),
+    });
+    steps.push({ type: "pad", ans: Rn, ask: `${fr(x + y, L)} is more than 1 whole. It is 1 whole and how many ${plural(L)}?`, hint: `1 whole is ${fr(L, L)}. Take ${L} away from ${x + y}.`, why: `${x + y} − ${L} = ${Rn}, so ${fr(x + y, L)} = ${mixHtml(1, Rn, L)}.` });
+    steps.push({ type: "pad", ans: W, ask: `Now the wholes: ${w1} + ${w2} + 1 = ?`, hint: "Add the wholes, plus the 1 whole you made from the fractions.", why: `${w1} + ${w2} + 1 = ${W}.`, show: (c) => rowSvg(c.v, 500, 352, ["=", Rn ? (W ? [W, Rn, L] : [Rn, L]) : String(W)], 36) });
+  }
+  if (Rn && gcd(Rn, L) > 1) {
+    const st = formStep(W * L + Rn, L, (c) => rowSvg(c.v, 500, 442, ["=", itemOf(...simp(W * L + Rn, L))], 36));
+    st.ask = `Simplify ${mixHtml(W, Rn, L)}. Tap the simplest form.`;
+    st.hint = `Can ${Rn} and ${L} both be divided by the same number?`;
+    st.why = `${Rn} and ${L} can both be divided by ${gcd(Rn, L)}: ${fr(Rn, L)} = ${fr(...simp(Rn, L))}. So it is ${simplest(W * L + Rn, L)}.`;
+    steps.push(st);
+  }
+  const total = W * L + Rn;
+  return {
+    meta: { type: "mixed", a: [w1, a1, b1], b: [w2, a2, b2], op },
+    draw(v) {
+      rowSvg(v, 500, 66, [[w1, a1, b1], op, [w2, a2, b2], "=", "?"], 42);
+      return { v };
+    },
+    steps,
+    why: `${mixHtml(w1, a1, b1)} ${op} ${mixHtml(w2, a2, b2)} = ${simplest(total, L)}. ${sub ? "Regrouping 1 whole made the subtraction work." : "Making 1 whole from the fractions finished it."}`,
+  };
+}
+MAKE.fd3 = (level, round) => (level === "hard" ? [() => qMixed(true), qTelescope, () => qMixed(false)][round % 3]() : level === "medium" && round % 3 === 2 ? qMixed(round % 2 === 0) : qAddSub(level));
+
+// ---------- 4. Multiply fractions ----------
+function qWholeTimes() {
+  const n = pickInt(2, 6);
+  const b = pick([2, 3, 4, 5, 6, 8]);
+  let a;
+  do a = pickInt(1, b - 1);
+  while (gcd(a, b) > 1);
+  const P = n * a;
+  const steps = [
+    {
+      type: "pad",
+      ans: P,
+      ask: `${n} × ${fr(a, b)} means ${n} groups of ${fr(a, b)}. How many ${plural(b)} is that?`,
+      hint: `Count the shaded ${plural(b)} in all the bars. Or: ${n} groups of ${a} is…?`,
+      why: `${n} × ${a} = ${P}, so it is ${fr(P, b)}.`,
+      show(c) {
+        let k = 0;
+        c.bars.forEach(({ x, y }) => {
+          for (let i = 0; i < a; i++) T(c.v, x + ((i + 0.5) * 260) / b, y + 37, ++k, 22, INK);
+        });
+        c.eq.remove();
+        c.eq = rowSvg(c.v, 500, 66, [n, "×", [a, b], "=", [P, b]], 44);
+      },
+    },
+  ];
+  if (gcd(P, b) > 1 || P >= b) steps.push(formStep(P, b, (c) => rowSvg(c.v, 500, 480, [[P, b], "=", itemOf(...simp(P, b))], 38)));
+  return {
+    meta: { type: "wholetimes", n, a, b },
+    draw(v) {
+      const c = { v, bars: [] };
+      c.eq = rowSvg(v, 500, 66, [n, "×", [a, b], "=", ["?", b]], 44);
+      for (let i = 0; i < n; i++) {
+        const x = 70 + (i % 3) * 300;
+        const y = 160 + Math.floor(i / 3) * 110;
+        barSvg(v, x, y, 260, 56, b, a, Y, { labels: false });
+        c.bars.push({ x, y });
+      }
+      return c;
+    },
+    steps,
+    why: `${n} × ${fr(a, b)} = ${fr(P, b)}${P >= b || gcd(P, b) > 1 ? ` = ${simplest(P, b)}` : ""}. Multiply the whole number by the numerator (the top number); the denominator (the bottom number) stays the same.`,
+  };
+}
+const THINGS = [["🥚", "eggs"], ["🍪", "cookies"], ["🍓", "strawberries"], ["⚽", "balls"], ["🐟", "fish"], ["🌸", "flowers"], ["🧁", "cupcakes"]];
+function qSetOf() {
+  let b, k;
+  do {
+    b = pick([2, 3, 4, 5, 6]);
+    k = pickInt(2, 6);
+  } while (b * k > 30);
+  let a;
+  do a = pickInt(1, b - 1);
+  while (gcd(a, b) > 1);
+  const N = b * k;
+  const [glyph, name] = pick(THINGS);
+  return {
+    meta: { type: "setof", a, b, N },
+    draw(v) {
+      const c = { v, boxes: [] };
+      rowSvg(v, 500, 62, [[a, b], "of", N, name], 40);
+      const gap = 14;
+      const bw = (940 - (b - 1) * gap) / b;
+      const cols = Math.min(k, Math.max(1, Math.floor(bw / 52)));
+      for (let i = 0; i < b; i++) {
+        const x = 30 + i * (bw + gap);
+        c.boxes.push(el("rect", { x, y: 140, width: bw, height: 300, rx: 22, fill: PAPER, stroke: "#c9b8a1", "stroke-width": 4 }, v));
+        for (let j = 0; j < k; j++) {
+          const rows = Math.ceil(k / cols);
+          const cx = x + bw / 2 + ((j % cols) - (cols - 1) / 2) * 52;
+          const cy = 290 + (Math.floor(j / cols) - (rows - 1) / 2) * 56;
+          emoji(v, cx, cy, glyph, 42);
+        }
+        c.boxes[i].dataset.x = x + bw / 2;
+      }
+      return c;
+    },
+    steps: [
+      {
+        type: "pad",
+        ans: k,
+        ask: `What is ${fr(1, b)} of ${N}? The ${N} ${name} are shared into ${b} equal groups.`,
+        hint: `How many are in one group? Or: ${N} ÷ ${b} = ?`,
+        why: `${N} ÷ ${b} = ${k}. One group is ${k}.`,
+        show: (c) => c.boxes.forEach((r) => T(c.v, Number(r.dataset.x), 480, k, 32, ACC)),
+      },
+      {
+        type: "pad",
+        ans: a * k,
+        ask: `So what is ${fr(a, b)} of ${N}?`,
+        hint: `${fr(a, b)} means ${a} of the groups. ${a} groups of ${k} is…?`,
+        why: `${a} × ${k} = ${a * k}.`,
+        show: (c) => c.boxes.forEach((r, i) => i < a && (r.setAttribute("fill", "#fdeec2"), r.setAttribute("stroke", "var(--accent)"))),
+      },
+    ],
+    why: `${fr(a, b)} of ${N} = ${a * k}. Divide by the denominator (the bottom number: ${N} ÷ ${b} = ${k}), then multiply by the numerator (the top number: ${k} × ${a} = ${a * k}).`,
+  };
+}
+function areaModel(v, X, Yt, S, a, b, c2, d) {
+  const g = el("g", {}, v);
+  for (let i = 0; i < b; i++)
+    for (let j = 0; j < d; j++) {
+      const inA = i < a;
+      const inC = j < c2;
+      el("rect", { x: X + (i * S) / b, y: Yt + (j * S) / d, width: S / b, height: S / d, fill: inA && inC ? G : inA ? Y : inC ? B : PAPER, stroke: LINE, "stroke-width": 2.5 }, g);
+    }
+  el("rect", { x: X, y: Yt, width: S, height: S, fill: "none", stroke: LINE, "stroke-width": 5 }, g);
+  fracSvg(g, X + (S * a) / b / 2, Yt - 52, a, b, 30, "#9a6a00");
+  fracSvg(g, X - 40, Yt + (S * c2) / d / 2, c2, d, 30, "#1f6d9c");
+  return g;
+}
+const WORDS = [
+  (a, b, c, d) => [`${a}/${b} of a garden is vegetables. ${c}/${d} of the vegetable part is carrots. What part of the whole garden is carrots?`, "garden"],
+  (a, b, c, d) => [`${a}/${b} of a pizza is left. You eat ${c}/${d} of what is left. What part of the whole pizza do you eat?`, "pizza"],
+  (a, b, c, d) => [`A path is ${a}/${b} of a mile long. You have walked ${c}/${d} of it. What part of a mile have you walked?`, "mile"],
+];
+function qArea(word) {
+  const b = pickInt(2, word ? 7 : 6);
+  const d = pickInt(2, word ? 7 : 6);
+  let a, c2;
+  do a = pickInt(1, b - 1);
+  while (gcd(a, b) > 1);
+  do c2 = pickInt(1, d - 1);
+  while (gcd(c2, d) > 1);
+  const P = a * c2;
+  const Q = b * d;
+  const story = word ? pick(WORDS)(a, b, c2, d)[0] : "";
+  const steps = [
+    {
+      type: "pad",
+      ans: Q,
+      ask: `${word ? "Use the square. " : `${fr(a, b)} × ${fr(c2, d)}: `}How many small boxes is the whole square cut into?`,
+      hint: "How many columns are there, and how many rows? How do they combine?",
+      why: `${b} columns × ${d} rows = ${Q} boxes. That is the denominator (the bottom number).`,
+    },
+    {
+      type: "pad",
+      ans: P,
+      ask: "How many boxes are green? Green is shaded both ways.",
+      hint: `The green part is ${a} column${a > 1 ? "s" : ""} wide and ${c2} row${c2 > 1 ? "s" : ""} tall. How many boxes?`,
+      why: `${a} × ${c2} = ${P} green boxes. That is the numerator (the top number).`,
+      show: (c) => {
+        c.eq.remove();
+        c.eq = rowSvg(c.v, c.ex, c.ey, [[a, b], "×", [c2, d], "=", [P, Q]], c.es);
+      },
+    },
+  ];
+  if (gcd(P, Q) > 1) steps.push(formStep(P, Q, (c) => rowSvg(c.v, c.ex, c.ey + 110, ["=", itemOf(...simp(P, Q))], c.es)));
+  return {
+    meta: { type: "area", a, b, c: c2, d },
+    draw(v) {
+      const c = { v };
+      if (word) {
+        wrapSvg(v, 270, 70, story, 25, 30, { "text-anchor": "middle" });
+        Object.assign(c, { ex: 270, ey: 340, es: 40 });
+        areaModel(v, 590, 130, 360, a, b, c2, d);
+      } else {
+        Object.assign(c, { ex: 270, ey: 200, es: 46 });
+        areaModel(v, 560, 120, 380, a, b, c2, d);
+        T(v, 270, 380, "yellow × blue = green", 26, MUTED);
+      }
+      c.eq = rowSvg(v, c.ex, c.ey, [[a, b], "×", [c2, d], "=", "?"], c.es);
+      return c;
+    },
+    steps,
+    why: `${fr(a, b)} × ${fr(c2, d)} = ${fr(P, Q)}${gcd(P, Q) > 1 ? ` = ${simplest(P, Q)}` : ""}. Multiply the numerators, and multiply the denominators.`,
+  };
+}
+const AMOUNTS = [["km", "A bike trail is", "long. You ride", "How far do you ride?"], ["kg", "A shop has", "of apples. It sells", "How many kilograms is that?"], ["minutes", "A film lasts", ". You have watched", "How many minutes is that?"], ["pages", "A book has", ". You have read", "How many pages is that?"]];
+function qQuantity() {
+  const b = pick([3, 4, 5, 6, 8, 10]);
+  const k = pickInt(3, 12);
+  let a;
+  do a = pickInt(2, b - 1);
+  while (gcd(a, b) > 1);
+  const N = b * k;
+  const [unit, s1, s2, s3] = pick(AMOUNTS);
+  const story = `${s1} ${N} ${unit}${s2.startsWith(".") ? "" : " "}${s2} ${a}/${b} of it. ${s3}`;
+  return {
+    meta: { type: "quantity", a, b, N },
+    draw(v) {
+      const c = { v, texts: [], cells: [] };
+      wrapSvg(v, 500, 56, story, 29, 52);
+      const X = 80;
+      const Wd = 840;
+      el("path", { d: `M${X} 240 v -18 H ${X + Wd} v 18`, fill: "none", stroke: ACC, "stroke-width": 4 }, v);
+      T(v, 500, 208, `${N} ${unit}`, 30, ACC);
+      for (let i = 0; i < b; i++) {
+        c.cells.push(el("rect", { x: X + (i * Wd) / b, y: 250, width: Wd / b, height: 90, fill: PAPER, stroke: LINE, "stroke-width": 3 }, v));
+        c.texts.push(T(v, X + ((i + 0.5) * Wd) / b, 306, "", 30));
+      }
+      return c;
+    },
+    steps: [
+      { type: "pad", ans: k, ask: `The bar is cut into ${b} equal parts. What is ${fr(1, b)} of ${N}?`, hint: `${N} ÷ ${b} = ?`, why: `${N} ÷ ${b} = ${k}. Each part is ${k}.`, show: (c) => c.texts.forEach((t) => (t.textContent = k)) },
+      {
+        type: "pad",
+        ans: a * k,
+        ask: `So what is ${fr(a, b)} of ${N} ${unit}?`,
+        hint: `${a} parts, with ${k} in each part.`,
+        why: `${a} × ${k} = ${a * k}.`,
+        show(c) {
+          c.cells.forEach((r, i) => i < a && r.setAttribute("fill", Y));
+          T(c.v, 500, 420, `${a}/${b} of ${N} = ${a * k} ${unit}`, 36, ACC);
+        },
+      },
+    ],
+    why: `${fr(a, b)} of ${N} is ${a * k} ${unit}: ${N} ÷ ${b} = ${k}, and ${k} × ${a} = ${a * k}.`,
+  };
+}
+function qMixedTimes() {
+  const w = pickInt(1, 3);
+  const bb = pickInt(2, 6);
+  const n = pickInt(1, bb - 1);
+  const d = pickInt(2, 6);
+  const c2 = pickInt(1, d - 1);
+  if (gcd(n, bb) > 1 || gcd(c2, d) > 1) return qMixedTimes();
+  const I = w * bb + n;
+  const top = I * c2;
+  const bot = bb * d;
+  const steps = [
+    {
+      type: "pad",
+      ans: I,
+      ask: `${mixHtml(w, n, bb)} × ${fr(c2, d)}. First write ${mixHtml(w, n, bb)} as a fraction. How many ${plural(bb)}?`,
+      hint: `Each whole is ${bb} ${plural(bb)}. So ${w} whole${w > 1 ? "s" : ""} is how many? Then add ${n}.`,
+      why: `${w} × ${bb} + ${n} = ${I}. So ${mixHtml(w, n, bb)} = ${fr(I, bb)}.`,
+      show: (c) => rowSvg(c.v, 500, 190, ["=", [I, bb], "×", [c2, d]], 38),
+    },
+    { type: "pad", ans: top, ask: `${fr(I, bb)} × ${fr(c2, d)}. Multiply the numerators (the top numbers): ${I} × ${c2} = ?`, hint: `${I} groups of ${c2}.`, why: `${I} × ${c2} = ${top}.` },
+    { type: "pad", ans: bot, ask: `Now multiply the denominators (the bottom numbers): ${bb} × ${d} = ?`, hint: `${bb} groups of ${d}.`, why: `${bb} × ${d} = ${bot}.`, show: (c) => rowSvg(c.v, 500, 300, ["=", [top, bot]], 38) },
+  ];
+  if (gcd(top, bot) > 1 || top >= bot) steps.push(formStep(top, bot, (c) => rowSvg(c.v, 500, 410, ["=", itemOf(...simp(top, bot))], 38)));
+  return {
+    meta: { type: "mixedtimes", w, n, bb, c: c2, d },
+    draw(v) {
+      rowSvg(v, 500, 70, [[w, n, bb], "×", [c2, d], "=", "?"], 44);
+      return { v };
+    },
+    steps,
+    why: `${mixHtml(w, n, bb)} × ${fr(c2, d)} = ${fr(I, bb)} × ${fr(c2, d)} = ${fr(top, bot)}${gcd(top, bot) > 1 || top >= bot ? ` = ${simplest(top, bot)}` : ""}.`,
+  };
+}
+MAKE.fd4 = (level, round) => (level === "easy" ? (round % 2 ? qSetOf() : qWholeTimes()) : level === "medium" ? [() => qArea(false), qQuantity, () => qArea(true)][round % 3]() : [qDivide, qMixedTimes, qScoops, qProduct][round % 4]());
+
+// ---------- 5. Decimals to thousandths ----------
+const PLACES = ["tens", "ones", "tenths", "hundredths", "thousandths"];
+const PVAL = [10, 1, 0.1, 0.01, 0.001];
+// Draw a place-value chart; rows are arrays of [digit|"" , ghost?] per place.
+function pvChart(v, y, cols, rows, highlight = -1) {
+  const cw = 168;
+  const x0 = 500 - (cols.length * cw) / 2;
+  const g = el("g", {}, v);
+  cols.forEach((p, i) => {
+    const x = x0 + i * cw;
+    el("rect", { x: x + 4, y, width: cw - 8, height: 50, rx: 12, fill: i === highlight ? "var(--accent)" : "var(--accent-soft)" }, g);
+    T(g, x + cw / 2, y + 34, PLACES[p], 23, i === highlight ? "#fff" : ACC);
+    rows.forEach((row, r) => {
+      el("rect", { x: x + 4, y: y + 58 + r * 104, width: cw - 8, height: 96, rx: 14, fill: i === highlight ? "#fdeec2" : PAPER, stroke: "#d9cdb5", "stroke-width": 3 }, g);
+      const [dig, ghost] = row[i] || ["", false];
+      T(g, x + cw / 2, y + 58 + r * 104 + 70, dig, 64, ghost ? "#c9b8a1" : INK);
+    });
+  });
+  const dx = x0 + cols.indexOf(1) * cw + cw;
+  rows.forEach((_, r) => el("circle", { cx: dx, cy: y + 58 + r * 104 + 74, r: 9, fill: INK }, g));
+  return g;
+}
+const digitsOf = (str, cols) => {
+  const [ip, dp = ""] = str.split(".");
+  return cols.map((p) => {
+    if (p <= 1) {
+      const k = 1 - p;
+      const ch = ip[ip.length - 1 - k];
+      return ch === undefined ? ["", false] : [ch, false];
+    }
+    const ch = dp[p - 2];
+    return ch === undefined ? ["0", true] : [ch, false];
+  });
+};
+function qDigit(places) {
+  let s, pos, dig, w;
+  do {
+    const ds = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    w = places === 2 ? String(ds[0]) : String(ds[0] * 10 + ds[1]);
+    const dec = ds.slice(2, 2 + places).join("");
+    s = `${w}.${dec}`;
+    pos = places === 2 ? pick([1, 2, 3]) : pick([0, 2, 3, 4, 4]);
+    const cols = places === 2 ? [1, 2, 3] : [0, 1, 2, 3, 4];
+    dig = digitsOf(s, cols)[cols.indexOf(pos)][0];
+  } while (!dig);
+  const cols = places === 2 ? [1, 2, 3] : [0, 1, 2, 3, 4];
+  const value = Number(dig) * PVAL[pos];
+  const optsVals = (places === 2 ? [1, 2, 3] : [1, 2, 3, 4]).map((p) => Number(dig) * PVAL[p]);
+  if (pos === 0) optsVals[0] = Number(dig) * 10;
+  const opts = optsVals.map((x) => ({ label: fmt(x), v: Math.abs(x - value) < 1e-9 ? "R" : `W${fmt(x)}` }));
+  const why = `The ${dig} is in the ${PLACES[pos]} place, so it is worth ${dig} ${PLACES[pos]} = ${fmt(value)}.`;
+  return {
+    meta: { type: "digit", s, dig, value },
+    draw(v) {
+      const c = { v };
+      T(v, 500, 70, s, 64, INK);
+      c.chart = pvChart(v, 110, cols, [digitsOf(s, cols).map(([d0]) => [d0, false])]);
+      return c;
+    },
+    steps: [{ type: "choice", opts, ans: "R", ask: `In ${s}, what is the ${dig} worth? Tap it.`, hint: "Which column is it in? Each place is worth one tenth of the place to its left.", why }],
+    finish(c) {
+      c.chart.remove();
+      pvChart(c.v, 110, cols, [digitsOf(s, cols).map(([d0]) => [d0, false])], cols.indexOf(pos));
+      T(c.v, 500, 400, `${dig} ${PLACES[pos]} = ${fmt(value)}`, 44, ACC);
+    },
+    why,
+  };
+}
+function qGrid() {
+  let k;
+  do k = pickInt(3, 97);
+  while (k % 10 === 0 && Math.random() < 0.8);
+  const t = Math.floor(k / 10);
+  const o = k % 10;
+  return {
+    meta: { type: "grid", k },
+    draw(v) {
+      gridSvg(v, 60, 60, 44, k, B);
+      const c = { v };
+      T(v, 760, 120, "The big square = 1", 30);
+      T(v, 760, 190, "1 column = 0.1", 30, "#1f6d9c");
+      T(v, 760, 250, "1 small square = 0.01", 30, "#1f6d9c");
+      c.out = el("g", {}, v);
+      return c;
+    },
+    steps: [
+      {
+        type: "pad",
+        dot: true,
+        ans: k / 100,
+        ask: "What decimal is shaded? Type it with a point.",
+        hint: "How many full columns (tenths)? How many extra small squares (hundredths)?",
+        why: `${t} full column${t === 1 ? "" : "s"} is ${t} tenth${t === 1 ? "" : "s"}, and ${o} more square${o === 1 ? "" : "s"} is ${o} hundredth${o === 1 ? "" : "s"}. That is ${k} hundredths: ${fmt(k / 100)}.`,
+        show(c) {
+          T(c.out, 760, 350, `${t} tenths + ${o} hundredths`, 28, INK);
+          T(c.out, 760, 430, `= ${fmt(k / 100)}`, 56, ACC);
+        },
+      },
+    ],
+    why: `${k} of 100 squares = ${k} hundredths = ${fmt(k / 100)}.`,
+  };
+}
+function qCmpDec(level) {
+  let A, Bv, sa, sb;
+  const w = pickInt(0, 9);
+  if (level === "easy") {
+    const t = pickInt(1, 9);
+    A = t * 10;
+    const r = Math.random();
+    if (r < 0.15) Bv = A;
+    else {
+      do Bv = A + pick([-1, 1]) * pickInt(1, 9);
+      while (Bv < 1 || Bv > 99);
+    }
+    sa = `${w}.${t}`;
+    sb = `${w}.${String(Bv).padStart(2, "0")}`;
+    A = w * 1000 + A * 10;
+    Bv = w * 1000 + Bv * 10;
+  } else {
+    const r = Math.random();
+    if (r < 0.45) {
+      const d1 = pickInt(1, 9);
+      const d2 = pickInt(1, 9);
+      A = w * 1000 + d1 * 100 + d2;
+      Bv = w * 1000 + d1 * 100 + d2 * 10;
+      sa = `${w}.${d1}0${d2}`;
+      sb = `${w}.${d1}${d2}`;
+    } else if (r < 0.6) {
+      const t = pickInt(10, 99);
+      A = w * 1000 + t * 10;
+      Bv = A;
+      sa = `${w}.${t}`;
+      sb = `${w}.${t}0`;
+      if (t % 10 === 0) (sa = `${w}.${t / 10}`), (sb = `${w}.${t}0`);
+    } else {
+      A = w * 1000 + pickInt(101, 999);
+      do Bv = A + pick([-1, 1]) * pickInt(1, 60);
+      while (Bv % 1000 === 0 || Math.floor(Bv / 1000) !== w);
+      sa = fmt(A / 1000);
+      sb = fmt(Bv / 1000);
+    }
+  }
+  if (Math.random() < 0.5) [A, Bv, sa, sb] = [Bv, A, sb, sa];
+  const c = Math.sign(A - Bv);
+  const cols = level === "easy" ? [1, 2, 3] : [1, 2, 3, 4];
+  const pad = (s) => {
+    const [i, d = ""] = s.split(".");
+    return `${i}.${d.padEnd(cols.length - 1, "0")}`;
+  };
+  const why = `Line them up and fill the empty places with zeros: ${pad(sa)} and ${pad(sb)}. ${c === 0 ? "They are equal." : `${c > 0 ? sa : sb} is greater.`}`;
+  return {
+    meta: { type: "cmpdec", sa, sb },
+    draw(v) {
+      const ctx = { v };
+      ctx.chart = pvChart(v, 30, cols, [digitsOf(sa, cols).map(([d, gh]) => (gh ? ["", false] : [d, false])), digitsOf(sb, cols).map(([d, gh]) => (gh ? ["", false] : [d, false]))]);
+      ctx.sign = T(v, 500, 420, "", 40, ACC);
+      return ctx;
+    },
+    steps: [
+      {
+        type: "choice",
+        opts: [{ label: sa, v: "a" }, { label: "=", v: "eq" }, { label: sb, v: "b" }],
+        ans: c > 0 ? "a" : c < 0 ? "b" : "eq",
+        ask: `Which is greater, ${sa} or ${sb}? Tap = if they are equal.`,
+        hint: "Line up the points. Compare the tenths first, then the hundredths. An empty place is a zero.",
+        why,
+      },
+    ],
+    finish(cx) {
+      cx.chart.remove();
+      pvChart(cx.v, 30, cols, [digitsOf(sa, cols), digitsOf(sb, cols)]);
+      cx.sign.textContent = c === 0 ? `${sa} = ${sb}` : c > 0 ? `${sa} > ${sb}` : `${sa} < ${sb}`;
+      cx.sign.setAttribute("y", 470);
+      cx.sign.setAttribute("font-size", 52);
+    },
+    why,
+  };
+}
+function qRound() {
+  let v;
+  do v = pickInt(1001, 9999);
+  while (v % 10 === 0);
+  const toTenth = Math.random() < 0.5;
+  const step = toTenth ? 100 : 10;
+  const lo = Math.floor(v / step) * step;
+  const hi = lo + step;
+  const ans = (Math.round(v / step) * step) / 1000;
+  const s = fmt(v / 1000);
+  const f = toTenth ? 1 : 2;
+  const nextDigit = toTenth ? Math.floor(v / 10) % 10 : v % 10;
+  const half = v - lo === step / 2;
+  const why = `${s} is between ${(lo / 1000).toFixed(f)} and ${(hi / 1000).toFixed(f)}. ${half ? `It is exactly halfway; by the usual convention (an agreed rule) halfway rounds up` : `The next digit is ${nextDigit}, so it is ${nextDigit >= 5 ? "past halfway: round up" : "before halfway: round down"}`} to ${(ans).toFixed(f)}.`;
+  return {
+    meta: { type: "round", v, toTenth },
+    draw(view2) {
+      const c = { v: view2 };
+      T(view2, 500, 80, `Round ${s} to the nearest ${toTenth ? "tenth" : "hundredth"}`, 40);
+      const ticks = [];
+      for (let i = 0; i <= 10; i++) ticks.push([i / 10, i === 0 ? (lo / 1000).toFixed(f) : i === 10 ? (hi / 1000).toFixed(f) : i === 5 ? ((lo + step / 2) / 1000).toFixed(f + 1) : "", i % 5 === 0]);
+      lineSvg(view2, 120, 880, 320, ticks);
+      const px = 120 + (760 * (v - lo)) / step;
+      el("circle", { cx: px, cy: 320, r: 14, fill: RED, stroke: LINE, "stroke-width": 3 }, view2);
+      T(view2, px, 280, s, 32, "#b2342a");
+      c.arrow = el("g", { opacity: 0 }, view2);
+      const tx = ans * 1000 === lo ? 120 : 880;
+      el("path", { d: `M${px} 250 Q ${(px + tx) / 2} 170 ${tx} 250`, fill: "none", stroke: ACC, "stroke-width": 5, "stroke-dasharray": "10 8" }, c.arrow);
+      T(c.arrow, 500, 470, `${s} ≈ ${ans.toFixed(f)}`, 52, ACC);
+      return c;
+    },
+    steps: [{ type: "pad", dot: true, ans, ask: `Round ${s} to the nearest ${toTenth ? "tenth" : "hundredth"}.`, hint: `Which two ${toTenth ? "tenths" : "hundredths"} is it between? Is it past the halfway mark?`, why, show: (c) => fade(c.arrow, 600) }],
+    finish: (c) => c.arrow.setAttribute("opacity", 1),
+    why,
+  };
+}
+// Column sums lined up on the point.
+function columnSvg(v, cx, y, nums, op, places) {
+  const g = el("g", {}, v);
+  const cw = 46;
+  const ints = Math.max(...nums.map((s) => s.split(".")[0].length));
+  const total = ints + 1 + places;
+  const x0 = cx - (total * cw) / 2;
+  const put = (s, r, color = INK) => {
+    const [ip, dp = ""] = s.split(".");
+    for (let i = 0; i < ip.length; i++) T(g, x0 + (ints - ip.length + i + 0.5) * cw, y + r * 70, ip[i], 54, color);
+    T(g, x0 + (ints + 0.5) * cw, y + r * 70, ".", 54, color);
+    for (let i = 0; i < places; i++) T(g, x0 + (ints + 1 + i + 0.5) * cw, y + r * 70, dp[i] ?? "0", 54, dp[i] === undefined ? "#c9b8a1" : color);
+  };
+  nums.forEach((s, r) => put(s, r));
+  T(g, x0 - 30, y + 70, op, 54, INK);
+  el("line", { x1: x0 - 50, x2: x0 + total * cw + 10, y1: y + 92, y2: y + 92, stroke: INK, "stroke-width": 5 }, g);
+  return { g, answer: (s) => put(s, 2.35, ACC) };
+}
+const UNITS_M = [["m", "A board is", "long. You cut off", "How much is left?", "−"], ["kg", "A bag of flour weighs", ". You add", "How much is there now?", "+"], ["L", "A jug holds", "of juice. You pour out", "How much is left?", "−"], ["km", "You walk", "in the morning. In the afternoon you walk", "How far is that in all?", "+"]];
+function qMoney() {
+  const A = pickInt(105, 2999);
+  const Bc = pickInt(105, 1999);
+  const sub = Math.random() < 0.4 && A > Bc + 50;
+  const ans = sub ? A - Bc : A + Bc;
+  const sa = (A / 100).toFixed(2);
+  const sb = (Bc / 100).toFixed(2);
+  const story = sub ? `You have ${money(A)}. You spend ${money(Bc)} on a book. How much is left?` : `A kite costs ${money(A)} and a ball costs ${money(Bc)}. How much for both?`;
+  return {
+    meta: { type: "money", A, B: Bc, sub },
+    draw(v) {
+      wrapSvg(v, 500, 56, story, 30, 52);
+      return { v, col: columnSvg(v, 500, 210, [sa, sb], sub ? "−" : "+", 2) };
+    },
+    steps: [
+      {
+        type: "pad",
+        dot: true,
+        ans: ans / 100,
+        ask: `${story} Type the dollars, a point, then the cents.`,
+        hint: `Line up the points. ${sub ? "Subtract" : "Add"} the cents first. Did you need to ${sub ? "trade a dollar for 100 cents" : "carry 100 cents into a dollar"}?`,
+        why: `${money(A)} ${sub ? "−" : "+"} ${money(Bc)} = ${money(ans)}. Keep the points lined up.`,
+        show: (c) => c.col.answer((ans / 100).toFixed(2)),
+      },
+    ],
+    why: `${money(A)} ${sub ? "−" : "+"} ${money(Bc)} = ${money(ans)}.`,
+  };
+}
+function qMeasure() {
+  const [unit, s1, s2, s3, op] = pick(UNITS_M);
+  let A, Bm, pa, pb;
+  do {
+    pa = pick([0, 1, 2]);
+    pb = pick([1, 2, 3].filter((p) => p !== pa));
+    A = pickInt(1, 9) * 1000 + pickInt(0, 10 ** pa - 1) * 10 ** (3 - pa);
+    Bm = pickInt(0, 4) * 1000 + pickInt(1, 10 ** pb - 1) * 10 ** (3 - pb);
+  } while (Bm % 10 ** (3 - pb + 1) === 0 || (op === "−" && Bm >= A) || A % 1000 === 0 && pa > 0);
+  const ans = op === "−" ? A - Bm : A + Bm;
+  const sa = fmt(A / 1000);
+  const sb = fmt(Bm / 1000);
+  const places = Math.max(pa, pb);
+  const story = `${s1} ${sa} ${unit}${s2.startsWith(".") ? "" : " "}${s2} ${sb} ${unit}. ${s3}`;
+  return {
+    meta: { type: "measure", A, B: Bm, op },
+    draw(v) {
+      wrapSvg(v, 500, 56, story, 30, 52);
+      return { v, col: columnSvg(v, 500, 210, [sa, sb], op, places) };
+    },
+    steps: [
+      {
+        type: "pad",
+        dot: true,
+        ans: ans / 1000,
+        ask: `${story} The grey zeros are placeholders.`,
+        hint: `Line up the points. Write ${sa} with ${places} decimal places first. Start from the right.`,
+        why: `${sa} ${op} ${sb} = ${fmt(ans / 1000)} ${unit}. Adding zeros at the end (${(A / 1000).toFixed(places)}) does not change the number.`,
+        show: (c) => c.col.answer((ans / 1000).toFixed(places)),
+      },
+    ],
+    why: `${sa} ${op} ${sb} = ${fmt(ans / 1000)} ${unit}.`,
+  };
+}
+function qChange() {
+  const T0 = pick([10, 20, 50]);
+  let a, b2;
+  do {
+    a = pickInt(105, T0 * 50);
+    b2 = pickInt(105, T0 * 50);
+  } while (a + b2 >= T0 * 100 - 20);
+  const sum = a + b2;
+  const left = T0 * 100 - sum;
+  return {
+    meta: { type: "change", T: T0, a, b: b2 },
+    draw(v) {
+      wrapSvg(v, 500, 56, `You have $${T0}. You buy a book for ${money(a)} and a pen for ${money(b2)}. How much money is left?`, 30, 52);
+      const c = { v, col: columnSvg(v, 300, 230, [(a / 100).toFixed(2), (b2 / 100).toFixed(2)], "+", 2) };
+      return c;
+    },
+    steps: [
+      { type: "pad", dot: true, ans: sum / 100, ask: `Step 1: how much do the book and pen cost together?`, hint: "Line up the points and add. Start with the cents.", why: `${money(a)} + ${money(b2)} = ${money(sum)}.`, show: (c) => c.col.answer((sum / 100).toFixed(2)) },
+      {
+        type: "pad",
+        dot: true,
+        ans: left / 100,
+        ask: `Step 2: $${T0}.00 − ${money(sum)} = ?`,
+        hint: `Count up from ${money(sum)} to $${T0}. Or subtract, trading a dollar for 100 cents.`,
+        why: `$${T0}.00 − ${money(sum)} = ${money(left)}.`,
+        show: (c) => columnSvg(c.v, 720, 230, [`${T0}.00`, (sum / 100).toFixed(2)], "−", 2).answer((left / 100).toFixed(2)),
+      },
+    ],
+    why: `Total ${money(sum)}, so the change from $${T0} is ${money(left)}.`,
+  };
+}
+MAKE.fd5 = (level, round) => (level === "easy" ? [() => qDigit(2), qGrid, () => qCmpDec("easy")][round % 3]() : level === "medium" ? [() => qDigit(3), qRound, () => qCmpDec("medium"), qMoney, qMeasure][round % 5]() : [qDecMul, qChange, qDecMul, qMeasure][round % 4]());
+
+// ---------- 6. Fractions, decimals and percents ----------
+const SET_E = [[1, 2], [1, 4], [3, 4], [1, 10], [3, 10], [7, 10], [9, 10], [1, 5], [2, 5], [3, 5], [4, 5]];
+const SET_M = [[1, 20], [3, 20], [7, 20], [11, 20], [1, 25], [4, 25], [9, 25], [12, 25], [3, 50], [17, 50], [1, 8], [3, 8], [5, 8], [7, 8], [2, 5], [3, 4]];
+const SET_H = [[1, 8], [3, 8], [5, 8], [7, 8], [1, 16], [3, 16], [5, 16]];
+const pctOf = (p, q) => (p * 100) / q;
+function fracChoices(p, q) {
+  const dec = p / q;
+  const s = fmt(dec);
+  const k = (s.split(".")[1] || "").length;
+  const N = Math.round(dec * 10 ** k);
+  const cands = [[1, N], [N, 10], [q, p], [p, q + 1], [p + 1, q], [N, 10 ** (k + 1)]].filter(([a, b]) => a > 0 && b > 0 && a !== b && Math.abs(a / b - dec) > 1e-9);
+  const wrong = [];
+  for (const f of shuffle(cands)) if (wrong.length < 3 && !wrong.some((w) => Math.abs(w[0] / w[1] - f[0] / f[1]) < 1e-9)) wrong.push(f);
+  return shuffle([{ label: fr(p, q), v: "R" }, ...wrong.map((f, i) => ({ label: fr(f[0], f[1]), v: `W${i}` }))]);
+}
+function qConv(set, mode) {
+  const [p, q] = pick(set);
+  const pct = pctOf(p, q);
+  const dec = p / q;
+  const ds = fmt(dec);
+  const nice = 100 % q === 0;
+  const viaHundred = nice ? `${fr(p, q)} = ${fr(pct, 100)}` : `${fr(1, q)} = ${fmt(1 / q)}, so ${fr(p, q)} = ${p} × ${fmt(1 / q)} = ${ds}`;
+  const st = {
+    f2p: { type: "pad", dot: !nice, ans: pct, ask: `Write ${fr(p, q)} as a percent. Out of 100, how many?`, hint: nice ? `Multiply the numerator (top number) and denominator (bottom number) by the same number to make the denominator 100. What do you multiply ${q} by?` : q === 16 ? `${fr(1, 16)} is half of ${fr(1, 8)}, and ${fr(1, 8)} is 12.5%. What is half of that?` : `Start from ${fr(1, 8)}: it is half of ${fr(1, 4)}, and ${fr(1, 4)} is 25%.`, why: `${viaHundred} = ${fmt(pct)}%.` },
+    f2d: { type: "pad", dot: true, ans: dec, ask: `Write ${fr(p, q)} as a decimal.`, hint: nice ? `How many hundredths is ${fr(p, q)}? Make the denominator (the bottom number) 100.` : `Divide ${p} by ${q}. Or reason from ${fr(1, 8)} = 0.125.`, why: `${viaHundred}${nice ? ` = ${ds}` : ""}.` },
+    p2d: { type: "pad", dot: true, ans: dec, ask: `Write ${fmt(pct)}% as a decimal.`, hint: "Percent means out of 100. Divide by 100: each digit moves two places to the right, so the point appears two places further left.", why: `${fmt(pct)}% = ${fmt(pct)} hundredths = ${ds}.` },
+    d2f: { type: "choice", opts: fracChoices(p, q), ans: "R", ask: `Which fraction equals ${ds}? Tap the simplest one.`, hint: `Say it in words: ${ds} is how many tenths, hundredths or thousandths? Then simplify.`, why: `${ds} = ${fr(Math.round(dec * 10 ** (ds.length - 2)), 10 ** (ds.length - 2))} = ${fr(p, q)} in simplest form.` },
+    p2f: { type: "choice", opts: fracChoices(p, q), ans: "R", ask: `Which fraction equals ${fmt(pct)}%? Tap the simplest one.`, hint: `${fmt(pct)}% means ${fmt(pct)} out of 100. Can you simplify that?`, why: `${fmt(pct)}% = ${nice ? fr(pct, 100) : `${ds}`} = ${fr(p, q)}.` },
+  }[mode];
+  const known = { f2p: "f", f2d: "f", p2d: "p", d2f: "d", p2f: "p" }[mode];
+  const asked = { f2p: "p", f2d: "d", p2d: "d", d2f: "f", p2f: "f" }[mode];
+  return {
+    meta: { type: "conv", p, q, mode },
+    draw(v) {
+      const c = { v, cards: {} };
+      c.grid = gridSvg(v, 50, 60, 42, 0, G);
+      T(v, 260, 520, "100 small squares = 1 whole", 22, MUTED);
+      [["f", "Fraction"], ["d", "Decimal"], ["p", "Percent"]].forEach(([key, name], i) => {
+        const y = 60 + i * 150;
+        el("rect", { x: 560, y, width: 400, height: 130, rx: 22, fill: key === asked ? "#fff7e3" : PAPER, stroke: key === asked ? "var(--accent)" : "#d9cdb5", "stroke-width": key === asked ? 5 : 3, "stroke-dasharray": key === asked ? "12 8" : null }, v);
+        T(v, 650, y + 74, name, 26, MUTED);
+        c.cards[key] = el("g", {}, v);
+        const fill = (g) => {
+          g.innerHTML = "";
+          if (key === "f") fracSvg(g, 850, y + 64, p, q, 40);
+          else T(g, 850, y + 84, key === "d" ? ds : `${fmt(pct)}%`, 50);
+        };
+        c.cards[key].fill = () => fill(c.cards[key]);
+        if (key === known) c.cards[key].fill();
+        else T(c.cards[key], 850, y + 86, key === asked ? "?" : "", 56, ACC);
+      });
+      return c;
+    },
+    steps: [{ ...st, show: (c) => (c.cards[asked].fill(), c.grid.shade(pct, G)) }],
+    finish(c) {
+      Object.values(c.cards).forEach((g) => g.fill());
+      c.grid.shade(pct, G);
+    },
+    why: `${fr(p, q)} = ${ds} = ${fmt(pct)}%. ${fmt(pct)} of the 100 squares.`,
+  };
+}
+function qLargest() {
+  const pool = [];
+  for (const q of [2, 4, 5, 8, 10, 20, 25]) for (let p = 1; p < q; p++) if (gcd(p, q) === 1) pool.push([p, q]);
+  let three;
+  do three = shuffle(pool).slice(0, 3);
+  while (new Set(three.map((f) => pctOf(...f))).size < 3 || Math.max(...three.map((f) => pctOf(...f))) - Math.min(...three.map((f) => pctOf(...f))) > 22);
+  const forms = shuffle(["f", "d", "p"]);
+  const largest = Math.random() < 0.6;
+  const label = (f, form) => (form === "f" ? fr(f[0], f[1]) : form === "d" ? fmt(f[0] / f[1]) : `${fmt(pctOf(...f))}%`);
+  const target = three.reduce((m, f) => ((largest ? pctOf(...f) > pctOf(...m) : pctOf(...f) < pctOf(...m)) ? f : m));
+  const opts = three.map((f, i) => ({ label: label(f, forms[i]), v: f === target ? "R" : `W${i}` }));
+  const why = `As percents: ${three.map((f, i) => `${label(f, forms[i])} = ${fmt(pctOf(...f))}%`).join(", ")}. So ${label(target, forms[three.indexOf(target)])} is the ${largest ? "largest" : "smallest"}.`;
+  return {
+    meta: { type: "largest", three, largest },
+    draw(v) {
+      const c = { v };
+      T(v, 500, 66, `Which is the ${largest ? "largest" : "smallest"}?`, 40);
+      three.forEach((f, i) => {
+        const x = 200 + i * 300;
+        el("rect", { x: x - 120, y: 110, width: 240, height: 170, rx: 26, fill: PAPER, stroke: "var(--accent)", "stroke-width": 4 }, v);
+        if (forms[i] === "f") fracSvg(v, x, 196, f[0], f[1], 60);
+        else T(v, x, 218, label(f, forms[i]), 60);
+      });
+      lineSvg(v, 120, 880, 420, [[0, "0%", true], [0.25, "25%", false], [0.5, "50%", true], [0.75, "75%", false], [1, "100%", true]]);
+      c.dots = el("g", { opacity: 0 }, v);
+      three
+        .slice()
+        .sort((x, y) => pctOf(...x) - pctOf(...y))
+        .forEach((f, i) => {
+          const x = 120 + 7.6 * pctOf(...f);
+          el("circle", { cx: x, cy: 420, r: 12, fill: f === target ? G : Y, stroke: LINE, "stroke-width": 3 }, c.dots);
+          T(c.dots, x, 380 - (i % 2) * 34, `${fmt(pctOf(...f))}%`, 24, INK);
+        });
+      return c;
+    },
+    steps: [{ type: "choice", opts, ans: "R", ask: `Which is the ${largest ? "largest" : "smallest"}? Tap it.`, hint: "Change them all into the same kind: all percents, or all decimals.", why }],
+    finish: (c) => fade(c.dots, 600),
+    why,
+  };
+}
+function qPctOf() {
+  const p = pick([5, 10, 15, 20, 25, 30, 35, 40, 45, 60, 75, 80]);
+  const N = 20 * pickInt(1, 10);
+  const ans = (p * N) / 100;
+  return {
+    meta: { type: "pctof", p, N },
+    draw(v) {
+      const c = { v };
+      T(v, 500, 80, `What is ${p}% of ${N}?`, 50);
+      const X = 80;
+      const Wd = 840;
+      c.cells = [];
+      for (let i = 0; i < 10; i++) {
+        c.cells.push(el("rect", { x: X + i * 84, y: 200, width: 84, height: 90, fill: PAPER, stroke: LINE, "stroke-width": 3 }, v));
+        T(v, X + i * 84 + 42, 320, `${(i + 1) * 10}%`, 20, MUTED);
+      }
+      el("path", { d: `M${X} 180 v -14 H ${X + Wd} v 14`, fill: "none", stroke: ACC, "stroke-width": 4 }, v);
+      T(v, 500, 156, `100% = ${N}`, 28, ACC);
+      c.texts = c.cells.map((r, i) => T(v, X + i * 84 + 42, 256, "", 26));
+      return c;
+    },
+    steps: [
+      { type: "pad", ans: N / 10, ask: `What is 10% of ${N}?`, hint: `10% is one tenth. ${N} ÷ 10 = ?`, why: `${N} ÷ 10 = ${N / 10}.`, show: (c) => c.texts.forEach((t) => (t.textContent = N / 10)) },
+      {
+        type: "pad",
+        ans,
+        ask: `So what is ${p}% of ${N}?`,
+        hint: p % 10 ? `${p > 10 ? `${p}% is ${Math.floor(p / 10) * 10}% plus 5%, and ` : ""}5% is half of 10%. What is half of ${N / 10}?` : `${p}% is ${p / 10} lots of 10%. How much is that?`,
+        why: p % 10 ? `${p > 10 ? `${Math.floor(p / 10)} × ${N / 10} + ` : ""}${N / 20} = ${ans}.` : `${p / 10} × ${N / 10} = ${ans}.`,
+        show(c) {
+          c.cells.forEach((r, i) => i < Math.floor(p / 10) && r.setAttribute("fill", Y));
+          if (p % 10) el("rect", { x: 80 + Math.floor(p / 10) * 84, y: 200, width: 42, height: 90, fill: Y, stroke: LINE, "stroke-width": 3 }, c.v);
+          T(c.v, 500, 440, `${p}% of ${N} = ${ans}`, 48, ACC);
+        },
+      },
+    ],
+    why: `${p}% of ${N} = ${ans}, because 10% of ${N} is ${N / 10}.`,
+  };
+}
+function qWhatPct() {
+  let whole, pct, part;
+  do {
+    whole = pick([4, 5, 8, 10, 12, 16, 20, 24, 25, 40, 50]);
+    pct = pick([10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90]);
+    part = (pct * whole) / 100;
+  } while (!Number.isInteger(part) || part === 0);
+  const [s1, s2] = simp(part, whole);
+  const story = pick([`A player made ${part} of ${whole} free throws. What percent did she make?`, `You got ${part} of ${whole} spelling words right. What percent is that?`, `${part} of the ${whole} seeds sprouted. What percent sprouted?`]);
+  return {
+    meta: { type: "whatpct", part, whole },
+    draw(v) {
+      const c = { v };
+      wrapSvg(v, 500, 56, story, 30, 52);
+      c.grid = gridSvg(v, 330, 140, 34, 0, G);
+      c.side = el("g", {}, v);
+      fracSvg(c.side, 160, 300, part, whole, 54);
+      return c;
+    },
+    steps: [
+      {
+        type: "pad",
+        ans: pct,
+        ask: `${story} Type the percent.`,
+        hint: `Write it as a fraction: ${fr(part, whole)}. Can you make the denominator (the bottom number) 100?`,
+        why: `${fr(part, whole)} = ${fr(s1, s2)} = ${fr(pct, 100)} = ${pct}%.`,
+        show(c) {
+          c.grid.shade(pct, G);
+          T(c.v, 840, 320, `${pct}%`, 64, ACC);
+        },
+      },
+    ],
+    why: `${part} out of ${whole} = ${fr(s1, s2)} = ${pct}%.`,
+  };
+}
+MAKE.fd6 = (level, round) => {
+  if (level === "easy") return qConv(SET_E, ["f2p", "f2d", "d2f", "p2d"][round % 4]);
+  if (level === "medium") return round % 4 === 3 ? (round % 8 === 3 ? qPctOf() : qWhatPct()) : qConv(SET_M, ["f2d", "d2f", "f2p", "p2f"][round % 4]);
+  return [qLargest, () => qPctChange("off"), qWhatPct, () => qPctChange("reverse"), qRepeat, () => qPctChange("rise"), () => qConv(SET_H, pick(["f2p", "f2d"])), qPctOf][round % 8]();
+};
+
+// ---------- 7. Ratios & rates ----------
+const PAIRS = [[["🍋", "lemons"], ["🥛", "cups of water"]], [["🥚", "eggs"], ["🥣", "cups of flour"]], [["🍓", "strawberries"], ["🍌", "bananas"]], [["🔴", "red beads"], ["🔵", "blue beads"]], [["🟡", "cups of yellow paint"], ["🔵", "cups of blue paint"]]];
+function ratioTable(v, rows, cols, y0 = 150) {
+  const g = el("g", {}, v);
+  const texts = [];
+  rows.forEach(([glyph, name], r) => {
+    const y = y0 + r * 120;
+    emoji(g, 110, y + 40, glyph, 54);
+    T(g, 110, y + 104, name.length > 14 ? name.split(" ").slice(-1)[0] : name, 20, MUTED);
+    texts.push(
+      cols.map((val, i) => {
+        el("rect", { x: 230 + i * 250, y, width: 200, height: 96, rx: 18, fill: PAPER, stroke: "#d9cdb5", "stroke-width": 3 }, g);
+        return T(g, 330 + i * 250, y + 66, val[r], 52, val[r] === "?" ? ACC : INK);
+      })
+    );
+  });
+  return { g, texts };
+}
+function qRecipe() {
+  const [[g1, n1], [g2, n2]] = pick(PAIRS);
+  let a, b;
+  do {
+    a = pickInt(1, 5);
+    b = pickInt(1, 5);
+  } while (a === b);
+  const k = pickInt(2, 5);
+  const flip = Math.random() < 0.5;
+  const given = flip ? a * k : b * k;
+  const ans = flip ? b * k : a * k;
+  const [gName, aName] = flip ? [n1, n2] : [n2, n1];
+  const base = flip ? a : b;
+  return {
+    meta: { type: "recipe", a, b, k, flip },
+    draw(v) {
+      const c = { v };
+      T(v, 500, 60, `${a} ${n1} for every ${b} ${n2}`, 32);
+      c.tab = ratioTable(v, [[g1, n1], [g2, n2]], [[a, b], flip ? [a * k, "?"] : ["?", b * k]], 130);
+      c.mult = T(v, 455, 112, "× ?", 30, ACC);
+      el("path", { d: "M340 126 Q 455 40 570 126", fill: "none", stroke: ACC, "stroke-width": 4 }, v);
+      return c;
+    },
+    steps: [
+      { type: "pad", ans: k, ask: `${given} ${gName} is how many times ${base} ${gName}?`, hint: `${base} × ? = ${given}`, why: `${base} × ${k} = ${given}. It is ${k} times as much.`, show: (c) => (c.mult.textContent = `× ${k}`) },
+      {
+        type: "pad",
+        ans,
+        ask: `So how many ${aName}?`,
+        hint: "Multiply the other number by the same amount, so the ratio stays the same.",
+        why: `${flip ? b : a} × ${k} = ${ans}.`,
+        show(c) {
+          const t = c.tab.texts[flip ? 1 : 0][1];
+          t.textContent = ans;
+          t.setAttribute("fill", INK);
+        },
+      },
+    ],
+    why: `${a} to ${b} is the same ratio as ${a * k} to ${b * k}. Both numbers were multiplied by ${k}.`,
+  };
+}
+function qRate() {
+  const kind = pick(["price", "speed", "buy"]);
+  if (kind === "price") {
+    const n = pickInt(2, 6);
+    const u = 5 * pickInt(5, 80);
+    let m;
+    do m = pickInt(2, 9);
+    while (m === n);
+    const thing = pick(["notebooks", "apples", "pencils", "sticker packs", "juice boxes"]);
+    return {
+      meta: { type: "price", n, u, m },
+      draw(v) {
+        const c = { v };
+        T(v, 500, 70, `${n} ${thing} cost ${money(n * u)}`, 40);
+        c.tab = ratioTable(v, [["🛒", thing], ["💵", "dollars"]], [[n, (n * u / 100).toFixed(2)], [1, "?"], [m, "?"]], 140);
+        return c;
+      },
+      steps: [
+        { type: "pad", dot: true, ans: u / 100, ask: `${n} ${thing} cost ${money(n * u)}. How much does 1 cost? That is the unit rate.`, hint: `Share ${money(n * u)} into ${n} equal parts. ${money(n * u)} ÷ ${n} = ?`, why: `${money(n * u)} ÷ ${n} = ${money(u)}.`, show: (c) => (c.tab.texts[1][1].textContent = (u / 100).toFixed(2), c.tab.texts[1][1].setAttribute("fill", INK)) },
+        { type: "pad", dot: true, ans: (m * u) / 100, ask: `So how much do ${m} cost?`, hint: `${m} × ${money(u)} = ?`, why: `${m} × ${money(u)} = ${money(m * u)}.`, show: (c) => (c.tab.texts[1][2].textContent = (m * u / 100).toFixed(2), c.tab.texts[1][2].setAttribute("fill", INK)) },
+      ],
+      why: `Find the price of 1 first (${money(u)}), then multiply: ${m} cost ${money(m * u)}.`,
+    };
+  }
+  if (kind === "speed") {
+    const h = pickInt(2, 5);
+    const s = 5 * pickInt(8, 24);
+    let h2;
+    do h2 = pickInt(2, 7);
+    while (h2 === h);
+    return {
+      meta: { type: "speed", h, s, h2 },
+      draw(v) {
+        const c = { v };
+        T(v, 500, 70, `A train goes ${s * h} km in ${h} hours`, 40);
+        c.tab = ratioTable(v, [["⏰", "hours"], ["🚆", "km"]], [[h, s * h], [1, "?"], [h2, "?"]], 140);
+        return c;
+      },
+      steps: [
+        { type: "pad", ans: s, ask: `A train goes ${s * h} km in ${h} hours, at a steady speed. How many km in 1 hour?`, hint: `${s * h} ÷ ${h} = ?`, why: `${s * h} ÷ ${h} = ${s} km in each hour.`, show: (c) => (c.tab.texts[1][1].textContent = s, c.tab.texts[1][1].setAttribute("fill", INK)) },
+        { type: "pad", ans: s * h2, ask: `How far does it go in ${h2} hours?`, hint: `${h2} × ${s} = ?`, why: `${h2} × ${s} = ${s * h2} km.`, show: (c) => (c.tab.texts[1][2].textContent = s * h2, c.tab.texts[1][2].setAttribute("fill", INK)) },
+      ],
+      why: `The rate is ${s} km per hour. In ${h2} hours: ${s * h2} km.`,
+    };
+  }
+  let n1, n2, u1, u2;
+  do {
+    n1 = pickInt(2, 6);
+    n2 = pickInt(2, 6);
+    u1 = 5 * pickInt(10, 60);
+    u2 = 5 * pickInt(10, 60);
+  } while (n1 === n2 || Math.abs(u1 - u2) < 5 || Math.abs(u1 - u2) > 60);
+  const thing = pick(["yogurts", "muffins", "granola bars"]);
+  return {
+    meta: { type: "buy", n1, n2, u1, u2 },
+    draw(v) {
+      const c = { v, u: [] };
+      T(v, 500, 62, "Which pack is the better buy?", 40);
+      [[n1, u1, "Pack A"], [n2, u2, "Pack B"]].forEach(([n, u, name], i) => {
+        const x = 270 + i * 460;
+        el("rect", { x: x - 190, y: 110, width: 380, height: 300, rx: 28, fill: PAPER, stroke: "var(--accent)", "stroke-width": 4 }, v);
+        T(v, x, 165, name, 34, ACC);
+        T(v, x, 235, `${n} ${thing}`, 32);
+        T(v, x, 300, `for ${money(n * u)}`, 40);
+        c.u.push(T(v, x, 375, "1 costs ?", 30, MUTED));
+      });
+      return c;
+    },
+    steps: [
+      { type: "pad", dot: true, ans: u1 / 100, ask: `Pack A: ${n1} for ${money(n1 * u1)}. How much is 1?`, hint: `${money(n1 * u1)} ÷ ${n1} = ?`, why: `${money(n1 * u1)} ÷ ${n1} = ${money(u1)}.`, show: (c) => (c.u[0].textContent = `1 costs ${money(u1)}`) },
+      { type: "pad", dot: true, ans: u2 / 100, ask: `Pack B: ${n2} for ${money(n2 * u2)}. How much is 1?`, hint: `${money(n2 * u2)} ÷ ${n2} = ?`, why: `${money(n2 * u2)} ÷ ${n2} = ${money(u2)}.`, show: (c) => (c.u[1].textContent = `1 costs ${money(u2)}`) },
+      { type: "choice", opts: [{ label: "Pack A", v: "A" }, { label: "Pack B", v: "B" }], ans: u1 < u2 ? "A" : "B", ask: "Which is the better buy? Tap it.", hint: "Which one costs less for each one?", why: `${money(Math.min(u1, u2))} each is less than ${money(Math.max(u1, u2))} each.` },
+    ],
+    why: `Compare the price of 1: ${money(u1)} and ${money(u2)}. Pack ${u1 < u2 ? "A" : "B"} is the better buy.`,
+  };
+}
+function qRatioHard(round) {
+  const kind = ["part", "change", "diff"][round % 3];
+  if (kind === "part") {
+    let a, b;
+    do {
+      a = pickInt(1, 7);
+      b = pickInt(1, 7);
+    } while (a === b || gcd(a, b) !== 1);
+    const k = pickInt(2, 9);
+    const T0 = (a + b) * k;
+    const askBlue = Math.random() < 0.5;
+    const story = `The ratio of red to blue marbles is ${a} to ${b}. There are ${T0} marbles. How many are ${askBlue ? "blue" : "red"}?`;
+    return {
+      meta: { type: "part", a, b, T: T0, askBlue },
+      draw(v) {
+        wrapSvg(v, 500, 56, story, 30, 52);
+        return { v, r1: tapeRow(v, 230, 200, a, "red", RED), r2: tapeRow(v, 230, 290, b, "blue", B) };
+      },
+      steps: [
+        { type: "pad", ans: a + b, ask: `${story} First: how many equal units in all?`, hint: "Count every box, red and blue.", why: `${a} + ${b} = ${a + b} units.` },
+        { type: "pad", ans: k, ask: `${a + b} units are ${T0} marbles. How many in one unit?`, hint: `${T0} ÷ ${a + b} = ?`, why: `${T0} ÷ ${a + b} = ${k}.`, show: (c) => [...c.r1.texts, ...c.r2.texts].forEach((t) => (t.textContent = k)) },
+        { type: "pad", ans: (askBlue ? b : a) * k, ask: `So how many are ${askBlue ? "blue" : "red"}?`, hint: `${askBlue ? b : a} units of ${k}.`, why: `${askBlue ? b : a} × ${k} = ${(askBlue ? b : a) * k}.` },
+      ],
+      why: `Units: ${a + b}. One unit: ${k}. ${askBlue ? "Blue" : "Red"}: ${(askBlue ? b : a) * k}. Check: ${a * k} + ${b * k} = ${T0}.`,
+    };
+  }
+  if (kind === "change") {
+    let a, b;
+    do {
+      a = pickInt(1, 5);
+      b = pickInt(2, 7);
+    } while (a >= b || gcd(a, b) !== 1);
+    const k = pickInt(2, 8);
+    const add = (b - a) * k;
+    const story = `In a club, boys to girls is ${a} to ${b}. Then ${add} more boys join. Now there are just as many boys as girls. How many girls are there?`;
+    return {
+      meta: { type: "rchange", a, b, k },
+      draw(v) {
+        wrapSvg(v, 500, 50, story, 28, 58);
+        const c = { v, r1: tapeRow(v, 230, 210, a, "boys", B), r2: tapeRow(v, 230, 300, b, "girls", RED) };
+        el("rect", { x: 230 + a * 66 + 2, y: 212, width: (b - a) * 66 - 4, height: 52, rx: 6, fill: "none", stroke: ACC, "stroke-width": 4, "stroke-dasharray": "10 6" }, v);
+        T(v, 230 + a * 66 + ((b - a) * 66) / 2, 200, `+${add} boys`, 26, ACC);
+        return c;
+      },
+      steps: [
+        { type: "pad", ans: b - a, ask: `${story} First: girls have how many more units than boys?`, hint: "Compare the two rows of boxes. How many extra boxes do the girls have?", why: `${b} − ${a} = ${b - a} units.` },
+        { type: "pad", ans: k, ask: `Those ${b - a} units are the ${add} new boys. How many children in one unit?`, hint: `${add} ÷ ${b - a} = ?`, why: `${add} ÷ ${b - a} = ${k}.`, show: (c) => [...c.r1.texts, ...c.r2.texts].forEach((t) => (t.textContent = k)) },
+        { type: "pad", ans: b * k, ask: "So how many girls?", hint: `Girls are ${b} units of ${k}.`, why: `${b} × ${k} = ${b * k}.` },
+      ],
+      why: `There are ${b * k} girls. Check: ${a * k} boys + ${add} = ${b * k} boys, equal to the girls.`,
+    };
+  }
+  let a, b;
+  do {
+    a = pickInt(3, 8);
+    b = pickInt(1, 6);
+  } while (a <= b || gcd(a, b) !== 1);
+  const k = pickInt(2, 9);
+  const D = (a - b) * k;
+  const story = `At a shelter, cats to dogs is ${a} to ${b}. There are ${D} more cats than dogs. How many animals are there in all?`;
+  return {
+    meta: { type: "diff", a, b, k },
+    draw(v) {
+      wrapSvg(v, 500, 50, story, 28, 58);
+      const c = { v, r1: tapeRow(v, 230, 200, a, "cats", Y), r2: tapeRow(v, 230, 290, b, "dogs", B) };
+      el("rect", { x: 230 + b * 66 + 2, y: 202, width: (a - b) * 66 - 4, height: 52, rx: 6, fill: "none", stroke: ACC, "stroke-width": 4, "stroke-dasharray": "10 6" }, v);
+      T(v, 230 + b * 66 + ((a - b) * 66) / 2, 290 + 100, `${D} more`, 26, ACC);
+      return c;
+    },
+    steps: [
+      { type: "pad", ans: a - b, ask: `${story} First: cats have how many more units than dogs?`, hint: "How many extra boxes in the cats row?", why: `${a} − ${b} = ${a - b} units.` },
+      { type: "pad", ans: k, ask: `Those ${a - b} units are ${D} animals. How many in one unit?`, hint: `${D} ÷ ${a - b} = ?`, why: `${D} ÷ ${a - b} = ${k}.`, show: (c) => [...c.r1.texts, ...c.r2.texts].forEach((t) => (t.textContent = k)) },
+      { type: "pad", ans: (a + b) * k, ask: "How many animals in all?", hint: `Count all the units: ${a} + ${b}. Each is ${k}.`, why: `${a + b} × ${k} = ${(a + b) * k}.` },
+    ],
+    why: `${a * k} cats and ${b * k} dogs: ${(a + b) * k} in all, and ${a * k} − ${b * k} = ${D}.`,
+  };
+}
+MAKE.fd7 = (level, round) => (level === "easy" ? (round % 3 === 2 ? qRate() : qRecipe()) : level === "medium" ? (round % 3 === 2 ? qRatioHard(0) : qRate()) : [() => qRatioHard(1), () => qRatioHard(2), qChain, qAvgSpeed, () => qRatioHard(0)][round % 5]());
+
+
+// ---------- Grade 7–8 / contest problem types ----------
+function workLines(v, title, size = 48) {
+  rowSvg(v, 500, 66, title, size);
+  return { v, lines: [] };
+}
+const putLine = (c, i, items, s = 34) => {
+  c.lines[i]?.remove();
+  c.lines[i] = rowSvg(c.v, 500, 172 + i * 92, items, s);
+};
+const putText = (c, i, str, s = 32, fill = INK) => {
+  c.lines[i]?.remove();
+  c.lines[i] = T(c.v, 500, 184 + i * 92, str, s, fill);
+};
+function qCountReduced() {
+  const n = pick([12, 14, 15, 16, 18, 20, 21, 22, 24, 26, 28, 30, 36]);
+  const good = [];
+  for (let k = 1; k < n; k++) if (gcd(k, n) === 1) good.push(k);
+  const ps = [...new Set(primes(n))];
+  return {
+    meta: { type: "count", n, ans: good.length },
+    draw(v) {
+      const c = { v };
+      wrapSvg(v, 500, 56, `How many fractions k/${n}, with k from 1 to ${n - 1}, are already in simplest form?`, 30, 56);
+      c.cells = [];
+      const per = Math.ceil((n - 1) / 2);
+      for (let k = 1; k < n; k++) {
+        const r = k <= per ? 0 : 1;
+        const i = r ? k - per - 1 : k - 1;
+        const x = 500 + (i - (per - 1) / 2) * 50;
+        const y = 210 + r * 90;
+        const rect = el("rect", { x: x - 23, y, width: 46, height: 70, rx: 8, fill: PAPER, stroke: "#d9cdb5", "stroke-width": 2 }, v);
+        fracSvg(v, x, y + 35, k, n, 22);
+        c.cells.push(rect);
+      }
+      return c;
+    },
+    steps: [
+      { type: "pad", ans: n - 1, ask: `How many numerators k are there from 1 to ${n - 1}?`, hint: "Count from 1 up to the number just below the denominator.", why: `There are ${n - 1} of them.` },
+      {
+        type: "pad",
+        ans: n - 1 - good.length,
+        ask: `${n} = ${primes(n).join(" × ")}. How many of those numerators share a factor with ${n}, so the fraction can be simplified?`,
+        hint: `A numerator shares a factor with ${n} when it is a multiple of ${ps.join(" or ")}. Count those multiples, taking care not to count any twice.`,
+        why: `The multiples of ${ps.join(" or ")} below ${n}: ${[...Array(n - 1).keys()].map((i) => i + 1).filter((k) => gcd(k, n) > 1).join(", ")}. That is ${n - 1 - good.length}.`,
+        show: (c) => c.cells.forEach((r, i) => r.setAttribute("fill", gcd(i + 1, n) > 1 ? "#f3d9cf" : G)),
+      },
+      { type: "pad", ans: good.length, ask: "So how many are already in simplest form?", hint: "Subtract the ones that can be simplified from the total.", why: `${n - 1} − ${n - 1 - good.length} = ${good.length}.` },
+    ],
+    why: `${good.length} fractions: numerators ${good.join(", ")}. Each shares no factor with ${n} except 1. (Mathematicians call this count Euler's totient of ${n}.)`,
+  };
+}
+function qCross() {
+  let a, b;
+  do {
+    const d1 = pickInt(11, 29);
+    const d2 = pickInt(11, 29);
+    a = [pickInt(Math.ceil(d1 / 3), d1 - 1), d1];
+    b = [Math.round((a[0] / a[1]) * d2 + pick([-1, 1]) * Math.random()), d2];
+  } while (b[0] < 1 || b[0] >= b[1] || a[1] === b[1] || cmpWord(a, b) === 0 || gcd(a[0], a[1]) > 1 || gcd(b[0], b[1]) > 1);
+  const c = cmpWord(a, b);
+  const big = c > 0 ? a : b;
+  return {
+    meta: { type: "cross", a, b },
+    draw(v) {
+      const ctx = { v };
+      fracSvg(v, 300, 120, a[0], a[1], 70);
+      fracSvg(v, 700, 120, b[0], b[1], 70);
+      ctx.mid = T(v, 500, 145, "?", 70, ACC);
+      el("path", { d: "M330 60 L 670 200", stroke: "#c9b8a1", "stroke-width": 4, "stroke-dasharray": "10 8" }, v);
+      el("path", { d: "M330 200 L 670 60", stroke: "#c9b8a1", "stroke-width": 4, "stroke-dasharray": "10 8" }, v);
+      ctx.l = T(v, 300, 330, "", 40);
+      ctx.r = T(v, 700, 330, "", 40);
+      T(v, 500, 470, "Both sides are now over the same denominator: " + a[1] * b[1], 26, MUTED);
+      return ctx;
+    },
+    steps: [
+      { type: "pad", ans: a[0] * b[1], ask: `Compare ${fr(...a)} and ${fr(...b)} by cross-multiplying. First: ${a[0]} × ${b[1]} = ?`, hint: `Multiply the left numerator (top number) by the right denominator (bottom number).`, why: `${a[0]} × ${b[1]} = ${a[0] * b[1]}.`, show: (cx) => (cx.l.textContent = `${a[0]} × ${b[1]} = ${a[0] * b[1]}`) },
+      { type: "pad", ans: b[0] * a[1], ask: `Now ${b[0]} × ${a[1]} = ?`, hint: "Multiply the right numerator by the left denominator.", why: `${b[0]} × ${a[1]} = ${b[0] * a[1]}.`, show: (cx) => (cx.r.textContent = `${b[0]} × ${a[1]} = ${b[0] * a[1]}`) },
+      { type: "choice", opts: [{ label: fr(...a), v: "a" }, { label: fr(...b), v: "b" }], ans: c > 0 ? "a" : "b", ask: "Which fraction is greater? Tap it.", hint: "Which cross-product belongs to which fraction? The larger product marks the larger fraction.", why: `${Math.max(a[0] * b[1], b[0] * a[1])} is larger, so ${fr(...big)} is greater.` },
+    ],
+    finish: (cx) => (cx.mid.textContent = c > 0 ? ">" : "<"),
+    why: `Cross-multiplying gives each fraction over the common denominator ${a[1] * b[1]}: ${fr(a[0] * b[1], a[1] * b[1])} and ${fr(b[0] * a[1], a[1] * b[1])}. So ${fr(...big)} is greater.`,
+  };
+}
+function qTelescope() {
+  const n = pickInt(4, 11);
+  return {
+    meta: { type: "telescope", n },
+    draw(v) {
+      const c = { v, lines: [] };
+      const items = [];
+      for (let k = 1; k <= Math.min(n, 3); k++) items.push([1, `${k}×${k + 1}`], "+");
+      items.push("…", "+", [1, `${n}×${n + 1}`]);
+      rowSvg(v, 500, 70, items, 34);
+      T(v, 500, 160, `Each term: 1/(k×(k+1)) = 1/k − 1/(k+1)`, 30, MUTED);
+      T(v, 500, 210, "Check: 1/2 − 1/3 = 3/6 − 2/6 = 1/6 ✓", 26, MUTED);
+      return c;
+    },
+    steps: [
+      {
+        type: "pad",
+        ans: n + 1,
+        ask: `Rewrite each term as a difference: (1 − 1/2) + (1/2 − 1/3) + … Almost everything cancels. The sum is 1 minus 1 over what number?`,
+        hint: "Which part of each bracket is cancelled by the next bracket? What remains of the very last bracket?",
+        why: `Each −1/(k+1) cancels the next +1/(k+1). Only the first 1 and the last −1/${n + 1} survive.`,
+        show: (c) => T(c.v, 500, 320, `= 1 − 1/${n + 1}`, 44, ACC),
+      },
+      { type: "pad", ans: n, ask: `1 − ${fr(1, n + 1)} = how many ${plural(n + 1)}?`, hint: `1 whole is ${fr(n + 1, n + 1)}.`, why: `${n + 1} − 1 = ${n}, so the sum is ${fr(n, n + 1)}.`, show: (c) => rowSvg(c.v, 500, 420, ["=", [n, n + 1]], 44, ACC) },
+    ],
+    why: `The sum is ${fr(n, n + 1)}. A sum whose middle terms cancel in pairs is called telescoping, like a telescope folding shut.`,
+  };
+}
+function qDivide() {
+  const b = pickInt(2, 9);
+  const a = pickInt(1, 2 * b);
+  const d = pickInt(2, 9);
+  const c2 = pickInt(1, d - 1);
+  if (gcd(a, b) > 1 || gcd(c2, d) > 1) return qDivide();
+  const top = a * d;
+  const bot = b * c2;
+  const steps = [
+    { type: "pad", ans: d, ask: `${fr(a, b)} ÷ ${fr(c2, d)}. Dividing by a fraction is multiplying by its reciprocal (the fraction turned upside down). What is the numerator (the top number) of the reciprocal of ${fr(c2, d)}?`, hint: `Turn ${fr(c2, d)} upside down. Which number becomes the numerator?`, why: `The reciprocal of ${fr(c2, d)} is ${d}/${c2}, because ${fr(c2, d)} × ${d}/${c2} = 1.`, show: (c) => putLine(c, 0, ["=", [a, b], "×", [d, c2]]) },
+    { type: "pad", ans: top, ask: `${fr(a, b)} × ${d}/${c2}. Multiply the numerators: ${a} × ${d} = ?`, hint: `${a} groups of ${d}.`, why: `${a} × ${d} = ${top}.` },
+    { type: "pad", ans: bot, ask: `Multiply the denominators (the bottom numbers): ${b} × ${c2} = ?`, hint: `${b} groups of ${c2}.`, why: `${b} × ${c2} = ${bot}.`, show: (c) => putLine(c, 1, ["=", [top, bot]]) },
+  ];
+  if (gcd(top, bot) > 1 || top >= bot) steps.push(formStep(top, bot, (c) => putLine(c, 2, ["=", itemOf(...simp(top, bot))])));
+  return {
+    meta: { type: "divide", a, b, c: c2, d },
+    draw: (v) => workLines(v, [[a, b], "÷", [c2, d], "=", "?"]),
+    steps,
+    why: `${fr(a, b)} ÷ ${fr(c2, d)} = ${fr(a, b)} × ${d}/${c2} = ${fr(top, bot)}${gcd(top, bot) > 1 || top >= bot ? ` = ${simplest(top, bot)}` : ""}. Check: multiply the answer by ${fr(c2, d)} and you return to ${fr(a, b)}.`,
+  };
+}
+function qScoops() {
+  let N, c2, d;
+  do {
+    d = pick([2, 3, 4, 5, 6, 8]);
+    c2 = pickInt(1, d - 1);
+    N = pickInt(2, 9);
+  } while (gcd(c2, d) > 1 || (N * d) % c2 || c2 === 1);
+  const pieces = N * d;
+  const ans = pieces / c2;
+  return {
+    meta: { type: "scoops", N, c: c2, d },
+    draw(v) {
+      const c = { v, lines: [] };
+      wrapSvg(v, 500, 56, `A scoop holds ${c2}/${d} of a cup. How many scoops fill ${N} cups?`, 32, 52);
+      rowSvg(v, 500, 170, [N, "÷", [c2, d], "=", "?"], 40);
+      return c;
+    },
+    steps: [
+      { type: "pad", ans: pieces, ask: `How many ${plural(d)} of a cup are in ${N} cups?`, hint: `Each cup holds ${d} ${plural(d)}.`, why: `${N} × ${d} = ${pieces} ${plural(d)}.`, show: (c) => putText(c, 1, `${N} cups = ${pieces} ${plural(d)}`) },
+      { type: "pad", ans: ans, ask: `Each scoop is ${c2} ${plural(d)}. How many scoops of ${c2} fit in ${pieces}?`, hint: `${pieces} ÷ ${c2} = ?`, why: `${pieces} ÷ ${c2} = ${ans}.`, show: (c) => putText(c, 2, `${pieces} ÷ ${c2} = ${ans} scoops`, 36, ACC) },
+    ],
+    why: `${N} ÷ ${fr(c2, d)} = ${N} × ${d}/${c2} = ${ans}. Dividing by a fraction asks how many of it fit.`,
+  };
+}
+function qProduct() {
+  const n = pickInt(5, 20);
+  return {
+    meta: { type: "product", n },
+    draw(v) {
+      const c = { v, lines: [] };
+      rowSvg(v, 500, 70, ["(1 −", [1, 2], ")(1 −", [1, 3], ")(1 −", [1, 4], ") … (1 −", [1, n], ")"], 32);
+      T(v, 500, 170, "Each bracket: 1 − 1/k = (k − 1)/k", 30, MUTED);
+      return c;
+    },
+    steps: [
+      { type: "pad", ans: 3, ask: `Write each bracket as one fraction: 1/2 × 2/3 × ?/4 × … What is the numerator (the top number) of the third fraction?`, hint: "1 − 1/4 = 4/4 − 1/4.", why: "1 − 1/4 = 3/4.", show: (c) => rowSvg(c.v, 500, 270, ["=", [1, 2], "×", [2, 3], "×", [3, 4], "× … ×", [n - 1, n]], 32) },
+      { type: "pad", ans: n, ask: "Each numerator cancels the denominator before it. Only the first numerator, 1, survives. Which denominator survives?", hint: "Which denominator has no numerator after it to cancel it?", why: `Only the last denominator, ${n}, remains, so the product is 1/${n}.`, show: (c) => rowSvg(c.v, 500, 400, ["=", [1, n]], 46, ACC) },
+    ],
+    why: `The product is ${fr(1, n)}. Each numerator cancels the previous denominator, a telescoping product.`,
+  };
+}
+function qDecMul() {
+  const div = Math.random() < 0.45;
+  if (!div) {
+    const x = pickInt(2, 9);
+    const y = pickInt(2, 19);
+    const px = pickInt(1, 2);
+    const py = pickInt(1, 2);
+    const sx = fmt(x / 10 ** px);
+    const sy = fmt(y / 10 ** py);
+    const dpy = (sy.split(".")[1] || "").length;
+    const places = px + dpy;
+    const yi = Math.round(Number(sy) * 10 ** dpy);
+    const prod = x * yi;
+    const ans = prod / 10 ** places;
+    return {
+      meta: { type: "decmul", sx, sy },
+      draw: (v) => workLines(v, [sx, "×", sy, "=", "?"], 44),
+      steps: [
+        { type: "pad", ans: prod, ask: `${sx} × ${sy}. Ignore the points for now: ${x} × ${yi} = ?`, hint: `Multiply ${x} by ${yi} as whole numbers.`, why: `${x} × ${yi} = ${prod}.`, show: (c) => putText(c, 0, `${x} × ${yi} = ${prod}`, 36) },
+        { type: "pad", ans: places, ask: "How many decimal places do the two factors have in total?", hint: `Count the digits after the point in ${sx}, then in ${sy}.`, why: `${px} + ${dpy} = ${places} places.`, show: (c) => putText(c, 1, `${px} + ${dpy} = ${places} decimal places`, 32, MUTED) },
+        { type: "pad", dot: true, ans, ask: `So ${sx} × ${sy} = ? Place the point so the answer has ${places} decimal places.`, hint: `Start from ${prod} and move the point ${places} places to the left, adding zeros in front if needed.`, why: `${prod} with ${places} decimal places is ${ans.toFixed(places)}${ans.toFixed(places) !== fmt(ans) ? `, which is ${fmt(ans)}` : ""}.`, show: (c) => putText(c, 2, `${sx} × ${sy} = ${fmt(ans)}`, 44, ACC) },
+      ],
+      why: `${sx} × ${sy} = ${fmt(ans)}. Each decimal place divides by 10, so ${places} places divide ${prod} by ${10 ** places}. Estimate to check: ${Number(sy) < 1 ? `${sy} is less than 1, so the answer must be smaller than ${sx}` : Number(sy) > 1 ? `${sy} is greater than 1, so the answer must be greater than ${sx}` : `multiplying by 1 leaves ${sx} unchanged`}.`,
+    };
+  }
+  const q0 = pickInt(2, 40);
+  const sc = pick([10, 100]);
+  let dInt;
+  do dInt = pickInt(2, 15);
+  while (dInt % 10 === 0);
+  const sd = fmt(dInt / sc);
+  const sn = fmt((q0 * dInt) / sc);
+  return {
+    meta: { type: "decdiv", sn, sd, q: q0 },
+    draw: (v) => workLines(v, [sn, "÷", sd, "=", "?"], 44),
+    steps: [
+      { type: "pad", ans: sc, ask: `${sn} ÷ ${sd}. Multiply both numbers by a power of ten so the divisor (the number you divide by) is whole. By what?`, hint: `What turns ${sd} into a whole number: 10, 100 or 1000?`, why: `${sd} × ${sc} = ${dInt}.`, show: (c) => putText(c, 0, `× ${sc} on both: ${fmt(Number(sn) * sc)} ÷ ${dInt}`, 34) },
+      { type: "pad", ans: q0, ask: `${fmt(Number(sn) * sc)} ÷ ${dInt} = ?`, hint: `How many ${dInt}s make ${fmt(Number(sn) * sc)}?`, why: `${dInt} × ${q0} = ${fmt(Number(sn) * sc)}.`, show: (c) => putText(c, 1, `= ${q0}`, 46, ACC) },
+    ],
+    why: `${sn} ÷ ${sd} = ${fmt(Number(sn) * sc)} ÷ ${dInt} = ${q0}. Multiplying both numbers by the same amount keeps the quotient (the answer to a division) unchanged.`,
+  };
+}
+function qPctChange(kind) {
+  if (kind === "off") {
+    const p = pick([10, 15, 20, 25, 30, 40, 60, 75]);
+    const P = 20 * pickInt(2, 15);
+    const off = (p * P) / 100;
+    return {
+      meta: { type: "off", p, P },
+      draw(v) {
+        const c = { v, lines: [] };
+        wrapSvg(v, 500, 56, `A jacket costs $${P}. It is ${p}% off. What is the sale price?`, 32, 52);
+        return c;
+      },
+      steps: [
+        { type: "pad", ans: off, ask: `What is ${p}% of $${P}? That is the discount (the amount taken off).`, hint: `10% of $${P} is $${P / 10}. How many tens, and halves of ten, make ${p}%?`, why: `${p}% of ${P} = ${off}.`, show: (c) => putText(c, 1, `discount: ${p}% of $${P} = $${off}`, 34) },
+        { type: "pad", ans: P - off, ask: "So what is the sale price?", hint: "Take the discount away from the original price.", why: `$${P} − $${off} = $${P - off}.`, show: (c) => putText(c, 2, `sale price: $${P - off}`, 40, ACC) },
+      ],
+      why: `The sale price is $${P - off}. A shortcut: paying ${100 - p}% of $${P} gives the same answer.`,
+    };
+  }
+  if (kind === "reverse") {
+    const p = pick([10, 20, 25, 40, 50]);
+    const orig = 10 * pickInt(3, 20);
+    if (((100 - p) * orig) % 100) return qPctChange("reverse");
+    const now = ((100 - p) * orig) / 100;
+    const u = p === 25 ? 25 : 10;
+    const k = (100 - p) / u;
+    return {
+      meta: { type: "reverse", p, orig },
+      draw(v) {
+        const c = { v, lines: [] };
+        wrapSvg(v, 500, 56, `After ${p}% off, a game costs $${now}. What was the original price?`, 32, 52);
+        return c;
+      },
+      steps: [
+        { type: "pad", ans: 100 - p, ask: `$${now} is what percent of the original price?`, hint: `If ${p}% was taken off, what percent is left?`, why: `100% − ${p}% = ${100 - p}%.`, show: (c) => putText(c, 1, `$${now} = ${100 - p}% of the original`, 34) },
+        { type: "pad", dot: true, ans: now / k, ask: `So what is ${u}% of the original?`, hint: `${100 - p}% is ${k} lot${k === 1 ? "" : "s"} of ${u}%. Divide $${now} by ${k}.`, why: `$${now} ÷ ${k} = $${fmt(now / k)}.` },
+        { type: "pad", ans: orig, ask: "So what was the original price, 100%?", hint: `100% is ${100 / u} lots of ${u}%.`, why: `${100 / u} × $${fmt(now / k)} = $${orig}.`, show: (c) => putText(c, 2, `original: $${orig}`, 40, ACC) },
+      ],
+      why: `The original price was $${orig}. A common error is to add ${p}% to $${now}; that fails because the ${p}% was a share of the original, not of the sale price.`,
+    };
+  }
+  const old = pick([20, 25, 40, 50, 80, 120, 200]);
+  const p = pick([5, 10, 20, 25, 30, 50, 75]);
+  if ((old * p) % 100) return qPctChange("rise");
+  const up = Math.random() < 0.6;
+  const nw = up ? old + (old * p) / 100 : old - (old * p) / 100;
+  const ch = Math.abs(nw - old);
+  return {
+    meta: { type: "change%", old, nw, p },
+    draw(v) {
+      const c = { v, lines: [] };
+      wrapSvg(v, 500, 56, `A plant was ${old} cm tall. Now it is ${nw} cm. By what percent did its height ${up ? "increase" : "decrease"}?`, 32, 52);
+      return c;
+    },
+    steps: [
+      { type: "pad", ans: ch, ask: "First, by how many centimetres did it change?", hint: "Find the difference between the two heights.", why: `${Math.max(old, nw)} − ${Math.min(old, nw)} = ${ch}.`, show: (c) => putText(c, 1, `change = ${ch} cm`, 34) },
+      { type: "pad", ans: p, ask: `The change compared with the original ${old} cm, as a percent?`, hint: `Write ${fr(ch, old)} and make the denominator (the bottom number) 100.`, why: `${fr(ch, old)} = ${fr(p, 100)} = ${p}%.`, show: (c) => putText(c, 2, `${ch} ÷ ${old} = ${p}%`, 40, ACC) },
+    ],
+    why: `Percent change = change ÷ original = ${ch} ÷ ${old} = ${p}%. Always divide by the starting amount.`,
+  };
+}
+function qRepeat() {
+  const [p, q] = pick([[1, 3], [2, 3], [1, 9], [4, 9], [7, 9], [1, 11], [2, 11], [5, 11], [1, 6], [5, 6]]);
+  const digits = [];
+  let r = p;
+  for (let i = 0; i < 6; i++) {
+    r *= 10;
+    digits.push(Math.floor(r / q));
+    r %= q;
+  }
+  const right = `0.${digits.join("")}…`;
+  const cut = `0.${digits.slice(0, 2).join("")}`;
+  const rounded = fmt(Math.round((p / q) * 100) / 100);
+  const opts = [{ label: right, v: "R" }, { label: cut, v: "W0" }];
+  if (rounded !== cut) opts.push({ label: rounded, v: "W1" });
+  opts.push({ label: fmt(p / 10 + q / 100), v: "W2" });
+  const uniq = shuffle(opts.filter((o, i) => opts.findIndex((x) => x.label === o.label) === i));
+  return {
+    meta: { type: "repeat", p, q },
+    draw(v) {
+      const c = { v };
+      T(v, 500, 70, `Long division: ${p} ÷ ${q}`, 40);
+      let rr = p;
+      for (let i = 0; i < 4; i++) {
+        const d0 = Math.floor((rr * 10) / q);
+        T(v, 500, 150 + i * 62, `${rr * 10} ÷ ${q} = ${d0} remainder ${(rr * 10) % q}`, 32, i ? MUTED : INK);
+        rr = (rr * 10) % q;
+      }
+      return c;
+    },
+    steps: [{ type: "choice", opts: uniq, ans: "R", ask: `What is ${fr(p, q)} as a decimal? Study the remainders.`, hint: "Look at the remainders. Once a remainder repeats, what must happen to the digits?", why: `The remainder repeats, so the digits repeat forever: ${fr(p, q)} = ${right} A repeating decimal never ends.` }],
+    why: `${fr(p, q)} = ${right} The same remainder keeps returning, so the digits cycle forever. That is why some fractions have repeating decimals.`,
+  };
+}
+function qChain() {
+  let p, q, r, s2;
+  do {
+    p = pickInt(1, 7);
+    q = pickInt(1, 7);
+    r = pickInt(1, 7);
+    s2 = pickInt(1, 7);
+  } while (gcd(p, q) > 1 || gcd(r, s2) > 1 || q === r || p === q || r === s2);
+  const M = lcm(q, r);
+  const A = (p * M) / q;
+  const C = (s2 * M) / r;
+  const [ra, rc] = simp(A, C);
+  return {
+    meta: { type: "chain", p, q, r, s: s2 },
+    draw(v) {
+      const c = { v, lines: [] };
+      wrapSvg(v, 500, 56, `Apples to bananas is ${p} to ${q}. Bananas to cherries is ${r} to ${s2}. What is apples to cherries?`, 30, 56);
+      T(v, 500, 190, `A : B = ${p} : ${q}      B : C = ${r} : ${s2}`, 36, MUTED);
+      return c;
+    },
+    steps: [
+      { type: "pad", ans: M, ask: `Bananas appear in both ratios, as ${q} and as ${r}. To combine them, make the banana numbers equal. What is the least common multiple of ${q} and ${r}?`, hint: `List multiples of ${q} and of ${r}. Which comes first in both?`, why: `The least common multiple of ${q} and ${r} is ${M}.` },
+      { type: "pad", ans: A, ask: `Scale ${p} : ${q} so bananas are ${M}. Apples become?`, hint: `${q} × ${M / q} = ${M}. Multiply ${p} by the same.`, why: `${p} × ${M / q} = ${A}.`, show: (c) => putText(c, 1, `A : B = ${A} : ${M}`, 36) },
+      { type: "pad", ans: C, ask: `Scale ${r} : ${s2} so bananas are ${M}. Cherries become?`, hint: `${r} × ${M / r} = ${M}. Multiply ${s2} by the same.`, why: `${s2} × ${M / r} = ${C}.`, show: (c) => putText(c, 2, `B : C = ${M} : ${C}    so  A : C = ${ra} to ${rc}`, 34, ACC) },
+    ],
+    why: `A : B : C = ${A} : ${M} : ${C}, so apples to cherries is ${A} to ${C}${ra !== A ? `, which simplifies to ${ra} to ${rc}` : ""}.`,
+  };
+}
+function qAvgSpeed() {
+  const pairs = [[30, 60, 40], [20, 30, 24], [40, 60, 48], [60, 90, 72], [30, 70, 42], [12, 24, 16], [15, 30, 20], [40, 120, 60], [45, 90, 60], [30, 45, 36]];
+  const [s1, s2v, ans] = pick(pairs);
+  const D = lcm(s1, s2v);
+  const t1 = D / s1;
+  const t2 = D / s2v;
+  return {
+    meta: { type: "avgspeed", s1, s2: s2v },
+    draw(v) {
+      const c = { v, lines: [] };
+      wrapSvg(v, 500, 56, `A cyclist rides to a lake at ${s1} km/h and back the same way at ${s2v} km/h. What is the average speed for the whole trip?`, 30, 56);
+      T(v, 500, 190, `Trick: pretend the distance is ${D} km (it divides by both speeds).`, 27, MUTED);
+      return c;
+    },
+    steps: [
+      { type: "pad", ans: t1, ask: `If the lake is ${D} km away, how many hours does the ride there take at ${s1} km/h?`, hint: `${D} ÷ ${s1} = ?`, why: `${D} ÷ ${s1} = ${t1} hours.` },
+      { type: "pad", ans: t2, ask: `And the ride back at ${s2v} km/h?`, hint: `${D} ÷ ${s2v} = ?`, why: `${D} ÷ ${s2v} = ${t2} hour${t2 > 1 ? "s" : ""}.`, show: (c) => putText(c, 1, `${2 * D} km in ${t1 + t2} hours`, 36) },
+      { type: "pad", ans, ask: `Total: ${2 * D} km in ${t1 + t2} hours. Average speed in km/h?`, hint: "Average speed is total distance divided by total time.", why: `${2 * D} ÷ ${t1 + t2} = ${ans} km/h.`, show: (c) => putText(c, 2, `${2 * D} ÷ ${t1 + t2} = ${ans} km/h`, 40, ACC) },
+    ],
+    why: `The average speed is ${ans} km/h, not ${(s1 + s2v) / 2}: more time is spent at the slower speed, so it counts for more. Any distance gives the same answer.`,
+  };
+}
+
+window.__fd = { MAKE, q: null };
+
+// =====================================================================
+const units = {
+  fd0() {
+    const my = token;
+    const label = (v, x, y, str, size = 34, fill = INK) => T(v, x, y, str, size, fill);
+    explain(
+      [
+        { say: "Why study fractions and decimals? They name parts of a whole with precision. Cooks scale recipes, shops count in hundredths of a dollar, engineers measure to the thousandth, and statisticians report percents.", draw: everyday([["🧁", "Recipes"], ["💵", "Money"], ["📏", "Measuring"], ["⚽", "Sports stats"]]) },
+        {
+          say: "Cut every quarter in two and 3 quarters become 6 eighths; cut each in three and they become 9 twelfths. These are equivalent fractions (equal in value): the amount is unchanged, only the pieces are finer. The bottom number, the denominator, names the size of the pieces; the top number, the numerator, counts them.",
+          async draw(v, api) {
+            const rows = [[4, 1], [4, 2], [4, 3]];
+            const cuts = [];
+            const labs = [];
+            rows.forEach(([d0, m], i) => {
+              const y = 60 + i * 140;
+              barSvg(v, 200, y, 640, 80, d0 * m, 3 * m, Y, { labels: false });
+              cutsSvg(v, 200, y, 640, 80, 1);
+              const solid = el("g", {}, v);
+              for (let k = 1; k < 4; k++) el("line", { x1: 200 + k * 160, x2: 200 + k * 160, y1: y, y2: y + 80, stroke: LINE, "stroke-width": 6 }, solid);
+              const lab = el("g", {}, v);
+              fracSvg(lab, 110, y + 40, 3, 4, 34);
+              labs.push(lab);
+              const hide = el("g", {}, v);
+              if (m > 1) for (let k = 0; k < 4; k++) el("rect", { x: 200 + k * 160 + 3, y: y + 3, width: 154, height: 74, fill: k < 3 ? Y : PAPER }, hide);
+              cuts.push(hide);
+            });
+            await api.wait(1400);
+            for (let i = 1; i < 3; i++) {
+              await api.tween(1200, (t) => cuts[i].setAttribute("opacity", 1 - t));
+              labs[i].innerHTML = "";
+              fracSvg(labs[i], 110, 60 + i * 140 + 40, 3 * rows[i][1], 4 * rows[i][1], 34);
+              MUSIC.play("xylophone", 76 + i * 4, { gain: 0.35 });
+              await api.wait(900);
+            }
+            const g = el("g", { opacity: 0 }, v);
+            rowSvg(g, 500, 500, [[3, 4], "=", [6, 8], "=", [9, 12]], 34);
+            await api.tween(700, (t) => g.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "Halves and thirds are different sizes, so they cannot be counted together. Cut both into sixths, a common denominator (a shared piece size). Then 3 sixths plus 2 sixths make 5 sixths.",
+          async draw(v, api) {
+            fracSvg(v, 110, 100, 1, 2, 32);
+            barSvg(v, 200, 60, 600, 76, 2, 1, Y, { labels: false });
+            const c1 = cutsSvg(v, 200, 60, 600, 76, 6);
+            fracSvg(v, 110, 214, 1, 3, 32);
+            barSvg(v, 200, 174, 600, 76, 3, 1, B, { labels: false });
+            const c2 = cutsSvg(v, 200, 174, 600, 76, 6);
+            await api.wait(1500);
+            await api.tween(1200, (t) => (c1.setAttribute("opacity", t), c2.setAttribute("opacity", t)));
+            const l1 = el("g", { opacity: 0 }, v);
+            rowSvg(l1, 890, 100, ["=", [3, 6]], 30);
+            rowSvg(l1, 890, 214, ["=", [2, 6]], 30);
+            await api.tween(600, (t) => l1.setAttribute("opacity", t));
+            await api.wait(800);
+            const cells = barSvg(v, 200, 320, 600, 76, 6, 0, Y, { labels: false }).cells;
+            for (let i = 0; i < 5; i++) {
+              cells[i].setAttribute("fill", i < 3 ? Y : B);
+              MUSIC.play("xylophone", 72 + i * 2, { gain: 0.3 });
+              await api.wait(380);
+            }
+            const g = el("g", { opacity: 0 }, v);
+            rowSvg(g, 500, 480, [[1, 2], "+", [1, 3], "=", [3, 6], "+", [2, 6], "=", [5, 6]], 32);
+            await api.tween(700, (t) => g.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "This square is 1 whole. One column is a tenth, 0.1; one small square is a hundredth, 0.01. Three columns and seven squares make 0.37. Each place is worth one tenth of the place to its left.",
+          async draw(v, api) {
+            const grid = gridSvg(v, 70, 50, 46, 0, B);
+            const out = el("g", {}, v);
+            await api.wait(1200);
+            grid.shade(10, B);
+            label(out, 760, 110, "1 column = 0.1", 34, "#1f6d9c");
+            await api.wait(1600);
+            for (let k = 11; k <= 30; k++) {
+              grid.shade(k, B);
+              await api.wait(35);
+            }
+            label(out, 760, 170, "3 columns = 0.3", 34, "#1f6d9c");
+            await api.wait(1400);
+            for (let k = 31; k <= 37; k++) {
+              grid.shade(k, B);
+              MUSIC.play("xylophone", 72 + (k - 31) * 2, { gain: 0.3 });
+              await api.wait(420);
+            }
+            label(out, 760, 230, "+ 7 small = 0.07", 34, "#1f6d9c");
+            await api.wait(1000);
+            label(out, 760, 330, "0.37", 80, ACC);
+            label(out, 760, 390, "37 hundredths", 30, INK);
+            await api.wait(1200);
+            label(out, 760, 470, "1 square cut in 10:", 24, MUTED);
+            label(out, 760, 505, "a thousandth = 0.001", 26, MUTED);
+          },
+        },
+        {
+          say: "Percent comes from the Latin per centum, by the hundred. 25 squares of 100 is 25 percent, which is also 0.25 and one quarter. Fifty percent is one half.",
+          async draw(v, api) {
+            const c = 46;
+            const grid = gridSvg(v, 70, 50, c, 0, Y);
+            const out = el("g", {}, v);
+            await api.wait(1000);
+            const block = (col0, row0, color) => {
+              for (let i = col0; i < col0 + 5; i++) for (let j = row0; j < row0 + 5; j++) grid.cells[i * 10 + j].setAttribute("fill", color);
+            };
+            block(0, 0, Y);
+            MUSIC.play("xylophone", 76, { gain: 0.35 });
+            await api.wait(700);
+            label(out, 770, 110, "25 out of 100", 34);
+            await api.wait(900);
+            label(out, 770, 175, "= 25%", 44, ACC);
+            await api.wait(900);
+            label(out, 770, 235, "= 0.25", 40, ACC);
+            await api.wait(900);
+            rowSvg(out, 770, 300, ["=", [1, 4]], 36, ACC);
+            await api.wait(1800);
+            block(0, 5, G);
+            MUSIC.play("xylophone", 81, { gain: 0.35 });
+            await api.wait(700);
+            label(out, 770, 410, "50% = 0.5", 44, "#2e7d46");
+            rowSvg(out, 770, 470, ["=", [1, 2]], 36, "#2e7d46");
+          },
+        },
+        {
+          say: "To find one half of two thirds, shade two thirds, then take half of that part. Two of the six boxes are green: two sixths, which simplifies to one third. This is the area model of multiplication.",
+          async draw(v, api) {
+            const X = 340;
+            const Yt = 90;
+            const S = 380;
+            const cols = el("g", { opacity: 0 }, v);
+            for (let i = 0; i < 3; i++) el("rect", { x: X + (i * S) / 3, y: Yt, width: S / 3, height: S, fill: i < 2 ? Y : PAPER, stroke: LINE, "stroke-width": 3 }, cols);
+            el("rect", { x: X, y: Yt, width: S, height: S, fill: "none", stroke: LINE, "stroke-width": 5 }, v);
+            await api.tween(900, (t) => cols.setAttribute("opacity", t));
+            fracSvg(v, X + S / 3, Yt - 40, 2, 3, 30, "#9a6a00");
+            await api.wait(1200);
+            const rows = el("g", { opacity: 0 }, v);
+            el("line", { x1: X, x2: X + S, y1: Yt + S / 2, y2: Yt + S / 2, stroke: LINE, "stroke-width": 3 }, rows);
+            el("rect", { x: X + (2 * S) / 3, y: Yt, width: S / 3, height: S / 2, fill: B, opacity: 0.85 }, rows);
+            for (let i = 0; i < 2; i++) el("rect", { x: X + (i * S) / 3, y: Yt, width: S / 3, height: S / 2, fill: G, stroke: LINE, "stroke-width": 3 }, rows);
+            el("rect", { x: X, y: Yt, width: S, height: S, fill: "none", stroke: LINE, "stroke-width": 5 }, rows);
+            await api.tween(1000, (t) => rows.setAttribute("opacity", t));
+            fracSvg(v, X - 44, Yt + S / 4, 1, 2, 30, "#1f6d9c");
+            await api.wait(1000);
+            rowSvg(v, 170, 260, [[1, 2], "of", [2, 3]], 34);
+            const g = el("g", { opacity: 0 }, v);
+            rowSvg(g, 860, 230, [[2, 6]], 40);
+            rowSvg(g, 860, 360, ["=", [1, 3]], 40);
+            await api.tween(800, (t) => g.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "A ratio compares two quantities: 2 lemons for every 3 cups of water. Multiply both by the same number and the comparison is preserved, so 4 to 6 and 6 to 9 taste identical. Explain to a grown-up why.",
+          async draw(v, api) {
+            const tab = ratioTable(v, [["🍋", "lemons"], ["🥛", "cups of water"]], [[2, 3]], 150);
+            await api.wait(1500);
+            for (const k of [2, 3]) {
+              const col = el("g", { opacity: 0 }, v);
+              const x = 230 + (k - 1) * 250;
+              el("rect", { x, y: 150, width: 200, height: 96, rx: 18, fill: PAPER, stroke: "#d9cdb5", "stroke-width": 3 }, col);
+              T(col, x + 100, 216, 2 * k, 52);
+              el("rect", { x, y: 270, width: 200, height: 96, rx: 18, fill: PAPER, stroke: "#d9cdb5", "stroke-width": 3 }, col);
+              T(col, x + 100, 336, 3 * k, 52);
+              el("path", { d: `M${x - 160} 130 Q ${x - 25} 82 ${x + 100} 130`, fill: "none", stroke: ACC, "stroke-width": 4 }, col);
+              T(col, x - 30, 98, `× ${k}`, 28, ACC);
+              await api.tween(900, (t) => col.setAttribute("opacity", t));
+              MUSIC.play("xylophone", 74 + k * 3, { gain: 0.35 });
+              await api.wait(1100);
+            }
+            void tab;
+            const g = el("g", { opacity: 0 }, v);
+            T(g, 500, 470, "2 to 3  =  4 to 6  =  6 to 9", 40, ACC);
+            await api.tween(700, (t) => g.setAttribute("opacity", t));
+          },
+        },
+      ],
+      { alive: () => my === token, onDone: () => shell.go("fd1"), title: "Fractions & Decimals" }
+    );
+  },
+  fd1: () => game("fd1", { count: "fraction problems", make: MAKE.fd1 }),
+  fd2: () => game("fd2", { count: "comparisons", make: MAKE.fd2 }),
+  fd3: () => game("fd3", { count: "sums and differences", make: MAKE.fd3 }),
+  fd4: () => game("fd4", { count: "fraction products", make: MAKE.fd4 }),
+  fd5: () => game("fd5", { count: "decimal problems", make: MAKE.fd5 }),
+  fd6: () => game("fd6", { count: "conversions", make: MAKE.fd6 }),
+  fd7: () => game("fd7", { count: "ratio problems", make: MAKE.fd7 }),
+};
+
+const fdStyle = document.createElement("style");
+fdStyle.textContent = `
+.fr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;line-height:1;margin:0 .15em;font-weight:800}.fr sup{border-bottom:2px solid currentColor;padding:0 .15em .05em}.fr sub{padding-top:.05em}.fr sup,.fr sub{font-size:.8em;vertical-align:baseline}
+.fd-and{font-size:0}
+.fd-in{display:flex;justify-content:center;width:100%}
+.fd-pick .kt-choices button{min-height:62px;min-width:84px;font-size:26px;border-radius:20px;padding:0 18px}
+.fd-pick .kt-choices button .fr{font-size:1.05em}
+.fd-keys{grid-template-columns:repeat(6,minmax(44px,1fr))}
+.fd-keys.fd-dot{grid-template-columns:repeat(7,minmax(42px,1fr))}
+.fd-keys.fd-dot button.ok{grid-column:span 2}
+.fd-pad{flex-direction:row;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center}
+.fd-pad .kt-entry{min-width:3.6em}
+.fd-card{cursor:pointer}
+.fd-real{position:absolute;inset:0;z-index:7;display:grid;place-items:center;padding:10px;background:rgba(245,239,228,.94)}
+.fd-real-card{max-width:620px;width:100%;max-height:100%;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 22px;border-radius:28px;background:#fff;box-shadow:0 8px 0 #ece3d6,0 18px 40px rgba(70,40,15,.18)}
+.fd-real-card h2{margin:0;color:#2b1d12;font:900 clamp(19px,2.8vw,26px)/1.15 var(--sans);text-align:center}
+.fd-need{margin:0;color:#4d3c2e;font:700 clamp(14px,1.9vw,17px)/1.35 var(--sans);text-align:center}
+.fd-real-card ol{margin:0;padding-left:1.4em;display:grid;gap:4px;text-align:left;width:100%;color:#2b1d12;font:700 clamp(14px,1.9vw,18px)/1.35 var(--sans)}
+.fd-safe{margin:0;padding:6px 12px;border-radius:12px;background:#fff4dc;color:#7a4a10;font:800 clamp(13px,1.7vw,16px)/1.3 var(--sans)}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){
+ .fd-pick .kt-choices button{min-height:48px;min-width:64px;font-size:20px;padding:0 12px}
+ .fd-keys.fd-dot{grid-template-columns:repeat(7,minmax(36px,1fr))}
+ .fd-real-card{padding:8px 14px;gap:4px}
+ .fd-real .kt-go{min-height:42px;font-size:17px;margin-top:2px}
+}
+`;
+document.head.appendChild(fdStyle);
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    fd0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    fd1: { icon: "🧱", title: "Equivalent & simplest", steps: ["Look at the fraction and the picture.", "Type the missing number, then press ✓.", "Pick a level: Grade 4, Grade 5–6 or Grade 7–8."] },
+    fd2: { icon: "⚖️", title: "Compare & order", steps: ["Look at the fractions.", "Tap the greater one, or tap = if they are equal.", "On harder levels, tap three from smallest to largest."] },
+    fd3: { icon: "➕", title: "Add & subtract", steps: ["First find the common denominator.", "Change each fraction, one step at a time.", "Type each answer and press ✓."] },
+    fd4: { icon: "✖️", title: "Multiply fractions", steps: ["Look at the bars, groups or square.", "Count or multiply to fill each step.", "Type the number and press ✓."] },
+    fd5: { icon: "🔢", title: "Decimals to thousandths", steps: ["Look at the place-value chart.", "Tap an answer, or type it with the point key.", "Line up the points when you add or subtract."] },
+    fd6: { icon: "💯", title: "Fraction, decimal, percent", steps: ["The big square has 100 small squares.", "Fill in the card with the ? on it.", "Type the answer, or tap it."] },
+    fd7: { icon: "🍋", title: "Ratios & rates", steps: ["Read the problem and look at the table or boxes.", "Solve one small step at a time.", "Type each answer and press ✓."] },
+  },
+  start: "fd0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+    stage.querySelector(".fd-real")?.remove();
+  },
+  subject: "Math",
+  activity: "Fractions & Decimals Pro",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 77, 78, 79, 80, 81, 82, 84, 86, 88]);
+</script>
+</body>
+</html>

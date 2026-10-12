@@ -1,0 +1,963 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reading List & Log · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="reading">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Reading List & Log</b><small>Reading · Advanced</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, explain, everyday, emoji } = KIT;
+const stage = $("[data-stage]");
+let token = 0;
+
+const UNITS = [
+  { id: "bl0", label: "See it", icon: "👀" },
+  { id: "bl1", label: "1. The reading list", icon: "📚" },
+  { id: "bl2", label: "2. My reading log", icon: "📝" },
+  { id: "bl3", label: "3. Narration prompts", icon: "🗣️" },
+  { id: "bl4", label: "4. My progress", icon: "🌱" },
+];
+
+// Every year below was checked against Wikipedia or Wikidata (and Open Library for a few recent books);
+// every Gutenberg number was checked against gutenberg.org. Descriptions are original; nothing is quoted.
+// BOOKS-START
+// s: shelf (t1 independent now · t2 longer classics · t3 adult-level classics · nf history & science · po poetry · wt wait for later)
+// t title · a author · y year first published (ys: shown instead when the date is a range or approximate) · p approximate pages
+// g genre · d one honest sentence · gid Project Gutenberg ebook number (public domain in the US) · fam the family plan says · ra good read-aloud
+// c caution for a grown-up · yq year needs care (why) · w Wikipedia article used to verify the year
+const BOOKS = [
+  // ---------- Tier 1: classic children's literature, read independently now ----------
+  { s: "t1", t: "Frog and Toad Are Friends", a: "Arnold Lobel", y: 1970, p: 64, g: "Animal story", fam: "Independent reading, ages 6–7", d: "Five very short stories about two friends; the sentences are simple, but the humour about patience, worry and loyalty is subtle enough to reward rereading.", w: "Frog and Toad Are Friends" },
+  { s: "t1", t: "Mercy Watson to the Rescue", a: "Kate DiCamillo", y: 2005, p: 72, g: "Humour", fam: "Independent reading, ages 6–7", d: "A comic adventure about a pig who loves buttered toast; light, quick reading whose fun lies in the gap between what Mercy wants and what the adults think is happening.", w: "Mercy Watson" },
+  { s: "t1", t: "Dinosaurs Before Dark (Magic Tree House 1)", a: "Mary Pope Osborne", y: 1992, p: 68, g: "Historical fiction", fam: "Independent reading, ages 6–7", d: "The first of a long time-travel series; the prose is plain and formulaic, so its real value is as a doorway into a period that you then study in a proper nonfiction book.", w: "Magic Tree House" },
+  { s: "t1", t: "Encyclopedia Brown, Boy Detective", a: "Donald J. Sobol", y: 1963, p: 90, g: "Mystery", fam: "Independent reading, ages 7–8", d: "Ten short cases, each ending with a challenge to find the clue yourself before reading the solution at the back, which makes it a genuine exercise in reasoning from evidence.", w: "Encyclopedia Brown" },
+  { s: "t1", t: "Nate the Great", a: "Marjorie Weinman Sharmat", y: 1972, p: 60, g: "Mystery", fam: "Independent reading, ages 7–8", d: "A deadpan boy detective solves a small case step by step; the method of listing facts and testing each idea is the point.", w: "Nate the Great" },
+  { s: "t1", t: "Flat Stanley", a: "Jeff Brown", y: 1964, p: 80, g: "Humour", fam: "Independent reading, ages 7–8", d: "A boy flattened by a falling bulletin board finds the advantages and drawbacks of being half an inch thick; a short comic fantasy built on one idea followed logically.", w: "Flat Stanley" },
+  { s: "t1", t: "Five on a Treasure Island", a: "Enid Blyton", y: 1942, p: 190, g: "Adventure", fam: "Independent reading, ages 7–8", d: "Four children and a dog explore an island and a shipwreck; fast and satisfying, though the writing is simple and some attitudes are of their time.", w: "Five on a Treasure Island" },
+  { s: "t1", t: "Calvin and Hobbes", a: "Bill Watterson", y: 1987, p: 128, g: "Humour", fam: "Independent reading, ages 7–8 (comic strips count)", d: "The first collection of the comic strip about a boy and his tiger; the vocabulary is rich and the jokes are often about philosophy, science and how people argue.", w: "Calvin and Hobbes", yq: "The strip began in 1985; the first collection was published in 1987." },
+  { s: "t1", t: "The Tale of Peter Rabbit", a: "Beatrix Potter", y: 1902, p: 72, g: "Animal story", gid: 14838, d: "A tiny book with exact, unsentimental prose and real consequences for disobedience; Potter never talks down to her reader.", w: "The Tale of Peter Rabbit", yq: "Privately printed in 1901; the first trade edition was 1902." },
+  { s: "t1", t: "The Velveteen Rabbit", a: "Margery Williams", y: 1922, p: 40, g: "Fairy tale & fable", gid: 11757, d: "A toy rabbit learns what it means to become real through being loved; short, gentle and thoughtful, with a sad passage about illness.", w: "The Velveteen Rabbit" },
+  { s: "t1", t: "Winnie-the-Pooh", a: "A. A. Milne", y: 1926, p: 160, g: "Humour", gid: 67098, ra: true, d: "Ten stories about a bear of very little brain and his friends; the comedy depends on precise wording, so it is funnier the better you read.", w: "Winnie-the-Pooh (book)" },
+  { s: "t1", t: "The House at Pooh Corner", a: "A. A. Milne", y: 1928, p: 180, g: "Humour", gid: 73011, ra: true, d: "The sequel, ending with a farewell chapter about growing up that many adults consider the finest thing Milne wrote.", w: "The House at Pooh Corner" },
+  { s: "t1", t: "Little Bear", a: "Else Holmelund Minarik", y: 1957, p: 64, g: "Animal story", d: "Four calm stories of a small bear and his mother; an easy reader written with real warmth and restraint.", w: "Little Bear (book)" },
+  { s: "t1", t: "Mr. Popper's Penguins", a: "Richard and Florence Atwater", y: 1938, p: 140, g: "Humour", d: "A house painter receives a penguin from an Antarctic explorer and ends up with a performing troupe; comic, with some real penguin natural history worked in.", w: "Mr. Popper's Penguins" },
+  { s: "t1", t: "A Bear Called Paddington", a: "Michael Bond", y: 1958, p: 160, g: "Humour", d: "A polite bear from Peru is taken in by a London family; each chapter is a self-contained comedy of misunderstanding.", w: "A Bear Called Paddington" },
+  { s: "t1", t: "The Mouse and the Motorcycle", a: "Beverly Cleary", y: 1965, p: 160, g: "Fantasy", d: "A hotel mouse learns to ride a toy motorcycle and then has to act responsibly when a boy falls ill; a story about trust and keeping promises.", w: "The Mouse and the Motorcycle" },
+  { s: "t1", t: "Ramona the Pest", a: "Beverly Cleary", y: 1968, p: 190, g: "Realistic fiction", d: "A sharply observed account of a kindergartner's first months of school, told with sympathy for how the world looks to a small child.", w: "Ramona the Pest" },
+  { s: "t1", t: "Mrs. Piggle-Wiggle", a: "Betty MacDonald", y: 1947, p: 120, g: "Humour", d: "A neighbour cures children of bad habits with outrageous but logical consequences; each chapter is a small comic experiment in cause and effect.", w: "Mrs. Piggle-Wiggle" },
+  { s: "t1", t: "Pippi Longstocking", a: "Astrid Lindgren", y: 1945, p: 160, g: "Humour", d: "The strongest girl in the world lives alone with a horse and a monkey and ignores every rule; translated from Swedish, it is anarchic and very funny.", c: "Older translations contain a dated, offensive word for Pippi's father; recent English editions have revised it.", w: "Pippi Longstocking" },
+  { s: "t1", t: "The Courage of Sarah Noble", a: "Alice Dalgliesh", y: 1954, p: 60, g: "Historical fiction", d: "Based on a true story, an eight-year-old girl travels with her father to build a home in the Connecticut wilderness in 1707.", w: "The Courage of Sarah Noble" },
+  { s: "t1", t: "Sarah, Plain and Tall", a: "Patricia MacLachlan", y: 1985, p: 60, g: "Historical fiction", d: "A woman from Maine answers a widowed prairie farmer's advertisement; spare, quiet prose in which a great deal is left unsaid.", w: "Sarah, Plain and Tall" },
+  { s: "t1", t: "The Hundred Dresses", a: "Eleanor Estes", y: 1944, p: 80, g: "Realistic fiction", d: "Girls tease a poor classmate about her one faded dress and later realise what they have done; a serious short book about cruelty, silence and regret.", w: "The Hundred Dresses" },
+  { s: "t1", t: "Owls in the Family", a: "Farley Mowat", y: 1961, p: 100, g: "Animal story", d: "A Saskatchewan boy raises two owls; a comic memoir-like story full of accurate observation of animals.", w: "Owls in the Family" },
+  { s: "t1", t: "The Enormous Egg", a: "Oliver Butterworth", y: 1956, p: 190, g: "Science fiction", d: "A hen in New Hampshire hatches a triceratops; a witty story that also asks how scientists and politicians decide what is true.", w: "The Enormous Egg" },
+  { s: "t1", t: "Old Mother West Wind", a: "Thornton W. Burgess", y: 1910, p: 120, g: "Animal story", gid: 2557, d: "Short tales of meadow animals, written to teach real natural history through character; simple, cheerful and old-fashioned.", w: "Old Mother West Wind" },
+  { s: "t1", t: "Aesop's Fables", a: "Aesop (retold by Joseph Jacobs)", y: 1894, ys: "c. 600 BC (Jacobs's retelling 1894)", p: 120, g: "Fairy tale & fable", gid: 28, d: "Very short stories, each ending in a moral; read them to test whether the moral really follows from the story.", yq: "Aesop's dates are traditional, not documented; the year shown is Jacobs's English retelling.", w: "Aesop's Fables" },
+
+  // ---------- Tier 2: longer classics ----------
+  { s: "t2", t: "The Lion, the Witch and the Wardrobe", a: "C. S. Lewis", y: 1950, p: 200, g: "Fantasy", ra: true, fam: "Read-aloud now, one chapter a night; Narnia, one book a year", d: "Four children enter Narnia through a wardrobe; a tightly built fantasy about betrayal, sacrifice and forgiveness with a Christian allegory at its centre.", c: "The scene at the Stone Table is frightening; read it together.", w: "The Lion, the Witch and the Wardrobe" },
+  { s: "t2", t: "Charlotte's Web", a: "E. B. White", y: 1952, p: 184, g: "Animal story", ra: true, fam: "Read-aloud now, after Narnia", d: "A spider saves a pig by writing words in her web; often called one of the best-written American children's books, and honest about death.", w: "Charlotte's Web" },
+  { s: "t2", t: "Stuart Little", a: "E. B. White", y: 1945, p: 130, g: "Fantasy", ra: true, fam: "Read-aloud, ages 6–7", d: "A mouse born into a New York family sets out on a quest; the prose is excellent, and the open ending is deliberate.", w: "Stuart Little" },
+  { s: "t2", t: "My Father's Dragon", a: "Ruth Stiles Gannett", y: 1948, p: 90, g: "Fantasy", gid: 30017, ra: true, fam: "Read-aloud, ages 6–7", d: "A boy rescues a baby dragon from Wild Island using a knapsack of carefully chosen supplies; each problem is solved by thinking, not force.", w: "My Father's Dragon" },
+  { s: "t2", t: "The Boxcar Children", a: "Gertrude Chandler Warner", y: 1924, p: 150, g: "Realistic fiction", gid: 42796, ra: true, fam: "Read-aloud, ages 6–7", d: "Four orphans make a home in an abandoned railway boxcar; plainly written, but full of practical problem-solving that is good for narration.", yq: "First published 1924 (the text on Gutenberg); the edition sold today is Warner's simplified 1942 revision.", w: "The Boxcar Children" },
+  { s: "t2", t: "Little House in the Big Woods", a: "Laura Ingalls Wilder", y: 1932, p: 240, g: "Historical fiction", ra: true, fam: "Read-aloud, ages 6–7 and year 2", d: "A year of pioneer family life in 1870s Wisconsin, with exact descriptions of how food, tools and shelter were made by hand.", w: "Little House in the Big Woods" },
+  { s: "t2", t: "Mary Poppins", a: "P. L. Travers", y: 1934, p: 200, g: "Fantasy", ra: true, fam: "Read-aloud, ages 6–7", d: "A stern, vain and magical nanny arrives on the east wind; stranger and sharper than the film.", c: "The chapter Bad Tuesday contained racial caricatures; Travers revised it in 1981, so choose a revised edition.", w: "Mary Poppins (book series)" },
+  { s: "t2", t: "The Phantom Tollbooth", a: "Norton Juster", y: 1961, p: 256, g: "Fantasy", ra: true, fam: "Read-aloud, ages 7–8: read slowly", d: "A bored boy drives into a kingdom where words and numbers are at war; nearly every page is a pun or a logical joke, so a word-loving reader gets the most from it.", w: "The Phantom Tollbooth" },
+  { s: "t2", t: "A Wrinkle in Time", a: "Madeleine L'Engle", y: 1962, p: 230, g: "Science fiction", ra: true, fam: "Read-aloud, ages 7–8", d: "Meg Murry crosses space by a fold in time to rescue her father from a planet ruled by enforced sameness; science, faith and courage together.", c: "The planet Camazotz and the brain called IT can frighten; talk about them.", w: "A Wrinkle in Time" },
+  { s: "t2", t: "The Borrowers", a: "Mary Norton", y: 1952, p: 180, g: "Fantasy", ra: true, fam: "Read-aloud, ages 7–8", d: "Tiny people live under the floor of an old English house and borrow what they need; a lesson in seeing ordinary things at a different scale.", w: "The Borrowers" },
+  { s: "t2", t: "Prince Caspian", a: "C. S. Lewis", y: 1951, p: 220, g: "Fantasy", ra: true, fam: "Read-aloud, ages 7–8 (continue Narnia)", d: "The children return to a Narnia where centuries have passed and help a young prince reclaim his throne; about faith when evidence seems thin.", w: "Prince Caspian" },
+  { s: "t2", t: "The Voyage of the Dawn Treader", a: "C. S. Lewis", y: 1952, p: 250, g: "Fantasy", ra: true, fam: "Read-aloud, ages 7–8 (continue Narnia)", d: "A sea voyage to the eastern edge of the world; each island tests a character, and a selfish boy is changed.", w: "The Voyage of the Dawn Treader" },
+  { s: "t2", t: "The Silver Chair", a: "C. S. Lewis", y: 1953, p: 240, g: "Fantasy", ra: true, fam: "Narnia, one book a year", d: "Two schoolchildren and a gloomy marsh-wiggle search underground for a lost prince; about remembering instructions when appearances deceive.", w: "The Silver Chair" },
+  { s: "t2", t: "The Horse and His Boy", a: "C. S. Lewis", y: 1954, p: 220, g: "Fantasy", ra: true, fam: "Narnia, one book a year", d: "A boy and a talking horse escape southern slavery for the free north; an adventure about pride and providence.", c: "Its portrait of the southern Calormenes relies on stereotypes; worth discussing.", w: "The Horse and His Boy" },
+  { s: "t2", t: "The Magician's Nephew", a: "C. S. Lewis", y: 1955, p: 200, g: "Fantasy", ra: true, fam: "Narnia, one book a year", d: "The creation of Narnia, and how the White Witch first entered it; about temptation, curiosity and making amends.", w: "The Magician's Nephew" },
+  { s: "t2", t: "The Last Battle", a: "C. S. Lewis", y: 1956, p: 210, g: "Fantasy", ra: true, fam: "Narnia, one book a year (last)", d: "A false Aslan deceives Narnia, and its last king must stand against the lie; the darkest of the seven and the most explicitly theological.", c: "Deaths, and the end of Narnia itself; best read last and together.", w: "The Last Battle" },
+  { s: "t2", t: "The Jungle Book", a: "Rudyard Kipling", y: 1894, p: 210, g: "Animal story", gid: 236, ra: true, fam: "Read-aloud, ages 7–8", d: "Stories of Mowgli raised by wolves, and of the mongoose Rikki-Tikki-Tavi; the language is dense, rhythmic and very fine.", w: "The Jungle Book" },
+  { s: "t2", t: "The Secret Garden", a: "Frances Hodgson Burnett", y: 1911, p: 330, g: "Realistic fiction", gid: 113, ra: true, fam: "Read-aloud, ages 7–8, and year 3", d: "A sour, neglected girl and a frightened invalid boy are changed by bringing a locked garden back to life.", c: "Mary's early contempt for her Indian servants, and some remarks about race, reflect the colonial attitudes of 1911; talk about them.", w: "The Secret Garden" },
+  { s: "t2", t: "The Hobbit", a: "J. R. R. Tolkien", y: 1937, p: 310, g: "Fantasy", ra: true, fam: "Read-aloud, year 3: read slowly, use the maps", d: "A comfortable hobbit is drawn into a dwarf company's quest for a dragon's treasure; a quest story that becomes a serious book about greed and courage.", c: "Battle scenes in the final chapters; spiders and goblins may frighten.", w: "The Hobbit" },
+  { s: "t2", t: "The Door in the Wall", a: "Marguerite de Angeli", y: 1949, p: 120, g: "Historical fiction", ra: true, fam: "Read-aloud with medieval history, year 2", d: "A noble boy in plague-time England loses the use of his legs and learns a craft, patience and a new kind of courage.", w: "The Door in the Wall (novel)" },
+  { s: "t2", t: "Alice's Adventures in Wonderland", a: "Lewis Carroll", y: 1865, p: 190, g: "Fantasy", gid: 11, d: "A girl falls into a world of nonsense logic; written by an Oxford mathematician, it is full of puzzles about words, rules and reasoning.", w: "Alice's Adventures in Wonderland" },
+  { s: "t2", t: "Through the Looking-Glass", a: "Lewis Carroll", y: 1871, p: 220, g: "Fantasy", gid: 12, d: "Alice crosses a giant chessboard to become a queen; even more logical play than the first book, including the poem Jabberwocky.", yq: "Published December 1871, though the first edition is dated 1872.", w: "Through the Looking-Glass" },
+  { s: "t2", t: "The Wonderful Wizard of Oz", a: "L. Frank Baum", y: 1900, p: 260, g: "Fantasy", gid: 55, d: "Dorothy and three companions travel to the Emerald City to ask a great wizard for what each believes he lacks; watch whether the journey itself supplies it.", w: "The Wonderful Wizard of Oz" },
+  { s: "t2", t: "Peter and Wendy (Peter Pan)", a: "J. M. Barrie", y: 1911, p: 240, g: "Fantasy", gid: 16, d: "The novel of Peter Pan, wittier and far more melancholy than the films, about children who refuse to grow up and what that costs.", c: "Its 'redskin' tribe is a crude stereotype of Native Americans; discuss it.", w: "Peter and Wendy" },
+  { s: "t2", t: "A Little Princess", a: "Frances Hodgson Burnett", y: 1905, p: 240, g: "Realistic fiction", gid: 146, d: "A rich pupil at a London boarding school is left penniless and keeps her dignity and kindness through hardship.", w: "A Little Princess" },
+  { s: "t2", t: "Heidi", a: "Johanna Spyri", y: 1880, ys: "1880–81", p: 300, g: "Realistic fiction", gid: 1448, d: "A Swiss orphan transforms her grandfather's life in the Alps and pines for the mountains when sent to the city; translated from German.", w: "Heidi" },
+  { s: "t2", t: "The Wind in the Willows", a: "Kenneth Grahame", y: 1908, p: 260, g: "Animal story", gid: 289, ra: true, d: "Mole, Rat, Badger and the reckless Toad along an English river; some of the most beautiful prose in English children's literature.", w: "The Wind in the Willows" },
+  { s: "t2", t: "Black Beauty", a: "Anna Sewell", y: 1877, p: 250, g: "Animal story", gid: 271, d: "A horse narrates his life with good and cruel owners; written to change how Victorian England treated working horses, and it helped to do so.", c: "Scenes of cruelty to horses, and the deaths of horses and of a man.", w: "Black Beauty" },
+  { s: "t2", t: "Five Children and It", a: "E. Nesbit", y: 1902, p: 240, g: "Fantasy", gid: 778, d: "Children find a grumpy sand-fairy who grants a wish a day, and every wish goes wrong in a logical way.", c: "One chapter uses stereotyped 'Red Indians'.", w: "Five Children and It" },
+  { s: "t2", t: "The Railway Children", a: "E. Nesbit", y: 1906, p: 230, g: "Realistic fiction", gid: 1874, d: "Three children move to the countryside after their father is mysteriously taken away, and find purpose in helping others along the railway.", w: "The Railway Children" },
+  { s: "t2", t: "The Princess and the Goblin", a: "George MacDonald", y: 1872, p: 230, g: "Fantasy", gid: 708, d: "A princess and a miner's son defeat goblins under the mountain; a fairy tale about trusting what you cannot yet prove to others.", yq: "Serialised 1870–71; first book edition 1872.", w: "The Princess and the Goblin" },
+  { s: "t2", t: "Understood Betsy", a: "Dorothy Canfield Fisher", y: 1916, p: 220, g: "Realistic fiction", gid: 5347, d: "A timid, over-protected city girl learns competence and independence on a Vermont farm; written by an advocate of Montessori education.", w: "Understood Betsy" },
+  { s: "t2", t: "Anne of Green Gables", a: "L. M. Montgomery", y: 1908, p: 320, g: "Realistic fiction", gid: 45, d: "An imaginative, talkative orphan is adopted by mistake on Prince Edward Island; funny, wordy and moving.", w: "Anne of Green Gables" },
+  { s: "t2", t: "The Adventures of Pinocchio", a: "Carlo Collodi", y: 1883, p: 220, g: "Fairy tale & fable", gid: 500, d: "A wooden puppet repeatedly chooses pleasure over duty and suffers the consequences; much darker and stranger than the film.", c: "Pinocchio is hanged from a tree in one chapter (he survives); read together.", w: "The Adventures of Pinocchio" },
+  { s: "t2", t: "The Trumpet of the Swan", a: "E. B. White", y: 1970, p: 250, g: "Animal story", d: "A trumpeter swan born without a voice learns to read, write and play the trumpet to repay his father's debt.", w: "The Trumpet of the Swan" },
+  { s: "t2", t: "Mrs. Frisby and the Rats of NIMH", a: "Robert C. O'Brien", y: 1971, p: 230, g: "Science fiction", d: "A widowed mouse seeks help from rats made intelligent in a laboratory; about science, responsibility and what a society owes others.", w: "Mrs. Frisby and the Rats of NIMH" },
+  { s: "t2", t: "The Twenty-One Balloons", a: "William Pène du Bois", y: 1947, p: 180, g: "Adventure", d: "A professor's balloon voyage lands him on Krakatoa among a secret society of inventors, just before the real eruption of 1883.", w: "The Twenty-One Balloons" },
+  { s: "t2", t: "Half Magic", a: "Edward Eager", y: 1954, p: 200, g: "Fantasy", d: "A coin grants exactly half of each wish, so the children must learn to wish for twice what they want; a natural fractions puzzle.", w: "Half Magic" },
+  { s: "t2", t: "The Saturdays", a: "Elizabeth Enright", y: 1941, p: 180, g: "Realistic fiction", d: "Four New York siblings pool their allowances so each can spend a Saturday alone in the city.", w: "The Saturdays" },
+  { s: "t2", t: "From the Mixed-Up Files of Mrs. Basil E. Frankweiler", a: "E. L. Konigsburg", y: 1967, p: 160, g: "Mystery", d: "A girl and her brother run away to live in the Metropolitan Museum of Art and investigate the origin of a statue.", w: "From the Mixed-Up Files of Mrs. Basil E. Frankweiler" },
+  { s: "t2", t: "Rabbit Hill", a: "Robert Lawson", y: 1944, p: 130, g: "Animal story", d: "The animals of a Connecticut hill wonder whether the new people moving in will be kind; gentle and beautifully illustrated.", w: "Rabbit Hill" },
+  { s: "t2", t: "The Wheel on the School", a: "Meindert DeJong", y: 1954, p: 300, g: "Realistic fiction", d: "Schoolchildren in a Dutch fishing village work to bring storks back to their roofs; about curiosity turning into persistent action.", w: "The Wheel on the School" },
+  { s: "t2", t: "Island of the Blue Dolphins", a: "Scott O'Dell", y: 1960, p: 180, g: "Historical fiction", d: "Based on a real Nicoleño woman who lived alone on San Nicolas Island off California for eighteen years in the 1800s.", c: "Her brother is killed by wild dogs early in the book.", w: "Island of the Blue Dolphins" },
+  { s: "t2", t: "The Tale of Despereaux", a: "Kate DiCamillo", y: 2003, p: 270, g: "Fantasy", d: "A small mouse who loves stories and a princess is banished to the dungeon; a fable about light, darkness and forgiveness.", w: "The Tale of Despereaux" },
+  { s: "t2", t: "The Penderwicks", a: "Jeanne Birdsall", y: 2005, p: 260, g: "Realistic fiction", d: "Four sisters spend a summer on a Massachusetts estate; a modern book written in the manner of the old family classics.", w: "The Penderwicks" },
+  { s: "t2", t: "The Little Prince", a: "Antoine de Saint-Exupéry", y: 1943, p: 96, g: "Fairy tale & fable", d: "A pilot stranded in the Sahara meets a boy from a tiny asteroid; a short philosophical fable about what adults fail to see.", c: "The ending is about death and may need discussion.", w: "The Little Prince" },
+  { s: "t2", t: "The Blue Fairy Book", a: "Andrew Lang (editor)", y: 1889, p: 390, g: "Fairy tale & fable", gid: 503, d: "The first of Lang's coloured fairy books, gathering tales from many countries in clear Victorian English.", c: "Fairy tales include some violent punishments.", w: "Lang's Fairy Books" },
+  { s: "t2", t: "Little House on the Prairie", a: "Laura Ingalls Wilder", y: 1935, p: 330, g: "Historical fiction", ra: true, fam: "Read-aloud, ages 6–7 (the plan names the Little House series)", d: "The Ingalls family settles on Osage land in Kansas, which they had no right to farm; vivid and well made.", c: "Several characters express hatred of the Osage; read it together and discuss whose land it was.", w: "Little House on the Prairie" },
+
+  // ---------- Tier 3: adult-level classics whose content suits a young reader ----------
+  { s: "t3", t: "Treasure Island", a: "Robert Louis Stevenson", y: 1883, p: 290, g: "Adventure", gid: 120, ra: true, fam: "Read-aloud, year 4", d: "Jim Hawkins sails with the charming one-legged cook Long John Silver in search of buried gold; the model for nearly every pirate story since.", c: "Several men are killed in fights; it is tense, not gory.", w: "Treasure Island" },
+  { s: "t3", t: "Robinson Crusoe", a: "Daniel Defoe", y: 1719, p: 320, g: "Adventure", gid: 521, fam: "Literature, year 5", d: "A castaway survives 28 years on an island by careful work, record-keeping and faith; an early English novel, so the style is long-winded.", c: "Cannibals appear, and Crusoe assumes he should be Friday's master; discuss both.", w: "Robinson Crusoe" },
+  { s: "t3", t: "The Swiss Family Robinson", a: "Johann David Wyss", y: 1812, p: 400, g: "Adventure", gid: 3836, fam: "Literature spine, age 9", d: "A shipwrecked pastor's family builds a home on an island; implausible natural history, but full of engineering and planning.", yq: "German original 1812; English translations from 1814.", w: "The Swiss Family Robinson" },
+  { s: "t3", t: "Twenty Thousand Leagues Under the Seas", a: "Jules Verne", y: 1869, ys: "1869–70", p: 400, g: "Science fiction", gid: 164, fam: "Literature spine, age 10", d: "A naturalist is held aboard Captain Nemo's submarine Nautilus; long passages of real marine science and some that were wrong even then.", yq: "Serialised in French 1869–70; the year shown is the first instalment.", w: "Twenty Thousand Leagues Under the Seas" },
+  { s: "t3", t: "Little Women", a: "Louisa May Alcott", y: 1868, ys: "1868–69", p: 450, g: "Realistic fiction", gid: 514, fam: "Literature spine, ages 9–10", d: "Four sisters grow up in Civil War Massachusetts, each struggling with a fault; about character, work and vocation.", c: "The second half includes a death in the family; read it together.", yq: "Published in two volumes, 1868 and 1869.", w: "Little Women" },
+  { s: "t3", t: "Around the World in Eighty Days", a: "Jules Verne", y: 1872, p: 230, g: "Adventure", gid: 103, d: "A precise English gentleman bets that he can circle the globe in eighty days; keep his timetable as you read and check whether your arithmetic agrees with his.", c: "Some portrayals of other peoples are dated.", w: "Around the World in Eighty Days" },
+  { s: "t3", t: "Journey to the Centre of the Earth", a: "Jules Verne", y: 1864, p: 250, g: "Science fiction", gid: 18857, d: "A professor, his nephew and a guide descend an Icelandic volcano; excellent for asking which of its science is true.", w: "Journey to the Center of the Earth" },
+  { s: "t3", t: "Kidnapped", a: "Robert Louis Stevenson", y: 1886, p: 280, g: "Historical fiction", gid: 421, d: "A Scottish boy is cheated by his uncle and flees across the Highlands with a Jacobite rebel in 1751.", c: "A sea fight and a murder; tense rather than graphic.", w: "Kidnapped (novel)" },
+  { s: "t3", t: "The Pilgrim's Progress", a: "John Bunyan", y: 1678, p: 300, g: "Faith", gid: 131, ra: true, d: "An allegory of the Christian life as a journey from the City of Destruction to the Celestial City; for three centuries one of the most-read books in English.", w: "The Pilgrim's Progress" },
+  { s: "t3", t: "Tales from Shakespeare", a: "Charles and Mary Lamb", y: 1807, p: 300, g: "Myth & legend", gid: 573, ra: true, d: "Twenty of Shakespeare's plays retold in prose for young readers, keeping some of his own lines; the classic first step to the plays.", c: "The tragedies (Macbeth, Romeo and Juliet, Hamlet) include murder and suicide; begin with the comedies.", w: "Tales from Shakespeare" },
+  { s: "t3", t: "A Christmas Carol", a: "Charles Dickens", y: 1843, p: 100, g: "Realistic fiction", gid: 46, ra: true, d: "A miser is shown his past, present and future by three spirits and changes his life; short, and Dickens at his most vivid.", c: "The ghosts and the vision of death can frighten.", w: "A Christmas Carol" },
+  { s: "t3", t: "Hans Brinker, or the Silver Skates", a: "Mary Mapes Dodge", y: 1865, p: 320, g: "Realistic fiction", gid: 764, d: "A poor Dutch boy and his sister hope to win a skating race while their father lies ill; also a guided tour of Dutch history and cities.", w: "Hans Brinker, or the Silver Skates" },
+  { s: "t3", t: "The Merry Adventures of Robin Hood", a: "Howard Pyle", y: 1883, p: 330, g: "Myth & legend", gid: 10148, d: "The ballads of Robin Hood retold in a deliberately old-fashioned English that is a pleasure to read aloud.", w: "The Merry Adventures of Robin Hood" },
+  { s: "t3", t: "The Story of King Arthur and His Knights", a: "Howard Pyle", y: 1903, p: 320, g: "Myth & legend", gid: 60184, d: "The first of Pyle's four Arthur books: the sword in the stone, Excalibur, and the founding of the Round Table.", w: "The Story of King Arthur and His Knights" },
+  { s: "t3", t: "The Heroes", a: "Charles Kingsley", y: 1856, p: 200, g: "Myth & legend", gid: 677, ra: true, d: "Perseus, Jason and Theseus retold for children by a Victorian clergyman; a good bridge to the Greek originals.", w: "The Heroes" },
+  { s: "t3", t: "A Wonder-Book for Girls and Boys", a: "Nathaniel Hawthorne", y: 1851, p: 220, g: "Myth & legend", gid: 32242, d: "Six Greek myths, including Midas and Pandora, retold by a major American novelist; the framing chat is old-fashioned, the stories are lively.", w: "A Wonder-Book for Girls and Boys" },
+  { s: "t3", t: "The Children's Homer", a: "Padraic Colum", y: 1918, p: 250, g: "Myth & legend", gid: 16867, ra: true, d: "The Odyssey and the story of Troy retold in strong prose for children (on Gutenberg as The Adventures of Odysseus and the Tale of Troy); the best way into Homer before the full translation.", c: "War and the slaying of the suitors are told, without gore.", w: "Padraic Colum" },
+  { s: "t3", t: "Little Lord Fauntleroy", a: "Frances Hodgson Burnett", y: 1886, p: 230, g: "Realistic fiction", gid: 479, yq: "Serialised 1885–86; book edition 1886.", d: "A kind New York boy turns out to be heir to an English earldom and softens his hard grandfather.", w: "Little Lord Fauntleroy" },
+  { s: "t3", t: "Eight Cousins", a: "Louisa May Alcott", y: 1875, p: 280, g: "Realistic fiction", gid: 2726, d: "An orphaned girl is raised by a doctor uncle with strong, sometimes eccentric views on health and education.", w: "Eight Cousins" },
+  { s: "t3", t: "The Arabian Nights Entertainments", a: "Andrew Lang (editor)", y: 1898, p: 420, g: "Myth & legend", gid: 128, d: "Sindbad, Aladdin, Ali Baba and others, adapted for children from the medieval Arabic collection and the tales Antoine Galland added to it in French in the 1700s (Aladdin and Ali Baba among them).", c: "Some tales contain beheadings and cruel punishments.", w: "One Thousand and One Nights" },
+  { s: "t3", t: "Fairy Tales of Hans Christian Andersen", a: "Hans Christian Andersen", y: 1835, ys: "1835–72", p: 400, g: "Fairy tale & fable", gid: 1597, d: "Original literary fairy tales such as The Ugly Duckling and The Emperor's New Clothes; many are sad and morally serious.", c: "The Little Match Girl and The Little Mermaid end in death.", yq: "Published in instalments from 1835 to 1872; this English collection is later.", w: "Hans Christian Andersen" },
+  { s: "t3", t: "Grimms' Fairy Tales", a: "Jacob and Wilhelm Grimm", y: 1812, p: 300, g: "Fairy tale & fable", gid: 2591, d: "German folk tales collected by two philologists; plain and brisk, with the violence that the softer retellings remove.", c: "Choose the tales: some, such as The Juniper Tree, are grim indeed.", yq: "First volume 1812; this English selection is later.", w: "Grimms' Fairy Tales" },
+
+  // ---------- History and science nonfiction ----------
+  { s: "nf", t: "The Story of the World, Vol. 1: Ancient Times", a: "Susan Wise Bauer", y: 2001, p: 330, g: "History", ra: true, fam: "History spine, year 1 (now): read aloud twice a week, one chapter a session", yq: "First edition 2001 (Peace Hill Press); revised edition 2006.", d: "A narrative history from the first nomads to the fall of Rome, told chapter by chapter for reading aloud.", c: "Some chapters retell legends as stories; ask which parts are history and which are legend.", w: "The Story of the World" },
+  { s: "nf", t: "The Story of Science: Aristotle Leads the Way", a: "Joy Hakim", y: 2004, p: 300, g: "Science", ra: true, fam: "Science spine, year 1 (now): read aloud once a week", d: "How the Greeks began to explain nature by reason and observation, and where they went wrong.", w: "Joy Hakim" },
+  { s: "nf", t: "The Biggest Story", a: "Kevin DeYoung", y: 2015, p: 130, g: "Faith", ra: true, fam: "Faith, read aloud once a year (now)", d: "The whole Bible told as one connected story in ten short chapters, with striking illustrations.", w: "Kevin DeYoung" },
+  { s: "nf", t: "The Jesus Storybook Bible", a: "Sally Lloyd-Jones", y: 2007, p: 350, g: "Faith", ra: true, fam: "Faith, now and for years", d: "Bible stories retold so that each one points to Jesus; warm and simple, best read aloud.", w: "Sally Lloyd-Jones" },
+  { s: "nf", t: "D'Aulaires' Book of Greek Myths", a: "Ingri and Edgar Parin d'Aulaire", y: 1962, p: 190, g: "Myth & legend", ra: true, d: "The Greek gods and heroes in clear prose and memorable lithographs; the standard first book of myths.", w: "D'Aulaires' Book of Greek Myths" },
+  { s: "nf", t: "D'Aulaires' Book of Norse Myths", a: "Ingri and Edgar Parin d'Aulaire", y: 1967, p: 160, g: "Myth & legend", d: "Odin, Thor, Loki and the end of the gods; first published as Norse Gods and Giants.", w: "D'Aulaires' Book of Norse Myths" },
+  { s: "nf", t: "Abraham Lincoln", a: "Ingri and Edgar Parin d'Aulaire", y: 1939, p: 56, g: "Biography", d: "A picture-book life of Lincoln that won the 1940 Caldecott Medal; good, though it softens the violence of the Civil War.", c: "Its 1939 pictures and descriptions of enslaved and Native American people rely on stereotypes; discuss them.", w: "Abraham Lincoln (d'Aulaire book)" },
+  { s: "nf", t: "Ben and Me", a: "Robert Lawson", y: 1939, p: 114, g: "Historical fiction", d: "Benjamin Franklin's life told, comically, by a mouse who claims credit for his ideas; fun, but check which events really happened.", w: "Ben and Me" },
+  { s: "nf", t: "Carry On, Mr. Bowditch", a: "Jean Lee Latham", y: 1955, p: 250, g: "Biography", d: "The life of Nathaniel Bowditch, who taught himself mathematics and astronomy and wrote the navigation manual sailors used for generations.", c: "Several of his family die during the story.", w: "Carry On, Mr. Bowditch" },
+  { s: "nf", t: "The Librarian Who Measured the Earth", a: "Kathryn Lasky", y: 1994, p: 48, g: "Science", d: "How Eratosthenes estimated the Earth's circumference from shadows and the distance between two cities; geometry as history.", w: "Eratosthenes" },
+  { s: "nf", t: "The Number Devil", a: "Hans Magnus Enzensberger", y: 1997, p: 260, g: "Science", d: "A boy who hates maths is shown, in dreams, prime numbers, Fibonacci numbers, infinity and proof; translated from German.", w: "The Number Devil" },
+  { s: "nf", t: "Archimedes and the Door of Science", a: "Jeanne Bendick", y: 1962, p: 140, g: "Science", d: "A short life of Archimedes that explains his levers, buoyancy and approximation of pi; ask which famous stories about him are documented and which are later legend.", w: "Jeanne Bendick" },
+  { s: "nf", t: "Cathedral: The Story of Its Construction", a: "David Macaulay", y: 1973, p: 80, g: "History", d: "The building of an imaginary French Gothic cathedral over generations, in exact pen drawings; engineering, labour and faith together.", w: "Cathedral: The Story of Its Construction" },
+  { s: "nf", t: "Pyramid", a: "David Macaulay", y: 1975, p: 80, g: "History", d: "How an Egyptian pyramid was planned and built, drawn step by step; pairs with ancient history.", w: "David Macaulay" },
+  { s: "nf", t: "The Way Things Work", a: "David Macaulay", y: 1988, p: 400, g: "Science", d: "Machines from the lever to the computer explained by principle, with a woolly mammoth for comic relief.", w: "The Way Things Work" },
+  { s: "nf", t: "Paddle-to-the-Sea", a: "Holling C. Holling", y: 1941, p: 64, g: "Geography", d: "A carved canoe travels from the woods north of Lake Superior through all five Great Lakes and the St. Lawrence to the Atlantic; geography, geology and history in each chapter.", w: "Paddle-to-the-Sea" },
+  { s: "nf", t: "Pagoo", a: "Holling C. Holling", y: 1957, p: 88, g: "Science", d: "The life of a hermit crab in a tide pool, with detailed marginal diagrams of anatomy and ecology.", w: "Holling C. Holling" },
+  { s: "nf", t: "Minn of the Mississippi", a: "Holling C. Holling", y: 1951, p: 86, g: "Geography", d: "A snapping turtle travels the length of the Mississippi; river science and American history together.", w: "Minn of the Mississippi" },
+  { s: "nf", t: "The Story of Mankind", a: "Hendrik Willem van Loon", y: 1921, p: 480, g: "History", gid: 754, d: "A one-volume world history that won the first Newbery Medal; lively, opinionated, and now out of date.", c: "Some judgements about peoples and religions are dated or wrong; read it as a 1921 view, and check claims.", w: "The Story of Mankind" },
+  { s: "nf", t: "Our Island Story", a: "H. E. Marshall", y: 1905, p: 500, g: "History", ra: true, d: "British history told as a chain of stories, from Roman Britain to Queen Victoria; vivid but proudly imperial.", c: "It mixes legend and history and takes the British Empire's side; ask how we know each story.", w: "Our Island Story" },
+  { s: "nf", t: "The Burgess Bird Book for Children", a: "Thornton W. Burgess", y: 1919, p: 350, g: "Science", gid: 3074, d: "Peter Rabbit (Burgess's, not Potter's) meets the common birds of North America; accurate field-guide facts in story form.", w: "The Burgess Bird Book for Children" },
+  { s: "nf", t: "The Burgess Animal Book for Children", a: "Thornton W. Burgess", y: 1920, p: 380, g: "Science", gid: 2441, d: "The same method for North American mammals: one species per chapter, with real behaviour and habitat.", w: "Thornton Burgess" },
+  { s: "nf", t: "Snowflake Bentley", a: "Jacqueline Briggs Martin", y: 1998, p: 32, g: "Biography", d: "The Vermont farmer who first photographed single snow crystals; the side notes give the real science and dates.", w: "Snowflake Bentley" },
+  { s: "nf", t: "Starry Messenger", a: "Peter Sís", y: 1996, p: 40, g: "Biography", d: "Galileo's life and his trial for teaching that the Earth moves, with Galileo's own words in the margins.", w: "Starry Messenger (book)" },
+  { s: "nf", t: "Leonardo da Vinci", a: "Diane Stanley", y: 1996, p: 48, g: "Biography", d: "A careful picture-book biography of Leonardo as artist, engineer and observer of nature.", w: "Diane Stanley" },
+
+  // ---------- Poetry ----------
+  { s: "po", t: "A Child's Garden of Verses", a: "Robert Louis Stevenson", y: 1885, p: 100, g: "Poetry", gid: 136, ra: true, d: "Short poems about a child's world, with perfect rhythm; the best book for a first memorised poem.", w: "A Child's Garden of Verses" },
+  { s: "po", t: "When We Were Very Young", a: "A. A. Milne", y: 1924, p: 100, g: "Poetry", gid: 70271, ra: true, d: "Comic and rhythmic verses written for Milne's son, two years before the book Winnie-the-Pooh; superb for reading aloud.", w: "When We Were Very Young" },
+  { s: "po", t: "Now We Are Six", a: "A. A. Milne", y: 1927, p: 100, g: "Poetry", gid: 70516, ra: true, d: "Milne's second book of children's verse, published the year after Winnie-the-Pooh; Pooh himself appears in a few of the poems.", w: "Now We Are Six" },
+  { s: "po", t: "Sing-Song: A Nursery Rhyme Book", a: "Christina Rossetti", y: 1872, p: 130, g: "Poetry", gid: 76703, d: "Short lyrics by a major Victorian poet, some playful, some about loss; the poem about who has seen the wind is here.", c: "Several poems are about the deaths of babies, as was common then.", w: "Sing-Song (book)" },
+  { s: "po", t: "A Book of Nonsense", a: "Edward Lear", y: 1846, p: 110, g: "Poetry", gid: 982, d: "The limericks that made the form famous, with Lear's own drawings; count the beats and find the rhyme scheme.", w: "A Book of Nonsense" },
+  { s: "po", t: "Nonsense Songs", a: "Edward Lear", y: 1871, p: 110, g: "Poetry", gid: 13647, d: "Contains The Owl and the Pussy-cat and The Jumblies; nonsense with perfect metre. First published in the 1871 volume Nonsense Songs, Stories, Botany, and Alphabets.", w: "Edward Lear" },
+  { s: "po", t: "Peacock Pie", a: "Walter de la Mare", y: 1913, p: 120, g: "Poetry", gid: 3753, d: "Musical, sometimes eerie poems for children by one of the finest lyric poets of the century.", w: "Peacock Pie" },
+  { s: "po", t: "Songs of Innocence", a: "William Blake", y: 1789, p: 50, g: "Poetry", gid: 1934, d: "Short visionary poems, including The Lamb; simple words carrying deep ideas.", c: "Blake's later Songs of Experience, printed with it, is darker; begin with Innocence.", w: "Songs of Innocence and of Experience" },
+  { s: "po", t: "Lays of Ancient Rome", a: "Thomas Babington Macaulay", y: 1842, p: 120, g: "Poetry", gid: 847, d: "Ballads of early Roman legend; Horatius at the Bridge was memorised by generations of schoolchildren and pairs with Roman history.", c: "Battle poetry.", w: "Lays of Ancient Rome" },
+  { s: "po", t: "Old Possum's Book of Practical Cats", a: "T. S. Eliot", y: 1939, p: 60, g: "Poetry", d: "Comic poems about cats by a major modern poet; dazzling rhyme and metre.", w: "Old Possum's Book of Practical Cats" },
+  { s: "po", t: "You Come Too", a: "Robert Frost", y: 1959, p: 96, g: "Poetry", d: "Frost's own selection of his poems for young readers, including Stopping by Woods and The Pasture.", w: "Robert Frost" },
+  { s: "po", t: "Where the Sidewalk Ends", a: "Shel Silverstein", y: 1974, p: 180, g: "Poetry", d: "Comic modern verse with drawings; light, but a good way to hear how rhythm makes a joke work.", w: "Where the Sidewalk Ends" },
+  { s: "po", t: "Favorite Poems Old and New", a: "Helen Ferris (editor)", y: 1957, p: 600, g: "Poetry", d: "A large family anthology of more than 700 poems, arranged by subject; a book to dip into for years.", w: "Helen Ferris" },
+  { s: "po", t: "Hailstones and Halibut Bones", a: "Mary O'Neill", y: 1961, p: 64, g: "Poetry", d: "Twelve poems, each asking what a colour is like; a model for writing your own.", w: "Hailstones and Halibut Bones" },
+
+  // ---------- Great books that should wait (and why) ----------
+  { s: "wt", t: "The Lord of the Rings", a: "J. R. R. Tolkien", y: 1954, ys: "1954–55", p: 1200, g: "Fantasy", fam: "Family plan: begin The Fellowship of the Ring in year 4 (age 9), after The Hobbit, and finish by 11", d: "The great quest to destroy the One Ring; one of the major works of twentieth-century fiction.", why: "Its length, sustained war and despair (Shelob, the Dead Marshes, Mount Doom) and its emotional weight are better met after The Hobbit, from about 9 or 10.", w: "The Lord of the Rings" },
+  { s: "wt", t: "Animal Farm", a: "George Orwell", y: 1945, p: 112, g: "Fable & allegory", fam: "Family plan: age 10–11, read together and discuss", d: "Farm animals overthrow their farmer and are betrayed by the pigs; an allegory of the Russian Revolution and Stalin.", why: "Short and simple in words, but the allegory only works once you know the history, and the executions of animals are disturbing.", w: "Animal Farm" },
+  { s: "wt", t: "Fahrenheit 451", a: "Ray Bradbury", y: 1953, p: 160, g: "Science fiction", fam: "Family plan: age 11", d: "A fireman whose job is burning books begins to read them; about censorship and the cost of thinking.", why: "It contains a woman choosing to burn with her books, an overdose and a killing; the ideas also need maturity.", w: "Fahrenheit 451" },
+  { s: "wt", t: "The Count of Monte Cristo", a: "Alexandre Dumas", y: 1844, ys: "1844–46", p: 1200, g: "Adventure", gid: 1184, fam: "Family plan: age 11, abridged first", d: "A wrongly imprisoned sailor escapes and spends years taking revenge on the men who betrayed him.", why: "Revenge is its subject, and it includes poisonings, suicide, and an attempt to bury a newborn alive.", w: "The Count of Monte Cristo" },
+  { s: "wt", t: "Pride and Prejudice", a: "Jane Austen", y: 1813, p: 380, g: "Realistic fiction", gid: 1342, fam: "Family plan: year 7 (age 12), read together", d: "Elizabeth Bennet and Mr Darcy misjudge each other; the most famous comedy of manners in English.", why: "Nothing in it is unsuitable, but its subjects (marriage, money, social irony, an elopement) need life experience to be understood; around 11–13 it becomes a delight.", w: "Pride and Prejudice" },
+  { s: "wt", t: "Mythology", a: "Edith Hamilton", y: 1942, p: 500, g: "Myth & legend", fam: "Family plan: Greek myths in full, age 10–11", d: "The standard adult retelling of Greek, Roman and Norse myths, drawn closely from the ancient sources.", why: "The full myths include rape, incest and cruelty that children's versions omit; use D'Aulaires' now.", w: "Mythology (Hamilton book)" },
+  { s: "wt", t: "The Odyssey (complete translation)", a: "Homer", y: -700, ys: "c. 8th century BC", p: 400, g: "Myth & legend", gid: 1727, fam: "Family plan: age 12, in the Fagles translation", d: "The long voyage home of Odysseus after the Trojan War; one of the founding works of Western literature.", why: "The full poem ends with the killing of the suitors and the hanging of the serving women; read Colum's Children's Homer first.", yq: "Homer's date is uncertain; most scholars place the poem in the late 8th or early 7th century BC.", w: "Odyssey" },
+  { s: "wt", t: "The Adventures of Tom Sawyer", a: "Mark Twain", y: 1876, p: 270, g: "Adventure", gid: 74, d: "A boy's adventures in a Mississippi river town; very funny in places.", why: "It includes a graveyard murder witnessed by the boys, racial slurs, and a cave death; around 10–11, read together.", w: "The Adventures of Tom Sawyer" },
+  { s: "wt", t: "Adventures of Huckleberry Finn", a: "Mark Twain", y: 1884, p: 360, g: "Adventure", gid: 76, d: "Huck and Jim, a man escaping slavery, travel down the Mississippi; a great American novel about conscience.", why: "Its central subject is slavery, it uses racial slurs constantly, and it contains murders; it belongs in the teenage years with discussion.", yq: "First published in the United Kingdom in December 1884; the US edition followed in February 1885.", w: "Adventures of Huckleberry Finn" },
+  { s: "wt", t: "Johnny Tremain", a: "Esther Forbes", y: 1943, p: 260, g: "Historical fiction", d: "A proud apprentice silversmith in Boston, his hand ruined in an accident, is drawn into the American Revolution.", why: "The hand injury is described in detail and the book includes battle deaths; best at about 10, with American history.", w: "Johnny Tremain" },
+  { s: "wt", t: "The Bronze Bow", a: "Elizabeth George Speare", y: 1961, p: 250, g: "Historical fiction", fam: "Family plan: historical fiction with history study", d: "A young Galilean who hates the Romans meets Jesus and must decide between revenge and love.", why: "Rebel violence, crucifixions and a hatred that drives the plot; best at 10–11, when its moral argument can be followed.", w: "The Bronze Bow" },
+  { s: "wt", t: "I, Juan de Pareja", a: "Elizabeth Borton de Treviño", y: 1965, p: 180, g: "Historical fiction", fam: "Family plan: historical fiction with history study", d: "The enslaved assistant of the painter Velázquez narrates his life and his secret learning to paint.", why: "Slavery and its injustices are the central subject; best at 9–10 with art history.", w: "I, Juan de Pareja" },
+  { s: "wt", t: "The Egypt Game", a: "Zilpha Keatley Snyder", y: 1967, p: 220, g: "Mystery", fam: "Family plan: listed with historical fiction (it is set in modern California)", d: "Children in a California town invent a game of ancient Egypt in an abandoned yard.", why: "A subplot concerns the murder of a local child, and one of the main characters is attacked; best at 9–10.", w: "The Egypt Game" },
+  { s: "wt", t: "Gulliver's Travels", a: "Jonathan Swift", y: 1726, p: 300, g: "Satire", gid: 829, d: "A ship's surgeon visits the tiny Lilliputians, the giant Brobdingnagians and stranger lands; a savage satire of human pride.", why: "The complete text contains crude bodily scenes and a bleak view of humanity; a good abridged Lilliput voyage is fine sooner, the whole book in the teens.", w: "Gulliver's Travels" },
+  { s: "wt", t: "The Story of Doctor Dolittle", a: "Hugh Lofting", y: 1920, gid: 501, p: 150, g: "Fantasy", d: "A doctor who learns to speak to animals travels to Africa to cure sick monkeys.", why: "The original text has a long racist caricature of an African prince; read later as a document of its time, or choose the 1988 revised edition.", w: "The Story of Doctor Dolittle" },
+  { s: "wt", t: "The Call of the Wild", a: "Jack London", y: 1903, p: 120, g: "Animal story", gid: 215, d: "A stolen pet dog becomes a sled dog in the Klondike gold rush and returns to the wild.", why: "Brutal beatings and fights to the death between dogs; at about 10.", w: "The Call of the Wild" },
+  { s: "wt", t: "Jane Eyre", a: "Charlotte Brontë", y: 1847, p: 500, g: "Realistic fiction", gid: 1260, fam: "Family plan: age 13", d: "An orphan becomes a governess and must choose between love and conscience.", why: "Cruelty to a child, the death of a school friend during an epidemic, a hidden mad wife and a near-bigamous marriage; for the teenage years.", w: "Jane Eyre" },
+  { s: "wt", t: "Mere Christianity", a: "C. S. Lewis", y: 1952, p: 230, g: "Faith", fam: "Family plan: some chapters at 11, the whole at 13", d: "Lewis's broadcast talks arguing for the reasonableness of Christian belief.", why: "Its arguments are abstract and adult; it will mean far more once you can test each step of a long argument.", w: "Mere Christianity" },
+];
+// BOOKS-END
+
+// ---------- shelves ----------
+const SHELVES = [
+  ["fam", "Family plan", "Books named in your family's plan, earliest first."],
+  ["t1", "Tier 1", "Classic children's books to read on your own now: short, well written and worth reading with care."],
+  ["t2", "Tier 2", "Longer classics, mostly 150 to 400 pages. Many are also excellent read-alouds."],
+  ["t3", "Tier 3", "Books written for adults or older readers whose content suits you now. The language is harder; the reward is greater."],
+  ["ra", "Read-alouds", "Books best shared aloud with a grown-up, so that you can stop and talk about them."],
+  ["nf", "History & science", "True books. Ask of each one: is it true, how does the author know, and is the source reliable?"],
+  ["po", "Poetry", "Read poems aloud: rhythm and sound carry half of their meaning."],
+  ["wt", "Wait for later", "Great books whose subjects need more experience. Each entry says why, and when."],
+];
+const SHELF_NAME = Object.fromEntries(SHELVES.map(([k, n]) => [k, n]));
+const famRank = (b) => {
+  const f = b.fam || "";
+  return /now|6–7/.test(f) ? 0 : /7–8/.test(f) ? 1 : /year 2|Narnia/.test(f) ? 2 : /year 3/.test(f) ? 3 : /year [45]|age 9|9–10|age 10/.test(f) ? 4 : 5;
+};
+function shelfBooks(key) {
+  if (key === "fam") return BOOKS.filter((b) => b.fam).sort((a, b) => famRank(a) - famRank(b));
+  const list = key === "ra" ? BOOKS.filter((b) => b.ra && b.s !== "wt") : BOOKS.filter((b) => b.s === key);
+  return [...list].sort((a, b) => (b.fam ? 1 : 0) - (a.fam ? 1 : 0));
+}
+const yearText = (b) => b.ys || (b.y < 0 ? `c. ${-b.y} BC` : String(b.y));
+// US public domain: a work enters it on 1 January, 96 years after publication (in 2026, everything published in 1930 or earlier),
+// plus later books on Project Gutenberg, which it lists only when their US copyright was never renewed.
+const isPD = (b) => b.gid > 0 || (b.y > 0 && b.y <= new Date().getFullYear() - 96);
+const gutUrl = (b) => `https://www.gutenberg.org/ebooks/${b.gid}`;
+const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const findBook = (title) => BOOKS.find((b) => norm(b.t) === norm(title)) || null;
+// Genres a reader can cover now (books that should wait are left out).
+const GENRES = [...new Set(BOOKS.filter((b) => b.s !== "wt").map((b) => b.g))].sort();
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const pad2 = (n) => String(n).padStart(2, "0");
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+};
+const niceDate = (iso) => {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+};
+
+// ---------- narration prompts per tier ----------
+const PROMPTS = {
+  t1: [
+    ["sum", "Summarise", "Tell the story in four or five sentences, in order: who it is about, what they wanted, what stood in the way, and how it ended.", "A strong answer keeps events in order and leaves out small details."],
+    ["choice", "A choice and its consequence", "Name one choice the main character made. What happened because of it? Would a different choice have changed the ending?", "Name the choice exactly, then trace what followed from it."],
+    ["compare", "Compare", "Compare this book with another you have read. Give one way they are alike and one way they differ.", "Compare the same thing in both books: two heroes, two endings or two settings."],
+    ["author", "Ask the author", "Write one question you would ask the author. Explain why the answer would help you understand the book.", "Ask about a decision the author made, not a fact you could look up."],
+  ],
+  t2: [
+    ["sum", "Summarise", "Summarise the whole book in five to seven sentences. Include the turning point, the moment after which things could not go back.", "Name the turning point and explain why it is the turning point."],
+    ["choice", "A choice and its consequence", "Choose the most important decision a character makes. What did it cost, who else did it affect, and was it right? Give a reason from the book.", "Your judgement must rest on what actually happens in the book."],
+    ["compare", "Compare", "Compare a character in this book with a character from another book who faces a similar problem. Which of them chose better, and why?", "Use one event from each book as evidence."],
+    ["author", "Ask the author", "Ask the author about one choice in the writing: a scene, an ending, a name, or why the story is told by this narrator.", "Explain what you think the answer might be, and why."],
+  ],
+  t3: [
+    ["sum", "Summarise", "Summarise the book in a paragraph, then state in one sentence what you think it is really about beneath the plot.", "Separate what happens (plot) from what it means (theme)."],
+    ["choice", "A choice and its consequence", "Identify a moral choice at the centre of the book. Explain its consequences in the short run and the long run, and whether the author approves of it.", "Point to the evidence that shows the author's view."],
+    ["compare", "Compare", "Compare this book with an earlier or later book on a similar subject. How does the time each was written in shape what it says?", "Use the two publication years and one passage from each."],
+    ["author", "Ask the author", "If the author were alive, what would you challenge or question? State the claim you doubt and why.", "Disagree with a reason that is true and that bears on the claim."],
+  ],
+  nf: [
+    ["sum", "Summarise", "State the main idea of the book or chapter in one sentence, then give three facts the author uses to support it.", "A main idea is a claim, not a topic."],
+    ["truth", "Is it true? How do we know?", "Choose one claim in the book. How does the author know it? Is the evidence a document, an experiment, an eyewitness, or a guess? Is the source reliable?", "Say what kind of evidence it is and how strong it is."],
+    ["compare", "Compare", "Compare what this book says about a subject with another source (an encyclopedia, a museum, another book). Do they agree? If not, which is better supported?", "Prefer the better evidence, not the more confident voice."],
+    ["author", "Ask the author", "Ask the author one question about their sources or about something they left out.", "Explain why the answer would change how much you trust the book."],
+  ],
+  po: [
+    ["sum", "Say what it says", "In two or three sentences of plain prose, say what the poem is about and how it feels.", "Paraphrase; do not copy the lines."],
+    ["choice", "The poet's choice", "Choose one word, sound or rhythm the poet used. What does it do? What would be lost if it were replaced?", "Name the exact word or rhythm, then its effect."],
+    ["compare", "Compare", "Compare two poems on a similar subject. How do they differ in mood, shape or sound?", "Read both aloud before you answer."],
+    ["author", "Ask the poet", "Ask the poet one question about why the poem is built the way it is.", "Notice line length, rhyme and repetition."],
+  ],
+};
+const PROMPT_TABS = [["t1", "Tier 1"], ["t2", "Tier 2"], ["t3", "Tier 3"], ["nf", "True books"], ["po", "Poetry"]];
+const promptTierOf = (entry) => {
+  const s = entry?.shelf;
+  return s === "nf" || s === "po" || s === "t1" || s === "t2" || s === "t3" ? s : s === "wt" ? "t3" : "t2";
+};
+
+// ---------- storage: one record per book, per learner, in the shared progress store (synced by the cloud) ----------
+const KEY = "log:";
+function entries() {
+  return Object.entries(shell.progress())
+    .filter(([k, v]) => k.startsWith(KEY) && v && typeof v === "object" && !v.removed)
+    .map(([k, v]) => ({ ...v, id: k.slice(KEY.length) }))
+    .sort((a, b) => (b.started || "").localeCompare(a.started || "") || (b.at || 0) - (a.at || 0));
+}
+const entryOf = (id) => entries().find((e) => e.id === id) || null;
+function saveEntry(entry) {
+  const { id, at, ...data } = entry;
+  shell.mark(KEY + id, data);
+}
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const blankEntry = (book) => ({ id: newId(), title: book?.t || "", author: book?.a || "", genre: book?.g || "", shelf: book?.s || "", started: today(), finished: "", pages: "", narr: "", aloud: false, rating: 0, why: "", vocab: [], answers: {} });
+const loggedTitles = () => new Set(entries().map((e) => norm(e.title)));
+
+// A reason must point to the book, not only to a feeling. Words of feeling or praise alone do not count;
+// one word that names something in the book (a character, an event, a quality of the writing) does.
+const VAGUE = new Set("it it's its was is a an the and i i'm really very so such because good bad fun boring great nice ok okay cool awesome amazing best worst liked like love loved enjoy enjoyed favourite favorite funny exciting interesting sad happy scary didn't don't wasn't isn't didn t don wasn isn book books story this that me my of to too just kind much lot lots ever all whole thing things stuff pretty super fine wanted want read reading more".split(" "));
+function reasonProblem(why) {
+  const words = String(why || "").trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "Add one line saying why. A rating needs a reason.";
+  const content = words.map((w) => w.toLowerCase().replace(/[’]/g, "'").replace(/[^a-z\u00c0-\u024f']/g, "").replace(/^'+|'+$/g, "")).filter((w) => w && !VAGUE.has(w));
+  if (words.length < 3 || content.length < 1) return "Not quite. That describes a feeling, not the book. Name a character, an event, a scene or an idea from the book that earned this rating.";
+  return "";
+}
+
+// ---------- shared HTML frame inside the stage ----------
+function frame({ top = "", foot = "" } = {}) {
+  stage.innerHTML = `<div class="bl-wrap">${top ? `<div class="bl-top">${top}</div>` : ""}<div class="bl-body" data-body></div>${foot ? `<div class="bl-foot">${foot}</div>` : ""}</div>`;
+  return $("[data-body]", stage);
+}
+const tagsOf = (b, logged) =>
+  [b.fam ? `<span class="bl-tag fam">Family plan</span>` : "", b.ra ? `<span class="bl-tag">Read-aloud</span>` : "", isPD(b) ? `<span class="bl-tag pd">Public domain</span>` : "", b.c || b.why ? `<span class="bl-tag warn">Note</span>` : "", logged ? `<span class="bl-tag ok">✓ In your log</span>` : ""].join("");
+const chipsHtml = (list, cur, attr) => `<div class="bl-chips" role="tablist">${list.map(([k, n]) => `<button type="button" ${attr}="${k}" aria-pressed="${k === cur}">${n}</button>`).join("")}</div>`;
+
+// ---------- See it: SVG helpers ----------
+const W = 1000;
+function wrapText(parent, x, y, str, { size = 26, max = 40, lh = 1.28, ...attrs } = {}) {
+  const lines = [];
+  let line = "";
+  for (const word of str.split(" ")) {
+    if (line && (line + " " + word).length > max) {
+      lines.push(line);
+      line = word;
+    } else line = line ? `${line} ${word}` : word;
+  }
+  if (line) lines.push(line);
+  return lines.map((l, i) => text(parent, x, y + i * size * lh, l, { "font-size": size, fill: "#2b1d12", ...attrs }));
+}
+const fadeIn = (api, node, ms = 450) => api.tween(ms, (t) => node.setAttribute("opacity", t));
+
+let pendingEdit = null;
+
+const units = {
+  bl0() {
+    const my = token;
+    const nowYear = new Date().getFullYear();
+    explain(
+      [
+        {
+          say: "Why read widely and deeply? Books let you learn from people you could never meet: explorers, scientists, poets, and people who lived centuries ago.",
+          draw: everyday([["🗺️", "Knowing the world"], ["🗣️", "Speaking well"], ["🕰️", "Meeting the past"], ["🔬", "Learning any subject"]]),
+        },
+        {
+          say: "Reading <b>widely</b> means many kinds of books: stories, history, science, poetry. Reading <b>deeply</b> means returning to a good book and noticing more each time. A strong reader needs both.",
+          async draw(v, api) {
+            text(v, W / 2, 60, "WIDE: many kinds of books", { "font-size": 30, fill: "#2b1d12" });
+            const kinds = [["🐉", "Fantasy"], ["🏛️", "History"], ["🔬", "Science"], ["🪶", "Poetry"], ["🧭", "Adventure"], ["📜", "Myth"]];
+            const gs = kinds.map(([g, l], i) => {
+              const x = 95 + i * 162;
+              const node = el("g", { opacity: 0 }, v);
+              el("rect", { x: x - 70, y: 86, width: 140, height: 120, rx: 18, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, node);
+              emoji(node, x, 126, g, 46);
+              text(node, x, 190, l, { "font-size": 22, fill: "#4d3c2e" });
+              return node;
+            });
+            for (const g of gs) {
+              await fadeIn(api, g, 260);
+              MUSIC.play("xylophone", 72 + gs.indexOf(g) * 2, { gain: 0.25 });
+            }
+            await api.wait(500);
+            text(v, W / 2, 262, "DEEP: one good book, read again", { "font-size": 30, fill: "#2b1d12" });
+            const layers = [["1st reading", "what happens"], ["2nd reading", "why the characters choose"], ["3rd reading", "how the author built it"]];
+            for (let i = 0; i < layers.length; i++) {
+              const g = el("g", { opacity: 0 }, v);
+              const w = 640 - i * 90;
+              el("rect", { x: W / 2 - w / 2, y: 290 + i * 84, width: w, height: 70, rx: 16, fill: ["#fdf3e1", "#f7e2c0", "#efcf9c"][i], stroke: "#c98c58", "stroke-width": 3 }, g);
+              text(g, W / 2, 334 + i * 84, `${layers[i][0]}: ${layers[i][1]}`, { "font-size": 24, fill: "#2b1d12" });
+              await fadeIn(api, g, 420);
+              await api.wait(380);
+            }
+          },
+        },
+        {
+          say: `Books are a conversation across centuries. <i>Alice's Adventures in Wonderland</i> appeared in 1865. Subtract: ${nowYear} − 1865 = ${nowYear - 1865} years ago, and you can still hear the author's voice.`,
+          async draw(v, api) {
+            const x0 = 80;
+            const x1 = 920;
+            const y0 = 1650;
+            const xOf = (y) => x0 + ((y - y0) / (nowYear - y0)) * (x1 - x0);
+            el("line", { x1: x0, x2: x1, y1: 300, y2: 300, stroke: "#5a4130", "stroke-width": 5, "stroke-linecap": "round" }, v);
+            for (let y = 1700; y <= nowYear; y += 50) {
+              el("line", { x1: xOf(y), x2: xOf(y), y1: 288, y2: 312, stroke: "#5a4130", "stroke-width": 3 }, v);
+              text(v, xOf(y), 344, y, { "font-size": 22, fill: "#8a7764" });
+            }
+            // [year, title, label baseline]: labels above the line sit at two heights so they never overlap.
+            const marks = [[1678, "The Pilgrim's Progress", 200], [1865, "Alice", 424], [1908, "The Wind in the Willows", 110], [1937, "The Hobbit", 424], [1962, "A Wrinkle in Time", 214]];
+            for (const [y, t, ly] of marks) {
+              const g = el("g", { opacity: 0 }, v);
+              const x = xOf(y);
+              const above = ly < 300;
+              el("circle", { cx: x, cy: 300, r: 11, fill: "var(--accent)" }, g);
+              el("line", { x1: x, x2: x, y1: 300, y2: above ? ly + 40 : ly - 34, stroke: "var(--accent)", "stroke-width": 3 }, g);
+              text(g, Math.min(Math.max(x, 140), 860), ly, t, { "font-size": 23, fill: "#2b1d12" });
+              text(g, Math.min(Math.max(x, 140), 860), ly + 30, y, { "font-size": 22, fill: "#8a7764" });
+              await fadeIn(api, g, 380);
+              await api.wait(250);
+            }
+            const nx = xOf(nowYear);
+            el("circle", { cx: nx, cy: 300, r: 13, fill: "#22a05a" }, v);
+            text(v, nx - 10, 250, "You", { "font-size": 24, fill: "#157a40", "text-anchor": "end" });
+            await api.wait(400);
+            text(v, W / 2, 520, `${nowYear} − 1865 = ${nowYear - 1865} years`, { "font-size": 32, fill: "#157a40" });
+          },
+        },
+        {
+          say: "Good books use words that everyday talk does not. When you meet one, use the sentence around it to guess its meaning, then check a dictionary. Collect such words in your log.",
+          async draw(v, api) {
+            const t = text(v, W / 2, 120, "", { "font-size": 30, fill: "#2b1d12", "font-weight": 600 });
+            const parts = [["The owl, a ", ""], ["nocturnal", "w"], [" hunter, ", ""], ["slept all day", "c"], [" in the hollow oak.", ""]];
+            for (const [s, k] of parts) {
+              const span = el("tspan", k === "w" ? { fill: "var(--accent-dark)", "font-weight": 900, "text-decoration": "underline" } : k === "c" ? { fill: "#157a40", "font-weight": 800 } : {}, t);
+              span.textContent = s;
+            }
+            await api.wait(700);
+            const clue = el("g", { opacity: 0 }, v);
+            el("rect", { x: 120, y: 190, width: 340, height: 120, rx: 18, fill: "#e9f6ee", stroke: "#22a05a", "stroke-width": 3 }, clue);
+            text(clue, 290, 238, "Clue in the sentence:", { "font-size": 23, fill: "#157a40" });
+            text(clue, 290, 278, "it sleeps all day", { "font-size": 25, fill: "#2b1d12" });
+            await fadeIn(api, clue);
+            await api.wait(500);
+            const guess = el("g", { opacity: 0 }, v);
+            el("rect", { x: 540, y: 190, width: 340, height: 120, rx: 18, fill: "#fff6e6", stroke: "var(--accent)", "stroke-width": 3 }, guess);
+            text(guess, 710, 238, "My guess:", { "font-size": 23, fill: "var(--accent-dark)" });
+            text(guess, 710, 278, "awake at night?", { "font-size": 25, fill: "#2b1d12" });
+            el("path", { d: "M465 250 L530 250 M515 238 L531 250 L515 262", stroke: "#8a7764", "stroke-width": 4, fill: "none" }, guess);
+            await fadeIn(api, guess);
+            await api.wait(700);
+            const dict = el("g", { opacity: 0 }, v);
+            el("rect", { x: 200, y: 360, width: 600, height: 120, rx: 18, fill: "#fff", stroke: "#5a4130", "stroke-width": 3 }, dict);
+            emoji(dict, 260, 418, "📖", 46);
+            text(dict, 530, 410, "Dictionary check:", { "font-size": 23, fill: "#8a7764" });
+            text(dict, 530, 450, "nocturnal: active at night ✓", { "font-size": 27, fill: "#2b1d12" });
+            await fadeIn(api, dict);
+          },
+        },
+        {
+          say: "<b>Narration</b> means telling back what you read, in order and in your own words. It proves you understood, and it trains you to speak clearly. Here is <i>The Tale of Peter Rabbit</i> in four steps.",
+          async draw(v, api) {
+            const steps = [["Who?", "Peter, a young rabbit"], ["Wanted?", "the vegetables in Mr. McGregor's garden"], ["But…", "he had been told not to go, and Mr. McGregor chased him"], ["So…", "he escaped, lost his jacket and shoes, and was put to bed with camomile tea"]];
+            for (let i = 0; i < steps.length; i++) {
+              const g = el("g", { opacity: 0 }, v);
+              const y = 40 + i * 126;
+              el("rect", { x: 70, y, width: 190, height: 100, rx: 20, fill: "var(--accent)" }, g);
+              text(g, 165, y + 61, steps[i][0], { "font-size": 30, fill: "#fff" });
+              el("rect", { x: 280, y, width: 650, height: 100, rx: 20, fill: "#fff", stroke: "#e2d6c4", "stroke-width": 3 }, g);
+              wrapText(g, 605, y + (steps[i][1].length > 44 ? 42 : 60), steps[i][1], { size: 24, max: 46, "font-weight": 700 });
+              await fadeIn(api, g, 400);
+              await api.wait(700);
+            }
+          },
+        },
+        {
+          say: "Stories and true books ask different questions. A famous book is not a proof: <i>The Story of Mankind</i> (1921) won the first Newbery Medal, yet some of its claims are now known to be wrong. A reason must be true and must actually support the conclusion.",
+          async draw(v, api) {
+            const col = async (x, title, glyph, lines, color) => {
+              const g = el("g", { opacity: 0 }, v);
+              el("rect", { x: x - 210, y: 40, width: 420, height: 440, rx: 26, fill: "#fff", stroke: color, "stroke-width": 4 }, g);
+              emoji(g, x, 96, glyph, 54);
+              text(g, x, 170, title, { "font-size": 28, fill: color });
+              lines.forEach((l, i) => wrapText(g, x, 226 + i * 66, l, { size: 23, max: 28, "font-weight": 700 }));
+              await fadeIn(api, g, 450);
+            };
+            await col(270, "A story asks", "🐉", ["Is it well made?", "Is it true to life?", "What does it show about people?"], "#8e24aa");
+            await api.wait(500);
+            await col(730, "A true book claims", "🏛️", ["Is it true?", "How does the author know?", "Is the source reliable?", "Does the conclusion follow?"], "#1e6fb8");
+          },
+        },
+        {
+          say: "You can read the words of almost any book. Some great books are better met later, when you can understand what they are really about. The list tells you which, why, and when. Waiting is not losing them.",
+          async draw(v, api) {
+            const x = (age) => 110 + (age - 6) * 105;
+            el("line", { x1: x(6), x2: x(14), y1: 300, y2: 300, stroke: "#5a4130", "stroke-width": 5, "stroke-linecap": "round" }, v);
+            for (let a = 6; a <= 14; a++) {
+              el("circle", { cx: x(a), cy: 300, r: 8, fill: "#5a4130" }, v);
+              text(v, x(a), 345, a, { "font-size": 24, fill: "#8a7764" });
+            }
+            text(v, 58, 345, "age", { "font-size": 22, fill: "#8a7764", "font-weight": 600 });
+            // [age, title, label baseline]: neighbouring labels sit at different heights so they never touch.
+            const books = [[6.3, "Charlotte's Web", 196], [8, "The Hobbit", 466], [9, "The Lord of the Rings", 196], [10, "Animal Farm", 466], [12, "Pride and Prejudice", 136]];
+            for (const [a, t, ly] of books) {
+              const g = el("g", { opacity: 0 }, v);
+              el("line", { x1: x(a), x2: x(a), y1: 300, y2: ly < 300 ? ly + 14 : ly - 34, stroke: "var(--accent)", "stroke-width": 3 }, g);
+              el("circle", { cx: x(a), cy: 300, r: 12, fill: "var(--accent)" }, g);
+              text(g, Math.min(Math.max(x(a), 150), 850), ly, t, { "font-size": 24, fill: "#2b1d12" });
+              await fadeIn(api, g, 380);
+              await api.wait(300);
+            }
+            text(v, W / 2, 70, "Ages from your family's plan", { "font-size": 26, fill: "#8a7764" });
+          },
+        },
+        {
+          say: "<b>Explain it.</b> In two to four sentences, tell a grown-up why a reader needs both wide and deep reading. Use one book you know as your example.",
+          async draw(v, api) {
+            const g = el("g", { opacity: 0 }, v);
+            el("rect", { x: 120, y: 80, width: 760, height: 380, rx: 30, fill: "#fff", stroke: "var(--accent)", "stroke-width": 5 }, g);
+            emoji(g, W / 2, 150, "🗣️", 64);
+            text(g, W / 2, 240, "Explain it", { "font-size": 36, fill: "var(--accent-dark)" });
+            wrapText(g, W / 2, 296, "Why do you need both wide and deep reading? Give one book as an example.", { size: 27, max: 40 });
+            text(g, W / 2, 420, "Say it aloud, or write it in your log.", { "font-size": 23, fill: "#8a7764", "font-weight": 600 });
+            await fadeIn(api, g, 500);
+          },
+        },
+      ],
+      {
+        alive: () => my === token,
+        title: "Read widely and deeply",
+        doneLabel: "📚 Open the reading list",
+        onDone: () => {
+          shell.mark("bl0", { done: true });
+          window.OC?.touch();
+          shell.go("bl1");
+        },
+      },
+    );
+  },
+
+  // ---------- 1. The reading list ----------
+  bl1() {
+    const my = token;
+    panel("");
+    let shelf = shell.progress().bl1?.shelf || "fam";
+    let scrollTop = 0;
+    const showList = () => {
+      if (my !== token) return;
+      const body = frame({ top: chipsHtml(SHELVES.map(([k, n]) => [k, n]), shelf, "data-shelf") });
+      const [, name, intro] = SHELVES.find(([k]) => k === shelf);
+      const books = shelfBooks(shelf);
+      const logged = loggedTitles();
+      body.innerHTML = `<p class="bl-intro"><b>${name}</b> · ${books.length} books. ${intro}</p><div class="bl-list">${books
+        .map((b) => `<button type="button" class="bl-book" data-book="${BOOKS.indexOf(b)}"><span class="bl-book-main"><b>${esc(b.t)}</b><small>${esc(b.a)} · ${yearText(b)}${b.yq ? "*" : ""} · about ${b.p} pages · ${esc(b.g)}</small></span><span class="bl-tags">${tagsOf(b, logged.has(norm(b.t)))}</span></button>`)
+        .join("")}</div><p class="bl-small">* The date needs a word of explanation; open the book to read it.</p>`;
+      body.scrollTop = scrollTop;
+      stage.querySelector(".bl-chips [aria-pressed=true]")?.scrollIntoView({ block: "nearest", inline: "center" });
+      stage.querySelector("[data-shelf]").parentElement.onclick = (event) => {
+        const b = event.target.closest("[data-shelf]");
+        if (!b) return;
+        shelf = b.dataset.shelf;
+        scrollTop = 0;
+        shell.mark("bl1", { shelf });
+        window.OC?.touch();
+        showList();
+        say(SHELVES.find(([k]) => k === shelf)[2]);
+      };
+      body.onclick = (event) => {
+        const b = event.target.closest("[data-book]");
+        if (!b) return;
+        scrollTop = body.scrollTop;
+        showBook(BOOKS[Number(b.dataset.book)]);
+      };
+    };
+    const showBook = (b) => {
+      if (my !== token) return;
+      const mine = entries().find((e) => norm(e.title) === norm(b.t));
+      const body = frame({ top: `<button type="button" class="bl-btn" data-back>◀ Back to ${esc(SHELF_NAME[shelf])}</button>`, foot: `<button type="button" class="bl-btn primary" data-add>${mine ? "📝 Open in my log" : "＋ Add to my log"}</button>` });
+      body.innerHTML = `<article class="bl-detail">
+        <p class="bl-kicker">${esc(SHELF_NAME[b.s])} · ${esc(b.g)}</p>
+        <h2>${esc(b.t)}</h2>
+        <p class="bl-by">${esc(b.a)} · first published ${yearText(b)} · about ${b.p} pages</p>
+        <div class="bl-tags">${tagsOf(b, !!mine)}</div>
+        <p class="bl-desc">${esc(b.d)}</p>
+        ${b.fam ? `<p class="bl-note fam"><b>Family plan:</b> ${esc(b.fam)}.</p>` : ""}
+        ${b.why ? `<p class="bl-note warn"><b>Why wait:</b> ${esc(b.why)}</p>` : ""}
+        ${b.c ? `<p class="bl-note warn"><b>For a grown-up:</b> ${esc(b.c)}</p>` : ""}
+        ${b.yq ? `<p class="bl-note"><b>About the date:</b> ${esc(b.yq)}</p>` : ""}
+        <p class="bl-note">${b.gid > 0 ? `<b>Public domain in the United States.</b> Free to read: <a href="${gutUrl(b)}" target="_blank" rel="noopener">Project Gutenberg ebook #${b.gid}</a>.` : isPD(b) ? `<b>Public domain in the United States</b>, but not on Project Gutenberg; borrow it from a library.` : `<b>In copyright.</b> Borrow it from a library or buy a copy.`}</p>
+        <p class="bl-note explain"><b>Before you begin:</b> read the first page, then predict in one sentence what the book will be about. After you finish, check: was your prediction right, and what in the first page misled or guided you?</p>
+      </article>`;
+      say(`<b>${esc(b.t)}</b> (${yearText(b)}). ${esc(b.d)}`);
+      stage.querySelector("[data-back]").onclick = showList;
+      stage.querySelector("[data-add]").onclick = () => {
+        if (mine) pendingEdit = mine.id;
+        else {
+          const e = blankEntry(b);
+          saveEntry(e);
+          pendingEdit = e.id;
+          window.OC?.count("books added");
+          window.OC?.note("Book", b.t);
+        }
+        MUSIC.chime();
+        shell.mark("bl1", { done: true });
+        shell.go("bl2");
+      };
+    };
+    say("Choose a shelf, then a book. Your family's planned books come first.");
+    showList();
+  },
+
+  // ---------- 2. My reading log ----------
+  bl2() {
+    const my = token;
+    panel("");
+    const showLog = () => {
+      if (my !== token) return;
+      const list = entries();
+      const body = frame({ top: `<p class="bl-intro tight"><b>${esc(shell.learner())}'s reading log</b> · ${list.length} ${list.length === 1 ? "book" : "books"}</p><button type="button" class="bl-btn primary" data-new>＋ Add a book</button>` });
+      body.innerHTML = list.length
+        ? `<div class="bl-list">${list
+            .map((e) => {
+              const status = e.finished ? `Finished ${niceDate(e.finished)}` : e.started ? `Reading since ${niceDate(e.started)}` : "Not started";
+              const narr = e.narr || e.aloud ? "Narrated" : "No narration yet";
+              return `<button type="button" class="bl-book" data-entry="${esc(e.id)}"><span class="bl-book-main"><b>${esc(e.title)}</b><small>${esc(e.author || "")}${e.author ? " · " : ""}${status}${e.pages ? ` · ${e.pages} pages` : ""}</small></span><span class="bl-tags">${e.rating ? `<span class="bl-tag">${"★".repeat(e.rating)}${"☆".repeat(5 - e.rating)}</span>` : ""}<span class="bl-tag${e.narr || e.aloud ? " ok" : ""}">${narr}</span>${(e.vocab || []).length ? `<span class="bl-tag">${e.vocab.length} ${e.vocab.length === 1 ? "word" : "words"}</span>` : ""}</span></button>`;
+            })
+            .join("")}</div>`
+        : `<div class="bl-empty"><p class="bl-big">📖</p><p>Your log is empty. Add the book you are reading now, or choose one from <b>The reading list</b>.</p></div>`;
+      stage.querySelector("[data-new]").onclick = () => showForm(blankEntry(null), true);
+      body.onclick = (event) => {
+        const b = event.target.closest("[data-entry]");
+        if (b) showForm(entryOf(b.dataset.entry), false);
+      };
+      say(list.length ? "Tap a book to update it: pages, narration, rating or new words." : "Press <b>＋ Add a book</b> to begin your log.");
+    };
+    const showForm = (entry, isNew) => {
+      if (my !== token || !entry) return showLog();
+      const body = frame({
+        top: `<button type="button" class="bl-btn" data-back>◀ My log</button><b class="bl-formtitle">${isNew ? "Add a book" : esc(entry.title)}</b>`,
+        foot: `${isNew ? "" : `<button type="button" class="bl-btn danger" data-remove>Remove</button>`}<button type="button" class="bl-btn primary" data-save>✓ Save</button>`,
+      });
+      const book = findBook(entry.title);
+      body.innerHTML = `<form class="bl-form" autocomplete="off" onsubmit="return false">
+        <label class="bl-field wide"><span>Title</span><input name="title" list="bl-titles" value="${esc(entry.title)}" placeholder="Type or choose a title"></label>
+        <datalist id="bl-titles">${BOOKS.map((b) => `<option value="${esc(b.t)}">`).join("")}</datalist>
+        <label class="bl-field wide"><span>Author</span><input name="author" value="${esc(entry.author)}"></label>
+        <label class="bl-field"><span>Started</span><input type="date" name="started" value="${esc(entry.started)}"></label>
+        <label class="bl-field"><span>Finished</span><input type="date" name="finished" value="${esc(entry.finished)}"></label>
+        <label class="bl-field"><span>Pages read</span><input type="number" inputmode="numeric" min="1" max="5000" name="pages" value="${esc(entry.pages)}" placeholder="${book ? `about ${book.p}` : ""}"></label>
+        <div class="bl-field wide"><span>Narration · <i>Explain it:</i> in three to five sentences, tell what happened, in order and in your own words.</span>
+          <textarea name="narr" rows="4" placeholder="Who, what they wanted, what stood in the way, how it ended.">${esc(entry.narr)}</textarea>
+          <label class="bl-check"><input type="checkbox" name="aloud"${entry.aloud ? " checked" : ""}> I told it aloud to a grown-up instead</label></div>
+        <div class="bl-field wide"><span>Rating</span><div class="bl-stars" data-stars>${[1, 2, 3, 4, 5].map((n) => `<button type="button" data-star="${n}" aria-pressed="${n <= (entry.rating || 0)}" aria-label="${n} of 5">${n <= (entry.rating || 0) ? "★" : "☆"}</button>`).join("")}<button type="button" class="bl-clear" data-star="0">clear</button></div></div>
+        <label class="bl-field wide"><span>Why? Your reason must point to something in the book.</span><input name="why" value="${esc(entry.why)}" placeholder="e.g. a character, a scene, an idea"></label>
+        <label class="bl-field wide"><span>New words I found (separate with commas)</span><input name="vocab" value="${esc((entry.vocab || []).join(", "))}" placeholder="nocturnal, reluctant, …"></label>
+        <p class="bl-err" data-err role="alert"></p>
+      </form>`;
+      const form = $(".bl-form", body);
+      let rating = entry.rating || 0;
+      const paintStars = () => form.querySelectorAll("[data-star]").forEach((b) => {
+        const n = Number(b.dataset.star);
+        if (!n) return;
+        b.textContent = n <= rating ? "★" : "☆";
+        b.setAttribute("aria-pressed", String(n <= rating));
+      });
+      $("[data-stars]", form).onclick = (event) => {
+        const b = event.target.closest("[data-star]");
+        if (!b) return;
+        rating = Number(b.dataset.star);
+        paintStars();
+        MUSIC.play("woodblock", 79, { gain: 0.25 });
+        if (rating && !form.why.value.trim()) say("Now say why, pointing to something in the book.");
+      };
+      form.title.addEventListener("change", () => {
+        const b = findBook(form.title.value);
+        if (b && !form.author.value.trim()) form.author.value = b.a;
+        if (b) form.pages.placeholder = `about ${b.p}`;
+      });
+      const err = (msg, field) => {
+        $("[data-err]", form).textContent = msg;
+        MUSIC.oops();
+        say(msg);
+        if (field) {
+          field.focus({ preventScroll: true });
+          field.scrollIntoView({ block: "center", behavior: "smooth" });
+        }
+      };
+      stage.querySelector("[data-back]").onclick = showLog;
+      let removing = false;
+      const removeBtn = stage.querySelector("[data-remove]");
+      if (removeBtn)
+        removeBtn.onclick = () => {
+          if (!removing) {
+            removing = true;
+            removeBtn.textContent = "Tap again to remove";
+            return say("Tap <b>Remove</b> again to delete this book from your log.");
+          }
+          // The store merges fields, so blank the content as well: a removed book keeps no text.
+          shell.mark(KEY + entry.id, { removed: true, title: "", author: "", narr: "", why: "", vocab: [], answers: {} });
+          showLog();
+        };
+      stage.querySelector("[data-save]").onclick = () => {
+        const title = form.title.value.trim();
+        if (!title) return err("Give the book's title first.", form.title);
+        const started = form.started.value;
+        const finished = form.finished.value;
+        if (finished && started && finished < started) return err("Not quite. The finish date is earlier than the start date. Check both.", form.finished);
+        if (finished && finished > today()) return err("The finish date is in the future. Fill it in when you finish.", form.finished);
+        const pagesRaw = form.pages.value.trim();
+        const pages = pagesRaw ? Math.round(Number(pagesRaw)) : "";
+        if (pagesRaw && !(pages >= 1 && pages <= 5000)) return err("Pages must be a whole number between 1 and 5000.", form.pages);
+        const why = form.why.value.trim();
+        if (rating) {
+          const problem = reasonProblem(why);
+          if (problem) return err(problem, form.why);
+        }
+        const b = findBook(title);
+        const vocab = [...new Set(form.vocab.value.split(/[,;\n]+/).map((w) => w.trim()).filter(Boolean))].slice(0, 60);
+        const narr = form.narr.value.trim();
+        const was = entryOf(entry.id);
+        const next = { ...entry, title, author: form.author.value.trim() || b?.a || "", genre: b?.g || entry.genre || "", shelf: b?.s || entry.shelf || "", started, finished, pages, narr, aloud: form.aloud.checked, rating, why: rating ? why : "", vocab, answers: entry.answers || {} };
+        saveEntry(next);
+        shell.mark("bl2", { done: true });
+        window.OC?.touch();
+        if (isNew) {
+          window.OC?.count("books added");
+          window.OC?.note("Book", title);
+        }
+        if (narr && narr !== (was?.narr || "")) window.OC?.count("narrations");
+        if (finished && !was?.finished) window.OC?.count("books finished");
+        MUSIC.chime();
+        showLog();
+        const words = narr.split(/\s+/).filter(Boolean).length;
+        say(
+          finished && !was?.finished
+            ? `Saved. You finished <i>${esc(title)}</i>. ${narr || form.aloud.checked ? "Your narration is recorded." : "Now narrate it: tell a grown-up what happened, in order, then tick the box."}`
+            : narr && words < 25 && !form.aloud.checked
+              ? `Saved. Your narration has ${words} words; a full narration usually needs three to five sentences. Add more when you can.`
+              : "Saved.",
+        );
+      };
+      say(isNew ? "Choose or type a title. Dates and pages can be added later." : "Update what has changed, then press <b>Save</b>.");
+    };
+    const target = pendingEdit;
+    pendingEdit = null;
+    if (target && entryOf(target)) showForm(entryOf(target), false);
+    else showLog();
+  },
+
+  // ---------- 3. Narration prompts ----------
+  bl3() {
+    const my = token;
+    panel("");
+    const list = entries();
+    let chosen = list[0]?.id || "";
+    let tier = promptTierOf(entryOf(chosen));
+    const show = () => {
+      if (my !== token) return;
+      const e = entryOf(chosen);
+      const options = `<option value="">Choose a book from your log</option>${list.map((x) => `<option value="${esc(x.id)}"${x.id === chosen ? " selected" : ""}>${esc(x.title)}</option>`).join("")}`;
+      const body = frame({ top: `<select class="bl-select" data-pick-book aria-label="Book">${options}</select>${chipsHtml(PROMPT_TABS, tier, "data-tier")}` });
+      body.innerHTML = `${list.length ? "" : `<p class="bl-note">Add a book in <b>My reading log</b> first; then your answers can be saved with it. You can still read the prompts.</p>`}<div class="bl-prompts">${PROMPTS[tier]
+        .map(([k, label, prompt, tip]) => {
+          const ans = e?.answers?.[`${tier}:${k}`] || e?.answers?.[k] || {};
+          return `<section class="bl-prompt" data-k="${k}"><h3>${label}</h3><p>${prompt}</p><p class="bl-tip">${tip}</p><textarea rows="3" placeholder="Write your answer, or tell it aloud and tick the box.">${esc(ans.text || "")}</textarea><div class="bl-row"><label class="bl-check"><input type="checkbox"${ans.aloud ? " checked" : ""}> Told aloud to a grown-up</label><button type="button" class="bl-btn primary small" data-save-k="${k}"${e ? "" : " disabled"}>✓ Save</button></div></section>`;
+        })
+        .join("")}</div>`;
+      stage.querySelector("[data-pick-book]").onchange = (event) => {
+        chosen = event.target.value;
+        tier = promptTierOf(entryOf(chosen));
+        show();
+        if (chosen) say(`Prompts for <i>${esc(entryOf(chosen).title)}</i>. Choose one; you need not answer all four today.`);
+      };
+      stage.querySelector("[data-tier]").parentElement.onclick = (event) => {
+        const b = event.target.closest("[data-tier]");
+        if (!b) return;
+        tier = b.dataset.tier;
+        show();
+      };
+      body.onclick = (event) => {
+        const b = event.target.closest("[data-save-k]");
+        if (!b) return;
+        const sec = b.closest(".bl-prompt");
+        const textValue = sec.querySelector("textarea").value.trim();
+        const aloud = sec.querySelector("input[type=checkbox]").checked;
+        if (!textValue && !aloud) {
+          MUSIC.oops();
+          return say("Write an answer, or tell it aloud to a grown-up and tick the box.");
+        }
+        if (textValue && textValue.split(/\s+/).length < 8 && !aloud) {
+          MUSIC.oops();
+          return say("Not yet. Answer in at least two full sentences: give your idea, then the evidence from the book.");
+        }
+        const entry = entryOf(chosen);
+        if (!entry) return;
+        const answers = { ...(entry.answers || {}), [`${tier}:${b.dataset.saveK}`]: { text: textValue, aloud, on: today() } };
+        saveEntry({ ...entry, answers });
+        shell.mark("bl3", { done: true });
+        window.OC?.count("narrations");
+        window.OC?.touch();
+        MUSIC.chime();
+        b.textContent = "✓ Saved";
+        say(`Saved with <i>${esc(entry.title)}</i>. ${b.dataset.saveK === "truth" ? "Good habit: always ask how the author knows." : "Well argued answers name the evidence; check that yours does."}`);
+      };
+    };
+    show();
+    say(list.length ? "Choose a book and a prompt. Answer one well rather than four quickly." : "These prompts work with any book. Add books to your log to save answers.");
+  },
+
+  // ---------- 4. My progress ----------
+  bl4() {
+    const my = token;
+    panel("");
+    const list = entries();
+    const done = list.filter((e) => e.finished);
+    const pages = list.reduce((s, e) => s + (Number(e.pages) || 0), 0);
+    const narrated = list.filter((e) => e.narr || e.aloud || Object.keys(e.answers || {}).length).length;
+    const words = new Set(list.flatMap((e) => (e.vocab || []).map((w) => w.toLowerCase()))).size;
+    const genreCount = {};
+    for (const e of done) if (e.genre) genreCount[e.genre] = (genreCount[e.genre] || 0) + 1;
+    const shelfCount = {};
+    for (const e of done) if (e.shelf) shelfCount[e.shelf] = (shelfCount[e.shelf] || 0) + 1;
+    const logged = loggedTitles();
+    const genres = [...new Set([...GENRES, ...Object.keys(genreCount)])].sort();
+    const missing = genres.filter((g) => !genreCount[g]);
+    const ideas = missing
+      .map((g) => BOOKS.find((b) => b.g === g && b.s !== "wt" && !logged.has(norm(b.t))))
+      .filter(Boolean)
+      .slice(0, 3);
+    const body = frame({});
+    body.innerHTML = `<div class="bl-stats">
+        <div><b>${done.length}</b><span>books finished</span></div>
+        <div><b>${list.length - done.length}</b><span>in progress</span></div>
+        <div><b>${pages.toLocaleString("en-US")}</b><span>pages read</span></div>
+        <div><b>${narrated}</b><span>books narrated</span></div>
+        <div><b>${words}</b><span>words collected</span></div>
+      </div>
+      <h3 class="bl-h">Kinds of books finished <small>(${genres.length - missing.length} of ${genres.length})</small></h3>
+      <div class="bl-genres">${genres.map((g) => `<span class="${genreCount[g] ? "on" : ""}">${esc(g)}${genreCount[g] ? ` · ${genreCount[g]}` : ""}</span>`).join("")}</div>
+      <h3 class="bl-h">Shelves</h3>
+      <div class="bl-genres">${SHELVES.filter(([k]) => !["fam", "ra"].includes(k)).map(([k, n]) => `<span class="${shelfCount[k] ? "on" : ""}">${n}${shelfCount[k] ? ` · ${shelfCount[k]}` : ""}</span>`).join("")}</div>
+      ${ideas.length ? `<h3 class="bl-h">To read more widely, you might try</h3><ul class="bl-ideas">${ideas.map((b) => `<li><b>${esc(b.t)}</b> (${esc(b.g)}, ${yearText(b)}): ${esc(b.d)}</li>`).join("")}</ul>` : ""}
+      <p class="bl-note explain"><b>Explain it:</b> look at the kinds of books above. In two to four sentences, say which kind you have read least and what you might learn from it. Then name the book that most changed your mind about something, and say what changed.</p>`;
+    say(done.length ? `You have finished ${done.length} ${done.length === 1 ? "book" : "books"}. Look at the kinds of books you have not yet tried.` : "Nothing finished yet. Progress here grows from your log, one honest entry at a time.");
+    shell.mark("bl4", { done: true });
+    window.OC?.touch();
+  },
+};
+
+const blStyle = document.createElement("style");
+blStyle.textContent = `
+.bl-wrap{position:absolute;inset:0;display:flex;flex-direction:column;background:linear-gradient(180deg,#fffdf8,#fbf6ec);text-align:left}
+.bl-wrap input,.bl-wrap textarea,.bl-wrap select{user-select:text;-webkit-user-select:text}
+.bl-top{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:2px solid #efe6d6;background:#fff;min-width:0}
+.bl-top .bl-intro{flex:1;margin:0}
+.bl-foot{display:flex;justify-content:flex-end;gap:10px;padding:8px 10px;border-top:2px solid #efe6d6;background:#fff}
+.bl-body{position:relative;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:10px clamp(10px,3vw,30px) 24px;color:#2b1d12;font:600 clamp(15px,1.7vw,18px)/1.45 var(--sans)}
+.bl-chips{display:flex;gap:6px;overflow-x:auto;flex:1;min-width:0;padding:2px;scrollbar-width:thin}
+.bl-chips button{flex:none;min-height:44px;padding:0 14px;border:0;border-radius:22px;background:#f4ede1;color:#2b1d12;font:800 15px/1 var(--sans);cursor:pointer}
+.bl-chips button[aria-pressed=true]{background:var(--accent);color:#fff;box-shadow:0 3px 0 var(--accent-dark)}
+.bl-intro{margin:2px 0 10px;color:#4d3c2e;font:600 clamp(14px,1.6vw,17px)/1.4 var(--sans)}
+.bl-intro.tight{margin:0}
+.bl-list{display:grid;gap:8px}
+.bl-book{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;width:100%;min-height:56px;padding:9px 14px;border:0;border-radius:16px;background:#fff;box-shadow:0 0 0 1px #eadfcd,0 3px 0 #eadfcd;color:#2b1d12;text-align:left;cursor:pointer;font-family:var(--sans)}
+.bl-book:active{transform:translateY(2px)}
+.bl-book-main{display:flex;flex-direction:column;min-width:0;flex:1 1 260px}
+.bl-book-main b{font:800 clamp(16px,1.8vw,19px)/1.25 Georgia,"Iowan Old Style",serif}
+.bl-book-main small{color:#8a7764;font:700 13.5px/1.35 var(--sans)}
+.bl-tags{display:flex;flex-wrap:wrap;gap:5px}
+.bl-tag{padding:2px 9px;border-radius:10px;background:#f4ede1;color:#5a4130;font:800 12.5px/1.5 var(--sans);white-space:nowrap}
+.bl-tag.fam{background:var(--accent-soft);color:var(--accent-dark)}
+.bl-tag.pd{background:#e3f0fb;color:#1e5f99}
+.bl-tag.warn{background:#fdebd5;color:#9a5410}
+.bl-tag.ok{background:#e3f4e8;color:#157a40}
+.bl-small{margin:10px 2px 0;color:#8a7764;font:700 13px/1.4 var(--sans)}
+.bl-btn{min-height:46px;padding:0 16px;border:0;border-radius:16px;background:#f4ede1;color:#2b1d12;font:800 16px/1 var(--sans);cursor:pointer;white-space:nowrap;box-shadow:0 3px 0 #e2d6c4;touch-action:manipulation}
+.bl-btn.primary{background:var(--accent);color:#fff;box-shadow:0 3px 0 var(--accent-dark)}
+.bl-btn.danger{background:#fbe3dd;color:#a1361f;margin-right:auto}
+.bl-btn.small{min-height:44px;font-size:15px}
+.bl-btn:disabled{opacity:.45;cursor:default}
+.bl-btn:active{transform:translateY(2px)}
+.bl-detail{max-width:42em;margin:0 auto}
+.bl-detail h2{margin:2px 0 4px;font:800 clamp(22px,2.8vw,30px)/1.15 Georgia,"Iowan Old Style",serif}
+.bl-kicker{margin:0;color:var(--accent-dark);font:800 12.5px/1.3 var(--sans);text-transform:uppercase;letter-spacing:.06em}
+.bl-by{margin:0 0 8px;color:#6d5a48;font:700 15px/1.4 var(--sans)}
+.bl-desc{margin:12px 0;font:500 clamp(17px,1.9vw,20px)/1.55 Georgia,"Iowan Old Style",serif}
+.bl-note{margin:8px 0;padding:8px 12px;border-radius:12px;background:#f7f1e6;font:600 15px/1.45 var(--sans)}
+.bl-note.fam{background:var(--accent-soft)}
+.bl-note.warn{background:#fdf0de}
+.bl-note.explain{background:#eaf3fb}
+.bl-note a{color:#1e5f99;font-weight:800}
+.bl-formtitle{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:800 17px/1.2 Georgia,serif}
+.bl-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 12px;max-width:46em;margin:0 auto}
+.bl-field{display:flex;flex-direction:column;gap:4px;min-width:0;font:800 14px/1.3 var(--sans);color:#5a4130}
+.bl-field.wide{grid-column:1/-1}
+.bl-field input,.bl-field textarea,.bl-select{width:100%;box-sizing:border-box;min-height:46px;padding:8px 12px;border:2px solid #e2d6c4;border-radius:12px;background:#fff;color:#2b1d12;font:600 17px/1.4 var(--sans)}
+.bl-field textarea,.bl-prompt textarea{resize:vertical;font:500 17px/1.45 Georgia,serif}
+.bl-field input:focus,.bl-field textarea:focus,.bl-prompt textarea:focus{outline:3px solid #ffcf5c;border-color:var(--accent)}
+.bl-check{display:flex;align-items:center;gap:8px;min-height:44px;font:700 15px/1.3 var(--sans);color:#2b1d12;cursor:pointer}
+.bl-check input{width:24px;height:24px;min-height:0;accent-color:var(--accent)}
+.bl-stars{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.bl-stars button{min-width:46px;min-height:46px;border:0;border-radius:12px;background:#fff;box-shadow:0 0 0 2px #eadfcd;color:#d99a16;font:400 28px/1 var(--sans);cursor:pointer}
+.bl-stars .bl-clear{min-width:0;padding:0 10px;color:#8a7764;font:700 14px var(--sans)}
+.bl-err{grid-column:1/-1;margin:0;color:#a1361f;font:800 15px/1.4 var(--sans)}
+.bl-err:empty{display:none}
+.bl-select{flex:0 1 260px;min-width:0;font-size:15px}
+.bl-prompts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:10px}
+.bl-prompt{padding:10px 14px;border-radius:16px;background:#fff;box-shadow:0 0 0 1px #eadfcd,0 3px 0 #eadfcd}
+.bl-prompt h3{margin:0 0 4px;color:var(--accent-dark);font:900 17px/1.2 var(--sans)}
+.bl-prompt p{margin:0 0 6px}
+.bl-prompt .bl-tip{color:#8a7764;font:700 13.5px/1.35 var(--sans)}
+.bl-prompt textarea{width:100%;box-sizing:border-box;padding:8px 10px;border:2px solid #e2d6c4;border-radius:12px}
+.bl-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.bl-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px}
+.bl-stats div{display:flex;flex-direction:column;align-items:center;padding:10px 6px;border-radius:16px;background:#fff;box-shadow:0 0 0 1px #eadfcd}
+.bl-stats b{color:var(--accent-dark);font:900 clamp(26px,3.4vw,36px)/1.1 var(--sans)}
+.bl-stats span{color:#6d5a48;font:700 13.5px/1.3 var(--sans);text-align:center}
+.bl-h{margin:14px 0 6px;font:900 17px/1.2 var(--sans)}
+.bl-h small{color:#8a7764;font-weight:700}
+.bl-genres{display:flex;flex-wrap:wrap;gap:6px}
+.bl-genres span{padding:5px 11px;border-radius:12px;background:#f4ede1;color:#a8957f;font:800 14px/1.3 var(--sans)}
+.bl-genres span.on{background:var(--accent);color:#fff}
+.bl-ideas{margin:0;padding-left:20px;display:grid;gap:6px}
+.bl-empty{display:grid;place-items:center;text-align:center;height:100%;color:#4d3c2e}
+.bl-big{font-size:54px;margin:0}
+@media (max-width:620px){.bl-form{grid-template-columns:1fr 1fr}.bl-field:nth-of-type(5){grid-column:1/-1}.bl-top{flex-wrap:wrap}.bl-select{flex:1 1 100%}}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){.bl-body{padding:6px 10px 16px;font-size:14px}.bl-top,.bl-foot{padding:5px 8px}.bl-btn{min-height:44px;font-size:14.5px;padding:0 12px}.bl-chips button{font-size:13.5px;padding:0 11px}.bl-book{padding:6px 10px;min-height:48px}.bl-book-main b{font-size:15px}.bl-book-main small{font-size:12.5px}.bl-tag{font-size:11.5px}.bl-intro{font-size:13.5px;margin-bottom:6px}.bl-note{font-size:13.5px;padding:6px 10px}.bl-desc{font-size:16px}.bl-field input,.bl-field textarea{font-size:16px;min-height:44px;padding:6px 10px}}
+`;
+document.head.appendChild(blStyle);
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    bl0: { icon: "👀", title: "See it: read widely and deeply", steps: ["Watch each picture and listen.", "Press Next ▶ to go on.", "At the end, explain the idea aloud."] },
+    bl1: { icon: "📚", title: "The reading list", steps: ["Choose a shelf: your family's plan, a tier, true books or poetry.", "Tap a book to read about it and why it is on the list.", "Press Add to my log when you begin it."] },
+    bl2: { icon: "📝", title: "My reading log", steps: ["Add the book you are reading, with the date you began.", "When you finish, add the date, the pages and a narration.", "Rate it, and give a reason that points to the book."] },
+    bl3: { icon: "🗣️", title: "Narration prompts", steps: ["Choose a book from your log.", "Pick one prompt and answer it in full sentences, or aloud.", "Press Save to keep your answer with the book."] },
+    bl4: { icon: "🌱", title: "My progress", steps: ["See the books you have finished and the pages read.", "Look at which kinds of books you have not tried.", "Explain which kind you will try next, and why."] },
+  },
+  start: "bl0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Reading",
+  activity: "Reading List & Log",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 78, 80, 82]);
+MUSIC.preload("woodblock", [79]);
+</script>
+</body>
+</html>

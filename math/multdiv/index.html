@@ -1,0 +1,2418 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Big Multiply & Divide · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="math">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Big Multiply & Divide</b><small>Math · Advanced</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, pickInt, wait, confetti, choices, explain, everyday, emoji, numpad, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "md0", label: "See it", icon: "👀" },
+  { id: "md1", label: "1. Times tables to 12", icon: "✖️" },
+  { id: "md2", label: "2. Area model", icon: "🟧" },
+  { id: "md3", label: "3. Column multiplication", icon: "🧮" },
+  { id: "md4", label: "4. Long division", icon: "➗" },
+  { id: "md5", label: "5. Order of operations", icon: "🪜" },
+  { id: "md6", label: "6. Mental strategies", icon: "🧠" },
+  { id: "md7", label: "7. Word problems", icon: "📝" },
+];
+
+const INK = "#2b1d12";
+const MUTED = "#8a7258";
+const SOFT = "#fffaf0";
+const ROWC = ["#a9d4f5", "#9fd3a8", "#f4c58a"];
+const ROWD = ["#1e6fb0", "#2e7d46", "#a8632d"];
+const EFFORT = ["Correct.", "Correct — well reasoned.", "Correct. Your method was sound.", "Correct, and carefully done.", "Correct. Note the strategy you used."];
+const TRY = ["Not quite. Consider this:", "Not quite. Mistakes are how we learn. Consider this:", "Not quite. Think it through again:"];
+
+function fresh() {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+}
+const T = (p, x, y, s, size, fill = INK, extra = {}) => text(p, x, y, s, { "font-size": size, fill, ...extra });
+const fmt = (n) => Number(n).toLocaleString("en-US");
+const sum = (list) => list.reduce((a, b) => a + b, 0);
+const digitsR = (n) => String(n).split("").reverse().map(Number);
+// 345 -> [300, 40, 5] (zero parts left out)
+const expand = (n) => String(n).split("").map((d, i, s) => Number(d) * 10 ** (s.length - 1 - i)).filter((x) => x > 0);
+const lead = (n) => [Number(String(n)[0]), String(n).length - 1];
+const SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+const sup = (e) => String(e).split("").map((d) => SUP[d]).join("");
+const powWords = (b, e) => (e === 2 ? `${b} squared` : e === 3 ? `${b} cubed` : `${b} to the power ${e}`);
+function wrap(str, max) {
+  const out = [];
+  for (const w of String(str).split(" ")) {
+    const last = out[out.length - 1];
+    if (last !== undefined && (last + " " + w).length <= max) out[out.length - 1] = last + " " + w;
+    else out.push(w);
+  }
+  return out;
+}
+function para(p, x, y, str, { size = 28, max = 40, lh = 1.32, anchor = "start", fill = INK, weight = 700 } = {}) {
+  const ls = wrap(str, max);
+  ls.forEach((l, i) => T(p, x, y + i * size * lh, l, size, fill, { "text-anchor": anchor, "font-weight": weight }));
+  return ls.length;
+}
+const svgPt = (e) => {
+  const p = view.createSVGPoint();
+  p.x = e.clientX;
+  p.y = e.clientY;
+  return p.matrixTransform(view.getScreenCTM().inverse());
+};
+const tween = (ms, fn, alive) =>
+  new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(true);
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!alive()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+
+// Panel pieces shared by the games: grade chips, a status line, and one input area.
+const LEVELS = [["g4", "🐣 Grade 4"], ["g5", "🦊 Grade 5–6"], ["g6", "🦁 Grade 7–8"]];
+const levelRow = (cur) => `<div class="ap-row"><div class="ap-chips" data-levels>${LEVELS.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div><div class="md-in" data-input></div>`;
+const onLevels = (id, fn) =>
+  $("[data-levels]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    shell.mark(id, { level: b.dataset.lv });
+    window.OC?.touch();
+    fn(b.dataset.lv);
+  });
+const status = (s) => {
+  const b = $("[data-status]");
+  if (b) b.textContent = s;
+};
+const input = () => $("[data-input]");
+const askNum = (fn, max = 6) => numpad(input(), { onEnter: fn, max });
+const askPick = (opts, fn) => choices(input(), opts, fn);
+const askNext = (label, fn) => {
+  const h = input();
+  h.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-go>${label}</button></div>`;
+  h.onclick = (e) => {
+    if (!e.target.closest("[data-go]")) return;
+    h.onclick = null;
+    window.OC?.touch();
+    fn();
+  };
+};
+
+// Struggle first: a first miss gets a question to think about; a second miss shows the answer and why.
+async function miss(g, hint, why) {
+  g.tries += 1;
+  g.clean = false;
+  MUSIC.oops();
+  window.OC?.touch();
+  if (g.tries < 2) {
+    say(`${pick(TRY)} ${hint}`);
+    return false;
+  }
+  g.tries = 0;
+  await sayAsync(`Here is the reasoning. ${why}`);
+  await wait(500);
+  return true;
+}
+const newGame = () => ({ round: 0, tries: 0, clean: true, firsts: 0 });
+
+const REAL = {
+  md1: { title: "Make a times-table poster", things: ["paper", "ruler", "coloured pencils"], steps: ["Draw a 12 by 12 grid and fill in every fact you know.", "Colour the square numbers on the diagonal, and the 9s row.", "Find a pattern and explain it to a grown-up."], safe: "Ask a grown-up before using markers." },
+  md2: { title: "Area model on grid paper", things: ["grid paper", "pencil", "safety scissors"], steps: ["Draw a rectangle 23 squares wide and 14 squares tall.", "Cut it into 4 parts: 20 and 3 across, 10 and 4 down.", "Find each part, add them, and check you get 322."], safe: "Use safety scissors with a grown-up nearby." },
+  md3: { title: "Party shopping list", things: ["paper", "pencil", "a shop flyer"], steps: ["Pick 3 things a party needs, like cups or balloons.", "Find the cost of 12 of each with the column method.", "Ask a grown-up to check your totals on a calculator."], safe: "Just pretend shopping. Talk about prices with a grown-up." },
+  md4: { title: "Bean sharing", things: ["100 dried beans", "7 cups", "paper"], steps: ["Count out 100 beans.", "Share them into 7 cups so every cup gets the same.", "How many in each cup? How many left? Check: 7 × 14 + 2 = 100."], safe: "Do it with a grown-up. Keep beans away from little children." },
+  md5: { title: "Make 24 card game", things: ["number cards 1 to 10", "paper", "pencil"], steps: ["Turn over 4 cards.", "Use + − × ÷ and parentheses to make 24 with all 4 cards.", "Write it down and check the order of operations."], safe: "Play together with a grown-up or a friend." },
+  md6: { title: "Shopping estimate", things: ["a shopping trip or a receipt", "paper", "pencil"], steps: ["Round each price to the nearest dollar.", "Add the rounded prices to estimate the total.", "Compare with the real total. How close were you?"], safe: "Stay with your grown-up in the shop." },
+  md7: { title: "Cook for a crowd", things: ["a simple recipe", "paper", "pencil"], steps: ["Pick a recipe and see how many people it serves.", "Work out every amount for 3 times as many people.", "Make it together and share it!"], safe: "Use the stove, oven and knives only with a grown-up." },
+};
+
+function drawReal(real) {
+  fresh();
+  el("rect", { x: 50, y: 18, width: 900, height: 524, rx: 30, fill: SOFT, stroke: "var(--accent)", "stroke-width": 5 }, view);
+  T(view, 500, 78, "🏠 Try it for real", 40);
+  T(view, 500, 122, real.title, 30, "var(--accent-dark)");
+  T(view, 500, 168, "You need: " + real.things.join(" · "), 24, MUTED);
+  let y = 224;
+  real.steps.forEach((s, i) => {
+    el("circle", { cx: 110, cy: y - 9, r: 19, fill: "var(--accent)" }, view);
+    T(view, 110, y, i + 1, 24, "#fff");
+    const n = para(view, 145, y, s, { size: 26, max: 52 });
+    y += n * 34 + 18;
+  });
+  el("rect", { x: 90, y: 456, width: 820, height: 62, rx: 18, fill: "#fdeccf" }, view);
+  T(view, 500, 496, "⚠️ " + real.safe, 23, "#7a4520");
+}
+
+// "Explain it": putting the reasoning into words is part of every game.
+const EXPLAIN = {
+  md0: { q: "Why does splitting 23 × 14 into four rectangles give the same answer as the whole rectangle?", start: "The four parts together…" },
+  md1: { q: "Why does the ×9 finger trick work? Use the fact that 9 × n = 10 × n − n.", start: "Nine is one less than ten, so…" },
+  md2: { q: "Why do the partial products (the answers for each part) add up to the whole product? Use the word area.", start: "The rectangle's area…" },
+  md3: { q: "What does carrying really mean in terms of place value (ones, tens, hundreds)?", start: "When a column makes 10 or more…" },
+  md4: { q: "How can multiplication check a division answer, and what exactly does the remainder (the amount left over) tell us?", start: "To check, I multiply…" },
+  md5: { q: "Why must everyone agree on one order of operations? Give an example where a different order changes the answer.", start: "Without an agreed order…" },
+  md6: { q: "Why does doubling one factor and halving the other leave the product unchanged? Think about the rectangle.", start: "The rectangle gets…" },
+  md7: { q: "Choose one problem you solved. Explain your plan: what you found first, and why that step was needed.", start: "First I needed to know…" },
+};
+function drawExplain(id) {
+  fresh();
+  const e = EXPLAIN[id];
+  el("rect", { x: 50, y: 18, width: 900, height: 524, rx: 30, fill: "#f4f8fd", stroke: "#1e6fb0", "stroke-width": 5 }, view);
+  T(view, 500, 82, "🗣️ Explain it", 40);
+  const n = para(view, 500, 150, e.q, { size: 31, max: 46, anchor: "middle" });
+  const y = 150 + n * 41 + 30;
+  T(view, 500, y, "Say it aloud to a grown-up, or write it, in 2–4 full sentences.", 24, MUTED);
+  el("rect", { x: 150, y: y + 30, width: 700, height: 64, rx: 18, fill: "#fff", stroke: "#c9d8ea", "stroke-width": 2 }, view);
+  T(view, 500, y + 72, `Begin: “${e.start}”`, 26, "#1e6fb0");
+}
+
+function finish(id, total, g, real) {
+  confetti();
+  MUSIC.chime();
+  shell.mark(id, { done: true });
+  drawExplain(id);
+  const host = panel(`<div class="ap-buttons"><button type="button" class="primary" data-explained>✓ I have explained it</button></div>`);
+  say(`All ${total} complete. ${g.firsts >= total * 0.7 ? "Your methods were careful and consistent." : "You persisted through the difficult ones, which is how understanding grows."} Now explain the idea in your own words.`);
+  host.onclick = (e) => {
+    if (e.target.closest("[data-explained]")) {
+      window.OC?.touch();
+      window.OC?.count("explanations");
+      drawReal(real);
+      host.innerHTML = `<p class="ap-say" data-say></p><div class="ap-buttons"><button type="button" class="primary" data-again>🔁 Play again</button></div>`;
+      say("Well articulated. Here is a way to use this idea away from the screen.");
+      return;
+    }
+    if (!e.target.closest("[data-again]")) return;
+    host.onclick = null;
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  };
+}
+
+// ---------- See it pictures ----------
+function areaBase(v, { k = 20, x0 = 150, y0 = 100, split = true } = {}) {
+  el("rect", { x: x0, y: y0, width: 23 * k, height: 14 * k, fill: SOFT, stroke: "#5a4130", "stroke-width": 3 }, v);
+  for (let i = 1; i < 23; i++) el("line", { x1: x0 + i * k, x2: x0 + i * k, y1: y0, y2: y0 + 14 * k, stroke: "#e6dccd", "stroke-width": 1.5 }, v);
+  for (let j = 1; j < 14; j++) el("line", { x1: x0, x2: x0 + 23 * k, y1: y0 + j * k, y2: y0 + j * k, stroke: "#e6dccd", "stroke-width": 1.5 }, v);
+  if (!split) return;
+  el("line", { x1: x0 + 20 * k, x2: x0 + 20 * k, y1: y0, y2: y0 + 14 * k, stroke: "var(--accent)", "stroke-width": 6 }, v);
+  el("line", { x1: x0, x2: x0 + 23 * k, y1: y0 + 10 * k, y2: y0 + 10 * k, stroke: "var(--accent)", "stroke-width": 6 }, v);
+  T(v, x0 + 10 * k, y0 - 16, "20", 30, "var(--accent-dark)");
+  T(v, x0 + 21.5 * k, y0 - 16, "3", 30, "var(--accent-dark)");
+  T(v, x0 - 16, y0 + 5 * k + 10, "10", 30, "var(--accent-dark)", { "text-anchor": "end" });
+  T(v, x0 - 16, y0 + 12 * k + 10, "4", 30, "var(--accent-dark)", { "text-anchor": "end" });
+}
+function flat(p, x, y) {
+  const g = el("g", { transform: `translate(${x} ${y})` }, p);
+  el("rect", { width: 100, height: 100, rx: 4, fill: "#f2c94c", stroke: "#a8632d", "stroke-width": 2 }, g);
+  for (let i = 1; i < 10; i++) {
+    el("line", { x1: i * 10, x2: i * 10, y1: 0, y2: 100, stroke: "#d9a441", "stroke-width": 1 }, g);
+    el("line", { x1: 0, x2: 100, y1: i * 10, y2: i * 10, stroke: "#d9a441", "stroke-width": 1 }, g);
+  }
+  return g;
+}
+function rod(p, x, y) {
+  const g = el("g", { transform: `translate(${x} ${y})` }, p);
+  el("rect", { width: 11, height: 100, rx: 2, fill: "#9fd3a8", stroke: "#3f7d4e", "stroke-width": 1.5 }, g);
+  for (let i = 1; i < 10; i++) el("line", { x1: 0, x2: 11, y1: i * 10, y2: i * 10, stroke: "#3f7d4e", "stroke-width": 0.8 }, g);
+  return g;
+}
+function cube(p, x, y) {
+  const g = el("g", { transform: `translate(${x} ${y})` }, p);
+  el("rect", { width: 11, height: 11, rx: 2, fill: "#a9d4f5", stroke: "#1e6fb0", "stroke-width": 1.5 }, g);
+  return g;
+}
+
+const units = {
+  md0() {
+    const my = token;
+    const move = (api, g, [x0, y0], [x1, y1], ms) => api.tween(ms, (t) => g.setAttribute("transform", `translate(${x0 + (x1 - x0) * t} ${y0 + (y1 - y0) * t - Math.sin(t * Math.PI) * 40})`));
+    explain(
+      [
+        { say: "Why master large multiplication and division? Scaling recipes, packing boxes, sharing bills and planning trips all depend on them. Ancient Egyptian scribes multiplied by repeated doubling.", draw: everyday([["🥞", "Recipes for a crowd"], ["📦", "Packing boxes"], ["🍕", "Sharing costs"], ["🚌", "Buses for a trip"]]) },
+        {
+          say: "Multiplication can be pictured as area. A rectangle 23 units wide and 14 tall has area 23 × 14. Decompose (break apart) each side by place value: 23 = 20 + 3 and 14 = 10 + 4.",
+          async draw(v, api) {
+            const k = 20;
+            const x0 = 150;
+            const y0 = 100;
+            const grid = el("g", { opacity: 0 }, v);
+            areaBase(grid, { split: false });
+            const w23 = T(grid, x0 + 11.5 * k, y0 - 16, "23", 32, INK);
+            const h14 = T(grid, x0 - 16, y0 + 7 * k + 10, "14", 32, INK, { "text-anchor": "end" });
+            await api.tween(1000, (t) => grid.setAttribute("opacity", t));
+            await api.wait(900);
+            const vl = el("line", { x1: x0 + 20 * k, x2: x0 + 20 * k, y1: y0, y2: y0, stroke: "var(--accent)", "stroke-width": 6, "stroke-linecap": "round" }, v);
+            await api.tween(1000, (t) => vl.setAttribute("y2", y0 + t * 14 * k));
+            w23.remove();
+            T(v, x0 + 10 * k, y0 - 16, "20", 30, "var(--accent-dark)");
+            T(v, x0 + 21.5 * k, y0 - 16, "3", 30, "var(--accent-dark)");
+            const n1 = T(v, 800, 220, "23 = 20 + 3", 36, INK, { opacity: 0 });
+            await api.tween(600, (t) => n1.setAttribute("opacity", t));
+            await api.wait(800);
+            const hl = el("line", { x1: x0, x2: x0, y1: y0 + 10 * k, y2: y0 + 10 * k, stroke: "var(--accent)", "stroke-width": 6, "stroke-linecap": "round" }, v);
+            await api.tween(1000, (t) => hl.setAttribute("x2", x0 + t * 23 * k));
+            h14.remove();
+            T(v, x0 - 16, y0 + 5 * k + 10, "10", 30, "var(--accent-dark)", { "text-anchor": "end" });
+            T(v, x0 - 16, y0 + 12 * k + 10, "4", 30, "var(--accent-dark)", { "text-anchor": "end" });
+            const n2 = T(v, 800, 290, "14 = 10 + 4", 36, INK, { opacity: 0 });
+            await api.tween(600, (t) => n2.setAttribute("opacity", t));
+            const n3 = T(v, 800, 380, "four simpler products", 32, "var(--accent-dark)", { opacity: 0 });
+            await api.wait(500);
+            await api.tween(600, (t) => n3.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "Each smaller rectangle is a simple product: 200, 80, 30 and 12. These are called partial products. Their sum is the whole area: 23 × 14 = 322.",
+          async draw(v, api) {
+            const k = 20;
+            const x0 = 150;
+            const y0 = 100;
+            areaBase(v);
+            const fills = el("g", {}, v);
+            v.insertBefore(fills, v.firstChild.nextSibling);
+            const parts = [
+              [0, 0, 20, 10, "200", "20 × 10 = 200", "#f2c94c"],
+              [0, 10, 20, 4, "80", "20 × 4 = 80", "#9fd3a8"],
+              [20, 0, 3, 10, "30", "3 × 10 = 30", "#a9d4f5"],
+              [20, 10, 3, 4, "12", "3 × 4 = 12", "#f4b6c2"],
+            ];
+            for (let i = 0; i < parts.length; i++) {
+              const [px, py, pw, ph, val, line, color] = parts[i];
+              const r = el("rect", { x: x0 + px * k, y: y0 + py * k, width: pw * k, height: ph * k, fill: color, opacity: 0 }, fills);
+              const lbl = T(v, x0 + (px + pw / 2) * k, y0 + (py + ph / 2) * k + 12, val, pw > 5 ? 40 : 28, INK, { opacity: 0 });
+              const row = T(v, 960, 150 + i * 56, line, 30, INK, { "text-anchor": "end", opacity: 0 });
+              await api.tween(800, (t) => {
+                r.setAttribute("opacity", t * 0.85);
+                lbl.setAttribute("opacity", t);
+                row.setAttribute("opacity", t);
+              });
+              MUSIC.play("xylophone", 72 + i * 4, { gain: 0.35 });
+              await api.wait(700);
+            }
+            el("line", { x1: 720, x2: 965, y1: 360, y2: 360, stroke: INK, "stroke-width": 3 }, v);
+            const tot = T(v, 960, 410, "total 322", 40, "var(--accent-dark)", { "text-anchor": "end", opacity: 0 });
+            await api.tween(800, (t) => tot.setAttribute("opacity", t));
+            const eq = T(v, 380, 470, "200 + 80 + 30 + 12 = 322", 34, INK, { opacity: 0 });
+            await api.tween(800, (t) => eq.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "The standard column method records the same partial products more compactly. 23 × 4 = 92 is the bottom strip; 23 × 10 = 230 is the top strip; together they make 322.",
+          async draw(v, api) {
+            const k = 12;
+            const x0 = 60;
+            const y0 = 150;
+            const strip = (py, ph, color) => el("rect", { x: x0, y: y0 + py * k, width: 23 * k, height: ph * k, fill: color, stroke: "#5a4130", "stroke-width": 2, opacity: 0.35 }, v);
+            const top = strip(0, 10, "#a9d4f5");
+            const bot = strip(10, 4, "#9fd3a8");
+            el("line", { x1: x0 + 20 * k, x2: x0 + 20 * k, y1: y0, y2: y0 + 14 * k, stroke: "#5a4130", "stroke-width": 2 }, v);
+            [["200", 10, 5], ["30", 21.5, 5], ["80", 10, 12], ["12", 21.5, 12]].forEach(([s, cx, cy]) => T(v, x0 + cx * k, y0 + cy * k + 8, s, 22, INK));
+            T(v, x0 + 10 * k, y0 - 12, "20", 22, MUTED);
+            T(v, x0 + 21.5 * k, y0 - 12, "3", 22, MUTED);
+            T(v, x0 - 10, y0 + 5 * k + 8, "10", 22, MUTED, { "text-anchor": "end" });
+            T(v, x0 - 10, y0 + 12 * k + 8, "4", 22, MUTED, { "text-anchor": "end" });
+            T(v, x0 + 11.5 * k, y0 + 14 * k + 44, "area model", 24, MUTED);
+            const RX = 840;
+            const CW = 44;
+            const row = (str, y, fill = INK) => str.split("").reverse().forEach((d, i) => T(v, RX - i * CW, y, d, 46, fill));
+            row("23", 110);
+            row("14", 170);
+            T(v, RX - 2 * CW - 8, 170, "×", 46, INK);
+            el("line", { x1: RX - 3 * CW, x2: RX + 26, y1: 190, y2: 190, stroke: INK, "stroke-width": 4 }, v);
+            T(v, RX - CW, 520, "column way", 24, MUTED);
+            await api.wait(1200);
+            const bg1 = el("rect", { x: RX - 3 * CW, y: 208, width: 3 * CW + 26, height: 54, rx: 10, fill: "#9fd3a8", opacity: 0 }, v);
+            await api.tween(800, (t) => {
+              bg1.setAttribute("opacity", t * 0.6);
+              bot.setAttribute("opacity", 0.35 + t * 0.6);
+            });
+            row("92", 250);
+            T(v, 630, 248, "23 × 4 = 80 + 12", 24, "#2e7d46", { "text-anchor": "end" });
+            MUSIC.play("xylophone", 76, { gain: 0.35 });
+            await api.wait(2200);
+            const bg2 = el("rect", { x: RX - 3 * CW, y: 268, width: 3 * CW + 26, height: 54, rx: 10, fill: "#a9d4f5", opacity: 0 }, v);
+            await api.tween(800, (t) => {
+              bg2.setAttribute("opacity", t * 0.6);
+              top.setAttribute("opacity", 0.35 + t * 0.6);
+            });
+            row("230", 310);
+            T(v, 630, 308, "23 × 10 = 200 + 30", 24, "#1e6fb0", { "text-anchor": "end" });
+            MUSIC.play("xylophone", 79, { gain: 0.35 });
+            await api.wait(2200);
+            el("line", { x1: RX - 3 * CW, x2: RX + 26, y1: 336, y2: 336, stroke: INK, "stroke-width": 4 }, v);
+            T(v, RX - 3 * CW - 6, 310, "+", 40, INK, { "text-anchor": "end" });
+            row("322", 392, "var(--accent-dark)");
+            MUSIC.play("xylophone", 84, { gain: 0.35 });
+            await api.wait(600);
+            T(v, 500, 470, "Same partial products, two notations", 30, "var(--accent-dark)");
+          },
+        },
+        {
+          say: "Division is equal sharing. To share 375 among 3 groups, share the hundreds, then the tens. The leftover ten is regrouped (exchanged) as 10 ones. Each group receives 125.",
+          async draw(v, api) {
+            const plates = [180, 500, 820];
+            plates.forEach((cx) => el("ellipse", { cx, cy: 470, rx: 140, ry: 26, fill: "#f6ecdc", stroke: "#c9b8a1", "stroke-width": 3 }, v));
+            const label = T(v, 820, 70, "", 26, INK);
+            const flats = [0, 1, 2].map((i) => [flat(v, 40 + i * 112, 30), [40 + i * 112, 30]]);
+            const rods = [...Array(7).keys()].map((i) => [rod(v, 400 + i * 18, 30), [400 + i * 18, 30]]);
+            const cubeAt = (m) => [560 + (m % 5) * 14, 120 + Math.floor(m / 5) * 14];
+            const cubes = [...Array(5).keys()].map((m) => [cube(v, ...cubeAt(m)), cubeAt(m)]);
+            await api.wait(800);
+            label.textContent = "Hundreds: 3 ÷ 3 = 1 each";
+            for (let i = 0; i < 3; i++) {
+              await move(api, flats[i][0], flats[i][1], [plates[i] - 130, 340], 800);
+              MUSIC.play("xylophone", 72 + i * 2, { gain: 0.35 });
+              await api.wait(200);
+            }
+            await api.wait(600);
+            label.textContent = "Tens: 7 ÷ 3 = 2 each, 1 left";
+            for (let i = 0; i < 6; i++) {
+              const p = i % 3;
+              const j = Math.floor(i / 3);
+              await move(api, rods[i][0], rods[i][1], [plates[p] - 18 + j * 16, 340], 550);
+              MUSIC.play("xylophone", 79 + p * 2, { gain: 0.3 });
+              await api.wait(120);
+            }
+            await api.wait(800);
+            label.textContent = "Trade 1 ten for 10 ones";
+            const left = rods[6][0];
+            await api.tween(800, (t) => left.setAttribute("opacity", 1 - t));
+            for (let m = 5; m < 15; m++) cubes.push([cube(v, ...cubeAt(m)), cubeAt(m)]);
+            MUSIC.play("harp", 76, { gain: 0.35 });
+            await api.wait(1000);
+            label.textContent = "Ones: 15 ÷ 3 = 5 each";
+            for (let m = 0; m < 15; m++) {
+              const p = m % 3;
+              const j = Math.floor(m / 3);
+              await move(api, cubes[m][0], cubes[m][1], [plates[p] + 30 + j * 14, 428], 380);
+              MUSIC.play("xylophone", 84 + p * 2, { gain: 0.22 });
+            }
+            await api.wait(500);
+            label.textContent = "375 ÷ 3 = 125";
+            plates.forEach((cx) => T(v, cx, 540, "125", 34, "var(--accent-dark)"));
+          },
+        },
+        {
+          say: "Long division is a written record of that sharing. Each cycle has four moves: divide, multiply, subtract, bring down.",
+          async draw(v, api) {
+            const fs = 44;
+            const CW = 48;
+            const X = [420, 468, 516];
+            "375".split("").forEach((d, i) => T(v, X[i], 180, d, fs));
+            T(v, 360, 180, "3", fs, INK, { "text-anchor": "end" });
+            el("path", { d: "M376 192Q398 166 382 140L545 140", fill: "none", stroke: INK, "stroke-width": 4, "stroke-linecap": "round" }, v);
+            const notes = [];
+            const note = async (y, s, color = INK) => {
+              const t = T(v, 610, y, s, 27, color, { "text-anchor": "start", opacity: 0 });
+              notes.push(t);
+              await api.tween(600, (k) => t.setAttribute("opacity", k));
+            };
+            const write = async (x, y, s, color = INK) => {
+              const t = T(v, x, y, s, fs, color, { opacity: 0 });
+              await api.tween(500, (k) => t.setAttribute("opacity", k));
+              MUSIC.play("xylophone", 76, { gain: 0.25 });
+              return t;
+            };
+            const under = (x1, x2, y) => el("line", { x1, x2, y1: y, y2: y, stroke: INK, "stroke-width": 3 }, v);
+            await api.wait(800);
+            await write(X[0], 125, "1", "var(--accent-dark)");
+            await note(200, "3 hundreds ÷ 3 = 1");
+            await write(X[0], 235, "3");
+            T(v, X[0] - CW * 0.6, 235, "−", fs, INK);
+            under(X[0] - 40, X[0] + 24, 247);
+            await write(X[0], 290, "0", "#b9a58a");
+            await api.wait(500);
+            const bring1 = await write(X[1], 290, "7");
+            bring1.setAttribute("fill", "#1e6fb0");
+            await note(250, "bring down the 7", "#1e6fb0");
+            await api.wait(900);
+            await write(X[1], 125, "2", "var(--accent-dark)");
+            await note(300, "7 tens ÷ 3 = 2, 1 left");
+            await write(X[1], 345, "6");
+            T(v, X[1] - CW * 0.6, 345, "−", fs, INK);
+            under(X[1] - 40, X[1] + 24, 357);
+            await write(X[1], 400, "1");
+            const bring2 = await write(X[2], 400, "5");
+            bring2.setAttribute("fill", "#1e6fb0");
+            await note(350, "bring down the 5: 15 ones", "#1e6fb0");
+            await api.wait(900);
+            await write(X[2], 125, "5", "var(--accent-dark)");
+            await note(400, "15 ÷ 3 = 5");
+            T(v, X[1], 455, "1", fs, INK);
+            await write(X[2], 455, "5");
+            T(v, X[1] - CW * 0.6, 455, "−", fs, INK);
+            under(X[1] - 40, X[2] + 24, 467);
+            await write(X[2], 515, "0");
+            await note(470, "375 ÷ 3 = 125", "var(--accent-dark)");
+          },
+        },
+        {
+          say: "Mathematicians agree on an order of operations so every expression has one meaning. In 3 + 4 × 5 we multiply first: 3 apples plus 4 bags of 5 apples is 23, not 35. Multiplication and division share one rank and are done left to right; addition and subtraction likewise share the lowest rank.",
+          async draw(v, api) {
+            T(v, 500, 78, "3 + 4 × 5", 62, INK);
+            const loose = el("g", { opacity: 0 }, v);
+            [0, 1, 2].forEach((i) => emoji(loose, 110 + i * 70, 220, "🍎", 54));
+            T(loose, 180, 300, "3", 34, INK);
+            T(v, 330, 230, "+", 56, INK);
+            await api.tween(700, (t) => loose.setAttribute("opacity", t));
+            for (let b = 0; b < 4; b++) {
+              const bag = el("g", { opacity: 0 }, v);
+              const bx = 390 + b * 145;
+              el("rect", { x: bx, y: 150, width: 125, height: 145, rx: 26, fill: "#f3e6d0", stroke: "#a8632d", "stroke-width": 3 }, bag);
+              [[0, 0], [1, 0], [2, 0], [0.5, 1], [1.5, 1]].forEach(([c, r]) => emoji(bag, bx + 30 + c * 33, 190 + r * 48, "🍎", 32));
+              T(bag, bx + 62, 330, "5", 30, INK);
+              await api.tween(500, (t) => bag.setAttribute("opacity", t));
+              MUSIC.play("xylophone", 76 + b * 2, { gain: 0.3 });
+            }
+            await api.wait(800);
+            const hl = el("rect", { x: 560, y: 28, width: 190, height: 66, rx: 18, fill: "#fde68a", opacity: 0 }, v);
+            v.insertBefore(hl, v.firstChild);
+            await api.tween(600, (t) => hl.setAttribute("opacity", t));
+            const l1 = T(v, 500, 400, "4 × 5 = 20 first", 38, "#a8632d", { opacity: 0 });
+            await api.tween(700, (t) => l1.setAttribute("opacity", t));
+            await api.wait(900);
+            const l2 = T(v, 500, 455, "3 + 20 = 23", 44, "var(--accent-dark)", { opacity: 0 });
+            await api.tween(700, (t) => l2.setAttribute("opacity", t));
+            await api.wait(700);
+            const ladder = el("g", { opacity: 0 }, v);
+            ["( )", "powers", "× ÷", "+ −"].forEach((s, i) => {
+              const x = 135 + i * 200;
+              el("rect", { x, y: 494, width: 130, height: 50, rx: 18, fill: "#fff", stroke: "var(--accent)", "stroke-width": 3 }, ladder);
+              T(ladder, x + 65, 528, s, 26, INK);
+              if (i < 3) T(ladder, x + 165, 528, "→", 30, MUTED);
+            });
+            await api.tween(700, (t) => ladder.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "A mental strategy: double one factor and halve the other. The rectangle changes shape but keeps its area, so 25 × 16 = 50 × 8 = 100 × 4 = 400.",
+          async draw(v, api) {
+            const defs = el("defs", {}, v);
+            const pat = el("pattern", { id: "md-sq", width: 8, height: 8, patternUnits: "userSpaceOnUse" }, defs);
+            el("rect", { width: 8, height: 8, fill: "#a9d4f5", stroke: "#1e6fb0", "stroke-width": 0.6 }, pat);
+            const cy = 300;
+            const r = el("rect", { fill: "url(#md-sq)", stroke: "#1e6fb0", "stroke-width": 3 }, v);
+            const wl = T(v, 500, 0, "", 30, INK);
+            const hl = T(v, 0, 0, "", 30, INK, { "text-anchor": "end" });
+            const top = T(v, 500, 80, "25 × 16", 56, INK);
+            const set = (a, b) => {
+              const w = a * 8;
+              const h = b * 8;
+              r.setAttribute("x", 500 - w / 2);
+              r.setAttribute("y", cy - h / 2);
+              r.setAttribute("width", w);
+              r.setAttribute("height", h);
+              wl.setAttribute("y", cy - h / 2 - 14);
+              hl.setAttribute("x", 500 - w / 2 - 12);
+              hl.setAttribute("y", cy + 10);
+            };
+            set(25, 16);
+            wl.textContent = "25";
+            hl.textContent = "16";
+            await api.wait(1500);
+            const steps = [[25, 16, 50, 8, "50 × 8"], [50, 8, 100, 4, "100 × 4"]];
+            for (const [a0, b0, a1, b1, label] of steps) {
+              wl.textContent = "";
+              hl.textContent = "";
+              await api.tween(1400, (t) => set(a0 + (a1 - a0) * t, b0 + (b1 - b0) * t));
+              wl.textContent = a1;
+              hl.textContent = b1;
+              top.textContent = top.textContent + " = " + label;
+              MUSIC.play("harp", 72 + (a1 === 100 ? 7 : 4), { gain: 0.35 });
+              await api.wait(1600);
+            }
+            top.setAttribute("font-size", 44);
+            const end = T(v, 500, 470, "= 400 square units: same area, friendlier factors", 32, "var(--accent-dark)", { opacity: 0 });
+            await api.tween(800, (t) => end.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "Explain it. In two to four sentences, explain to a grown-up why the four partial products of 23 × 14 add up to the whole answer.",
+          async draw(v, api) {
+            const card = el("g", { opacity: 0 }, v);
+            el("rect", { x: 80, y: 40, width: 840, height: 480, rx: 30, fill: "#f4f8fd", stroke: "#1e6fb0", "stroke-width": 5 }, card);
+            T(card, 500, 110, "🗣️ Explain it", 42);
+            para(card, 500, 180, EXPLAIN.md0.q, { size: 32, max: 44, anchor: "middle" });
+            T(card, 500, 340, "2–4 full sentences, aloud or in writing.", 26, MUTED);
+            T(card, 500, 420, `Begin: “${EXPLAIN.md0.start}”`, 28, "#1e6fb0");
+            await api.tween(900, (t) => card.setAttribute("opacity", t));
+          },
+        },
+      ],
+      { alive: () => my === token, onDone: () => shell.go("md1"), title: "Big Multiply & Divide" }
+    );
+  },
+
+  // ---------- Times tables to 12 ----------
+  md1() {
+    const my = token;
+    const saved = shell.progress().md1 || {};
+    let mode = saved.mode || "nine";
+    const grid = { ...(saved.grid || {}) };
+    let g = newGame();
+    let list = [];
+    let q = null;
+    let busy = false;
+    const MODES = [["nine", "×9"], ["eleven", "×11"], ["square", "Squares"], ["mixed", "Any to 12"], ["big", "Teens × 1-digit"]];
+    panel(`<div class="ap-row"><div class="ap-chips" data-modes>${MODES.map(([k, l]) => `<button type="button" data-m="${k}" aria-pressed="${k === mode}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div><div class="md-in" data-input></div>`);
+    const CS = 41;
+    const GX = 18;
+    const GY = 14;
+    const cells = {};
+    const heads = {};
+    let qText;
+    let vis;
+    const key = (a, b) => (a <= b ? `${a},${b}` : `${b},${a}`);
+    const paint = (a, b, kind) => {
+      for (const [r, c] of [[a, b], [b, a]]) {
+        const cell = cells[`${r},${c}`];
+        if (!cell) continue;
+        cell.rect.setAttribute("fill", kind === "g" ? "#9fd3a8" : "#f6e3a1");
+        cell.t.textContent = r * c;
+        cell.t.setAttribute("font-size", r * c >= 100 ? 19 : 22);
+      }
+    };
+    const draw = () => {
+      fresh();
+      for (let r = 0; r <= 12; r++)
+        for (let c = 0; c <= 12; c++) {
+          const x = GX + c * CS;
+          const y = GY + r * CS;
+          const head = r === 0 || c === 0;
+          const rect = el("rect", { x: x + 1, y: y + 1, width: CS - 2, height: CS - 2, rx: 7, fill: r === 0 && c === 0 ? "var(--accent)" : head ? "#f3e6d0" : r === c ? "#fbf5ea" : "#fffcf6", stroke: r === c && !head ? "#e0a96d" : "#e6dccd", "stroke-width": 1.5 }, view);
+          const t = T(view, x + CS / 2, y + CS / 2 + 8, r === 0 && c === 0 ? "×" : head ? r || c : "", 22, r === 0 && c === 0 ? "#fff" : head ? INK : "#2b1d12", { "font-weight": head ? 900 : 700 });
+          if (head && !(r === 0 && c === 0)) heads[r === 0 ? `c${c}` : `r${r}`] = { rect, t };
+          else if (!head) cells[`${r},${c}`] = { rect, t };
+        }
+      for (const [k, kind] of Object.entries(grid)) {
+        const [a, b] = k.split(",").map(Number);
+        paint(a, b, kind);
+      }
+      el("rect", { x: 575, y: 14, width: 410, height: 532, rx: 26, fill: SOFT, stroke: "#eadcc6", "stroke-width": 2 }, view);
+      qText = T(view, 780, 110, "", 66, INK);
+      vis = el("g", {}, view);
+    };
+    const light = (a, b) => {
+      if (a > 12 || b > 12) {
+        view.querySelectorAll(".md-q").forEach((n) => n.remove());
+        Object.values(heads).forEach((h) => {
+          h.rect.setAttribute("fill", "#f3e6d0");
+          h.t.setAttribute("fill", INK);
+        });
+        return;
+      }
+      Object.values(heads).forEach((h) => {
+        h.rect.setAttribute("fill", "#f3e6d0");
+        h.t.setAttribute("fill", INK);
+      });
+      view.querySelectorAll(".md-q").forEach((n) => n.remove());
+      for (const k of [`r${a}`, `c${b}`]) {
+        heads[k].rect.setAttribute("fill", "var(--accent)");
+        heads[k].t.setAttribute("fill", "#fff");
+      }
+      const cell = cells[`${a},${b}`];
+      const ring = el("rect", { class: "md-q", x: GX + b * CS - 1, y: GY + a * CS - 1, width: CS + 2, height: CS + 2, rx: 9, fill: "none", stroke: "#e0603a", "stroke-width": 4 }, view);
+      if (!grid[key(a, b)]) {
+        const qm = T(view, GX + b * CS + CS / 2, GY + a * CS + CS / 2 + 8, "?", 24, "#e0603a", { class: "md-q" });
+        view.appendChild(qm);
+      }
+      view.appendChild(ring);
+      void cell;
+    };
+    // ✋ ten fingers; finger n bent shows the 9 times trick.
+    const fingers = (bent) => {
+      vis.innerHTML = "";
+      const fx = (i) => 612 + i * 34 + (i >= 5 ? 22 : 0);
+      el("rect", { x: 604, y: 318, width: 176, height: 96, rx: 34, fill: "#f6c9a0", stroke: "#b7835a", "stroke-width": 2 }, vis);
+      el("rect", { x: 796, y: 318, width: 176, height: 96, rx: 34, fill: "#f6c9a0", stroke: "#b7835a", "stroke-width": 2 }, vis);
+      for (let i = 0; i < 10; i++) {
+        const n = i + 1;
+        const tall = [86, 106, 116, 104, 70, 70, 104, 116, 106, 86][i];
+        const h = n === bent ? 34 : tall;
+        el("rect", { x: fx(i), y: 330 - h, width: 28, height: h + 10, rx: 14, fill: n === bent ? "#e8a878" : "#f6c9a0", stroke: "#b7835a", "stroke-width": 2 }, vis);
+        T(vis, fx(i) + 14, 330 - h - 12, n, 22, n === bent ? "#e0603a" : MUTED);
+      }
+      if (bent) {
+        T(vis, 780, 456, `${bent - 1} fingers left of it → ${bent - 1} tens`, 24, "#1e6fb0");
+        T(vis, 780, 494, `${10 - bent} fingers right of it → ${10 - bent} ones`, 24, "#2e7d46");
+        T(vis, 780, 532, `9 × ${bent} = ${9 * bent}`, 28, INK);
+      }
+    };
+    const dots = (a, b, split = 0) => {
+      vis.innerHTML = "";
+      const p = Math.min(28, 300 / Math.max(a, b));
+      const x0 = 780 - (p * b) / 2;
+      const y0 = 200;
+      for (let r = 0; r < a; r++) for (let c = 0; c < b; c++) el("circle", { cx: x0 + c * p + p / 2, cy: y0 + r * p + p / 2, r: p * 0.36, fill: split && c >= split ? "#1e88e5" : "#e0603a" }, vis);
+      T(vis, 780, y0 - 16, `${a} rows of ${b}`, 24, MUTED);
+    };
+    const lines = (arr) => {
+      vis.innerHTML = "";
+      arr.forEach((s, i) => T(vis, 780, 230 + i * 62, s, i === arr.length - 1 ? 40 : 34, i === arr.length - 1 ? "var(--accent-dark)" : INK));
+    };
+    // A strategy for any fact: what to ask first, and why it works.
+    const strat = (a, b) => {
+      const p = a * b;
+      const hi = Math.max(a, b);
+      const lo = Math.min(a, b);
+      if (hi > 12) return { hint: `Decompose ${hi} as 10 + ${hi - 10}. What are 10 × ${lo} and ${hi - 10} × ${lo}?`, why: `10 × ${lo} = ${10 * lo}, ${hi - 10} × ${lo} = ${(hi - 10) * lo}, and ${10 * lo} + ${(hi - 10) * lo} = ${p}. This is the distributive property.`, show: () => lines([`${hi} × ${lo}`, `= 10 × ${lo} + ${hi - 10} × ${lo}`, `= ${10 * lo} + ${(hi - 10) * lo}`, `= ${p}`]) };
+      if (lo === 1) return { hint: `What is a single group of ${hi}?`, why: `One group of ${hi} is ${hi}.`, show: () => dots(a, b) };
+      if (a === 10 || b === 10) return { hint: `Multiplying by 10 shifts every digit one place to the left. What does ${lo === 10 ? hi : lo} become?`, why: `${a} × ${b} = ${p}: multiplying by 10 shifts each digit one place left, leaving 0 in the ones place.`, show: () => dots(a, b) };
+      if (a === 9 || b === 9) {
+        const m = a === 9 ? b : a;
+        return { hint: `Nine is one less than ten. What is 10 × ${m}? How many ${m}s too many is that?`, why: `10 × ${m} = ${10 * m}, and ${10 * m} − ${m} = ${p}.`, show: () => (m <= 10 ? fingers(m) : lines([`9 × ${m}`, `= 10 × ${m} − ${m}`, `= ${10 * m} − ${m}`, `= ${p}`])) };
+      }
+      if (a === 11 || b === 11) {
+        const m = a === 11 ? b : a;
+        return { hint: `Eleven is ten plus one. What is 10 × ${m}, and what must be added to it?`, why: `10 × ${m} = ${10 * m}, and ${10 * m} + ${m} = ${p}.`, show: () => lines([`11 × ${m}`, `= 10 × ${m} + ${m}`, `= ${10 * m} + ${m}`, `= ${p}`]) };
+      }
+      if (a === 12 || b === 12) {
+        const m = a === 12 ? b : a;
+        return { hint: `Twelve is ten plus two. What are ${m} × 10 and ${m} × 2?`, why: `${m} × 10 = ${10 * m}, ${m} × 2 = ${2 * m}, and ${10 * m} + ${2 * m} = ${p}.`, show: () => lines([`${m} × 12`, `= ${m} × 10 + ${m} × 2`, `= ${10 * m} + ${2 * m}`, `= ${p}`]) };
+      }
+      if (a === b && a > 5) return { hint: `Consider the square of dots split into two blocks. What is ${a} × 5, and what is ${a} × ${a - 5}?`, why: `${a} × 5 = ${a * 5}, and ${a} × ${a - 5} = ${a * (a - 5)}. Together ${p}.`, show: () => dots(a, a, 5) };
+      const even = [hi, lo].find((n) => n % 2 === 0 && n >= 4);
+      if (even) {
+        const m = even === hi ? lo : hi;
+        return { hint: `Use doubling: what is ${m} × ${even / 2}, and how does it relate to ${m} × ${even}?`, why: `${m} × ${even / 2} = ${(m * even) / 2}, and double that is ${p}.`, show: () => dots(m, even, even / 2) };
+      }
+      if (hi > 5) return { hint: `Split ${hi} as 5 + ${hi - 5}. What are ${lo} × 5 and ${lo} × ${hi - 5}?`, why: `${lo} × 5 = ${lo * 5}, ${lo} × ${hi - 5} = ${lo * (hi - 5)}, together ${p}.`, show: () => dots(lo, hi, 5) };
+      return { hint: `Skip-count by ${hi}, ${lo} times. Where do you land?`, why: `${lo} groups of ${hi} make ${p}.`, show: () => dots(lo, hi) };
+    };
+    const why = (a, b) => {
+      const p = a * b;
+      if (mode === "nine" && b <= 10) return `Bend finger ${b}: ${b - 1} fingers on the left are the tens, ${10 - b} on the right are the ones. It works because 9 × ${b} = ${10 * b} − ${b}.`;
+      if (mode === "square") return `${a} rows of ${a} make a square. Square numbers sit on the diagonal of the grid.`;
+      return strat(a, b).why.replace(`${a} × ${b} = ${p}. `, "");
+    };
+    const makeList = () => {
+      const nums = shuffle([...Array(12).keys()].map((i) => i + 1));
+      if (mode === "nine") return nums.slice(0, 10).map((b) => [9, b]);
+      if (mode === "eleven") return nums.slice(0, 10).map((b) => [11, b]);
+      if (mode === "square") return shuffle([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]).slice(0, 10).map((n) => [n, n]);
+      if (mode === "big") return shuffle([13, 14, 15, 16, 17, 18, 19, 13, 14, 15, 16, 17, 18, 19]).slice(0, 10).map((a) => [a, pickInt(3, 9)]);
+      const all = [];
+      for (let a = 2; a <= 12; a++) for (let b = a; b <= 12; b++) all.push([a, b]);
+      const open = shuffle(all.filter(([a, b]) => !grid[key(a, b)]));
+      const rest = shuffle(all.filter(([a, b]) => grid[key(a, b)]));
+      return [...open, ...rest].slice(0, 10).map(([a, b]) => (Math.random() < 0.5 ? [a, b] : [b, a]));
+    };
+    const showStatus = () => status(`Fact ${Math.min(g.round + 1, 10)} of 10 · grid ${Object.keys(grid).length} of 78`);
+    const ask = () => {
+      if (my !== token) return;
+      const [a, b] = list[g.round];
+      q = { a, b };
+      g.tries = 0;
+      busy = false;
+      light(a, b);
+      qText.textContent = `${a} × ${b} = ?`;
+      vis.innerHTML = "";
+      if (mode === "nine") fingers(0);
+      if (mode === "square") T(vis, 780, 300, "⬛", 90);
+      showStatus();
+      askNum(answer, 3);
+      say(mode === "nine" && b <= 10 ? `What is 9 × ${b}? Your fingers can help.` : `What is ${a} × ${b}?`);
+    };
+    const done = async (first) => {
+      const { a, b } = q;
+      const p = a * b;
+      if (a <= 12 && b <= 12) {
+        grid[key(a, b)] = first ? "g" : grid[key(a, b)] === "g" ? "g" : "y";
+        paint(a, b, grid[key(a, b)]);
+      }
+      shell.mark("md1", { grid, mode });
+      window.OC?.count("times facts");
+      qText.textContent = `${a} × ${b} = ${p}`;
+      if (mode === "nine" && b <= 10) fingers(b);
+      else strat(a, b).show();
+      if (first) g.firsts += 1;
+      await sayAsync(`${first ? pick(EFFORT) : ""} ${a} × ${b} = ${p}. ${why(a, b)}`);
+      if (my !== token) return;
+      await wait(900);
+      if (my !== token) return;
+      g.round += 1;
+      if (g.round >= 10) return finish("md1", 10, g, REAL.md1);
+      ask();
+    };
+    const answer = async (v) => {
+      if (my !== token || busy || !q) return;
+      window.OC?.touch();
+      const { a, b } = q;
+      if (v === a * b) {
+        busy = true;
+        MUSIC.chime();
+        return done(g.tries === 0);
+      }
+      const s = strat(a, b);
+      const nineHint = mode === "nine" && b <= 10;
+      if (g.tries === 0) {
+        if (nineHint) fingers(0);
+        else if (mode === "square") dots(a, a, a > 5 ? 5 : 0);
+      }
+      busy = true;
+      const revealed = await miss(g, nineHint ? `Hold up ten fingers and fold finger ${b}. How many fingers stand to its left, and how many to its right?` : s.hint, `${a} × ${b} = ${a * b}. ${nineHint ? why(a, b) : s.why}`);
+      if (my !== token) return;
+      if (revealed) return done(false);
+      busy = false;
+      $("[data-input]") && askNum(answer, 3);
+    };
+    $("[data-modes]").addEventListener("click", (event) => {
+      const b = event.target.closest("[data-m]");
+      if (!b) return;
+      mode = b.dataset.m;
+      document.querySelectorAll("[data-m]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      shell.mark("md1", { mode });
+      window.OC?.touch();
+      start();
+    });
+    const start = () => {
+      g = newGame();
+      list = makeList();
+      draw();
+      ask();
+    };
+    start();
+  },
+
+  // ---------- Area model ----------
+  md2() {
+    const my = token;
+    let level = shell.progress().md2?.level || "g4";
+    let g = newGame();
+    const ROUNDS = 8;
+    let q;
+    let parts = [];
+    let tiles = [];
+    let sel = null;
+    let drag = null;
+    let busy = false;
+    let phase = "drag";
+    panel(levelRow(level));
+    const WT = [1.1, 1.8, 2.6, 3.4];
+    const place = (n) => String(n).length - 1;
+    const twoDigit = () => pickInt(1, 9) * 10 + pickInt(1, 9);
+    const make = () => {
+      const three = () => pickInt(1, 9) * 100 + pickInt(0, 9) * 10 + pickInt(1, 9);
+      const four = () => pickInt(1, 9) * 1000 + pickInt(1, 9) * 100 + pickInt(0, 9) * 10 + pickInt(1, 9);
+      if (level === "g4") return { a: Math.random() < 0.5 ? twoDigit() : three(), b: pickInt(3, 9) };
+      if (level === "g5") return { a: Math.random() < 0.4 ? twoDigit() : three(), b: twoDigit() };
+      return Math.random() < 0.5 ? { a: three(), b: three() } : { a: four(), b: twoDigit() };
+    };
+    const setT = (t) => t.g.setAttribute("transform", `translate(${t.x} ${t.y})`);
+    const home = (t) => {
+      const fx = t.x;
+      const fy = t.y;
+      tween(350, (k) => {
+        t.x = fx + (t.hx - fx) * k;
+        t.y = fy + (t.hy - fy) * k;
+        setT(t);
+      }, () => my === token);
+    };
+    const select = (t) => {
+      tiles.forEach((x) => x.box.setAttribute("stroke-width", 3));
+      sel = sel === t ? null : t;
+      if (sel) {
+        sel.box.setAttribute("stroke-width", 7);
+        say(`Now tap the region where ${fmt(sel.v)} belongs.`, { voice: false });
+      }
+    };
+    const draw = () => {
+      fresh();
+      const cols = expand(q.a);
+      const rows = expand(q.b);
+      const AW = 540;
+      const AH = rows.length > 1 ? 330 : 190;
+      const X0 = 160;
+      const Y0 = rows.length > 1 ? 112 : 150;
+      const cw = cols.map((v) => WT[place(v)]);
+      const ch = rows.map((v) => WT[place(v)]);
+      T(view, X0 + AW / 2, 54, `${q.a} × ${q.b}`, 44);
+      parts = [];
+      let y = Y0;
+      rows.forEach((rv, r) => {
+        const h = (AH * ch[r]) / sum(ch);
+        T(view, X0 - 14, y + h / 2 + 10, rv, 28, "var(--accent-dark)", { "text-anchor": "end" });
+        let x = X0;
+        cols.forEach((cv, c) => {
+          const w = (AW * cw[c]) / sum(cw);
+          if (r === 0) T(view, x + w / 2, Y0 - 14, cv, 28, "var(--accent-dark)");
+          const pg = el("g", { class: "md-part", "data-i": parts.length }, view);
+          const rect = el("rect", { x, y, width: w, height: h, fill: "#fffcf6", stroke: "#b9a58a", "stroke-width": 3, "stroke-dasharray": "10 8" }, pg);
+          const t = T(pg, x + w / 2, y + h / 2 + 11, "?", 30, "#c9b8a1");
+          parts.push({ x, y, w, h, cv, rv, v: cv * rv, rect, t, r, c, tries: 0, done: false });
+          x += w;
+        });
+        y += h;
+      });
+      const vals = parts.map((p) => p.v);
+      const src = pick(parts.filter((p) => p.v % 10 === 0)) || parts[0];
+      let fake = src.v % 10 === 0 ? src.v / 10 : src.v * 10;
+      if (vals.includes(fake)) fake = src.v * 10;
+      while (vals.includes(fake)) fake += 10;
+      T(view, 875, 66, "Drag each number", 22, MUTED);
+      const two = vals.length + 1 > 7;
+      tiles = shuffle([...vals, fake]).map((v, i) => {
+        const hx = two ? 768 + (i % 2) * 112 : 780;
+        const hy = 86 + (two ? Math.floor(i / 2) : i) * 64;
+        const tg = el("g", { class: "md-tile", "data-i": i, transform: `translate(${hx} ${hy})` }, view);
+        const box = el("rect", { width: two ? 104 : 190, height: 54, rx: 16, fill: "#fff", stroke: "var(--accent)", "stroke-width": 3 }, tg);
+        T(tg, two ? 52 : 95, 37, fmt(v), two ? (fmt(v).length > 6 ? 19 : 23) : 30);
+        return { g: tg, box, v, hx, hy, x: hx, y: hy, used: false };
+      });
+    };
+    const ask = () => {
+      if (my !== token) return;
+      q = make();
+      g.tries = 0;
+      g.clean = true;
+      busy = false;
+      sel = null;
+      phase = "drag";
+      draw();
+      input().innerHTML = "";
+      input().onclick = null;
+      status(`Problem ${g.round + 1} of ${ROUNDS}`);
+      say(g.round === 0 ? `Drag each partial product into the region whose area it measures. One number is a distractor (a deliberate wrong option).` : `Drag each partial product into its region. One number is a distractor.`);
+    };
+    const tryPlace = (tile, part) => {
+      if (my !== token || busy || part.done) return home(tile);
+      sel = null;
+      tiles.forEach((x) => x.box.setAttribute("stroke-width", 3));
+      window.OC?.touch();
+      if (tile.v === part.v) {
+        part.done = true;
+        tile.used = true;
+        tile.g.remove();
+        part.rect.setAttribute("fill", ROWC[part.r]);
+        part.rect.removeAttribute("stroke-dasharray");
+        part.rect.setAttribute("stroke", "#5a4130");
+        part.t.textContent = fmt(part.v);
+        part.t.setAttribute("fill", INK);
+        const left = parts.filter((p) => !p.done).length;
+        MUSIC.play("xylophone", 72 + (parts.length - left) * 2, { gain: 0.4 });
+        if (left) say(`Correct: ${part.cv} × ${part.rv} = ${fmt(part.v)}. ${left} region${left > 1 ? "s" : ""} remaining.`);
+        else totalPhase();
+        return;
+      }
+      home(tile);
+      MUSIC.oops();
+      g.clean = false;
+      part.tries += 1;
+      const [d1, z1] = lead(part.cv);
+      const [d2, z2] = lead(part.rv);
+      if (part.tries === 1) say(`${pick(TRY)} This region measures ${part.cv} by ${part.rv}. What is ${d1} × ${d2}, and how many zeros must follow it?`);
+      else {
+        say(`Here is the reasoning. ${d1} × ${d2} = ${d1 * d2}, then add ${z1 + z2} zero${z1 + z2 === 1 ? "" : "s"}: ${part.cv} × ${part.rv} = ${fmt(part.v)}. Drag that number here.`);
+        const right = tiles.find((t) => !t.used && t.v === part.v);
+        if (right) right.box.setAttribute("stroke", "#e0603a");
+      }
+    };
+    const totalPhase = () => {
+      phase = "total";
+      tiles.filter((t) => !t.used).forEach((t) => tween(600, (k) => t.g.setAttribute("opacity", 1 - k * 0.75), () => my === token));
+      T(view, 875, 548, "extra number not needed", 20, MUTED);
+      const str = parts.map((p) => fmt(p.v)).join(" + ") + " = ?";
+      T(view, 500, 522, str, Math.max(18, Math.min(30, 1700 / str.length)), INK, { class: "md-sum" });
+      g.tries = 0;
+      say("Every region is complete. Add the partial products. What is the total area?");
+      askNum(totalAnswer, 6);
+    };
+    const rowsOf = () => {
+      const rows = expand(q.b);
+      return rows.map((rv, r) => ({ rv, parts: parts.filter((p) => p.r === r), val: q.a * rv }));
+    };
+    const totalAnswer = async (v) => {
+      if (my !== token || busy || phase !== "total") return;
+      window.OC?.touch();
+      const total = q.a * q.b;
+      if (v === total) {
+        busy = true;
+        MUSIC.chime();
+        if (g.clean) g.firsts += 1;
+        view.querySelector(".md-sum").textContent = parts.map((p) => fmt(p.v)).join(" + ") + " = " + fmt(total);
+        await sayAsync(`${pick(EFFORT)} ${q.a} × ${q.b} = ${fmt(total)}.`);
+        if (my !== token) return;
+        return compare();
+      }
+      busy = true;
+      const rows = rowsOf();
+      const hint = rows.length > 1 ? `Work one strip at a time. What does the top strip make, ${rows[0].parts.map((p) => fmt(p.v)).join(" + ")}?` : `Add the largest partial product first, then the smaller ones. Check each place value.`;
+      const why = rows.length > 1 ? `${rows.map((r) => `${r.parts.map((p) => fmt(p.v)).join(" + ")} = ${fmt(r.val)}`).join(". ")}. Then ${rows.map((r) => fmt(r.val)).join(" + ")} = ${fmt(total)}.` : `${parts.map((p) => fmt(p.v)).join(" + ")} = ${fmt(total)}.`;
+      const revealed = await miss(g, hint, why);
+      if (my !== token) return;
+      busy = false;
+      if (revealed) {
+        busy = true;
+        return compare();
+      }
+      askNum(totalAnswer, 6);
+    };
+    // The same parts, drawn as the area model and as the column way.
+    const compare = async () => {
+      fresh();
+      busy = true;
+      const rows = rowsOf();
+      const cols = expand(q.a);
+      const AW = 290;
+      const AH = rows.length > 1 ? 250 : 140;
+      const X0 = 60;
+      const Y0 = 130;
+      const cw = cols.map((v) => WT[place(v)]);
+      const ch = rows.map((r) => WT[place(r.rv)]);
+      T(view, X0 + AW / 2, 70, `${q.a} × ${q.b}`, 34);
+      let y = Y0;
+      const strips = [];
+      rows.forEach((row, r) => {
+        const h = (AH * ch[r]) / sum(ch);
+        let x = X0;
+        const sg = el("g", { opacity: 0.35 }, view);
+        strips.push(sg);
+        cols.forEach((cv, c) => {
+          const w = (AW * cw[c]) / sum(cw);
+          el("rect", { x, y, width: w, height: h, fill: ROWC[r], stroke: "#5a4130", "stroke-width": 2 }, sg);
+          T(sg, x + w / 2, y + h / 2 + 8, fmt(cv * row.rv), cv * row.rv >= 1000 ? 20 : 22, INK);
+          x += w;
+        });
+        T(view, X0 - 10, y + h / 2 + 8, row.rv, 22, MUTED, { "text-anchor": "end" });
+        if (r === 0) {
+          let cxp = X0;
+          cols.forEach((cv, c) => {
+            const w = (AW * cw[c]) / sum(cw);
+            T(view, cxp + w / 2, Y0 - 10, cv, 22, MUTED);
+            cxp += w;
+          });
+        }
+        y += h;
+      });
+      T(view, X0 + AW / 2, Y0 + AH + 40, "area model", 24, MUTED);
+      const RX = 900;
+      const CW = 44;
+      const n = String(q.a * q.b).length + 1;
+      const digits = (str, yy, fill = INK) => String(str).split("").reverse().forEach((d, i) => T(view, RX - i * CW, yy, d, 44, fill));
+      digits(q.a, 110);
+      digits(q.b, 166);
+      T(view, RX - String(q.b).length * CW - 6, 166, "×", 44);
+      el("line", { x1: RX - n * CW, x2: RX + 26, y1: 186, y2: 186, stroke: INK, "stroke-width": 4 }, view);
+      T(view, RX - (n - 1) * CW / 2, 266 + (rows.length > 1 ? rows.length + 1 : 1) * 58, "column way", 24, MUTED);
+      const std = [...rows].reverse();
+      for (let i = 0; i < std.length; i++) {
+        const row = std[i];
+        const r = rows.indexOf(row);
+        const yy = 240 + i * 58;
+        el("rect", { x: RX - n * CW, y: yy - 40, width: n * CW + 26, height: 52, rx: 10, fill: ROWC[r], opacity: 0.7 }, view);
+        digits(row.val, yy);
+        T(view, RX - n * CW - 14, yy - 2, `${q.a} × ${row.rv}`, 24, ROWD[r], { "text-anchor": "end" });
+        await tween(800, (k) => strips[r].setAttribute("opacity", 0.35 + 0.65 * k), () => my === token);
+        if (my !== token) return;
+        MUSIC.play("xylophone", 76 + i * 3, { gain: 0.35 });
+        await wait(500);
+      }
+      if (std.length > 1) {
+        const yy = 240 + std.length * 58;
+        el("line", { x1: RX - n * CW, x2: RX + 26, y1: yy - 34, y2: yy - 34, stroke: INK, "stroke-width": 4 }, view);
+        T(view, RX - (n - 1) * CW, yy - 60, "+", 36, INK);
+        digits(q.a * q.b, yy + 16, "var(--accent-dark)");
+      }
+      const ones = rows[rows.length - 1];
+      const msg =
+        rows.length > 1
+          ? `The column method writes one row for each part of ${q.b}: ${std.map((r) => `${q.a} × ${r.rv} = ${fmt(r.val)}`).join(", ")}. Each row is one strip of the rectangle.`
+          : `The column way finds the same thing: ${q.a} × ${q.b} = ${parts.map((p) => fmt(p.v)).join(" + ")} = ${fmt(q.a * q.b)}.`;
+      say(msg);
+      window.OC?.count("area models");
+      busy = false;
+      askNext(g.round + 1 >= ROUNDS ? "Finish ▶" : "Next ▶", () => {
+        if (my !== token) return;
+        g.round += 1;
+        if (g.round >= ROUNDS) return finish("md2", ROUNDS, g, REAL.md2);
+        ask();
+      });
+    };
+    stage.addEventListener("pointerdown", (e) => {
+      if (my !== token || busy || phase !== "drag" || !view) return;
+      const tg = e.target.closest(".md-tile");
+      if (tg) {
+        const tile = tiles[Number(tg.dataset.i)];
+        if (!tile || tile.used) return;
+        const p = svgPt(e);
+        drag = { tile, dx: p.x - tile.x, dy: p.y - tile.y, sx: p.x, sy: p.y, moved: false };
+        tg.parentNode.appendChild(tg);
+        e.preventDefault();
+        return;
+      }
+      const pg = e.target.closest(".md-part");
+      if (pg) {
+        const part = parts[Number(pg.dataset.i)];
+        if (sel) tryPlace(sel, part);
+        else if (!part.done) say("Drag a number here. Or tap a number, then tap this part.", { voice: false });
+      }
+    });
+    const onMove = (e) => {
+      if (my !== token) return removeEventListener("pointermove", onMove);
+      if (!drag) return;
+      const p = svgPt(e);
+      if (Math.hypot(p.x - drag.sx, p.y - drag.sy) > 8) drag.moved = true;
+      drag.tile.x = p.x - drag.dx;
+      drag.tile.y = p.y - drag.dy;
+      setT(drag.tile);
+    };
+    const onUp = (e) => {
+      if (my !== token) return removeEventListener("pointerup", onUp);
+      if (!drag) return;
+      const d = drag;
+      drag = null;
+      const p = svgPt(e);
+      if (!d.moved) return select(d.tile);
+      const part = parts.find((pt) => !pt.done && p.x >= pt.x && p.x <= pt.x + pt.w && p.y >= pt.y && p.y <= pt.y + pt.h);
+      if (part) tryPlace(d.tile, part);
+      else home(d.tile);
+    };
+    addEventListener("pointermove", onMove);
+    addEventListener("pointerup", onUp);
+    onLevels("md2", (lv) => {
+      level = lv;
+      g = newGame();
+      ask();
+    });
+    window.__md2 = { place: (i, j) => tryPlace(tiles[i], parts[j]), state: () => ({ q, phase, parts: parts.map((p) => ({ v: p.v, done: p.done })), tiles: tiles.map((t) => ({ v: t.v, used: t.used })) }) };
+    ask();
+  },
+
+  // ---------- Column multiplication ----------
+  md3() {
+    const my = token;
+    let level = shell.progress().md3?.level || "g4";
+    let g = newGame();
+    const ROUNDS = 6;
+    let q;
+    let steps = [];
+    let si = 0;
+    let busy = false;
+    let info;
+    let carryEls = [];
+    let hlTop;
+    let hlBot;
+    panel(levelRow(level));
+    const RX = 540;
+    const CW = 60;
+    const FS = 54;
+    const cx = (col) => RX - col * CW;
+    let Y = { carry: 92, top: 152, bot: 220, line: 242, rows: [302, 366], line2: 390, sum: 452 };
+    const nz = (lo, hi) => {
+      let n;
+      do n = pickInt(lo, hi);
+      while (String(n).includes("0"));
+      return n;
+    };
+    const make = () => {
+      if (level === "g4") return { a: Math.random() < 0.5 ? pickInt(102, 989) : pickInt(1023, 9879), b: pickInt(3, 9) };
+      if (level === "g5") return Math.random() < 0.4 ? { a: nz(23, 98), b: nz(13, 98) } : { a: pickInt(123, 987), b: nz(13, 98) };
+      return Math.random() < 0.5 ? { a: pickInt(123, 987), b: nz(123, 987) } : { a: pickInt(1023, 9876), b: nz(13, 98) };
+    };
+    const PLACE = ["ones", "tens", "hundreds"];
+    const rowHead = (s) => (s.r === 0 ? `Row 1: times the ${s.b} ones` : `Row ${s.r + 1}: times the ${s.b} ${PLACE[s.r]}`);
+    const put = (y, col, d, fill = INK, size = FS) => T(view, cx(col), y, d, size, fill);
+    const infoSet = (head, big, note = "") => {
+      info.innerHTML = "";
+      T(info, 800, 100, head, 24, MUTED);
+      T(info, 800, 200, big, big.length > 20 ? 28 : big.length > 12 ? 38 : 50, INK);
+      if (note) note.split("\n").forEach((l, i) => T(info, 800, 300 + i * 40, l, 28, "var(--accent-dark)"));
+    };
+    const draw = () => {
+      fresh();
+      Y = String(q.b).length > 2 ? { carry: 78, top: 132, bot: 194, line: 214, rows: [264, 316, 368], line2: 390, sum: 444 } : { carry: 92, top: 152, bot: 220, line: 242, rows: [302, 366], line2: 390, sum: 452 };
+      hlTop = el("rect", { width: 52, height: 62, rx: 12, fill: "#fde68a", opacity: 0 }, view);
+      hlBot = el("rect", { width: 52, height: 62, rx: 12, fill: "#f9c6d0", opacity: 0 }, view);
+      digitsR(q.a).forEach((d, i) => put(Y.top, i, d));
+      digitsR(q.b).forEach((d, i) => put(Y.bot, i, d));
+      T(view, cx(String(q.b).length) - 4, Y.bot, "×", FS);
+      const width = String(q.a * q.b).length + 1;
+      el("line", { x1: cx(width) + 10, x2: RX + 32, y1: Y.line, y2: Y.line, stroke: INK, "stroke-width": 4 }, view);
+      el("rect", { x: 610, y: 30, width: 370, height: 500, rx: 26, fill: SOFT, stroke: "#eadcc6", "stroke-width": 2 }, view);
+      info = el("g", {}, view);
+    };
+    const mark = (rect, col, y) => {
+      rect.setAttribute("x", cx(col) - 26);
+      rect.setAttribute("y", y - 46);
+      rect.setAttribute("opacity", 1);
+    };
+    const build = () => {
+      const td = digitsR(q.a);
+      const bd = digitsR(q.b);
+      const out = [];
+      bd.forEach((b, r) => {
+        let carry = 0;
+        td.forEach((t, i) => {
+          const v = b * t + carry;
+          out.push({ kind: "mul", r, i, b, t, carry, v, last: i === td.length - 1 });
+          carry = Math.floor(v / 10);
+        });
+      });
+      if (bd.length > 1) out.push({ kind: "sum" });
+      return out;
+    };
+    const ask = () => {
+      if (my !== token) return;
+      q = make();
+      steps = build();
+      si = 0;
+      g.clean = true;
+      carryEls = [];
+      draw();
+      status(`Problem ${g.round + 1} of ${ROUNDS}`);
+      next(true);
+    };
+    const next = async (first = false) => {
+      if (my !== token) return;
+      if (si >= steps.length) return solved();
+      const s = steps[si];
+      g.tries = 0;
+      busy = false;
+      if (s.kind === "mul") {
+        if (s.i === 0) {
+          carryEls.forEach((c) => c.remove());
+          carryEls = [];
+          if (s.r > 0) {
+            busy = true;
+            for (let z = 0; z < s.r; z++) put(Y.rows[s.r], z, "0", "#b9a58a");
+            hlTop.setAttribute("opacity", 0);
+            mark(hlBot, s.r, Y.bot);
+            infoSet(`Row ${s.r + 1}: the ${PLACE[s.r]} digit`, `${s.b} ${PLACE[s.r]} = ${fmt(s.b * 10 ** s.r)}`, `write ${s.r === 1 ? "a 0" : "two 0s"} as\nplaceholder${s.r === 1 ? "" : "s"} first`);
+            await sayAsync(`Now multiply by the ${s.b} in the ${['ones','tens','hundreds'][s.r]} place. Its value is ${s.b * 10 ** s.r}, so first write ${s.r === 1 ? 'a zero' : s.r + ' zeros'} as a placeholder.`);
+            if (my !== token) return;
+            busy = false;
+          }
+        }
+        mark(hlTop, s.i, Y.top);
+        mark(hlBot, s.r, Y.bot);
+        infoSet(rowHead(s), s.carry ? `${s.b} × ${s.t} + ${s.carry}` : `${s.b} × ${s.t}`, "= ?");
+        say(first && g.round === 0 ? `Begin with the ones column. What is ${s.b} × ${s.t}?` : s.carry ? `What is ${s.b} × ${s.t}, plus the carried ${s.carry}?` : `What is ${s.b} × ${s.t}?`);
+        askNum(answer, 3);
+      } else {
+        hlTop.setAttribute("opacity", 0);
+        hlBot.setAttribute("opacity", 0);
+        const rows = digitsR(q.b).map((b, r) => q.a * b * 10 ** r);
+        const width = String(q.a * q.b).length + 1;
+        el("line", { x1: cx(width) + 10, x2: RX + 32, y1: Y.line2, y2: Y.line2, stroke: INK, "stroke-width": 4 }, view);
+        T(view, cx(width) + 6, Y.rows[rows.length - 1], "+", FS);
+        infoSet(`Add the ${rows.length} rows`, rows.map(fmt).join(" + "), "= ?");
+        say(`Now add the ${rows.length === 2 ? "two" : "three"} rows. What is the total?`);
+        askNum(answer, 6);
+      }
+    };
+    const write = (s) => {
+      const y = Y.rows[s.r];
+      if (s.last) {
+        put(y, s.i + s.r, s.v % 10);
+        if (s.v >= 10) put(y, s.i + s.r + 1, Math.floor(s.v / 10));
+      } else {
+        put(y, s.i + s.r, s.v % 10);
+        if (s.v >= 10) carryEls.push(T(view, cx(s.i + 1), Y.carry, Math.floor(s.v / 10), 30, "#d0573a"));
+      }
+    };
+    const answer = async (v) => {
+      if (my !== token || busy) return;
+      const s = steps[si];
+      window.OC?.touch();
+      const want = s.kind === "mul" ? s.v : q.a * q.b;
+      const ok = v === want;
+      busy = true;
+      if (!ok) {
+        const rows = digitsR(q.b).map((b, r) => q.a * b * 10 ** r);
+        const hint = s.kind === "sum" ? "Align the columns and add from the ones place. What does the ones column give?" : s.carry ? `What is ${s.b} × ${s.t} alone? Then include the carried ${s.carry}.` : `Consider ${s.b} groups of ${s.t}. Which nearby fact do you know?`;
+        const why = s.kind === "sum" ? `${rows.map(fmt).join(" + ")} = ${fmt(want)}.` : `${s.b} × ${s.t} = ${s.b * s.t}${s.carry ? `, plus ${s.carry} makes ${s.v}` : ""}.`;
+        const revealed = await miss(g, hint, why);
+        if (my !== token) return;
+        if (!revealed) {
+          busy = false;
+          return askNum(answer, s.kind === "sum" ? 6 : 3);
+        }
+      } else MUSIC.play("xylophone", 76 + (si % 6) * 2, { gain: 0.4 });
+      if (s.kind === "mul") {
+        write(s);
+        const msg = s.last ? `Write ${s.v}.` : s.v >= 10 ? `Write ${s.v % 10}, carry ${Math.floor(s.v / 10)}.` : `Write ${s.v}.`;
+        infoSet(rowHead(s), s.carry ? `${s.b} × ${s.t} + ${s.carry}` : `${s.b} × ${s.t}`, `= ${s.v}\n${msg.replace(".", "")}`);
+        await sayAsync(ok ? `${s.v}. ${msg}` : msg);
+      } else {
+        digitsR(want).forEach((d, i) => put(Y.sum, i, d, "var(--accent-dark)"));
+      }
+      if (my !== token) return;
+      si += 1;
+      next();
+    };
+    const solved = async () => {
+      busy = true;
+      hlTop.setAttribute("opacity", 0);
+      hlBot.setAttribute("opacity", 0);
+      MUSIC.chime();
+      if (g.clean) g.firsts += 1;
+      window.OC?.count("multiplications");
+      const ra = Number(String(q.a)[0]) * 10 ** (String(q.a).length - 1) + (Number(String(q.a)[1]) >= 5 ? 10 ** (String(q.a).length - 1) : 0);
+      const rb = q.b < 10 ? q.b : Math.round(q.b / 10) * 10;
+      infoSet("Check with an estimate", `${fmt(ra)} × ${rb} = ${fmt(ra * rb)}`, `same order of size,\nso it is reasonable`);
+      say(`${pick(EFFORT)} ${q.a} × ${q.b} = ${fmt(q.a * q.b)}. An estimate checks it: about ${fmt(ra)} × ${rb} = ${fmt(ra * rb)}, the same order of size, so the exact answer is reasonable.`);
+      askNext(g.round + 1 >= ROUNDS ? "Finish ▶" : "Next ▶", () => {
+        if (my !== token) return;
+        g.round += 1;
+        if (g.round >= ROUNDS) return finish("md3", ROUNDS, g, REAL.md3);
+        ask();
+      });
+    };
+    onLevels("md3", (lv) => {
+      level = lv;
+      g = newGame();
+      ask();
+    });
+    window.__md3 = { state: () => ({ q, step: steps[si], si, n: steps.length }) };
+    ask();
+  },
+
+  // ---------- Long division ----------
+  md4() {
+    const my = token;
+    let level = shell.progress().md4?.level || "g4";
+    let g = newGame();
+    const ROUNDS = 6;
+    let q;
+    let si = 0;
+    let busy = false;
+    let phase = "q";
+    let L;
+    let info;
+    let pills = [];
+    panel(levelRow(level));
+    const STORIES = [
+      { kind: "up", icon: "🚐", text: (N, d) => `${N} campers go on a trip. Each van holds ${d} campers. How many vans are needed?`, ask: "How many vans are needed?", unit: "vans", why: (q, r) => `${q} vans are full, but ${r} campers are still waiting, so they need one more van.` },
+      { kind: "down", icon: "🥚", text: (N, d) => `You pack ${N} eggs into boxes of ${d}. How many boxes can you fill all the way?`, ask: "How many full boxes?", unit: "boxes", why: (q, r) => `The ${r} extra eggs do not fill a box, so only ${q} boxes are full.` },
+      { kind: "rem", icon: "⭐", text: (N, d) => `${N} stickers are shared equally by ${d} children. How many stickers are left over?`, ask: "How many are left over?", unit: "stickers", why: (q, r) => `Each child gets ${q}, and the remainder ${r} is what is left over.` },
+      { kind: "down", icon: "🧵", text: (N, d) => `A tailor has ${N} cm of cloth. Each costume needs ${d} cm. How many complete costumes can be made?`, ask: "How many complete costumes?", unit: "costumes", why: (q, r) => `The last ${r} cm is not enough for a costume, so only ${q} can be completed.` },
+      { kind: "rem", icon: "🃏", text: (N, d) => `${N} cards are dealt equally to ${d} players until no more full rounds are possible. How many cards remain undealt?`, ask: "How many cards remain?", unit: "cards", why: (q, r) => `Each player receives ${q}; the remainder, ${r}, is undealt.` },
+      { kind: "up", icon: "⛵", text: (N, d) => `${N} visitors must cross a lake. A boat carries ${d} visitors per trip. How many trips are required?`, ask: "How many trips?", unit: "trips", why: (q, r) => `${q} full trips leave ${r} visitors on shore, so one more trip is required.` },
+      { kind: "up", icon: "📚", text: (N, d) => `A shelf holds ${d} books. You have ${N} books. How many shelves do you need for all of them?`, ask: "How many shelves?", unit: "shelves", why: (q, r) => `${q} shelves are full, and ${r} books still need a shelf, so one more.` },
+    ];
+    const make = () => {
+      const story = g.round === 2 || g.round === 5 ? pick(STORIES) : null;
+      let N;
+      let d;
+      do {
+        if (story) {
+          if (level === "g4") (d = pickInt(3, 9)), (N = pickInt(41, 400));
+          else if (level === "g5") (d = pick([6, 7, 8, 9, 12, 15, 16, 24])), (N = pickInt(100, 999));
+          else (d = pickInt(12, 48)), (N = pickInt(300, 4999));
+        } else if (level === "g4") (d = pickInt(2, 9)), (N = Math.random() < 0.6 ? pickInt(100, 999) : pickInt(1000, 9999));
+        else if (level === "g5") Math.random() < 0.5 ? ((d = pickInt(3, 9)), (N = pickInt(1000, 9999))) : ((d = pickInt(11, 39)), (N = pickInt(300, 4999)));
+        else (d = pickInt(11, 99)), (N = pickInt(2000, 99999));
+      } while (d % 10 === 0 || Math.floor(N / d) < 10 || (story && N % d === 0));
+      return { N, d, Q: Math.floor(N / d), R: N % d, story };
+    };
+    const build = (N, d) => {
+      const ds = String(N).split("").map(Number);
+      let cur = 0;
+      let started = false;
+      const out = [];
+      ds.forEach((digit, i) => {
+        cur = cur * 10 + digit;
+        if (!started && cur < d && i < ds.length - 1) return;
+        started = true;
+        const qd = Math.floor(cur / d);
+        out.push({ i, cur, qd, prod: qd * d, rem: cur - qd * d });
+        cur -= qd * d;
+      });
+      return out;
+    };
+    const lay = () => {
+      const n = String(q.N).length;
+      const Y0 = q.story ? 200 : 150;
+      const LH = Math.min(56, (545 - Y0) / (2 * q.steps.length));
+      const FS = Math.min(46, LH * 0.9);
+      const CW = FS * 1.12;
+      const X0 = 230;
+      return { n, Y0, LH, FS, CW, X0, col: (i) => X0 + i * CW };
+    };
+    const draw = () => {
+      fresh();
+      L = lay();
+      const { n, Y0, FS, CW, X0, col } = L;
+      if (q.story) {
+        el("rect", { x: 14, y: 10, width: 972, height: 104, rx: 20, fill: "#fdf3e1" }, view);
+        emoji(view, 66, 58, q.story.icon, 56);
+        para(view, 110, 50, q.story.text(q.N, q.d), { size: 26, max: 62 });
+      }
+      String(q.N).split("").forEach((d, i) => T(view, col(i), Y0, d, FS, INK, { class: "md-dd", "data-i": i }));
+      T(view, X0 - CW * 0.78, Y0, q.d, FS, INK, { "text-anchor": "end" });
+      el("path", { d: `M${X0 - CW * 0.66} ${Y0 + FS * 0.25}Q${X0 - CW * 0.32} ${Y0 - FS * 0.35} ${X0 - CW * 0.62} ${Y0 - FS * 1.0}L${col(n - 1) + CW * 0.62} ${Y0 - FS * 1.0}`, fill: "none", stroke: INK, "stroke-width": 4, "stroke-linecap": "round" }, view);
+      const by = q.story ? 128 : 30;
+      el("rect", { x: 600, y: by, width: 380, height: 540 - by, rx: 24, fill: SOFT, stroke: "#eadcc6", "stroke-width": 2 }, view);
+      pills = ["➗ Divide", "✖️ Multiply", "➖ Subtract", "⬇️ Bring down"].map((s, i) => {
+        const pg = el("g", {}, view);
+        const r = el("rect", { x: 622, y: by + 18 + i * 54, width: 336, height: 46, rx: 18, fill: "#fff", stroke: "#e0cfb5", "stroke-width": 2 }, pg);
+        const t = T(pg, 790, by + 50 + i * 54, s, 24, INK);
+        return { r, t };
+      });
+      info = el("g", { transform: `translate(0 ${by + 18 + 4 * 54})` }, view);
+    };
+    const pill = (k) =>
+      pills.forEach((p, i) => {
+        p.r.setAttribute("fill", i === k ? "var(--accent)" : "#fff");
+        p.t.setAttribute("fill", i === k ? "#fff" : INK);
+      });
+    const infoSet = (lines) => {
+      info.innerHTML = "";
+      lines.forEach((l, i) => T(info, 790, 44 + i * 40, l, i === 0 ? 30 : 23, i === 0 ? INK : MUTED));
+    };
+    const rightAt = (num, i, y, fill = INK) => digitsR(num).forEach((d, j) => T(view, L.col(i - j), y, d, L.FS, fill));
+    const ask = () => {
+      if (my !== token) return;
+      q = make();
+      q.steps = build(q.N, q.d);
+      si = 0;
+      g.clean = true;
+      draw();
+      status(`Problem ${g.round + 1} of ${ROUNDS}`);
+      if (q.story) VOICE.speak(q.story.text(q.N, q.d) + " First, divide.");
+      qStep(true);
+    };
+    const qStep = (first = false) => {
+      if (my !== token) return;
+      const s = q.steps[si];
+      phase = "q";
+      g.tries = 0;
+      busy = false;
+      pill(0);
+      infoSet([`How many ${q.d}s in ${s.cur}?`, s.cur < q.d ? "Zero is allowed!" : ""]);
+      const line = `How many ${q.d}s fit in ${s.cur}?`;
+      if (first && q.story) say(line, { voice: false });
+      else say(first && g.round === 0 ? `${q.N} ÷ ${q.d}. Divide, multiply, subtract, bring down. ${line}` : line);
+      askNum(answer, 2);
+    };
+    const remStep = () => {
+      const s = q.steps[si];
+      phase = "r";
+      g.tries = 0;
+      busy = false;
+      pill(2);
+      infoSet([`${s.cur} − ${s.prod} = ?`, "Subtract to see what is left."]);
+      say(`What is ${s.cur} − ${s.prod}?`);
+      askNum(answer, 3);
+    };
+    const answer = async (v) => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      const s = q.steps[si];
+      const { Y0, LH, FS, CW, col } = L;
+      const want = phase === "q" ? s.qd : s.rem;
+      busy = true;
+      if (v !== want) {
+        let hint;
+        let why;
+        if (phase === "q") {
+          if (q.d < 10) {
+            const list = [...Array(9).keys()].map((k) => (k + 1) * q.d).filter((m) => m <= s.cur + q.d).join(", ");
+            hint = `List multiples of ${q.d}: ${list}. Which is the greatest that does not exceed ${s.cur}?`;
+          } else {
+            const r10 = Math.round(q.d / 10) * 10;
+            hint = `Round ${q.d} to ${r10}. Roughly how many ${r10}s fit in ${s.cur}? Then test that estimate with ${q.d}.`;
+          }
+          why = `${s.qd} × ${q.d} = ${s.prod}, and ${s.qd + 1} × ${q.d} = ${(s.qd + 1) * q.d} is more than ${s.cur}. So the answer is ${s.qd}.`;
+          if (v > s.qd) hint = `${v} × ${q.d} = ${v * q.d}, which exceeds ${s.cur}. ` + hint;
+          else if (v < s.qd) hint = `${v} × ${q.d} = ${v * q.d}. Is there room for another ${q.d}? ` + hint;
+        } else {
+          hint = `What is the difference between ${s.cur} and ${s.prod}? Counting up from ${s.prod} may help.`;
+          why = `${s.cur} − ${s.prod} = ${s.rem}.`;
+        }
+        const revealed = await miss(g, hint, why);
+        if (my !== token) return;
+        if (!revealed) {
+          busy = false;
+          return askNum(answer, phase === "q" ? 2 : 3);
+        }
+      } else MUSIC.play("xylophone", 76 + (si % 5) * 2, { gain: 0.4 });
+      const prodY = Y0 + (2 * si + 1) * LH;
+      const remY = Y0 + (2 * si + 2) * LH;
+      if (phase === "q") {
+        T(view, col(s.i), Y0 - FS * 1.25, s.qd, FS, "var(--accent-dark)");
+        pill(1);
+        const len = String(s.prod).length;
+        rightAt(s.prod, s.i, prodY);
+        T(view, col(s.i - len + 1) - CW * 0.62, prodY, "−", FS);
+        el("line", { x1: col(s.i - len + 1) - CW * 0.85, x2: col(s.i) + CW * 0.5, y1: prodY + FS * 0.28, y2: prodY + FS * 0.28, stroke: INK, "stroke-width": 3 }, view);
+        infoSet([`${s.qd} × ${q.d} = ${s.prod}`, "Write it under, then subtract."]);
+        await sayAsync(`Correct, ${s.qd}. Multiply: ${s.qd} × ${q.d} = ${s.prod}.`);
+        if (my !== token) return;
+        return remStep();
+      }
+      rightAt(s.rem, s.i, remY, s.rem === 0 && si < q.steps.length - 1 ? "#b9a58a" : INK);
+      if (si < q.steps.length - 1) {
+        pill(3);
+        const nx = q.steps[si + 1].i;
+        const digit = String(q.N)[nx];
+        infoSet([`Bring down the ${digit}`, `Now we have ${q.steps[si + 1].cur}.`]);
+        const t = T(view, col(nx), Y0, digit, FS, "#1e6fb0");
+        el("line", { x1: col(nx), x2: col(nx), y1: Y0 + 10, y2: remY - FS, stroke: "#1e6fb0", "stroke-width": 2, "stroke-dasharray": "6 6" }, view);
+        await tween(700, (k) => t.setAttribute("y", Y0 + (remY - Y0) * k), () => my === token);
+        if (my !== token) return;
+        await sayAsync(`${s.rem} remains. Bring down the ${digit}.`);
+        if (my !== token) return;
+        si += 1;
+        return qStep();
+      }
+      return solved();
+    };
+    const solved = async () => {
+      const { Y0, FS, CW, col, n } = L;
+      pill(-1);
+      if (q.R) T(view, col(n - 1) + CW * 0.7, Y0 - FS * 1.25, `R ${q.R}`, FS * 0.8, "#d0573a", { "text-anchor": "start" });
+      const check = `${fmt(q.Q)} × ${q.d}${q.R ? ` + ${q.R}` : ""} = ${fmt(q.N)}`;
+      infoSet([`${fmt(q.N)} ÷ ${q.d} = ${fmt(q.Q)}${q.R ? ` R ${q.R}` : ""}`, `Check: ${check}`]);
+      if (g.clean) g.firsts += 1;
+      window.OC?.count("long divisions");
+      if (!q.story) {
+        MUSIC.chime();
+        say(`${pick(EFFORT)} ${q.N} ÷ ${q.d} = ${q.Q}${q.R ? ` remainder ${q.R}` : ""}. Check: ${check}.`);
+        return nextBtn();
+      }
+      await sayAsync(`${q.N} ÷ ${q.d} = ${q.Q} remainder ${q.R}.`);
+      if (my !== token) return;
+      interpret();
+    };
+    const interpret = () => {
+      const st = q.story;
+      const right = st.kind === "up" ? q.Q + 1 : st.kind === "down" ? q.Q : q.R;
+      const opts = [...new Set([q.Q, q.Q + 1, q.R])].sort((a, b) => a - b).map((v) => ({ label: `${v} ${st.unit}`, v }));
+      g.tries = 0;
+      busy = false;
+      say(`The quotient is ${q.Q} remainder ${q.R}. ${st.ask} Decide what the remainder means in this situation.`);
+      const choose = async (c, button) => {
+        if (my !== token || busy) return;
+        window.OC?.touch();
+        if (c.v === right) {
+          busy = true;
+          button.classList.add("right");
+          MUSIC.chime();
+          say(`${pick(EFFORT)} ${right} ${st.unit}. ${st.why(q.Q, q.R)}`);
+          return nextBtn();
+        }
+        button.classList.add("wrong");
+        busy = true;
+        const revealed = await miss(g, `What happens to the ${q.R} left over? Reread the question: ${st.ask}`, `${st.why(q.Q, q.R)} So the answer is ${right} ${st.unit}.`);
+        if (my !== token) return;
+        if (revealed) return nextBtn();
+        busy = false;
+      };
+      askPick(opts, choose);
+    };
+    const nextBtn = () =>
+      askNext(g.round + 1 >= ROUNDS ? "Finish ▶" : "Next ▶", () => {
+        if (my !== token) return;
+        g.round += 1;
+        if (g.round >= ROUNDS) return finish("md4", ROUNDS, g, REAL.md4);
+        ask();
+      });
+    onLevels("md4", (lv) => {
+      level = lv;
+      g = newGame();
+      ask();
+    });
+    window.__md4 = { state: () => ({ q, si, phase, step: q.steps[si] }), build };
+    ask();
+  },
+
+  // ---------- Order of operations ----------
+  md5() {
+    const my = token;
+    let level = shell.progress().md5?.level || "g4";
+    let g = newGame();
+    const ROUNDS = 8;
+    let toks = [];
+    let history = [];
+    let busy = false;
+    let phase = "tap";
+    let chosen = -1;
+    panel(levelRow(level));
+    const tap = (event) => {
+      const tg = event.target.closest(".md-tok");
+      if (tg) tapTok(Number(tg.dataset.i));
+    };
+    const draw = (hl = -1) => {
+      fresh();
+      history.slice(-3).forEach((s, i, arr) => T(view, 500, 70 + (3 - arr.length + i) * 56, (i || history.length > 3 ? "= " : "") + s, 34, MUTED));
+      const FS0 = 64;
+      const tw = (t, fs) => (t.k === "n" ? String(t.v).length * fs * 0.6 + (t.e ? fs * 0.44 : 0) + fs * 0.24 : t.k === "op" ? fs * 1.1 : fs * 0.46 + (t.e ? fs * 0.44 : 0));
+      let fs = FS0;
+      const total = sum(toks.map((t) => tw(t, fs)));
+      if (total > 920) fs = (FS0 * 920) / total;
+      let x = 500 - sum(toks.map((t) => tw(t, fs))) / 2;
+      const y = 300;
+      const span = hl >= 0 ? (toks[hl].k === "n" ? [hl, hl] : [hl - 1, hl + 1]) : null;
+      const xs = [];
+      toks.forEach((t, i) => {
+        const w = tw(t, fs);
+        xs.push([x, x + w]);
+        const cxm = x + w / 2;
+        const g2 = el("g", { class: t.k === "op" || t.e ? "md-tok" : "", "data-i": i }, view);
+        if (t.k === "op") {
+          el("circle", { cx: cxm, cy: y - fs * 0.33, r: fs * 0.5, fill: "#fff3df", stroke: "#e0cfb5", "stroke-width": 2 }, g2);
+          T(g2, cxm, y, t.v, fs, INK);
+        } else if (t.k === "n") {
+          if (t.e) el("rect", { x: x + 2, y: y - fs * 1.15, width: w - 4, height: fs * 1.4, rx: 14, fill: "#fff3df", stroke: "#e0cfb5", "stroke-width": 2 }, g2);
+          const base = String(t.v).length * fs * 0.6;
+          T(g2, x + fs * 0.12 + base / 2, y, t.v, fs, INK);
+          if (t.e) T(g2, x + fs * 0.12 + base + fs * 0.22, y - fs * 0.48, t.e, fs * 0.55, "#a8632d");
+        } else {
+          T(g2, x + fs * 0.23, y, t.k, fs, MUTED);
+          if (t.e) T(g2, x + fs * 0.46 + fs * 0.2, y - fs * 0.48, t.e, fs * 0.55, "#a8632d");
+        }
+        x += w;
+      });
+      if (span) {
+        const box = el("rect", { x: xs[span[0]][0] - 6, y: y - fs * 1.15, width: xs[span[1]][1] - xs[span[0]][0] + 12, height: fs * 1.45, rx: 16, fill: "#fde68a" }, view);
+        view.insertBefore(box, view.firstChild);
+      }
+      const ladder = [["( )", "par"], ["x²", "pow"], ["× ÷", "md"], ["+ −", "as"]];
+      ladder.forEach(([s], i) => {
+        const lx = 165 + i * 185;
+        el("rect", { x: lx, y: 476, width: 130, height: 54, rx: 18, fill: "#fff", stroke: "var(--accent)", "stroke-width": 3 }, view);
+        T(view, lx + 65, 513, s, 30, INK);
+        if (i < 3) T(view, lx + 157, 513, "→", 28, MUTED);
+      });
+      T(view, 500, 456, "first ➜ last · × and ÷ share a rank, as do + and −: left to right", 22, MUTED);
+      view.addEventListener("pointerdown", tap);
+      return { xs, fs };
+    };
+    const PREC = { "+": 1, "−": 1, "×": 2, "÷": 2 };
+    const ready = (ts, i) => {
+      const t = ts[i];
+      if (!t) return false;
+      if (t.k === "n") return t.e > 0;
+      if (t.k !== "op") return false;
+      const Lt = ts[i - 1];
+      const Rt = ts[i + 1];
+      if (!Lt || !Rt || Lt.k !== "n" || Rt.k !== "n" || Lt.e || Rt.e) return false;
+      const LL = ts[i - 2];
+      const RR = ts[i + 2];
+      if (LL && LL.k === "op" && PREC[LL.v] >= PREC[t.v]) return false;
+      if (RR && RR.k === "op" && PREC[RR.v] > PREC[t.v]) return false;
+      return true;
+    };
+    const calc = (ts, i) => {
+      const t = ts[i];
+      if (t.k === "n") return t.v ** t.e;
+      const a = ts[i - 1].v;
+      const b = ts[i + 1].v;
+      return t.v === "+" ? a + b : t.v === "−" ? a - b : t.v === "×" ? a * b : a / b;
+    };
+    const apply = (ts, i) => {
+      const v = calc(ts, i);
+      let out = ts[i].k === "n" ? [...ts.slice(0, i), { k: "n", v, e: 0 }, ...ts.slice(i + 1)] : [...ts.slice(0, i - 1), { k: "n", v, e: 0 }, ...ts.slice(i + 2)];
+      for (let j = 0; j < out.length - 2; j++)
+        if (out[j].k === "(" && out[j + 1].k === "n" && out[j + 2].k === ")" && !(out[j + 1].e && out[j + 2].e)) {
+          out = [...out.slice(0, j), { ...out[j + 1], e: out[j + 2].e || out[j + 1].e }, ...out.slice(j + 3)];
+          j = -1;
+        }
+      return out;
+    };
+    const show = (ts) => ts.map((t) => (t.k === "n" ? `${t.v}${t.e ? sup(t.e) : ""}` : t.k === "op" ? t.v : t.k + (t.e ? sup(t.e) : ""))).join(" ").replace(/\( /g, "(").replace(/ \)/g, ")");
+    const spoken = (ts, i) => (ts[i].k === "n" ? powWords(ts[i].v, ts[i].e) : `${ts[i - 1].v} ${ts[i].v} ${ts[i + 1].v}`);
+    const TEMPL = {
+      g4: ["A + B × C", "A × B − C", "A + E ÷ B", "A × B + C × D", "E − F ÷ A", "A + B × C − D", "E ÷ A + B", "A × B − C × D", "E ÷ A × B", "A × B ÷ C", "E − A × B + C", "A + B + C × D", "( A + B ) × C", "A × ( B + C )"],
+      g5: ["( A + B ) × C", "A × ( B − C )", "( A + B ) ÷ C", "( A − B ) × ( C + D )", "A × B − E ÷ C", "A + ( B − C ) × D", "E ÷ ( A − B )", "A × ( B + C ) − D", "P^2 + A × B", "Q^3 − A × B", "( A + B ) × P^2", "G × 10^2 + H × 10", "P^2 − R^2", "E ÷ A + B × C − D", "( E − A ) ÷ B + C"],
+      g6: ["P^2 × A ÷ B", "10^3 ÷ ( A × B )", "( P^2 − A ) ÷ B", "Q^3 + P^2 − A", "G × 10^3 + H × 10^2 + I", "( A + B × C ) ÷ D", "P^2 − ( A + B ) × C", "2^S + A × B", "( P + Q )^2", "( A × B − C )^2 ÷ D", "Q^3 × ( A − B ) ÷ C", "( P^2 + R^2 ) ÷ ( A + B )", "E − ( A + B ) × ( C − D )", "2^S ÷ ( A × B ) + C^2"],
+    };
+    const RANGE = { S: [3, 8], A: [2, 12], B: [2, 12], C: [2, 12], D: [2, 12], E: [12, 72], F: [12, 72], G: [1, 9], H: [1, 9], I: [1, 9], P: [2, 9], R: [2, 9], Q: [2, 5] };
+    const parse = (tpl) => {
+      const vals = {};
+      return tpl.split(" ").map((s) => {
+        const val = (x) => (/\d/.test(x) ? Number(x) : (vals[x] ??= pickInt(...RANGE[x])));
+        const [b, e] = s.split("^");
+        if (b === "(" || b === ")") return { k: b, e: e ? val(e) : 0 };
+        if (PREC[s]) return { k: "op", v: s };
+        return { k: "n", v: val(b), e: e ? val(e) : 0 };
+      });
+    };
+    // Every step must give a whole number from 0 to 99999, so no step needs fractions or negatives.
+    const solveAll = (ts) => {
+      let cur = ts;
+      let n = 0;
+      while (cur.length > 1) {
+        const i = cur.findIndex((_, j) => ready(cur, j));
+        if (i < 0) return null;
+        const v = calc(cur, i);
+        if (!Number.isInteger(v) || v < 1 || v > 99999) return null;
+        cur = apply(cur, i);
+        n += 1;
+      }
+      if (cur[0].e) {
+        cur = [{ k: "n", v: cur[0].v ** cur[0].e, e: 0 }];
+        n += 1;
+      }
+      return { value: cur[0].v, steps: n };
+    };
+    const genExpr = (lv) => {
+      for (let k = 0; k < 2000; k++) {
+        const ts = parse(pick(TEMPL[lv]));
+        const s = solveAll(ts);
+        if (s && s.steps >= 2) return { ts, ...s };
+      }
+      return { ts: parse("2 + 3 × 4"), value: 14, steps: 2 };
+    };
+    let goal = 0;
+    const ask = () => {
+      if (my !== token) return;
+      const ex = genExpr(level);
+      toks = ex.ts;
+      goal = ex.value;
+      history = [];
+      phase = "tap";
+      chosen = -1;
+      g.tries = 0;
+      g.clean = true;
+      busy = false;
+      draw();
+      input().innerHTML = "";
+      input().onclick = null;
+      status(`Problem ${g.round + 1} of ${ROUNDS}`);
+      say(g.round === 0 ? "Which operation comes first? Tap its sign. The ladder below shows the agreed order." : "Tap the operation to perform first.");
+    };
+    const depth = (i) => toks.slice(0, i).reduce((d, t) => d + (t.k === "(" ? 1 : t.k === ")" ? -1 : 0), 0);
+    const reason = (i) => {
+      const t = toks[i];
+      if (t.k === "n") return "Powers are evaluated before ×, ÷, + and −.";
+      if (depth(i) > 0) return "We finish the parentheses first.";
+      if (t.v === "×" || t.v === "÷") return "× and ÷ share one rank, above + and −; between equals we work left to right.";
+      return "No × or ÷ is waiting beside it, and + and − share one rank, so we work left to right.";
+    };
+    const whyNot = (i) => {
+      const t = toks[i];
+      if (t.k === ")") return "Finish the work inside the parentheses first; then apply the power to that result.";
+      const Lt = toks[i - 1];
+      const Rt = toks[i + 1];
+      if (Lt.k !== "n" || Rt.k !== "n") return "One side of this sign is still in parentheses. What should we finish first?";
+      if (Lt.e || Rt.e) return "A number next to this sign has a little power. When do we work out powers?";
+      const LL = toks[i - 2];
+      const RR = toks[i + 2];
+      if (LL && LL.k === "op" && PREC[LL.v] === PREC[t.v]) return "Two signs of the same kind. Which way do we read: from the left or the right?";
+      if ((LL && LL.k === "op" && PREC[LL.v] > PREC[t.v]) || (RR && RR.k === "op" && PREC[RR.v] > PREC[t.v])) return "Is there a × or ÷ next to it? Look at the ladder: which comes first?";
+      return "Look at the ladder. What should come first?";
+    };
+    const tapTok = async (i) => {
+      if (my !== token || busy || phase !== "tap") return;
+      window.OC?.touch();
+      if (ready(toks, i)) {
+        MUSIC.play("xylophone", 79, { gain: 0.4 });
+        chosen = i;
+        phase = "num";
+        g.tries = 0;
+        draw(i);
+        say(`Correct. ${reason(i)} What is ${spoken(toks, i)}?`);
+        askNum(numAnswer, 5);
+        return;
+      }
+      busy = true;
+      const good = toks.findIndex((_, j) => ready(toks, j));
+      const revealed = await miss(g, whyNot(i), `${reason(good)} So we start with ${spoken(toks, good)}. Tap it.`);
+      if (my !== token) return;
+      busy = false;
+      if (revealed) {
+        draw(good);
+        g.tries = 1;
+      }
+    };
+    const numAnswer = async (v) => {
+      if (my !== token || busy || phase !== "num") return;
+      window.OC?.touch();
+      const i = chosen;
+      const want = calc(toks, i);
+      if (v !== want) {
+        busy = true;
+        const t = toks[i];
+        let hint;
+        if (t.k === "n") hint = t.v === 10 ? `10 to the power ${t.e} means ${t.e} tens multiplied together. How many zeros follow the 1?` : t.e === 2 ? `${t.v} squared means ${t.v} × ${t.v}, not ${t.v} × 2.` : `${powWords(t.v, t.e)} means ${Array(t.e).fill(t.v).join(" × ")}. What is ${t.v} × ${t.v} first?`;
+        else {
+          const a = toks[i - 1].v;
+          const b = toks[i + 1].v;
+          hint = t.v === "×" ? `Consider ${a} groups of ${b}. Could you decompose one factor into friendlier parts?` : t.v === "÷" ? `How many ${b}s make ${a}? Which multiplication fact contains both?` : t.v === "+" ? `Add by place value: tens, then ones.` : `Count up from ${b} to ${a}. How far is it?`;
+        }
+        const revealed = await miss(g, hint, `${spoken(toks, i)} = ${want}.`);
+        if (my !== token) return;
+        busy = false;
+        if (!revealed) return askNum(numAnswer, 5);
+      } else MUSIC.chime();
+      history.push(show(toks));
+      toks = apply(toks, i);
+      if (toks.length === 1 && toks[0].e) toks = [{ k: "n", v: toks[0].v ** toks[0].e, e: 0 }];
+      phase = "tap";
+      chosen = -1;
+      g.tries = 0;
+      draw();
+      input().innerHTML = "";
+      if (toks.length === 1) {
+        busy = true;
+        if (g.clean) g.firsts += 1;
+        window.OC?.count("expressions");
+        history.push(String(toks[0].v));
+        draw();
+        await sayAsync(`Correct. The expression simplifies to ${toks[0].v}, one agreed step at a time.`);
+        if (my !== token) return;
+        void goal;
+        askNext(g.round + 1 >= ROUNDS ? "Finish ▶" : "Next ▶", () => {
+          if (my !== token) return;
+          g.round += 1;
+          if (g.round >= ROUNDS) return finish("md5", ROUNDS, g, REAL.md5);
+          ask();
+        });
+        return;
+      }
+      say(`${toks.length > 1 ? "Correct. Which operation comes next?" : ""}`);
+    };
+    onLevels("md5", (lv) => {
+      level = lv;
+      g = newGame();
+      ask();
+    });
+    window.__md5 = { genExpr, solveAll, ready: (i) => ready(toks, i), toks: () => toks, phase: () => phase, tapTok, show: () => show(toks), firstReady: () => toks.findIndex((_, j) => ready(toks, j)), calc: (i) => calc(toks, i) };
+    ask();
+  },
+
+  // ---------- Estimation & mental strategies ----------
+  md6() {
+    const my = token;
+    let level = shell.progress().md6?.level || "g4";
+    let g = newGame();
+    const ROUNDS = 8;
+    let q;
+    let st = 0;
+    let busy = false;
+    let vis;
+    panel(levelRow(level));
+    const DH = [[5, 14], [5, 16], [5, 18], [5, 24], [5, 28], [5, 36], [15, 4], [15, 6], [15, 8], [15, 12], [15, 14], [15, 16], [25, 8], [25, 12], [25, 16], [25, 24], [25, 28], [25, 32], [25, 36], [35, 4], [35, 6], [35, 8], [35, 12], [35, 14], [45, 4], [45, 6], [45, 8], [45, 12], [125, 8], [125, 16], [125, 24]];
+    const make = () => {
+      if (level === "g4") {
+        const a = pickInt(2, 9) * 10 + pick([1, 2, 8, 9]);
+        const T0 = Math.floor(a / 10) * 10;
+        return { kind: "round", a, b: pickInt(3, 9), T0, R: a % 10 >= 5 ? T0 + 10 : T0 };
+      }
+      const comp = (Rs) => {
+        const R = pick(Rs);
+        const k = pick([1, 2]);
+        const sign = pick([-1, 1]);
+        return { kind: "comp", R, k, sign, a: R + sign * k, b: pickInt(3, 9) };
+      };
+      const dh = () => {
+        const [a, b] = pick(DH);
+        return { kind: "dh", a, b };
+      };
+      if (level === "g5") return g.round % 3 === 2 ? dh() : comp([20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300]);
+      const r = g.round % 3;
+      if (r === 0) {
+        const m = pickInt(2, 9) * 10;
+        const k = pickInt(1, 5);
+        return { kind: "sq", m, k, a: m - k, b: m + k };
+      }
+      if (r === 1) return dh();
+      return comp([100, 200, 300, 400, 500, 1000, 2000]);
+    };
+    const tenTimes = (R, b) => {
+      const z = String(R).length - String(R).replace(/0+$/, "").length;
+      const lead2 = R / 10 ** z;
+      return { z, lead2, hint: `What is ${lead2} × ${b}? Then add ${z === 1 ? "a zero" : `${z} zeros`}.`, why: `${lead2} × ${b} = ${lead2 * b}, so ${R} × ${b} = ${R * b}.` };
+    };
+    const draw = () => {
+      fresh();
+      vis = el("g", {}, view);
+      if (q.kind === "round") {
+        T(view, 500, 70, `${q.a} × ${q.b} is about…?`, 50);
+        const x = (n) => 150 + (n - q.T0) * 70;
+        el("line", { x1: 130, x2: 870, y1: 210, y2: 210, stroke: "#5a4130", "stroke-width": 5, "stroke-linecap": "round" }, view);
+        for (let n = q.T0; n <= q.T0 + 10; n++) {
+          el("line", { x1: x(n), x2: x(n), y1: n % 5 ? 200 : 192, y2: n % 5 ? 220 : 228, stroke: "#5a4130", "stroke-width": n % 5 ? 3 : 5 }, view);
+          if (n % 5 === 0) T(view, x(n), 262, n, 28, MUTED);
+        }
+        el("circle", { cx: x(q.a), cy: 210, r: 13, fill: "#e0603a" }, view);
+        T(view, x(q.a), 176, q.a, 32, "#e0603a");
+        q.x = x;
+      } else if (q.kind === "comp") {
+        T(view, 500, 64, `${q.a} × ${q.b} = ?`, 52);
+        const x0 = 170;
+        const w = 560;
+        el("rect", { x: x0, y: 120, width: w, height: 150, fill: "#a9d4f5", stroke: "#1e6fb0", "stroke-width": 3 }, view);
+        T(view, x0 + w / 2, 110, q.R, 28, "#1e6fb0");
+        T(view, x0 - 12, 205, q.b, 28, "#1e6fb0", { "text-anchor": "end" });
+        const sw = 34 * q.k;
+        if (q.sign < 0) {
+          el("rect", { x: x0 + w - sw, y: 120, width: sw, height: 150, fill: "#f4b6c2", stroke: "#c0392b", "stroke-width": 3, "stroke-dasharray": "8 6" }, view);
+          T(view, x0 + w - sw / 2, 300, `${q.k} × ${q.b}`, 24, "#c0392b");
+        } else {
+          el("rect", { x: x0 + w, y: 120, width: sw, height: 150, fill: "#9fd3a8", stroke: "#2e7d46", "stroke-width": 3, "stroke-dasharray": "8 6" }, view);
+          T(view, x0 + w + sw / 2, 300, `${q.k} × ${q.b}`, 24, "#2e7d46");
+        }
+      } else if (q.kind === "sq") {
+        T(view, 500, 64, `${q.a} × ${q.b} = ?`, 52);
+        T(view, 500, 140, `Both factors are ${q.k} away from ${q.m}.`, 30, MUTED);
+        el("line", { x1: 200, x2: 800, y1: 200, y2: 200, stroke: "#5a4130", "stroke-width": 4 }, view);
+        [[q.a, "#e0603a"], [q.m, "var(--accent-dark)"], [q.b, "#1e6fb0"]].forEach(([n, c]) => {
+          const x = 500 + (n - q.m) * (250 / q.k);
+          el("circle", { cx: x, cy: 200, r: 10, fill: c }, view);
+          T(view, x, 245, n, 30, c);
+        });
+        T(view, 500, 320, `= (${q.m} − ${q.k}) × (${q.m} + ${q.k})`, 38);
+      } else {
+        T(view, 500, 64, `${q.a} × ${q.b} = ?`, 52);
+        const defs = el("defs", {}, view);
+        q.k = Math.min(820 / (2 * q.a), 230 / q.b, 14);
+        const pat = el("pattern", { id: "md-dh", width: q.k, height: q.k, patternUnits: "userSpaceOnUse" }, defs);
+        el("rect", { width: q.k, height: q.k, fill: "#a9d4f5", stroke: "#1e6fb0", "stroke-width": q.k >= 6 ? 0.7 : 0 }, pat);
+        q.rect = el("rect", { fill: "url(#md-dh)", stroke: "#1e6fb0", "stroke-width": 3 }, view);
+        q.wl = T(view, 500, 0, q.a, 28, INK);
+        q.hl = T(view, 0, 0, q.b, 28, INK, { "text-anchor": "end" });
+        q.set = (a, b) => {
+          const w = a * q.k;
+          const h = b * q.k;
+          q.rect.setAttribute("x", 500 - w / 2);
+          q.rect.setAttribute("y", 270 - h / 2);
+          q.rect.setAttribute("width", w);
+          q.rect.setAttribute("height", h);
+          q.wl.setAttribute("y", 270 - h / 2 - 12);
+          q.hl.setAttribute("x", 500 - w / 2 - 10);
+          q.hl.setAttribute("y", 280);
+        };
+        q.set(q.a, q.b);
+      }
+    };
+    const line = (y, s, size = 36, fill = INK) => T(vis, 500, y, s, size, fill);
+    const ask = () => {
+      if (my !== token) return;
+      q = make();
+      st = 0;
+      g.clean = true;
+      draw();
+      status(`Problem ${g.round + 1} of ${ROUNDS}`);
+      step();
+    };
+    const opts = (list) => list.map((v) => (typeof v === "object" ? v : { label: String(v), v }));
+    // Each step: [say, input, answer, hint, why, after(revealed)]
+    const steps = () => {
+      const { a, b } = q;
+      if (q.kind === "round") {
+        const { T0, R } = q;
+        return [
+          { say: `Round ${a} to the nearest ten.`, pick: opts([T0, T0 + 10, T0 + 20].sort((x, y) => x - y)), ans: R, hint: `Is ${a} closer to ${T0} or to ${T0 + 10}? Look at the number line.`, why: `${a} is ${Math.abs(a - R)} away from ${R}, so it rounds to ${R}.`, after: () => { el("path", { d: `M${q.x(a)} 188Q${(q.x(a) + q.x(R)) / 2} 120 ${q.x(R)} 188`, fill: "none", stroke: "var(--accent)", "stroke-width": 4, "stroke-dasharray": "8 6" }, vis); el("circle", { cx: q.x(R), cy: 210, r: 14, fill: "var(--accent)" }, vis); line(360, `${a} × ${b} ≈ ${R} × ${b}`, 44); } },
+          { say: `Now find ${R} × ${b}.`, num: 4, ans: R * b, ...(({ hint, why }) => ({ hint, why }))(tenTimes(R, b)), after: () => { vis.lastChild.textContent += ` = ${R * b}`; } },
+          { say: `Is the exact product ${a} × ${b} slightly more or slightly less than ${R * b}?`, pick: [{ label: "⬆️ Slightly more", v: "more" }, { label: "⬇️ Slightly less", v: "less" }], ans: R > a ? "less" : "more", hint: `When ${a} was rounded, did the factor increase or decrease?`, why: `We rounded ${a} ${R > a ? "up" : "down"} to ${R}, so the estimate is a bit too ${R > a ? "big" : "small"}. The real answer is a bit ${R > a ? "less" : "more"}.`, after: () => { line(440, `Really: ${a} × ${b} = ${a * b}`, 34, "var(--accent-dark)"); line(495, `${Math.abs(a * b - R * b)} ${R > a ? "less" : "more"} than ${R * b}: a close estimate.`, 28, MUTED); } },
+        ];
+      }
+      if (q.kind === "comp") {
+        const { R, k, sign } = q;
+        const tt = tenTimes(R, b);
+        const word = sign < 0 ? "take away" : "add";
+        return [
+          { say: `${a} is close to ${R}. First find ${R} × ${b}.`, num: 5, ans: R * b, hint: tt.hint, why: tt.why, after: () => line(360, `${R} × ${b} = ${fmt(R * b)}`, 36) },
+          { say: `${a} is ${k} ${sign < 0 ? "less" : "more"} than ${R}. Should we add or take away ${k} × ${b}?`, pick: [{ label: `➕ Add ${k} × ${b}`, v: 1 }, { label: `➖ Take away ${k} × ${b}`, v: -1 }], ans: sign, hint: `Consult the diagram. Is ${a} greater or less than ${R}?`, why: `${a} = ${R} ${sign < 0 ? "−" : "+"} ${k}, so ${a} groups is ${k} × ${b} ${sign < 0 ? "less" : "more"} than ${R} × ${b}.`, after: () => line(420, `${word} ${k} × ${b} = ${k * b}`, 30, sign < 0 ? "#c0392b" : "#2e7d46") },
+          { say: `What is ${R * b} ${sign < 0 ? "−" : "+"} ${k * b}?`, num: 5, ans: a * b, hint: `Begin at ${R * b} and ${word} ${k * b}.`, why: `${R * b} ${sign < 0 ? "−" : "+"} ${k * b} = ${a * b}.`, after: () => line(490, `${a} × ${b} = ${fmt(a * b)}`, 40, "var(--accent-dark)") },
+        ];
+      }
+      if (q.kind === "sq") {
+        const { m, k } = q;
+        return [
+          { say: `Which expression equals ${a} × ${b}?`, pick: shuffle([{ label: `${m}² − ${k}²`, v: 1 }, { label: `${m}² + ${k}²`, v: 2 }, { label: `(${m} − ${k})²`, v: 3 }]), ans: 1, hint: `Use an area model for (${m} − ${k}) × (${m} + ${k}). What happens to the two middle parts, ${m} × ${k}?`, why: `(${m} − ${k}) × (${m} + ${k}) = ${m}² + ${m} × ${k} − ${k} × ${m} − ${k}². The middle parts cancel, leaving ${m} squared minus ${k} squared.`, after: () => line(400, `= ${m}² − ${k}²`, 40) },
+          { say: `Now evaluate ${m} squared minus ${k} squared.`, num: 5, ans: a * b, hint: `What are ${m} squared and ${k} squared?`, why: `${m * m} − ${k * k} = ${a * b}.`, after: () => line(480, `= ${m * m} − ${k * k} = ${fmt(a * b)}`, 40, "var(--accent-dark)") },
+        ];
+      }
+      const a2 = a * 2;
+      const b2 = b / 2;
+      return [
+        { say: `Double ${a} and halve ${b}. Which equivalent product results?`, pick: shuffle([{ label: `${a2} × ${b2}`, v: 1 }, { label: `${a2} × ${b * 2}`, v: 2 }, { label: `${a} × ${b2}`, v: 3 }]), ans: 1, hint: `What is double ${a}? What is half of ${b}?`, why: `Double ${a} is ${a2} and half of ${b} is ${b2}, so we get ${a2} × ${b2}. The area stays the same.`, after: async () => { q.wl.textContent = ""; q.hl.textContent = ""; await tween(1400, (t) => q.set(a + (a2 - a) * t, b + (b2 - b) * t), () => my === token); q.wl.textContent = a2; q.hl.textContent = b2; line(470, `${a} × ${b} = ${a2} × ${b2}`, 36); } },
+        { say: `What is ${a2} × ${b2}?`, num: 5, ans: a * b, hint: b2 % 2 === 0 && a2 % 10 !== 0 ? `Can you double and halve again? Try ${a2 * 2} × ${b2 / 2}.` : `Think of ${a2} × ${b2} as ${a2 % 10 === 0 ? `${a2 / 10} × ${b2}, then multiply by 10` : `${Math.floor(a2 / 10) * 10} × ${b2} plus ${a2 % 10} × ${b2}`}.`, why: `${a2} × ${b2} = ${a * b}.`, after: () => line(525, `= ${fmt(a * b)}`, 40, "var(--accent-dark)") },
+      ];
+    };
+    const step = () => {
+      if (my !== token) return;
+      const s = steps()[st];
+      g.tries = 0;
+      busy = false;
+      say(s.say);
+      if (s.pick) askPick(s.pick, (c, button) => answer(c.v, button));
+      else askNum((v) => answer(v), s.num);
+    };
+    const answer = async (v, button) => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      const s = steps()[st];
+      busy = true;
+      if (v === s.ans) {
+        button?.classList.add("right");
+        MUSIC.play("xylophone", 79 + st * 2, { gain: 0.4 });
+      } else {
+        button?.classList.add("wrong");
+        const revealed = await miss(g, s.hint, s.why);
+        if (my !== token) return;
+        if (!revealed) {
+          busy = false;
+          if (!s.pick) askNum((x) => answer(x), s.num);
+          return;
+        }
+      }
+      await s.after();
+      if (my !== token) return;
+      st += 1;
+      if (st < steps().length) {
+        await wait(700);
+        return step();
+      }
+      MUSIC.chime();
+      if (g.clean) g.firsts += 1;
+      window.OC?.count("mental math");
+      const tip = q.kind === "round" ? "Rounding gives a quick estimate to check answers." : q.kind === "comp" ? "Compensation: use a friendly number, then correct the difference." : q.kind === "sq" ? "This is the difference of two squares, a pattern algebra students use constantly." : "Doubling one factor and halving the other preserves the product.";
+      say(`${pick(EFFORT)} ${q.a} × ${q.b} = ${fmt(q.a * q.b)}. ${tip}`);
+      askNext(g.round + 1 >= ROUNDS ? "Finish ▶" : "Next ▶", () => {
+        if (my !== token) return;
+        g.round += 1;
+        if (g.round >= ROUNDS) return finish("md6", ROUNDS, g, REAL.md6);
+        ask();
+      });
+    };
+    onLevels("md6", (lv) => {
+      level = lv;
+      g = newGame();
+      ask();
+    });
+    window.__md6 = { state: () => ({ q: { ...q, rect: undefined, wl: undefined, hl: undefined, set: undefined, x: undefined }, st, ans: steps()[st]?.ans, pick: !!steps()[st]?.pick }), answer };
+    ask();
+  },
+
+  // ---------- Multi-step word problems ----------
+  md7() {
+    const my = token;
+    let level = shell.progress().md7?.level || "g4";
+    let g = newGame();
+    const ROUNDS = 8;
+    let q;
+    let list = [];
+    let busy = false;
+    panel(levelRow(level));
+    const draw = (work) => {
+      fresh();
+      el("rect", { x: 14, y: 12, width: 972, height: 280, rx: 26, fill: "#fdf3e1" }, view);
+      el("circle", { cx: 100, cy: 120, r: 66, fill: "var(--accent-soft)" }, view);
+      emoji(view, 100, 116, q.icon, 82);
+      para(view, 190, 66, q.text, { size: 29, max: 46, lh: 1.3 });
+      if (!work) {
+        T(view, 500, 400, "What do you need to find first?", 28, MUTED);
+        T(view, 500, 450, "✏️ Use paper if it helps.", 26, MUTED);
+        return;
+      }
+      T(view, 60, 330, "One way to solve it:", 24, MUTED, { "text-anchor": "start" });
+      work.forEach((s, i) => {
+        el("circle", { cx: 74, cy: 365 + i * 46, r: 15, fill: "var(--accent)" }, view);
+        T(view, 74, 373 + i * 46, i + 1, 20, "#fff");
+        T(view, 102, 374 + i * 46, s, 27, i === work.length - 1 ? "var(--accent-dark)" : INK, { "text-anchor": "start" });
+      });
+    };
+    const ask = () => {
+      if (my !== token) return;
+      q = list[g.round];
+      g.tries = 0;
+      g.clean = true;
+      busy = false;
+      draw();
+      status(`Problem ${g.round + 1} of ${ROUNDS}`);
+      say("Read carefully, plan your steps, then enter the answer.", { voice: false });
+      VOICE.speak(q.text);
+      askNum(answer, 6);
+    };
+    const answer = async (v) => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      busy = true;
+      if (v === q.ans) {
+        MUSIC.chime();
+        if (g.clean) g.firsts += 1;
+      } else {
+        const revealed = await miss(g, q.hint, `${q.work.join(". ")}.`);
+        if (my !== token) return;
+        if (!revealed) {
+          busy = false;
+          return askNum(answer, 6);
+        }
+      }
+      window.OC?.count("word problems");
+      draw(q.work);
+      if (v === q.ans) say(`Correct — ${fmt(q.ans)}. Compare your method with this solution.`);
+      askNext(g.round + 1 >= ROUNDS ? "Finish ▶" : "Next ▶", () => {
+        if (my !== token) return;
+        g.round += 1;
+        if (g.round >= ROUNDS) return finish("md7", ROUNDS, g, REAL.md7);
+        ask();
+      });
+    };
+    const start = () => {
+      g = newGame();
+      list = WORD[level].map((f) => f()).sort(() => Math.random() - 0.5);
+      list = shuffle(list).slice(0, ROUNDS);
+      ask();
+    };
+    onLevels("md7", (lv) => {
+      level = lv;
+      start();
+    });
+    window.__md7 = { state: () => q };
+    start();
+  },
+};
+
+// Word problems: each template makes fresh numbers and works out its own answer and solution steps.
+const WORD = {
+  g4: [
+    () => {
+      const p = pick([6, 8, 10, 12]);
+      const e = pickInt(2, 4);
+      const m = pickInt(3, 8);
+      return { id: "recipe", p: { p, e, m }, icon: "🥞", text: `A pancake recipe makes ${p} pancakes and uses ${e} eggs. You want ${p * m} pancakes for a party. How many eggs do you need?`, ans: e * m, hint: `How many batches of ${p} pancakes make ${p * m}?`, work: [`${p * m} ÷ ${p} = ${m} batches`, `${m} × ${e} = ${e * m} eggs`] };
+    },
+    () => {
+      const r = pickInt(3, 6);
+      const c = pickInt(4, 9);
+      const b = pickInt(3, 9);
+      return { id: "crayons", p: { r, c, b }, icon: "🖍️", text: `A box of crayons has ${r} rows with ${c} crayons in each row. How many crayons are in ${b} boxes?`, ans: r * c * b, hint: `How many crayons are in one box first?`, work: [`${r} × ${c} = ${r * c} crayons in one box`, `${r * c} × ${b} = ${r * c * b} crayons`] };
+    },
+    () => {
+      const f = pickInt(3, 6);
+      const each = pickInt(9, 19);
+      const D = f * pickInt(1, 3);
+      const B = f * each - D;
+      return { id: "pizza", p: { f, B, D }, icon: "🍕", text: `${f} friends share a pizza bill of $${B} and a drinks bill of $${D} equally. How many dollars does each friend pay?`, ans: (B + D) / f, hint: `What is the whole bill first?`, work: [`$${B} + $${D} = $${B + D} in all`, `$${B + D} ÷ ${f} = $${(B + D) / f} each`] };
+    },
+    () => {
+      const s = pick([36, 40, 44, 48]);
+      const n = pickInt(2, 5);
+      const w = pickInt(11, 29);
+      return { id: "bus", p: { s, n, w }, icon: "🚌", text: `${n} buses are full, with ${s} children on each bus. ${w} more children walk. How many children go on the trip?`, ans: n * s + w, hint: `How many children ride on the buses?`, work: [`${n} × ${s} = ${n * s} on buses`, `${n * s} + ${w} = ${n * s + w} children`] };
+    },
+    () => {
+      const a = pickInt(4, 9);
+      const b = pick([12, 15, 16, 20, 24, 25]);
+      const c = pickInt(10, a * b - 10);
+      return { id: "stickers", p: { a, b, c }, icon: "⭐", text: `You have ${a} sheets of stickers with ${b} stickers on each sheet. You give away ${c} stickers. How many stickers are left?`, ans: a * b - c, hint: `How many stickers did you start with?`, work: [`${a} × ${b} = ${a * b} stickers`, `${a * b} − ${c} = ${a * b - c} left`] };
+    },
+    () => {
+      const legs = pickInt(3, 8);
+      const chairs = pickInt(4, 9);
+      const stools = pickInt(2, 6);
+      return { id: "legs", p: { chairs, stools, legs }, icon: "🪑", text: `A room has ${chairs} chairs with 4 legs each and ${stools} stools with 3 legs each. How many legs are there in all?`, ans: chairs * 4 + stools * 3, hint: `Find the chair legs and the stool legs separately.`, work: [`${chairs} × 4 = ${chairs * 4} chair legs`, `${stools} × 3 = ${stools * 3} stool legs`, `${chairs * 4} + ${stools * 3} = ${chairs * 4 + stools * 3} legs`] };
+    },
+    () => {
+      const per = pick([4, 6, 8]);
+      const days = pick([7, 14, 21]);
+      const p = per * days;
+      return { id: "reading", p: { per, days }, icon: "📖", text: `You read ${per} pages every day for ${days} days. The book has ${p + per * 3} pages. How many pages are still left to read?`, ans: per * 3, hint: `How many pages have you read so far?`, work: [`${per} × ${days} = ${p} pages read`, `${p + per * 3} − ${p} = ${per * 3} pages left`] };
+    },
+    () => {
+      const cups = pickInt(3, 6);
+      const kids = pick([12, 16, 20, 24]);
+      return { id: "juice", p: { cups, kids }, icon: "🧃", text: `Each child at a party drinks ${cups} cups of juice. One bottle fills 4 cups. How many bottles are needed for ${kids} children?`, ans: (cups * kids) / 4, hint: `How many cups are needed in all?`, work: [`${kids} × ${cups} = ${kids * cups} cups`, `${kids * cups} ÷ 4 = ${(kids * cups) / 4} bottles`] };
+    },
+    () => {
+      const c = pickInt(5, 19);
+      const d = pickInt(5, 19);
+      return { id: "cartons", p: { c, d }, icon: "🥚", text: `A farm packs eggs in cartons of 12. It fills ${c} cartons on Monday and ${d} cartons on Tuesday. How many eggs is that altogether?`, ans: 12 * (c + d), hint: `Is it quicker to find the cartons first, or the eggs for each day first?`, work: [`${c} + ${d} = ${c + d} cartons`, `${c + d} × 12 = ${12 * (c + d)} eggs`] };
+    },
+    () => {
+      const r = pickInt(12, 25);
+      const se = pickInt(14, 30);
+      const t = pickInt(5, 30);
+      return { id: "hall", p: { r, se, t }, icon: "🏛️", text: `A concert hall has ${r} rows of ${se} seats. ${t} seats are being repaired. How many seats can be used?`, ans: r * se - t, hint: `How many seats exist before the repairs?`, work: [`${r} × ${se} = ${r * se} seats`, `${r * se} − ${t} = ${r * se - t} usable`] };
+    },
+    () => {
+      const m = pick([15, 20, 25, 30, 35, 40, 45]);
+      const w = pickInt(2, 6);
+      return { id: "practice", p: { m, w }, icon: "🎹", text: `You practise piano for ${m} minutes every day. How many minutes do you practise in ${w} weeks?`, ans: m * 7 * w, hint: `How many days are in ${w} weeks?`, work: [`${w} × 7 = ${7 * w} days`, `${7 * w} × ${m} = ${m * 7 * w} minutes`] };
+    },
+    () => {
+      let n;
+      let pr;
+      do {
+        n = pickInt(3, 8);
+        pr = pickInt(3, 12);
+      } while (n * pr >= 50);
+      return { id: "notebooks", p: { n, pr }, icon: "📓", text: `Notebooks cost $${pr} each. You buy ${n} of them and pay with a $50 note. How much change do you receive?`, ans: 50 - n * pr, hint: `What is the total cost first?`, work: [`${n} × $${pr} = $${n * pr}`, `$50 − $${n * pr} = $${50 - n * pr}`] };
+    },
+    () => {
+      const legs = pick([6, 8]);
+      let n;
+      do n = pickInt(12, 40);
+      while (n % 10 === 0);
+      return { id: "bugs", p: { legs, n }, icon: legs === 6 ? "🐜" : "🕷️", text: `A biologist counts ${n} ${legs === 6 ? "ants (insects have 6 legs)" : "spiders (arachnids have 8 legs)"}. How many legs is that in total?`, ans: n * legs, hint: `Can you split ${n} into tens and ones?`, work: [`${n} × ${legs} = ${Math.floor(n / 10) * 10} × ${legs} + ${n % 10} × ${legs}`, `= ${Math.floor(n / 10) * 10 * legs} + ${(n % 10) * legs} = ${n * legs} legs`] };
+    },
+  ],
+  g5: [
+    () => {
+      const v = pick([12, 15]);
+      let N;
+      do N = pickInt(100, 250);
+      while (N % v === 0);
+      const qq = Math.floor(N / v);
+      return { id: "vans", p: { N, v }, icon: "🚐", text: `${N} campers go on a trip. Each van holds ${v} campers. How many vans are needed so everyone can go?`, ans: qq + 1, hint: `Divide ${N} by ${v}. What should we do with the campers left over?`, work: [`${N} ÷ ${v} = ${qq} remainder ${N % v}`, `${N % v} campers still need a seat`, `${qq} + 1 = ${qq + 1} vans`] };
+    },
+    () => {
+      const a = pickInt(2, 4);
+      const pa = pickInt(12, 18);
+      const k = pickInt(2, 6);
+      const pk = pickInt(6, 11);
+      const tot = a * pa + k * pk;
+      const pay = tot < 100 ? 100 : 200;
+      return { id: "tickets", p: { a, pa, k, pk, pay }, icon: "🎟️", text: `Adult tickets cost $${pa} and child tickets cost $${pk}. A family buys ${a} adult and ${k} child tickets, and pays with $${pay}. How much change do they get?`, ans: pay - tot, hint: `What do the adult tickets cost? What do the child tickets cost?`, work: [`${a} × $${pa} = $${a * pa}`, `${k} × $${pk} = $${k * pk}`, `$${a * pa} + $${k * pk} = $${tot} in all`, `$${pay} − $${tot} = $${pay - tot} change`] };
+    },
+    () => {
+      const p = pickInt(13, 24);
+      let Lr;
+      do Lr = pickInt(200, 400);
+      while (Lr % p === 0);
+      const n = Math.floor(Lr / p);
+      return { id: "ribbon", p: { L: Lr, p }, icon: "🎀", text: `A ribbon is ${Lr} cm long. You cut as many ${p} cm pieces as you can. How many cm of ribbon are left over?`, ans: Lr % p, hint: `How many ${p} cm pieces fit in ${Lr} cm? What do they use up?`, work: [`${Lr} ÷ ${p} = ${n} remainder ${Lr % p}: ${n} pieces`, `${n} × ${p} = ${n * p} cm used`, `${Lr} − ${n * p} = ${Lr % p} cm left`] };
+    },
+    () => {
+      const r = pick([12, 15, 20, 24, 30]);
+      let c;
+      let gp;
+      do {
+        c = pickInt(5, 20);
+        gp = pick([8, 12, 16, 20, 24, 32]);
+      } while ((c * gp) % r !== 0);
+      return { id: "printer", p: { r, c, g: gp }, icon: "🖨️", text: `A printer prints ${r} pages each minute. How many minutes does it take to print ${c} copies of a ${gp}-page booklet?`, ans: (c * gp) / r, hint: `How many pages are there in all?`, work: [`${c} × ${gp} = ${c * gp} pages`, `${c * gp} ÷ ${r} = ${(c * gp) / r} minutes`] };
+    },
+    () => {
+      const s = pick([6, 8, 12]);
+      let r;
+      let c;
+      let a;
+      do {
+        r = pickInt(3, 8);
+        c = pickInt(4, 9);
+        a = pickInt(15, 40);
+      } while ((r * c * a) % s !== 0);
+      return { id: "apples", p: { r, c, a, s }, icon: "🍎", text: `An orchard has ${r} rows of ${c} apple trees. Each tree gives ${a} apples. The apples go into bags of ${s}. How many bags are filled?`, ans: (r * c * a) / s, hint: `How many trees are there? Then how many apples?`, work: [`${r} × ${c} = ${r * c} trees`, `${r * c} × ${a} = ${r * c * a} apples`, `${r * c * a} ÷ ${s} = ${(r * c * a) / s} bags`] };
+    },
+    () => {
+      const price = pick([2, 3, 4]);
+      const pack = pick([4, 5, 6, 8]);
+      const packs = pickInt(6, 25);
+      return { id: "pencils", p: { price, pack, packs }, icon: "✏️", text: `Pencils come in packs of ${pack}, and each pack costs $${price}. How much do ${pack * packs} pencils cost?`, ans: packs * price, hint: `How many packs is ${pack * packs} pencils?`, work: [`${pack * packs} ÷ ${pack} = ${packs} packs`, `${packs} × $${price} = $${packs * price}`] };
+    },
+    () => {
+      const w = pickInt(12, 25);
+      const h = pickInt(8, 15);
+      const tile = pick([4, 5, 6]);
+      return { id: "garden", p: { w, h, tile }, icon: "🌱", text: `A garden is ${w} m long and ${h} m wide. One bag of seed covers ${tile} square metres. How many whole bags must you buy to cover it all?`, ans: Math.ceil((w * h) / tile), hint: `What is the area of the garden? Then think about part of a bag.`, work: [`${w} × ${h} = ${w * h} square m`, `${w * h} ÷ ${tile} = ${Math.floor((w * h) / tile)} remainder ${(w * h) % tile}`, (w * h) % tile ? `Round up: ${Math.ceil((w * h) / tile)} bags` : `${(w * h) / tile} bags exactly`] };
+    },
+    () => {
+      const sv = pickInt(4, 15);
+      const wk = pickInt(5, 20);
+      const h = pickInt(5, 60);
+      return { id: "savings", p: { sv, wk, h }, icon: "🚲", text: `A bicycle costs $${h + sv * wk}. You have already saved $${h} and you save $${sv} each week. How many more weeks until you can buy it?`, ans: wk, hint: `How much more money is still needed?`, work: [`$${h + sv * wk} − $${h} = $${sv * wk} still needed`, `$${sv * wk} ÷ $${sv} = ${wk} weeks`] };
+    },
+    () => {
+      const pc = pick([10, 20, 25, 50]);
+      const P = pickInt(2, 12) * 20;
+      return { id: "sale", p: { pc, P }, icon: "🏷️", text: `A jacket costs $${P}. It is on sale for ${pc} percent off (${pc} out of every 100 dollars). What is the sale price in dollars?`, ans: (P * (100 - pc)) / 100, hint: `What is ${pc} percent of $${P}? Think of ${pc} percent as a fraction of 100.`, work: [`${pc}% of $${P} = $${(P * pc) / 100}`, `$${P} − $${(P * pc) / 100} = $${(P * (100 - pc)) / 100}`] };
+    },
+    () => {
+      const [x, y] = pick([[2, 3], [3, 2], [3, 4], [4, 3], [2, 5], [5, 3], [3, 5]]);
+      const k = pickInt(20, 90);
+      return { id: "ratio", p: { x, y, k }, icon: "🧁", text: `A recipe mixes flour and sugar in the ratio ${x} to ${y} (for every ${x} grams of flour, ${y} grams of sugar). You use ${x * k} grams of flour. How many grams of sugar do you need?`, ans: y * k, hint: `How many groups of ${x} grams are in ${x * k} grams?`, work: [`${x * k} ÷ ${x} = ${k} groups`, `${k} × ${y} = ${y * k} grams of sugar`] };
+    },
+    () => {
+      let xs;
+      do xs = [0, 0, 0, 0, 0].map(() => pickInt(55, 99));
+      while (sum(xs) % 5);
+      return { id: "mean", p: { xs }, icon: "📊", text: `Your scores in five puzzles were ${xs.join(", ")}. What is the mean (the total shared equally among the five)?`, ans: sum(xs) / 5, hint: `What is the total of all five scores?`, work: [`${xs.join(" + ")} = ${sum(xs)}`, `${sum(xs)} ÷ 5 = ${sum(xs) / 5}`] };
+    },
+    () => {
+      const sp = pickInt(20, 60) * 2;
+      const h = pickInt(2, 6);
+      return { id: "train", p: { sp, h }, icon: "🚆", text: `A train travels at a steady ${sp} km per hour. How far does it travel in ${h} and a half hours?`, ans: sp * h + sp / 2, hint: `How far in ${h} hours? How far in half an hour?`, work: [`${h} × ${sp} = ${sp * h} km`, `half an hour: ${sp} ÷ 2 = ${sp / 2} km`, `${sp * h} + ${sp / 2} = ${sp * h + sp / 2} km`] };
+    },
+  ],
+  g6: [
+    () => {
+      const k = pick([3, 4, 6]);
+      const N = pickInt(10, 40) * 10;
+      const a = Math.floor(N / k);
+      const b = Math.floor(N / (2 * k));
+      return { id: "multiples", p: { k, N }, icon: "🔢", text: `How many whole numbers from 1 to ${N} are multiples of ${k} but NOT multiples of ${2 * k}?`, ans: a - b, hint: `How many multiples of ${k} are there? How many of those are also multiples of ${2 * k}?`, work: [`multiples of ${k}: ${N} ÷ ${k} → ${a}`, `multiples of ${2 * k}: ${N} ÷ ${2 * k} → ${b}`, `${a} − ${b} = ${a - b}`] };
+    },
+    () => {
+      const f = pickInt(10, 16);
+      const d = pickInt(2, 3);
+      const n = pickInt(8, 12);
+      const last = f + (n - 1) * d;
+      return { id: "theater", p: { f, d, n }, icon: "🎭", text: `Row 1 of a theater has ${f} seats. Each row has ${d} more seats than the row in front of it. How many seats are in the first ${n} rows?`, ans: (n * (f + last)) / 2, hint: `How many seats are in row ${n}? Try pairing the first row with the last row.`, work: [`row ${n}: ${f} + ${n - 1} × ${d} = ${last}`, `each pair of rows: ${f} + ${last} = ${f + last}`, `${n} rows: ${n} × ${f + last} ÷ 2 = ${(n * (f + last)) / 2}`] };
+    },
+    () => {
+      const d = pickInt(6, 9);
+      const qq = pickInt(15, 40);
+      const r = pickInt(1, d - 1);
+      return { id: "mystery", p: { d, q: qq, r }, icon: "🕵️", text: `A mystery number is divided by ${d}. The quotient is ${qq} and the remainder is ${r}. What is the mystery number?`, ans: qq * d + r, hint: `Division undoes multiplication. What is ${qq} groups of ${d}? What about the remainder?`, work: [`${qq} × ${d} = ${qq * d}`, `${qq * d} + ${r} = ${qq * d + r}`] };
+    },
+    () => {
+      const e = pick([2, 3, 7, 8]);
+      const m = pickInt(3, 5);
+      const nums = [...Array(m).keys()].map((i) => (i + 1) * 10 + e);
+      let u = 1;
+      const trail = [];
+      nums.forEach(() => {
+        u = (u * e) % 10;
+        trail.push(u);
+      });
+      return { id: "ones", p: { e, m }, icon: "🔍", text: `What is the ones digit of ${nums.join(" × ")}?`, ans: u, hint: `Only the ones digits matter. What is ${e} × ${e}? Keep only its ones digit and go on.`, work: [`only the ones digits (all ${e}) matter`, `ones digits: ${trail.join(", ")}`, `the ones digit is ${u}`] };
+    },
+    () => {
+      const sets = [[25, 12, 50, 8], [125, 16, 5, 4], [25, 24, 50, 2], [15, 4, 25, 8], [125, 8, 25, 4], [5, 16, 25, 6], [50, 14, 125, 4]];
+      const s = pick(sets);
+      const prod = s.reduce((a, b) => a * b, 1);
+      const z = String(prod).length - String(prod).replace(/0+$/, "").length;
+      const twos = s.reduce((t, n) => { let c = 0; while (n % 2 === 0) (n /= 2), c++; return t + c; }, 0);
+      const fives = s.reduce((t, n) => { let c = 0; while (n % 5 === 0) (n /= 5), c++; return t + c; }, 0);
+      return { id: "zeros", p: { s }, icon: "0️⃣", text: `How many zeros are at the end of ${s.join(" × ")}?`, ans: z, hint: `Each 10 is a 2 times a 5. How many 2s and how many 5s hide in these numbers?`, work: [`2s: ${twos}, 5s: ${fives}`, `pairs of 2 × 5: ${Math.min(twos, fives)}`, `${fmt(prod)} ends in ${z} zeros`] };
+    },
+    () => {
+      const [x, y] = pick([[4, 25], [2, 50], [8, 125], [5, 20]]);
+      const mid = pickInt(13, 99);
+      return { id: "group", p: { x, y, mid }, icon: "🧩", text: `Work it out without a calculator: ${x} × ${mid} × ${y}. What is the answer?`, ans: x * mid * y, hint: `Which two numbers make a friendly number like 100 or 1000 together?`, work: [`${x} × ${y} = ${x * y}`, `${mid} × ${x * y} = ${fmt(x * mid * y)}`] };
+    },
+    () => {
+      const w = pick([4, 5, 6]);
+      const legsA = 2;
+      const heads = pickInt(12, 30);
+      const fourLeg = pickInt(3, heads - 3);
+      const legs = fourLeg * 4 + (heads - fourLeg) * legsA;
+      void w;
+      return { id: "farm", p: { heads, legs }, icon: "🐄", text: `A farm has only chickens and cows. There are ${heads} heads and ${legs} legs. How many cows are there?`, ans: fourLeg, hint: `If every animal were a chicken, how many legs would there be? Where do the extra legs come from?`, work: [`all chickens: ${heads} × 2 = ${heads * 2} legs`, `extra legs: ${legs} − ${heads * 2} = ${legs - heads * 2}`, `each cow adds 2: ${legs - heads * 2} ÷ 2 = ${fourLeg} cows`] };
+    },
+    () => {
+      const p = pickInt(3, 9);
+      const n = pickInt(4, 9);
+      return { id: "pages", p: { n }, icon: "📘", text: `A book's pages are numbered 1, 2, 3 and so on, up to ${n}${p}. How many digits are printed in all?`, ans: 9 + (Number(`${n}${p}`) - 9) * 2, hint: `How many pages have 1 digit? How many have 2 digits?`, work: [`pages 1 to 9: 9 digits`, `pages 10 to ${n}${p}: ${Number(`${n}${p}`) - 9} pages × 2 = ${(Number(`${n}${p}`) - 9) * 2}`, `9 + ${(Number(`${n}${p}`) - 9) * 2} = ${9 + (Number(`${n}${p}`) - 9) * 2} digits`] };
+    },
+    () => {
+      const gcd = (x, y) => (y ? gcd(y, x % y) : x);
+      let a;
+      let b;
+      do {
+        a = pickInt(6, 30);
+        b = pickInt(6, 30);
+      } while (a === b || a % b === 0 || b % a === 0 || gcd(a, b) < 2 || (a * b) / gcd(a, b) > 180);
+      const l = (a * b) / gcd(a, b);
+      return { id: "buses", p: { a, b }, icon: "🚏", text: `Two buses leave a station together. One returns and leaves again every ${a} minutes, the other every ${b} minutes. After how many minutes do they next leave together?`, ans: l, hint: `List multiples of ${Math.max(a, b)}. Which is the first that is also a multiple of ${Math.min(a, b)}?`, work: [`greatest common factor of ${a} and ${b}: ${gcd(a, b)}`, `least common multiple: ${a} × ${b} ÷ ${gcd(a, b)} = ${l}`, `check: ${l} ÷ ${a} = ${l / a} and ${l} ÷ ${b} = ${l / b}, so ${l} minutes`] };
+    },
+    () => {
+      const N = pickInt(10, 99) * 10 + pickInt(0, 9);
+      const [x, y] = pick([[3, 5], [2, 3], [4, 6], [3, 7]]);
+      const lcm = x === 4 && y === 6 ? 12 : x * y;
+      const ans = Math.floor(N / x) + Math.floor(N / y) - Math.floor(N / lcm);
+      return { id: "orcount", p: { N, x, y }, icon: "🔢", text: `How many whole numbers from 1 to ${N} are divisible by ${x} or by ${y} (or both)?`, ans, hint: `Count each kind. Which numbers have you counted twice?`, work: [`by ${x}: ${Math.floor(N / x)}; by ${y}: ${Math.floor(N / y)}`, `counted twice (by ${lcm}): ${Math.floor(N / lcm)}`, `${Math.floor(N / x)} + ${Math.floor(N / y)} − ${Math.floor(N / lcm)} = ${ans}`] };
+    },
+    () => {
+      const n = pickInt(20, 100);
+      return { id: "gauss", p: { n }, icon: "➕", text: `A famous story says the young mathematician Carl Friedrich Gauss added the whole numbers from 1 to 100 in moments. Find 1 + 2 + 3 + … + ${n}.`, ans: (n * (n + 1)) / 2, hint: `Write the sum forwards, then backwards underneath. What does each column add to, and how many columns are there?`, work: [`forwards + backwards: each column is 1 + ${n} = ${n + 1}`, `${n} columns: ${n} × ${n + 1} = ${n * (n + 1)}, twice the sum`, `${n * (n + 1)} ÷ 2 = ${(n * (n + 1)) / 2}`] };
+    },
+    () => {
+      const n = pickInt(6, 25);
+      return { id: "handshake", p: { n }, icon: "🤝", text: `At a meeting, each of ${n} people shakes hands once with every other person. How many handshakes take place?`, ans: (n * (n - 1)) / 2, hint: `How many hands does each person shake? Has every handshake been counted twice?`, work: [`each person: ${n - 1} handshakes`, `${n} × ${n - 1} = ${n * (n - 1)} counts each handshake twice`, `${n * (n - 1)} ÷ 2 = ${(n * (n - 1)) / 2}`] };
+    },
+    () => {
+      const N = pickInt(150, 999);
+      let without = 0;
+      for (let i = 1; i <= N; i++) if (!String(i).includes("7")) without += 1;
+      return { id: "seven", p: { N }, icon: "7️⃣", text: `How many whole numbers from 1 to ${N} contain at least one digit 7?`, ans: N - without, hint: `It may be easier to count the numbers with no 7 at all. How many digits can each place use?`, work: [`numbers from 1 to ${N} with no 7: ${without}`, `${N} − ${without} = ${N - without}`] };
+    },
+    () => {
+      const a = pickInt(102, 999);
+      const b = pickInt(102, 999);
+      return { id: "mod9", p: { a, b }, icon: "🔮", text: `Without multiplying it out, find the remainder when ${a} × ${b} is divided by 9.`, ans: (a * b) % 9, hint: `A number leaves the same remainder on division by 9 as its digit sum. What are the remainders of ${a} and ${b}?`, work: [`${a} leaves ${a % 9}; ${b} leaves ${b % 9}`, `${a % 9} × ${b % 9} = ${(a % 9) * (b % 9)}`, `${(a % 9) * (b % 9)} leaves remainder ${(a * b) % 9}`] };
+    },
+  ],
+};
+window.__mdWord = WORD;
+
+const mdStyle = document.createElement("style");
+mdStyle.textContent = `.md-tile{cursor:grab;touch-action:none}.md-part,.md-tok{cursor:pointer}.md-tok:hover circle,.md-tok:hover rect{stroke:var(--accent)}.md-in:empty{display:none}.md-in .kt-choices button{min-height:54px;font-size:21px}@media (max-height:460px),(max-width:420px) and (max-height:720px){.md-in .kt-choices button{min-height:42px;font-size:16px}}@media (max-width:520px){.ap-panel{gap:6px}.ap-row{gap:4px 8px}.ap-chips{gap:5px}.ap-chips button{min-height:38px;font-size:13px;padding:0 10px}.ap-status{font-size:12.5px;padding:3px 10px}.ap-say{font-size:15.5px;padding:8px 12px 8px 54px}.ap-say::before{width:34px;height:34px;font-size:20px;left:10px}.kt-keys button{min-height:42px}.kt-entry{min-height:40px;font-size:24px;line-height:32px}}`;
+document.head.appendChild(mdStyle);
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    md0: { icon: "👀", title: "See it", steps: ["Watch each diagram and listen to the explanation.", "Press Next ▶ to continue, or ◀ to review.", "The final slide asks you to explain the idea."] },
+    md1: { icon: "✖️", title: "Times tables to 12", steps: ["Choose a pattern: ×9, ×11, squares, any fact, or teens.", "Enter the product and press ✓.", "Each fact you master fills the 12 × 12 grid."] },
+    md2: { icon: "🟧", title: "Area model", steps: ["The rectangle is divided by place value.", "Drag each partial product into the region it measures.", "Add the partial products, then compare with the column method."] },
+    md3: { icon: "🧮", title: "Column multiplication", steps: ["Multiply the highlighted digits.", "Include any carried digit, then press ✓.", "Finally add the rows and check with an estimate."] },
+    md4: { icon: "➗", title: "Long division", steps: ["Each cycle: divide, multiply, subtract, bring down.", "Enter each result and press ✓.", "In word problems, decide what the remainder means."] },
+    md5: { icon: "🪜", title: "Order of operations", steps: ["Tap the operation that must come first.", "Enter its value.", "Continue until a single number remains."] },
+    md6: { icon: "🧠", title: "Mental strategies", steps: ["Study the diagram of the strategy.", "Choose or enter each step.", "Notice why the friendlier numbers give the same result."] },
+    md7: { icon: "📝", title: "Multi-step problems", steps: ["Read the problem and identify what is unknown.", "Plan the steps; paper is welcome.", "Enter the answer, then study the worked solution."] },
+  },
+  start: "md0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Math",
+  activity: "Big Multiply & Divide",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    $("[data-panel]").onclick = null;
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 77, 79, 80, 81, 82, 83, 84, 86, 88, 90]);
+MUSIC.preload("harp", [76, 79]);
+</script>
+</body>
+</html>

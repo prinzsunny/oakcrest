@@ -71,8 +71,8 @@ function talkAsync(html, speech) {
   say(html, { voice: false });
   return VOICE.speakAsync(clean(speech ?? html));
 }
-const EFFORT = ["You kept trying!", "You looked carefully.", "You took your time. That helps!", "You thought it through.", "Careful reading!", "You kept going!"];
-const GOOD = ["You looked carefully!", "Careful reading!", "Good thinking!", "You checked it!", "You took your time!"];
+const EFFORT = ["You persevered.", "You looked carefully.", "You took your time, and it showed.", "You thought it through.", "Your reading was careful.", "You checked each step."];
+const GOOD = ["Correct.", "Correct — careful reading.", "Correct — well reasoned.", "Correct — you checked it.", "Correct."];
 const LEARN = "Mistakes are how we learn.";
 const tween = (ms, fn, alive) =>
   new Promise((resolve) => {
@@ -197,14 +197,17 @@ function runGame(id, cfg) {
   };
   st.win = async (html, speech, { chime = true, ms = 900 } = {}) => {
     st.busy = true;
+    // A level change mid-message starts a new generation; the stale win must not draw a round.
+    const gen = st.gen;
+    const live = () => st.alive() && st.gen === gen;
     if (chime) MUSIC.chime();
     if (st.tries === 0) st.first += 1;
     st.round += 1;
     window.OC?.count(cfg.count);
     await talkAsync(html, speech);
-    if (!st.alive()) return;
+    if (!live()) return;
     await wait(ms);
-    if (!st.alive()) return;
+    if (!live()) return;
     if (st.round >= cfg.rounds) finish();
     else st.next();
   };
@@ -222,13 +225,14 @@ function runGame(id, cfg) {
     bindLevels();
     $("[data-status]").textContent = "Finished ✓";
     $("[data-again]").addEventListener("click", () => again(id));
-    talk(`🎉 You finished ${cfg.rounds} ${cfg.noun}. ${st.first} on the first try. ${pick(EFFORT)} Now try it for real, away from the screen.`);
+    talk(`You finished ${cfg.rounds} ${cfg.noun}. ${st.first} on the first try. ${pick(EFFORT)} Now try it for real, away from the screen.`);
   };
   const restart = () => {
     if (st.done) {
       st.done = false;
       build();
     }
+    st.gen = (st.gen || 0) + 1;
     st.round = 0;
     st.first = 0;
     st.deck = null;
@@ -292,7 +296,7 @@ const PIECES = ["micro", "tele", "scope", "phone", "bi", "tri", "uni", "cycle", 
 const GUESS = [
   { w: "tripod", parts: ["tri", "pod"], key: "tri = three · pod = foot", m: "A stand with three feet" },
   { w: "biped", parts: ["bi", "ped"], key: "bi = two · ped = foot", m: "An animal that walks on two feet" },
-  { w: "centipede", parts: ["centi", "pede"], key: "cent = hundred · ped = foot", m: "A bug whose name means a hundred feet" },
+  { w: "centipede", parts: ["centi", "pede"], key: "cent = hundred · ped = foot", m: "A many-legged creature whose name means a hundred feet" },
   { w: "octagon", parts: ["octa", "gon"], key: "octa = eight · gon = corner", m: "A shape with eight corners" },
   { w: "audience", parts: ["audi", "ence"], key: "aud = hear", m: "The people who listen to a show" },
   { w: "pedestrian", parts: ["ped", "estrian"], key: "ped = foot", m: "A person walking on foot" },
@@ -375,11 +379,11 @@ const units = {
           },
         },
         {
-          say: "A sentence is a complete thought. It tells who, and what happened. The dog, ran.",
+          say: "A sentence is a complete thought. It tells who or what, and what happened. The dog, ran.",
           async draw(v, api) {
             const who = chip(v, 260, 230, "The dog", "#e6effc", "#1f4e8c", 64);
             const did = chip(v, 760, 230, "ran.", "#fff1dc", "#b45f06", 64);
-            text(v, 260, 130, "who?", { "font-size": 36, fill: "#1f4e8c" });
+            text(v, 260, 130, "who or what?", { "font-size": 36, fill: "#1f4e8c" });
             text(v, 760, 130, "what happened?", { "font-size": 36, fill: "#b45f06" });
             await api.wait(1500);
             await api.tween(1200, (t) => {
@@ -422,7 +426,7 @@ const units = {
           },
         },
         {
-          say: "Words have jobs. A noun is the name of a person, place, thing, or idea. A verb is an action word. An adjective describes a noun.",
+          say: "Words have jobs. A noun is the name of a person, place, thing, or idea. A verb shows an action or a state of being. An adjective describes a noun.",
           async draw(v, api) {
             const words = [["The", "#fff", "#5a4130", ""], ["big", "#fde7f3", "#a3246b", "adjective"], ["dog", "#e6effc", "#1f4e8c", "noun"], ["runs.", "#fff1dc", "#b45f06", "verb"]];
             const xs = [190, 370, 570, 790];
@@ -563,7 +567,7 @@ const units = {
               window.OC?.touch();
               if (o === G) {
                 paint(g, ...RIGHT);
-                return st.win(`${pick(GOOD)} <b>${G.w}</b>: ${G.m.toLowerCase()}. The roots told you!`, `${G.w}. ${G.m}. You used the roots.`);
+                return st.win(`${pick(GOOD)} <b>${G.w}</b>: ${G.m.toLowerCase()}. The roots reveal the meaning.`, `${G.w}. ${G.m}. The roots reveal the meaning.`);
               }
               paint(g, ...WRONG);
               const tries = st.oops();
@@ -577,7 +581,7 @@ const units = {
             });
           });
           st.acts(`<button type="button" data-a="hear">🔊 Say the word</button>`, { hear: () => VOICE.speak(G.w) });
-          talk("A new word! Use its roots to guess what it means.");
+          talk("An unfamiliar word. Use its roots to work out what it means.");
         }
       },
     });
@@ -589,7 +593,7 @@ const units = {
     const L = {
       easy: [
         ["The dog ran.", "The dog", "ran."], ["A cat naps.", "A cat", "naps."], ["Birds sing.", "Birds", "sing."], ["The baby smiled.", "The baby", "smiled."], ["We swim.", "We", "swim."], ["The sun came up.", "The sun", "came up."],
-        ["The big red.", "", "", "what"], ["A little cat.", "", "", "what"], ["Ran fast.", "", "", "who"], ["The tall tree.", "", "", "what"], ["Jumped up high.", "", "", "who"], ["My best friend.", "", "", "what"],
+        ["The big red bus.", "", "", "what"], ["A little cat.", "", "", "what"], ["Ran fast.", "", "", "who"], ["The tall tree.", "", "", "what"], ["Jumped up high.", "", "", "who"], ["My best friend.", "", "", "what"],
       ],
       medium: [
         ["The bus stopped.", "The bus", "stopped."], ["Ducks swim in the pond.", "Ducks", "swim in the pond."], ["The wind blew hard.", "The wind", "blew hard."], ["My sister reads to me.", "My sister", "reads to me."], ["The cook made soup.", "The cook", "made soup."],
@@ -597,10 +601,10 @@ const units = {
       ],
       hard: [
         ["The cat slept under the bed.", "The cat", "slept under the bed."], ["After lunch, we played chess.", "we", "played chess."], ["The old ship sailed far away.", "The old ship", "sailed far away."], ["A bee buzzed past my ear.", "A bee", "buzzed past my ear."], ["Snow fell all night.", "Snow", "fell all night."],
-        ["The girl with the red kite.", "", "", "what"], ["Ran up the hill and down again.", "", "", "who"], ["In the morning.", "", "", "both"], ["Because it was raining.", "", "", "what"], ["Across the field and over the gate.", "", "", "both"], ["Swam to the other side.", "", "", "who"],
+        ["The girl with the red kite.", "", "", "what"], ["Ran up the hill and down again.", "", "", "who"], ["In the morning.", "", "", "both"], ["The old map in the drawer.", "", "", "what"], ["Across the field and over the gate.", "", "", "both"], ["Swam to the other side.", "", "", "who"],
       ],
     };
-    const WHO = "👤 Who";
+    const WHO = "👤 Who or what";
     const WHAT = "⚡ What happened";
     runGame("w2", {
       rounds: 8,
@@ -615,7 +619,7 @@ const units = {
         fresh();
         el("rect", { x: 30, y: 110, width: 940, height: 150, rx: 28, fill: "#fffaf0", stroke: "#d9cdb5", "stroke-width": 4 }, view);
         const line = fit(text(view, 500, 208, s, { "font-size": 64, fill: "#2b1d12" }), 900);
-        text(view, 500, 70, "Who? + What happened?", { "font-size": 34, fill: "#5a4130" });
+        text(view, 500, 70, "Who or what? + What happened?", { "font-size": 34, fill: "#5a4130" });
         const showParts = () => {
           line.textContent = "";
           const pre = s.slice(0, s.indexOf(who));
@@ -627,7 +631,7 @@ const units = {
             t.setAttribute("fill", c);
             line.appendChild(t);
           });
-          text(view, 330, 330, "blue = who", { "font-size": 34, fill: "#1f4e8c" });
+          text(view, 330, 330, "blue = who or what", { "font-size": 34, fill: "#1f4e8c" });
           text(view, 680, 330, "orange = what happened", { "font-size": 34, fill: "#b45f06" });
         };
         let step = 1;
@@ -637,37 +641,37 @@ const units = {
             const right = v === (whole ? "yes" : "no");
             if (right && whole) {
               showParts();
-              return st.win(`${pick(GOOD)} It has a <b>who</b> and a <b>what happened</b>. It is complete.`, `${pick(GOOD)} It has a who, and a what happened. It is complete.`);
+              return st.win(`${pick(GOOD)} It has a <b>who or what</b> and a <b>what happened</b>. It is complete.`, `${pick(GOOD)} It has a who or what, and a what happened. It is complete.`);
             }
             if (right && !whole) {
-              if (st.level === "easy") return st.win(`${pick(GOOD)} It is not complete. It is missing ${missing === "who" ? "a <b>who</b>" : "<b>what happened</b>"}.`, `${pick(GOOD)} It is not complete. It is missing ${missing === "who" ? "a who" : "what happened"}.`);
+              if (st.level === "easy") return st.win(`${pick(GOOD)} It is not complete. It is missing ${missing === "who" ? "a <b>who or what</b>" : "<b>what happened</b>"}.`, `${pick(GOOD)} It is not complete. It is missing ${missing === "who" ? "a who or what" : "what happened"}.`);
               step = 2;
               MUSIC.play("xylophone", 84, { gain: 0.3 });
               st.acts(`<button type="button" data-a="who">${WHO}</button><button type="button" data-a="what">${WHAT}</button><button type="button" data-a="both">Both</button>`, { who: () => answer("who"), what: () => answer("what"), both: () => answer("both") });
               return talk("Yes, not complete. What is missing?");
             }
             const tries = st.oops();
-            if (tries === 1) talk(`${LEARN} Ask: who is it about? And what happened? Can you find both?`);
+            if (tries === 1) talk(`${LEARN} Ask: who or what is it about? And what happened? Can you find both?`);
             else {
               if (whole) showParts();
-              await talkAsync(whole ? "It has a who and a what happened, so it is complete." : "It leaves us waiting. Something is missing, so it is not complete.");
+              await talkAsync(whole ? "It has a who or what and a what happened, so it is complete." : "It leaves us waiting. Something is missing, so it is not complete.");
               if (my !== token) return;
-              st.win(whole ? "Complete! 👍" : "Not complete yet.", "", { chime: false, ms: 600 });
+              st.win(whole ? "Complete." : "Not complete yet.", "", { chime: false, ms: 600 });
             }
           } else {
-            const why = { who: "We do not know who did it.", what: "We do not know what happened.", both: "There is no who, and nothing happened." }[missing];
+            const why = { who: "We do not know who or what did it.", what: "We do not know what happened.", both: "There is no who or what, and nothing happened." }[missing];
             if (v === missing) return st.win(`${pick(GOOD)} ${why}`, `${pick(GOOD)} ${why}`);
             const tries = st.oops();
             if (tries === 1) talk(`${LEARN} Read it again. Is there a person, animal or thing? Is there something they did?`);
             else {
-              await talkAsync(`${why} So it is missing ${missing === "both" ? "both" : missing === "who" ? "a who" : "what happened"}.`);
+              await talkAsync(`${why} So it is missing ${missing === "both" ? "both" : missing === "who" ? "a who or what" : "what happened"}.`);
               if (my !== token) return;
               st.win("Now you know what to add.", "", { chime: false, ms: 600 });
             }
           }
         };
         st.acts(`<button type="button" class="primary" data-a="yes">✅ Complete</button><button type="button" data-a="no">🧩 Not complete</button>`, { yes: () => answer("yes"), no: () => answer("no") });
-        talk("Read it. Is it a complete sentence, with a who and a what happened?");
+        talk("Read it. Is it a complete sentence, with a who or what and a what happened?");
       },
     });
   },
@@ -780,7 +784,7 @@ const units = {
 
   // ---------------- 4. Sentence imitation ----------------
   w4() {
-    const ROLE = { who: ["who", "#e6effc", "#1f4e8c"], did: ["what happened", "#fff1dc", "#b45f06"], where: ["where", "#e3f4e7", "#2e7d46"], when: ["when", "#f3e8fd", "#6a3fa0"], how: ["describing", "#fde7f3", "#a3246b"] };
+    const ROLE = { who: ["who or what", "#e6effc", "#1f4e8c"], did: ["what happened", "#fff1dc", "#b45f06"], where: ["where", "#e3f4e7", "#2e7d46"], when: ["when", "#f3e8fd", "#6a3fa0"], how: ["describing", "#fde7f3", "#a3246b"] };
     const POOL = {
       who: ["The big dog", "A tiny bird", "The happy frog", "An old owl", "The brave knight", "A yellow duck", "The little mouse", "A busy bee", "The sleepy cat", "The baby goat"],
       didEnd: ["barked.", "sang.", "hopped.", "hooted.", "waved.", "quacked.", "yawned.", "giggled."],
@@ -800,7 +804,7 @@ const units = {
       ],
     };
     const roleOf = (k) => (k === "didEnd" ? "did" : k);
-    const ASKQ = { who: (x) => `Is ${x} a who?`, did: (x) => `Does ${x} tell what happened?`, where: (x) => `Does ${x} tell where?`, when: (x) => `Does ${x} tell when?`, how: (x) => `Does ${x} describe?` };
+    const ASKQ = { who: (x) => `Does ${x} name who or what?`, did: (x) => `Does ${x} tell what happened?`, where: (x) => `Does ${x} tell where?`, when: (x) => `Does ${x} tell when?`, how: (x) => `Does ${x} describe?` };
     const lower = (s) => s[0].toLowerCase() + s.slice(1);
     runGame("w4", {
       rounds: 6,
@@ -894,20 +898,22 @@ const units = {
 
   // ---------------- 5. Nouns, verbs & adjectives ----------------
   w5() {
-    const NOUN = [["dog", "🐶"], ["cake", "🎂"], ["tree", "🌳"], ["ball", "⚽"], ["apple", "🍎"], ["bird", "🐦"], ["house", "🏠"], ["book", "📖"], ["park", "🏞️"], ["teacher", "🧑‍🏫"]];
-    const VERB = [["swim", "🏊"], ["sleep", "😴"], ["climb", "🧗"], ["clap", "👏"], ["sing", "🎤"], ["hop", "🐇"], ["jump", "🦘"], ["eat", "🍽️"], ["write", "✍️"], ["laugh", "😂"]];
-    const ADJ = [["big"], ["soft"], ["happy"], ["red"], ["tall"], ["cold"], ["tiny"], ["loud"], ["sweet"], ["shiny"]];
-    const BINS = { noun: ["noun", "naming word", "🏷️", "#e6effc", "#1f4e8c"], verb: ["verb", "action word", "🏃", "#fff1dc", "#b45f06"], adj: ["adjective", "describing word", "🎨", "#fde7f3", "#a3246b"] };
-    const DEF = { noun: "A noun is the name of a person, place, thing, or idea.", verb: "A verb is an action word: something you can do.", adj: "An adjective describes a noun: what kind, or how many." };
+    // Many English words change job with use (a laugh / we laugh; a cold / a cold drink), so each word
+    // is shown inside a phrase that fixes its job: [word, picture, phrase].
+    const NOUN = [["dog", "🐶", "The dog barked."], ["cake", "🎂", "We baked a cake."], ["tree", "🌳", "A tree grew."], ["ball", "⚽", "She threw the ball."], ["apple", "🍎", "I ate an apple."], ["bird", "🐦", "A bird sang."], ["house", "🏠", "Their house is blue."], ["book", "📖", "He read a book."], ["park", "🏞️", "We went to the park."], ["teacher", "🧑‍🏫", "The teacher smiled."]];
+    const VERB = [["swim", "🏊", "We swim in the lake."], ["sleep", "😴", "Cats sleep a lot."], ["climb", "🧗", "They climb the hill."], ["clap", "👏", "We clap our hands."], ["sing", "🎤", "Birds sing at dawn."], ["hop", "🐇", "Rabbits hop away."], ["jump", "🦘", "Goats jump over rocks."], ["eat", "🍽️", "We eat lunch at noon."], ["write", "✍️", "I write my name."], ["laugh", "😂", "They laugh at jokes."]];
+    const ADJ = [["big", "", "a big box"], ["soft", "", "a soft pillow"], ["happy", "", "a happy puppy"], ["red", "", "a red apple"], ["tall", "", "a tall giraffe"], ["cold", "", "a cold drink"], ["tiny", "", "a tiny ant"], ["loud", "", "a loud drum"], ["sweet", "", "a sweet peach"], ["shiny", "", "a shiny coin"]];
+    const BINS = { noun: ["noun", "naming word", "🏷️", "#e6effc", "#1f4e8c"], verb: ["verb", "action or being", "🏃", "#fff1dc", "#b45f06"], adj: ["adjective", "describing word", "🎨", "#fde7f3", "#a3246b"] };
+    const DEF = { noun: "A noun is the name of a person, place, thing, or idea.", verb: "A verb shows an action, or a state of being such as is.", adj: "An adjective describes a noun: what kind, which one, or how many." };
     const SENT = [
-      ["The happy dog dug a hole.", { adj: ["happy"], noun: ["dog", "hole"], verb: ["dug"] }],
-      ["A tiny bird sang a sweet song.", { adj: ["tiny", "sweet"], noun: ["bird", "song"], verb: ["sang"] }],
-      ["The tall farmer painted the red door.", { adj: ["tall", "red"], noun: ["farmer", "door"], verb: ["painted"] }],
-      ["Big waves hit the sandy beach.", { adj: ["big", "sandy"], noun: ["waves", "beach"], verb: ["hit"] }],
-      ["The fluffy cat chased a ball.", { adj: ["fluffy"], noun: ["cat", "ball"], verb: ["chased"] }],
+      ["The happy dog dug a hole.", { adj: ["the", "happy", "a"], noun: ["dog", "hole"], verb: ["dug"] }],
+      ["A tiny bird sang a sweet song.", { adj: ["a", "tiny", "sweet"], noun: ["bird", "song"], verb: ["sang"] }],
+      ["The tall farmer painted the red door.", { adj: ["the", "tall", "red"], noun: ["farmer", "door"], verb: ["painted"] }],
+      ["Big waves hit the sandy beach.", { adj: ["big", "the", "sandy"], noun: ["waves", "beach"], verb: ["hit"] }],
+      ["The fluffy cat chased a ball.", { adj: ["the", "fluffy", "a"], noun: ["cat", "ball"], verb: ["chased"] }],
       ["Hungry bears catch fish.", { adj: ["hungry"], noun: ["bears", "fish"], verb: ["catch"] }],
-      ["The brave girl climbed a tall tree.", { adj: ["brave", "tall"], noun: ["girl", "tree"], verb: ["climbed"] }],
-      ["A green frog jumped into the cold pond.", { adj: ["green", "cold"], noun: ["frog", "pond"], verb: ["jumped"] }],
+      ["The brave girl climbed a tall tree.", { adj: ["the", "brave", "a", "tall"], noun: ["girl", "tree"], verb: ["climbed"] }],
+      ["A green frog jumped into the cold pond.", { adj: ["a", "green", "the", "cold"], noun: ["frog", "pond"], verb: ["jumped"] }],
     ];
     runGame("w5", {
       rounds: 10,
@@ -920,11 +926,12 @@ const units = {
         fresh();
         if (st.level !== "hard") {
           const kinds = st.level === "easy" ? ["noun", "verb"] : ["noun", "verb", "adj"];
-          const all = kinds.flatMap((k) => ({ noun: NOUN, verb: VERB, adj: ADJ })[k].map(([w, p]) => ({ w, p, k })));
+          const all = kinds.flatMap((k) => ({ noun: NOUN, verb: VERB, adj: ADJ })[k].map(([w, p, ctx]) => ({ w, p, ctx, k })));
           const item = st.take(all);
           const c = card(view, 500, 30, 460, 180, { fill: "#fff", stroke: "#c9b8a1" });
           if (st.level === "easy" && item.p) emoji(c, -130, 92, item.p, 100);
-          fit(text(c, st.level === "easy" ? 60 : 0, 118, item.w, { "font-size": 88, fill: "#2b1d12" }), st.level === "easy" ? 280 : 420);
+          fit(text(c, st.level === "easy" ? 60 : 0, 100, item.w, { "font-size": 80, fill: "#2b1d12" }), st.level === "easy" ? 280 : 420);
+          fit(text(c, st.level === "easy" ? 60 : 0, 158, item.ctx, { "font-size": 30, fill: "#8a6a4f", "font-style": "italic" }), st.level === "easy" ? 290 : 430);
           const n = kinds.length;
           const bw = n === 2 ? 340 : 290;
           kinds.forEach((k, i) => {
@@ -944,16 +951,16 @@ const units = {
               }
               paint(g, ...WRONG);
               const tries = st.oops();
-              if (tries === 1) talk(`${LEARN} Try it in a sentence. Can you say "the ${item.w}"? Can you ${item.w}? Is it "${/^[aeiou]/.test(item.w) ? "an" : "a"} ${item.w} thing"?`, `${LEARN} Try it in a sentence. Can you say: the ${item.w}? Can you ${item.w}? Is it ${/^[aeiou]/.test(item.w) ? "an" : "a"} ${item.w} thing?`);
+              if (tries === 1) talk(`${LEARN} Read the phrase: <i>${item.ctx}</i> There, does <b>${item.w}</b> name something, show an action, or describe a noun?`, `${LEARN} Read the phrase: ${item.ctx} There, does ${item.w} name something, show an action, or describe a noun?`);
               else {
                 glowOk();
                 talk(`${DEF[item.k]} So <b>${item.w}</b> goes here.`, `${DEF[item.k]} So ${item.w} goes here.`);
               }
             });
           });
-          st.acts(`<button type="button" data-a="hear">🔊 Hear it</button>`, { hear: () => VOICE.speak(item.w) });
-          if (st.level === "easy") talk(`<b>${item.w}</b>. Is it a naming word or an action word?`, `${item.w}. Is it a naming word, or an action word?`);
-          else talk("Read the word. Is it a noun, a verb, or an adjective?");
+          st.acts(`<button type="button" data-a="hear">🔊 Hear it</button>`, { hear: () => VOICE.speak(`${item.w}. ${item.ctx}`) });
+          if (st.level === "easy") talk(`<b>${item.w}</b>, as in: ${item.ctx} Is it a naming word or an action word here?`, `${item.w}, as in: ${item.ctx} Is it a naming word, or an action word here?`);
+          else talk(`<b>${item.w}</b>, as in: ${item.ctx} Is it a noun, a verb, or an adjective here?`, `${item.w}, as in: ${item.ctx} Is it a noun, a verb, or an adjective here?`);
           return;
         }
         // Hard: find the word with a job inside a real sentence.
@@ -983,12 +990,13 @@ const units = {
             window.OC?.touch();
             if (jobs[want].includes(bare)) {
               paint(g, ...RIGHT);
-              return st.win(`${pick(GOOD)} <b>${bare}</b> is ${want === "adj" ? "an adjective" : `a ${name}`}.`, `${bare} is ${want === "adj" ? "an adjective" : `a ${name}`}. ${DEF[want]}`);
+              const art = ["a", "an", "the"].includes(bare) ? " A, an and the are articles, a special kind of adjective." : "";
+              return st.win(`${pick(GOOD)} <b>${bare}</b> is ${want === "adj" ? "an adjective" : `a ${name}`}.${art}`, `${bare} is ${want === "adj" ? "an adjective" : `a ${name}`}.${art} ${DEF[want]}`);
             }
             paint(g, ...WRONG);
             const tries = st.oops();
             const kind = Object.keys(jobs).find((k) => jobs[k].includes(bare));
-            if (tries === 1) talk(`${LEARN} ${kind ? `<b>${bare}</b> is ${kind === "adj" ? "an adjective" : `a ${BINS[kind][0]}`}.` : `<b>${bare}</b> is a little helper word.`} ${DEF[want]} Which word does that job?`, `${LEARN} ${kind ? `${bare} is ${kind === "adj" ? "an adjective" : `a ${BINS[kind][0]}`}.` : `${bare} is a little helper word.`} ${DEF[want]} Which word does that job?`);
+            if (tries === 1) talk(`${LEARN} ${kind ? `<b>${bare}</b> is ${kind === "adj" ? "an adjective" : `a ${BINS[kind][0]}`}.` : `<b>${bare}</b> is a preposition, a different part of speech.`} ${DEF[want]} Which word does that job?`, `${LEARN} ${kind ? `${bare} is ${kind === "adj" ? "an adjective" : `a ${BINS[kind][0]}`}.` : `${bare} is a preposition, a different part of speech.`} ${DEF[want]} Which word does that job?`);
             else {
               glowOk();
               const many = jobs[want].length > 1;
@@ -1089,7 +1097,7 @@ const units = {
       step = 4;
       realCard(REAL.w6);
       setActs(`<button type="button" class="primary" data-a="restart">🔁 Tell another story</button>${micRow()}`);
-      talk("🎉 You told the whole story: who, first, then, and the end. You remembered so much! Now try it for real, away from the screen.");
+      talk("You retold the whole story: who, first, then, and the end. Recalling events in order is a real skill. Now try it for real, away from the screen.");
     };
     // The recording stays in this page's memory only. It is never saved or sent, and it is gone when you leave.
     const startRec = async () => {

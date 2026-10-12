@@ -1,0 +1,1886 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Virtue Heroes · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="character">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Virtue Heroes</b><small>Character · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>// Virtue Heroes: true heroes from the Bible and from history for each virtue.
+const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, wait, confetti, choices, explain, everyday, emoji, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+const INK = "#2b1d12";
+const MUTED = "#6b5a4a";
+let token = 0;
+let view = null;
+let clipN = 0;
+
+const UNITS = [
+  { id: "vh0", label: "See it", icon: "👀" },
+  { id: "vh1", label: "1. Honesty", icon: "🗣️" },
+  { id: "vh2", label: "2. Kindness", icon: "💛" },
+  { id: "vh3", label: "3. Courage", icon: "🦁" },
+  { id: "vh4", label: "4. Self-control", icon: "✋" },
+  { id: "vh5", label: "5. Gratitude", icon: "🌻" },
+  { id: "vh6", label: "6. Virtue match", icon: "🧩" },
+  { id: "vh7", label: "7. My virtue journal", icon: "📓" },
+  { id: "vh8", label: "8. Bigger virtues (Hard)", icon: "🏔️" },
+];
+
+// ---------- the virtues (Year 1 in the family's own words; Year 4 previews) ----------
+const V = {
+  honesty: { name: "Honesty", icon: "🗣️", color: "#2f6fd6", soft: "#e3edfc", year: 1, def: "telling the truth, even when it is uncomfortable; not pretending", ask: "Which part shows someone telling the truth, or not pretending?" },
+  kindness: { name: "Kindness", icon: "💛", color: "#b77900", soft: "#fff3d1", year: 1, def: "choosing to do something good for another person, especially when you don't have to", ask: "Which part shows someone doing good for another person, when they didn't have to?" },
+  courage: { name: "Courage", icon: "🦁", color: "#d4552c", soft: "#fde5dc", year: 1, def: "doing the right thing even when it is scary or hard", ask: "Which part shows someone doing the right thing, even though it was scary?" },
+  selfcontrol: { name: "Self-control", icon: "✋", color: "#8a44b8", soft: "#f1e5fa", year: 1, def: "choosing to wait, to stop, to hold back, even when you want to go ahead", ask: "Which part shows someone choosing to wait, stop, or hold back?" },
+  gratitude: { name: "Gratitude", icon: "🌻", color: "#2e8f55", soft: "#e2f4e8", year: 1, def: "noticing and naming the good things you have been given", ask: "Which part shows someone noticing a good gift and saying thank you?" },
+  perseverance: { name: "Perseverance", icon: "🧗", color: "#b45309", soft: "#fdebd3", year: 4, def: "keeping on going when something is hard or slow, and not giving up", ask: "Which part shows someone keeping on going when it was hard?" },
+  humility: { name: "Humility", icon: "🤲", color: "#0f766e", soft: "#d5f2ee", year: 4, def: "not thinking you are better than others; being glad to serve and to learn", ask: "Which part shows someone serving others, or not acting better than others?" },
+  justice: { name: "Justice", icon: "⚖️", color: "#9f1239", soft: "#fde2e7", year: 4, def: "doing what is fair and right, and standing up for people who are treated unfairly", ask: "Which part shows someone standing up for what is fair?" },
+  compassion: { name: "Compassion", icon: "💞", color: "#7c3aed", soft: "#ede4fd", year: 4, def: "feeling sad with someone who is hurting, and wanting to help", ask: "Which part shows someone feeling sad with a hurting person, and helping?" },
+};
+const Y1 = ["honesty", "kindness", "courage", "selfcontrol", "gratitude"];
+const Y4 = ["perseverance", "humility", "justice", "compassion"];
+const UNIT_OF = { vh1: "honesty", vh2: "kindness", vh3: "courage", vh4: "selfcontrol", vh5: "gratitude" };
+
+// ---------- looks for the portraits ----------
+const SK = { a: "#f3d6bd", b: "#e8bf98", c: "#c99266", d: "#a8714a", e: "#7d4f31", f: "#5c3a24" };
+const LINCOLN = { skin: "#ecc9a8", hair: "#2b1d12", style: "short", beard: "#2b1d12", mustache: false, robe: "#24252b", collar: "#fff", tie: "#111" };
+const WASHINGTON = { skin: SK.a, hair: "#eeeae2", style: "powder", robe: "#2a4a7f", collar: "#f5ecd7" };
+const NIGHTINGALE = { skin: SK.a, hair: "#5a3a22", style: "bun", robe: "#2f3e57", collar: "#fff", head: "nurse" };
+
+// ---------- the heroes ----------
+// tag: bible | parable | true | told | legend.  era: ot | nt | 1600 | 1700 | 1800 | 1900.
+const HEROES = [
+  // ===== Honesty =====
+  {
+    id: "zacchaeus", v: "honesty", kind: "bible", tag: "bible", name: "Zacchaeus", short: "Zacchaeus", ref: "Luke 19:1–10", where: "Jericho", when: "When Jesus lived, about 2,000 years ago", era: "nt",
+    parts: ["Zacchaeus collected taxes in Jericho. He had taken more money than was fair.", "Being short, he climbed a sycamore tree to see Jesus, who then chose to stay at his house.", "Zacchaeus stood up and said: I will pay back four times what I took."],
+    right: 2, why: "He stopped pretending. He told the truth about the wrong he did, and he made it right.",
+    line: { t: "For the Son of man is come to seek and to save that which was lost.", ref: "Luke 19:10" },
+    deed: "admitted he had cheated people and paid them back four times over",
+    look: { skin: SK.c, hair: "#3a2a1e", style: "short", beard: "#3a2a1e", robe: "#3f8f7a", head: "scarf", hc: "#efe0c2", scene: "tree", prop: "🪙" },
+  },
+  {
+    id: "samuel", v: "honesty", kind: "bible", tag: "bible", also: ["courage"], name: "Samuel", short: "Samuel", ref: "1 Samuel 3", where: "God's house at Shiloh", when: "Old Testament times, long ago", era: "ot",
+    parts: ["Samuel was a boy who helped Eli the priest at God's house in Shiloh.", "One night God called Samuel and gave him a message. It was sad news for Eli.", "Samuel was afraid, but when Eli asked, he told him everything and hid nothing."],
+    right: 2, why: "Sad news is uncomfortable to tell. Samuel told the whole truth anyway, and hid nothing.",
+    line: { t: "And Samuel told him every whit, and hid nothing from him.", ref: "1 Samuel 3:18", gloss: "every whit = every bit" },
+    deed: "told Eli the whole sad message from God and hid nothing",
+    look: { skin: SK.c, hair: "#2b1d12", style: "curly", robe: "#e7d3a1", collar: "#d8c08a", scene: "night", prop: "🪔" },
+  },
+  {
+    id: "nathan", v: "honesty", kind: "bible", tag: "bible", also: ["courage", "justice"], name: "Nathan the prophet", short: "Nathan", ref: "2 Samuel 12", where: "King David's palace, Jerusalem", when: "Old Testament times, long ago", era: "ot",
+    parts: ["King David did something very wrong. He tried to hide it.", "God sent Nathan. He told David a story about a rich man who took a poor man's little lamb.", "Then Nathan told the king the truth to his face: You are the man!"],
+    right: 2, why: "Telling a king he was wrong was uncomfortable. Nathan said the truth anyway. And David stopped pretending and said, I have sinned.",
+    line: { t: "And David said unto Nathan, I have sinned against the LORD.", ref: "2 Samuel 12:13" },
+    deed: "told King David the truth about the wrong he had hidden",
+    look: { skin: SK.c, hair: "#cfc8bd", style: "short", beard: "#cfc8bd", robe: "#6b5b95", head: "scarf", hc: "#e9dcc0", scene: "palace", prop: "🐑" },
+  },
+  {
+    id: "nightingale-charts", v: "honesty", kind: "history", tag: "true", also: ["courage"], name: "Florence Nightingale", short: "Florence", date: "1858", sub: "1858", where: "London, England", when: "In the 1850s", era: "1800",
+    parts: ["Florence Nightingale was a nurse. In a war, she saw many soldiers get sick in dirty hospitals.", "She counted very carefully, and drew pictures of the numbers called charts.", "She showed the charts to the leaders, even though the truth was hard for them to hear."],
+    right: 2, why: "The leaders did not want to hear it. She told the truth with numbers, and hospitals were made cleaner.",
+    fact: "True story. Her famous charts of the soldiers' numbers were printed in 1858. Her method (statistics: the science of collecting and analysing numbers) changed how hospitals are run.",
+    deed: "showed leaders the true numbers about dirty hospitals, even though they didn't want to hear it",
+    look: { ...NIGHTINGALE, scene: "room", prop: "📊" },
+  },
+  {
+    id: "lincoln-honest", v: "honesty", kind: "history", tag: "told", name: "Abraham Lincoln", short: "Lincoln", date: "1830s", sub: "1830s", where: "New Salem, Illinois, USA", when: "In the 1830s", era: "1800",
+    parts: ["As a young man, Abraham Lincoln worked in a little shop in New Salem, Illinois.", "People say a woman once paid a few cents too much, and he walked miles to give it back.", "People trusted him so much that they called him Honest Abe. Later he became President."],
+    right: 1, why: "Giving back money that isn't yours, even when nobody would ever know, is honesty.",
+    fact: "His nickname Honest Abe is well documented. The walk to return the pennies is a story people tell; no record from the time proves it. A story is not true just because it is often repeated.",
+    deed: "was called Honest Abe; people say he walked miles to give back a few cents",
+    look: { ...LINCOLN, head: "tophat", scene: "shop", prop: "🪙" },
+  },
+  {
+    id: "washington-cherry", v: "honesty", kind: "history", tag: "legend", name: "George Washington", short: "Washington", date: "lived 1732–1799", sub: "lived 1732–1799", where: "Virginia, America", when: "In the story Washington was about six, in the 1730s", era: "1700",
+    parts: ["A famous story says young George Washington cut his father's cherry tree with a little hatchet.", "In the story, his father asked who did it, and George said: I can't tell a lie, Pa. I did cut it with my hatchet.", "But this story is a legend. A writer named Parson Weems made it up in 1806."],
+    right: 1, why: "In the story, George told the truth even though he might get in trouble. The story is made up, but the lesson is true.",
+    fact: "Legend. Parson Weems added this story to his book about Washington in 1806. No earlier evidence for it exists, so a good lesson does not make it true. Washington himself was real: the first U.S. President.",
+    deed: "in a made-up legend, said: I can't tell a lie, I did cut it with my hatchet",
+    look: { ...WASHINGTON, scene: "tree", prop: "🍒" },
+  },
+  // ===== Kindness =====
+  {
+    id: "samaritan", v: "kindness", kind: "bible", tag: "parable", also: ["compassion"], name: "The Good Samaritan", short: "Samaritan", ref: "Luke 10:25–37", where: "The road from Jerusalem to Jericho", when: "A story Jesus told, about 2,000 years ago", era: "nt",
+    parts: ["Jesus told a story. Robbers hurt a man and left him by the road.", "Two important men saw him, but they walked past on the other side.", "A man from Samaria stopped. He bandaged the man, took him to an inn, and paid for his care."],
+    right: 2, why: "The Samaritan did not have to help a stranger from another people. He chose to do good anyway.",
+    line: { t: "Go, and do thou likewise.", ref: "Luke 10:37", gloss: "do thou likewise = you do the same" },
+    deed: "stopped to bandage a hurt stranger and paid for his care",
+    look: { skin: SK.c, hair: "#3a2a1e", style: "short", beard: "#3a2a1e", robe: "#b5543c", head: "scarf", hc: "#f3e4c4", scene: "road", prop: "🫏" },
+  },
+  {
+    id: "ruth", v: "kindness", kind: "bible", tag: "bible", also: ["compassion"], name: "Ruth", short: "Ruth", ref: "Ruth 1–2", where: "From Moab to Bethlehem", when: "Old Testament times, long ago", era: "ot",
+    parts: ["Naomi's husband and sons had died. She was sad, and she was going home to Bethlehem.", "Ruth was Naomi's daughter-in-law. She could have gone back to her own family in Moab.", "But Ruth stayed with Naomi, and worked in the fields to gather grain for her."],
+    right: 2, why: "Ruth didn't have to stay. She chose to care for Naomi and work hard for her.",
+    line: { t: "whither thou goest, I will go", ref: "Ruth 1:16", gloss: "whither thou goest = wherever you go" },
+    deed: "stayed with lonely Naomi and gathered grain to feed her",
+    look: { skin: SK.c, hair: "#3a2a1e", style: "long", robe: "#c0507a", head: "veil", hc: "#f2d9b0", scene: "field", prop: "🌾" },
+  },
+  {
+    id: "mephibosheth", v: "kindness", kind: "bible", tag: "bible", also: ["compassion"], name: "King David", short: "David", ref: "2 Samuel 9", where: "King David's palace, Jerusalem", when: "Old Testament times, long ago", era: "ot",
+    parts: ["King David's best friend Jonathan had died. Jonathan had a son named Mephibosheth.", "Mephibosheth could not walk well. His feet had been hurt when he was little.", "David gave him his family's land, and let him eat at the king's table every day."],
+    right: 2, why: "David did not have to do anything. He chose to be kind to his friend's son, every day.",
+    line: { t: "Fear not: for I will surely shew thee kindness", ref: "2 Samuel 9:7", gloss: "shew thee = show you" },
+    deed: "gave his best friend's son land and a seat at the king's table",
+    look: { skin: SK.c, hair: "#5a2e18", style: "curly", beard: "#5a2e18", robe: "#6a3d9a", head: "crown", scene: "palace", prop: "🍞" },
+  },
+  {
+    id: "fry", v: "kindness", kind: "history", tag: "true", also: ["compassion"], name: "Elizabeth Fry", short: "Fry", date: "1813", sub: "1813", where: "Newgate Prison, London, England", when: "In 1813", era: "1800",
+    parts: ["Elizabeth Fry was a Christian woman, a Quaker, who lived in London, England.", "In 1813 she visited a prison where women and their children were cold and hungry.", "She brought them clothes, and kept coming back. Later she started a school for the children."],
+    right: 2, why: "Nobody made her go. She chose to help people that others had forgotten.",
+    fact: "True story. She first visited Newgate Prison in 1813, and returned in 1816 to start the prison school. Her picture was later on English five-pound notes.",
+    deed: "brought clothes to women in prison and started a school for their children",
+    look: { skin: SK.a, hair: "#6b4a2e", style: "bun", robe: "#7b7d85", collar: "#fff", head: "bonnet", scene: "prison", prop: "🧣" },
+  },
+  {
+    id: "muller", v: "kindness", kind: "history", tag: "true", also: ["compassion"], name: "George Müller", short: "Müller", date: "1836", sub: "1836", where: "Bristol, England", when: "In 1836", era: "1800",
+    parts: ["George Müller lived in Bristol, England. Many children there had no mum or dad.", "In 1836 he opened a home, and gave those children food, beds and school.", "He prayed for what they needed. Over the years, more than 10,000 children lived in his homes."],
+    right: 1, why: "He chose to give children a home, food and school. They could never pay him back.",
+    fact: "True story. His first children's home opened in Bristol in 1836.",
+    deed: "opened homes that cared for more than 10,000 children with no parents",
+    look: { skin: SK.a, hair: "#e8e4dc", style: "short", beard: "#e8e4dc", robe: "#2e2f36", collar: "#fff", tie: "#2e2f36", scene: "town", prop: "🏠" },
+  },
+  {
+    id: "teresa", v: "kindness", kind: "history", tag: "true", also: ["compassion"], name: "Mother Teresa", short: "Teresa", date: "1950", sub: "1950", where: "Kolkata, India", when: "From 1950", era: "1900",
+    parts: ["Mother Teresa was a Catholic nun who taught at a school in Kolkata, India.", "She saw very poor and sick people lying in the streets, with no one to help them.", "She started a group of sisters who washed, fed and cared for them with love."],
+    right: 2, why: "Those people could not give her anything back. She chose to care for them anyway.",
+    fact: "True story. Her group, the Missionaries of Charity, began in 1950. She won the Nobel Peace Prize in 1979.",
+    deed: "cared for very poor, sick people in the streets of Kolkata",
+    look: { skin: SK.b, hair: "#6b5a4a", style: "short", robe: "#f4f2ee", head: "sari", hc: "#fbfaf7", scene: "street", prop: "🤲" },
+  },
+  // ===== Courage =====
+  {
+    id: "goliath", v: "courage", kind: "bible", tag: "bible", name: "David", short: "David", ref: "1 Samuel 17", where: "The Valley of Elah", when: "Old Testament times, long ago", era: "ot",
+    parts: ["A giant soldier named Goliath shouted at God's people every day. Everyone was afraid.", "David was a young shepherd. He had brought food to his brothers in the army.", "David trusted God, and went out to face Goliath with a sling and five smooth stones."],
+    right: 2, why: "Everyone else was too scared. David did the right thing even though it was scary.",
+    line: { t: "for the battle is the LORD's", ref: "1 Samuel 17:47" },
+    deed: "trusted God and faced the giant Goliath when everyone else was afraid",
+    look: { skin: SK.c, hair: "#7a3b1e", style: "curly", robe: "#8a6a3f", scene: "valley", prop: "🪨" },
+  },
+  {
+    id: "esther", v: "courage", kind: "bible", tag: "bible", also: ["justice"], name: "Queen Esther", short: "Esther", ref: "Esther 4–5", where: "The palace in Susa, Persia", when: "Old Testament times, long ago", era: "ot",
+    parts: ["Esther was a Jewish girl who became the queen of Persia.", "A wicked man named Haman made a plan to destroy her people.", "Going to the king without being called was very dangerous. Esther went anyway, to save her people."],
+    right: 2, why: "Esther was afraid, and she did the right thing anyway to help her people.",
+    line: { t: "who knoweth whether thou art come to the kingdom for such a time as this?", ref: "Esther 4:14" },
+    deed: "went to the king without being called, to save her people",
+    look: { skin: SK.c, hair: "#2b1d12", style: "long", robe: "#7b4bb5", head: "crown", hc: "#e6d3f5", scene: "palace", prop: "📜" },
+  },
+  {
+    id: "daniel-lions", v: "courage", kind: "bible", tag: "bible", also: ["perseverance"], name: "Daniel", short: "Daniel", ref: "Daniel 6", where: "Babylon", when: "Old Testament times, long ago", era: "ot",
+    parts: ["Daniel was a leader in Babylon. Some jealous men tricked the king into making a new law.", "The law said that for thirty days, no one could pray to anyone except the king.", "Daniel still prayed to God three times a day by his open window, even though he could be thrown to the lions."],
+    right: 2, why: "Daniel knew it was dangerous. He did the right thing anyway, and God shut the lions' mouths.",
+    line: { t: "My God hath sent his angel, and hath shut the lions' mouths", ref: "Daniel 6:22" },
+    deed: "kept praying to God by his open window, even with lions waiting",
+    look: { skin: SK.c, hair: "#d9d4cc", style: "short", beard: "#d9d4cc", robe: "#3d6db5", head: "scarf", hc: "#f0e2c4", scene: "night", prop: "🦁" },
+  },
+  {
+    id: "tubman", v: "courage", kind: "history", tag: "true", also: ["justice", "compassion"], name: "Harriet Tubman", short: "Tubman", date: "1849", sub: "1849", where: "Maryland, USA", when: "From 1849", era: "1800",
+    parts: ["Harriet Tubman was born enslaved in Maryland. People treated her as property, not as free.", "In 1849 she escaped, and walked north to freedom in Pennsylvania.", "Then she went back again and again, in secret, to lead about 70 more people to freedom."],
+    right: 2, why: "She was already free and safe. Going back was very dangerous. She went anyway, to help others.",
+    fact: "True story. She escaped in 1849 and went back about 13 times. She followed the North Star at night.",
+    deed: "went back again and again, in secret, to lead people out of slavery",
+    look: { skin: SK.f, hair: "#1d140d", style: "short", robe: "#5b4a3a", collar: "#e8dccb", head: "headwrap", hc: "#b03a2e", scene: "night", prop: "⭐" },
+  },
+  {
+    id: "parks", v: "courage", kind: "history", tag: "true", also: ["justice"], name: "Rosa Parks", short: "Parks", date: "1955", sub: "1955", where: "Montgomery, Alabama, USA", when: "On 1 December 1955", era: "1900",
+    parts: ["Rosa Parks lived in Montgomery, Alabama. Unfair laws said Black people must give up bus seats to white people.", "On 1 December 1955, the bus driver told her to give up her seat.", "Rosa calmly said no. She was arrested, but she did not give in."],
+    right: 2, why: "Saying no to an unfair rule was scary. She did what was right, calmly.",
+    fact: "True story. 1 December 1955. Her brave no began the Montgomery bus boycott, which lasted 381 days.",
+    deed: "calmly said no when told to give up her bus seat because of an unfair law",
+    look: { skin: SK.e, hair: "#2b1d12", style: "bun", glasses: true, robe: "#3d4f7a", collar: "#fff", scene: "bus", prop: "🚌" },
+  },
+  {
+    id: "tenboom", v: "courage", kind: "history", tag: "true", also: ["kindness", "compassion"], name: "Corrie ten Boom", short: "Corrie", date: "1940s", sub: "1940s", where: "Haarlem, the Netherlands", when: "During World War II, in the 1940s", era: "1900",
+    parts: ["Corrie ten Boom was a Christian watchmaker in Haarlem, in the Netherlands.", "During World War II, Jewish people there were in great danger.", "Corrie's family hid Jewish people in a secret room in their house, to keep them safe."],
+    right: 2, why: "Hiding people was very dangerous. Corrie's family did the right thing anyway.",
+    fact: "True story. When soldiers searched the house in 1944, the people in the secret room were not found. Corrie was sent to prison. Later she travelled the world, teaching about God's love and forgiveness.",
+    deed: "hid Jewish people in a secret room during World War II",
+    look: { skin: SK.a, hair: "#8a7a66", style: "bun", glasses: true, robe: "#4a6b8a", collar: "#fff", scene: "room", prop: "⌚" },
+  },
+  // ===== Self-control =====
+  {
+    id: "joseph", v: "selfcontrol", kind: "bible", tag: "bible", name: "Joseph", short: "Joseph", ref: "Genesis 39", where: "Potiphar's house, Egypt", when: "Old Testament times, long ago", era: "ot",
+    parts: ["Joseph was a servant in Egypt, in the house of a man named Potiphar. God was with him.", "Potiphar's wife kept asking Joseph to do something wrong.", "Joseph said no to doing wrong, again and again. When she grabbed his coat, he ran outside."],
+    right: 2, why: "Saying yes would have been easier. Joseph held back and said no to doing wrong.",
+    line: { t: "how then can I do this great wickedness, and sin against God?", ref: "Genesis 39:9" },
+    deed: "said no to doing wrong again and again, and ran away from it",
+    look: { skin: SK.c, hair: "#2b1d12", style: "short", robe: "#e6d7b0", collar: "#c9a75a", scene: "egypt", prop: "🧥" },
+  },
+  {
+    id: "daniel-food", v: "selfcontrol", kind: "bible", tag: "bible", also: ["courage"], name: "Daniel", short: "Daniel", ref: "Daniel 1", where: "The king's palace, Babylon", when: "Old Testament times, long ago", era: "ot",
+    parts: ["Daniel and his three friends were taken far from home to Babylon, to serve the king.", "The king sent them rich food and wine from his own table.", "Daniel chose not to eat it. He asked for vegetables and water for ten days instead."],
+    right: 2, why: "The king's food was tempting, but Daniel held back to obey God. After ten days, he and his friends looked healthier than all the others.",
+    line: { t: "But Daniel purposed in his heart that he would not defile himself", ref: "Daniel 1:8", gloss: "purposed in his heart = decided deep inside" },
+    deed: "said no to the king's rich food, and ate vegetables and water instead",
+    look: { skin: SK.c, hair: "#2b1d12", style: "curly", robe: "#3d6db5", head: "scarf", hc: "#f0e2c4", scene: "palace", prop: "🥕" },
+  },
+  {
+    id: "wilderness", v: "selfcontrol", kind: "bible", tag: "bible", name: "Jesus in the desert", short: "Jesus", ref: "Matthew 4:1–11", where: "The wilderness (desert)", when: "When Jesus lived, about 2,000 years ago", era: "nt",
+    parts: ["Jesus went into the desert and did not eat for forty days. He was very hungry.", "The devil tempted Him: If you are God's Son, turn these stones into bread.", "Jesus said no. He answered with words from the Bible, and did not give in."],
+    right: 2, why: "He was very hungry and could have gone ahead. He chose to hold back and obey God.",
+    line: { t: "Man shall not live by bread alone, but by every word that proceedeth out of the mouth of God.", ref: "Matthew 4:4" },
+    deed: "was very hungry, but would not turn stones into bread when tempted",
+    look: { symbol: "stones", scene: "desert" },
+  },
+  {
+    id: "robinson", v: "selfcontrol", kind: "history", tag: "true", also: ["courage"], name: "Jackie Robinson", short: "Robinson", date: "1947", sub: "1947", where: "Brooklyn, New York, USA", when: "In 1947", era: "1900",
+    parts: ["Jackie Robinson was a great baseball player. For more than 50 years before 1947, Black players were kept out of the major leagues.", "Branch Rickey asked him to join the Brooklyn Dodgers. He warned that some people would be cruel.", "Jackie promised not to fight back. When people shouted mean things, he kept his promise, and kept playing."],
+    right: 2, why: "He wanted to answer back, and he held back. That took great self-control.",
+    fact: "True story. He first played for the Dodgers on 15 April 1947. Now, every 15 April, every major league player wears his number, 42.",
+    deed: "promised not to fight back when people shouted mean things, and kept his promise",
+    look: { skin: SK.e, hair: "#1d140d", style: "short", robe: "#f4f4f4", collar: "#1d4e9e", head: "cap", hc: "#1d4e9e", scene: "stadium", prop: "⚾" },
+  },
+  {
+    id: "liddell", v: "selfcontrol", kind: "history", tag: "true", also: ["courage"], name: "Eric Liddell", short: "Liddell", date: "1924", sub: "1924", where: "Paris, France (Olympic Games)", when: "In 1924", era: "1900",
+    parts: ["Eric Liddell was a very fast runner from Scotland, and a Christian.", "At the 1924 Olympics, his best race had heats on a Sunday, his day of rest for God.", "He chose not to run it. He trained for a different race, the 400 metres, and won the gold medal!"],
+    right: 2, why: "He really wanted to win his best race. He held back, because he believed it was right.",
+    fact: "True story. Paris Olympics, July 1924. He found out months before, and won gold in the 400 metres. Later he was a teacher and missionary in China.",
+    deed: "chose not to run his best Olympic race because it was on a Sunday",
+    look: { skin: SK.a, hair: "#6b4a2e", style: "short", robe: "#f6f6f6", collar: "#1d4e9e", scene: "track", prop: "🏅" },
+  },
+  {
+    id: "lincoln-letter", v: "selfcontrol", kind: "history", tag: "true", name: "Abraham Lincoln", short: "Lincoln", date: "1863", sub: "1863", where: "Washington, D.C., USA", when: "In July 1863", era: "1800",
+    parts: ["Abraham Lincoln was President of the United States during a war.", "In July 1863 he was very upset with one of his generals, and he wrote him an angry letter.", "But he never sent it. He put it away, and it was found many years later in his papers."],
+    right: 2, why: "He wanted to send angry words. He chose to stop and hold back.",
+    fact: "True story. The letter to General Meade, written 14 July 1863, is marked: never sent, or signed.",
+    deed: "wrote an angry letter, then chose never to send it",
+    look: { ...LINCOLN, scene: "room", prop: "✉️" },
+  },
+  // ===== Gratitude =====
+  {
+    id: "lepers", v: "gratitude", kind: "bible", tag: "bible", name: "The man who came back", short: "Leper", ref: "Luke 17:11–19", where: "Between Samaria and Galilee", when: "When Jesus lived, about 2,000 years ago", era: "nt",
+    parts: ["Ten men had a skin sickness called leprosy. They had to live away from everyone.", "They called out to Jesus for help. On their way, all ten were healed.", "Only one came back. He fell at Jesus' feet and said thank you."],
+    right: 2, why: "All ten were given a gift. Only one noticed it, and came back to say thank you.",
+    line: { t: "And one of them, when he saw that he was healed, turned back, and with a loud voice glorified God", ref: "Luke 17:15" },
+    deed: "was the only one of ten healed men who came back to say thank you",
+    look: { skin: SK.c, hair: "#3a2a1e", style: "short", beard: "#3a2a1e", robe: "#8b6b4a", head: "scarf", hc: "#e2d3b5", scene: "road", prop: "🙏" },
+  },
+  {
+    id: "hannah", v: "gratitude", kind: "bible", tag: "bible", name: "Hannah", short: "Hannah", ref: "1 Samuel 1–2", where: "God's house at Shiloh", when: "Old Testament times, long ago", era: "ot",
+    parts: ["Hannah wanted a baby very much. She prayed to God at Shiloh, with tears.", "God answered. She had a baby boy, and named him Samuel.", "Hannah sang a song to thank God: My heart rejoices in the Lord."],
+    right: 2, why: "Hannah noticed God's gift, and named it in a song of thanks.",
+    line: { t: "My heart rejoiceth in the LORD", ref: "1 Samuel 2:1", gloss: "rejoiceth = is full of joy" },
+    deed: "sang a song of thanks to God for her baby boy",
+    look: { skin: SK.c, hair: "#2b1d12", style: "long", robe: "#d07a3a", head: "veil", hc: "#f3e1c0", scene: "tent", prop: "👶" },
+  },
+  {
+    id: "paulsilas", v: "gratitude", kind: "bible", tag: "bible", also: ["courage", "perseverance"], name: "Paul and Silas", short: "Paul+Silas", ref: "Acts 16:16–34", where: "A prison in Philippi", when: "Soon after Jesus lived, about AD 50", era: "nt",
+    parts: ["Paul and Silas were telling people about Jesus in the city of Philippi.", "They were hurt and locked in prison, with their feet stuck in wooden blocks.", "At midnight, they prayed and sang praises to God, and the other prisoners listened."],
+    right: 2, why: "Even in a hard place, they noticed God's goodness and thanked Him with songs.",
+    line: { t: "And at midnight Paul and Silas prayed, and sang praises unto God: and the prisoners heard them.", ref: "Acts 16:25" },
+    deed: "sang praises to God at midnight, locked in prison",
+    look: { skin: SK.c, hair: "#3a2a1e", style: "bald", beard: "#3a2a1e", robe: "#7a3b2e", scene: "prison", prop: "🎵", two: { skin: SK.c, hair: "#2b1d12", style: "short", beard: "#2b1d12", robe: "#4b6b5a" } },
+  },
+  {
+    id: "pilgrims", v: "gratitude", kind: "history", tag: "true", name: "The Pilgrims", short: "Pilgrims", date: "1621", sub: "1621", where: "Plymouth, Massachusetts, USA", when: "In autumn 1621", era: "1600",
+    parts: ["The Pilgrims sailed to America on the Mayflower in 1620. Their first winter was very hard.", "The Wampanoag people, with a man named Tisquantum (Squanto), showed them how to plant corn.", "In autumn 1621, after their harvest, they held a feast of thanks, with about 90 Wampanoag guests."],
+    right: 2, why: "After a hard year, they noticed the good harvest they had been given, and gave thanks.",
+    fact: "True story. A letter by Edward Winslow in 1621 tells of the feast, and of Massasoit and about 90 Wampanoag men who came.",
+    deed: "held a feast of thanks after their first harvest, with Wampanoag guests",
+    look: { skin: SK.a, hair: "#6b4a2e", style: "short", beard: "#6b4a2e", robe: "#3a3a3a", collar: "#fff", head: "pilgrim", scene: "field", prop: "🌽" },
+  },
+  {
+    id: "rinkart", v: "gratitude", kind: "history", tag: "true", also: ["perseverance"], name: "Martin Rinkart", short: "Rinkart", date: "about 1636", sub: "about 1636", where: "Eilenburg, Germany", when: "Around 1636", era: "1600",
+    parts: ["Martin Rinkart was a pastor in the town of Eilenburg, in Germany.", "His town lived through a long war, sickness and hunger. In 1637 alone he led thousands of funerals.", "In those hard times he wrote a song of thanks: Now Thank We All Our God. People still sing it!"],
+    right: 2, why: "Even when life was hard, he noticed God's gifts and named them in a song.",
+    fact: "True story. He wrote the hymn around 1636, during the Thirty Years' War.",
+    deed: "wrote the song Now Thank We All Our God in very hard times",
+    look: { skin: SK.a, hair: "#4a3424", style: "short", beard: "#4a3424", robe: "#1f1f24", collar: "#fff", scene: "church", prop: "🎶" },
+  },
+  {
+    id: "keller", v: "gratitude", kind: "history", tag: "true", also: ["perseverance"], name: "Helen Keller", short: "Helen", date: "1887", sub: "1887", where: "Tuscumbia, Alabama, USA", when: "In 1887", era: "1800",
+    parts: ["Helen Keller could not see or hear, after an illness when she was a baby.", "In 1887 her teacher, Anne Sullivan, spelled W-A-T-E-R in her hand at a water pump. Helen understood that everything has a name.", "Helen later wrote that the day her teacher came was the most important day she remembered."],
+    right: 2, why: "Helen noticed the great gift of her teacher, and named it for the whole world to read.",
+    fact: "True story. She wrote about it in her book, The Story of My Life, in 1903.",
+    deed: "wrote that the day her teacher came was the most important day of her life",
+    look: { skin: SK.a, hair: "#7a5534", style: "bun", robe: "#c78fb0", collar: "#fff", scene: "garden", prop: "💧" },
+  },
+  // ===== Year 4: Perseverance =====
+  {
+    id: "nehemiah", v: "perseverance", kind: "bible", tag: "bible", also: ["courage"], name: "Nehemiah", short: "Nehemiah", ref: "Nehemiah 4–6", where: "Jerusalem", when: "Old Testament times, long ago", era: "ot",
+    parts: ["The walls of Jerusalem were broken down. Nehemiah asked the king if he could go and build them again.", "Enemies laughed at the builders, and tried to scare them and stop the work.", "Nehemiah and the people kept praying and kept building, until the wall was finished in 52 days."],
+    right: 2, why: "People laughed and tried to stop them. They kept on going until the job was done.",
+    line: { t: "for the people had a mind to work.", ref: "Nehemiah 4:6" },
+    deed: "kept building the wall of Jerusalem even when enemies laughed",
+    look: { skin: SK.c, hair: "#3a2a1e", style: "short", beard: "#3a2a1e", robe: "#9a6b3c", head: "scarf", hc: "#efe0c2", scene: "wall", prop: "🧱" },
+  },
+  {
+    id: "paul", v: "perseverance", kind: "bible", tag: "bible", name: "Paul", short: "Paul", ref: "Acts 27; 2 Corinthians 11; 2 Timothy 4", where: "Lands around the Mediterranean Sea", when: "Soon after Jesus lived, about AD 50", era: "nt",
+    parts: ["Paul travelled to many lands to tell people the good news about Jesus.", "He was shipwrecked at least four times, and many people were against him.", "He never gave up. Near the end of his life he wrote: I have finished my course, I have kept the faith."],
+    right: 2, why: "Shipwrecks and trouble did not stop him. He kept going to the end.",
+    line: { t: "I have fought a good fight, I have finished my course, I have kept the faith", ref: "2 Timothy 4:7" },
+    deed: "kept telling people about Jesus after shipwrecks and trouble",
+    look: { skin: SK.c, hair: "#3a2a1e", style: "bald", beard: "#3a2a1e", robe: "#7a3b2e", scene: "sea", prop: "⛵" },
+  },
+  {
+    id: "widow", v: "perseverance", kind: "bible", tag: "parable", also: ["justice"], name: "The widow who kept asking", short: "Widow", ref: "Luke 18:1–8", where: "A city, in a story", when: "A story Jesus told, about 2,000 years ago", era: "nt",
+    parts: ["Jesus told a story about a widow who needed a judge to help her.", "The judge did not care about God or people, and he kept saying no.", "She kept coming back and asking, again and again, until he helped her."],
+    right: 2, why: "She did not give up. Jesus told this story so we keep praying and don't give up.",
+    line: { t: "men ought always to pray, and not to faint", ref: "Luke 18:1", gloss: "faint = give up" },
+    deed: "kept asking the judge again and again until he helped her",
+    look: { skin: SK.c, hair: "#9a8f80", style: "long", robe: "#5a7d9a", head: "veil", hc: "#3f5b74", scene: "street", prop: "⚖️" },
+  },
+  {
+    id: "wright", v: "perseverance", kind: "history", tag: "true", name: "The Wright brothers", short: "Wrights", date: "1903", sub: "1903", where: "Kitty Hawk, North Carolina, USA", when: "On 17 December 1903", era: "1900",
+    parts: ["Wilbur and Orville Wright ran a bicycle shop in Dayton, Ohio, and dreamed of flying.", "For years their gliders didn't work well. So they built their own wind tunnel, and tested wing after wing.", "On 17 December 1903, their airplane flew for 12 seconds: the first controlled flight of a powered airplane!"],
+    right: 1, why: "When things went wrong, they did not quit. They tested again and again until it worked.",
+    fact: "True story. 17 December 1903 at Kitty Hawk. The first flight lasted 12 seconds. The longest that day lasted 59 seconds.",
+    deed: "tested wing after wing for years until their airplane flew",
+    look: { skin: SK.a, hair: "#4a3424", style: "short", robe: "#3b3f4a", collar: "#fff", tie: "#222", head: "flatcap", hc: "#5a5048", scene: "sky", prop: "✈️", two: { skin: SK.a, hair: "#4a3424", style: "bald", mustache: true, beard: "#4a3424", robe: "#4a4f5c", collar: "#fff", tie: "#222" } },
+  },
+  {
+    id: "braille", v: "perseverance", kind: "history", tag: "true", name: "Louis Braille", short: "Braille", date: "1829", sub: "1829", where: "Paris, France", when: "In 1829", era: "1800",
+    parts: ["Louis Braille hurt his eye in an accident when he was 3. By the age of 5 he was blind in both eyes.", "At his school in Paris, the books for blind children were huge and hard to read.", "From age 12 he worked for years on a code of raised dots. In 1829 he shared it: braille!"],
+    right: 2, why: "It took years of work, and he kept going until blind people could read with their fingers.",
+    fact: "True story. He first published his dot code in 1829. Blind people all over the world read braille today.",
+    deed: "worked for years on a raised-dot code so blind people could read",
+    look: { skin: SK.a, hair: "#3a2a1e", style: "short", robe: "#2e3445", collar: "#fff", tie: "#2e3445", scene: "room", prop: "👆" },
+  },
+  {
+    id: "rudolph", v: "perseverance", kind: "history", tag: "true", name: "Wilma Rudolph", short: "Rudolph", date: "1960", sub: "1960", where: "Rome, Italy (Olympic Games)", when: "In 1960", era: "1900",
+    parts: ["Wilma Rudolph had polio as a little girl. Doctors said she might never walk well.", "She wore a metal brace on her leg, and did hard exercises for years.", "At the 1960 Olympics, she won three gold medals for running!"],
+    right: 1, why: "The exercises were hard and slow. She kept on going for years.",
+    fact: "True story. Rome Olympics, 1960: gold in the 100 metres, the 200 metres and the relay race.",
+    deed: "did hard exercises for years after polio, then won three Olympic golds",
+    look: { skin: SK.f, hair: "#1d140d", style: "curly", robe: "#f4f4f4", collar: "#2a62b8", scene: "track", prop: "🥇" },
+  },
+  // ===== Year 4: Humility =====
+  {
+    id: "feet", v: "humility", kind: "bible", tag: "bible", also: ["kindness"], name: "Jesus washes feet", short: "Jesus", ref: "John 13:1–17", where: "An upstairs room in Jerusalem", when: "When Jesus lived, about 2,000 years ago", era: "nt",
+    parts: ["At supper, Jesus got up and tied a towel around His waist.", "He poured water into a bowl and washed His friends' dusty feet: a job for a servant.", "Then He said: I have given you an example. Serve one another like this."],
+    right: 1, why: "Jesus is the Lord, yet He did a servant's job. Humility is being glad to serve.",
+    line: { t: "If I then, your Lord and Master, have washed your feet; ye also ought to wash one another's feet.", ref: "John 13:14" },
+    deed: "washed His friends' dusty feet, a servant's job",
+    look: { symbol: "basin", scene: "room" },
+  },
+  {
+    id: "baptist", v: "humility", kind: "bible", tag: "bible", name: "John the Baptist", short: "John", ref: "John 3:22–30", where: "By the Jordan River", when: "When Jesus lived, about 2,000 years ago", era: "nt",
+    parts: ["John the Baptist was famous. Crowds came to the river to hear him and be baptized.", "Then many people began following Jesus instead. John's friends were upset.", "John was glad. He said: Jesus must become greater, and I must become less."],
+    right: 2, why: "John didn't need to be the most important. He was glad for Jesus to be first.",
+    line: { t: "He must increase, but I must decrease.", ref: "John 3:30" },
+    deed: "was glad when the crowds followed Jesus instead of him",
+    look: { skin: SK.c, hair: "#3a2a1e", style: "long", beard: "#3a2a1e", robe: "#a5773f", collar: "#7a5530", scene: "river", prop: "🐪" },
+  },
+  {
+    id: "naaman", v: "humility", kind: "bible", tag: "bible", name: "Naaman", short: "Naaman", ref: "2 Kings 5", where: "The Jordan River", when: "Old Testament times, long ago", era: "ot",
+    parts: ["Naaman was a great army captain from Syria, but he had a skin sickness.", "The prophet Elisha said: wash seven times in the Jordan River. Proud Naaman got angry.", "His servants talked with him. He humbly went and washed seven times, and he was healed!"],
+    right: 2, why: "Naaman stopped thinking he was too important. He listened, obeyed, and was healed.",
+    line: { t: "Then went he down, and dipped himself seven times in Jordan", ref: "2 Kings 5:14" },
+    deed: "stopped being proud, listened, and washed seven times in the river",
+    look: { skin: SK.c, hair: "#2b1d12", style: "short", beard: "#2b1d12", robe: "#8a2f2f", head: "turban", hc: "#e8c66a", scene: "river", prop: "🌊" },
+  },
+  {
+    id: "washington-steps", v: "humility", kind: "history", tag: "true", also: ["selfcontrol"], name: "George Washington", short: "Washington", date: "1783 and 1797", sub: "1783, 1797", where: "America", when: "In 1783 and 1797", era: "1700",
+    parts: ["George Washington led America's army in the war for independence.", "After the war, many people would have let him rule like a king.", "Instead he gave up his army command in 1783, and later stepped down after eight years as President."],
+    right: 2, why: "He could have kept power for himself. He humbly handed it back.",
+    fact: "True story. He gave up his army command on 23 December 1783, and left the presidency in 1797 after two terms.",
+    deed: "gave up power when he could have ruled like a king",
+    look: { ...WASHINGTON, scene: "parliament", prop: "🎖️" },
+  },
+  {
+    id: "carver", v: "humility", kind: "history", tag: "true", also: ["kindness"], name: "George Washington Carver", short: "Carver", date: "1916", sub: "1916", where: "Tuskegee, Alabama, USA", when: "In 1916", era: "1900",
+    parts: ["George Washington Carver was born enslaved, and became a great plant scientist.", "He found many uses for peanuts and sweet potatoes, and taught farmers to care for their soil.", "He could have become rich. Instead he shared most of his ideas freely, to help poor farmers."],
+    right: 2, why: "He did not try to make himself rich or famous. He was glad to serve others.",
+    fact: "True story. He taught at Tuskegee Institute from 1896 until 1943. In 1916 he published a free booklet of 105 ways to prepare peanuts. He took out only three patents.",
+    deed: "shared his plant discoveries freely to help poor farmers",
+    look: { skin: SK.e, hair: "#9a948c", style: "short", mustache: true, beard: "#9a948c", robe: "#3b3a36", collar: "#fff", tie: "#5a2e18", scene: "garden", prop: "🥜" },
+  },
+  {
+    id: "curie", v: "humility", kind: "history", tag: "true", also: ["kindness"], name: "Marie Curie", short: "Curie", date: "1903", sub: "1903", where: "Paris, France", when: "Around 1903", era: "1900",
+    parts: ["Marie Curie was a scientist in Paris, France. With her husband Pierre, she discovered radium.", "She won the Nobel Prize twice. She was the first person ever to do so.", "They could have kept their method secret and become rich. Instead they shared it with everyone."],
+    right: 2, why: "She cared more about helping people learn than about money or fame.",
+    fact: "True story. Radium was discovered in 1898. Her Nobel Prizes came in 1903 and 1911.",
+    deed: "shared her science freely instead of keeping it secret to get rich",
+    look: { skin: SK.a, hair: "#8f7f6c", style: "bun", robe: "#26262c", collar: "#26262c", scene: "lab", prop: "🧪" },
+  },
+  // ===== Year 4: Justice =====
+  {
+    id: "moses", v: "justice", kind: "bible", tag: "bible", also: ["courage"], name: "Moses", short: "Moses", ref: "Exodus 5–12", where: "Egypt", when: "Old Testament times, long ago", era: "ot",
+    parts: ["God's people, the Israelites, were slaves in Egypt, and were treated cruelly.", "God sent Moses and his brother Aaron to Pharaoh, the king of Egypt.", "Moses told Pharaoh God's words again and again: Let my people go!"],
+    right: 2, why: "Moses stood up for people who were treated unfairly, and asked for them to be set free.",
+    line: { t: "Thus saith the LORD God of Israel, Let my people go", ref: "Exodus 5:1", gloss: "saith = says" },
+    deed: "told Pharaoh again and again: Let my people go!",
+    look: { skin: SK.c, hair: "#eeeae2", style: "long", beard: "#eeeae2", robe: "#7a5a3a", head: "scarf", hc: "#d9c9a5", scene: "egypt", prop: "🐑" },
+  },
+  {
+    id: "sisters", v: "justice", kind: "bible", tag: "bible", also: ["courage"], name: "Five sisters", short: "5 sisters", ref: "Numbers 27:1–11", where: "In the desert, before Moses", when: "Old Testament times, long ago", era: "ot",
+    parts: ["Five sisters' father had died, and they had no brothers.", "The rule was that only sons got the family's land. That wasn't fair to them.", "The sisters bravely asked Moses. God said they were right, and they were given the land."],
+    right: 2, why: "They stood up for what was fair, and God agreed with them.",
+    line: { t: "The daughters of Zelophehad speak right", ref: "Numbers 27:7" },
+    deed: "asked for a fair share of land, and God said they were right",
+    look: { skin: SK.c, hair: "#2b1d12", style: "long", robe: "#b5543c", head: "veil", hc: "#f2d9b0", scene: "tent", prop: "🏕️", two: { skin: SK.c, hair: "#2b1d12", style: "long", robe: "#3f8f7a", head: "veil", hc: "#e3c9e8" } },
+  },
+  {
+    id: "solomon", v: "justice", kind: "bible", tag: "bible", name: "King Solomon", short: "Solomon", ref: "1 Kings 3:16–28", where: "King Solomon's palace, Jerusalem", when: "Old Testament times, long ago", era: "ot",
+    parts: ["Two women came to King Solomon. Each one said: This baby is mine!", "Solomon had asked God for wisdom. He used a clever test to find who loved the baby most.", "He gave the baby back to his real mother. Everyone saw that the king judged fairly."],
+    right: 2, why: "Solomon made sure the right person got what was truly hers. That is justice.",
+    line: { t: "they saw that the wisdom of God was in him, to do judgment.", ref: "1 Kings 3:28", gloss: "to do judgment = to judge fairly" },
+    deed: "found the baby's real mother and judged fairly",
+    look: { skin: SK.c, hair: "#2b1d12", style: "curly", beard: "#2b1d12", robe: "#6a3d9a", head: "crown", scene: "palace", prop: "👶" },
+  },
+  {
+    id: "wilberforce", v: "justice", kind: "history", tag: "true", also: ["perseverance"], name: "William Wilberforce", short: "Wilberforce", date: "1807", sub: "1807", where: "London, England", when: "In 1807", era: "1800",
+    parts: ["William Wilberforce was a Christian member of Parliament in Britain.", "British ships were carrying people from Africa to be sold as slaves. He said this was very wrong.", "For 20 years he kept asking Parliament to stop it. In 1807, a law ended Britain's slave trade."],
+    right: 2, why: "He stood up, for years, for people who were treated terribly unfairly.",
+    fact: "True story. The law passed in 1807. In July 1833, days before he died, he heard that a law to end slavery itself in most of the British Empire would pass.",
+    deed: "worked for 20 years to end Britain's slave trade",
+    look: { skin: SK.a, hair: "#d8d2c6", style: "powder", robe: "#26262c", collar: "#fff", scene: "parliament", prop: "📜" },
+  },
+  {
+    id: "douglass", v: "justice", kind: "history", tag: "true", also: ["courage"], name: "Frederick Douglass", short: "Douglass", date: "1845", sub: "1845", where: "Maryland and Massachusetts, USA", when: "In 1845", era: "1800",
+    parts: ["Frederick Douglass was born enslaved in Maryland. He learned to read, even though it was against the rules.", "In 1838 he escaped to freedom in the North.", "He gave speeches and wrote books telling the truth about slavery, and worked for equal rights for all."],
+    right: 2, why: "He spoke up, again and again, for people treated unfairly.",
+    fact: "True story. His first book about his life came out in 1845.",
+    deed: "gave speeches and wrote books to end slavery and win equal rights",
+    look: { skin: SK.e, hair: "#e2ddd5", style: "big", beard: "#e2ddd5", robe: "#24252b", collar: "#fff", tie: "#24252b", scene: "room", prop: "📖" },
+  },
+  {
+    id: "king", v: "justice", kind: "history", tag: "true", also: ["courage", "selfcontrol"], name: "Martin Luther King Jr.", short: "King", date: "1963", sub: "1963", where: "Washington, D.C., USA", when: "On 28 August 1963", era: "1900",
+    parts: ["Martin Luther King Jr. was a pastor. Unfair laws in many parts of the USA kept Black and white people apart.", "He led peaceful marches to ask for fair laws for everyone, and taught people never to hit back.", "In 1963 he told a huge crowd his dream: that children would be judged by who they are inside."],
+    right: 1, why: "He stood up, peacefully, for people treated unfairly, and asked for fair laws for all.",
+    fact: "True story. His I Have a Dream speech was on 28 August 1963. In 1964 a new law, the Civil Rights Act, ended many unfair rules.",
+    deed: "led peaceful marches for fair laws for everyone",
+    look: { skin: SK.e, hair: "#1d140d", style: "short", mustache: true, beard: "#1d140d", robe: "#24252b", collar: "#fff", tie: "#24252b", scene: "crowd", prop: "🎤" },
+  },
+  // ===== Year 4: Compassion =====
+  {
+    id: "wept", v: "compassion", kind: "bible", tag: "bible", name: "Jesus wept", short: "Jesus wept", ref: "John 11", where: "Bethany, near Jerusalem", when: "When Jesus lived, about 2,000 years ago", era: "nt",
+    parts: ["Jesus' friend Lazarus died. His sisters, Mary and Martha, were crying.", "Jesus saw them crying, and He was sad with them. Jesus wept.", "Then Jesus called: Lazarus, come forth. And Lazarus walked out alive."],
+    right: 1, why: "Jesus felt sad with His hurting friends, and then He helped them.",
+    line: { t: "Jesus wept.", ref: "John 11:35" },
+    deed: "cried with His sad friends Mary and Martha",
+    look: { symbol: "tomb", scene: "garden" },
+  },
+  {
+    id: "loaves", v: "compassion", kind: "bible", tag: "bible", also: ["kindness"], name: "Jesus feeds 5,000", short: "Jesus fed", ref: "Matthew 14:13–21", where: "A quiet place by the Sea of Galilee", when: "When Jesus lived, about 2,000 years ago", era: "nt",
+    parts: ["A huge crowd followed Jesus to a quiet place. It was getting late.", "Jesus saw them and felt compassion. He healed the sick people.", "With five loaves and two fish, He fed about five thousand men, plus women and children."],
+    right: 1, why: "Jesus felt for the hurting people, and He helped them.",
+    line: { t: "and was moved with compassion toward them, and he healed their sick.", ref: "Matthew 14:14" },
+    deed: "felt compassion for a huge crowd, healed the sick and fed them all",
+    look: { symbol: "bread", scene: "field" },
+  },
+  {
+    id: "father", v: "compassion", kind: "bible", tag: "parable", also: ["kindness"], name: "The loving father", short: "Father", ref: "Luke 15:11–32", where: "A farm, in a story", when: "A story Jesus told, about 2,000 years ago", era: "nt",
+    parts: ["Jesus told a story. A son took his money, left home, and wasted it all.", "Hungry and sorry, the son walked home, ready to say: I was wrong.", "His father saw him far away, felt compassion, and ran to hug and kiss him."],
+    right: 2, why: "The father felt for his hurting son, and ran to welcome him. God loves us like that.",
+    line: { t: "But when he was yet a great way off, his father saw him, and had compassion, and ran, and fell on his neck, and kissed him.", ref: "Luke 15:20", gloss: "fell on his neck = hugged him" },
+    deed: "ran to hug his sorry, hungry son coming home",
+    look: { skin: SK.c, hair: "#eeeae2", style: "short", beard: "#eeeae2", robe: "#a0522d", head: "scarf", hc: "#efe0c2", scene: "road", prop: "💗" },
+  },
+  {
+    id: "nightingale-lamp", v: "compassion", kind: "history", tag: "true", also: ["kindness"], name: "Florence Nightingale", short: "Florence", date: "1854", sub: "1854", where: "Scutari, Turkey", when: "From November 1854", era: "1800",
+    parts: ["In 1854 Florence Nightingale took 38 nurses to an army hospital at Scutari, in Turkey.", "The hurt soldiers were lying in dirty, crowded rooms.", "At night she walked the long halls with a lamp, comforting the soldiers. They called her the Lady with the Lamp."],
+    right: 2, why: "She felt for the hurting soldiers, and came to comfort and care for them.",
+    fact: "True story. She arrived at Scutari in November 1854, during the Crimean War.",
+    deed: "walked the hospital at night with a lamp, comforting hurt soldiers",
+    look: { ...NIGHTINGALE, scene: "night", prop: "🏮" },
+  },
+  {
+    id: "damien", v: "compassion", kind: "history", tag: "true", also: ["kindness", "courage"], name: "Father Damien", short: "Damien", date: "1873", sub: "1873", where: "Molokai, Hawaii", when: "From 1873", era: "1800",
+    parts: ["In Hawaii, people with leprosy were sent to live apart on the island of Molokai.", "They had very few helpers, and many felt forgotten.", "In 1873 Father Damien, a priest, chose to go and live with them. He built homes and cared for the sick."],
+    right: 2, why: "He felt for people who were hurting and alone, and went to help them.",
+    fact: "True story. He arrived on Molokai in 1873, and stayed for the rest of his life.",
+    deed: "went to live with forgotten sick people on Molokai and care for them",
+    look: { skin: SK.a, hair: "#2b1d12", style: "short", beard: "#2b1d12", glasses: true, robe: "#1f1f24", collar: "#1f1f24", scene: "island", prop: "🏝️" },
+  },
+  {
+    id: "barton", v: "compassion", kind: "history", tag: "true", also: ["kindness", "courage"], name: "Clara Barton", short: "Barton", date: "1881", sub: "1881", where: "USA", when: "From 1861 to 1881", era: "1800",
+    parts: ["Clara Barton was a teacher and office worker in Washington when a war began in 1861.", "She brought bandages and food right to the battlefields, to care for hurt soldiers.", "Later, in 1881, she started the American Red Cross, to help people after disasters."],
+    right: 1, why: "She felt for the hurting soldiers, and went right to them to help.",
+    fact: "True story. Soldiers called her the Angel of the Battlefield. She started the American Red Cross in 1881.",
+    deed: "brought bandages and food to hurt soldiers on the battlefield",
+    look: { skin: SK.a, hair: "#2b1d12", style: "bun", robe: "#2a2a30", collar: "#fff", scene: "tent", prop: "🩹" },
+  },
+];
+const HERO = Object.fromEntries(HEROES.map((h) => [h.id, h]));
+
+// What each choice cost the person (for the "Explain it" task).
+const COST = {
+  zacchaeus: "a large part of his wealth, and the embarrassment of admitting in front of his town that he had cheated",
+  samuel: "the comfort of silence: he had to give painful news to the old priest who had raised him",
+  nathan: "his safety, because a king could punish anyone who accused him",
+  "nightingale-charts": "the approval of powerful officials, who did not want to hear that their hospitals had failed",
+  "lincoln-honest": "time and a long walk, for a few cents nobody would have missed",
+  "washington-cherry": "in the legend, the risk of his father's anger and punishment",
+  samaritan: "his time, his oil and wine, his money, and the risk of stopping on a dangerous road",
+  ruth: "her homeland, her family, and the chance of an easier life in Moab",
+  mephibosheth: "land and a place at the royal table, given to a man who could offer nothing in return",
+  fry: "comfort and reputation, since respectable people of her day did not enter such prisons",
+  muller: "a lifetime of work, and every comfort he might have bought for himself",
+  teresa: "a settled teaching life, comfort and safety",
+  goliath: "his safety: he faced a fully armed warrior with only a sling",
+  esther: "possibly her life, since approaching the king uninvited could mean death",
+  "daniel-lions": "his high position, and very nearly his life",
+  tubman: "her own freedom and safety each time she returned; a reward was offered for her capture",
+  parks: "her arrest, a fine, and later her job; her family received threats",
+  tenboom: "her freedom: she was sent to prison camps",
+  joseph: "his position and freedom: he was falsely accused and put in prison",
+  "daniel-food": "the king's rich food, and the risk of angering the official in charge",
+  wilderness: "food, after forty days of hunger",
+  robinson: "the right to defend his pride, even under cruel insults",
+  liddell: "the chance of gold in his best event, and criticism from people who called him unpatriotic",
+  "lincoln-letter": "the satisfaction of telling the general exactly what he thought",
+  lepers: "time, and the humility of admitting he had needed help",
+  hannah: "in thanks she kept her promise and gave Samuel to serve at God's house (1 Samuel 1:28)",
+  paulsilas: "their comfort: they were bruised, chained and in the dark, yet chose to praise",
+  pilgrims: "food from a small first harvest, shared after a winter in which about half of their company had died",
+  rinkart: "the excuse of bitterness: he gave thanks while burying many of his own people",
+  keller: "some of the credit: she gave honour to her teacher for her own success",
+  nehemiah: "his comfortable place at the king's court, and months of hard, dangerous work",
+  paul: "comfort and safety: he endured shipwrecks, beatings and prison",
+  widow: "time, effort, and the embarrassment of being refused again and again",
+  wright: "years of savings and time, and the risk of injury in crashes",
+  braille: "years of patient work, much of it in his teenage years",
+  rudolph: "years of painful exercises while other children simply played",
+  feet: "honour as the world measures it: He took the lowest servant's task",
+  baptist: "his fame and his followers",
+  naaman: "his pride: he obeyed a plain instruction from a prophet who did not even come out to meet him",
+  "washington-steps": "power that many people would gladly have handed him",
+  carver: "the fortune he could have made from patents",
+  curie: "the wealth a patent could have brought",
+  moses: "his safety, facing an angry king again and again",
+  sisters: "the risk of public refusal before Moses and all the leaders",
+  solomon: "the easy path of a quick guess; it took patience and wisdom",
+  wilberforce: "his health, twenty years of work, and friendships with powerful people who profited from the trade",
+  douglass: "his safety: his book revealed who he was, so he left for Britain for a time",
+  king: "his safety: he was arrested many times, and his home was attacked in 1956",
+  wept: "nothing but His composure (calm appearance): He openly shared their grief",
+  loaves: "His rest: He had gone to a quiet place to be alone, yet gave His time to the crowd",
+  father: "his dignity, running in public, and forgiving a son who had wasted his inheritance",
+  "nightingale-lamp": "her comfort and health: she later became seriously ill with fever",
+  damien: "his health and finally his life: he caught leprosy and died on Molokai in 1889",
+  barton: "her safety: once a bullet passed through her sleeve as she worked",
+};
+// Primary-source quotations in the public domain.
+const QUOTE = {
+  "washington-cherry": { t: "I can't tell a lie, Pa; you know I can't tell a lie.", src: "Weems, Life of Washington, 1806 (the legend)" },
+  "lincoln-letter": { t: "To Gen. Meade, never sent, or signed.", src: "Lincoln's own note on the envelope, 1863" },
+  keller: { t: "The most important day I remember in all my life is the one on which my teacher, Anne Mansfield Sullivan, came to me.", src: "The Story of My Life, 1903" },
+  douglass: { t: "You have seen how a man was made a slave; you shall see how a slave was made a man.", src: "Narrative of the Life of Frederick Douglass, 1845" },
+  wilberforce: { t: "God Almighty has set before me two great objects, the suppression of the Slave Trade and the Reformation of Manners.", src: "his journal, 28 October 1787" },
+  pilgrims: { t: "…their greatest king Massasoit, with some ninety men, whom for three days we entertained and feasted…", src: "Edward Winslow, letter of 1621" },
+  rinkart: { t: "Now thank we all our God, with heart and hands and voices", src: "his hymn, English by Catherine Winkworth, 1858" },
+  "washington-steps": { t: "Having now finished the work assigned me, I retire from the great theatre of Action", src: "resignation speech, 23 December 1783" },
+};
+
+// ---------- "What would you do?" ----------
+const WWYD = [
+  { v: "honesty", story: "You knock a cup off the table and it breaks. Nobody saw. Mum asks: Who broke the cup?", pic: [["🧒", 110, 150, 110], ["☕", 230, 190, 60], ["💥", 280, 160, 46]],
+    opts: [{ g: "🙋", t: "Say: I did it. I'm sorry.", best: true }, { g: "🐈", t: "Say: The cat did it.", hint: "Would that be true? Honesty means not pretending." }, { g: "🙈", t: "Hide the pieces and say nothing.", hint: "Is hiding it a kind of pretending? What would be the true thing to say?" }],
+    why: "Telling the truth is uncomfortable, but it's honest. And then you can help repair the damage." },
+  { v: "honesty", story: "In a card game, you peek at your friend's cards. Your friend doesn't see.", pic: [["🧒", 100, 150, 110], ["🃏", 200, 120, 60], ["👧", 250, 160, 100]],
+    opts: [{ g: "😬", t: "Keep quiet and win the game.", hint: "Would winning that way be true? How would your friend feel if she knew?" }, { g: "🗣️", t: "Say: I peeked. Let's start again.", best: true }, { g: "👀", t: "Peek again next time.", hint: "Is peeking fair to your friend? What would an honest player do?" }],
+    why: "Saying I peeked is uncomfortable, but it's honest, and it keeps the game fair." },
+  { v: "kindness", story: "A boy at the park drops all his marbles. They roll everywhere. Nobody is helping.", pic: [["👦", 100, 150, 110], ["🔵", 200, 200, 30], ["🟢", 240, 210, 30], ["🔴", 280, 195, 30]],
+    opts: [{ g: "🚶", t: "Walk away. It's not my job.", hint: "Kindness is doing good especially when you don't have to. What could you do?" }, { g: "🤝", t: "Help him pick them up.", best: true }, { g: "😆", t: "Laugh at him.", hint: "How would you feel if people laughed at you?" }],
+    why: "Nobody asked you, and you chose to help. That is kindness." },
+  { v: "kindness", story: "Your little brother is crying because his block tower fell down.", pic: [["👶", 100, 150, 100], ["🧱", 220, 200, 50], ["😢", 260, 110, 40]],
+    opts: [{ g: "🧱", t: "Help him build it again.", best: true }, { g: "🙄", t: "Say: It was a bad tower anyway.", hint: "Would those words help him feel better? What could you do for him?" }, { g: "🎮", t: "Keep playing your own game.", hint: "You don't have to help. But what would kindness choose?" }],
+    why: "You chose to do something good for him, and you didn't have to. That's kindness." },
+  { v: "courage", story: "Some kids are teasing a new girl about her clothes. Your tummy feels jumpy.", pic: [["👧", 110, 150, 100], ["😆", 220, 140, 70], ["😆", 280, 170, 60]],
+    opts: [{ g: "😆", t: "Laugh along with them.", hint: "Is that the right thing? How does the new girl feel?" }, { g: "🙈", t: "Pretend you didn't see.", hint: "That feels safer. But is it the right thing to do?" }, { g: "✋", t: "Say: Stop, that's not kind. Then stand with her.", best: true }],
+    why: "Speaking up is scary. Doing the right thing anyway is courage." },
+  { v: "courage", story: "Your ball breaks your neighbour's flower pot. You feel scared to tell her.", pic: [["🧒", 100, 150, 100], ["⚽", 200, 200, 46], ["🪴", 270, 180, 70]],
+    opts: [{ g: "🚪", t: "Knock on her door and tell her what happened.", best: true }, { g: "🏃", t: "Run home and hide.", hint: "Hiding feels easier. What would the right thing be?" }, { g: "💨", t: "Hope she thinks the wind did it.", hint: "Would that be fair to her? What is the brave and right thing?" }],
+    why: "Telling her is scary, and it's right. That takes courage, and honesty as well." },
+  { v: "selfcontrol", story: "There are cookies on the table for after dinner. Nobody is looking.", pic: [["🧒", 100, 150, 110], ["🍪", 230, 190, 60], ["🕰️", 270, 90, 50]],
+    opts: [{ g: "🍪", t: "Eat one quickly.", hint: "You want one very much. What does self-control choose?" }, { g: "⏳", t: "Wait until after dinner.", best: true }, { g: "😋", t: "Eat them all.", hint: "Is that waiting, or going ahead? What did Daniel do with the king's food?" }],
+    why: "You wanted to go ahead, and you chose to wait. That's self-control." },
+  { v: "selfcontrol", story: "Your sister knocks over your tower. You feel so angry you want to shout.", pic: [["🧒", 100, 150, 100], ["🧱", 200, 200, 50], ["👧", 270, 150, 90]],
+    opts: [{ g: "😠", t: "Knock over her tower too.", hint: "Would that fix anything? What could help you stop first?" }, { g: "📢", t: "Shout as loud as you can.", hint: "Shouting is going ahead. What could help you hold back?" }, { g: "🌬️", t: "Stop, take three deep breaths, then use calm words.", best: true }],
+    why: "You wanted to shout, and you stopped and held back. That's self-control." },
+  { v: "gratitude", story: "Grandma gives you a new book for your birthday.", pic: [["👵", 100, 150, 110], ["📖", 220, 180, 60], ["🎁", 280, 120, 50]],
+    opts: [{ g: "🤗", t: "Say: Thank you, Grandma. I love the pictures.", best: true }, { g: "😕", t: "Say: I wanted a toy.", hint: "How would Grandma feel? What good thing were you given?" }, { g: "😶", t: "Put it down without a word.", hint: "Gratitude is noticing and naming the gift. What could you say?" }],
+    why: "You noticed the gift, and you named it. That is gratitude." },
+  { v: "gratitude", story: "At bedtime, Dad asks: What was good about today?", pic: [["👨", 100, 150, 110], ["🛏️", 230, 200, 70], ["🌙", 280, 80, 46]],
+    opts: [{ g: "🙅", t: "Say: Nothing.", hint: "Think again. Was there any good thing today, even a small one?" }, { g: "🌞", t: "Name three good things from today.", best: true }, { g: "😤", t: "Only talk about what went wrong.", hint: "It's OK to be sad about some things. But can you also notice the good?" }],
+    why: "Noticing and naming good things is gratitude. You can thank God for them too." },
+  { v: "perseverance", story: "A hard sum is wrong two times. You feel like giving up.", pic: [["🧒", 100, 150, 110], ["📝", 230, 180, 60], ["❌", 280, 110, 40]],
+    opts: [{ g: "📃", t: "Rip up the page.", hint: "Does that help you learn? What could you try instead?" }, { g: "😞", t: "Say: I'm just bad at math.", hint: "Do brains grow when we keep trying? What else could you try?" }, { g: "🔁", t: "Try a new way, and ask for help if you need it.", best: true }],
+    why: "Trying again in a new way is perseverance. That is how skill and understanding grow." },
+  { v: "humility", story: "You win a race. Your friend comes last and looks sad.", pic: [["🧒", 100, 150, 100], ["🏁", 210, 110, 50], ["👧", 270, 160, 90]],
+    opts: [{ g: "🤝", t: "Say: Good race. Shall we run again?", best: true }, { g: "🏆", t: "Say: I'm the best. You're so slow.", hint: "Does that make you better than her? How would she feel?" }, { g: "💃", t: "Do a show-off dance in front of her.", hint: "Humility means not acting better than others. What could you say?" }],
+    why: "You didn't act better than your friend. You were kind and humble." },
+  { v: "justice", story: "One big kid always takes the swing. A little girl never gets a turn.", pic: [["🧒", 100, 150, 100], ["🪢", 210, 120, 50], ["👧", 270, 170, 80]],
+    opts: [{ g: "🤷", t: "Do nothing. It's not your problem.", hint: "Is it fair to the little girl? What could you do?" }, { g: "⚖️", t: "Ask for fair turns, and help her get a go.", best: true }, { g: "😠", t: "Push the big kid off.", hint: "Is pushing right? How could you stand up for fairness calmly?" }],
+    why: "Standing up for someone treated unfairly, in a kind way, is justice." },
+  { v: "compassion", story: "Your friend's pet goldfish died. She is crying.", pic: [["👧", 110, 150, 110], ["🐟", 230, 180, 50], ["💧", 270, 110, 40]],
+    opts: [{ g: "🤷", t: "Say: It's just a fish.", hint: "How does she feel? What would help her?" }, { g: "🫂", t: "Sit with her and say: I'm sorry. That's so sad.", best: true }, { g: "🙉", t: "Tell her to stop crying.", hint: "Is crying wrong when we're sad? Remember: Jesus wept." }],
+    why: "Feeling sad with her, and staying close, is compassion." },
+];
+
+// ---------- 🏠 Try it for real ----------
+const REAL = {
+  honesty: { title: "The truth jar", need: "a clean jar, paper strips, a pencil", steps: ["When someone in your family tells the truth, even when it is hard, write or draw it on a strip.", "Put the strip in the jar.", "At the end of the week, read the strips together and say thank you."], safe: "Do this with a grown-up." },
+  kindness: { title: "Secret kindness", need: "attention, and willing hands", steps: ["Look for one good thing you can do for someone, without being asked.", "Do it quietly: set the table, make a card, or share a toy.", "Don't tell anyone! Just notice how it feels."], safe: "Ask a grown-up first if it means using the kitchen or going outside." },
+  courage: { title: "My brave step", need: "a grown-up to practise with", steps: ["Choose one small brave thing, like ordering your own food or asking the librarian for a book.", "Practise the words at home first.", "Do it with your grown-up close by. Then talk about how it felt."], safe: "Always stay with your grown-up." },
+  selfcontrol: { title: "Stop and breathe", need: "a flower or a candle picture to hold", steps: ["Pretend to smell a flower: breathe in slowly.", "Pretend to blow out a candle: breathe out slowly.", "Do it three times. Practise every day, so you can use it when you feel cross."], safe: "Use only pretend candles, never real ones." },
+  gratitude: { title: "A thank-you note", need: "paper, crayons, an envelope", steps: ["Think of someone who helped you or gave you something good.", "Draw a picture and write or say: Thank you for…", "Give it to them, or post it with a grown-up."], safe: "Ask a grown-up to help with the envelope and stamp." },
+  perseverance: { title: "Five-day practice", need: "a chart with 5 boxes, a pencil", steps: ["Choose one hard thing: a tricky sum, a song, or tying your shoes.", "Practise it for 5 minutes each day, and tick a box.", "On day 5, notice how much easier it has become."], safe: "Do this with a grown-up." },
+  humility: { title: "Quiet helper", need: "a towel, a cup, a helpful heart", steps: ["Serve your family quietly: pour the water at dinner or tidy shoes.", "Ask someone to teach you something they know.", "Say: Thank you for teaching me."], safe: "Ask a grown-up before using water or the kitchen." },
+  justice: { title: "Fair shares", need: "a snack to share, a butter knife", steps: ["One person cuts the snack in two.", "The other person chooses first.", "Talk about it: why does this help both people be fair?"], safe: "A grown-up should help with any knife." },
+  compassion: { title: "A get-well card", need: "paper, crayons", steps: ["Think of someone who is sick, sad or lonely.", "Make a card that says: I'm thinking of you.", "Give it to them with a grown-up, and say a prayer for them."], safe: "Do this with a grown-up." },
+};
+
+// ---------- helpers ----------
+const EFFORT = ["Correct.", "Correct — well reasoned.", "Correct. You read closely.", "Correct, and precisely chosen."];
+const LEARN = ["Not quite. Consider again.", "Not quite. Reread that part carefully.", "Not yet. Mistakes are how we learn; think it through again."];
+const SOCRATIC = ["What would have been the easier choice, and why did they refuse it?", "Who gained from this action, and who paid a price for it?", "Would it still have been VIRTUE if no one had ever found out? Why?"];
+const ORD = { 1: "First", 2: "Second" };
+const refSay = (ref) =>
+  ref
+    .split(";")
+    .map((r) =>
+      r
+        .trim()
+        .replace(/^(\d) /, (_, d) => `${ORD[d]} `)
+        .replace(/(\d+):(\d+)[–-](\d+)/, "chapter $1, verses $2 to $3")
+        .replace(/(\d+):(\d+)/, "chapter $1, verse $2")
+        .replace(/ (\d+)[–-](\d+)$/, " chapters $1 to $2")
+        .replace(/^([^:]*?) (\d+)$/, (m, a, b) => (/chapter/.test(a) ? m : `${a} chapter ${b}`))
+    )
+    .join(", and ");
+const bookOf = (h) => h.ref.replace(/;.*$/, "").replace(/ \d+(:.*|–.*)?$/, "");
+const chipSub = (h) => (h.kind === "bible" ? h.ref.replace(/;.*$/, "").replace(/:.*$/, "") : h.sub);
+const talk = (html, spoken) => {
+  say(html, { voice: false });
+  VOICE.speak(spoken ?? html);
+};
+function fresh() {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+}
+const tween = (ms, fn, alive) =>
+  new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(true);
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!alive()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+function wrap(str, max) {
+  const out = [];
+  for (const w of String(str).split(" ")) {
+    const last = out[out.length - 1];
+    if (last !== undefined && (last + " " + w).length <= max) out[out.length - 1] = last + " " + w;
+    else out.push(w);
+  }
+  return out;
+}
+function para(parent, x, y, str, { size = 28, max = 28, lh = 1.22, fill = INK, anchor = "middle", weight = 800, style } = {}) {
+  const ls = wrap(str, max);
+  ls.forEach((l, i) => text(parent, x, y + i * size * lh, l, { "font-size": size, fill, "text-anchor": anchor, "font-weight": weight, "font-style": style }));
+  return ls.length * size * lh;
+}
+const status = (s) => {
+  const b = $("[data-status]");
+  if (b) b.textContent = s;
+};
+function actions(host, list) {
+  host.innerHTML = `<div class="ap-buttons">${list.map(([label], i) => `<button type="button" data-a="${i}"${list[i][2] ? ' class="primary"' : ""}>${label}</button>`).join("")}</div>`;
+  host.onclick = (event) => {
+    const b = event.target.closest("[data-a]");
+    if (!b) return;
+    window.OC?.touch();
+    list[Number(b.dataset.a)][1]();
+  };
+}
+function realCard(key) {
+  const { title, need, steps, safe } = REAL[key];
+  document.querySelector(".vh-real")?.remove();
+  VOICE.hush();
+  const box = document.createElement("div");
+  box.className = "vh-real";
+  box.innerHTML = `<div class="vh-real-card" role="dialog" aria-label="Try it for real"><h2>🏠 Try it for real</h2><h3>${title}</h3><p><b>You need:</b> ${need}</p><ol>${steps.map((s) => `<li>${s}</li>`).join("")}</ol><p class="vh-safe">👪 ${safe}</p><button type="button" class="kt-go" data-close-real>✓ OK</button></div>`;
+  document.body.appendChild(box);
+  VOICE.speak(`Try it for real. ${title}. You need: ${need}. ${steps.join(" ")} ${safe}`);
+  box.addEventListener("click", (event) => {
+    if (event.target === box || event.target.closest("[data-close-real]")) {
+      VOICE.hush();
+      box.remove();
+    }
+  });
+}
+
+// ---------- drawing: scenes and dignified portraits ----------
+const SCENES = {
+  tree: ["#dff1fb", "#bfe0a0"], night: ["#2c3e6b", "#3b4f7a"], palace: ["#f3e6d0", "#d9c3a0"], room: ["#f6ead6", "#d8bf98"], road: ["#fbe9c9", "#e2c48f"],
+  field: ["#e3f2fb", "#d8c36a"], valley: ["#e3f2fb", "#b9d98f"], egypt: ["#fbe7c6", "#e9c98f"], desert: ["#fbe3bd", "#e8c48a"], prison: ["#8a847b", "#6a655e"],
+  bus: ["#e3eef7", "#b7b7b7"], stadium: ["#dff1fb", "#7cbf5a"], track: ["#e3f2fb", "#c9583e"], sky: ["#cfe8fb", "#9fcf7a"], town: ["#e9eef5", "#cfc7b9"],
+  street: ["#f6e3c8", "#d4b48c"], church: ["#efe6f6", "#cdb8a0"], garden: ["#e3f5e8", "#9fcf7a"], wall: ["#fbe9c9", "#d8bd8c"], sea: ["#d6ecf8", "#4f9fd0"],
+  river: ["#e3f2fb", "#8fc9e6"], island: ["#d6ecf8", "#e9d9a6"], tent: ["#f4eadc", "#d5c09b"], lab: ["#eef3f6", "#c8d3db"], crowd: ["#e3eef7", "#cfd8c8"],
+  parliament: ["#efe9df", "#b89a72"], shop: ["#f6ead6", "#b98d5e"],
+};
+function sceneBg(g, x, y, w, h, kind = "room") {
+  const [skyC, groundC] = SCENES[kind] || SCENES.room;
+  const gy = y + h * 0.72;
+  const R = (a) => el("rect", a, g);
+  const C = (a) => el("circle", a, g);
+  const P = (d, a) => el("path", { d, ...a }, g);
+  R({ x, y, width: w, height: h, fill: skyC });
+  const cx = x + w / 2;
+  if (kind === "tree") {
+    R({ x: x + 34, y: y + 90, width: 26, height: h, fill: "#8a6a4f" });
+    C({ cx: x + 47, cy: y + 80, r: 70, fill: "#8cc56f" });
+    C({ cx: x + w - 40, cy: y + 60, r: 60, fill: "#9fd07f" });
+    for (const [dx, dy] of [[20, 60], [70, 100], [-10, 110], [w - 60, 50], [w - 30, 90]]) C({ cx: x + dx, cy: y + dy, r: 7, fill: kind === "tree" ? "#d9443a" : "#fff" });
+  } else if (kind === "night") {
+    for (let i = 0; i < 18; i++) C({ cx: x + ((i * 97) % w), cy: y + 16 + ((i * 53) % (h * 0.5)), r: 2 + (i % 3), fill: "#fff", opacity: 0.85 });
+    C({ cx: x + w - 50, cy: y + 50, r: 28, fill: "#fff3c4" });
+    C({ cx: x + w - 38, cy: y + 42, r: 24, fill: skyC });
+  } else if (kind === "palace" || kind === "parliament") {
+    for (const dx of [30, w - 60]) {
+      R({ x: x + dx, y: y + 40, width: 30, height: h, fill: kind === "palace" ? "#e9d8b4" : "#cdb994" });
+      R({ x: x + dx - 8, y: y + 32, width: 46, height: 14, fill: kind === "palace" ? "#d9c290" : "#b89a72" });
+    }
+    if (kind === "palace") P(`M${x} ${y}h${w}v40q-${w / 2} 40 -${w} 0z`, { fill: "#8f3a5a", opacity: 0.85 });
+    else for (const dx of [90, 160, 230]) P(`M${x + dx} ${y + 200}v-110q15 -30 30 0v110z`, { fill: "#d9e6ef", stroke: "#8a6a4f", "stroke-width": 3 });
+  } else if (kind === "room" || kind === "shop" || kind === "lab") {
+    R({ x: x + w - 120, y: y + 40, width: 90, height: 90, rx: 6, fill: "#cfe9f7", stroke: "#c9a77c", "stroke-width": 6 });
+    R({ x: x + 20, y: y + 150, width: 100, height: 8, fill: "#a8743f" });
+    if (kind === "shop") for (const dx of [26, 52, 80]) R({ x: x + dx, y: y + 120, width: 20, height: 30, rx: 4, fill: ["#e0a96d", "#9fd3a8", "#f2c94c"][(dx / 26) | 0 % 3] });
+    if (kind === "lab") for (const dx of [30, 70]) P(`M${x + dx} ${y + 110}h16v14l10 26h-36l10 -26z`, { fill: "#bfe6d6", stroke: "#5a7d6a", "stroke-width": 2 });
+  } else if (kind === "road" || kind === "valley") {
+    el("ellipse", { cx: x + 60, cy: gy, rx: 160, ry: 70, fill: kind === "valley" ? "#a6cf7d" : "#e8d3a8" }, g);
+    el("ellipse", { cx: x + w - 40, cy: gy, rx: 150, ry: 90, fill: kind === "valley" ? "#97c46f" : "#dcc293" }, g);
+    C({ cx: x + w - 60, cy: y + 50, r: 26, fill: "#ffd34d" });
+  } else if (kind === "field") {
+    C({ cx: x + 50, cy: y + 50, r: 26, fill: "#ffd34d" });
+  } else if (kind === "egypt" || kind === "desert") {
+    C({ cx: x + w - 60, cy: y + 50, r: 28, fill: "#ffcf4d" });
+    if (kind === "egypt") P(`M${x + 20} ${gy}L${x + 100} ${gy - 110}L${x + 180} ${gy}Z`, { fill: "#e3b874", stroke: "#c99a55", "stroke-width": 3 });
+    else el("ellipse", { cx: x + 80, cy: gy + 10, rx: 160, ry: 40, fill: "#efd1a0" }, g);
+  } else if (kind === "prison") {
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 6; c++) R({ x: x + c * 60 + (r % 2) * 30 - 20, y: y + r * 34, width: 56, height: 30, rx: 3, fill: "#9a948b" });
+    R({ x: x + w - 120, y: y + 40, width: 80, height: 80, fill: "#2c3e6b" });
+    for (const dx of [16, 36, 56]) R({ x: x + w - 120 + dx, y: y + 40, width: 6, height: 80, fill: "#3a3632" });
+  } else if (kind === "bus") {
+    R({ x: x - 10, y: y + 60, width: w + 20, height: 170, rx: 20, fill: "#d9c86a" });
+    for (let i = 0; i < 4; i++) R({ x: x + 10 + i * 82, y: y + 80, width: 66, height: 56, rx: 8, fill: "#cfe9f7" });
+  } else if (kind === "stadium") {
+    R({ x, y: y + 70, width: w, height: 40, fill: "#c8b49a" });
+    for (let i = 0; i < 16; i++) C({ cx: x + 12 + i * 22, cy: y + 82 + (i % 2) * 14, r: 8, fill: ["#e0a96d", "#9fd3a8", "#a9d4f5", "#f2c94c"][i % 4] });
+  } else if (kind === "sky") {
+    for (const [dx, dy] of [[60, 60], [w - 80, 110], [140, 160]]) {
+      el("ellipse", { cx: x + dx, cy: y + dy, rx: 46, ry: 16, fill: "#fff" }, g);
+      el("ellipse", { cx: x + dx + 18, cy: y + dy - 10, rx: 26, ry: 14, fill: "#fff" }, g);
+    }
+  } else if (kind === "town" || kind === "street" || kind === "crowd") {
+    for (let i = 0; i < 4; i++) R({ x: x + i * 88, y: gy - 120 - (i % 2) * 40, width: 80, height: 160 + (i % 2) * 40, fill: ["#e8b4a0", "#c9d6e8", "#f2d59b", "#b9d8c2"][i] });
+  } else if (kind === "church") {
+    P(`M${x + w / 2 - 50} ${y + 200}v-110q50 -60 100 0v110z`, { fill: "#c9dff5", stroke: "#8a6a4f", "stroke-width": 5 });
+    el("line", { x1: cx, x2: cx, y1: y + 60, y2: y + 200, stroke: "#8a6a4f", "stroke-width": 4 }, g);
+  } else if (kind === "garden") {
+    for (const dx of [30, 80, w - 50]) {
+      C({ cx: x + dx, cy: gy - 4, r: 10, fill: "#f28fb0" });
+      C({ cx: x + dx, cy: gy - 4, r: 4, fill: "#ffd34d" });
+    }
+  } else if (kind === "wall") {
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) R({ x: x + c * 60 + (r % 2) * 30 - 20, y: gy - 30 - r * 30, width: 56, height: 26, rx: 3, fill: "#d9b98a", stroke: "#b8935f", "stroke-width": 2 });
+  } else if (kind === "sea" || kind === "river") {
+    C({ cx: x + w - 60, cy: y + 50, r: 24, fill: "#ffd34d" });
+  } else if (kind === "island") {
+    R({ x, y: gy - 60, width: w, height: 60, fill: "#5fa9d6" });
+    R({ x: x + 50, y: gy - 150, width: 12, height: 150, rx: 4, fill: "#8a6a4f" });
+    for (const a of [-60, -20, 20, 60]) el("ellipse", { cx: x + 56 + a * 0.8, cy: gy - 150 + Math.abs(a) * 0.3, rx: 34, ry: 10, fill: "#4fa35a", transform: `rotate(${a / 2} ${x + 56 + a * 0.8} ${gy - 150})` }, g);
+  } else if (kind === "tent") {
+    P(`M${x + 10} ${gy}L${x + 110} ${gy - 140}L${x + 210} ${gy}Z`, { fill: "#e6d2b0", stroke: "#b9996a", "stroke-width": 3 });
+  }
+  R({ x, y: gy, width: w, height: h - (gy - y), fill: groundC });
+  if (kind === "track") for (const dy of [20, 50, 80]) R({ x, y: gy + dy, width: w, height: 4, fill: "#fff", opacity: 0.8 });
+  if (kind === "sea" || kind === "river") for (const dx of [40, 160, 260]) P(`M${x + dx} ${gy + 30}q15 -10 30 0t30 0`, { stroke: "#fff", "stroke-width": 4, fill: "none", opacity: 0.7 });
+  if (kind === "field") for (let i = 0; i < 12; i++) el("line", { x1: x + 14 + i * 28, x2: x + 18 + i * 28, y1: gy + 6, y2: gy - 30, stroke: "#c9a43c", "stroke-width": 4, "stroke-linecap": "round" }, g);
+  if (kind === "stadium") P(`M${cx - 80} ${gy + 60}L${cx} ${gy + 20}L${cx + 80} ${gy + 60}`, { stroke: "#fff", "stroke-width": 4, fill: "none" });
+}
+// A person bust. Origin is the bottom centre; the head centre is 232 above it.
+function person(parent, L, { dx = 0, s = 1 } = {}) {
+  const g = el("g", { transform: `translate(${dx} 0) scale(${s})` }, parent);
+  const skin = L.skin || SK.c;
+  const hair = L.hair || "#3a2a1e";
+  const hy = -232;
+  const P = (d, a) => el("path", { d, ...a }, g);
+  const drape = ["veil", "scarf", "sari", "headwrap"].includes(L.head) && L.head !== "headwrap";
+  if (L.style === "long") P(`M-62 ${hy - 10}Q-76 ${hy + 110} -60 ${hy + 150}L60 ${hy + 150}Q76 ${hy + 110} 62 ${hy - 10}Z`, { fill: hair });
+  if (L.style === "big") el("ellipse", { cx: 0, cy: hy - 14, rx: 84, ry: 74, fill: hair }, g);
+  if (drape) P(`M-70 ${hy - 40}Q-96 ${hy + 90} -118 ${hy + 200}L118 ${hy + 200}Q96 ${hy + 90} 70 ${hy - 40}Z`, { fill: L.hc || "#efe0c2" });
+  // body and collar
+  P("M-135 0C-135 -95 -95 -135 0 -140C95 -135 135 -95 135 0Z", { fill: L.robe || "#7a5a3a" });
+  el("rect", { x: -20, y: hy + 44, width: 40, height: 60, fill: skin }, g);
+  P("M-36 -138L0 -92L36 -138Z", { fill: L.collar || skin });
+  if (L.tie) P("M-7 -120L7 -120L10 -70L0 -60L-10 -70Z", { fill: L.tie });
+  if (L.head === "sari") P("M-118 0C-100 -80 -84 -120 -60 -150", { stroke: "#2a62b8", "stroke-width": 8, fill: "none" });
+  // head
+  for (const sx of [-1, 1]) el("ellipse", { cx: sx * 54, cy: hy + 6, rx: 11, ry: 15, fill: skin }, g);
+  el("ellipse", { cx: 0, cy: hy, rx: 54, ry: 62, fill: skin }, g);
+  // hair on top
+  const top = `M-56 ${hy - 4}Q-60 ${hy - 72} 0 ${hy - 72}Q60 ${hy - 72} 56 ${hy - 4}Q44 ${hy - 44} 0 ${hy - 46}Q-44 ${hy - 44} -56 ${hy - 4}Z`;
+  if (L.style === "short" || L.style === "long" || L.style === "big") P(top, { fill: hair });
+  else if (L.style === "curly") for (let i = 0; i < 7; i++) el("circle", { cx: -48 + i * 16, cy: hy - 50 + Math.abs(i - 3) * 6, r: 16, fill: hair }, g);
+  else if (L.style === "bun") {
+    el("circle", { cx: 0, cy: hy - 66, r: 22, fill: hair }, g);
+    P(top, { fill: hair });
+    el("line", { x1: 0, x2: 0, y1: hy - 70, y2: hy - 46, stroke: "rgba(0,0,0,.2)", "stroke-width": 3 }, g);
+  } else if (L.style === "bald") for (const sx of [-1, 1]) P(`M${sx * 56} ${hy - 4}Q${sx * 60} ${hy - 30} ${sx * 44} ${hy - 40}`, { stroke: hair, "stroke-width": 12, fill: "none", "stroke-linecap": "round" });
+  else if (L.style === "powder") {
+    P(top, { fill: hair });
+    for (const sx of [-1, 1]) el("ellipse", { cx: sx * 54, cy: hy - 6, rx: 12, ry: 18, fill: hair }, g);
+  }
+  // beard and mustache
+  if (L.beard && L.mustache !== true) P(`M-52 ${hy + 4}Q-54 ${hy + 84} 0 ${hy + 96}Q54 ${hy + 84} 52 ${hy + 4}Q44 ${hy + 52} 0 ${hy + 54}Q-44 ${hy + 52} -52 ${hy + 4}Z`, { fill: L.beard });
+  if (L.beard && L.mustache !== false) P(`M-24 ${hy + 28}Q0 ${hy + 16} 24 ${hy + 28}Q0 ${hy + 36} -24 ${hy + 28}Z`, { fill: L.beard });
+  // face
+  for (const sx of [-1, 1]) {
+    el("circle", { cx: sx * 20, cy: hy - 2, r: 6, fill: "#2b1d12" }, g);
+    P(`M${sx * 12} ${hy - 18}Q${sx * 20} ${hy - 24} ${sx * 30} ${hy - 18}`, { stroke: L.style === "bald" || L.style === "powder" ? "#6b5a4a" : hair, "stroke-width": 4, fill: "none", "stroke-linecap": "round" });
+    el("circle", { cx: sx * 34, cy: hy + 18, r: 9, fill: "#e88a7a", opacity: 0.3 }, g);
+  }
+  P(`M-14 ${hy + 34}Q0 ${hy + 44} 14 ${hy + 34}`, { stroke: L.beard ? "#f3e3d3" : "#7a3b2e", "stroke-width": 4, fill: "none", "stroke-linecap": "round" });
+  if (L.glasses) {
+    for (const sx of [-1, 1]) el("circle", { cx: sx * 20, cy: hy - 2, r: 15, fill: "none", stroke: "#3a3632", "stroke-width": 3 }, g);
+    el("line", { x1: -5, x2: 5, y1: hy - 2, y2: hy - 2, stroke: "#3a3632", "stroke-width": 3 }, g);
+  }
+  // headwear
+  const hc = L.hc || "#efe0c2";
+  if (drape) {
+    P(`M-68 ${hy + 14}Q-72 ${hy - 82} 0 ${hy - 84}Q72 ${hy - 82} 68 ${hy + 14}Q54 ${hy - 44} 0 ${hy - 48}Q-54 ${hy - 44} -68 ${hy + 14}Z`, { fill: hc });
+    if (L.head === "scarf") el("rect", { x: -60, y: hy - 58, width: 120, height: 9, rx: 4, fill: "#3a2a1e", opacity: 0.75 }, g);
+    if (L.head === "sari") P(`M-66 ${hy + 10}Q-70 ${hy - 76} 0 ${hy - 78}Q70 ${hy - 76} 66 ${hy + 10}`, { stroke: "#2a62b8", "stroke-width": 6, fill: "none" });
+  }
+  if (L.head === "headwrap") {
+    P(`M-58 ${hy - 8}Q-64 ${hy - 90} 0 ${hy - 92}Q64 ${hy - 90} 58 ${hy - 8}Q30 ${hy - 40} 0 ${hy - 42}Q-30 ${hy - 40} -58 ${hy - 8}Z`, { fill: hc });
+    el("circle", { cx: 30, cy: hy - 84, r: 14, fill: hc }, g);
+  }
+  if (L.head === "crown") {
+    P(`M-46 ${hy - 54}L-46 ${hy - 96}L-24 ${hy - 72}L0 ${hy - 104}L24 ${hy - 72}L46 ${hy - 96}L46 ${hy - 54}Z`, { fill: "#f2c94c", stroke: "#b8860b", "stroke-width": 3 });
+    el("circle", { cx: 0, cy: hy - 66, r: 6, fill: "#d9443a" }, g);
+  }
+  if (L.head === "tophat") {
+    el("rect", { x: -44, y: hy - 158, width: 88, height: 102, rx: 6, fill: "#1f1f24" }, g);
+    el("rect", { x: -44, y: hy - 76, width: 88, height: 12, fill: "#3a3a44" }, g);
+    el("rect", { x: -74, y: hy - 62, width: 148, height: 12, rx: 6, fill: "#1f1f24" }, g);
+  }
+  if (L.head === "pilgrim") {
+    P(`M-38 ${hy - 58}L-32 ${hy - 140}L32 ${hy - 140}L38 ${hy - 58}Z`, { fill: "#2a2a2e" });
+    el("ellipse", { cx: 0, cy: hy - 56, rx: 92, ry: 14, fill: "#2a2a2e" }, g);
+  }
+  if (L.head === "cap") {
+    P(`M-58 ${hy - 22}Q-56 ${hy - 88} 0 ${hy - 90}Q56 ${hy - 88} 58 ${hy - 22}Z`, { fill: hc });
+    el("ellipse", { cx: 34, cy: hy - 22, rx: 56, ry: 10, fill: hc }, g);
+  }
+  if (L.head === "flatcap") {
+    el("ellipse", { cx: 6, cy: hy - 50, rx: 66, ry: 24, fill: hc }, g);
+    el("ellipse", { cx: 40, cy: hy - 36, rx: 40, ry: 8, fill: hc }, g);
+  }
+  if (L.head === "turban") {
+    el("ellipse", { cx: 0, cy: hy - 52, rx: 64, ry: 38, fill: hc }, g);
+    for (const dy of [-64, -48]) P(`M-58 ${hy + dy + 10}Q0 ${hy + dy - 14} 58 ${hy + dy + 10}`, { stroke: "rgba(0,0,0,.18)", "stroke-width": 4, fill: "none" });
+  }
+  if (L.head === "nurse") P(`M-50 ${hy - 50}Q0 ${hy - 86} 50 ${hy - 50}L44 ${hy - 34}Q0 ${hy - 58} -44 ${hy - 34}Z`, { fill: "#fff", stroke: "#cfc7bd", "stroke-width": 2 });
+  if (L.head === "bonnet") P(`M-74 ${hy + 34}Q-82 ${hy - 92} 0 ${hy - 94}Q82 ${hy - 92} 74 ${hy + 34}Q62 ${hy - 50} 0 ${hy - 54}Q-62 ${hy - 50} -74 ${hy + 34}Z`, { fill: "#fbfaf6", stroke: "#d8d2c6", "stroke-width": 3 });
+  return g;
+}
+// Pictures for stories where we show the scene instead of a face.
+function symbolScene(g, x, y, w, h, kind) {
+  const cx = x + w / 2;
+  const gy = y + h * 0.72;
+  if (kind === "basin") {
+    el("ellipse", { cx, cy: gy + 30, rx: 110, ry: 30, fill: "#8a5a32" }, g);
+    el("path", { d: `M${cx - 110} ${gy + 30}q0 60 110 60q110 0 110 -60`, fill: "#a8743f" }, g);
+    el("ellipse", { cx, cy: gy + 30, rx: 96, ry: 22, fill: "#9fd3ef" }, g);
+    el("path", { d: `M${cx + 60} ${gy - 120}h80v110q-40 20 -80 0z`, fill: "#f6f1e6", stroke: "#cfc2a8", "stroke-width": 3 }, g);
+    emoji(g, cx - 70, gy - 70, "💧", 50);
+  } else if (kind === "bread") {
+    emoji(g, cx, gy - 10, "🧺", 140);
+    for (let i = 0; i < 5; i++) emoji(g, x + 40 + i * 62, y + 70, "🍞", 50);
+    emoji(g, cx - 40, y + 140, "🐟", 54);
+    emoji(g, cx + 40, y + 140, "🐟", 54);
+  } else if (kind === "tomb") {
+    el("path", { d: `M${x} ${gy}Q${x + 60} ${y + 90} ${x + w * 0.7} ${y + 110}Q${x + w} ${y + 130} ${x + w} ${gy}Z`, fill: "#b9ad9b" }, g);
+    el("ellipse", { cx: x + w * 0.45, cy: gy - 60, rx: 56, ry: 64, fill: "#3a3632" }, g);
+    el("circle", { cx: x + w * 0.78, cy: gy - 50, r: 60, fill: "#9a8f80", stroke: "#7a6f60", "stroke-width": 4 }, g);
+    emoji(g, x + 60, y + 60, "💧", 44);
+  } else if (kind === "stones") {
+    for (const [dx, r] of [[-90, 26], [-30, 34], [40, 28], [100, 22]]) el("ellipse", { cx: cx + dx, cy: gy + 30, rx: r * 1.3, ry: r, fill: "#a89a86", stroke: "#857865", "stroke-width": 3 }, g);
+    el("ellipse", { cx, cy: y + 110, rx: 90, ry: 60, fill: "#fff", stroke: "#cfc2a8", "stroke-width": 3 }, g);
+    emoji(g, cx, y + 110, "🍞", 64);
+    el("line", { x1: cx - 50, y1: y + 70, x2: cx + 50, y2: y + 150, stroke: "#d9443a", "stroke-width": 8, "stroke-linecap": "round" }, g);
+  }
+}
+function picture(parent, x, y, w, h, look, { prop = true } = {}) {
+  const id = `vhc${++clipN}`;
+  const g = el("g", {}, parent);
+  const cp = el("clipPath", { id }, el("defs", {}, g));
+  el("rect", { x, y, width: w, height: h, rx: 26 }, cp);
+  const inner = el("g", { "clip-path": `url(#${id})` }, g);
+  sceneBg(inner, x, y, w, h, look.scene);
+  if (look.symbol) symbolScene(inner, x, y, w, h, look.symbol);
+  else {
+    const holder = el("g", { transform: `translate(${x + w / 2} ${y + h + 6}) scale(${h / 420})` }, inner);
+    if (look.two) {
+      person(holder, look.two, { dx: 78, s: 0.84 });
+      person(holder, look, { dx: -62, s: 0.92 });
+    } else person(holder, look);
+  }
+  if (prop && look.prop) {
+    el("circle", { cx: x + w - 50, cy: y + h - 52, r: 38, fill: "#fff", opacity: 0.92 }, inner);
+    emoji(inner, x + w - 50, y + h - 54, look.prop, 46);
+  }
+  el("rect", { x, y, width: w, height: h, rx: 26, fill: "none", stroke: "#5a4130", "stroke-width": 4 }, g);
+  return g;
+}
+// A round face for chips and small cards.
+function face(parent, cx, cy, r, look) {
+  const id = `vhc${++clipN}`;
+  const g = el("g", {}, parent);
+  const cp = el("clipPath", { id }, el("defs", {}, g));
+  el("circle", { cx, cy, r }, cp);
+  const inner = el("g", { "clip-path": `url(#${id})` }, g);
+  el("circle", { cx, cy, r, fill: (SCENES[look.scene] || SCENES.room)[0] }, inner);
+  if (look.symbol) emoji(inner, cx, cy, { stones: "🍞", basin: "💧", bread: "🐟", tomb: "💧" }[look.symbol] || "✝️", r * 1.1);
+  else {
+    const s = r / 82;
+    person(el("g", { transform: `translate(${cx} ${cy + 0.1 * r + 232 * s}) scale(${s})` }, inner), look);
+  }
+  el("circle", { cx, cy, r, fill: "none", stroke: "#5a4130", "stroke-width": 3 }, g);
+  return g;
+}
+const TAGS = {
+  bible: { label: "📖 Bible", fill: "#f6e7c8", ink: "#7a5a1e" },
+  parable: { label: "📖 A story Jesus told", fill: "#f6e7c8", ink: "#7a5a1e" },
+  true: { label: "✅ True story", fill: "#dcf3e3", ink: "#21703f" },
+  told: { label: "💬 A story people tell", fill: "#fff1c9", ink: "#8a5a00" },
+  legend: { label: "⚠️ Legend: made up", fill: "#fde2d6", ink: "#a8401e" },
+};
+function pill(parent, x, y, label, fill, ink, anchor = "start") {
+  const w = Math.round(label.length * 12.6 + 34);
+  const x0 = anchor === "end" ? x - w : x;
+  const g = el("g", {}, parent);
+  el("rect", { x: x0, y, width: w, height: 40, rx: 20, fill }, g);
+  text(g, x0 + w / 2, y + 28, label, { "font-size": 22, fill: ink });
+  return g;
+}
+
+// ---------- the virtue badge and hero card ----------
+function heroCard(h) {
+  fresh();
+  const vv = V[h.v];
+  el("rect", { x: 0, y: 0, width: W, height: H, fill: "#fbf6ee" }, view);
+  picture(view, 24, 24, 330, 410, h.look);
+  const nameSize = Math.min(32, Math.floor(330 / (h.name.length * 0.56)));
+  text(view, 189, 474, h.name, { "font-size": nameSize, fill: INK });
+  text(view, 189, 512, h.kind === "bible" ? h.ref : h.date, { "font-size": 26, fill: vv.color });
+  const tg = TAGS[h.tag];
+  pill(view, 380, 22, tg.label, tg.fill, tg.ink);
+  text(view, 976, 50, h.where.length > 26 ? h.where.replace(/,.*$/, "") : h.where, { "font-size": 22, fill: MUTED, "text-anchor": "end" });
+  text(view, 380, 92, h.when, { "font-size": 22, fill: MUTED, "text-anchor": "start", "font-weight": 700 });
+  const parts = h.parts.map((p, i) => {
+    const y = 108 + i * 146;
+    const g = el("g", { class: "vh-part", "data-i": i }, view);
+    const box = el("rect", { x: 380, y, width: 596, height: 134, rx: 20, fill: "#fff", stroke: "#d9cdb5", "stroke-width": 3 }, g);
+    el("circle", { cx: 414, cy: y + 67, r: 21, fill: vv.soft, stroke: vv.color, "stroke-width": 2 }, g);
+    text(g, 414, y + 75, i + 1, { "font-size": 24, fill: vv.color });
+    const ls = wrap(p, 38);
+    const size = ls.length > 3 ? 23 : 25;
+    const lines = ls.length > 3 ? wrap(p, 42) : ls;
+    const y0 = y + 67 - ((lines.length - 1) * size * 1.2) / 2 + size * 0.36;
+    lines.forEach((l, j) => text(g, 448, y0 + j * size * 1.2, l, { "font-size": size, fill: INK, "text-anchor": "start", "font-weight": 700 }));
+    return { g, box };
+  });
+  return parts;
+}
+function lessonCard(h) {
+  const vv = V[h.v];
+  const g = el("g", { opacity: 0 }, view);
+  el("rect", { x: 372, y: 68, width: 612, height: 484, rx: 24, fill: "#fff", stroke: vv.color, "stroke-width": 5 }, g);
+  text(g, 400, 124, `${vv.icon} How it shows ${vv.name}`, { "font-size": 26, fill: vv.color, "text-anchor": "start" });
+  let y = 160 + para(g, 400, 160, h.why, { size: 24, max: 46, anchor: "start", weight: 700 });
+  el("line", { x1: 400, x2: 956, y1: y, y2: y, stroke: "#eadfcb", "stroke-width": 3 }, g);
+  y += 42;
+  if (h.line) {
+    text(g, 400, y, "📖 Memory line", { "font-size": 26, fill: "#7a5a1e", "text-anchor": "start" });
+    y += 40;
+    const size = h.line.t.length > 90 ? 25 : 28;
+    y += para(g, 400, y, `“${h.line.t}”`, { size, max: size === 25 ? 44 : 40, anchor: "start", weight: 700, style: "italic" });
+    text(g, 956, y + 6, `${h.line.ref} (KJV)`, { "font-size": 24, fill: "#7a5a1e", "text-anchor": "end" });
+    if (h.line.gloss) text(g, 400, y + 46, h.line.gloss, { "font-size": 22, fill: MUTED, "text-anchor": "start", "font-weight": 700 });
+    y += h.line.gloss ? 60 : 30;
+  } else {
+    const tg = TAGS[h.tag];
+    pill(g, 400, y - 30, tg.label, tg.fill, tg.ink);
+    y += 36;
+    y += para(g, 400, y, h.fact.replace(/^(True story|Legend)\.\s*/, ""), { size: QUOTE[h.id] ? 22 : 24, max: QUOTE[h.id] ? 50 : 46, anchor: "start", weight: 700 });
+    const q = QUOTE[h.id];
+    if (q) {
+      y += 8;
+      y += para(g, 400, y, `“${q.t}”`, { size: 22, max: 50, anchor: "start", weight: 700, style: "italic", fill: "#5a4130" });
+      text(g, 956, y, `— ${q.src}`, { "font-size": 22, fill: MUTED, "text-anchor": "end", "font-weight": 700 });
+      y += 10;
+    }
+  }
+  const cost = `What it cost: ${COST[h.id]}.`;
+  if (y + 30 + wrap(cost, 50).length * 27 < 540) {
+    el("line", { x1: 400, x2: 956, y1: y, y2: y, stroke: "#eadfcb", "stroke-width": 3 }, g);
+    para(g, 400, y + 32, cost, { size: 22, max: 50, anchor: "start", weight: 700, fill: "#7a3b2e" });
+  }
+  tween(500, (t) => g.setAttribute("opacity", t), () => g.isConnected);
+  return g;
+}
+function virtueIntro(key, list) {
+  fresh();
+  const vv = V[key];
+  el("rect", { x: 0, y: 0, width: W, height: H, fill: "#fbf6ee" }, view);
+  el("rect", { x: 40, y: 20, width: 920, height: 250, rx: 30, fill: "#fff", stroke: vv.color, "stroke-width": 5 }, view);
+  el("circle", { cx: 150, cy: 145, r: 86, fill: vv.soft }, view);
+  emoji(view, 150, 145, vv.icon, 100);
+  text(view, 270, 100, vv.name, { "font-size": 54, fill: vv.color, "text-anchor": "start" });
+  para(view, 270, 150, `${vv.name} means ${vv.def}.`, { size: 28, max: 44, anchor: "start", weight: 700 });
+  const groups = [["📖 Bible heroes", list.filter((h) => h.kind === "bible")], ["🏛️ History heroes", list.filter((h) => h.kind === "history")]];
+  groups.forEach(([label, hs], gi) => {
+    const x0 = 40 + gi * 470;
+    el("rect", { x: x0, y: 290, width: 450, height: 250, rx: 26, fill: gi ? "#e6eef8" : "#f6e7c8" }, view);
+    text(view, x0 + 225, 330, label, { "font-size": 28, fill: INK });
+    hs.forEach((h, i) => {
+      const cx = x0 + 80 + i * 145;
+      face(view, cx, 410, 54, h.look);
+      text(view, cx, 500, h.short, { "font-size": 23, fill: INK });
+      text(view, cx, 528, chipSub(h), { "font-size": 22, fill: MUTED, "font-weight": 700 });
+    });
+  });
+}
+
+// ---------- one virtue: heroes, then "What would you do?", then the timeline ----------
+const ERAS = [
+  { id: "ot", top: "Old", mid: "Testament", sub: "long ago", fill: "#f6e7c8", say: "the Old Testament, long before Jesus was born" },
+  { id: "nt", top: "New", mid: "Testament", sub: "Jesus' time", fill: "#f6e7c8", say: "the New Testament: the time of Jesus and the first Christians" },
+  { id: "1600", top: "1600s", sub: "1600–1699", fill: "#e3edf8", say: "the 1600s" },
+  { id: "1700", top: "1700s", sub: "1700–1799", fill: "#e3edf8", say: "the 1700s" },
+  { id: "1800", top: "1800s", sub: "1800–1899", fill: "#e3edf8", say: "the 1800s" },
+  { id: "1900", top: "1900s", sub: "1900–1999", fill: "#e3edf8", say: "the 1900s" },
+];
+const ERA = Object.fromEntries(ERAS.map((e) => [e.id, e]));
+
+function runVirtue(uid, key, my, { steps = true } = {}) {
+  const vv = V[key];
+  const bible = HEROES.filter((h) => h.v === key && h.kind === "bible");
+  const hist = HEROES.filter((h) => h.v === key && h.kind === "history");
+  const order = [bible[0], hist[0], bible[1], hist[1], bible[2], hist[2]];
+  const scen = WWYD.filter((w) => w.v === key);
+  const act = $("[data-act]");
+  let seq = 0;
+  const live = (s) => my === token && s === seq;
+  const setStep = (name) => document.querySelectorAll("[data-step]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.step === name)));
+  const stepsHost = $("[data-steps]");
+  if (stepsHost)
+    stepsHost.onclick = (event) => {
+      const b = event.target.closest("[data-step]");
+      if (!b || my !== token) return;
+      window.OC?.touch();
+      ({ heroes: () => hero(0), you: () => wwyd(0), line: timeline, explain: () => explainIt() })[b.dataset.step]();
+    };
+
+  const intro = () => {
+    const s = ++seq;
+    setStep("heroes");
+    status(`${vv.icon} ${vv.name}`);
+    stage.onpointermove = stage.onpointerup = null;
+    virtueIntro(key, order);
+    talk(`<b>${vv.name}</b> means ${vv.def}. You will study three people from Scripture and three from history, and judge how each one showed it.`);
+    actions(act, [["▶ Meet the heroes", () => live(s) && hero(0), true]]);
+  };
+
+  const hero = (i) => {
+    const s = ++seq;
+    const h = order[i];
+    let tries = 0;
+    let over = false;
+    let reading = 0;
+    setStep("heroes");
+    status(`Hero ${i + 1} of ${order.length}`);
+    stage.onpointermove = stage.onpointerup = null;
+    const parts = heroCard(h);
+    const mark = (j, how) => {
+      const b = parts[j].box;
+      if (how === "read") b.setAttribute("stroke", vv.color), b.setAttribute("stroke-width", 6);
+      else if (how === "right") b.setAttribute("fill", "#dff3e5"), b.setAttribute("stroke", "#22a05a"), b.setAttribute("stroke-width", 6);
+      else if (how === "wrong") b.setAttribute("fill", "#f9e1d9"), b.setAttribute("stroke", "#d9822b"), b.setAttribute("stroke-width", 4);
+      else if (b.getAttribute("fill") === "#fff") b.setAttribute("stroke", "#d9cdb5"), b.setAttribute("stroke-width", 3);
+    };
+    const read = async () => {
+      const r = ++reading;
+      const alive = () => live(s) && r === reading && !over;
+      const opener = h.kind === "bible" ? `${h.tag === "parable" ? "A story Jesus told" : "From the Bible"}, ${refSay(h.ref)}.` : h.tag === "legend" ? "A legend about a real person." : h.tag === "told" ? "A story people tell about a real person." : `A true story from ${h.date}.`;
+      say(`<b>${h.name}</b>`, { voice: false });
+      await sayAsync(`${opener} ${h.name}.`);
+      for (let j = 0; j < 3; j++) {
+        if (!alive()) return;
+        mark(j, "read");
+        say(h.parts[j], { voice: false });
+        await VOICE.speakAsync(h.parts[j]);
+        mark(j, "off");
+      }
+      if (alive()) talk(`Which part shows <b>${vv.name}</b>? Tap it.`);
+    };
+    const teach = async () => {
+      await wait(900);
+      if (!live(s)) return;
+      lessonCard(h);
+      actions(act, [["🔁 Say it again", say2], [i + 1 < order.length ? "Next hero ▶" : "Next ▶", () => live(s) && (i + 1 < order.length ? hero(i + 1) : wwyd(0)), true]]);
+      say2();
+    };
+    const say2 = () => {
+      if (!live(s)) return;
+      const tg = TAGS[h.tag];
+      const q = h.kind === "history" && i % 2 ? "How do we know this happened? What is the evidence, and how good is it?" : SOCRATIC[i % SOCRATIC.length].replace("VIRTUE", vv.name.toLowerCase());
+      if (h.line) talk(`Say the memory line aloud. <b>Consider:</b> ${q}`, `${h.why} Here is a memory line. ${h.line.t}. ${refSay(h.line.ref)}. Say it aloud with me. Then consider: ${q}`);
+      else talk(`<b>Consider:</b> ${q}`, `${h.why} ${h.fact} ${QUOTE[h.id] ? `In the original words: ${QUOTE[h.id].t}` : ""} Now consider: ${q}`);
+    };
+    view.addEventListener("pointerdown", (event) => {
+      const p = event.target.closest(".vh-part");
+      if (!p || over || !live(s)) return;
+      const j = Number(p.dataset.i);
+      reading += 1;
+      VOICE.hush();
+      window.OC?.touch();
+      parts.forEach((_, k) => mark(k, "off"));
+      if (j === h.right) {
+        over = true;
+        mark(j, "right");
+        MUSIC.chime();
+        window.OC?.count("hero stories");
+        talk(`${tries ? "Correct — your second reading was the careful one." : pick(EFFORT)} ${h.why}`);
+        teach();
+      } else {
+        tries += 1;
+        mark(j, "wrong");
+        MUSIC.oops();
+        if (tries < 2) talk(`${pick(LEARN)} ${vv.name} means ${vv.def}. ${vv.ask}`);
+        else {
+          over = true;
+          mark(h.right, "right");
+          talk(`Let us look at it together. Part ${h.right + 1} shows ${vv.name}. ${h.why}`);
+          teach();
+        }
+      }
+    });
+    actions(act, [["🔁 Listen again", () => live(s) && !over && read()]]);
+    read();
+  };
+
+  const wwyd = (i) => {
+    const s = ++seq;
+    const w = scen[i];
+    let tries = 0;
+    let over = false;
+    setStep("you");
+    status(`What would you do? ${i + 1} of ${scen.length}`);
+    stage.onpointermove = stage.onpointerup = null;
+    fresh();
+    el("rect", { x: 0, y: 0, width: W, height: H, fill: "#fbf6ee" }, view);
+    const pg = el("g", {}, view);
+    el("rect", { x: 24, y: 24, width: 330, height: 250, rx: 24, fill: "#fff3dd", stroke: "#5a4130", "stroke-width": 4 }, pg);
+    el("rect", { x: 24, y: 210, width: 330, height: 64, rx: 0, fill: "#e6cfa8" }, pg);
+    w.pic.forEach(([gl, x, y, size]) => emoji(pg, 24 + x, 24 + y, gl, size));
+    text(view, 380, 64, "🤔 What would you do?", { "font-size": 30, fill: vv.color, "text-anchor": "start" });
+    para(view, 380, 112, w.story, { size: 28, max: 38, anchor: "start", weight: 700 });
+    const opts = shuffle(w.opts);
+    const cards = opts.map((o, k) => {
+      const x = 24 + k * 324;
+      const g = el("g", { class: "vh-opt", "data-k": k }, view);
+      const box = el("rect", { x, y: 296, width: 304, height: 244, rx: 24, fill: "#fff", stroke: "#d9cdb5", "stroke-width": 3 }, g);
+      emoji(g, x + 152, 352, o.g, 62);
+      para(g, x + 152, 432, o.t, { size: 25, max: 20, weight: 800 });
+      return { g, box };
+    });
+    const best = opts.findIndex((o) => o.best);
+    const done = () => {
+      over = true;
+      cards[best].box.setAttribute("fill", "#dff3e5");
+      cards[best].box.setAttribute("stroke", "#22a05a");
+      cards[best].box.setAttribute("stroke-width", 6);
+      actions(act, [[i + 1 < scen.length ? "Next ▶" : "🧭 Timeline ▶", () => live(s) && (i + 1 < scen.length ? wwyd(i + 1) : timeline()), true]]);
+    };
+    view.addEventListener("pointerdown", (event) => {
+      const c = event.target.closest(".vh-opt");
+      if (!c || over || !live(s)) return;
+      const k = Number(c.dataset.k);
+      window.OC?.touch();
+      if (k === best) {
+        MUSIC.chime();
+        window.OC?.count("choices thought through");
+        talk(`${tries ? "Correct — you reconsidered well." : pick(EFFORT)} ${w.why}`);
+        done();
+      } else {
+        tries += 1;
+        MUSIC.oops();
+        cards[k].box.setAttribute("fill", "#f9e1d9");
+        cards[k].box.setAttribute("stroke", "#d9822b");
+        if (tries < 2) talk(`${pick(LEARN)} ${opts[k].hint}`);
+        else {
+          talk(`Consider it together: the best choice is “${opts[best].t}” ${w.why}`);
+          done();
+        }
+      }
+    });
+    talk(`${w.story} What would you do? Tap a card.`);
+    actions(act, [["🔁 Listen again", () => live(s) && !over && talk(`${w.story} What would you do? Tap a card.`)]]);
+  };
+
+  const timeline = () => {
+    const s = ++seq;
+    setStep("line");
+    fresh();
+    el("rect", { x: 0, y: 0, width: W, height: H, fill: "#fbf6ee" }, view);
+    text(view, 500, 40, "🧭 Put each hero on the timeline", { "font-size": 28, fill: INK });
+    const slots = {};
+    ERAS.forEach((e, i) => {
+      const x = 14 + i * 164;
+      const g = el("g", { class: "vh-slot", "data-era": e.id }, view);
+      const box = el("rect", { x, y: 62, width: 154, height: 270, rx: 18, fill: e.fill, stroke: e.id.length === 2 ? "#c9a75a" : "#8fb0d6", "stroke-width": 3 }, g);
+      if (e.mid) {
+        text(g, x + 77, 96, e.top, { "font-size": 26, fill: INK });
+        text(g, x + 77, 124, e.mid, { "font-size": 24, fill: INK });
+        text(g, x + 77, 154, e.sub, { "font-size": 22, fill: MUTED, "font-weight": 700 });
+      } else {
+        text(g, x + 77, 106, e.top, { "font-size": 34, fill: INK });
+        text(g, x + 77, 142, e.sub, { "font-size": 22, fill: MUTED, "font-weight": 700 });
+      }
+      slots[e.id] = { x, box, n: 0, g };
+    });
+    text(view, 175, 374, "📖 Bible times", { "font-size": 22, fill: "#7a5a1e" });
+    el("line", { x1: 30, x2: 960, y1: 346, y2: 346, stroke: "#5a4130", "stroke-width": 4 }, view);
+    el("path", { d: "M960 336L984 346L960 356Z", fill: "#5a4130" }, view);
+    text(view, 660, 372, "🏛️ History: nearer to now ➜", { "font-size": 22, fill: "#2f5d8a" });
+    const chips = shuffle(order).map((h, k) => {
+      const x = 20 + (k % 3) * 324;
+      const y = 384 + Math.floor(k / 3) * 86;
+      const g = el("g", { class: "vh-chip", "data-id": h.id, "data-x": x, "data-y": y, transform: `translate(${x} ${y})` }, view);
+      el("rect", { width: 312, height: 76, rx: 22, fill: "#fff", stroke: vv.color, "stroke-width": 3 }, g);
+      face(g, 40, 38, 30, h.look);
+      text(g, 82, 33, h.short, { "font-size": 26, fill: INK, "text-anchor": "start" });
+      text(g, 82, 63, chipSub(h), { "font-size": 22, fill: MUTED, "text-anchor": "start", "font-weight": 700 });
+      return { g, h, tries: 0, done: false };
+    });
+    let placed = 0;
+    let picked = null;
+    let drag = null;
+    const toSvg = (e) => {
+      const pt = view.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      return pt.matrixTransform(view.getScreenCTM().inverse());
+    };
+    const eraAt = (p) => ERAS.find((e, i) => p.x >= 14 + i * 164 && p.x <= 168 + i * 164 && p.y >= 50 && p.y <= 345)?.id;
+    const home = (c) => c.g.setAttribute("transform", `translate(${c.g.dataset.x} ${c.g.dataset.y})`);
+    const choose = (c) => {
+      chips.forEach((o) => o.g.querySelector("rect").setAttribute("stroke-width", 3));
+      picked = c;
+      if (c) {
+        c.g.querySelector("rect").setAttribute("stroke-width", 7);
+        talk(`${c.h.short}: ${chipSub(c.h)}. Now tap where it goes on the timeline.`, `${c.h.name}. ${c.h.kind === "bible" ? refSay(c.h.ref) : c.h.sub}. Now tap where it goes on the timeline.`);
+      }
+    };
+    const put = (c, era) => {
+      const sl = slots[era];
+      const tx = sl.x + 7;
+      const ty = 176 + sl.n * 38;
+      sl.n += 1;
+      const tag = el("g", {}, sl.g);
+      el("rect", { x: tx, y: ty, width: 140, height: 34, rx: 17, fill: vv.color }, tag);
+      text(tag, tx + 70, ty + 25, c.h.short, { "font-size": 22, fill: "#fff", ...(c.h.short.length > 9 ? { textLength: 128, lengthAdjust: "spacingAndGlyphs" } : {}) });
+      c.done = true;
+      c.g.setAttribute("opacity", 0);
+      c.g.setAttribute("pointer-events", "none");
+      placed += 1;
+    };
+    const why = (h) => (h.kind === "bible" ? `${bookOf(h)} is in ${ERA[h.era].say}.` : `${h.sub.replace("lived ", "He lived ")} is in ${ERA[h.era].say}.`);
+    const drop = (c, era) => {
+      if (!live(s) || c.done) return;
+      window.OC?.touch();
+      choose(null);
+      if (era === c.h.era) {
+        MUSIC.chime();
+        put(c, era);
+        window.OC?.count("heroes on the timeline");
+        if (placed === chips.length) setTimeout(() => live(s) && explainIt(), 2200);
+        talk(`Correct. ${c.h.short} goes in ${ERA[era].top}${ERA[era].mid ? " " + ERA[era].mid : ""}. ${why(c.h)}`);
+      } else {
+        c.tries += 1;
+        MUSIC.oops();
+        const wrongKind = (c.h.kind === "bible") !== (era.length === 2);
+        if (c.tries < 2) {
+          if (wrongKind) talk(`${pick(LEARN)} Is ${c.h.short} from the Bible, or from history? Look at the card: ${chipSub(c.h)}.`);
+          else if (c.h.kind === "bible") talk(`${pick(LEARN)} Was this before Jesus was born, or in New Testament times, when Jesus and the first Christians lived? Think about the story.`);
+          else talk(`${pick(LEARN)} Look at the date: ${c.h.sub}. Which box starts with the same two numbers?`);
+        } else {
+          put(c, c.h.era);
+          talk(`Here is the reasoning. ${c.h.short} goes in ${ERA[c.h.era].top}${ERA[c.h.era].mid ? " " + ERA[c.h.era].mid : ""}. ${why(c.h)}`);
+          if (placed === chips.length) setTimeout(() => live(s) && explainIt(), 2600);
+        }
+      }
+    };
+    view.addEventListener("pointerdown", (e) => {
+      if (!live(s)) return;
+      const cg = e.target.closest(".vh-chip");
+      if (cg) {
+        const c = chips.find((o) => o.g === cg);
+        const p = toSvg(e);
+        drag = { c, dx: p.x - Number(cg.dataset.x), dy: p.y - Number(cg.dataset.y), x0: p.x, y0: p.y, moved: false };
+        try {
+          view.setPointerCapture(e.pointerId);
+        } catch {}
+        view.appendChild(cg);
+        return;
+      }
+      const sg = e.target.closest(".vh-slot");
+      if (sg && picked) drop(picked, sg.dataset.era);
+    });
+    stage.onpointermove = (e) => {
+      if (!drag || !live(s)) return;
+      const p = toSvg(e);
+      if (Math.hypot(p.x - drag.x0, p.y - drag.y0) > 10) drag.moved = true;
+      if (drag.moved) drag.c.g.setAttribute("transform", `translate(${p.x - drag.dx} ${p.y - drag.dy})`);
+    };
+    stage.onpointerup = (e) => {
+      if (!drag || !live(s)) return;
+      const { c, moved } = drag;
+      drag = null;
+      if (!moved) return choose(c);
+      const era = eraAt(toSvg(e));
+      home(c);
+      if (era) drop(c, era);
+    };
+    talk(`Drag each person to the era in which they lived. Scripture is on the left; historical figures are placed by their dates.`);
+    status(`Timeline: ${order.length} heroes`);
+    actions(act, [["🔁 Listen again", () => live(s) && talk(`Drag each person to the era in which they lived. Scripture is on the left; historical figures are placed by their dates.`)]]);
+  };
+
+  const explainIt = () => {
+    const s = ++seq;
+    let h = order[0];
+    setStep("explain");
+    status("Explain it");
+    stage.onpointermove = stage.onpointerup = null;
+    const draw = (showModel) => {
+      fresh();
+      el("rect", { x: 0, y: 0, width: W, height: H, fill: "#fbf6ee" }, view);
+      text(view, 500, 42, "Explain it: choose one person", { "font-size": 28, fill: INK });
+      order.forEach((o, k) => {
+        const g = el("g", { class: "vh-who", "data-k": k }, view);
+        const cx = 95 + k * 162;
+        el("circle", { cx, cy: 110, r: 50, fill: o === h ? vv.color : "transparent" }, g);
+        face(g, cx, 110, 44, o.look);
+        text(g, cx, 186, o.short, { "font-size": 22, fill: o === h ? vv.color : INK, ...(o.short.length > 9 ? { textLength: 140, lengthAdjust: "spacingAndGlyphs" } : {}) });
+      });
+      el("rect", { x: 24, y: 206, width: 952, height: 334, rx: 24, fill: "#fff", stroke: vv.color, "stroke-width": 4 }, view);
+      if (!showModel) {
+        text(view, 52, 250, `In 2–4 sentences, explain to a grown-up:`, { "font-size": 26, fill: vv.color, "text-anchor": "start" });
+        [`1. What did ${h.short} do?`, `2. Why does it show ${vv.name.toLowerCase()} (${vv.def})?`, `3. What did it cost ${h.short}?`].reduce((y, t) => y + 18 + para(view, 52, y, t, { size: 26, max: 64, anchor: "start", weight: 700 }), 304);
+      } else {
+        text(view, 52, 250, "A model answer (compare it with yours):", { "font-size": 26, fill: vv.color, "text-anchor": "start" });
+        para(view, 52, 296, `${h.name} ${h.deed}. This shows ${vv.name.toLowerCase()}: ${h.why} It cost ${COST[h.id]}.`, { size: 25, max: 68, anchor: "start", weight: 700 });
+      }
+      view.addEventListener("pointerdown", (e) => {
+        const w = e.target.closest(".vh-who");
+        if (!w || !live(s)) return;
+        h = order[Number(w.dataset.k)];
+        window.OC?.touch();
+        draw(false);
+        prompt();
+      });
+    };
+    const prompt = () => {
+      talk(`<b>Explain it.</b> In 2–4 sentences, tell a grown-up what ${h.short} did, why it shows ${vv.name.toLowerCase()}, and what it cost.`);
+      actions(act, [["Show a model answer", () => live(s) && (draw(true), talk(`Compare the model answer with yours. Did you name the cost?`, `${h.name} ${h.deed}. This shows ${vv.name.toLowerCase()}. ${h.why} It cost ${COST[h.id]}. Did your answer name the cost?`), actions(act, [["Finish ▶", () => live(s) && finish(), true]]))], ["I explained it ▶", () => live(s) && finish(), true]]);
+    };
+    draw(false);
+    prompt();
+  };
+
+  const finish = () => {
+    const s = ++seq;
+    stage.onpointermove = stage.onpointerup = null;
+    confetti();
+    MUSIC.chime();
+    shell.mark(uid, { done: true, [key]: true });
+    window.OC?.count("virtues explored");
+    status("All done");
+    talk(`You studied six examples of <b>${vv.name}</b>, placed them in time, and explained one in your own words. That is careful, thorough work.`);
+    actions(act, [["🏠 Try it for real", () => realCard(key), true], ["🔁 Start again", () => live(s) && intro()]]);
+  };
+
+  intro();
+  return { intro, hero, wwyd, timeline, explainIt };
+}
+
+// ---------- See it ----------
+const units = {
+  vh0() {
+    const my = token;
+    explain(
+      [
+        { say: "Why study virtues? A virtue (from the Latin virtus, meaning strength or excellence) is a settled habit of choosing what is good. It shows who you are when no one is watching.", draw: everyday([["🙈", "Who you are when no one is watching"], ["📖", "Examples from Scripture"], ["🏛️", "Examples from history"], ["🤝", "Friendship and trust"]]) },
+        {
+          say: "Character is tested when no one is looking. No one would know if you took a cookie, but you would know, and God sees. Virtue chooses the right thing anyway.",
+          async draw(v, api) {
+            el("rect", { x: 0, y: 0, width: W, height: H, fill: "#fbf1e1" }, v);
+            el("rect", { x: 0, y: 420, width: W, height: 140, fill: "#e6cfa8" }, v);
+            el("rect", { x: 560, y: 330, width: 340, height: 24, rx: 8, fill: "#a8743f" }, v);
+            emoji(v, 760, 270, "🫙", 110);
+            emoji(v, 760, 250, "🍪", 50);
+            const kid = el("g", { transform: "translate(160 0)" }, v);
+            emoji(kid, 0, 330, "🧒", 150);
+            await api.tween(1500, (t) => kid.setAttribute("transform", `translate(${160 + t * 300} 0)`));
+            await api.wait(500);
+            const think = el("g", { opacity: 0 }, v);
+            el("rect", { x: 240, y: 60, width: 420, height: 100, rx: 50, fill: "#fff", stroke: "#5a4130", "stroke-width": 3 }, think);
+            text(think, 450, 122, "Nobody would know…", { "font-size": 34, fill: INK });
+            await api.tween(700, (t) => think.setAttribute("opacity", t));
+            await api.wait(1500);
+            const stop = el("g", { opacity: 0 }, v);
+            el("circle", { cx: 610, cy: 300, r: 46, fill: "#fff", stroke: "#22a05a", "stroke-width": 5 }, stop);
+            emoji(stop, 610, 300, "✋", 56);
+            await api.tween(600, (t) => stop.setAttribute("opacity", t));
+            await api.wait(500);
+            const ok = el("g", { opacity: 0 }, v);
+            el("rect", { x: 160, y: 470, width: 680, height: 70, rx: 35, fill: "var(--accent)" }, ok);
+            text(ok, 500, 516, "I will wait and ask first. ✓", { "font-size": 32, fill: "#fff" });
+            await api.tween(700, (t) => ok.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "This year you will study five virtues: honesty, kindness, courage, self-control and gratitude.",
+          async draw(v, api) {
+            for (let i = 0; i < 5; i++) {
+              const vv = V[Y1[i]];
+              const x = 30 + i * 190;
+              const g = el("g", { opacity: 0 }, v);
+              el("rect", { x, y: 70, width: 176, height: 420, rx: 26, fill: "#fff", stroke: vv.color, "stroke-width": 5 }, g);
+              el("circle", { cx: x + 88, cy: 160, r: 62, fill: vv.soft }, g);
+              emoji(g, x + 88, 160, vv.icon, 70);
+              text(g, x + 88, 268, vv.name, { "font-size": vv.name.length > 9 ? 25 : 28, fill: vv.color });
+              para(g, x + 88, 312, { honesty: "tell the truth, don't pretend", kindness: "do good when you don't have to", courage: "do right when it's scary", selfcontrol: "wait, stop, hold back", gratitude: "notice and name good gifts" }[Y1[i]], { size: 23, max: 12, weight: 700 });
+              await api.tween(500, (t) => {
+                g.setAttribute("opacity", t);
+                g.setAttribute("transform", `translate(0 ${(1 - t) * 30})`);
+              });
+              MUSIC.play("harp", [60, 64, 67, 72, 76][i], { gain: 0.35 });
+              await api.wait(700);
+            }
+          },
+        },
+        {
+          say: "You will study people from Scripture and from history. A timeline places each one in time, so you can see who came first.",
+          async draw(v, api) {
+            const groups = [["📖 Bible heroes", ["goliath", "esther", "zacchaeus"], "#f6e7c8"], ["🏛️ History heroes", ["tubman", "nightingale-charts", "parks"], "#e3edf8"]];
+            for (let gi = 0; gi < 2; gi++) {
+              const [label, ids, fill] = groups[gi];
+              const x0 = 40 + gi * 470;
+              const g = el("g", { opacity: 0 }, v);
+              el("rect", { x: x0, y: 30, width: 450, height: 300, rx: 26, fill }, g);
+              text(g, x0 + 225, 76, label, { "font-size": 30, fill: INK });
+              ids.forEach((id, i) => {
+                const cx = x0 + 80 + i * 145;
+                face(g, cx, 170, 56, HERO[id].look);
+                text(g, cx, 266, HERO[id].short, { "font-size": 24, fill: INK });
+                text(g, cx, 296, chipSub(HERO[id]), { "font-size": 22, fill: MUTED, "font-weight": 700 });
+              });
+              await api.tween(700, (t) => g.setAttribute("opacity", t));
+              await api.wait(800);
+            }
+            const line = el("line", { x1: 60, x2: 60, y1: 420, y2: 420, stroke: "#5a4130", "stroke-width": 6, "stroke-linecap": "round" }, v);
+            await api.tween(1400, (t) => line.setAttribute("x2", 60 + t * 880));
+            el("path", { d: "M936 406L966 420L936 434Z", fill: "#5a4130" }, v);
+            const marks = [["long ago", 120], ["Jesus' time", 330], ["1600s", 520], ["1800s", 700], ["now", 900]];
+            for (const [label, x] of marks) {
+              el("circle", { cx: x, cy: 420, r: 10, fill: "var(--accent)" }, v);
+              text(v, x, 470, label, { "font-size": 26, fill: INK });
+              await api.wait(350);
+            }
+          },
+        },
+        {
+          say: "Historians test every claim: Is it true? How do we know? What is the evidence? A legend is a story told as if true, without evidence. Each story here is labelled: true, legend, or a parable Jesus told.",
+          async draw(v, api) {
+            const cards = [
+              [60, "#dcf3e3", "#21703f", "✅ TRUE", "parks", "Rosa Parks said no on a bus in 1955. It really happened."],
+              [520, "#fde2d6", "#a8401e", "⚠️ LEGEND", "washington-cherry", "George Washington and the cherry tree. Made up in 1806."],
+            ];
+            for (const [x, fill, ink, stamp, id, words] of cards) {
+              const g = el("g", { opacity: 0 }, v);
+              el("rect", { x, y: 40, width: 420, height: 470, rx: 28, fill: "#fff", stroke: ink, "stroke-width": 5 }, g);
+              face(g, x + 210, 150, 80, HERO[id].look);
+              para(g, x + 210, 290, words, { size: 26, max: 26, weight: 700 });
+              await api.tween(600, (t) => g.setAttribute("opacity", t));
+              await api.wait(500);
+              const st = el("g", { opacity: 0 }, v);
+              el("rect", { x: x + 90, y: 420, width: 240, height: 64, rx: 14, fill, stroke: ink, "stroke-width": 4, transform: `rotate(-6 ${x + 210} 452)` }, st);
+              text(st, x + 210, 464, stamp, { "font-size": 34, fill: ink, transform: `rotate(-6 ${x + 210} 452)` });
+              await api.tween(400, (t) => st.setAttribute("opacity", t));
+              MUSIC.play("woodblock", 72, { gain: 0.4 });
+              await api.wait(900);
+            }
+          },
+        },
+        {
+          say: "Apart from Jesus, no hero was perfect. King David committed serious wrongs. Virtues grow through practice, the way a plant grows: slowly, with care.",
+          async draw(v, api) {
+            el("rect", { x: 0, y: 440, width: W, height: 120, fill: "#c9a77c" }, v);
+            el("path", { d: "M420 440h160l-20 90h-120z", fill: "#c0602f" }, v);
+            const stem = el("line", { x1: 500, x2: 500, y1: 440, y2: 440, stroke: "#3f8f4e", "stroke-width": 12, "stroke-linecap": "round" }, v);
+            await api.tween(1500, (t) => stem.setAttribute("y2", 440 - t * 300));
+            const leaves = [[460, 360, -30, "choose"], [540, 300, 30, "repeat"], [460, 230, -30, "habit"]];
+            for (const [x, y, a, label] of leaves) {
+              const g = el("g", { opacity: 0 }, v);
+              el("ellipse", { cx: x, cy: y, rx: 50, ry: 22, fill: "#6cbf5a", transform: `rotate(${a} ${x} ${y})` }, g);
+              text(g, x < 500 ? x - 130 : x + 130, y + 8, label, { "font-size": 26, fill: "#3f7d4e" });
+              await api.tween(600, (t) => g.setAttribute("opacity", t));
+              await api.wait(300);
+            }
+            const fl = el("g", { opacity: 0 }, v);
+            emoji(fl, 500, 120, "🌻", 110);
+            await api.tween(800, (t) => fl.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "When we do wrong, there are four steps: name it, understand it, repair it, and forgive. Explain it: tell a grown-up, in 2–4 sentences, which step is hardest for you, and why.",
+          async draw(v, api) {
+            const steps = [["🏷️", "Name it", "“I took her toy.”"], ["💭", "Understand it", "“She felt sad.”"], ["🔧", "Repair it", "“I'll give it back. Sorry.”"], ["🤗", "Forgive", "“I forgive you,” like God forgives us."]];
+            for (let i = 0; i < 4; i++) {
+              const [gl, name, eg] = steps[i];
+              const x = 24 + i * 242;
+              const g = el("g", { opacity: 0 }, v);
+              el("rect", { x, y: 60, width: 228, height: 420, rx: 26, fill: "#fff", stroke: "var(--accent)", "stroke-width": 5 }, g);
+              el("circle", { cx: x + 114, cy: 150, r: 60, fill: "var(--accent-soft)" }, g);
+              emoji(g, x + 114, 150, gl, 66);
+              text(g, x + 114, 260, `${i + 1}. ${name}`, { "font-size": 28, fill: "var(--accent-dark)" });
+              para(g, x + 114, 310, eg, { size: 24, max: 15, weight: 700 });
+              await api.tween(600, (t) => g.setAttribute("opacity", t));
+              MUSIC.play("harp", [60, 64, 67, 72][i], { gain: 0.35 });
+              await api.wait(1100);
+            }
+          },
+        },
+      ],
+      { alive: () => my === token, onDone: () => shell.go("vh1"), title: "Virtue Heroes" }
+    );
+  },
+
+  // ---------- 6. Virtue match ----------
+  vh6() {
+    const my = token;
+    let level = shell.progress().vh6?.level || "easy";
+    let round = 0;
+    let pool = [];
+    let s = 0;
+    panel(`<div class="ap-row"><div class="ap-chips" data-levels>${[["easy", "🐣 Easy"], ["medium", "🦊 Medium"], ["hard", "🦁 Hard"]].map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === level}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div><div class="vh-pick" data-choices></div>`);
+    const host = $("[data-choices]");
+    const start = () => {
+      round = 0;
+      const ids = level === "hard" ? HEROES : HEROES.filter((h) => V[h.v].year === 1);
+      pool = shuffle(ids).slice(0, 10);
+      ask();
+    };
+    const draw = (h) => {
+      fresh();
+      el("rect", { x: 0, y: 0, width: W, height: H, fill: "#fbf6ee" }, view);
+      picture(view, 24, 24, 330, 410, h.look);
+      text(view, 189, 474, h.name, { "font-size": Math.min(32, Math.floor(330 / (h.name.length * 0.56))), fill: INK });
+      text(view, 189, 512, h.kind === "bible" ? h.ref : h.date, { "font-size": 26, fill: MUTED });
+      const tg = TAGS[h.tag];
+      pill(view, 380, 22, tg.label, tg.fill, tg.ink);
+      const card = el("g", { class: "vh-deed" }, view);
+      el("rect", { x: 380, y: 84, width: 596, height: 450, rx: 24, fill: "#fff", stroke: "#d9cdb5", "stroke-width": 3 }, card);
+      text(card, 410, 134, "What did they do?", { "font-size": 28, fill: "var(--accent-dark)", "text-anchor": "start" });
+      para(card, 410, 196, `${h.name} ${h.deed}.`, { size: 32, max: 32, anchor: "start", weight: 800 });
+      return card;
+    };
+    const next = () => {
+      host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-go>${round + 1 < pool.length ? "Next hero ▶" : "Finish ▶"}</button></div>`;
+      host.onclick = (event) => {
+        if (!event.target.closest("[data-go]") || my !== token) return;
+        window.OC?.touch();
+        round += 1;
+        if (round < pool.length) ask();
+        else end();
+      };
+    };
+    const reason = (h, card) => {
+      const me = s;
+      card.remove();
+      const other = pick(HEROES.filter((o) => o.v !== h.v && !(h.also || []).includes(o.v) && !(o.also || []).includes(h.v)));
+      const opts = shuffle([{ t: h.why, ok: true }, { t: other.why, ok: false }]);
+      text(view, 410, 120, "Which reason is true of this story?", { "font-size": 28, fill: "var(--accent-dark)", "text-anchor": "start" });
+      let tries = 0;
+      const boxes = opts.map((o, k) => {
+        const g = el("g", { class: "vh-reason", "data-k": k }, view);
+        const box = el("rect", { x: 380, y: 146 + k * 196, width: 596, height: 180, rx: 22, fill: "#fff", stroke: "#d9cdb5", "stroke-width": 3 }, g);
+        const ls = wrap(o.t, 42);
+        const y0 = 146 + k * 196 + 90 - ((ls.length - 1) * 30) / 2 + 9;
+        ls.forEach((l, j) => text(g, 404, y0 + j * 30, l, { "font-size": 25, fill: INK, "text-anchor": "start", "font-weight": 700 }));
+        return box;
+      });
+      host.innerHTML = "";
+      talk(`Why does this show ${V[h.v].name}? Tap the reason that is <b>true</b> of this story and actually explains it.`, `Why does this show ${V[h.v].name}? A reason must be true, and it must actually support the answer. Tap the reason that is true of this story. One: ${opts[0].t} Two: ${opts[1].t}`);
+      view.addEventListener("pointerdown", (event) => {
+        const r = event.target.closest(".vh-reason");
+        if (!r || me !== s || my !== token || host.querySelector("[data-go]")) return;
+        const k = Number(r.dataset.k);
+        window.OC?.touch();
+        const good = opts.findIndex((o) => o.ok);
+        if (k === good || tries >= 1) {
+          if (k === good) MUSIC.chime();
+          else MUSIC.oops();
+          boxes[good].setAttribute("fill", "#dff3e5");
+          boxes[good].setAttribute("stroke", "#22a05a");
+          talk(`${k === good ? (tries ? "Correct — well reconsidered." : "Correct — that reason is true of the story, and it explains the virtue.") : "Not quite. That reason may sound fine, but it is not true of this story. Here is the true reason:"} ${h.why}`);
+          window.OC?.count("heroes matched");
+          next();
+        } else {
+          tries += 1;
+          MUSIC.oops();
+          boxes[k].setAttribute("fill", "#f9e1d9");
+          talk(`${pick(LEARN)} Test it: is that reason true of what ${h.name} actually did? What is the evidence in the story?`);
+        }
+      });
+    };
+    const ask = () => {
+      const me = ++s;
+      const h = pool[round];
+      status(`Hero ${round + 1} of ${pool.length}`);
+      const card = draw(h);
+      const keys = level === "hard" ? Object.keys(V) : Y1;
+      const n = { easy: 2, medium: 3, hard: 4 }[level];
+      const opts = shuffle([h.v, ...shuffle(keys.filter((k) => k !== h.v && !(h.also || []).includes(k))).slice(0, n - 1)]);
+      let tries = 0;
+      talk(`${h.name} ${h.deed}. Which virtue does this show?`);
+      choices(host, opts.map((k) => ({ label: `${V[k].icon} ${V[k].name}`, v: k })), (o, button) => {
+        if (me !== s || my !== token || button.disabled) return;
+        window.OC?.touch();
+        if (o.v === h.v) {
+          button.classList.add("right");
+          MUSIC.chime();
+          if (level === "hard") {
+            talk(`Correct: ${V[h.v].name}.`);
+            setTimeout(() => me === s && my === token && reason(h, card), 1400);
+          } else {
+            talk(`${tries ? "Correct — well reconsidered." : pick(EFFORT)} ${V[h.v].name}. ${h.why}`);
+            window.OC?.count("heroes matched");
+            next();
+          }
+        } else {
+          tries += 1;
+          button.classList.add("wrong");
+          button.disabled = true;
+          MUSIC.oops();
+          if (tries < 2) talk(`${pick(LEARN)} ${V[o.v].name} means ${V[o.v].def}. Is that what ${h.name} did? Look again.`);
+          else {
+            const i = opts.indexOf(h.v);
+            host.querySelector(`[data-c="${i}"]`)?.classList.add("right");
+            talk(`Consider it together. This shows ${V[h.v].name}: ${V[h.v].def}. ${h.why}`);
+            window.OC?.count("heroes matched");
+            next();
+          }
+        }
+      });
+    };
+    const end = () => {
+      ++s;
+      confetti();
+      MUSIC.chime();
+      shell.mark("vh6", { done: true });
+      status("All done");
+      talk(`You matched ${pool.length} people to the virtues they showed. <b>Explain it:</b> choose one and tell a grown-up, in 2–4 sentences, what the person did, why it fits the virtue, and what it cost them.`);
+      host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-real>🏠 Try it for real</button><button type="button" data-again>🔁 Play again</button></div>`;
+      host.onclick = (event) => {
+        if (event.target.closest("[data-real]")) realCard(level === "hard" ? pick(Y4) : pick(Y1));
+        else if (event.target.closest("[data-again]")) start();
+      };
+    };
+    $("[data-levels]").addEventListener("click", (event) => {
+      const b = event.target.closest("[data-lv]");
+      if (!b) return;
+      document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      level = b.dataset.lv;
+      shell.mark("vh6", { level });
+      window.OC?.touch();
+      start();
+    });
+    start();
+  },
+
+  // ---------- 7. My virtue journal (offline) ----------
+  vh7() {
+    const my = token;
+    let key = shell.progress().vh7?.virtue || "honesty";
+    const IDEAS = {
+      honesty: ["said “I did it” about a mistake", "told the truth when it was hard", "didn't pretend"],
+      kindness: ["helped without being asked", "shared something special", "included someone left out"],
+      courage: ["tried something new", "spoke up for someone", "told the truth when scared"],
+      selfcontrol: ["waited for my turn", "used calm words when cross", "stopped when asked"],
+      gratitude: ["said thank you and why", "named 3 good things at bedtime", "made a thank-you card"],
+    };
+    panel(`<div class="ap-chips" data-virtues>${Y1.map((k) => `<button type="button" data-v="${k}" aria-pressed="${k === key}">${V[k].icon} ${V[k].name}</button>`).join("")}</div><div class="ap-buttons"><button type="button" class="primary" data-real>🏠 Try it for real</button></div>`);
+    const draw = () => {
+      const vv = V[key];
+      fresh();
+      el("rect", { x: 0, y: 0, width: W, height: H, fill: "#efe4d2" }, view);
+      el("rect", { x: 60, y: 18, width: 880, height: 524, rx: 18, fill: "#fffdf7", stroke: "#c9b8a1", "stroke-width": 4 }, view);
+      for (let i = 0; i < 9; i++) el("circle", { cx: 82, cy: 52 + i * 56, r: 10, fill: "#efe4d2", stroke: "#a8946f", "stroke-width": 3 }, view);
+      text(view, 520, 70, "📓 My Virtue Journal", { "font-size": 34, fill: INK });
+      text(view, 130, 122, "This week I showed", { "font-size": 28, fill: INK, "text-anchor": "start" });
+      emoji(view, 432, 112, vv.icon, 40);
+      text(view, 462, 122, vv.name, { "font-size": 34, fill: vv.color, "text-anchor": "start" });
+      el("rect", { x: 130, y: 150, width: 380, height: 360, rx: 18, fill: "#fff", stroke: vv.color, "stroke-width": 4, "stroke-dasharray": "14 10" }, view);
+      text(view, 320, 320, "✏️ Draw yourself", { "font-size": 28, fill: MUTED });
+      text(view, 320, 356, "showing it here", { "font-size": 28, fill: MUTED });
+      text(view, 540, 182, "I showed it when I…", { "font-size": 26, fill: INK, "text-anchor": "start" });
+      for (let i = 0; i < 3; i++) el("line", { x1: 540, x2: 910, y1: 232 + i * 46, y2: 232 + i * 46, stroke: "#c9d6e8", "stroke-width": 3 }, view);
+      text(view, 540, 380, "Ideas:", { "font-size": 24, fill: vv.color, "text-anchor": "start" });
+      IDEAS[key].forEach((t, i) => text(view, 550, 418 + i * 36, `• ${t}`, { "font-size": 22, fill: INK, "text-anchor": "start", "font-weight": 700 }));
+      talk(`Your virtue journal. This week, watch for a moment when you show <b>${vv.name}</b>. Draw it on paper, then explain it in 2–4 sentences: what happened, and what it cost you.`);
+    };
+    const host = $("[data-panel]");
+    host.onclick = (event) => {
+      if (my !== token) return;
+      const b = event.target.closest("[data-v]");
+      if (b) {
+        key = b.dataset.v;
+        document.querySelectorAll("[data-v]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+        shell.mark("vh7", { virtue: key });
+        window.OC?.touch();
+        draw();
+      } else if (event.target.closest("[data-real]")) {
+        window.OC?.count("journal pages started");
+        shell.mark("vh7", { done: true, virtue: key });
+        const vv = V[key];
+        REAL.journal = {
+          title: `Draw yourself showing ${vv.name}`,
+          need: "a notebook or paper, crayons or pencils",
+          steps: [`This week, watch for a time you show ${vv.name.toLowerCase()}: ${vv.def}.`, "Draw yourself doing it. Put the day at the top.", "Tell a grown-up what happened. They can write your words: I showed it when I…", "If you got it wrong one day, that's OK: name it, understand it, repair it, forgive."],
+          safe: "Show your grown-up. You can pray and thank God together.",
+        };
+        realCard("journal");
+      }
+    };
+    draw();
+  },
+};
+for (const [uid, key] of Object.entries(UNIT_OF))
+  units[uid] = () => {
+    const my = token;
+    panel(`<div class="ap-row"><div class="ap-chips" data-steps><button type="button" data-step="heroes">📖 Heroes</button><button type="button" data-step="you">🤔 You</button><button type="button" data-step="line">🧭 Timeline</button><button type="button" data-step="explain">✍️ Explain</button></div><p class="ap-status" data-status></p></div><div data-act></div>`);
+    runVirtue(uid, key, my);
+  };
+// ---------- 8. Bigger virtues (Year 4 preview) ----------
+units.vh8 = () => {
+  const my = token;
+  let key = shell.progress().vh8?.virtue || "perseverance";
+  panel(`<div class="ap-row"><div class="ap-chips" data-virtues>${Y4.map((k) => `<button type="button" data-v="${k}" aria-pressed="${k === key}">${V[k].icon} ${V[k].name}</button>`).join("")}</div><p class="ap-status" data-status></p></div><div data-act></div>`);
+  $("[data-virtues]").onclick = (event) => {
+    const b = event.target.closest("[data-v]");
+    if (!b || my !== token) return;
+    key = b.dataset.v;
+    document.querySelectorAll("[data-v]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    shell.mark("vh8", { virtue: key });
+    window.OC?.touch();
+    runVirtue("vh8", key, my);
+  };
+  runVirtue("vh8", key, my);
+};
+
+const vhStyle = document.createElement("style");
+vhStyle.textContent = `
+.ap-panel>*{flex-shrink:0}
+.vh-part,.vh-opt,.vh-chip,.vh-slot,.vh-reason,.vh-who{cursor:pointer}
+.vh-chip{touch-action:none}
+.vh-pick .kt-choices button{min-height:56px;font-size:19px}
+.vh-real{position:fixed;inset:0;z-index:45;display:grid;place-items:center;padding:12px;background:rgba(43,29,18,.4)}
+.vh-real-card{width:min(560px,100%);max-height:100%;overflow:auto;padding:18px 22px;border-radius:26px;background:#fff;box-shadow:0 18px 40px rgba(0,0,0,.25);color:${INK};font:700 17px/1.35 var(--sans);text-align:left}
+.vh-real-card h2{margin:0;color:var(--accent-dark);font:900 22px/1.2 var(--sans)}
+.vh-real-card h3{margin:4px 0 6px;font:900 20px/1.2 var(--sans)}
+.vh-real-card p{margin:4px 0}
+.vh-real-card ol{margin:6px 0;padding-left:22px}
+.vh-real-card li{margin:3px 0}
+.vh-real-card .vh-safe{padding:6px 10px;border-radius:12px;background:var(--accent-soft);color:var(--accent-dark)}
+.vh-real-card .kt-go{display:block;margin:10px auto 0}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){.vh-pick .kt-choices button{min-height:44px;font-size:15.5px;padding:4px 12px}.vh-real-card{font-size:15px;padding:12px 16px}.vh-real-card .kt-go{min-height:46px}}
+`;
+document.head.appendChild(vhStyle);
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    vh0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    vh1: { icon: "🗣️", title: "Honesty heroes", steps: ["Listen to each hero's story.", "Tap the part that shows honesty.", "Then decide, place them on the timeline, and explain one."] },
+    vh2: { icon: "💛", title: "Kindness heroes", steps: ["Listen to each hero's story.", "Tap the part that shows kindness.", "Then decide, place them on the timeline, and explain one."] },
+    vh3: { icon: "🦁", title: "Courage heroes", steps: ["Listen to each hero's story.", "Tap the part that shows courage.", "Then decide, place them on the timeline, and explain one."] },
+    vh4: { icon: "✋", title: "Self-control heroes", steps: ["Listen to each hero's story.", "Tap the part that shows self-control.", "Then decide, place them on the timeline, and explain one."] },
+    vh5: { icon: "🌻", title: "Gratitude heroes", steps: ["Listen to each hero's story.", "Tap the part that shows gratitude.", "Then decide, place them on the timeline, and explain one."] },
+    vh6: { icon: "🧩", title: "Virtue match", steps: ["Read what the person did.", "Tap the virtue it shows.", "Hard: then tap the reason that is true of the story."] },
+    vh7: { icon: "📓", title: "My virtue journal", steps: ["Pick a virtue for this week.", "Watch for a moment you show it.", "Draw it on paper, then explain it in 2–4 sentences."] },
+    vh8: { icon: "🏔️", title: "Bigger virtues", steps: ["Pick a big virtue at the top.", "Listen to each story, and tap the part that shows it.", "Then decide, use the timeline, and explain one."] },
+  },
+  start: "vh0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+    stage.onpointermove = stage.onpointerup = null;
+    document.querySelector(".vh-real")?.remove();
+  },
+  subject: "Character",
+  activity: "Virtue Heroes",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("harp", [60, 64, 67, 72, 76]);
+MUSIC.preload("woodblock", [72]);
+</script>
+</body>
+</html>

@@ -1,0 +1,2543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Block Coding Studio · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="tech">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Block Coding Studio</b><small>Coding · Advanced</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, wait, confetti, explain, everyday, emoji } = KIT;
+const stage = $("[data-stage]");
+let token = 0;
+
+// ===== ENGINE START =====
+// Pure block-language logic (no DOM): block definitions, the interpreter and the challenge checks.
+// The test file runs this part in Node.
+const VARS = ["score", "count", "length", "sides", "n", "d", "roll", "low", "high", "guess", "secret"];
+const FUNCS = ["A", "B", "C"];
+const PEN_COLORS = [["#e53935", "red"], ["#fb8c00", "orange"], ["#f2b705", "yellow"], ["#43a047", "green"], ["#1e88e5", "blue"], ["#8e24aa", "purple"], ["#2b1d12", "black"]];
+const colorName = (c) => (PEN_COLORS.find(([h]) => h === c) || [c, "colour"])[1];
+const CATS = [
+  { id: "events", name: "Events", color: "#a87f00" },
+  { id: "motion", name: "Motion", color: "#2f6fd6" },
+  { id: "looks", name: "Looks", color: "#7a4cc9" },
+  { id: "pen", name: "Pen", color: "#0b8564" },
+  { id: "control", name: "Control", color: "#c26a00" },
+  { id: "sensing", name: "Sensing", color: "#1f86ab" },
+  { id: "operators", name: "Operators", color: "#2f8f2f" },
+  { id: "variables", name: "Variables", color: "#c75400" },
+  { id: "myblocks", name: "My Blocks", color: "#c2365b" },
+];
+// parts: words, and slots: {n} number, {b} true/false, {v} variable name, {c} colour.
+// shape: stmt (default), c (one mouth), e (if/else), cap (nothing below), rep (number reporter), bool.
+const DEFS = {
+  move: { cat: "motion", parts: ["move", { n: 10 }, "steps"] },
+  right: { cat: "motion", parts: ["turn right ↻", { n: 90 }, "°"] },
+  left: { cat: "motion", parts: ["turn left ↺", { n: 90 }, "°"] },
+  goto: { cat: "motion", parts: ["go to x:", { n: 0 }, "y:", { n: 0 }] },
+  point: { cat: "motion", parts: ["point in direction", { n: 90 }] },
+  changex: { cat: "motion", parts: ["change x by", { n: 10 }] },
+  changey: { cat: "motion", parts: ["change y by", { n: 10 }] },
+  xpos: { cat: "motion", shape: "rep", parts: ["x position"] },
+  ypos: { cat: "motion", shape: "rep", parts: ["y position"] },
+  dirr: { cat: "motion", shape: "rep", parts: ["direction"] },
+  say: { cat: "looks", parts: ["say", { n: 1 }] },
+  changesize: { cat: "looks", parts: ["change size by", { n: 10 }] },
+  setsize: { cat: "looks", parts: ["set size to", { n: 100 }, "%"] },
+  sizer: { cat: "looks", shape: "rep", parts: ["size"] },
+  pendown: { cat: "pen", parts: ["✏️ pen down"] },
+  penup: { cat: "pen", parts: ["pen up"] },
+  color: { cat: "pen", parts: ["set pen colour to", { c: "#e53935" }] },
+  pensize: { cat: "pen", parts: ["set pen size to", { n: 3 }] },
+  clear: { cat: "pen", parts: ["erase all"] },
+  wait: { cat: "control", parts: ["wait", { n: 1 }, "seconds"] },
+  repeat: { cat: "control", shape: "c", parts: ["repeat", { n: 4 }] },
+  forever: { cat: "control", shape: "c", end: true, parts: ["forever"] },
+  if: { cat: "control", shape: "c", parts: ["if", { b: 1 }, "then"] },
+  ifelse: { cat: "control", shape: "e", parts: ["if", { b: 1 }, "then"] },
+  until: { cat: "control", shape: "c", parts: ["repeat until", { b: 1 }] },
+  stop: { cat: "control", shape: "cap", parts: ["stop all"] },
+  edge: { cat: "sensing", shape: "bool", parts: ["touching edge?"] },
+  touchc: { cat: "sensing", shape: "bool", parts: ["touching", { c: "#e53935" }, "?"] },
+  add: { cat: "operators", shape: "rep", parts: [{ n: null }, "+", { n: null }] },
+  sub: { cat: "operators", shape: "rep", parts: [{ n: null }, "−", { n: null }] },
+  mul: { cat: "operators", shape: "rep", parts: [{ n: null }, "×", { n: null }] },
+  div: { cat: "operators", shape: "rep", parts: [{ n: null }, "÷", { n: null }] },
+  mod: { cat: "operators", shape: "rep", parts: [{ n: null }, "mod", { n: null }] },
+  rand: { cat: "operators", shape: "rep", parts: ["pick random", { n: 1 }, "to", { n: 10 }] },
+  floor: { cat: "operators", shape: "rep", parts: ["floor of", { n: null }] },
+  round: { cat: "operators", shape: "rep", parts: ["round", { n: null }] },
+  lt: { cat: "operators", shape: "bool", parts: [{ n: null }, "<", { n: 50 }] },
+  gt: { cat: "operators", shape: "bool", parts: [{ n: null }, ">", { n: 50 }] },
+  eq: { cat: "operators", shape: "bool", parts: [{ n: null }, "=", { n: 50 }] },
+  and: { cat: "operators", shape: "bool", parts: [{ b: 1 }, "and", { b: 1 }] },
+  or: { cat: "operators", shape: "bool", parts: [{ b: 1 }, "or", { b: 1 }] },
+  not: { cat: "operators", shape: "bool", parts: ["not", { b: 1 }] },
+  setv: { cat: "variables", parts: ["set", { v: "score" }, "to", { n: 0 }] },
+  changev: { cat: "variables", parts: ["change", { v: "score" }, "by", { n: 1 }] },
+  showv: { cat: "variables", parts: ["show variable", { v: "score" }] },
+  var: { cat: "variables", shape: "rep", parts: [{ v: "score" }] },
+  define: { cat: "myblocks", shape: "c", parts: ["define block", { f: "A" }, "(input)"] },
+  call: { cat: "myblocks", parts: ["run block", { f: "A" }, "with input", { n: 10 }] },
+  input: { cat: "myblocks", shape: "rep", parts: ["input"] },
+};
+const shapeOf = (op) => DEFS[op].shape || "stmt";
+const isStmt = (op) => !["rep", "bool"].includes(shapeOf(op));
+const slotsOf = (op) => DEFS[op].parts.filter((p) => typeof p === "object");
+const slotDefault = (p) => ("n" in p ? p.n : "b" in p ? null : "v" in p ? p.v : "f" in p ? p.f : p.c);
+
+let bkUid = 0;
+const newId = () => "k" + ++bkUid;
+// B("repeat", 4, [B("move", 100), B("right", 90)]): slot values in order, then the mouth lists.
+function B(op, ...args) {
+  const def = DEFS[op];
+  const vals = args.filter((a) => !Array.isArray(a));
+  const lists = args.filter(Array.isArray);
+  const node = { id: newId(), op, a: [] };
+  let k = 0;
+  for (const p of def.parts) if (typeof p === "object") node.a.push(k < vals.length ? vals[k++] : slotDefault(p));
+  if (def.shape === "c" || def.shape === "e") node.body = lists[0] || [];
+  if (def.shape === "e") node.else = lists[1] || [];
+  return node;
+}
+const V = (name) => B("var", name);
+function reId(x) {
+  if (Array.isArray(x)) return x.map(reId);
+  if (!x || typeof x !== "object") return x;
+  return { id: newId(), op: x.op, a: x.a.map(reId), ...(x.body ? { body: reId(x.body) } : {}), ...(x.else ? { else: reId(x.else) } : {}) };
+}
+// Every node in a program (statements and reporters), depth first.
+function walk(list, out = []) {
+  for (const n of list) {
+    if (!n || typeof n !== "object") continue;
+    out.push(n);
+    walk(n.a.filter((v) => v && typeof v === "object"), out);
+    if (n.body) walk(n.body, out);
+    if (n.else) walk(n.else, out);
+  }
+  return out;
+}
+const has = (prog, op) => walk(prog).some((n) => n.op === op);
+const hasIn = (prog, outer, inner) => walk(prog).some((n) => n.op === outer && walk([...(n.body || []), ...(n.else || [])]).some((m) => m.op === inner));
+// A program is valid to save/load if every node has a known op.
+function validProg(prog) {
+  try {
+    return Array.isArray(prog) && walk(prog).every((n) => DEFS[n.op] && Array.isArray(n.a));
+  } catch {
+    return false;
+  }
+}
+
+const HALT = Symbol("halt");
+const clean = (v) => Math.round(v * 1e6) / 1e6;
+const fmt = (v) => String(clean(v));
+const norm = (d) => clean(((d % 360) + 360) % 360);
+const W2 = 240;
+const H2 = 180;
+
+function newState(setup = {}) {
+  const S = {
+    x: setup.x ?? 0, y: setup.y ?? 0, dir: setup.dir ?? 90, pen: false, color: "#1e88e5", penSize: 3, size: 100,
+    vars: {}, shown: [], lines: [], said: [], bubble: null, zones: setup.zones || [], warn: "", edgeLog: [], touchedEver: {},
+    offstage: false, clearGen: 0, rnd: setup.rnd || Math.random, done: false, reason: "", rolls: [], moves: 0, frames: [], funcs: {}, maxDepth: 0,
+  };
+  S.startX = S.x;
+  S.startY = S.y;
+  for (const v of VARS) S.vars[v] = 0;
+  Object.assign(S.vars, setup.vars || {});
+  return S;
+}
+const radius = (S) => (18 * S.size) / 100;
+const touchingEdge = (S) => Math.abs(S.x) + radius(S) >= W2 || Math.abs(S.y) + radius(S) >= H2;
+function circleRect(x, y, r, z) {
+  const cx = Math.max(z.x1, Math.min(x, z.x2));
+  const cy = Math.max(z.y1, Math.min(y, z.y2));
+  return (x - cx) ** 2 + (y - cy) ** 2 < r * r;
+}
+const touchingColor = (S, c) => S.zones.some((z) => z.c === c && circleRect(S.x, S.y, radius(S), z));
+
+function moveTo(S, nx, ny) {
+  nx = clean(nx);
+  ny = clean(ny);
+  S.moves += 1;
+  if (S.pen && (nx !== S.x || ny !== S.y)) S.lines.push({ x1: S.x, y1: S.y, x2: nx, y2: ny, c: S.color, w: S.penSize });
+  S.x = nx;
+  S.y = ny;
+  if (Math.abs(nx) > W2 + 1 || Math.abs(ny) > H2 + 1) S.offstage = true;
+  const r = radius(S);
+  const side = nx + r >= W2 ? "R" : nx - r <= -W2 ? "L" : ny + r >= H2 ? "T" : ny - r <= -H2 ? "B" : "";
+  if (side && S.edgeLog[S.edgeLog.length - 1] !== side) S.edgeLog.push(side);
+  for (const z of S.zones) if (circleRect(nx, ny, r, z)) S.touchedEver[z.c] = true;
+}
+
+function val(v, S) {
+  if (v === null || v === undefined || v === "") return 0;
+  if (typeof v === "number") return v;
+  if (typeof v === "string") return Number(v) || 0;
+  return rep(v, S);
+}
+function rep(n, S) {
+  const [a, b] = n.a;
+  switch (n.op) {
+    case "add": return clean(val(a, S) + val(b, S));
+    case "sub": return clean(val(a, S) - val(b, S));
+    case "mul": return clean(val(a, S) * val(b, S));
+    case "div": {
+      const d = val(b, S);
+      if (d === 0) {
+        S.warn = "Dividing by 0 has no answer, so I used 0.";
+        return 0;
+      }
+      return clean(val(a, S) / d);
+    }
+    case "mod": {
+      const d = val(b, S);
+      if (d === 0) {
+        S.warn = "mod 0 has no answer, so I used 0.";
+        return 0;
+      }
+      const x = val(a, S);
+      return clean(((x % d) + d) % d);
+    }
+    case "rand": {
+      let lo = val(a, S);
+      let hi = val(b, S);
+      if (lo > hi) [lo, hi] = [hi, lo];
+      const r = Number.isInteger(lo) && Number.isInteger(hi) ? lo + Math.floor(S.rnd() * (hi - lo + 1)) : clean(lo + S.rnd() * (hi - lo));
+      if (S.rolls.length < 5000) S.rolls.push({ lo, hi, r });
+      return r;
+    }
+    case "floor": return Math.floor(clean(val(a, S)));
+    case "round": return Math.round(clean(val(a, S)));
+    case "input": return S.frames.length ? S.frames[S.frames.length - 1] : 0;
+    case "var": return S.vars[a] ?? 0;
+    case "xpos": return clean(S.x);
+    case "ypos": return clean(S.y);
+    case "dirr": return norm(S.dir);
+    case "sizer": return S.size;
+    default: return truth(n, S) ? 1 : 0;
+  }
+}
+function truth(v, S) {
+  if (v === null || v === undefined) return false;
+  if (typeof v !== "object") return !!v;
+  const [a, b] = v.a;
+  switch (v.op) {
+    case "lt": return val(a, S) < val(b, S) - 1e-9;
+    case "gt": return val(a, S) > val(b, S) + 1e-9;
+    case "eq": return Math.abs(val(a, S) - val(b, S)) < 1e-9;
+    case "and": return truth(a, S) && truth(b, S);
+    case "or": return truth(a, S) || truth(b, S);
+    case "not": return !truth(a, S);
+    case "edge": return touchingEdge(S);
+    case "touchc": return touchingColor(S, a);
+    default: return val(v, S) !== 0;
+  }
+}
+
+// The interpreter is a generator: it yields { id } before each block runs (so the page can glow it and
+// pause in step mode), { id, loop } at the end of each loop lap, and { id, wait } for wait blocks.
+function* runProg(prog, S) {
+  for (const b of prog) if (b.op === "define" && !S.funcs[b.a[0]]) S.funcs[b.a[0]] = b;
+  try {
+    yield* runList(prog, S);
+    S.reason = "end";
+  } catch (error) {
+    if (error !== HALT) throw error;
+    if (S.reason !== "depth") S.reason = "stop";
+  }
+  S.done = true;
+}
+function* runList(list, S) {
+  for (const b of list) yield* runBlock(b, S);
+}
+function* runBlock(b, S) {
+  yield { id: b.id };
+  const a = b.a;
+  const n0 = () => val(a[0], S);
+  switch (b.op) {
+    case "move": {
+      const d = n0();
+      const r = (S.dir * Math.PI) / 180;
+      moveTo(S, S.x + d * Math.sin(r), S.y + d * Math.cos(r));
+      break;
+    }
+    case "right": S.dir = norm(S.dir + n0()); break;
+    case "left": S.dir = norm(S.dir - n0()); break;
+    case "point": S.dir = norm(n0()); break;
+    case "goto": moveTo(S, n0(), val(a[1], S)); break;
+    case "changex": moveTo(S, S.x + n0(), S.y); break;
+    case "changey": moveTo(S, S.x, S.y + n0()); break;
+    case "say": {
+      const v = clean(n0());
+      S.said.push(v);
+      S.bubble = v;
+      break;
+    }
+    case "changesize": S.size = Math.max(5, Math.min(500, clean(S.size + n0()))); break;
+    case "setsize": S.size = Math.max(5, Math.min(500, clean(n0()))); break;
+    case "pendown": S.pen = true; break;
+    case "penup": S.pen = false; break;
+    case "color": S.color = a[0]; break;
+    case "pensize": S.penSize = Math.max(1, Math.min(30, n0())); break;
+    case "clear": S.lines = []; S.clearGen += 1; break;
+    case "wait": yield { id: b.id, wait: Math.max(0, Math.min(10, n0())) }; break;
+    case "repeat": {
+      const n = Math.min(100000, Math.max(0, Math.round(n0())));
+      for (let i = 0; i < n; i++) {
+        yield* runList(b.body, S);
+        yield { id: b.id, loop: true };
+      }
+      break;
+    }
+    case "forever":
+      for (;;) {
+        yield* runList(b.body, S);
+        yield { id: b.id, loop: true };
+      }
+    case "until":
+      while (!truth(a[0], S)) {
+        yield* runList(b.body, S);
+        yield { id: b.id, loop: true };
+      }
+      break;
+    case "if": if (truth(a[0], S)) yield* runList(b.body, S); break;
+    case "ifelse": yield* runList(truth(a[0], S) ? b.body : b.else, S); break;
+    case "stop": throw HALT;
+    case "define": break;
+    case "call": {
+      const f = S.funcs[a[0]];
+      if (!f) {
+        S.warn = `Block ${a[0]} has no define block yet.`;
+        break;
+      }
+      if (S.frames.length >= 200) {
+        S.reason = "depth";
+        throw HALT;
+      }
+      S.frames.push(val(a[1], S));
+      S.maxDepth = Math.max(S.maxDepth, S.frames.length);
+      yield* runList(f.body, S);
+      S.frames.pop();
+      break;
+    }
+    case "setv": S.vars[a[0]] = clean(val(a[1], S)); break;
+    case "changev": S.vars[a[0]] = clean((S.vars[a[0]] ?? 0) + val(a[1], S)); break;
+    case "showv": if (!S.shown.includes(a[0])) S.shown.push(a[0]); break;
+  }
+}
+// Run a whole program at once (no waiting). Used by checks and tests.
+function simulate(prog, setup = {}, limit = 60000) {
+  const S = newState(setup);
+  let n = 0;
+  for (const step of runProg(prog, S)) {
+    if (++n > limit) {
+      S.reason = "limit";
+      break;
+    }
+  }
+  return S;
+}
+
+// ---- drawing checks ----
+const dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
+function segDist(px, py, l) {
+  const dx = l.x2 - l.x1;
+  const dy = l.y2 - l.y1;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 ? Math.max(0, Math.min(1, ((px - l.x1) * dx + (py - l.y1) * dy) / len2)) : 0;
+  return dist(px, py, l.x1 + t * dx, l.y1 + t * dy);
+}
+// Is every part of drawing A close to some line of drawing B?
+function covers(A, B, tol = 5) {
+  for (const l of A) {
+    const len = dist(l.x1, l.y1, l.x2, l.y2);
+    const n = Math.max(1, Math.ceil(len / 4));
+    for (let i = 0; i <= n; i++) {
+      const px = l.x1 + ((l.x2 - l.x1) * i) / n;
+      const py = l.y1 + ((l.y2 - l.y1) * i) / n;
+      if (!B.some((m) => segDist(px, py, m) <= tol)) return false;
+    }
+  }
+  return true;
+}
+const sameDrawing = (lines, target, tol = 5) => lines.length > 0 && covers(target, lines, tol) && covers(lines, target, tol);
+const headingOf = (s) => (Math.atan2(s.y2 - s.y1, s.x2 - s.x1) * 180) / Math.PI;
+const turnBetween = (h1, h2) => {
+  let t = h2 - h1;
+  while (t <= -180) t += 360;
+  while (t > 180) t -= 360;
+  return t;
+};
+// Read the pen lines as one path, join straight runs, and see if it closes into a polygon.
+function polygon(lines) {
+  if (!lines.length) return { n: 0, paths: 0, closed: false };
+  let paths = 1;
+  const segs = [];
+  let px = lines[0].x1;
+  let py = lines[0].y1;
+  for (const l of lines) {
+    if (dist(px, py, l.x1, l.y1) > 1) paths += 1;
+    px = l.x2;
+    py = l.y2;
+    if (dist(l.x1, l.y1, l.x2, l.y2) < 1e-6) continue;
+    const s = { x1: l.x1, y1: l.y1, x2: l.x2, y2: l.y2 };
+    const last = segs[segs.length - 1];
+    if (last && dist(last.x2, last.y2, s.x1, s.y1) < 1e-6 && Math.abs(turnBetween(headingOf(last), headingOf(s))) < 0.5) {
+      last.x2 = s.x2;
+      last.y2 = s.y2;
+    } else segs.push(s);
+  }
+  if (paths > 1) return { n: 0, paths, closed: false, segs };
+  let k = -1;
+  for (let i = 1; i < segs.length; i++) {
+    if (dist(segs[i].x2, segs[i].y2, segs[0].x1, segs[0].y1) < 1.5) {
+      k = i;
+      break;
+    }
+  }
+  if (k < 0) return { n: segs.length, paths, closed: false, segs };
+  let poly = segs.slice(0, k + 1);
+  if (poly.length > 2 && Math.abs(turnBetween(headingOf(poly[poly.length - 1]), headingOf(poly[0]))) < 0.5) {
+    const last = poly.pop();
+    poly[0] = { x1: last.x1, y1: last.y1, x2: poly[0].x2, y2: poly[0].y2 };
+  }
+  const extraOk = covers(segs.slice(k + 1), poly, 2);
+  const n = poly.length;
+  const lens = poly.map((s) => dist(s.x1, s.y1, s.x2, s.y2));
+  const turns = poly.map((s, i) => turnBetween(headingOf(s), headingOf(poly[(i + 1) % n])));
+  return { n, paths, closed: n >= 3, extraOk, lens, turns, segs };
+}
+const allClose = (list, v, tol) => list.every((x) => Math.abs(x - v) <= tol);
+// true, or a kind sentence that explains why it is not right yet.
+function shapeCheck(S, { n, side = null, turn = 360 / n, name }) {
+  if (!S.lines.length) return "I don't see a drawing yet. What does the pen need to do before the robot moves?";
+  const p = polygon(S.lines);
+  if (p.paths > 1) return "The pen lifted in the middle. Can you draw it in one go, without pen up?";
+  if (!p.closed) {
+    const turned = S.lines.length > 1 ? "" : " It only drew one line.";
+    return `The ${name} did not join up at the start.${turned} To come back to the start, each turn should be ${turn}°.`;
+  }
+  if (!p.extraOk) return "The shape closed, but then the robot kept drawing new lines. Count your repeats!";
+  if (p.n !== n) return `I counted ${p.n} sides. A ${name} has ${n}. How many times should the robot repeat?`;
+  if (!allClose(p.lens, p.lens[0], Math.max(1, p.lens[0] * 0.015))) return "The sides are not all the same length. Check your move numbers.";
+  if (side !== null && Math.abs(p.lens[0] - side) > 1) return `Each side is ${fmt(p.lens[0])} steps. We need ${side} steps.`;
+  if (!allClose(p.turns.map(Math.abs), turn, 1)) return `Some turns are not ${turn}°. Every corner should turn the same amount.`;
+  return true;
+}
+// For "trace the dashed drawing" challenges the target is drawn by the answer program.
+function ghostLines(ch) {
+  if (!ch._ghost) ch._ghost = simulate(ch.sol(), ch.setup).lines;
+  return ch._ghost;
+}
+function ghostCheck(S, ch) {
+  const target = ghostLines(ch);
+  if (!S.lines.length) return "I don't see a drawing yet. Did you put the pen down?";
+  if (!covers(target, S.lines, 5)) return "Some of the dashed lines are not covered yet. Which part is missing?";
+  if (!covers(S.lines, target, 5)) return "Your drawing went off the dashed lines. Where did it go a different way?";
+  return true;
+}
+const sameList = (a, b) => a.length === b.length && a.every((x, i) => Math.abs(x - b[i]) < 1e-9);
+const range = (from, to, by = 1) => {
+  const out = [];
+  for (let v = from; v <= to; v += by) out.push(v);
+  return out;
+};
+const saidCheck = (S, want, extra = "") => {
+  if (!S.said.length) return "The robot didn't say anything. Which block makes it talk?";
+  if (sameList(S.said, want)) return true;
+  const first = S.said.findIndex((v, i) => Math.abs(v - want[i]) > 1e-9 || i >= want.length);
+  if (first < 0) return `The robot said ${S.said.length} numbers, but we need ${want.length}. ${extra}`;
+  return `The robot said ${S.said.slice(0, Math.min(first + 1, 6)).join(", ")}${first >= 6 ? "…" : ""}. Number ${first + 1} should be ${want[first] ?? "nothing"}. ${extra}`;
+};
+
+// ---- mazes (walls are colour zones in stage units, x right, y up) ----
+const RED = "#e53935";
+const GREEN = "#43a047";
+const BLUE = "#1e88e5";
+const frame = (c = RED) => [
+  { x1: -240, y1: -180, x2: -228, y2: 180, c },
+  { x1: -240, y1: 168, x2: 240, y2: 180, c },
+  { x1: 228, y1: -180, x2: 240, y2: 180, c },
+  { x1: -240, y1: -180, x2: 240, y2: -168, c },
+];
+const MAZE1 = [
+  ...frame(),
+  { x1: -140, y1: -180, x2: -128, y2: 80, c: RED },
+  { x1: -140, y1: 68, x2: 140, y2: 80, c: RED },
+  { x1: 128, y1: -80, x2: 140, y2: 80, c: RED },
+  { x1: -40, y1: -80, x2: 140, y2: -68, c: RED },
+  { x1: -30, y1: -66, x2: 10, y2: -24, c: GREEN },
+];
+const MAZE2 = [
+  { x1: -240, y1: 40, x2: -120, y2: 52, c: BLUE },
+  { x1: -60, y1: 40, x2: -48, y2: 180, c: RED },
+  { x1: -120, y1: -60, x2: 40, y2: -48, c: BLUE },
+  { x1: 90, y1: -60, x2: 102, y2: 180, c: RED },
+  { x1: 130, y1: -172, x2: 240, y2: -100, c: BLUE },
+  { x1: 20, y1: -180, x2: 120, y2: -150, c: GREEN },
+];
+
+const go = (x, y) => B("goto", x, y);
+const def = (f, body) => B("define", f, body);
+const call = (f, n) => B("call", f, n);
+const IN = () => B("input");
+const sq = (side) => B("repeat", 4, [B("move", side), B("right", 90)]);
+const ghostCh = (o) => ({
+  ...o,
+  setup: { ...(o.setup || {}), ghost: true },
+  check(S, prog) {
+    const r = ghostCheck(S, this);
+    if (r !== true) return r;
+    return o.need ? o.need(S, prog) : true;
+  },
+});
+const CHALLENGES = {
+  seq: [
+    {
+      lv: 1, goal: "Land exactly on the star at (100, 0)", say: "Move the robot so that it stops exactly on the star at x = 100.", setup: { star: { x: 100, y: 0 } },
+      sol: () => [B("move", 100)],
+      check: (S) => (dist(S.x, S.y, 100, 0) <= 6 ? true : `The robot stopped at (${fmt(S.x)}, ${fmt(S.y)}), but the star is at (100, 0). What distance separates them?`),
+      hints: ["Read the x-axis (the horizontal number line). Which number lies beneath the star?", "The robot begins at x = 0, facing right. How many steps carry it from 0 to 100?"],
+      why: "The robot starts at the origin (0, 0) facing right, so a move of 100 steps changes x from 0 to 100.",
+    },
+    {
+      lv: 1, goal: "Draw one straight line, 150 steps long", say: "Draw one straight line exactly 150 steps long.", setup: {},
+      sol: () => [B("pendown"), B("move", 150)],
+      check(S) {
+        if (!S.lines.length) return "No line appeared. What must the pen do before the robot moves?";
+        const p = polygon(S.lines);
+        if (p.paths > 1 || p.segs.length !== 1) return "That is more than one straight segment. The task asks for exactly one.";
+        const len = dist(p.segs[0].x1, p.segs[0].y1, p.segs[0].x2, p.segs[0].y2);
+        return Math.abs(len - 150) <= 1 ? true : `Your line measures ${fmt(len)} steps; the target is 150.`;
+      },
+      hints: ["Did the robot leave a trail when it moved? Why not?", "The pen begins lifted. Which block lowers it, and where in the sequence must it go?"],
+      why: "Order matters in a sequence: the pen must be lowered first, and only then does the 150-step move leave a trace.",
+    },
+    {
+      lv: 1, goal: "Jump to the star at (−120, 80)", say: "Use a single go-to block to place the robot on the star at (−120, 80).", setup: { star: { x: -120, y: 80 } },
+      sol: () => [go(-120, 80)],
+      check: (S) => (dist(S.x, S.y, -120, 80) <= 6 ? true : `The robot is at (${fmt(S.x)}, ${fmt(S.y)}). The star is at (−120, 80). Which coordinate is wrong, and in which direction?`),
+      hints: ["An ordered pair (x, y) lists the horizontal position first, then the vertical. Which one is negative here?", "Left of the origin, x is negative; above it, y is positive. Edit both numbers in the go-to block."],
+      why: "The pair (−120, 80) means 120 units left of the origin and 80 units up. go to x: y: places the robot there in one instruction.",
+    },
+    {
+      lv: 2, goal: "Draw a square with sides of 100", say: "Draw a square whose sides are each 100 steps long.", setup: {},
+      sol: () => [B("pendown"), B("move", 100), B("right", 90), B("move", 100), B("right", 90), B("move", 100), B("right", 90), B("move", 100)],
+      check: (S) => shapeCheck(S, { n: 4, side: 100, name: "square" }),
+      hints: ["How many sides and corners does a square have?", "At each corner the robot must turn. What angle is a square's corner?"],
+      why: "A square has four equal sides and four right angles (90°), so the program alternates move 100 and turn 90.",
+    },
+    {
+      lv: 2, goal: "Draw a 160 × 80 rectangle", say: "Draw a rectangle 160 steps wide and 80 steps tall.", setup: {},
+      sol: () => [B("pendown"), B("move", 160), B("left", 90), B("move", 80), B("left", 90), B("move", 160), B("left", 90), B("move", 80)],
+      check(S) {
+        const p = polygon(S.lines);
+        if (!S.lines.length) return "Nothing was drawn. Is the pen down?";
+        if (!p.closed || p.n !== 4) return "A rectangle has four sides that close up, with a 90° turn at each corner.";
+        const L = p.lens.map(clean);
+        const ok = Math.abs(L[0] - L[2]) <= 1 && Math.abs(L[1] - L[3]) <= 1 && [L[0], L[1]].sort((a, b) => a - b).every((v, i) => Math.abs(v - [80, 160][i]) <= 1);
+        return ok && allClose(p.turns.map(Math.abs), 90, 1) ? true : `Your sides measure ${L.map(fmt).join(", ")}. A 160 × 80 rectangle needs 160, 80, 160, 80.`;
+      },
+      hints: ["In what way is a rectangle like a square, and in what way is it different?", "Opposite sides are equal: long, short, long, short."],
+      why: "A rectangle keeps the square's right angles but has two pairs of equal opposite sides: 160, 80, 160, 80.",
+    },
+    ghostCh({
+      lv: 2, goal: "Trace the dashed letter L", say: "Trace the dashed L using go-to blocks. Read each corner's coordinates from the grid.",
+      sol: () => [go(-60, 100), B("pendown"), go(-60, -60), go(40, -60)],
+      hints: ["Where does the L begin? Read its top point as (x, y).", "Travel to the top with the pen up; then lower it and visit (−60, −60) and (40, −60)."],
+      why: "With the pen up, go to (−60, 100); lower the pen; then go to (−60, −60) and (40, −60). Coordinates let us describe any drawing exactly.",
+    }),
+    ghostCh({
+      lv: 3, goal: "Draw the dashed house", say: "Reproduce the dashed house: a square with a roof. Plan each vertex (corner) as a coordinate pair first.",
+      sol: () => [go(-60, -80), B("pendown"), go(60, -80), go(60, 40), go(-60, 40), go(-60, -80), B("penup"), go(-60, 40), B("pendown"), go(0, 110), go(60, 40)],
+      hints: ["Can you list the five vertices as (x, y) pairs before you build anything?", "The vertices are (−60, −80), (60, −80), (60, 40), (−60, 40) and the apex (0, 110)."],
+      why: "The walls are the square from (−60, −80) to (60, 40); the roof joins (−60, 40) to the apex (0, 110) and down to (60, 40). Planning coordinates first is how engineers instruct drawing machines.",
+    }),
+    ghostCh({
+      lv: 3, goal: "Draw the three dashed stairs", say: "Draw the three dashed stairs. Each stair rises 60 and then runs 60 to the right.",
+      sol: () => [go(-150, -120), B("pendown"), B("point", 0), B("move", 60), B("right", 90), B("move", 60), B("left", 90), B("move", 60), B("right", 90), B("move", 60), B("left", 90), B("move", 60), B("right", 90), B("move", 60)],
+      hints: ["Where do the stairs begin, and which direction must the robot face first?", "Point in direction 0 (up). Then: move 60, turn right 90, move 60, turn left 90, three times."],
+      why: "Begin at (−150, −120) facing up. Each stair is a rise (move 60), a right turn, a run (move 60), and a left turn to face up again.",
+    }),
+  ],
+  loop: [
+    {
+      lv: 1, goal: "Draw a square using repeat", say: "Draw a square, but write move and turn only once, inside a repeat block.", setup: {},
+      sol: () => [B("pendown"), B("repeat", 4, [B("move", 100), B("right", 90)])],
+      check(S, prog) {
+        const r = shapeCheck(S, { n: 4, name: "square" });
+        if (r !== true) return r;
+        return has(prog, "repeat") ? true : "The square is correct, but the instructions are repeated by hand. Can a repeat block express the pattern?";
+      },
+      hints: ["Which pair of instructions occurs again and again?", "Place move and turn inside repeat. How many times?"],
+      why: "A square is the pair (move, turn 90°) performed four times. A loop (an instruction that repeats other instructions) states that pattern once.",
+    },
+    {
+      lv: 1, goal: "Equilateral triangle: turn = 360 ÷ sides", say: "Draw an equilateral triangle (three equal sides). The turn at each corner is 360 divided by the number of sides.", setup: {},
+      sol: () => [B("pendown"), B("repeat", 3, [B("move", 120), B("right", 120)])],
+      check: (S) => shapeCheck(S, { n: 3, name: "triangle" }),
+      hints: ["When the robot returns to its start, through how many degrees has it turned in total?", "One full revolution is 360°. Shared equally among three turns, each is how many degrees?"],
+      why: "The robot makes one full revolution, 360°, in three equal turns: 360 ÷ 3 = 120°. That is the exterior angle; the interior angle is 60°.",
+    },
+    {
+      lv: 1, goal: "Regular hexagon (6 sides)", say: "Draw a regular hexagon, the shape of a honeycomb cell.", setup: {},
+      sol: () => [B("pendown"), B("repeat", 6, [B("move", 80), B("right", 60)])],
+      check: (S) => shapeCheck(S, { n: 6, name: "hexagon" }),
+      hints: ["How many repetitions produce six sides?", "Each turn is 360 ÷ 6. What is that?"],
+      why: "Six sides need six repetitions, each turning 360 ÷ 6 = 60°.",
+    },
+    {
+      lv: 2, goal: "Octagon, with 360 ÷ 8 inside the turn", say: "Draw a regular octagon, and let the computer compute the angle: put a division block, 360 ÷ 8, inside the turn.", setup: {},
+      sol: () => [B("pendown"), B("repeat", 8, [B("move", 60), B("right", B("div", 360, 8))])],
+      check(S, prog) {
+        const r = shapeCheck(S, { n: 8, name: "octagon" });
+        if (r !== true) return r;
+        return has(prog, "div") ? true : "The octagon is correct. Now express the angle as an operation, 360 ÷ 8, using the ÷ block.";
+      },
+      hints: ["Tap the number inside turn right. Where is the ÷ block?", "turn right (360 ÷ 8). The computer evaluates it to 45."],
+      why: "An expression such as 360 ÷ 8 is evaluated (computed) when the block runs, so the robot turns 45° at each of the eight vertices.",
+    },
+    {
+      lv: 2, goal: "Five-pointed star", say: "Draw a five-pointed star. Consider: how many full revolutions does the robot make while tracing a star?", setup: {},
+      sol: () => [B("pendown"), B("repeat", 5, [B("move", 150), B("right", 144)])],
+      check: (S) => shapeCheck(S, { n: 5, turn: 144, name: "star" }),
+      hints: ["A pentagon turns 360 ÷ 5 = 72° each time. Trace a star with your finger: how many times do you rotate fully?", "Two revolutions: 720°. Divide by five."],
+      why: "Tracing a star rotates the robot twice, 720°. 720 ÷ 5 = 144°, so repeat 5: move, turn 144°.",
+    },
+    {
+      lv: 2, goal: "36-sided polygon", say: "Draw a regular polygon with 36 sides. What does it resemble, and why?", setup: {},
+      sol: () => [B("pendown"), B("repeat", 36, [B("move", 15), B("right", 10)])],
+      check: (S) => shapeCheck(S, { n: 36, name: "36-sided polygon" }),
+      hints: ["How many repetitions? Which turn?", "360 ÷ 36 = 10. Keep each side short so it fits on the stage."],
+      why: "With 36 sides each turn is 10°. As the number of sides grows, a regular polygon approaches a circle; joining many short straight segments is one common way computers approximate curves.",
+    },
+    ghostCh({
+      lv: 3, goal: "Nested loops: eight rotated squares", say: "Reproduce the dashed rosette: eight squares, rotating 45° after each. You need a loop inside a loop.",
+      sol: () => [B("pendown"), B("repeat", 8, [sq(70), B("right", 45)])],
+      need: (S, prog) => (hasIn(prog, "repeat", "repeat") ? true : "It matches, but write it with a nested loop (a repeat inside a repeat)."),
+      hints: ["What does one square require? What happens between squares?", "Inner loop: repeat 4 (move 70, turn 90). Outer loop: repeat 8, then turn 45. Why does 8 × 45 equal 360?"],
+      why: "The inner loop draws one square; the outer loop repeats it eight times, rotating 45° each time. Because 8 × 45° = 360°, the rosette closes perfectly.",
+    }),
+    ghostCh({
+      lv: 3, goal: "Square spiral with a variable", say: "Draw the dashed spiral. Set length to 5; then, 30 times: move length, turn 90, change length by 5.",
+      sol: () => [B("setv", "length", 5), B("pendown"), B("repeat", 30, [B("move", V("length")), B("right", 90), B("changev", "length", 5)])],
+      need: (S, prog) => (has(prog, "var") ? true : "It matches. Now drive the move with the variable length."),
+      hints: ["What changes from one side to the next, and what stays constant?", "The turn stays 90°. The move grows: put length inside move, and increase length inside the loop."],
+      why: "A variable (a named value that can change) grows by 5 each lap, so every side is longer than the last: the arithmetic sequence 5, 10, 15 … drawn as a spiral.",
+    }),
+    ghostCh({
+      lv: 3, goal: "Polygons from 3 to 8 sides in one program", say: "Draw the dashed family of polygons, from a triangle up to an octagon, using the variable sides inside nested loops.",
+      sol: () => [B("setv", "sides", 3), B("pendown"), B("repeat", 6, [B("repeat", V("sides"), [B("move", 50), B("right", B("div", 360, V("sides")))]), B("changev", "sides", 1)])],
+      need: (S, prog) => (has(prog, "var") && hasIn(prog, "repeat", "repeat") ? true : "It matches. Express it with nested loops and the sides variable."),
+      hints: ["Which number changes from one polygon to the next?", "Outer loop 6 times; inner loop repeat (sides): move 50, turn 360 ÷ sides; then change sides by 1."],
+      why: "The variable sides controls both the number of repetitions and the angle 360 ÷ sides. One general program draws a whole family of shapes: this is abstraction.",
+    }),
+    ghostCh({
+      lv: 3, goal: "Twisted spiral: turn 91°", say: "Draw the dashed twisted spiral: length starts at 2 and grows by 3; each turn is 91°, not 90°. Repeat 60 times.",
+      sol: () => [B("setv", "length", 2), B("pendown"), B("repeat", 60, [B("move", V("length")), B("right", 91), B("changev", "length", 3)])],
+      hints: ["How does this differ from the square spiral?", "Change the turn to 91 and the growth to 3; repeat 60."],
+      why: "Turning 1° more than a right angle rotates every lap slightly, so the square spiral twists. Small changes inside a loop accumulate into large effects.",
+    }),
+  ],
+  vars: [
+    {
+      lv: 1, goal: "Set score to 10 and display it", say: "Store 10 in the variable score, then display score on the stage.", setup: {},
+      sol: () => [B("setv", "score", 10), B("showv", "score")],
+      check(S) {
+        if (S.vars.score !== 10) return `score holds ${fmt(S.vars.score)}. Which block assigns (stores) a value in a variable?`;
+        return S.shown.includes("score") ? true : "score holds 10. Now add show variable so it appears on the stage.";
+      },
+      hints: ["A variable is a named storage place. Which block stores a value in it?", "set score to 10, then show variable score."],
+      why: "set score to 10 is an assignment: it replaces whatever score held with 10. show variable displays its current value.",
+    },
+    {
+      lv: 1, goal: "Increase score by 1, five times", say: "Start score at 0, then use a repeat to change score by 1 five times.", setup: {},
+      sol: () => [B("setv", "score", 0), B("showv", "score"), B("repeat", 5, [B("changev", "score", 1)])],
+      check(S, prog) {
+        if (!hasIn(prog, "repeat", "changev")) return "Place a change score by 1 block inside a repeat.";
+        return S.vars.score === 5 ? true : `score ended at ${fmt(S.vars.score)}; we want 5. How many times was 1 added?`;
+      },
+      hints: ["How many additions are needed?", "repeat 5 containing change score by 1."],
+      why: "change adds to the stored value. Five laps: 0 + 1 + 1 + 1 + 1 + 1 = 5. This is a counter, the most common use of a variable.",
+    },
+    {
+      lv: 2, goal: "Say 1 to 10 with a counter", say: "Make the robot say 1, 2, 3 … 10, using the variable count.", setup: {},
+      sol: () => [B("setv", "count", 0), B("repeat", 10, [B("changev", "count", 1), B("say", V("count")), B("wait", 0.2)])],
+      check: (S) => saidCheck(S, range(1, 10), "Increase count, then say count, inside a repeat."),
+      hints: ["What value must count hold before the loop begins?", "Inside repeat 10: change count by 1, then say count."],
+      why: "count starts at 0; each lap increases it and then reports it, producing 1 through 10.",
+    },
+    {
+      lv: 2, goal: "Grow from size 100% to 150% in 5 equal steps", say: "The robot is at size 100%. Make it reach 150% in five equal steps, using a repeat.", setup: {},
+      sol: () => [B("repeat", 5, [B("changesize", 10), B("wait", 0.2)])],
+      check(S, prog) {
+        if (!hasIn(prog, "repeat", "changesize")) return "Use change size by inside a repeat.";
+        return S.size === 150 ? true : `The robot is at ${fmt(S.size)}%. The total growth is 150 − 100 = 50. How large is each of five equal steps?`;
+      },
+      hints: ["What is the total increase?", "50 ÷ 5 = ?"],
+      why: "The total growth is 50 percentage points; divided into five equal steps, that is 10 per step.",
+    },
+    {
+      lv: 2, goal: "Count by 5s to 50", say: "Make the robot say the multiples of 5 from 5 to 50.", setup: {},
+      sol: () => [B("setv", "count", 0), B("repeat", 10, [B("changev", "count", 5), B("say", V("count"))])],
+      check: (S) => saidCheck(S, range(5, 50, 5), "Change count by 5 on each lap."),
+      hints: ["By how much does each term increase?", "50 ÷ 5 = 10 terms, so repeat 10."],
+      why: "This is an arithmetic sequence with common difference 5: change count by 5 each lap, ten laps.",
+    },
+    {
+      lv: 3, goal: "The 3 times table, using ×", say: "Say the multiples of 3 from 3 to 30, computed as count × 3.", setup: {},
+      sol: () => [B("setv", "count", 0), B("repeat", 10, [B("changev", "count", 1), B("say", B("mul", V("count"), 3))])],
+      check(S, prog) {
+        const r = saidCheck(S, range(3, 30, 3));
+        if (r !== true) return r;
+        return has(prog, "mul") ? true : "The output is correct. Now compute each term as count × 3.";
+      },
+      hints: ["count runs 1 to 10. What operation turns each count into a multiple of 3?", "say (count × 3)."],
+      why: "count runs through 1 … 10 and the expression count × 3 maps each to a multiple of 3: a function from n to 3n.",
+    },
+    {
+      lv: 3, goal: "Sum 1 + 2 + … + 10 into score", say: "Compute 1 + 2 + 3 + … + 10 and store the total in score.", setup: {},
+      sol: () => [B("setv", "score", 0), B("setv", "count", 0), B("showv", "score"), B("repeat", 10, [B("changev", "count", 1), B("changev", "score", V("count"))])],
+      check(S, prog) {
+        if (!has(prog, "repeat")) return "Use a repeat so the computer performs the additions.";
+        return S.vars.score === 55 ? true : `score is ${fmt(S.vars.score)}. Does count run exactly 1 to 10, and is each value added to score?`;
+      },
+      hints: ["Two variables have two different jobs. What are they?", "count increases by 1; then change score by count. score is an accumulator (a running total)."],
+      why: "count runs 1 to 10 and score accumulates each value: 55. The pairing shortcut (often credited to Gauss) agrees: pair 1 with 10, 2 with 9, and so on, giving 5 pairs of 11, or 10 × 11 ÷ 2 = 55.",
+    },
+    {
+      lv: 3, goal: "Double 1 ten times", say: "Start score at 1 and double it ten times. Predict the result before you run.", setup: {},
+      sol: () => [B("setv", "score", 1), B("showv", "score"), B("repeat", 10, [B("setv", "score", B("mul", V("score"), 2))])],
+      check(S, prog) {
+        if (!has(prog, "repeat")) return "Use a repeat so it doubles ten times.";
+        return S.vars.score === 1024 ? true : `score is ${fmt(S.vars.score)}. Doubling means set score to score × 2. Did it begin at 1?`;
+      },
+      hints: ["How can score become twice itself?", "set score to (score × 2), inside repeat 10."],
+      why: "Repeated doubling gives 2¹⁰ = 1024. Exponential growth (multiplying by the same factor each time) quickly overtakes repeated adding.",
+    },
+    {
+      lv: 3, goal: "Say the square numbers 1 to 100", say: "Say the first ten square numbers: 1, 4, 9 … 100.", setup: {},
+      sol: () => [B("setv", "count", 0), B("repeat", 10, [B("changev", "count", 1), B("say", B("mul", V("count"), V("count")))])],
+      check: (S) => saidCheck(S, range(1, 10).map((v) => v * v), "A square number is n × n."),
+      hints: ["What is a square number, written as an operation?", "say (count × count)."],
+      why: "A square number is n × n: the number of dots in an n-by-n square array.",
+    },
+    {
+      lv: 3, goal: "Count down from 100 by 7s while positive", say: "Say 100, 93, 86 … and stop before the numbers reach zero or below.", setup: {},
+      sol: () => [B("setv", "count", 100), B("until", B("lt", V("count"), 1), [B("say", V("count")), B("changev", "count", -7)])],
+      check: (S) => saidCheck(S, range(0, 14).map((k) => 100 - 7 * k), "Use repeat until with a condition on count."),
+      hints: ["You do not know in advance how many terms there are. Which loop stops on a condition?", "repeat until (count < 1): say count, change count by −7."],
+      why: "repeat until checks a condition before each lap, so the data decides the loop's length: 100 − 7 × 14 = 2 is the last positive term.",
+    },
+  ],
+  cond: [
+    {
+      lv: 1, goal: "Turn around at the edge", say: "The robot walks right. Add a conditional: if touching edge, turn right 180.", setup: {},
+      start: () => [B("repeat", 40, [B("move", 10)])],
+      sol: () => [B("repeat", 40, [B("move", 10), B("if", B("edge"), [B("right", 180)])])],
+      check(S, prog) {
+        if (S.offstage) return "The robot left the stage. The edge test must be inside the loop, after each move.";
+        if (!has(prog, "if") || !has(prog, "edge")) return "Use an if block with touching edge? inside the loop.";
+        return S.edgeLog.includes("R") && S.x < 100 ? true : "Did the robot reach the edge and return?";
+      },
+      hints: ["Should the robot turn on every lap, or only under some condition?", "After move, inside the repeat: if touching edge? then turn right 180."],
+      why: "A conditional (if) runs its inner blocks only when its question is true. Checked every lap, it turns the robot only at the edge.",
+    },
+    {
+      lv: 1, goal: "Walk until touching green", say: "Make the robot walk until it touches the green rectangle, and no further.", setup: { zones: [{ x1: 140, y1: -60, x2: 200, y2: 60, c: GREEN }] },
+      sol: () => [B("until", B("touchc", GREEN), [B("move", 5)])],
+      check(S, prog) {
+        if (!has(prog, "until") && !has(prog, "if")) return "Consider repeat until touching green?: it continues while the answer is no.";
+        return S.touchedEver[GREEN] && touchingColor(S, GREEN) ? true : "The robot must finish on the green rectangle. Did it stop early or overshoot?";
+      },
+      hints: ["How can the robot know when to stop?", "repeat until (touching green?) containing move 5. Tap the colour circle to choose green."],
+      why: "repeat until tests its condition before each lap and ends the loop as soon as the condition becomes true.",
+    },
+    {
+      lv: 1, goal: "If x > 0 say 1, else say 0", say: "The robot starts in a new place each run. If its x position is greater than 0, say 1; otherwise say 0.", setup: { randomX: true },
+      sol: () => [B("ifelse", B("gt", B("xpos"), 0), [B("say", 1)], [B("say", 0)])],
+      check(S, prog) {
+        if (!has(prog, "ifelse")) return "Use if … then … else, which chooses between two paths.";
+        for (const x of [S.startX, -150, 150, -40, 60]) {
+          const T = simulate(prog, { x });
+          if (T.said[T.said.length - 1] !== (x > 0 ? 1 : 0)) return `At x = ${x} the robot should say ${x > 0 ? 1 : 0}. Re-examine the condition.`;
+        }
+        return true;
+      },
+      hints: ["To the right of the origin, is x greater or less than 0?", "if (x position > 0) then say 1 else say 0. x position is in Motion."],
+      why: "x position > 0 is a Boolean expression (one that is either true or false). I tested your program at five starting points to confirm it always chooses correctly.",
+    },
+    {
+      lv: 2, goal: "Bounce between the walls four times", say: "Make the robot bounce between the left and right edges at least four times. Calculate how many repetitions you need.", setup: {},
+      sol: () => [B("repeat", 200, [B("move", 10), B("if", B("edge"), [B("right", 180)])])],
+      check(S) {
+        if (S.offstage) return "The robot left the stage. Check the edge inside the loop.";
+        const n = S.edgeLog.length;
+        return n >= 4 ? true : `It touched an edge ${n} time${n === 1 ? "" : "s"}; we need 4. The stage is 480 wide. How many 10-step moves make one crossing?`;
+      },
+      hints: ["How far is the first edge? How far is a full crossing?", "About 23 moves to the first edge, then about 46 per crossing: 23 + 46 × 3."],
+      why: "23 moves reach the first edge, and each crossing costs about 46 more: 23 + 46 × 3 = 161, so a repeat count of about 165 or more suffices.",
+    },
+    {
+      lv: 2, goal: "Spiral maze: reach the green", say: "Guide the robot through the maze. When it touches red, it should step back 5 and turn right 90.", setup: { zones: MAZE1, x: -184, y: -130, dir: 0 },
+      start: () => [B("until", B("touchc", GREEN), [B("move", 5)])],
+      sol: () => [B("until", B("touchc", GREEN), [B("move", 5), B("if", B("touchc", RED), [B("move", -5), B("right", 90)])])],
+      check(S) {
+        if (S.reason === "limit") return "The robot circled without reaching green. Examine the if block.";
+        return S.touchedEver[GREEN] ? true : "The robot has not reached the green. What should happen when it meets a red wall?";
+      },
+      hints: ["What should the robot do on contact with a wall?", "Inside the loop: if touching red? then move −5 (step back) and turn right 90."],
+      why: "Each step the robot senses red; on contact it retreats and turns right. In this particular spiral, the rule \"always turn right at a wall\" leads inward to the goal; it would not solve every maze.",
+    },
+    {
+      lv: 2, goal: "Say only the even numbers to 20", say: "Count from 1 to 20 but say only the even numbers. The remainder operator mod helps: n mod 2 = 0 means n is even.", setup: {},
+      sol: () => [B("setv", "count", 0), B("repeat", 20, [B("changev", "count", 1), B("if", B("eq", B("mod", V("count"), 2), 0), [B("say", V("count"))])])],
+      check(S, prog) {
+        if (!has(prog, "if")) return "Use an if so that the robot speaks only some of the time.";
+        return saidCheck(S, range(2, 20, 2), "mod gives the remainder: 7 mod 2 = 1, 8 mod 2 = 0.");
+      },
+      hints: ["What remainder does an even number leave when divided by 2?", "if ((count mod 2) = 0) then say count, inside the counting loop."],
+      why: "mod returns the remainder after division. Even numbers leave remainder 0 on division by 2, so only they pass the test.",
+    },
+    {
+      lv: 3, goal: "Two-colour maze", say: "A new maze. Red walls mean turn right; blue walls mean turn left. Step back 5 before each turn.", setup: { zones: MAZE2, x: -200, y: 140, dir: 180 },
+      start: () => [B("until", B("touchc", GREEN), [B("move", 5)])],
+      sol: () => [B("until", B("touchc", GREEN), [B("move", 5), B("if", B("touchc", RED), [B("move", -5), B("right", 90)]), B("if", B("touchc", BLUE), [B("move", -5), B("left", 90)])])],
+      check(S) {
+        if (S.reason === "limit") return "The robot is looping without progress. Which way should each colour turn it?";
+        if (S.offstage) return "The robot left the stage. Check the direction for each colour.";
+        return S.touchedEver[GREEN] ? true : "Not yet at the green. Do you have one conditional for red AND one for blue?";
+      },
+      hints: ["Two independent questions must be asked on every step. What are they?", "if touching red: move −5, turn right 90. if touching blue: move −5, turn left 90."],
+      why: "Two separate conditionals, one per colour, each with its own response: a simple rule-based controller of the kind real robots use.",
+    },
+    {
+      lv: 3, goal: "1 to 15, saying 0 for multiples of 3", say: "Count from 1 to 15. For multiples of 3, say 0 instead of the number.", setup: {},
+      sol: () => [B("setv", "count", 0), B("repeat", 15, [B("changev", "count", 1), B("ifelse", B("eq", B("mod", V("count"), 3), 0), [B("say", 0)], [B("say", V("count"))])])],
+      check: (S) => saidCheck(S, range(1, 15).map((v) => (v % 3 ? v : 0)), "Use if/else with count mod 3 = 0."),
+      hints: ["How can a program test whether a number is a multiple of 3?", "if ((count mod 3) = 0) then say 0 else say count."],
+      why: "count mod 3 equals 0 exactly for 3, 6, 9, 12 and 15. The if/else selects the output for each case.",
+    },
+    {
+      lv: 3, goal: "Multiples of 3 or 5: say 1, else 0", say: "For 1 to 15, say 1 if the number is a multiple of 3 or of 5; otherwise say 0. Use the or block.", setup: {},
+      sol: () => [B("setv", "count", 0), B("repeat", 15, [B("changev", "count", 1), B("ifelse", B("or", B("eq", B("mod", V("count"), 3), 0), B("eq", B("mod", V("count"), 5), 0)), [B("say", 1)], [B("say", 0)])])],
+      check(S, prog) {
+        const r = saidCheck(S, range(1, 15).map((v) => (v % 3 === 0 || v % 5 === 0 ? 1 : 0)));
+        if (r !== true) return r;
+        return has(prog, "or") ? true : "The output is right. Now express the test with a single or block.";
+      },
+      hints: ["Two conditions; either one is enough. Which logic block combines them?", "((count mod 3) = 0) or ((count mod 5) = 0)."],
+      why: "or is true when at least one side is true: 3, 5, 6, 9, 10, 12 and 15 pass. This is Boolean logic, the algebra on which digital circuits are built.",
+    },
+  ],
+  func: [
+    ghostCh({
+      lv: 1, goal: "Define block A as a square; use it twice", say: "Define block A to draw a 50-step square. Then run block A twice, with a gap of 80 steps between the squares.",
+      sol: () => [def("A", [sq(50)]), B("pendown"), call("A", 0), B("penup"), B("move", 80), B("pendown"), call("A", 0)],
+      need: (S, prog) => (walk(prog).filter((n) => n.op === "call").length >= 2 ? true : "It matches. Now use run block A twice instead of building the square by hand."),
+      hints: ["A custom block is a named recipe. What goes inside define block A?", "define block A: repeat 4 (move 50, turn 90). Then: pen down, run A, pen up, move 80, pen down, run A."],
+      why: "A procedure (a named group of instructions) is written once and used many times. This is how programmers manage complexity.",
+    }),
+    ghostCh({
+      lv: 1, goal: "A square block with an input", say: "Make block A draw a square whose side is its input. Draw squares of side 40, 80 and 120 from the same corner.",
+      sol: () => [def("A", [B("repeat", 4, [B("move", IN()), B("right", 90)])]), B("pendown"), call("A", 40), call("A", 80), call("A", 120)],
+      need: (S, prog) => (has(prog, "input") ? true : "It matches. Use the input reporter inside block A, so one definition serves every size."),
+      hints: ["What should change from one square to the next? How does block A learn it?", "Inside define A: move (input). Then run A with input 40, 80, 120."],
+      why: "An input (also called a parameter) lets the caller supply a value. One general definition now draws a square of any size.",
+    }),
+    ghostCh({
+      lv: 2, goal: "polygon(n): triangle up to octagon", say: "Make block A draw a regular polygon with input sides, each 45 steps long. Run it for 3, 4, 5, 6, 7 and 8 sides.",
+      sol: () => [def("A", [B("repeat", IN(), [B("move", 45), B("right", B("div", 360, IN()))])]), B("pendown"), call("A", 3), call("A", 4), call("A", 5), call("A", 6), call("A", 7), call("A", 8)],
+      need: (S, prog) => (has(prog, "input") && has(prog, "div") ? true : "It matches. Use input for both the repeat count and the angle 360 ÷ input."),
+      hints: ["Which two numbers in a polygon program depend on the number of sides?", "repeat (input): move 45, turn right (360 ÷ input)."],
+      why: "The input controls both the number of sides and the angle 360 ÷ input: one abstraction for every regular polygon.",
+    }),
+    ghostCh({
+      lv: 2, goal: "A row of three stars", say: "Define block B as a five-pointed star of side 60. Use a loop to draw three stars in a row, 90 steps apart, starting at (−160, 0).",
+      sol: () => [def("B", [B("repeat", 5, [B("move", 60), B("right", 144)])]), go(-160, 0), B("repeat", 3, [B("pendown"), call("B", 0), B("penup"), B("move", 90)])],
+      need: (S, prog) => (has(prog, "call") ? true : "It matches. Now package the star as block B and call it."),
+      hints: ["Where does the first star begin? Find it on the grid.", "Go to (−160, 0). Repeat 3: pen down, run block B, pen up, move 90."],
+      why: "Procedures combine with loops: the loop decides how many stars; block B decides what a star is.",
+    }),
+    {
+      lv: 2, goal: "Block A computes input × input", say: "Make block A store input × input in score. Then run A with input 12 and say score.", setup: {},
+      sol: () => [def("A", [B("setv", "score", B("mul", IN(), IN()))]), call("A", 12), B("say", V("score"))],
+      check(S, prog) {
+        if (!has(prog, "call") || !has(prog, "input")) return "Use define block A with the input reporter, and run block A.";
+        return saidCheck(S, [144], "12 × 12 = 144.");
+      },
+      hints: ["How can a block hand back an answer? Where could it store it?", "define A: set score to (input × input). Then run A with 12, and say score."],
+      why: "A procedure can compute a result and leave it in a variable. Here A computes the square function f(n) = n × n, and f(12) = 144.",
+    },
+    ghostCh({
+      lv: 3, goal: "A block that uses another block", say: "Block A draws a square of side input. Block B runs A with 60, six times, turning 60° after each. Run block B.",
+      sol: () => [def("A", [sq(IN())]), def("B", [B("repeat", 6, [call("A", 60), B("right", 60)])]), B("pendown"), call("B", 0)],
+      need: (S, prog) => {
+        const b = prog.find((n) => n.op === "define" && n.a[0] === "B");
+        return b && walk(b.body).some((n) => n.op === "call" && n.a[0] === "A") ? true : "It matches. Now make block B call block A.";
+      },
+      hints: ["What does B need to do six times?", "define B: repeat 6 (run A with 60, turn right 60)."],
+      why: "Procedures can call other procedures, building large programs from small, trusted parts. This is decomposition.",
+    }),
+    ghostCh({
+      lv: 3, goal: "Recursion: a spiral that calls itself", say: "Make block A call itself. If input > 5: move input, turn right 90, then run A with input − 5. Start with A(100).",
+      sol: () => [def("A", [B("if", B("gt", IN(), 5), [B("move", IN()), B("right", 90), call("A", B("sub", IN(), 5))])]), B("pendown"), call("A", 100)],
+      need: (S, prog) => {
+        const a = prog.find((n) => n.op === "define" && n.a[0] === "A");
+        return a && walk(a.body).some((n) => n.op === "call" && n.a[0] === "A") ? true : "It matches, but block A should call itself (recursion).";
+      },
+      hints: ["Why must the if be there? What would happen without it?", "Inside define A: if (input > 5) then move input, turn right 90, run A with (input − 5)."],
+      why: "Recursion means a procedure calls itself on a smaller problem. When input is 5 or less, A does nothing and simply returns: that is the base case (the stopping rule), and the test input > 5 detects it. Each call uses a smaller input, so the base case is always reached; without it the calls would never end.",
+    }),
+    ghostCh({
+      lv: 3, goal: "A recursive tree", say: "Recursive tree. If input > 10: move input, turn left 30, run A(input × 0.6), turn right 60, run A(input × 0.6), turn left 30, move 0 − input. Start: point up, A(80).",
+      setup: { x: 0, y: -150 },
+      sol: () => [def("A", [B("if", B("gt", IN(), 10), [B("move", IN()), B("left", 30), call("A", B("mul", IN(), 0.6)), B("right", 60), call("A", B("mul", IN(), 0.6)), B("left", 30), B("move", B("sub", 0, IN()))])]), B("point", 0), B("pendown"), call("A", 80)],
+      hints: ["Each branch splits into two smaller branches. What must the robot do after drawing a branch so that the next one starts correctly?", "After both sub-branches, undo the turns (left 30) and walk back down (move 0 − input)."],
+      why: "Each call draws a trunk and two smaller trees, then returns to where it began. Branching recursion produces fractals (patterns that repeat at smaller scales), as in real trees and rivers.",
+    }),
+    {
+      lv: 3, goal: "Block A computes a factorial", say: "Make block A compute the factorial of its input (1 × 2 × … × input) into score. Run A with 6 and say score.", setup: {},
+      sol: () => [def("A", [B("setv", "score", 1), B("setv", "count", 0), B("repeat", IN(), [B("changev", "count", 1), B("setv", "score", B("mul", V("score"), V("count")))])]), call("A", 6), B("say", V("score"))],
+      check(S, prog) {
+        if (!has(prog, "call") || !has(prog, "input")) return "Put the computation inside define block A, using input.";
+        if (S.said[S.said.length - 1] !== 720) return saidCheck(S, [720], "6! = 720.");
+        const T = simulate(prog.map((n) => (n.op === "call" ? { ...n, a: [n.a[0], 5] } : n)));
+        return T.said[T.said.length - 1] === 120 ? true : "It works for 6, but I tested input 5 and did not get 120. Is the block truly general?";
+      },
+      hints: ["Which two variables do you need: one to count, one to accumulate a product?", "set score to 1, set count to 0; repeat (input): change count by 1, set score to (score × count)."],
+      why: "6! (read: six factorial) = 1 × 2 × 3 × 4 × 5 × 6 = 720. The product starts at 1, the identity for multiplication, just as a sum starts at 0. I also tested 5! = 120.",
+    },
+  ],
+  games: [
+    {
+      lv: 1, goal: "Dice game: count the sixes in 20 rolls", say: "Roll a die 20 times: set roll to pick random 1 to 6. Each time roll = 6, change score by 1. Show score.", setup: {},
+      sol: () => [B("setv", "score", 0), B("showv", "score"), B("repeat", 20, [B("setv", "roll", B("rand", 1, 6)), B("say", V("roll")), B("if", B("eq", V("roll"), 6), [B("changev", "score", 1)])])],
+      check(S) {
+        const dice = S.rolls.filter((r) => r.lo === 1 && r.hi === 6);
+        if (dice.length < 20) return `I counted ${dice.length} dice rolls; the game needs 20. Is pick random 1 to 6 inside the repeat?`;
+        const six = dice.filter((r) => r.r === 6).length;
+        if (S.vars.score !== six) return `There were ${six} sixes, but score is ${fmt(S.vars.score)}. Store each roll in a variable first, then test that variable.`;
+        return S.shown.includes("score") ? true : "The count is correct. Now show the variable score.";
+      },
+      hints: ["Why should the roll be stored in a variable before testing it?", "set roll to (pick random 1 to 6); if (roll = 6) then change score by 1."],
+      why: "Storing the roll matters: calling pick random twice would produce two different numbers. On average about 20 ÷ 6 ≈ 3 sixes appear, but any single game varies.",
+    },
+    {
+      lv: 2, goal: "Bounce game: stop at 5 points", say: "Forever: move 10; if touching edge, turn 180 and change score by 1. When score reaches 5, stop all.", setup: {},
+      sol: () => [B("setv", "score", 0), B("showv", "score"), B("forever", [B("move", 10), B("if", B("edge"), [B("right", 180), B("changev", "score", 1)]), B("if", B("eq", V("score"), 5), [B("stop")])])],
+      check(S) {
+        if (S.reason !== "stop") return "The game should end itself with stop all when score reaches 5.";
+        return S.vars.score === 5 && S.edgeLog.length >= 5 ? true : `score is ${fmt(S.vars.score)} after ${S.edgeLog.length} bounces. Each bounce should add exactly 1.`;
+      },
+      hints: ["A game loop runs forever. Where should the scoring happen, and where the ending?", "Inside forever: move; if edge then (turn 180, change score by 1); if score = 5 then stop all."],
+      why: "Most games are a forever loop containing rules (conditionals) that update a score and decide when the game ends.",
+    },
+    {
+      lv: 2, goal: "Random walk: count the steps", say: "Repeat until touching edge: point in a random direction (pick random 0 to 359), move 20, and change score by 1.", setup: {},
+      sol: () => [B("setv", "score", 0), B("showv", "score"), B("until", B("edge"), [B("point", B("rand", 0, 359)), B("move", 20), B("changev", "score", 1)])],
+      check(S, prog) {
+        if (!has(prog, "until") || !has(prog, "rand")) return "Use repeat until touching edge? with a random direction inside.";
+        if (S.reason === "limit") return "The walk ran too long. Is the move inside the loop?";
+        if (!touchingEdge(S)) return "The walk should end when the robot touches the edge.";
+        return S.vars.score === S.moves && S.moves > 0 ? true : `The robot moved ${S.moves} times, but score is ${fmt(S.vars.score)}. Change score once per move.`;
+      },
+      hints: ["How do you make the direction unpredictable?", "repeat until (touching edge?): point in direction (pick random 0 to 359), move 20, change score by 1."],
+      why: "A random walk models wandering particles, such as the tiny grains released from pollen that jiggle in water as water molecules strike them (Brownian motion). Each run gives a different count; that variability is the point.",
+    },
+    {
+      lv: 2, goal: "The 3n + 1 sequence from 6", say: "Start count at 6. Until count = 1: if count is even, halve it; otherwise set it to 3 × count + 1. Say each new value.", setup: {},
+      sol: () => [B("setv", "count", 6), B("until", B("eq", V("count"), 1), [B("ifelse", B("eq", B("mod", V("count"), 2), 0), [B("setv", "count", B("div", V("count"), 2))], [B("setv", "count", B("add", B("mul", V("count"), 3), 1))]), B("say", V("count"))])],
+      check: (S) => saidCheck(S, [3, 10, 5, 16, 8, 4, 2, 1], "Even: count ÷ 2. Odd: 3 × count + 1."),
+      hints: ["Which test tells even from odd?", "if ((count mod 2) = 0) then set count to (count ÷ 2) else set count to ((count × 3) + 1); then say count."],
+      why: "6 → 3 → 10 → 5 → 16 → 8 → 4 → 2 → 1. The Collatz conjecture states that every positive whole number eventually reaches 1. Computers have checked enormous numbers of starting values, but checking examples is not a proof, and nobody has proved it: it is an open problem in mathematics.",
+    },
+    {
+      lv: 3, goal: "Find the secret number in at most 7 guesses", say: "A secret number from 1 to 100 is stored in secret. The numbers 1 to 100 are in order, so after each guess you learn which side the secret is on. Find it by halving: guess the middle of low and high, then narrow the range. Say each guess.", setup: { vars: { secret: 37 } },
+      sol: () => [B("setv", "low", 1), B("setv", "high", 100), B("setv", "guess", 0), B("until", B("eq", V("guess"), V("secret")), [B("setv", "guess", B("floor", B("div", B("add", V("low"), V("high")), 2))), B("say", V("guess")), B("if", B("lt", V("guess"), V("secret")), [B("setv", "low", B("add", V("guess"), 1))]), B("if", B("gt", V("guess"), V("secret")), [B("setv", "high", B("sub", V("guess"), 1))])])],
+      check(S, prog) {
+        for (const secret of [37, 1, 100, 64, 73, 50]) {
+          const T = simulate(prog, { vars: { secret } }, 20000);
+          const last = T.said[T.said.length - 1];
+          if (last !== secret) return `With secret = ${secret}, the last guess said was ${last ?? "nothing"}. Each guess must be said, and the loop must end on the secret.`;
+          if (T.said.length > 7) return `With secret = ${secret} your program needed ${T.said.length} guesses. Halving never needs more than 7. Are you choosing the middle each time?`;
+        }
+        return true;
+      },
+      hints: ["After a guess that is too low, which numbers can you rule out?", "guess = floor of ((low + high) ÷ 2). Too low: low = guess + 1. Too high: high = guess − 1."],
+      why: "This is binary search. It works only because the numbers are in order (sorted): \"too low\" rules out the guess and everything below it. Each wrong guess leaves at most half of the candidates: at most 50, then 25, 12, 6, 3 and 1, so the seventh guess must be correct. Equivalently, seven guesses can separate up to 2⁷ − 1 = 127 numbers. I tested six different secrets.",
+    },
+    {
+      lv: 3, goal: "Say the primes below 30", say: "Say every prime number below 30. A whole number n greater than 1 is prime if no whole number d from 2 upward, with d × d ≤ n, divides it.", setup: {},
+      sol: () => [B("setv", "n", 1), B("repeat", 28, [B("changev", "n", 1), B("setv", "score", 1), B("setv", "d", 2), B("until", B("gt", B("mul", V("d"), V("d")), V("n")), [B("if", B("eq", B("mod", V("n"), V("d")), 0), [B("setv", "score", 0)]), B("changev", "d", 1)]), B("if", B("eq", V("score"), 1), [B("say", V("n"))])])],
+      check: (S) => saidCheck(S, [2, 3, 5, 7, 11, 13, 17, 19, 23, 29], "For each n, try every divisor d while d × d ≤ n."),
+      hints: ["For a single n, how would you check by hand whether it is prime?", "Outer loop over n from 2 to 29; inner loop over d while d × d ≤ n; if n mod d = 0, mark it not prime (score = 0)."],
+      why: "Trial division: if n has a divisor other than 1 and itself, it has one no larger than √n, so testing d while d × d ≤ n suffices. score acts as a flag (a true/false marker).",
+    },
+    {
+      lv: 3, goal: "The first 12 Fibonacci numbers", say: "Say the first twelve Fibonacci numbers: 1, 1, 2, 3, 5 … Each is the sum of the two before it. Keep the last two in low and high.", setup: {},
+      sol: () => [B("setv", "low", 0), B("setv", "high", 1), B("repeat", 12, [B("say", V("high")), B("setv", "n", B("add", V("low"), V("high"))), B("setv", "low", V("high")), B("setv", "high", V("n"))])],
+      check: (S) => saidCheck(S, [1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144], "You need a temporary variable to hold the sum while you shift the pair along."),
+      hints: ["To move along the sequence, both remembered numbers change. Why do you need a third variable?", "say high; set n to (low + high); set low to high; set high to n."],
+      why: "Updating two variables together needs a temporary store, otherwise one value is overwritten too soon. The numbers of spirals in sunflower heads and pinecones are very often Fibonacci numbers.",
+    },
+    {
+      lv: 3, goal: "Sum the digits of 4096", say: "Compute the sum of the digits of 4096 into score, using mod 10 and floor of (n ÷ 10). Say score.", setup: {},
+      sol: () => [B("setv", "n", 4096), B("setv", "score", 0), B("until", B("eq", V("n"), 0), [B("changev", "score", B("mod", V("n"), 10)), B("setv", "n", B("floor", B("div", V("n"), 10)))]), B("say", V("score"))],
+      check(S, prog) {
+        const r = saidCheck(S, [19], "4 + 0 + 9 + 6 = 19.");
+        if (r !== true) return r;
+        return has(prog, "mod") ? true : "Correct answer. Now compute it with mod 10, so it works for any number.";
+      },
+      hints: ["What does n mod 10 give you? What does floor of (n ÷ 10) remove?", "until n = 0: change score by (n mod 10); set n to floor of (n ÷ 10)."],
+      why: "n mod 10 is the last digit; floor(n ÷ 10) removes it. Repeating until n = 0 visits every digit: 6 + 9 + 0 + 4 = 19, and the method works for any whole number.",
+    },
+  ],
+  debug: [
+    {
+      lv: 1, goal: "Debug: this should draw a square", say: "This program should draw a square but does not. Run it, locate the defect, and correct it.", setup: {},
+      start: () => [B("pendown"), B("repeat", 4, [B("move", 100), B("right", 80)])],
+      sol: () => [B("pendown"), B("repeat", 4, [B("move", 100), B("right", 90)])],
+      check: (S) => shapeCheck(S, { n: 4, name: "square" }),
+      hints: ["Watch the final corner. What do you observe?", "Examine the turn. A square's exterior angle is 360 ÷ 4."],
+      why: "The defect was the angle, 80°. A square requires 360 ÷ 4 = 90°.",
+    },
+    {
+      lv: 1, goal: "Debug: this should draw a triangle", say: "This should draw an equilateral triangle. Run it and diagnose what goes wrong.", setup: {},
+      start: () => [B("pendown"), B("repeat", 3, [B("move", 120), B("right", 60)])],
+      sol: () => [B("pendown"), B("repeat", 3, [B("move", 120), B("right", 120)])],
+      check: (S) => shapeCheck(S, { n: 3, name: "triangle" }),
+      hints: ["60° is the triangle's interior angle. Through what angle does the robot actually turn?", "The robot turns the exterior angle: 360 ÷ 3."],
+      why: "The robot turns through the exterior angle, 180° − 60° = 120°, not the interior angle of 60°.",
+    },
+    {
+      lv: 1, goal: "Debug: nothing is drawn", say: "This should draw a square, yet the stage stays blank. Why?", setup: {},
+      start: () => [B("repeat", 4, [B("move", 100), B("right", 90)])],
+      sol: () => [B("pendown"), B("repeat", 4, [B("move", 100), B("right", 90)])],
+      check: (S) => shapeCheck(S, { n: 4, name: "square" }),
+      hints: ["The robot does move. So why is there no line?", "Every run begins with the pen up."],
+      why: "Each run starts with the pen raised, so pen down must come first.",
+    },
+    {
+      lv: 2, goal: "Debug: this should say 1 to 10", say: "This should say 1, 2, 3 … 10, but it says 1 ten times. Find the defect.", setup: {},
+      start: () => [B("setv", "count", 0), B("changev", "count", 1), B("repeat", 10, [B("say", V("count"))])],
+      sol: () => [B("setv", "count", 0), B("repeat", 10, [B("changev", "count", 1), B("say", V("count"))])],
+      check: (S) => saidCheck(S, range(1, 10)),
+      hints: ["Which blocks execute on every lap, and which only once?", "change count by 1 sits outside the loop. Move it inside, above say."],
+      why: "The increment was outside the loop, so it ran once. Inside the loop it runs on every lap.",
+    },
+    {
+      lv: 2, goal: "Debug: this should draw a hexagon", say: "This should draw a regular hexagon. One side is missing.", setup: {},
+      start: () => [B("pendown"), B("repeat", 5, [B("move", 80), B("right", 60)])],
+      sol: () => [B("pendown"), B("repeat", 6, [B("move", 80), B("right", 60)])],
+      check: (S) => shapeCheck(S, { n: 6, name: "hexagon" }),
+      hints: ["Count the sides that were drawn.", "Six sides require six repetitions."],
+      why: "An off-by-one error: the loop ran 5 times instead of 6. Such errors are among the most common in all programming.",
+    },
+    {
+      lv: 2, goal: "Debug: this should draw stairs", say: "This should draw the dashed stairs, but something turns the wrong way.", setup: { ghost: true },
+      start: () => [B("pendown"), B("point", 0), B("repeat", 3, [B("move", 50), B("right", 90), B("move", 50), B("right", 90)])],
+      sol: () => [B("pendown"), B("point", 0), B("repeat", 3, [B("move", 50), B("right", 90), B("move", 50), B("left", 90)])],
+      check(S) {
+        return ghostCheck(S, this);
+      },
+      hints: ["After the horizontal run, which way must the robot face to rise again?", "The second turn should be left."],
+      why: "Right then right closes a box; right then left restores the upward heading, producing a stair.",
+    },
+    {
+      lv: 3, goal: "Debug: this should draw a spiral", say: "This should draw the dashed spiral but draws a small square. Use Step to watch length.", setup: { ghost: true },
+      start: () => [B("pendown"), B("repeat", 30, [B("setv", "length", 5), B("move", V("length")), B("right", 90), B("changev", "length", 5)])],
+      sol: () => [B("setv", "length", 5), B("pendown"), B("repeat", 30, [B("move", V("length")), B("right", 90), B("changev", "length", 5)])],
+      check(S) {
+        return ghostCheck(S, this);
+      },
+      hints: ["Step through two laps. What happens to length at the top of each lap?", "set length to 5 runs every lap, resetting it. Move it above the loop."],
+      why: "Initialisation (setting the starting value) belongs before the loop; inside the loop it resets the variable on every lap.",
+    },
+    {
+      lv: 3, goal: "Debug: 1 + … + 10 should be 55", say: "This should compute 1 + 2 + … + 10 = 55, but score ends at 45. Why?", setup: {},
+      start: () => [B("setv", "score", 0), B("setv", "count", 0), B("showv", "score"), B("repeat", 10, [B("changev", "score", V("count")), B("changev", "count", 1)])],
+      sol: () => [B("setv", "score", 0), B("setv", "count", 0), B("showv", "score"), B("repeat", 10, [B("changev", "count", 1), B("changev", "score", V("count"))])],
+      check: (S) => (S.vars.score === 55 ? true : `score is ${fmt(S.vars.score)}. Step through it: which values are added to score?`),
+      hints: ["On the first lap, what is count when it is added?", "It adds 0 through 9. Swap the two blocks."],
+      why: "The order was reversed: it added before incrementing, summing 0 … 9 = 45. Increment first, then add: 1 … 10 = 55.",
+    },
+    {
+      lv: 3, goal: "Debug: this loop never ends", say: "This should say 2, 4, 6, 8, 10 and stop, but it never stops. Why not?", setup: {},
+      start: () => [B("setv", "count", 0), B("until", B("eq", V("count"), 9), [B("changev", "count", 2), B("say", V("count"))])],
+      sol: () => [B("setv", "count", 0), B("until", B("eq", V("count"), 10), [B("changev", "count", 2), B("say", V("count"))])],
+      check(S) {
+        if (S.reason === "limit") return "It ran until I stopped it: an infinite loop. Can count ever equal the number in the condition?";
+        return saidCheck(S, [2, 4, 6, 8, 10]);
+      },
+      hints: ["List the values count takes. Is 9 among them?", "count is always even, so it skips 9. Change the condition to count = 10, or count > 9."],
+      why: "count takes only even values, so count = 9 is never true: an infinite loop. A more robust condition is count > 9.",
+    },
+    ghostCh({
+      lv: 3, goal: "Debug: recursion without a base case", say: "Block A should draw the dashed spiral, but it never stops calling itself. Add the missing stopping rule.",
+      start: () => [def("A", [B("move", IN()), B("right", 90), call("A", B("sub", IN(), 5))]), B("pendown"), call("A", 100)],
+      sol: () => [def("A", [B("if", B("gt", IN(), 5), [B("move", IN()), B("right", 90), call("A", B("sub", IN(), 5))])]), B("pendown"), call("A", 100)],
+      need: (S) => (S.reason === "depth" ? "It still calls itself without end. Wrap the body in if input > 5." : true),
+      hints: ["When should block A stop calling itself?", "Wrap the body in if (input > 5)."],
+      why: "Every recursive procedure needs a base case. Without it, the input shrinks past zero and the calls never end.",
+    }),
+  ],
+};
+// ===== ENGINE END =====
+// ===== UI =====
+const CAT = Object.fromEntries(CATS.map((c) => [c.id, c]));
+const PAL = {
+  events: ["hat"],
+  motion: ["move", "right", "left", "goto", "point", "changex", "changey", "xpos", "ypos", "dirr"],
+  looks: ["say", "changesize", "setsize", "sizer"],
+  pen: ["pendown", "penup", "color", "pensize", "clear"],
+  control: ["repeat", "forever", "if", "ifelse", "until", "wait", "stop"],
+  sensing: ["edge", "touchc"],
+  operators: ["add", "sub", "mul", "div", "mod", "floor", "round", "rand", "lt", "gt", "eq", "and", "or", "not"],
+  variables: ["setv", "changev", "showv", ...VARS.map((v) => "var:" + v)],
+  myblocks: ["define", "call", "input"],
+};
+const ALL_CATS = CATS.map((c) => c.id);
+const LV = { 1: "🐣", 2: "🦊", 3: "🦁" };
+const LV_NAME = { 1: "grade 4", 2: "grade 5–6", 3: "grade 7–8" };
+const WELL = ["Correct.", "Correct — well reasoned.", "Correct. Your persistence paid off.", "Correct. Testing and revising is exactly how programmers work."];
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const fmt1 = (v) => String(Math.round(v * 10) / 10);
+const store = {
+  get(key) {
+    try {
+      return JSON.parse(localStorage.getItem(key) || "null");
+    } catch {
+      return null;
+    }
+  },
+  set(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch {
+      return false;
+    }
+  },
+};
+
+const bkStyle = document.createElement("style");
+bkStyle.textContent = `
+.bk-app{position:absolute;inset:0;display:grid;gap:8px;padding:8px;grid-template-columns:minmax(200px,.8fr) minmax(220px,1.1fr) minmax(0,1.35fr);grid-template-rows:auto minmax(0,1fr);grid-template-areas:"goal goal tools" "pal code view";background:#f8f2e8;text-align:left;font-family:var(--sans)}
+.bk-goal{grid-area:goal;display:flex;align-items:center;gap:8px;min-width:0;padding:6px 14px;border-radius:14px;background:var(--accent-soft);color:var(--accent-dark);font:900 18px/1.2 var(--sans)}
+.bk-goal span{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.bk-tools{grid-area:tools;display:flex;gap:6px;justify-content:flex-end;align-items:center;min-width:0}
+.bk-tools button{min-height:46px;min-width:46px;padding:0 12px;border:0;border-radius:16px;background:#fff;box-shadow:0 3px 0 #e2d6c4;font:900 17px/1 var(--sans);color:var(--ink);cursor:pointer;white-space:nowrap;touch-action:manipulation}
+.bk-tools button:active{transform:translateY(2px);box-shadow:0 1px 0 #e2d6c4}
+.bk-tools .go{background:#1f8f4f;color:#fff;box-shadow:0 3px 0 #146b39}
+.bk-tools .halt{background:#d8452f;color:#fff;box-shadow:0 3px 0 #a63322}
+.bk-tools button[hidden]{display:none}
+.bk-pal{grid-area:pal;display:grid;grid-template-columns:62px minmax(0,1fr);min-height:0;border-radius:18px;background:#fff;box-shadow:0 0 0 1px #eadfce;overflow:hidden}
+.bk-cats{display:flex;flex-direction:column;gap:1px;padding:4px 2px;overflow-y:auto;background:#faf6ef;border-right:1px solid #eee3d3}
+.bk-cats button{display:flex;flex-direction:column;align-items:center;gap:3px;min-height:44px;padding:3px 0;border:0;border-radius:10px;background:none;font:800 10px/1 var(--sans);color:#5a4a3a;cursor:pointer}
+.bk-cats button[aria-pressed=true]{background:#efe5d6}
+.bk-cats i{width:22px;height:22px;border-radius:50%;background:var(--c);box-shadow:0 2px 0 rgba(0,0,0,.15)}
+.bk-list{overflow:auto;padding:6px 8px 60px;display:flex;flex-direction:column;align-items:flex-start;gap:7px;overscroll-behavior:contain}
+.bk-list h4{margin:8px 0 0;font:900 13px/1 var(--sans);color:var(--c);text-transform:uppercase;letter-spacing:.05em}
+.bk-list h4:first-child{margin-top:2px}
+.bk-list p{margin:0;max-width:220px;font:700 12.5px/1.3 var(--sans);color:#6b5a48}
+.bk-code{grid-area:code;min-height:0;overflow:auto;border-radius:18px;background:#fffdf8 radial-gradient(#e6dbca 1.2px,transparent 1.4px) 0 0/22px 22px;box-shadow:0 0 0 1px #eadfce;padding:10px 10px 20px;overscroll-behavior:contain}
+.bk-script{display:flex;flex-direction:column;align-items:flex-start;min-width:max-content}
+.bk-view{grid-area:view;position:relative;min-height:0;border-radius:18px;background:#fffdf8;box-shadow:0 0 0 1px #eadfce;overflow:hidden}
+.bk-view>svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.bk-b{display:flex;flex-direction:column;align-items:flex-start;color:#fff;font:800 16px/1.1 var(--sans);user-select:none;-webkit-user-select:none;touch-action:none;cursor:grab}
+.bk-row{display:flex;align-items:center;gap:6px;min-height:44px;padding:4px 10px;border-radius:10px;background:var(--c);box-shadow:inset 0 -3px 0 rgba(0,0,0,.2);white-space:nowrap}
+.bk-c>.bk-row:first-child{border-bottom-left-radius:0}
+.bk-mouth{display:flex;flex-direction:column;align-items:flex-start;min-width:110px;min-height:30px;padding:3px 0 3px 6px;border-left:16px solid var(--c)}
+.bk-else{border-radius:0 10px 10px 0}
+.bk-foot{width:76px;height:16px;border-radius:0 10px 10px 10px;background:var(--c);box-shadow:inset 0 -3px 0 rgba(0,0,0,.2)}
+.bk-hat>.bk-row,.bk-def>.bk-row:first-child{border-radius:24px 24px 10px 0;min-height:50px;padding:8px 14px 4px}
+.bk-hat>.bk-row{border-radius:24px 24px 10px 10px}
+.bk-cap>.bk-row{border-radius:10px 10px 4px 4px}
+.bk-w{pointer-events:none}
+.bk-slot{display:inline-flex;align-items:center;justify-content:center;min-width:44px;height:34px;padding:0 10px;border-radius:17px;background:#fff;color:#2b1d12;font:900 17px/1 var(--sans);cursor:pointer}
+.bk-bslot{min-width:54px;border-radius:0;background:rgba(0,0,0,.25);clip-path:polygon(13px 0,calc(100% - 13px) 0,100% 50%,calc(100% - 13px) 100%,13px 100%,0 50%)}
+.bk-vslot{background:rgba(255,255,255,.2);color:#fff;box-shadow:inset 0 0 0 2px rgba(255,255,255,.75)}
+.bk-cslot{min-width:34px;width:34px;padding:0;box-shadow:0 0 0 3px #fff}
+.bk-slot.on{outline:4px solid #ffcf5c;outline-offset:1px}
+.bk-bslot.on{background:#ffcf5c}
+.bk-r,.bk-bo{display:inline-flex;align-items:center;gap:5px;min-height:36px;padding:2px 10px;background:var(--c);color:#fff;font:800 15px/1 var(--sans);white-space:nowrap;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.bk-r{border-radius:18px;box-shadow:inset 0 0 0 2px rgba(255,255,255,.4)}
+.bk-bo{padding:2px 18px;clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,14px 100%,0 50%)}
+.bk-r .bk-slot,.bk-bo .bk-slot{height:30px;min-width:40px;font-size:15px}
+.bk-list .bk-b,.bk-list .bk-r,.bk-list .bk-bo{touch-action:pan-y;cursor:pointer}
+.bk-gap{align-self:stretch;min-width:110px;height:8px;border-radius:10px;font:800 14px/1 var(--sans);color:var(--accent-dark);display:flex;align-items:center;padding-left:10px;cursor:pointer;white-space:nowrap}
+.bk-gap.empty{height:32px;border:2px dashed #d3c5ae;color:#8a7764}
+.bk-gap.on{height:36px;border:3px dashed var(--accent);background:var(--accent-soft)}
+.bk-gap.tail{min-height:64px;align-items:flex-start;padding-top:6px}
+.bk-gap.drop{background:#ffcf5c}
+.bk-gap.empty.drop,.bk-gap.on.drop{border-color:#e0a400}
+.bk-r.drop,.bk-bo.drop,.bk-slot.drop{outline:4px solid #ffcf5c;background:#ffe9a8}
+.bk-sel>.bk-row:first-child{outline:3px dashed #2b1d12;outline-offset:2px}
+.bk-run>.bk-row:first-child{box-shadow:0 0 0 4px #ffcf5c,0 0 16px 6px rgba(255,190,40,.85)}
+.bk-del{min-width:40px;height:34px;border:0;border-radius:12px;background:#fff;font-size:18px;cursor:pointer;margin-left:6px}
+.bk-new{animation:bk-pop .35s ease}
+@keyframes bk-pop{from{transform:scale(.8);opacity:.3}}
+.bk-ghost{position:fixed;z-index:60;pointer-events:none;opacity:.92;transform:rotate(2deg);filter:drop-shadow(0 8px 14px rgba(0,0,0,.25))}
+.bk-pop{grid-area:view;z-index:7;align-self:end;margin:6px;padding:10px;border-radius:18px;background:#fff;box-shadow:0 0 0 3px var(--accent),0 12px 30px rgba(0,0,0,.22);display:flex;flex-direction:column;gap:8px;max-height:calc(100% - 12px);overflow:auto;overscroll-behavior:contain}
+.bk-pop[hidden]{display:none}
+.bk-pop-h{display:flex;align-items:center;gap:8px;font:900 17px/1.1 var(--sans);color:var(--ink)}
+.bk-pop-h b{flex:1}
+.bk-pop-h output{min-width:76px;padding:4px 12px;border-radius:12px;box-shadow:inset 0 0 0 3px var(--accent);font:900 24px/1.2 var(--sans);text-align:center}
+.bk-pop button{min-height:44px;min-width:44px;padding:0 10px;border:0;border-radius:14px;background:#f3ece1;color:var(--ink);font:900 18px/1 var(--sans);cursor:pointer;touch-action:manipulation}
+.bk-pop button.ok{background:var(--accent);color:#fff;padding:0 16px}
+.bk-keys{display:grid;grid-template-columns:repeat(7,minmax(40px,1fr));gap:5px}
+.bk-chipset{display:flex;flex-wrap:wrap;gap:6px}
+.bk-chipset button{font-size:15px;color:#fff;background:var(--c)}
+.bk-chipset button.sw{width:46px;background:var(--c);box-shadow:inset 0 0 0 3px rgba(255,255,255,.7)}
+.bk-chipset button.sw[aria-pressed=true]{box-shadow:0 0 0 4px #ffcf5c}
+.bk-app.compact{grid-template-columns:minmax(124px,.72fr) minmax(0,1.28fr);grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"goal goal" "tools tools" "pal code";gap:6px;padding:6px}
+.bk-app.compact .bk-cats{display:none}
+.bk-app.compact .bk-pal{grid-template-columns:minmax(0,1fr)}
+.bk-app.compact .bk-view{grid-area:auto;grid-row:3;grid-column:1/-1}
+.bk-app.compact:not(.show-view) .bk-view{display:none}
+.bk-app.compact.show-view .bk-pal,.bk-app.compact.show-view .bk-code{visibility:hidden}
+.bk-app.compact .bk-pop{grid-area:auto;grid-row:3;grid-column:1/-1;margin:0}
+.bk-app.compact .bk-goal{font-size:14.5px;padding:4px 10px}
+.bk-app.compact .bk-tools{justify-content:center}
+.bk-app.compact .bk-tools button{min-height:42px;padding:0 10px;font-size:15px}
+.bk-app.compact .bk-b,.bk-app.compact .bk-r,.bk-app.compact .bk-bo{font-size:14px}
+.bk-app.compact .bk-row{min-height:40px;padding:3px 8px}
+.bk-app.compact .bk-slot{height:32px;min-width:40px;font-size:15px}
+.bk-app.compact .bk-list{padding:6px 6px 40px}
+.bk-app.compact .bk-pop{padding:6px;gap:5px}
+.bk-app.compact .bk-pop button{min-height:40px}
+.bk-app.compact .bk-keys{grid-template-columns:repeat(7,minmax(34px,1fr))}
+.bk-app.tiny .bk-tools .lbl{display:none}
+.bk-app.tiny{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)}
+.bk-card p{margin:0;font:700 16px/1.35 var(--sans);color:#2b1d12;text-align:left}
+.bk-card p.safe{color:#8a4b14;background:#fff4e2;border-radius:14px;padding:8px 12px}
+.bk-card p.model{background:#eef6ff;border-radius:14px;padding:8px 12px}
+.bk-card textarea{width:100%;min-height:70px;padding:8px 10px;border:0;border-radius:14px;box-shadow:inset 0 0 0 2px #e2d6c4;font:600 16px/1.35 var(--sans);resize:vertical;box-sizing:border-box}
+.bk-card .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.bk-card .row button{min-height:48px;padding:0 16px;border:0;border-radius:16px;background:#f3ece1;font:800 16px/1 var(--sans);cursor:pointer}
+.bk-card .row .kt-go{margin:0;min-width:0;background:var(--accent);color:#fff;box-shadow:0 4px 0 var(--accent-dark)}
+.bk-nav{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px}
+.bk-nav button{min-height:46px;min-width:46px;padding:0 14px;border:0;border-radius:16px;background:#fff;color:var(--ink);box-shadow:0 3px 0 #e2d6c4;font:800 16px/1 var(--sans);cursor:pointer;touch-action:manipulation}
+.bk-nav button.primary{background:var(--accent);color:#fff;box-shadow:0 3px 0 var(--accent-dark)}
+.bk-nav button[hidden]{display:none}
+.bk-nav button[data-pulse]{animation:ap-pulse 1.4s ease-in-out infinite}
+.bk-nav .ap-status{white-space:nowrap}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){.bk-nav{gap:5px}.bk-nav button{min-height:40px;min-width:42px;padding:0 10px;font-size:14.5px}}
+`;
+document.head.appendChild(bkStyle);
+
+// A friendly round robot (about 40 units tall, centred on 0,0).
+function robot(g) {
+  el("rect", { x: -9, y: 12, width: 7, height: 8, rx: 3, fill: "#2b5fb0" }, g);
+  el("rect", { x: 2, y: 12, width: 7, height: 8, rx: 3, fill: "#2b5fb0" }, g);
+  el("line", { x1: 0, y1: -15, x2: 0, y2: -22, stroke: "#2b5fb0", "stroke-width": 2.5 }, g);
+  el("circle", { cx: 0, cy: -24, r: 3.6, fill: "#ffb703", stroke: "#c98600", "stroke-width": 1.2 }, g);
+  el("rect", { x: -17, y: -15, width: 34, height: 29, rx: 11, fill: "#4f9de8", stroke: "#2b5fb0", "stroke-width": 2 }, g);
+  el("rect", { x: -12, y: -10, width: 24, height: 15, rx: 6, fill: "#eaf6ff" }, g);
+  el("circle", { cx: -5, cy: -3.5, r: 2.6, fill: "#2b1d12" }, g);
+  el("circle", { cx: 5, cy: -3.5, r: 2.6, fill: "#2b1d12" }, g);
+  el("circle", { cx: -4.2, cy: -4.4, r: 0.9, fill: "#fff" }, g);
+  el("circle", { cx: 5.8, cy: -4.4, r: 0.9, fill: "#fff" }, g);
+  el("path", { d: "M-4 1.5Q0 5 4 1.5", fill: "none", stroke: "#2b1d12", "stroke-width": 1.6, "stroke-linecap": "round" }, g);
+  el("circle", { cx: -17, cy: 0, r: 3, fill: "#2b5fb0" }, g);
+  el("circle", { cx: 17, cy: 0, r: 3, fill: "#2b5fb0" }, g);
+  return g;
+}
+
+// The stage the robot draws on: x -240..240 (right), y -180..180 (up), as in Scratch.
+function makeCanvas(host) {
+  const v = makeSvg("-240 -180 480 360", host);
+  v.setAttribute("preserveAspectRatio", "xMidYMid meet");
+  v.setAttribute("role", "img");
+  v.setAttribute("aria-label", "Stage with the robot");
+  el("rect", { x: -240, y: -180, width: 480, height: 360, fill: "#fffdf8" }, v);
+  const grid = el("g", { "pointer-events": "none" }, v);
+  for (let x = -220; x <= 220; x += 20) el("line", { x1: x, x2: x, y1: -180, y2: 180, stroke: x % 100 ? "#f1e9dc" : "#e3d6c2", "stroke-width": x % 100 ? 1 : 1.5 }, grid);
+  for (let y = -160; y <= 160; y += 20) el("line", { x1: -240, x2: 240, y1: y, y2: y, stroke: y % 100 ? "#f1e9dc" : "#e3d6c2", "stroke-width": y % 100 ? 1 : 1.5 }, grid);
+  el("line", { x1: -240, x2: 240, y1: 0, y2: 0, stroke: "#c9b8a1", "stroke-width": 2 }, grid);
+  el("line", { x1: 0, x2: 0, y1: -180, y2: 180, stroke: "#c9b8a1", "stroke-width": 2 }, grid);
+  const lab = { "font-size": 13, fill: "#8a7764", "font-weight": 800 };
+  for (const x of [-200, -100, 100, 200]) text(grid, x, 16, x, lab);
+  for (const y of [-100, 100]) text(grid, -6, -y + 5, y, { ...lab, "text-anchor": "end" });
+  text(grid, -6, 16, "0", { ...lab, "text-anchor": "end" });
+  text(grid, 230, -7, "x", { ...lab, "font-size": 15 });
+  text(grid, 11, -166, "y", { ...lab, "font-size": 15 });
+  const zonesG = el("g", { "pointer-events": "none" }, v);
+  const ghostG = el("g", { "pointer-events": "none" }, v);
+  const starG = el("g", { "pointer-events": "none" }, v);
+  const ink = el("g", { "stroke-linecap": "round", "pointer-events": "none" }, v);
+  const spriteG = el("g", { "pointer-events": "none" }, v);
+  const arrow = el("path", { d: "M25 -8L37 0L25 8Z", fill: "#ff8a3d", stroke: "#b4501a", "stroke-width": 2, "stroke-linejoin": "round" }, spriteG);
+  robot(el("g", {}, spriteG));
+  const bubbleG = el("g", { "pointer-events": "none" }, v);
+  const monG = el("g", { "pointer-events": "none" }, v);
+  const readG = el("g", { "pointer-events": "none" }, v);
+  el("rect", { x: -236, y: 150, width: 236, height: 26, rx: 8, fill: "#fff", stroke: "#e3d6c2" }, readG);
+  const readout = text(readG, -228, 168, "", { "font-size": 15, fill: "#2b1d12", "text-anchor": "start" });
+  el("rect", { x: -240, y: -180, width: 480, height: 360, fill: "none", stroke: "#e3d6c2", "stroke-width": 2 }, v);
+  let drawn = 0;
+  let gen = 0;
+  let bubbleKey = null;
+  let monKey = "";
+  return {
+    scene(setup = {}, ghost = null) {
+      zonesG.innerHTML = "";
+      ghostG.innerHTML = "";
+      starG.innerHTML = "";
+      for (const z of setup.zones || []) el("rect", { x: z.x1, y: -z.y2, width: z.x2 - z.x1, height: z.y2 - z.y1, rx: 3, fill: z.c, opacity: z.c === GREEN ? 0.85 : 1 }, zonesG);
+      if (ghost) for (const l of ghost) el("line", { x1: l.x1, y1: -l.y1, x2: l.x2, y2: -l.y2, stroke: "#a8967f", "stroke-width": 5, "stroke-dasharray": "9 8", "stroke-linecap": "round", opacity: 0.6 }, ghostG);
+      if (setup.star) {
+        emoji(starG, setup.star.x, -setup.star.y, "⭐", 34);
+        text(starG, setup.star.x, -setup.star.y + 36, `(${setup.star.x}, ${setup.star.y})`, { "font-size": 15, fill: "#a8632d" });
+      }
+    },
+    reset() {
+      ink.innerHTML = "";
+      drawn = 0;
+      gen = 0;
+      bubbleKey = null;
+      monKey = "";
+      bubbleG.innerHTML = "";
+      monG.innerHTML = "";
+    },
+    paint(S) {
+      if (S.clearGen !== gen) {
+        ink.innerHTML = "";
+        drawn = 0;
+        gen = S.clearGen;
+      }
+      for (; drawn < S.lines.length; drawn++) {
+        const l = S.lines[drawn];
+        el("line", { x1: l.x1, y1: -l.y1, x2: l.x2, y2: -l.y2, stroke: l.c, "stroke-width": l.w }, ink);
+      }
+      const k = S.size / 100;
+      spriteG.setAttribute("transform", `translate(${S.x} ${-S.y}) scale(${k})`);
+      arrow.setAttribute("transform", `rotate(${S.dir - 90})`);
+      const bk = S.bubble === null ? null : `${S.bubble}@${S.x},${S.y},${S.size}`;
+      if (bk !== bubbleKey) {
+        bubbleKey = bk;
+        bubbleG.innerHTML = "";
+        if (S.bubble !== null) {
+          const s = String(S.bubble);
+          const w = 22 + s.length * 12;
+          const bx = Math.max(-236, Math.min(236 - w, S.x > 120 ? S.x - 20 * k - w : S.x + 18 * k));
+          const by = Math.max(-176, Math.min(110, -S.y - 26 * k - 34));
+          el("rect", { x: bx, y: by, width: w, height: 34, rx: 14, fill: "#fff", stroke: "#7a4cc9", "stroke-width": 2.5 }, bubbleG);
+          text(bubbleG, bx + w / 2, by + 24, s, { "font-size": 20, fill: "#2b1d12" });
+        }
+      }
+      const mk = S.shown.map((n) => `${n}=${S.vars[n]}`).join("|");
+      if (mk !== monKey) {
+        monKey = mk;
+        monG.innerHTML = "";
+        S.shown.forEach((n, i) => {
+          const s = `${n}: ${fmt(S.vars[n])}`;
+          const w = 24 + s.length * 9.5;
+          el("rect", { x: -234, y: -174 + i * 30, width: w, height: 26, rx: 8, fill: "#fff", stroke: CAT.variables.color, "stroke-width": 2 }, monG);
+          text(monG, -234 + w / 2, -155 + i * 30, s, { "font-size": 16, fill: CAT.variables.color });
+        });
+      }
+      readout.textContent = `x: ${fmt1(S.x)}   y: ${fmt1(S.y)}   direction: ${fmt1(S.dir)}°`;
+    },
+  };
+}
+
+// ---- block HTML ----
+function slotHTML(n, si, p, live, ui) {
+  const v = n.a[si];
+  const key = `${n.id}:${si}`;
+  const attr = live ? ` data-slot="${key}"` : "";
+  const on = live && ui?.slot === key ? " on" : "";
+  if ("n" in p) {
+    if (v && typeof v === "object") return blockHTML(v, live, ui, key);
+    return `<span class="bk-slot bk-num${on}"${attr}>${v === null || v === "" ? "&nbsp;" : esc(v)}</span>`;
+  }
+  if ("b" in p) return v ? blockHTML(v, live, ui, key) : `<span class="bk-slot bk-bslot${on}"${attr}></span>`;
+  if ("v" in p || "f" in p) return `<span class="bk-slot bk-vslot${on}"${attr}>${esc(v)} ▾</span>`;
+  return `<span class="bk-slot bk-cslot${on}"${attr} style="background:${v}" aria-label="${colorName(v)}"></span>`;
+}
+function blockHTML(n, live, ui, pslot = "") {
+  const def = DEFS[n.op];
+  const shape = shapeOf(n.op);
+  const c = CAT[def.cat].color;
+  let si = 0;
+  const inner = n.op === "var" ? `<span class="bk-w">${esc(n.a[0])}</span>` : def.parts.map((p) => (typeof p === "string" ? `<span class="bk-w">${esc(p)}</span>` : slotHTML(n, si++, p, live, ui))).join("");
+  const idAttr = live ? ` data-id="${n.id}"${pslot ? ` data-pslot="${pslot}"` : ""}` : ` data-op="${n.op === "var" ? "var:" + n.a[0] : n.op}"`;
+  if (shape === "rep") return `<span class="bk-r"${idAttr} style="--c:${c}">${inner}</span>`;
+  if (shape === "bool") return `<span class="bk-bo"${idAttr} style="--c:${c}">${inner}</span>`;
+  const sel = live && ui.sel === n.id;
+  const del = sel ? `<button type="button" class="bk-del" data-del="${n.id}" aria-label="Delete block">🗑</button>` : "";
+  const cls = `bk-b${shape === "c" || shape === "e" ? " bk-c" : ""}${shape === "cap" ? " bk-cap" : ""}${n.op === "define" ? " bk-def" : ""}${sel ? " bk-sel" : ""}${live && ui.fresh === n.id ? " bk-new" : ""}`;
+  let h = `<div class="${cls}"${idAttr} style="--c:${c}"><div class="bk-row">${inner}${del}</div>`;
+  if (shape === "c" || shape === "e") {
+    h += `<div class="bk-mouth">${live ? listHTML(n.body, n.id, "body", ui) : ""}</div>`;
+    if (shape === "e") h += `<div class="bk-row bk-else"><span class="bk-w">else</span></div><div class="bk-mouth">${live ? listHTML(n.else, n.id, "else", ui) : ""}</div>`;
+    h += `<div class="bk-foot"></div>`;
+  }
+  return h + `</div>`;
+}
+function gapHTML(owner, key, i, empty, ui, tail = false) {
+  const c = ui.cursor;
+  const on = c.owner === owner && c.key === key && c.i === i;
+  const label = on ? "➕ next block goes here" : empty ? "place blocks here" : tail ? "" : "";
+  return `<div class="bk-gap${on ? " on" : ""}${empty && !on ? " empty" : ""}${tail ? " tail" : ""}" data-gap="${owner}|${key}|${i}">${label}</div>`;
+}
+function listHTML(list, owner, key, ui) {
+  let h = gapHTML(owner, key, 0, list.length === 0, ui, owner === "root" && list.length === 0);
+  list.forEach((b, i) => (h += blockHTML(b, true, ui) + gapHTML(owner, key, i + 1, false, ui, owner === "root" && i === list.length - 1)));
+  return h;
+}
+
+// ---- the studio: palette, script, stage and runner ----
+function makeStudio({ cats = ALL_CATS, onFinish, onChange, onRunStart } = {}) {
+  const my = token;
+  const alive = () => my === token && app.isConnected;
+  const ui = { prog: [], cursor: { owner: "root", key: "body", i: 0 }, sel: null, slot: null, fresh: null, setup: {}, ghost: null, speed: 1, run: null, view: false };
+  stage.innerHTML = `<div class="bk-app">
+    <div class="bk-goal" data-goal><span></span></div>
+    <div class="bk-tools"><button type="button" class="go" data-run>▶ <span class="lbl">Run</span></button><button type="button" data-step aria-label="Step one block">👣 <span class="lbl">Step</span></button><button type="button" class="halt" data-halt aria-label="Stop">⏹</button><button type="button" data-speed aria-label="Speed">🐇</button><button type="button" data-flip hidden>🖼 Stage</button></div>
+    <div class="bk-pal"><div class="bk-cats" data-cats></div><div class="bk-list" data-list></div></div>
+    <div class="bk-code" data-code><div class="bk-script" data-script></div></div>
+    <div class="bk-view" data-view></div>
+    <div class="bk-pop" data-pop hidden></div>
+  </div>`;
+  const app = $(".bk-app", stage);
+  const script = $("[data-script]", app);
+  const code = $("[data-code]", app);
+  const list = $("[data-list]", app);
+  const pop = $("[data-pop]", app);
+  const canvas = makeCanvas($("[data-view]", app));
+  const SPEEDS = [["🐢", 500], ["🐇", 110], ["⚡", 0]];
+
+  // palette
+  $("[data-cats]", app).innerHTML = cats.map((id) => `<button type="button" data-cat="${id}" style="--c:${CAT[id].color}"><i></i>${CAT[id].name}</button>`).join("");
+  list.innerHTML = cats
+    .map((id) => {
+      const head = `<h4 data-head="${id}" style="--c:${CAT[id].color}">${CAT[id].name}</h4>`;
+      const blocks = PAL[id]
+        .map((op) => {
+          if (op === "hat") return `<div class="bk-b bk-hat" data-op="hat" style="--c:${CAT.events.color}"><div class="bk-row"><span class="bk-w">when ▶ Run clicked</span></div></div><p>Every program starts here. It is already at the top of your code.</p>`;
+          return blockHTML(op.startsWith("var:") ? V(op.slice(4)) : B(op), false);
+        })
+        .join("");
+      const note = id === "myblocks" ? `<p>A custom block is a named procedure. Put define block A in your code, fill it, then use run block A.</p>` : "";
+      return head + note + blocks;
+    })
+    .join("");
+
+  // ---- tree helpers ----
+  function locate(id, lst = ui.prog, owner = "root", key = "body") {
+    for (let i = 0; i < lst.length; i++) {
+      const n = lst[i];
+      if (n.id === id) return { list: lst, i, owner, key, node: n };
+      const r = within(n, id);
+      if (r) return r;
+    }
+    return null;
+  }
+  function within(n, id) {
+    for (let si = 0; si < n.a.length; si++) {
+      const v = n.a[si];
+      if (v && typeof v === "object") {
+        if (v.id === id) return { parent: n, si, node: v };
+        const r = within(v, id);
+        if (r) return r;
+      }
+    }
+    for (const key of ["body", "else"]) {
+      if (!n[key]) continue;
+      const r = locate(id, n[key], n.id, key);
+      if (r) return r;
+    }
+    return null;
+  }
+  const listOf = (owner, key) => (owner === "root" ? ui.prog : locate(owner)?.node?.[key] || null);
+  function fixCursor() {
+    const l = listOf(ui.cursor.owner, ui.cursor.key);
+    if (!l) ui.cursor = { owner: "root", key: "body", i: ui.prog.length };
+    else ui.cursor.i = Math.max(0, Math.min(ui.cursor.i, l.length));
+  }
+  function detach(id) {
+    const loc = locate(id);
+    if (!loc) return null;
+    if (loc.list) {
+      loc.list.splice(loc.i, 1);
+      const c = ui.cursor;
+      if (listOf(c.owner, c.key) === loc.list && c.i > loc.i) c.i -= 1;
+    } else {
+      const p = slotsOf(loc.parent.op)[loc.si];
+      loc.parent.a[loc.si] = slotDefault(p) ?? null;
+    }
+    fixCursor();
+    return loc.node;
+  }
+  function insert(node, owner, key, i) {
+    const l = listOf(owner, key);
+    if (!l) return;
+    l.splice(i, 0, node);
+    ui.cursor = node.body ? { owner: node.id, key: "body", i: 0 } : { owner, key, i: i + 1 };
+  }
+  const slotRef = (key) => {
+    const [id, si] = key.split(":");
+    const loc = locate(id);
+    if (!loc) return null;
+    return { node: loc.node, si: Number(si), p: slotsOf(loc.node.op)[Number(si)] };
+  };
+  const accepts = (p, op) => ("n" in p && shapeOf(op) === "rep") || ("b" in p && shapeOf(op) === "bool");
+
+  function render() {
+    fixCursor();
+    script.innerHTML = `<div class="bk-b bk-hat" style="--c:${CAT.events.color}"><div class="bk-row"><span class="bk-w">when ▶ Run clicked</span></div></div>${listHTML(ui.prog, "root", "body", ui)}`;
+    ui.fresh = null;
+    if (ui.run?.cur) glow(ui.run.cur);
+  }
+  function changed() {
+    halt();
+    render();
+    window.OC?.touch();
+    onChange?.(ui.prog);
+  }
+  function glow(id) {
+    script.querySelectorAll(".bk-run").forEach((e) => e.classList.remove("bk-run"));
+    if (!id) return;
+    const e = script.querySelector(`[data-id="${id}"]`);
+    if (!e) return;
+    e.classList.add("bk-run");
+    const r = e.getBoundingClientRect();
+    const cr = code.getBoundingClientRect();
+    if (r.top < cr.top || r.top + 40 > cr.bottom) code.scrollTop += r.top - cr.top - cr.height / 3;
+  }
+
+  // ---- adding blocks ----
+  function fromOp(op) {
+    return op.startsWith("var:") ? V(op.slice(4)) : B(op);
+  }
+  function addFromPalette(op) {
+    if (op === "hat") return say("Every program begins with the yellow when ▶ Run clicked block. It is already at the top of your code.");
+    const node = fromOp(op);
+    if (!isStmt(op)) {
+      const ref = ui.slot && slotRef(ui.slot);
+      if (ref && accepts(ref.p, op)) {
+        ref.node.a[ref.si] = node;
+        closePop(false);
+        MUSIC.play("woodblock", 79, { gain: 0.25 });
+        return changed();
+      }
+      return say(shapeOf(op) === "bool" ? "Tap a six-sided hole (in if, repeat until, and, or, not) first; then tap this block to place it there." : "Tap a white number hole first; then tap this block to place it there.");
+    }
+    if (op === "define" && ui.prog.some((n) => n.op === "define" && n.a[0] === node.a[0])) node.a[0] = FUNCS.find((f) => !ui.prog.some((n) => n.op === "define" && n.a[0] === f)) || "A";
+    if (op === "define") insert(node, "root", "body", ui.prog.length);
+    else insert(node, ui.cursor.owner, ui.cursor.key, ui.cursor.i);
+    ui.sel = null;
+    ui.fresh = node.id;
+    closePop(false);
+    MUSIC.play("woodblock", 79, { gain: 0.25 });
+    changed();
+  }
+
+  // ---- editor pop-up for a slot ----
+  let buf = "";
+  function openPop(key) {
+    const ref = slotRef(key);
+    if (!ref) return;
+    ui.slot = key;
+    ui.sel = null;
+    render();
+    const { node, si, p } = ref;
+    const v = node.a[si];
+    let h = "";
+    if ("n" in p) {
+      buf = typeof v === "number" ? String(v) : "";
+      const ops = ["add", "sub", "mul", "div", "mod", "floor", "round", "rand"];
+      h = `<div class="bk-pop-h"><b>Type a number</b><output data-buf>${esc(buf || "?")}</output><button type="button" class="ok" data-done>✓ Done</button></div>
+        <div class="bk-keys">${["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "−", ".", "⌫"].map((k) => `<button type="button" data-key="${k}">${k}</button>`).join("")}</div>
+        <div class="bk-chipset">${VARS.map((n) => `<button type="button" data-var="${n}" style="--c:${CAT.variables.color}">${n}</button>`).join("")}${ops.map((o) => `<button type="button" data-put="${o}" style="--c:${CAT.operators.color}">${o === "rand" ? "random" : o === "floor" ? "floor" : o === "round" ? "round" : "▢ " + DEFS[o].parts[1] + " ▢"}</button>`).join("")}<button type="button" data-put="input" style="--c:${CAT.myblocks.color}">input</button><button type="button" data-put="xpos" style="--c:${CAT.motion.color}">x position</button><button type="button" data-put="ypos" style="--c:${CAT.motion.color}">y position</button></div>`;
+    } else if ("b" in p) {
+      h = `<div class="bk-pop-h"><b>Choose a true-or-false question</b><button type="button" class="ok" data-done>✓ Done</button></div><div class="bk-chipset">${["edge", "touchc", "lt", "gt", "eq", "and", "or", "not"].map((o) => `<button type="button" data-put="${o}" style="--c:${CAT[DEFS[o].cat].color}">${o === "edge" ? "touching edge?" : o === "touchc" ? "touching colour?" : o === "not" ? "not ▢" : "▢ " + DEFS[o].parts[1] + " ▢"}</button>`).join("")}${v ? `<button type="button" data-clear style="--c:#8a7764">empty the hole</button>` : ""}</div>`;
+    } else if ("v" in p) {
+      h = `<div class="bk-pop-h"><b>Choose a variable</b><button type="button" class="ok" data-done>✓ Done</button></div><div class="bk-chipset">${VARS.map((n) => `<button type="button" class="vv" data-setv="${n}" style="--c:${CAT.variables.color}" aria-pressed="${n === v}">${n}</button>`).join("")}</div>`;
+    } else if ("f" in p) {
+      h = `<div class="bk-pop-h"><b>Choose a custom block</b><button type="button" class="ok" data-done>✓ Done</button></div><div class="bk-chipset">${FUNCS.map((n) => `<button type="button" data-setv="${n}" style="--c:${CAT.myblocks.color}" aria-pressed="${n === v}">block ${n}</button>`).join("")}</div>`;
+    } else {
+      h = `<div class="bk-pop-h"><b>Choose a colour</b><button type="button" class="ok" data-done>✓ Done</button></div><div class="bk-chipset">${PEN_COLORS.map(([c, name]) => `<button type="button" class="sw" data-setv="${c}" style="--c:${c}" aria-pressed="${c === v}" aria-label="${name}"></button>`).join("")}</div>`;
+    }
+    pop.innerHTML = h;
+    pop.hidden = false;
+  }
+  function closePop(re = true) {
+    pop.hidden = true;
+    pop.innerHTML = "";
+    ui.slot = null;
+    if (re) render();
+  }
+  pop.addEventListener("click", (e) => {
+    if (!alive()) return;
+    const ref = ui.slot && slotRef(ui.slot);
+    if (!ref) return closePop();
+    const b = e.target.closest("button");
+    if (!b) return;
+    window.OC?.touch();
+    if (b.dataset.done !== undefined) return closePop(), changed();
+    if (b.dataset.key) {
+      const k = b.dataset.key;
+      if (k === "⌫") buf = buf.slice(0, -1);
+      else if (k === "−") buf = buf.startsWith("-") ? buf.slice(1) : "-" + buf;
+      else if (k === "." && buf.includes(".")) return;
+      else if (buf.replace("-", "").length < 6) buf = buf === "0" ? k : buf === "-0" ? "-" + k : buf + k;
+      $("[data-buf]", pop).textContent = buf || "?";
+      const num = Number(buf);
+      ref.node.a[ref.si] = buf === "" || buf === "-" || buf === "." || !Number.isFinite(num) ? 0 : num;
+      halt();
+      render();
+      return;
+    }
+    if (b.dataset.var) {
+      ref.node.a[ref.si] = V(b.dataset.var);
+      closePop(false);
+      return changed();
+    }
+    if (b.dataset.put) {
+      const old = ref.node.a[ref.si];
+      const n = B(b.dataset.put);
+      if (typeof old === "number" && slotsOf(n.op)[0] && "n" in slotsOf(n.op)[0] && !["rand"].includes(n.op)) n.a[0] = old;
+      ref.node.a[ref.si] = n;
+      closePop(false);
+      changed();
+      const second = slotsOf(n.op).length > 1 && "n" in slotsOf(n.op)[1] && n.op !== "rand" ? 1 : slotsOf(n.op).length === 1 && "n" in slotsOf(n.op)[0] && n.a[0] === null ? 0 : -1;
+      if (second >= 0) openPop(`${n.id}:${second}`);
+      return;
+    }
+    if (b.dataset.clear !== undefined) {
+      ref.node.a[ref.si] = null;
+      closePop(false);
+      return changed();
+    }
+    if (b.dataset.setv) {
+      ref.node.a[ref.si] = b.dataset.setv;
+      closePop(false);
+      return changed();
+    }
+  });
+
+  // ---- pointer: tap and drag ----
+  let press = null;
+  let drag = null;
+  const codeRect = () => code.getBoundingClientRect();
+  const inside = (r, x, y, pad = 0) => x >= r.left - pad && x <= r.right + pad && y >= r.top - pad && y <= r.bottom + pad;
+  function onDown(e) {
+    if (!alive() || e.button > 0) return;
+    const t = e.target;
+    if (t.closest(".bk-pop, .bk-tools, [data-cats], .bk-del")) return;
+    const palEl = t.closest(".bk-list [data-op]");
+    const scrEl = t.closest(".bk-script [data-slot], .bk-script [data-id], .bk-script [data-gap]");
+    if (!palEl && !scrEl) {
+      if (ui.slot && !t.closest(".bk-list")) closePop();
+      return;
+    }
+    press = { x: e.clientX, y: e.clientY, palEl, scrEl, id: e.pointerId };
+    addEventListener("pointermove", onMove);
+    addEventListener("pointerup", onUp);
+    addEventListener("pointercancel", onCancel);
+  }
+  function stopListening() {
+    removeEventListener("pointermove", onMove);
+    removeEventListener("pointerup", onUp);
+    removeEventListener("pointercancel", onCancel);
+  }
+  function onCancel() {
+    stopListening();
+    endDrag();
+    press = null;
+  }
+  function onMove(e) {
+    if (!press || e.pointerId !== press.id) return;
+    if (!alive()) return onCancel();
+    if (!drag) {
+      const dx = e.clientX - press.x;
+      const dy = e.clientY - press.y;
+      if (Math.hypot(dx, dy) < 9) return;
+      const src = press.palEl || press.scrEl;
+      if (press.scrEl && press.scrEl.dataset.slot !== undefined) return;
+      if (press.scrEl && press.scrEl.dataset.gap !== undefined) return;
+      if (press.palEl && press.palEl.dataset.op === "hat") return;
+      const op = press.palEl ? (press.palEl.dataset.op.startsWith("var:") ? "var" : press.palEl.dataset.op) : locate(press.scrEl.dataset.id)?.node.op;
+      if (!op) return;
+      const ghost = document.createElement("div");
+      ghost.className = "bk-ghost";
+      ghost.style.setProperty("--accent", getComputedStyle(app).getPropertyValue("--accent"));
+      ghost.innerHTML = src.outerHTML;
+      document.body.appendChild(ghost);
+      drag = { ghost, src, op, kind: isStmt(op) ? "stmt" : shapeOf(op), target: null };
+      halt();
+      closePop(false);
+    }
+    e.preventDefault();
+    drag.ghost.style.left = `${e.clientX - 18}px`;
+    drag.ghost.style.top = `${e.clientY - 16}px`;
+    findTarget(e.clientX, e.clientY);
+  }
+  function findTarget(x, y) {
+    app.querySelectorAll(".drop").forEach((n) => n.classList.remove("drop"));
+    drag.target = null;
+    if (!inside(codeRect(), x, y, 10)) return;
+    if (drag.kind === "stmt") {
+      let best = null;
+      let bestD = Infinity;
+      for (const g of script.querySelectorAll("[data-gap]")) {
+        if (!press.palEl && drag.src.contains(g)) continue;
+        const r = g.getBoundingClientRect();
+        const dy = Math.abs(y - (r.top + r.height / 2));
+        const dx = x < r.left ? r.left - x : 0;
+        const d = dy + dx * 1.5;
+        if (d < bestD) {
+          bestD = d;
+          best = g;
+        }
+      }
+      if (best) {
+        best.classList.add("drop");
+        drag.target = { gap: best.dataset.gap };
+      }
+      return;
+    }
+    for (const e of document.elementsFromPoint(x, y)) {
+      if (!script.contains(e)) continue;
+      if (!press.palEl && drag.src.contains(e)) continue;
+      const s = e.closest("[data-slot], [data-pslot]");
+      if (!s || (!press.palEl && drag.src.contains(s))) continue;
+      const key = s.dataset.slot || s.dataset.pslot;
+      const ref = slotRef(key);
+      if (ref && accepts(ref.p, drag.op)) {
+        s.classList.add("drop");
+        drag.target = { slot: key };
+        return;
+      }
+    }
+  }
+  function endDrag() {
+    if (drag) drag.ghost.remove();
+    app.querySelectorAll(".drop").forEach((n) => n.classList.remove("drop"));
+    drag = null;
+  }
+  function onUp(e) {
+    if (!press || e.pointerId !== press.id) return;
+    stopListening();
+    const p = press;
+    press = null;
+    if (!alive()) return endDrag();
+    if (drag) {
+      const d = drag;
+      endDrag();
+      return drop(d, p, e.clientX, e.clientY);
+    }
+    tap(p);
+  }
+  function drop(d, p, x, y) {
+    window.OC?.touch();
+    const fromScript = !p.palEl;
+    if (!d.target) {
+      if (fromScript && !inside(codeRect(), x, y, 10)) {
+        detach(p.scrEl.dataset.id);
+        say("Block removed. Dragging a block back to the palette deletes it.", { voice: false });
+        ui.sel = null;
+        return changed();
+      }
+      return render();
+    }
+    const node = fromScript ? locate(p.scrEl.dataset.id)?.node : fromOp(p.palEl.dataset.op);
+    if (!node) return render();
+    if (d.target.gap) {
+      const [owner, key, istr] = d.target.gap.split("|");
+      let i = Number(istr);
+      if (fromScript) {
+        const loc = locate(node.id);
+        const targetList = listOf(owner, key);
+        if (loc?.list && loc.list === targetList && loc.i < i) i -= 1;
+        detach(node.id);
+      }
+      insert(node, owner, key, i);
+    } else {
+      const ref = slotRef(d.target.slot);
+      if (!ref) return render();
+      if (fromScript) detach(node.id);
+      const again = slotRef(d.target.slot);
+      if (!again) return render();
+      again.node.a[again.si] = node;
+    }
+    ui.sel = null;
+    ui.fresh = node.id;
+    MUSIC.play("woodblock", 79, { gain: 0.25 });
+    changed();
+  }
+  function tap(p) {
+    window.OC?.touch();
+    if (p.palEl) return addFromPalette(p.palEl.dataset.op);
+    const e = p.scrEl;
+    if (e.dataset.slot !== undefined) return openPop(e.dataset.slot);
+    if (e.dataset.gap !== undefined) {
+      const [owner, key, i] = e.dataset.gap.split("|");
+      ui.cursor = { owner, key, i: Number(i) };
+      ui.sel = null;
+      closePop(false);
+      return render();
+    }
+    if (e.dataset.pslot) return openPop(e.dataset.pslot);
+    const loc = locate(e.dataset.id);
+    if (!loc?.list) return;
+    closePop(false);
+    ui.sel = ui.sel === loc.node.id ? null : loc.node.id;
+    ui.cursor = { owner: loc.owner, key: loc.key, i: loc.i + 1 };
+    render();
+  }
+  app.addEventListener("pointerdown", onDown);
+  app.addEventListener("click", (e) => {
+    if (!alive()) return;
+    const del = e.target.closest("[data-del]");
+    if (del) {
+      detach(del.dataset.del);
+      ui.sel = null;
+      MUSIC.play("woodblock", 72, { gain: 0.2 });
+      return changed();
+    }
+    const cat = e.target.closest("[data-cat]");
+    if (cat) {
+      app.querySelectorAll("[data-cat]").forEach((b) => b.setAttribute("aria-pressed", String(b === cat)));
+      const h = list.querySelector(`[data-head="${cat.dataset.cat}"]`);
+      if (h) list.scrollTop = h.offsetTop - list.offsetTop - 4;
+    }
+  });
+
+  // ---- running ----
+  const tools = {
+    run: $("[data-run]", app),
+    step: $("[data-step]", app),
+    halt: $("[data-halt]", app),
+    speed: $("[data-speed]", app),
+    flip: $("[data-flip]", app),
+  };
+  const LIMIT = 60000;
+  function freshState() {
+    const setup = { ...ui.setup };
+    if (setup.randomX) setup.x = ui.nextX ?? 100;
+    return newState(setup);
+  }
+  function showStart() {
+    if (ui.setup.randomX) ui.nextX = pick([-200, -160, -120, -80, -40, 40, 80, 120, 160, 200]);
+    canvas.reset();
+    canvas.paint(freshState());
+  }
+  function halt() {
+    const r = ui.run;
+    if (!r) return;
+    clearTimeout(r.timer);
+    ui.run = null;
+    glow(null);
+  }
+  function finish(r, reason) {
+    if (ui.run !== r) return;
+    clearTimeout(r.timer);
+    ui.run = null;
+    glow(null);
+    canvas.paint(r.S);
+    if (reason === "user") r.S.reason = r.S.reason || "user";
+    if (alive()) onFinish?.(r.S, ui.prog, reason);
+  }
+  function pull(r) {
+    let it;
+    try {
+      it = r.gen.next();
+    } catch (error) {
+      console.error(error);
+      finish(r, "error");
+      return null;
+    }
+    r.steps += 1;
+    if (it.done) {
+      finish(r, r.S.reason || "end");
+      return null;
+    }
+    if (r.steps > LIMIT) {
+      r.S.reason = "limit";
+      finish(r, "limit");
+      return null;
+    }
+    r.cur = it.value.id;
+    return it.value;
+  }
+  function tick(r) {
+    if (ui.run !== r || !alive()) return;
+    const ms = SPEEDS[ui.speed][1];
+    if (!ms) {
+      const t0 = performance.now();
+      while (performance.now() - t0 < 12) {
+        const y = pull(r);
+        if (!y) return;
+        if (y.wait) {
+          glow(y.id);
+          canvas.paint(r.S);
+          r.timer = setTimeout(() => tick(r), y.wait * 1000);
+          return;
+        }
+      }
+      glow(r.cur);
+      canvas.paint(r.S);
+      r.timer = setTimeout(() => tick(r), 16);
+      return;
+    }
+    const said = r.S.said.length;
+    const y = pull(r);
+    if (!y) return;
+    glow(y.id);
+    canvas.paint(r.S);
+    if (r.S.said.length > said) MUSIC.play("xylophone", 72 + (Math.abs(Math.round(r.S.bubble)) % 12) * 2, { gain: 0.25 });
+    r.timer = setTimeout(() => tick(r), y.wait ? y.wait * 1000 : y.loop ? ms / 2 : ms);
+  }
+  function start(stepMode) {
+    halt();
+    closePop(false);
+    ui.sel = null;
+    render();
+    const S = freshState();
+    const r = { S, gen: runProg(ui.prog, S), steps: 0, timer: null, cur: null, step: stepMode };
+    ui.run = r;
+    canvas.reset();
+    canvas.paint(S);
+    showView(true);
+    onRunStart?.(stepMode);
+    if (stepMode) stepOnce();
+    else tick(r);
+  }
+  function stepOnce() {
+    const r = ui.run;
+    if (!r) return start(true);
+    clearTimeout(r.timer);
+    r.step = true;
+    let y = pull(r);
+    while (y && y.wait) y = pull(r);
+    if (!y) return;
+    glow(y.id);
+    canvas.paint(r.S);
+    MUSIC.play("woodblock", 84, { gain: 0.15 });
+  }
+  tools.run.addEventListener("click", () => {
+    if (!alive()) return;
+    window.OC?.touch();
+    const r = ui.run;
+    if (r && r.step) {
+      r.step = false;
+      tick(r);
+    } else start(false);
+  });
+  tools.step.addEventListener("click", () => alive() && (window.OC?.touch(), stepOnce()));
+  tools.halt.addEventListener("click", () => {
+    if (!alive()) return;
+    if (ui.run) finish(ui.run, "user");
+  });
+  tools.speed.addEventListener("click", () => {
+    ui.speed = (ui.speed + 1) % 3;
+    tools.speed.textContent = SPEEDS[ui.speed][0];
+    tools.speed.setAttribute("aria-label", ["Speed: slow", "Speed: normal", "Speed: fast"][ui.speed]);
+  });
+  // ---- layout: three columns when there is room, otherwise code and stage share the space ----
+  function showView(on) {
+    ui.view = on;
+    app.classList.toggle("show-view", on);
+    tools.flip.textContent = on ? "🧩 Code" : "🖼 Stage";
+  }
+  tools.flip.addEventListener("click", () => showView(!ui.view));
+  const fit = () => {
+    if (!alive()) return ro.disconnect();
+    const r = stage.getBoundingClientRect();
+    const compact = r.width < 760 || r.height < 380;
+    app.classList.toggle("compact", compact);
+    app.classList.toggle("tiny", r.width < 400);
+    tools.flip.hidden = !compact;
+  };
+  const ro = new ResizeObserver(fit);
+  ro.observe(stage);
+  fit();
+
+  render();
+  return {
+    alive,
+    get prog() {
+      return ui.prog;
+    },
+    load(prog, setup = {}, ghost = null, goal = "") {
+      halt();
+      closePop(false);
+      ui.prog = reId(prog || []);
+      ui.setup = setup;
+      ui.sel = null;
+      ui.cursor = { owner: "root", key: "body", i: ui.prog.length };
+      canvas.scene(setup, ghost);
+      $("[data-goal] span", app).textContent = goal;
+      showView(false);
+      render();
+      showStart();
+    },
+    setProg(prog) {
+      halt();
+      ui.prog = reId(prog);
+      ui.cursor = { owner: "root", key: "body", i: ui.prog.length };
+      showView(false);
+      render();
+      showStart();
+      onChange?.(ui.prog);
+    },
+    halt,
+    showView,
+    running: () => !!ui.run,
+    // test hooks
+    _run: start,
+    _step: stepOnce,
+    _ui: ui,
+    _add: addFromPalette,
+    _pop: openPop,
+  };
+}
+
+// ---- cards over the stage: Explain it, and Try it for real ----
+function card(html, speech) {
+  stage.querySelector(".bk-card")?.remove();
+  const box = document.createElement("div");
+  box.className = "kt-how bk-card";
+  box.innerHTML = `<div class="kt-how-card" role="dialog">${html}</div>`;
+  stage.appendChild(box);
+  if (speech) VOICE.speak(speech);
+  return box;
+}
+function explainCard({ title, prompt, words, model, where }) {
+  const box = card(
+    `<h2>🗣 Explain it: ${esc(title)}</h2><p>${prompt}</p><p><b>Use these words:</b> ${words}</p><textarea aria-label="Your explanation" placeholder="Write 2–4 sentences here, or say them aloud to a grown-up."></textarea><p class="model" hidden><b>A model explanation:</b> ${model}</p><div class="row"><button type="button" data-model>I have explained it: show a model</button><button type="button" class="kt-go" data-close>✓ Done</button></div>`,
+    `Explain it. ${prompt} Use these words: ${words}. Write two to four sentences, or say them aloud to a grown-up.`
+  );
+  const area = box.querySelector("textarea");
+  box.addEventListener("click", (e) => {
+    if (e.target.closest("[data-model]")) {
+      VOICE.hush();
+      box.querySelector(".model").hidden = false;
+      e.target.closest("[data-model]").remove();
+      VOICE.speak(`A model explanation. ${model} Compare it with yours. Is every statement in yours true, and does each one support your conclusion?`);
+      window.OC?.count("explanations");
+    }
+    if (e.target.closest("[data-close]")) {
+      VOICE.hush();
+      const said = area.value.trim();
+      if (said) {
+        const log = store.get("oc-bk-explanations") || [];
+        log.push({ who: shell.learner(), where, text: said.slice(0, 1000), at: Date.now() });
+        store.set("oc-bk-explanations", log.slice(-60));
+      }
+      box.remove();
+    }
+  });
+}
+function realCard(r) {
+  const box = card(
+    `<h2>🏠 Try it for real: ${esc(r.title)}</h2><p><b>You need:</b> ${r.need}</p><ol>${r.steps.map((s) => `<li>${s}</li>`).join("")}</ol><p class="safe">${r.safe}</p><div class="row"><button type="button" class="kt-go" data-close>✓ Done</button></div>`,
+    `Try it for real: ${r.title}. You need: ${r.need}. ${r.steps.join(" ")} ${r.safe}`
+  );
+  box.querySelector("[data-close]").addEventListener("click", () => {
+    VOICE.hush();
+    box.remove();
+  });
+}
+const REAL = {
+  seq: { title: "Plot a picture on paper", need: "squared paper, a pencil, a ruler and a grown-up", steps: ["Draw an x-axis and a y-axis that cross in the middle; number the lines 1, 2, 3 … in each direction, with negatives to the left and below.", "The grown-up reads out points such as (3, 2), (−1, 4) and (−2, −3); you plot each one.", "Write your own list of points that draws a letter, and have the grown-up follow it exactly. Did your instructions produce what you intended?"], safe: "Do this together with a grown-up." },
+  loop: { title: "Walk a polygon", need: "a grown-up and a safe open space, such as a garden or a hall", steps: ["Repeat 4 times: walk 5 steps, then make a quarter turn to the right. Where do you finish?", "Now repeat 3 times with a turn of one third of a full turn. Which shape did you walk?", "Predict the turn for a hexagon before you walk it."], safe: "Walk slowly, with a grown-up, away from stairs and roads." },
+  vars: { title: "A variable in a jar", need: "a jar, about 30 dried beans and a grown-up", steps: ["Label the jar 'score'. Empty it: that is set score to 0.", "Play any game; each point you win is change score by 1: drop in one bean.", "At the end, count the beans to read the variable. What would set score to 10 look like?"], safe: "Beans stay in hands, never in mouths." },
+  cond: { title: "The if–then–else game", need: "a grown-up and a little space", steps: ["The grown-up states a rule: IF I clap, THEN jump; ELSE stand still.", "Follow the rule exactly for one minute.", "Now invent a rule that uses AND or OR, and test whether the grown-up follows it correctly."], safe: "Jump on a soft, clear floor, with a grown-up nearby." },
+  func: { title: "Write a procedure", need: "paper, a pencil and a grown-up", steps: ["Write a card called DANCE(n): clap n times, turn around once, touch your toes.", "Write a program: DANCE(1), DANCE(3), DANCE(2). Give it to the grown-up to perform exactly.", "Did they do precisely what you wrote? If not, was the error in the instructions or in the performance?"], safe: "Leave plenty of space for dancing, with a grown-up." },
+  games: { title: "Binary search at the table", need: "a grown-up, paper and a pencil", steps: ["The grown-up secretly writes a whole number from 1 to 100.", "You guess; they answer only 'higher', 'lower' or 'correct'. Always guess the middle of what remains.", "Record how many guesses you needed. Can you prove that seven are always enough?"], safe: "Play together with a grown-up." },
+  debug: { title: "Debug a recipe", need: "a grown-up, paper, a pencil and sandwich ingredients", steps: ["The grown-up writes the steps for a sandwich with one hidden defect (a missing or misplaced step).", "Read the steps aloud and identify the defect. Explain how you know.", "Correct it, then follow the corrected steps together. The sandwich is your evidence."], safe: "A grown-up handles any knife." },
+};
+const EXPLAIN = {
+  seq: { words: "sequence, coordinate, origin", prompt: "Explain what your program does, step by step, and why the order of the blocks matters." },
+  loop: { words: "loop, repeat, exterior angle, 360°", prompt: "Explain what your program draws and why the loop and the angle you chose make it close up." },
+  vars: { words: "variable, value, assign, change", prompt: "Explain how the variable's value changes as your program runs, and why the final value is what it is." },
+  cond: { words: "condition, true, false, if, else", prompt: "Explain which decisions your program makes, and what happens when the condition is true and when it is false." },
+  func: { words: "procedure, input, call, base case", prompt: "Explain what your custom block does, what its input controls, and why using a block is better than copying the code." },
+  games: { words: "algorithm, variable, condition, test case", prompt: "Explain your algorithm in plain words, and why it always gives the correct answer, not only in one lucky case." },
+  debug: { words: "bug, defect, evidence, test", prompt: "Explain what the defect was, how you located it, and what evidence shows that your correction works." },
+};
+
+// ---- challenge units ----
+function challengeUnit(uid, key, cats) {
+  const my = token;
+  const list = CHALLENGES[key];
+  const solved = new Set(shell.progress()[uid]?.solved || []);
+  let ci = list.findIndex((_, i) => !solved.has(i));
+  if (ci < 0) ci = 0;
+  let tries = 0;
+  let hintI = 0;
+  let ran = false;
+  const host = panel(`<div class="bk-nav"><button type="button" data-prev aria-label="Previous challenge">◀</button><p class="ap-status" data-status></p><button type="button" data-next aria-label="Next challenge">▶</button><button type="button" data-hint>💡 Hint</button><button type="button" data-show hidden>👀 Show me</button><button type="button" data-explain>🗣 Explain</button><button type="button" class="primary" data-real hidden>🏠 For real</button></div>`);
+  const btn = (k) => $(`[data-${k}]`, host);
+  const st = makeStudio({
+    cats,
+    onFinish(S, prog, reason) {
+      if (my !== token) return;
+      ran = true;
+      const ch = list[ci];
+      if (reason === "error") return say("Something went wrong inside the program. Check that every hole is filled.");
+      const r = ch.check(S, prog);
+      if (r === true) {
+        MUSIC.chime();
+        const first = !solved.has(ci);
+        solved.add(ci);
+        shell.mark(uid, { solved: [...solved], ...(solved.size >= Math.ceil(list.length * 0.7) ? { done: true } : {}) });
+        if (first) window.OC?.count("coding challenges");
+        status();
+        btn("show").hidden = true;
+        const all = solved.size === list.length;
+        say(`${tries ? pick(WELL.slice(2)) : pick(WELL.slice(0, 2))} ${ch.why}${S.warn ? " " + S.warn : ""} ${all ? "You have completed every challenge in this unit. Now explain your thinking, then try it for real." : "Press 🗣 Explain to put the idea into words, or ▶ for the next challenge."}`);
+        if (all) {
+          confetti();
+          btn("real").hidden = false;
+        }
+        btn("next").toggleAttribute("data-pulse", !all && ci < list.length - 1);
+        btn("explain").toggleAttribute("data-pulse", true);
+      } else {
+        tries += 1;
+        MUSIC.oops();
+        const lead = reason === "user" ? "You stopped the program. " : reason === "limit" ? "The program ran for a very long time, so I stopped it. " : S.reason === "depth" ? "The block kept calling itself without end, so I stopped it. " : "";
+        say(`${lead}Not quite. ${r}${S.warn ? " " + S.warn : ""}${tries >= 2 ? " You may press 👀 Show me to study a worked solution." : " Mistakes are how we learn."}`);
+        if (tries >= 2) btn("show").hidden = false;
+      }
+    },
+    onChange() {
+      btn("next").removeAttribute("data-pulse");
+    },
+  });
+  function status() {
+    const ch = list[ci];
+    btn("status").textContent = `${LV[ch.lv]} ${ci + 1} of ${list.length}${solved.has(ci) ? " ✓" : ""}`;
+    btn("status").title = LV_NAME[ch.lv];
+  }
+  function load(i) {
+    ci = (i + list.length) % list.length;
+    tries = 0;
+    hintI = 0;
+    ran = false;
+    const ch = list[ci];
+    st.load(ch.start ? ch.start() : [], ch.setup, ch.setup.ghost ? ghostLines(ch) : null, `🎯 ${ch.goal}`);
+    status();
+    btn("show").hidden = true;
+    btn("next").removeAttribute("data-pulse");
+    btn("explain").removeAttribute("data-pulse");
+    btn("real").hidden = solved.size !== list.length;
+    say(`<b>Challenge ${ci + 1}.</b> ${ch.say}`);
+  }
+  host.onclick = (e) => {
+    if (my !== token) return;
+    const b = e.target.closest("button");
+    if (!b) return;
+    window.OC?.touch();
+    const ch = list[ci];
+    if (b.dataset.prev !== undefined) load(ci - 1);
+    else if (b.dataset.next !== undefined) load(ci + 1);
+    else if (b.dataset.hint !== undefined) {
+      if (!ran) return say("First commit to an idea: build it and press ▶ Run. Then I can help you reason about what you observe.");
+      say(`${hintI === 0 ? "Consider this." : "A further hint."} ${ch.hints[Math.min(hintI, ch.hints.length - 1)]}`);
+      hintI += 1;
+    } else if (b.dataset.show !== undefined) {
+      st.setProg(ch.sol());
+      say(`Here is a worked solution. ${ch.why} Press ▶ Run to verify it, then explain it in your own words.`);
+    } else if (b.dataset.explain !== undefined) {
+      b.removeAttribute("data-pulse");
+      explainCard({ title: ch.goal, where: `${uid}#${ci + 1}`, model: ch.why, ...EXPLAIN[key] });
+    } else if (b.dataset.real !== undefined) realCard(REAL[key]);
+  };
+  load(ci);
+  return st;
+}
+
+// ---- See it ----
+function seeIt() {
+  const my = token;
+  const block = (v, x, y, w, label, color, h = 44) => {
+    const g = el("g", { transform: `translate(${x} ${y})` }, v);
+    el("rect", { width: w, height: h, rx: 10, fill: color }, g);
+    text(g, 16, h / 2 + 8, label, { "font-size": 23, fill: "#fff", "text-anchor": "start" });
+    return g;
+  };
+  const gear = (v, cx, cy, r, color) => {
+    const g = el("g", { transform: `translate(${cx} ${cy})` }, v);
+    el("circle", { r: r + 8, fill: "none", stroke: color, "stroke-width": 16, "stroke-dasharray": `${(Math.PI * 2 * (r + 8)) / 24} ${(Math.PI * 2 * (r + 8)) / 24}` }, g);
+    el("circle", { r, fill: color }, g);
+    el("circle", { r: r * 0.3, fill: "#fbf3e4" }, g);
+    return g;
+  };
+  explain(
+    [
+      { say: "Why learn to program? A computer follows instructions exactly, without guessing. Programs control traffic lights, washing machines, games and spacecraft.", draw: everyday([["🚦", "Traffic lights"], ["🧺", "Washing machines"], ["🎮", "Video games"], ["🚀", "Spacecraft"]]) },
+      {
+        say: "An algorithm is a finite list of precise steps that solves a problem. A computer cannot act on a vague request such as fetch the cookie; it needs exact steps: move 2, turn left, move 2.",
+        async draw(v, api) {
+          const x0 = 120;
+          const y0 = 90;
+          const s = 110;
+          for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) el("rect", { x: x0 + c * s, y: y0 + r * s, width: s - 6, height: s - 6, rx: 12, fill: "#fbf3e4", stroke: "#e0cfb5", "stroke-width": 2 }, v);
+          emoji(v, x0 + 2 * s + 52, y0 + 52, "🍪", 64);
+          const bot = el("g", { transform: `translate(${x0 + 52} ${y0 + 2 * s + 52}) scale(2)` }, v);
+          robot(bot);
+          const bub = el("g", { opacity: 0 }, v);
+          el("rect", { x: 580, y: 80, width: 330, height: 70, rx: 20, fill: "#fff", stroke: "#c9b8a1", "stroke-width": 3 }, bub);
+          text(bub, 745, 125, "“Fetch the cookie”  ❓", { "font-size": 26, fill: "#8a4b14" });
+          await api.tween(600, (t) => bub.setAttribute("opacity", t));
+          await api.wait(1600);
+          const steps = [["move 2", "#2f6fd6"], ["turn left ↺ 90°", "#2f6fd6"], ["move 2", "#2f6fd6"]];
+          const path = [
+            [0, 2],
+            [2, 2],
+            [2, 2],
+            [2, 0],
+          ];
+          for (let i = 0; i < 3; i++) {
+            const b = block(v, 600, 190 + i * 62, 280, `${i + 1}.  ${steps[i][0]}`, steps[i][1]);
+            b.setAttribute("opacity", 0);
+            await api.tween(400, (t) => b.setAttribute("opacity", t));
+            const [ax, ay] = path[i];
+            const [bx, by] = path[i + 1];
+            await api.tween(900, (t) => bot.setAttribute("transform", `translate(${x0 + 52 + (ax + (bx - ax) * t) * s} ${y0 + 52 + (ay + (by - ay) * t) * s}) scale(2)`));
+            MUSIC.play("xylophone", 76 + i * 3, { gain: 0.3 });
+            await api.wait(400);
+          }
+          text(v, 745, 420, "Precise steps: goal reached", { "font-size": 26, fill: "#1f8f4f" });
+        },
+      },
+      {
+        say: "In 1843 Ada Lovelace published notes on Charles Babbage's Analytical Engine, a mechanical computer that was never completed. Her Note G set out steps to compute Bernoulli numbers, often called the first published computer program.",
+        async draw(v, api) {
+          text(v, 500, 60, "Ada Lovelace · 1843", { "font-size": 38, fill: "#2b1d12" });
+          const g1 = gear(v, 250, 270, 60, "#b5793f");
+          const g2 = gear(v, 370, 350, 44, "#8a5a2b");
+          const g3 = gear(v, 330, 190, 34, "#c99a5b");
+          text(v, 300, 470, "The Analytical Engine (design)", { "font-size": 23, fill: "#6b5a48" });
+          const note = el("g", { opacity: 0 }, v);
+          el("rect", { x: 560, y: 120, width: 330, height: 340, rx: 10, fill: "#fffaf0", stroke: "#c9b8a1", "stroke-width": 3 }, note);
+          text(note, 725, 165, "Note G", { "font-size": 30, fill: "#2b1d12" });
+          for (let i = 0; i < 6; i++) {
+            el("line", { x1: 590, x2: 860, y1: 205 + i * 40, y2: 205 + i * 40, stroke: "#e0cfb5", "stroke-width": 2 }, note);
+            text(note, 600, 232 + i * 40, `step ${i + 1}`, { "font-size": 22, fill: "#8a7764", "text-anchor": "start" });
+          }
+          await api.tween(800, (t) => note.setAttribute("opacity", t));
+          await api.tween(6000, (t) => {
+            g1.setAttribute("transform", `translate(250 270) rotate(${t * 180})`);
+            g2.setAttribute("transform", `translate(370 350) rotate(${-t * 245})`);
+            g3.setAttribute("transform", `translate(330 190) rotate(${-t * 318})`);
+          }, (t) => t);
+        },
+      },
+      {
+        say: "Grace Hopper, a mathematician and US Navy officer, led the team that wrote A-0 in 1952, one of the first compilers: a program that translates readable instructions into machine code. In 1947 her team on the Harvard Mark II computer found a real moth in a relay and taped it into the logbook. Engineers already called faults bugs, which is why the joke worked; the moth did not create the word.",
+        async draw(v, api) {
+          text(v, 500, 60, "Grace Hopper", { "font-size": 38, fill: "#2b1d12" });
+          el("rect", { x: 220, y: 100, width: 560, height: 360, rx: 12, fill: "#fffaf0", stroke: "#c9b8a1", "stroke-width": 3 }, v);
+          for (let i = 0; i < 7; i++) el("line", { x1: 250, x2: 750, y1: 150 + i * 45, y2: 150 + i * 45, stroke: "#e6d8c2", "stroke-width": 2 }, v);
+          text(v, 260, 140, "Logbook · 9 September 1947", { "font-size": 23, fill: "#6b5a48", "text-anchor": "start" });
+          const moth = el("g", { opacity: 0, transform: "translate(500 270)" }, v);
+          el("path", { d: "M0 0C-40 -50 -95 -40 -85 0C-95 40 -40 50 0 0Z", fill: "#a89a86", stroke: "#6b5a48", "stroke-width": 2 }, moth);
+          el("path", { d: "M0 0C40 -50 95 -40 85 0C95 40 40 50 0 0Z", fill: "#a89a86", stroke: "#6b5a48", "stroke-width": 2 }, moth);
+          el("ellipse", { rx: 9, ry: 34, fill: "#6b5a48" }, moth);
+          el("rect", { x: -110, y: -12, width: 60, height: 22, fill: "#f6e7a8", opacity: 0.8, transform: "rotate(-20)" }, moth);
+          el("rect", { x: 50, y: -12, width: 60, height: 22, fill: "#f6e7a8", opacity: 0.8, transform: "rotate(20)" }, moth);
+          await api.tween(900, (t) => moth.setAttribute("opacity", t));
+          const cap = text(v, 500, 420, "“First actual case of bug being found.”", { "font-size": 26, fill: "#8a4b14", opacity: 0 });
+          await api.wait(500);
+          await api.tween(700, (t) => cap.setAttribute("opacity", t));
+          const c2 = text(v, 500, 515, "1952: one of the first compilers", { "font-size": 26, fill: "#2b1d12", opacity: 0 });
+          await api.wait(1500);
+          await api.tween(700, (t) => c2.setAttribute("opacity", t));
+        },
+      },
+      {
+        say: "Here, instructions are blocks that snap together. Read this program: repeat four times, move 100 and turn 90 degrees. The result is a square.",
+        async draw(v, api) {
+          const parts = [
+            [60, 80, 330, "when ▶ Run clicked", CAT.events.color],
+            [60, 130, 200, "pen down", CAT.pen.color],
+            [60, 180, 180, "repeat 4", CAT.control.color],
+            [92, 230, 220, "move 100", CAT.motion.color],
+            [92, 280, 260, "turn right 90°", CAT.motion.color],
+          ];
+          for (const [x, y, w, label, c] of parts) {
+            const g = block(v, x - 200, y, w, label, c);
+            g.setAttribute("opacity", 0);
+            await api.tween(500, (t) => {
+              g.setAttribute("opacity", t);
+              g.setAttribute("transform", `translate(${x - 200 * (1 - t)} ${y})`);
+            });
+            MUSIC.play("woodblock", 79, { gain: 0.25 });
+          }
+          el("rect", { x: 60, y: 224, width: 26, height: 106, fill: CAT.control.color }, v);
+          el("rect", { x: 60, y: 330, width: 100, height: 20, rx: 8, fill: CAT.control.color }, v);
+          el("rect", { x: 560, y: 90, width: 360, height: 360, rx: 18, fill: "#fffdf8", stroke: "#e0cfb5", "stroke-width": 3 }, v);
+          const bot = el("g", { transform: "translate(640 370) scale(1.3)" }, v);
+          robot(bot);
+          const pts = [[640, 370], [840, 370], [840, 170], [640, 170], [640, 370]];
+          for (let i = 0; i < 4; i++) {
+            const [ax, ay] = pts[i];
+            const [bx, by] = pts[i + 1];
+            const line = el("line", { x1: ax, y1: ay, x2: ax, y2: ay, stroke: "#1e88e5", "stroke-width": 6, "stroke-linecap": "round" }, v);
+            v.appendChild(bot);
+            await api.tween(800, (t) => {
+              line.setAttribute("x2", ax + (bx - ax) * t);
+              line.setAttribute("y2", ay + (by - ay) * t);
+              bot.setAttribute("transform", `translate(${ax + (bx - ax) * t} ${ay + (by - ay) * t}) scale(1.3)`);
+            });
+            MUSIC.play("xylophone", 72 + i * 4, { gain: 0.3 });
+            await api.wait(250);
+          }
+        },
+      },
+      {
+        say: "The stage is a coordinate plane. x measures distance right of the centre (negative means left), and y measures distance up (negative means down). The point (100, 50) is 100 right and 50 up.",
+        async draw(v, api) {
+          const cx = 500;
+          const cy = 290;
+          const k = 1;
+          el("rect", { x: cx - 240, y: cy - 180 - 20, width: 480, height: 380, rx: 12, fill: "#fffdf8", stroke: "#e0cfb5", "stroke-width": 2 }, v);
+          for (let x = -200; x <= 200; x += 50) el("line", { x1: cx + x, x2: cx + x, y1: cy - 190, y2: cy + 170, stroke: "#efe5d6", "stroke-width": 1.5 }, v);
+          for (let y = -150; y <= 150; y += 50) el("line", { x1: cx - 230, x2: cx + 230, y1: cy - y, y2: cy - y, stroke: "#efe5d6", "stroke-width": 1.5 }, v);
+          el("line", { x1: cx - 230, x2: cx + 230, y1: cy, y2: cy, stroke: "#8a7764", "stroke-width": 3 }, v);
+          el("line", { x1: cx, x2: cx, y1: cy - 190, y2: cy + 170, stroke: "#8a7764", "stroke-width": 3 }, v);
+          text(v, cx + 220, cy - 10, "x", { "font-size": 26, fill: "#6b5a48" });
+          text(v, cx + 16, cy - 166, "y", { "font-size": 26, fill: "#6b5a48" });
+          text(v, cx - 22, cy + 28, "0", { "font-size": 22, fill: "#6b5a48" });
+          const dot = el("circle", { cx, cy, r: 12, fill: "#d8452f" }, v);
+          await api.wait(800);
+          const hx = el("line", { x1: cx, y1: cy, x2: cx, y2: cy, stroke: "#2f6fd6", "stroke-width": 6 }, v);
+          await api.tween(1200, (t) => {
+            hx.setAttribute("x2", cx + 100 * k * t);
+            dot.setAttribute("cx", cx + 100 * k * t);
+          });
+          text(v, cx + 50, cy + 32, "x = 100", { "font-size": 24, fill: "#2f6fd6" });
+          await api.wait(500);
+          const vy = el("line", { x1: cx + 100, y1: cy, x2: cx + 100, y2: cy, stroke: "#1f8f4f", "stroke-width": 6 }, v);
+          await api.tween(1000, (t) => {
+            vy.setAttribute("y2", cy - 50 * t);
+            dot.setAttribute("cy", cy - 50 * t);
+          });
+          text(v, cx + 165, cy - 20, "y = 50", { "font-size": 24, fill: "#1f8f4f" });
+          await api.wait(400);
+          text(v, cx + 100, cy - 75, "(100, 50)", { "font-size": 30, fill: "#d8452f" });
+        },
+      },
+      {
+        say: "To draw a regular polygon, the robot turns through one full revolution, 360 degrees, in equal parts. So each turn is 360 divided by the number of sides.",
+        async draw(v, api) {
+          const shapes = [[3, 200], [4, 500], [6, 800]];
+          for (const [n, cx] of shapes) {
+            const side = n === 6 ? 70 : n === 4 ? 110 : 130;
+            const R = side / (2 * Math.sin(Math.PI / n));
+            const pts = [];
+            for (let i = 0; i <= n; i++) {
+              const a = -Math.PI / 2 + Math.PI / n + (i * 2 * Math.PI) / n;
+              pts.push([cx + R * Math.cos(a), 260 + R * Math.sin(a)]);
+            }
+            for (let i = 0; i < n; i++) {
+              const [ax, ay] = pts[i];
+              const [bx, by] = pts[i + 1];
+              const l = el("line", { x1: ax, y1: ay, x2: ax, y2: ay, stroke: "#c2365b", "stroke-width": 6, "stroke-linecap": "round" }, v);
+              await api.tween(380, (t) => {
+                l.setAttribute("x2", ax + (bx - ax) * t);
+                l.setAttribute("y2", ay + (by - ay) * t);
+              });
+            }
+            text(v, cx, 430, `${n} sides`, { "font-size": 26, fill: "#2b1d12" });
+            text(v, cx, 472, `360 ÷ ${n} = ${360 / n}°`, { "font-size": 28, fill: "#c2365b" });
+            MUSIC.play("xylophone", 72 + n * 2, { gain: 0.3 });
+            await api.wait(600);
+          }
+        },
+      },
+      {
+        say: "A program that looks right is only a claim. Running it and checking the result is the evidence. Programmers predict, test, observe and revise.",
+        async draw(v, api) {
+          const steps = [["🤔", "Predict"], ["▶", "Run"], ["👀", "Observe"], ["🔧", "Revise"]];
+          const cx = 500;
+          const cy = 290;
+          const R = 170;
+          const nodes = [];
+          steps.forEach(([g, label], i) => {
+            const a = -Math.PI / 2 + (i * Math.PI) / 2;
+            const x = cx + R * Math.cos(a) * 1.5;
+            const y = cy + R * Math.sin(a);
+            const n = el("g", { opacity: 0.25 }, v);
+            el("circle", { cx: x, cy: y - 10, r: 56, fill: "var(--accent-soft)", stroke: "var(--accent)", "stroke-width": 4 }, n);
+            emoji(n, x, y - 14, g, 46);
+            text(n, x, y + 76, label, { "font-size": 28, fill: "#2b1d12" });
+            nodes.push(n);
+          });
+          for (let lap = 0; lap < 2; lap++) {
+            for (const n of nodes) {
+              await api.tween(400, (t) => n.setAttribute("opacity", 0.25 + 0.75 * t));
+              MUSIC.play("woodblock", 79, { gain: 0.2 });
+              await api.wait(500);
+              n.setAttribute("opacity", 0.55);
+            }
+          }
+          nodes.forEach((n) => n.setAttribute("opacity", 1));
+        },
+      },
+    ],
+    { alive: () => my === token, onDone: () => shell.go("bk1"), title: "Block Coding", doneLabel: "Begin ▶" }
+  );
+}
+
+// ---- Free studio ----
+const EXAMPLES = [
+  ["Hexagon flower", () => [B("color", "#8e24aa"), B("pendown"), B("repeat", 12, [B("repeat", 6, [B("move", 50), B("right", 60)]), B("right", 30)])]],
+  ["Twisted spiral", () => [B("setv", "length", 2), B("color", "#1e88e5"), B("pendown"), B("repeat", 90, [B("move", V("length")), B("right", 91), B("changev", "length", 2)])]],
+  ["Recursive tree", () => CHALLENGES.func[7].sol()],
+  ["Bounce game", () => CHALLENGES.games[1].sol()],
+];
+function studioUnit() {
+  const my = token;
+  const who = () => shell.learner();
+  const keyOf = (s) => `oc-bk:${who()}:${s}`;
+  let slot = 1;
+  let ex = 0;
+  const host = panel(`<div class="bk-nav"><div class="ap-chips" data-slots>${[1, 2, 3].map((n) => `<button type="button" data-slot-n="${n}" aria-pressed="${n === 1}">Slot ${n}</button>`).join("")}</div><button type="button" data-save>💾 Save</button><button type="button" data-load>📂 Load</button><button type="button" data-ex>✨ Example</button><button type="button" data-new>🗑 New</button><button type="button" data-explain>🗣 Explain</button></div>`);
+  const st = makeStudio({
+    onChange: (prog) => store.set(keyOf("cur"), prog),
+    onFinish(S, prog, reason) {
+      if (my !== token) return;
+      window.OC?.count("programs run");
+      const bits = [];
+      if (S.lines.length) bits.push(`${S.lines.length} line${S.lines.length === 1 ? "" : "s"} drawn`);
+      if (S.said.length) bits.push(`said ${S.said.slice(0, 8).join(", ")}${S.said.length > 8 ? " …" : ""}`);
+      if (S.shown.length) bits.push(S.shown.map((n) => `${n} = ${fmt(S.vars[n])}`).join(", "));
+      say(`${reason === "limit" ? "I stopped the program after a very long run. " : reason === "user" ? "Stopped. " : "Finished. "}${bits.length ? "Result: " + bits.join("; ") + "." : "Nothing visible happened. Is the pen down, or does the robot say anything?"}${S.warn ? " " + S.warn : ""}`, { voice: reason !== "end" || !bits.length });
+    },
+  });
+  const saved = store.get(keyOf("cur"));
+  st.load(validProg(saved) ? saved : [], {}, null, "🎨 Free studio: build anything");
+  say("This is your studio. Build any program; it is kept automatically. Use the slots to save programs you wish to keep.");
+  host.onclick = (e) => {
+    if (my !== token) return;
+    const b = e.target.closest("button");
+    if (!b) return;
+    window.OC?.touch();
+    if (b.dataset.slotN) {
+      slot = Number(b.dataset.slotN);
+      host.querySelectorAll("[data-slot-n]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      const has = validProg(store.get(keyOf("slot" + slot)));
+      say(`Slot ${slot} is ${has ? "holding a program. Press Load to open it, or Save to replace it" : "empty. Press Save to keep your current program there"}.`);
+    } else if (b.dataset.save !== undefined) {
+      const ok = store.set(keyOf("slot" + slot), st.prog);
+      MUSIC.chime();
+      say(ok ? `Saved in slot ${slot}.` : "This browser would not save. Ask a grown-up to check the privacy settings.");
+    } else if (b.dataset.load !== undefined) {
+      const p = store.get(keyOf("slot" + slot));
+      if (!validProg(p)) return say(`Slot ${slot} is empty.`);
+      st.setProg(p);
+      say(`Loaded slot ${slot}. Press ▶ Run.`);
+    } else if (b.dataset.ex !== undefined) {
+      const [name, make] = EXAMPLES[ex % EXAMPLES.length];
+      ex += 1;
+      st.setProg(make());
+      say(`Example: ${name}. Read it first and predict what it will do; then press ▶ Run to test your prediction.`);
+    } else if (b.dataset.new !== undefined) {
+      st.setProg([]);
+      say("A clean page. Your saved slots are untouched.");
+    } else if (b.dataset.explain !== undefined) {
+      explainCard({ title: "your own program", where: "studio", words: "algorithm, loop, variable, condition", prompt: "Explain what your program does, block by block, and what you would change to improve it.", model: "A strong explanation names the goal, describes each part in order (for example: the loop repeats the move and turn twelve times), and says why the result follows from the instructions." });
+    }
+  };
+  return st;
+}
+
+const UNITS = [
+  { id: "bk0", label: "See it", icon: "👀" },
+  { id: "bk1", label: "1. Sequences & coordinates", icon: "📍" },
+  { id: "bk2", label: "2. Loops & polygons", icon: "🔁" },
+  { id: "bk3", label: "3. Variables", icon: "📦" },
+  { id: "bk4", label: "4. Conditionals", icon: "🔀" },
+  { id: "bk5", label: "5. My Blocks & recursion", icon: "🧩" },
+  { id: "bk6", label: "6. Games & algorithms", icon: "🎲" },
+  { id: "bk7", label: "7. Debug it", icon: "🐞" },
+  { id: "bk8", label: "8. Free studio", icon: "🎨" },
+];
+let studio = null;
+const units = {
+  bk0: seeIt,
+  bk1: () => (studio = challengeUnit("bk1", "seq", ["events", "motion", "pen", "control"])),
+  bk2: () => (studio = challengeUnit("bk2", "loop", ["events", "motion", "pen", "control", "operators", "variables"])),
+  bk3: () => (studio = challengeUnit("bk3", "vars", ["events", "variables", "looks", "control", "operators", "motion"])),
+  bk4: () => (studio = challengeUnit("bk4", "cond", ["events", "control", "sensing", "operators", "motion", "variables", "looks", "pen"])),
+  bk5: () => (studio = challengeUnit("bk5", "func", ["events", "myblocks", "motion", "pen", "control", "operators", "variables", "looks"])),
+  bk6: () => (studio = challengeUnit("bk6", "games", ALL_CATS)),
+  bk7: () => (studio = challengeUnit("bk7", "debug", ALL_CATS)),
+  bk8: () => (studio = studioUnit()),
+};
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    bk0: { icon: "👀", title: "See it", steps: ["Watch each picture and listen.", "Press Next ▶ to continue.", "Press Begin when you are ready."] },
+    bk1: { icon: "📍", title: "Sequences & coordinates", steps: ["Tap a block, or drag it, to add it at the dashed ➕ marker.", "Tap a white number to change it; drag a block away to delete it.", "Press ▶ Run and compare the result with the 🎯 goal."] },
+    bk2: { icon: "🔁", title: "Loops & polygons", steps: ["Blocks inside repeat run again on every lap.", "For a regular polygon, each turn is 360 ÷ sides.", "Press ▶ Run; use 👣 Step to follow one block at a time."] },
+    bk3: { icon: "📦", title: "Variables", steps: ["A variable is a named place that stores a number.", "set replaces the value; change adds to it.", "Use show variable to watch the value as the program runs."] },
+    bk4: { icon: "🔀", title: "Conditionals", steps: ["if asks a true-or-false question.", "Its inner blocks run only when the answer is true; else runs otherwise.", "Run the program and observe each decision."] },
+    bk5: { icon: "🧩", title: "My Blocks & recursion", steps: ["define block A creates your own block (a procedure).", "run block A uses it; input is the number you pass in.", "A block may call itself: that is recursion, and it needs a stopping rule."] },
+    bk6: { icon: "🎲", title: "Games & algorithms", steps: ["Each challenge is a small game or a famous algorithm.", "Plan with variables and conditions before you build.", "I test your program on several cases, not only one."] },
+    bk7: { icon: "🐞", title: "Debug it", steps: ["Run the program and observe what goes wrong.", "Use 👣 Step to follow it one block at a time.", "Correct the defect, then run again: the result is your evidence."] },
+    bk8: { icon: "🎨", title: "Free studio", steps: ["Build any program you like; it is kept automatically.", "💾 Save keeps it in one of three slots on this device.", "📂 Load brings it back; ✨ Example offers ideas to study."] },
+  },
+  start: "bk0",
+  onStop() {
+    token += 1;
+    studio?.halt();
+    studio = null;
+    $("[data-panel]").onclick = null;
+    document.querySelectorAll(".bk-ghost").forEach((g) => g.remove());
+  },
+  subject: "Tech",
+  activity: "Block Coding Studio",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+window.__bk = { CHALLENGES, simulate, B, V, studio: () => studio };
+MUSIC.preload("xylophone", [72, 74, 76, 77, 79, 80, 82, 84, 86, 88, 90, 92, 94, 96]);
+MUSIC.preload("woodblock", [72, 79, 84]);
+</script>
+</body>
+</html>

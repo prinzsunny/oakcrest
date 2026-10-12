@@ -1,0 +1,2193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Human Body · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="science">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Human Body</b><small>Science · Advanced</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, pickInt, wait, confetti, PRAISE, KIND, choices, explain, everyday, emoji, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "bd0", label: "See it", icon: "👀" },
+  { id: "bd1", label: "1. Cells", icon: "🔬" },
+  { id: "bd2", label: "2. Heart & blood", icon: "🫀" },
+  { id: "bd3", label: "3. Lungs & breathing", icon: "🫁" },
+  { id: "bd4", label: "4. Digestion", icon: "🍎" },
+  { id: "bd5", label: "5. Bones & muscles", icon: "🦴" },
+  { id: "bd6", label: "6. Brain & nerves", icon: "🧠" },
+  { id: "bd7", label: "7. Keeping healthy", icon: "🧼" },
+  { id: "bd8", label: "8. Body challenge", icon: "🏆" },
+];
+
+function fresh() {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+}
+const wrap = (str, max) => {
+  const out = [];
+  for (const w of String(str).split(" ")) {
+    const last = out[out.length - 1];
+    if (last !== undefined && (last + " " + w).length <= max) out[out.length - 1] = last + " " + w;
+    else out.push(w);
+  }
+  return out;
+};
+const lines = (parent, x, y, str, max, lh, attrs) => {
+  const ls = wrap(str, max);
+  ls.forEach((l, i) => text(parent, x, y + i * lh, l, attrs));
+  return ls.length;
+};
+const fmtN = (n) => (Number.isInteger(n) ? n.toLocaleString("en-US") : String(n));
+
+// Speech: units, symbols and arrows read as words.
+const spoken = (html) =>
+  html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/CO₂/g, "carbon dioxide")
+    .replace(/O₂/g, "oxygen")
+    .replace(/µm/g, " micrometres")
+    .replace(/→/g, ", then ")
+    .replace(/×/g, " times ")
+    .replace(/÷/g, " divided by ")
+    .replace(/≈/g, " approximately ")
+    .replace(/=/g, " equals ")
+    .replace(/(\d)\s?–\s?(\d)/g, "$1 to $2")
+    .replace(/−\s?(\d)/g, " minus $1")
+    .replace(/m\/s\b/g, " metres per second")
+    .replace(/(\d) mL\b/g, "$1 millilitres")
+    .replace(/(\d) L\b/g, "$1 litres")
+    .replace(/(\d) ms\b/g, "$1 milliseconds")
+    .replace(/(\d) cm\b/g, "$1 centimetres")
+    .replace(/(\d) mm\b/g, "$1 millimetres")
+    .replace(/(\d) km\b/g, "$1 kilometres")
+    .replace(/(\d) kg\b/g, "$1 kilograms")
+    .replace(/(\d) m\b/g, "$1 metres")
+    .replace(/(\d) N\b/g, "$1 newtons")
+    .replace(/(\d) h\b/g, "$1 hours")
+    .replace(/(\d) s\b/g, "$1 seconds")
+    .replace(/\bmL\b/g, "millilitres")
+    .replace(/\bms\b/g, "milliseconds")
+    .replace(/\s+/g, " ")
+    .trim();
+const talk = (html) => {
+  say(html, { voice: false });
+  VOICE.speak(spoken(html));
+};
+
+const GOOD = ["Correct — and here is why:", "Correct. Your reasoning holds:", "Correct. Precisely:", "Correct — well reasoned:"];
+const OOPS = ["Not quite. Consider this:", "Not quite. Look again:", "Not yet. Mistakes are how we learn. Consider:", "Not quite. Ask yourself:"];
+
+// =====================================================================
+// Diagram engine: every diagram draws into the left of the stage (x 0–620)
+// and returns P = { key: { name, info, clue, deep, where, at, lab, g, hits } }.
+const DIAG = {};
+const BONE = "#f3ead8";
+const BONE_LINE = "#9c8b70";
+const RICH = "#e53935";
+const POOR = "#7d2340";
+function partOf(P, diag, key, parent, at, lab) {
+  const g = el("g", { class: "bd-part", "data-part": key }, parent);
+  P[key] = { ...INFO[diag][key], key, diag, at, lab, g, hits: [] };
+  return g;
+}
+function hit(P, key, x, y, r = 30) {
+  el("circle", { cx: x, cy: y, r, fill: "transparent", class: "bd-hit" }, P[key].g);
+  P[key].hits.push([x, y]);
+}
+const hidden = (P, name, value) => Object.defineProperty(P, name, { value, enumerable: false, configurable: true });
+
+// A label: leader line from the part to a white pill with its name.
+function tag(parent, p, { bad = false, maxX = 620 } = {}) {
+  const [ax, ay] = p.at;
+  let [lx, ly] = p.lab;
+  const w = Math.round(p.name.length * 13.5 + 32);
+  lx = Math.max(w / 2 + 6, Math.min(maxX - w / 2, lx));
+  ly = Math.max(26, Math.min(H - 24, ly));
+  const g = el("g", { class: "bd-tag", "pointer-events": "none" }, parent);
+  const col = bad ? "#b3261e" : "#2b1d12";
+  if (Math.hypot(lx - ax, ly - ay) > 26) {
+    el("line", { x1: ax, y1: ay, x2: lx, y2: ly, stroke: "#fff", "stroke-width": 8, "stroke-linecap": "round" }, g);
+    el("line", { x1: ax, y1: ay, x2: lx, y2: ly, stroke: col, "stroke-width": 3 }, g);
+  }
+  el("circle", { cx: ax, cy: ay, r: 7, fill: col, stroke: "#fff", "stroke-width": 3 }, g);
+  el("rect", { x: lx - w / 2, y: ly - 21, width: w, height: 40, rx: 14, fill: bad ? "#fdecea" : "#fff", stroke: bad ? "#b3261e" : "var(--accent)", "stroke-width": 3 }, g);
+  text(g, lx, ly + 8, p.name, { "font-size": 24, fill: col });
+  return g;
+}
+
+// Tap handling: a part under the finger, or the nearest part within reach.
+function tappable(svgEl, P, onTap) {
+  svgEl.addEventListener("pointerdown", (event) => {
+    let key = event.target.closest?.(".bd-part")?.dataset.part;
+    if (!key || !P[key]) {
+      const m = svgEl.getScreenCTM();
+      if (!m) return;
+      const pt = svgEl.createSVGPoint();
+      pt.x = event.clientX;
+      pt.y = event.clientY;
+      const p = pt.matrixTransform(m.inverse());
+      if (p.x > 630) return;
+      let best = null;
+      let bd = 55;
+      for (const [k, v] of Object.entries(P))
+        for (const [x, y] of [v.at, ...v.hits]) {
+          const d = Math.hypot(x - p.x, y - p.y);
+          if (d < bd) {
+            bd = d;
+            best = k;
+          }
+        }
+      key = best;
+    }
+    if (key) onTap(key);
+  });
+}
+
+// Catmull-Rom points to a smooth path.
+const smooth = (pts, closed = true) => {
+  const n = pts.length;
+  const at = (i) => pts[closed ? (i + n) % n : Math.max(0, Math.min(n - 1, i))];
+  let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < (closed ? n : n - 1); i++) {
+    const p0 = at(i - 1);
+    const p1 = at(i);
+    const p2 = at(i + 1);
+    const p3 = at(i + 2);
+    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    d += ` C${c1[0].toFixed(1)} ${c1[1].toFixed(1)} ${c2[0].toFixed(1)} ${c2[1].toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  }
+  return d + (closed ? "Z" : "");
+};
+const blob = (cx, cy, rx, ry, seed = 0, n = 24) => {
+  const pts = [];
+  for (let k = 0; k < n; k++) {
+    const a = (2 * Math.PI * k) / n;
+    const r = 1 + 0.06 * Math.sin(3 * a + seed) + 0.04 * Math.cos(5 * a + seed * 2);
+    pts.push([cx + rx * r * Math.cos(a), cy + ry * r * Math.sin(a)]);
+  }
+  return smooth(pts);
+};
+function mito(parent, x, y, rot, s = 1) {
+  const g = el("g", { transform: `translate(${x} ${y}) rotate(${rot}) scale(${s})` }, parent);
+  el("ellipse", { rx: 42, ry: 20, fill: "#ffb59a", stroke: "#c0573a", "stroke-width": 4 }, g);
+  el("polyline", { points: "-30,0 -24,-10 -16,10 -8,-10 0,10 8,-10 16,10 24,-10 30,0", fill: "none", stroke: "#c0573a", "stroke-width": 3, "stroke-linejoin": "round" }, g);
+  return g;
+}
+function chloro(parent, x, y, rot) {
+  const g = el("g", { transform: `translate(${x} ${y}) rotate(${rot})` }, parent);
+  el("ellipse", { rx: 32, ry: 17, fill: "#4caf50", stroke: "#1b5e20", "stroke-width": 3 }, g);
+  for (const dx of [-15, 0, 15]) el("rect", { x: dx - 5, y: -9, width: 10, height: 18, rx: 3, fill: "#2e7d32" }, g);
+  return g;
+}
+// Arrow chevron at a fraction along a path element.
+function chevron(parent, path, frac, fill = "#fff") {
+  const L = path.getTotalLength();
+  const a = path.getPointAtLength(L * frac);
+  const b = path.getPointAtLength(Math.min(L, L * frac + 2));
+  const ang = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+  el("polygon", { points: "-7,-7 6,0 -7,7", transform: `translate(${a.x} ${a.y}) rotate(${ang})`, fill, opacity: 0.95, "pointer-events": "none" }, parent);
+}
+function tube(parent, d, inner, width, outline = "#3a1a14") {
+  el("path", { d, fill: "none", stroke: outline, "stroke-width": width + 6, "stroke-linecap": "round", "stroke-linejoin": "round" }, parent);
+  return el("path", { d, fill: "none", stroke: inner, "stroke-width": width, "stroke-linecap": "round", "stroke-linejoin": "round" }, parent);
+}
+function grad(v, id, a, b, x1, x2) {
+  const g = el("linearGradient", { id, gradientUnits: "userSpaceOnUse", x1, x2, y1: 0, y2: 0 }, v);
+  el("stop", { offset: 0, "stop-color": a }, g);
+  el("stop", { offset: 1, "stop-color": b }, g);
+}
+// Moving dots along paths (blood flow, signals). Stops when the unit changes.
+function flow(paths, my, { n = 4, speed = 70, r = 5, fill = "#fff" } = {}) {
+  if (KIT.still.matches) return;
+  const dots = paths.map((p) => {
+    const L = p.getTotalLength();
+    return { p, L, d: Array.from({ length: n }, () => el("circle", { r, fill, opacity: 0.85, "pointer-events": "none" }, p.parentNode)) };
+  });
+  const t0 = performance.now();
+  const frame = (now) => {
+    if (my !== token || !paths[0].isConnected) return;
+    const s = ((now - t0) / 1000) * speed;
+    for (const { p, L, d } of dots)
+      d.forEach((c, i) => {
+        const q = p.getPointAtLength((s + (i * L) / n) % L);
+        c.setAttribute("cx", q.x);
+        c.setAttribute("cy", q.y);
+      });
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+
+// ---------- Animal cell ----------
+DIAG.animal = (v) => {
+  const P = {};
+  const d = blob(315, 290, 230, 190, 0.4);
+  el("path", { d, fill: "#fbe3cf" }, partOf(P, "animal", "cytoplasm", v, [265, 375], [130, 525]));
+  hit(P, "cytoplasm", 390, 150, 26);
+  const rib = partOf(P, "animal", "ribo", v, [250, 160], [330, 45]);
+  for (const [cx, cy] of [[250, 160], [450, 450 - 120], [170, 330]]) {
+    for (let k = 0; k < 7; k++) el("circle", { cx: cx + Math.cos(k * 2.3) * (6 + k * 3), cy: cy + Math.sin(k * 2.3) * (6 + k * 3), r: 4.5, fill: "#5d4037" }, rib);
+    hit(P, "ribo", cx, cy, 24);
+  }
+  const mi = partOf(P, "animal", "mito", v, [470, 410], [480, 525]);
+  for (const [x, y, r] of [[470, 410, -30], [175, 230, 25], [215, 410, -15], [480, 205, 35]]) {
+    mito(mi, x, y, r);
+    hit(P, "mito", x, y, 34);
+  }
+  const nu = partOf(P, "animal", "nucleus", v, [335, 270], [520, 45]);
+  el("circle", { cx: 335, cy: 270, r: 74, fill: "#c9b6ea", stroke: "#6c4fa3", "stroke-width": 5 }, nu);
+  el("path", { d: "M290 250 q15 -18 30 0 t30 0 M300 295 q12 14 24 0 t24 0", fill: "none", stroke: "#8e74c4", "stroke-width": 3 }, nu);
+  el("circle", { cx: 350, cy: 262, r: 22, fill: "#6c4fa3", opacity: 0.75 }, nu);
+  const me = partOf(P, "animal", "membrane", v, [315, 98], [120, 45]);
+  el("path", { d, fill: "none", stroke: "transparent", "stroke-width": 30 }, me);
+  el("path", { d, fill: "none", stroke: "#c26a4a", "stroke-width": 9 }, me);
+  P.membrane.hits.push([85, 290], [545, 290], [315, 480]);
+  return P;
+};
+
+// ---------- Plant cell ----------
+DIAG.plant = (v) => {
+  const P = {};
+  const wa = partOf(P, "plant", "wall", v, [72, 200], [110, 40]);
+  el("rect", { x: 58, y: 72, width: 514, height: 432, rx: 22, fill: "#8bc34a", stroke: "#33691e", "stroke-width": 4 }, wa);
+  P.wall.hits.push([566, 300], [315, 78], [315, 500]);
+  el("rect", { x: 88, y: 102, width: 454, height: 372, rx: 12, fill: "#eef7e4" }, partOf(P, "plant", "cytoplasm", v, [205, 300], [300, 528]));
+  hit(P, "cytoplasm", 200, 245, 22);
+  const va = partOf(P, "plant", "vacuole", v, [350, 290], [350, 290]);
+  el("rect", { x: 235, y: 170, width: 240, height: 240, rx: 60, fill: "#d4ecfb", stroke: "#5b9bd5", "stroke-width": 4 }, va);
+  const nu = partOf(P, "plant", "nucleus", v, [160, 170], [290, 40]);
+  el("circle", { cx: 160, cy: 170, r: 46, fill: "#c9b6ea", stroke: "#6c4fa3", "stroke-width": 4 }, nu);
+  el("circle", { cx: 170, cy: 164, r: 15, fill: "#6c4fa3", opacity: 0.75 }, nu);
+  const ch = partOf(P, "plant", "chloro", v, [420, 440], [500, 528]);
+  for (const [x, y, r] of [[150, 300, 80], [140, 420, 60], [320, 135, 8], [420, 440, -10], [510, 300, 90], [300, 445, 4]]) {
+    chloro(ch, x, y, r);
+    hit(P, "chloro", x, y, 30);
+  }
+  const mi = partOf(P, "plant", "mito", v, [430, 132], [480, 40]);
+  for (const [x, y, r] of [[430, 132, 10], [505, 420, 60]]) {
+    mito(mi, x, y, r, 0.75);
+    hit(P, "mito", x, y, 28);
+  }
+  const me = partOf(P, "plant", "membrane", v, [200, 474], [110, 528]);
+  el("rect", { x: 88, y: 102, width: 454, height: 372, rx: 12, fill: "none", stroke: "transparent", "stroke-width": 18 }, me);
+  el("rect", { x: 88, y: 102, width: 454, height: 372, rx: 12, fill: "none", stroke: "#c26a4a", "stroke-width": 5 }, me);
+  P.membrane.hits.push([88, 300], [542, 200]);
+  return P;
+};
+
+// ---------- Heart and double circulation ----------
+DIAG.heart = (v) => {
+  const P = {};
+  grad(v, "bdLung", POOR, RICH, 195, 425);
+  grad(v, "bdBody", POOR, RICH, 140, 480);
+  const lu = partOf(P, "heart", "lungs", v, [310, 70], [530, 40]);
+  el("rect", { x: 170, y: 16, width: 280, height: 86, rx: 30, fill: "#f9dbe3", stroke: "#b0506c", "stroke-width": 3 }, lu);
+  text(lu, 310, 44, "LUNGS", { "font-size": 22, fill: "#8a3b52" });
+  el("path", { d: "M195 82 C235 52 265 102 310 74 S385 52 425 82", fill: "none", stroke: "url(#bdLung)", "stroke-width": 9, "stroke-linecap": "round" }, lu);
+  const bo = partOf(P, "heart", "body", v, [310, 495], [560, 520]);
+  el("rect", { x: 110, y: 456, width: 400, height: 90, rx: 30, fill: "#f6e3cc", stroke: "#b98b5e", "stroke-width": 3 }, bo);
+  text(bo, 310, 535, "BODY", { "font-size": 22, fill: "#8a6040" });
+  el("path", { d: "M480 488 C440 462 410 512 370 488 S290 462 250 488 S180 512 140 488", fill: "none", stroke: "url(#bdBody)", "stroke-width": 9, "stroke-linecap": "round" }, bo);
+  const paths = [];
+  const vessel = (key, d, col, at, lab) => {
+    const g = partOf(P, "heart", key, v, at, lab);
+    const p = tube(g, d, col, 16);
+    el("path", { d, fill: "none", stroke: "transparent", "stroke-width": 40 }, g);
+    paths.push(p);
+    return p;
+  };
+  const vc = vessel("vena", "M130 458 L130 222 L202 222", POOR, [130, 340], [70, 400]);
+  const ao = vessel("aorta", "M418 340 L490 340 L490 458", RICH, [490, 400], [560, 420]);
+  const pv = vessel("pv", "M430 100 C470 115 470 150 470 200 L470 215 L420 215", RICH, [470, 160], [560, 150]);
+  // Chambers
+  const ch = (key, x, y, w, h, fill, at, lab, sw = 5) => {
+    const g = partOf(P, "heart", key, v, at, lab);
+    el("rect", { x, y, width: w, height: h, rx: 26, fill, stroke: "#3b0d18", "stroke-width": sw }, g);
+    return g;
+  };
+  ch("ra", 202, 176, 98, 88, POOR, [236, 205], [90, 150]);
+  ch("rv", 202, 274, 98, 118, POOR, [236, 350], [90, 430]);
+  ch("la", 320, 176, 98, 88, RICH, [385, 205], [560, 260]);
+  ch("lv", 320, 274, 98, 118, RICH, [385, 360], [560, 360], 13);
+  const se = partOf(P, "heart", "septum", v, [310, 330], [310, 420]);
+  el("rect", { x: 300, y: 178, width: 20, height: 212, fill: "#c98a7a", stroke: "#3b0d18", "stroke-width": 2 }, se);
+  const va = partOf(P, "heart", "valves", v, [251, 268], [90, 280]);
+  for (const x0 of [202, 320]) {
+    el("polygon", { points: `${x0 + 16},264 ${x0 + 46},264 ${x0 + 40},284`, fill: "#fbe9e7", stroke: "#3b0d18", "stroke-width": 2.5 }, va);
+    el("polygon", { points: `${x0 + 82},264 ${x0 + 52},264 ${x0 + 58},284`, fill: "#fbe9e7", stroke: "#3b0d18", "stroke-width": 2.5 }, va);
+    hit(P, "valves", x0 + 49, 270, 24);
+  }
+  const pa = vessel("pa", "M262 318 C298 314 310 292 310 252 L310 140 C310 112 282 104 252 100", POOR, [310, 200], [110, 80]);
+  text(v, 251, 166, "right side", { "font-size": 19, fill: "#6b5240", "pointer-events": "none" });
+  text(v, 369, 166, "left side", { "font-size": 19, fill: "#6b5240", "pointer-events": "none" });
+  for (const p of paths) {
+    chevron(p.parentNode, p, 0.35);
+    chevron(p.parentNode, p, 0.75);
+  }
+  const lg = el("g", { "pointer-events": "none" }, v);
+  el("rect", { x: 148, y: 410, width: 26, height: 22, rx: 6, fill: RICH }, lg);
+  text(lg, 182, 428, "oxygen-rich", { "font-size": 20, fill: "#5a4130", "text-anchor": "start" });
+  el("rect", { x: 300, y: 410, width: 26, height: 22, rx: 6, fill: POOR }, lg);
+  text(lg, 334, 428, "oxygen-poor", { "font-size": 20, fill: "#5a4130", "text-anchor": "start" });
+  hidden(P, "paths", [vc, pa, pv, ao]);
+  return P;
+};
+
+// ---------- Blood vessels and blood ----------
+DIAG.vessels = (v) => {
+  const P = {};
+  const ar = partOf(P, "vessels", "artery", v, [120, 115], [120, 22]);
+  el("circle", { cx: 120, cy: 115, r: 72, fill: "#d9645f", stroke: "#7f1d1d", "stroke-width": 3 }, ar);
+  el("circle", { cx: 120, cy: 115, r: 50, fill: "#ef9a9a", stroke: "#b23a3a", "stroke-width": 2 }, ar);
+  el("circle", { cx: 120, cy: 115, r: 26, fill: RICH, stroke: "#7f1d1d", "stroke-width": 2 }, ar);
+  const ve = partOf(P, "vessels", "vein", v, [120, 300], [120, 395]);
+  el("ellipse", { cx: 120, cy: 300, rx: 76, ry: 60, fill: "#c77d8b", stroke: "#4a1020", "stroke-width": 3 }, ve);
+  el("ellipse", { cx: 120, cy: 300, rx: 65, ry: 49, fill: POOR, stroke: "#4a1020", "stroke-width": 2 }, ve);
+  const ca = partOf(P, "vessels", "cap", v, [135, 470], [135, 535]);
+  el("rect", { x: 25, y: 452, width: 220, height: 38, rx: 19, fill: "#f8d7d4", stroke: "#c97a74", "stroke-width": 3 }, ca);
+  for (const x of [50, 110, 170, 225]) el("ellipse", { cx: x, cy: 452, rx: 9, ry: 4, fill: "#c97a74" }, ca);
+  for (const x of [55, 95, 135, 175, 215]) el("ellipse", { cx: x, cy: 471, rx: 13, ry: 10, fill: "#d32f2f" }, ca);
+  hit(P, "cap", 135, 471, 40);
+  const pl = partOf(P, "vessels", "plasma", v, [440, 445], [440, 520]);
+  el("circle", { cx: 440, cy: 290, r: 168, fill: "#f3d68a", stroke: "#c9a23d", "stroke-width": 4 }, pl);
+  text(v, 440, 100, "a drop of blood, magnified", { "font-size": 21, fill: "#6b5240", "pointer-events": "none" });
+  const wbcAt = [[395, 225], [505, 365]];
+  const rb = partOf(P, "vessels", "rbc", v, [470, 280], [440, 38]);
+  const spots = [];
+  for (let gx = 296; gx <= 584; gx += 42)
+    for (let gy = 150; gy <= 430; gy += 42) {
+      const x = gx + (Math.round(gy / 42) % 2 ? 18 : 0);
+      if (Math.hypot(x - 440, gy - 290) > 138) continue;
+      if (wbcAt.some(([a, b]) => Math.hypot(x - a, gy - b) < 56)) continue;
+            spots.push([x, gy]);
+    }
+  const plt = spots.filter((_, i) => i % 5 === 2);
+  for (const s of spots) {
+    if (plt.includes(s)) continue;
+    const [x, y] = s;
+    el("circle", { cx: x, cy: y, r: 18, fill: "#d32f2f", stroke: "#8e1b1b", "stroke-width": 2 }, rb);
+    el("circle", { cx: x, cy: y, r: 8, fill: "#b71c1c", opacity: 0.6 }, rb);
+  }
+  P.rbc.hits.push(...spots.filter((s) => !plt.includes(s)).slice(0, 8));
+  const wb = partOf(P, "vessels", "wbc", v, wbcAt[0], [270, 470]);
+  for (const [x, y] of wbcAt) {
+    el("circle", { cx: x, cy: y, r: 30, fill: "#ece2f7", stroke: "#7e57c2", "stroke-width": 3 }, wb);
+    for (const [dx, dy] of [[-9, -5], [6, -9], [8, 7]]) el("circle", { cx: x + dx, cy: y + dy, r: 9, fill: "#7e57c2" }, wb);
+    hit(P, "wbc", x, y, 32);
+  }
+  const pt = partOf(P, "vessels", "platelets", v, plt[0] || [440, 290], [600, 470]);
+  for (const [x, y] of plt) {
+    el("polygon", { points: `${x - 11},${y - 4} ${x - 3},${y - 12} ${x + 11},${y - 5} ${x + 8},${y + 8} ${x - 7},${y + 9}`, fill: "#9575cd", stroke: "#5e35b1", "stroke-width": 2 }, pt);
+    hit(P, "platelets", x, y, 18);
+  }
+  return P;
+};
+
+// ---------- Lungs ----------
+DIAG.lungs = (v) => {
+  const P = {};
+  const LL = "M290 150 C230 120 120 140 95 260 C80 340 90 400 120 420 C180 405 250 382 290 372 Z";
+  const RL = "M330 150 C390 120 500 140 525 260 C540 340 530 400 500 420 C440 405 405 392 372 386 C352 372 334 360 330 338 Z";
+  const ri = partOf(P, "lungs", "ribs", v, [75, 300], [70, 120]);
+  for (let k = 0; k < 6; k++) {
+    const y = 128 + k * 56;
+    for (const s of [1, -1]) {
+      const d = s > 0 ? `M300 ${y} C180 ${y - 22} 72 ${y + 8} 62 ${y + 62}` : `M320 ${y} C440 ${y - 22} 548 ${y + 8} 558 ${y + 62}`;
+      el("path", { d, fill: "none", stroke: BONE_LINE, "stroke-width": 15, "stroke-linecap": "round" }, ri);
+      el("path", { d, fill: "none", stroke: BONE, "stroke-width": 9, "stroke-linecap": "round" }, ri);
+    }
+  }
+  P.ribs.hits.push([560, 300], [70, 200], [552, 200]);
+  const lu = partOf(P, "lungs", "lung", v, [470, 300], [560, 470]);
+  for (const d of [LL, RL]) el("path", { d, fill: "#f5b3c3", stroke: "#b0506c", "stroke-width": 4 }, lu);
+  P.lung.hits.push([130, 230], [490, 230]);
+  const clip = el("clipPath", { id: "bdLungClip" }, v);
+  el("path", { d: LL }, clip);
+  el("path", { d: RL }, clip);
+  const br = partOf(P, "lungs", "bronchioles", v, [217, 296], [120, 470]);
+  const tree = el("g", { "clip-path": "url(#bdLungClip)" }, br);
+  const ends = [];
+  const branch = (x, y, ang, len, depth) => {
+    const x2 = x + Math.cos(ang) * len;
+    const y2 = y + Math.sin(ang) * len;
+    el("line", { x1: x, y1: y, x2, y2, stroke: "#c86d7f", "stroke-width": 1.5 + depth * 1.6, "stroke-linecap": "round" }, tree);
+    if (depth === 3) ends.push([x2, y2]);
+    if (depth > 1) {
+      branch(x2, y2, ang - 0.5, len * 0.7, depth - 1);
+      branch(x2, y2, ang + 0.5, len * 0.7, depth - 1);
+    }
+  };
+  branch(230, 268, 2.0, 62, 4);
+  branch(230, 268, 2.9, 55, 4);
+  branch(392, 268, 1.1, 62, 4);
+  branch(392, 268, 0.25, 55, 4);
+  P.bronchioles.hits.push(...ends);
+  const al = partOf(P, "lungs", "alveoli", v, [150, 370], [150, 470]);
+  el("line", { x1: 186, y1: 330, x2: 156, y2: 362, stroke: "#c86d7f", "stroke-width": 3 }, al);
+  for (const [dx, dy] of [[0, 0], [-15, 8], [14, 8], [-8, 22], [9, 22], [0, 12], [-20, 22]]) el("circle", { cx: 152 + dx, cy: 366 + dy, r: 9, fill: "#fdd9e2", stroke: "#a03f5a", "stroke-width": 2 }, al);
+  hit(P, "alveoli", 150, 378, 30);
+  const bz = partOf(P, "lungs", "bronchi", v, [262, 238], [450, 100]);
+  for (const d of ["M310 205 Q270 225 230 270", "M310 205 Q350 225 392 270"]) tube(bz, d, "#f2c2b0", 18, "#a86a58");
+  hit(P, "bronchi", 262, 238, 24);
+  hit(P, "bronchi", 360, 238, 24);
+  const tr = partOf(P, "lungs", "trachea", v, [310, 110], [450, 40]);
+  el("rect", { x: 292, y: 18, width: 36, height: 196, rx: 12, fill: "#f2c2b0", stroke: "#a86a58", "stroke-width": 3 }, tr);
+  for (let y = 34; y < 205; y += 17) el("line", { x1: 294, x2: 326, y1: y, y2: y, stroke: "#c98b78", "stroke-width": 3 }, tr);
+  hit(P, "trachea", 310, 60, 26);
+  const di = partOf(P, "lungs", "diaphragm", v, [310, 415], [470, 530]);
+  el("path", { d: "M45 500 Q310 330 575 500", fill: "none", stroke: "#8e3b2e", "stroke-width": 26, "stroke-linecap": "round" }, di);
+  el("path", { d: "M45 500 Q310 330 575 500", fill: "none", stroke: "#cf7b62", "stroke-width": 20, "stroke-linecap": "round" }, di);
+  P.diaphragm.hits.push([110, 470], [510, 470]);
+  return P;
+};
+
+// ---------- One alveolus ----------
+DIAG.alveolus = (v) => {
+  const P = {};
+  grad(v, "bdCap", POOR, RICH, 80, 430);
+  const tb = partOf(P, "alveolus", "tube", v, [260, 60], [440, 50]);
+  el("rect", { x: 232, y: 14, width: 56, height: 130, rx: 14, fill: "#f2c2b0", stroke: "#a86a58", "stroke-width": 3 }, tb);
+  const ai = partOf(P, "alveolus", "air", v, [215, 300], [210, 420]);
+  el("circle", { cx: 260, cy: 280, r: 150, fill: "#fde4ec", stroke: "#b0506c", "stroke-width": 6 }, ai);
+  const cx = 260;
+  const cy = 280;
+  const R = 186;
+  const pt = (deg, r = R) => [cx + r * Math.cos((deg * Math.PI) / 180), cy + r * Math.sin((deg * Math.PI) / 180)];
+  const [x1, y1] = pt(170);
+  const [x2, y2] = pt(-30);
+  const ca = partOf(P, "alveolus", "cap", v, pt(130), [80, 520]);
+  el("path", { d: `M${x1} ${y1} A${R} ${R} 0 1 0 ${x2} ${y2}`, fill: "none", stroke: "#5b1a24", "stroke-width": 48, "stroke-linecap": "round" }, ca);
+  el("path", { d: `M${x1} ${y1} A${R} ${R} 0 1 0 ${x2} ${y2}`, fill: "none", stroke: "url(#bdCap)", "stroke-width": 42, "stroke-linecap": "round" }, ca);
+  P.cap.hits.push(pt(160), pt(-15));
+  const rb = partOf(P, "alveolus", "rbc", v, pt(100), [470, 470]);
+  [150, 125, 100, 75, 50, 25, 0].forEach((deg, i) => {
+    const [x, y] = pt(deg);
+    el("ellipse", { cx: x, cy: y, rx: 15, ry: 11, fill: i < 3 ? "#9c2a3c" : "#e8443a", stroke: "#4a1020", "stroke-width": 2, transform: `rotate(${deg + 90} ${x} ${y})` }, rb);
+  });
+  P.rbc.hits.push(pt(150), pt(50), pt(0));
+  const arrow = (g, a, b, col, label) => {
+    el("line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: col, "stroke-width": 6, "stroke-linecap": "round" }, g);
+    const ang = (Math.atan2(b[1] - a[1], b[0] - a[0]) * 180) / Math.PI;
+    el("polygon", { points: "-12,-11 8,0 -12,11", transform: `translate(${b[0]} ${b[1]}) rotate(${ang})`, fill: col }, g);
+    const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    text(g, label === "O₂" ? a[0] - (b[0] - a[0]) * 0.45 : b[0] - (a[0] - b[0]) * 0.45, (label === "O₂" ? a[1] - (b[1] - a[1]) * 0.45 : b[1] - (a[1] - b[1]) * 0.45) + 8, label, { "font-size": 24, fill: col });
+  };
+  const o2 = partOf(P, "alveolus", "o2", v, pt(150, 120), [90, 140]);
+  for (const deg of [150, 70]) {
+    arrow(o2, pt(deg, 98), pt(deg, 158), "#1565c0", "O₂");
+    hit(P, "o2", ...pt(deg, 120), 28);
+  }
+  const co = partOf(P, "alveolus", "co2", v, pt(110, 120), [470, 140]);
+  for (const deg of [110, 30]) {
+    arrow(co, pt(deg, 158), pt(deg, 98), "#2e7d32", "CO₂");
+    hit(P, "co2", ...pt(deg, 120), 28);
+  }
+  text(v, 80, 262, "blood in", { "font-size": 21, fill: "#6b5240", "pointer-events": "none" });
+  text(v, 540, 150, "blood out", { "font-size": 21, fill: "#6b5240", "pointer-events": "none" });
+  return P;
+};
+
+// ---------- Digestive system ----------
+DIAG.gut = (v) => {
+  const P = {};
+  const skin = el("g", { "pointer-events": "none" }, v);
+  el("path", { d: "M170 128 L450 128 Q490 133 490 180 L480 520 Q470 552 430 552 L190 552 Q150 552 140 520 L130 180 Q130 133 170 128 Z", fill: "#fbefe2", stroke: "#d8c3a5", "stroke-width": 3 }, skin);
+  el("rect", { x: 288, y: 100, width: 44, height: 34, fill: "#f6dcc4" }, skin);
+  el("circle", { cx: 310, cy: 58, r: 48, fill: "#f6dcc4", stroke: "#c9a27e", "stroke-width": 3 }, skin);
+  for (const x of [292, 328]) el("circle", { cx: x, cy: 48, r: 5, fill: "#5a4130" }, skin);
+  const li = partOf(P, "gut", "liver", v, [215, 210], [80, 200]);
+  el("path", { d: "M160 178 C220 158 300 160 334 182 C340 208 300 236 262 254 C222 270 180 264 166 240 Z", fill: "#8d3b2f", stroke: "#5e2219", "stroke-width": 3 }, li);
+  const ga = partOf(P, "gut", "gall", v, [262, 262], [100, 290]);
+  el("ellipse", { cx: 262, cy: 262, rx: 17, ry: 12, fill: "#7cb342", stroke: "#33691e", "stroke-width": 3 }, ga);
+  hit(P, "gall", 262, 262, 20);
+  const pa = partOf(P, "gut", "pancreas", v, [400, 337], [560, 300]);
+  el("path", { d: "M300 336 C330 326 400 330 442 320 C452 336 422 350 380 350 C340 352 310 354 300 346 Z", fill: "#f5c26b", stroke: "#c79533", "stroke-width": 3 }, pa);
+  const sm = partOf(P, "gut", "small", v, [330, 453], [560, 440]);
+  const sd = "M352 312 C330 330 300 340 300 372 C300 392 270 395 262 405 L398 405 Q412 405 412 417 Q412 429 398 429 L264 429 Q250 429 250 441 Q250 453 264 453 L398 453 Q412 453 412 465 Q412 477 398 477 L238 480";
+  tube(sm, sd, "#f6b98a", 13, "#b8743f");
+  P.small.hits.push([300, 429], [360, 453], [280, 477]);
+  const la = partOf(P, "gut", "large", v, [215, 430], [80, 380]);
+  const ld = "M228 494 L216 396 Q216 370 240 370 L416 370 Q440 370 440 394 L437 470 Q434 500 400 505 L332 507";
+  tube(la, ld, "#d39a64", 28, "#8a5a33");
+  el("path", { d: ld, fill: "none", stroke: "#8a5a33", "stroke-width": 26, "stroke-dasharray": "3 15", opacity: 0.35 }, la);
+  P.large.hits.push([330, 370], [438, 430]);
+  const re = partOf(P, "gut", "rectum", v, [328, 530], [470, 535]);
+  tube(re, "M332 507 L326 546", "#b5794a", 22, "#8a5a33");
+  hit(P, "rectum", 328, 532, 20);
+  const st = partOf(P, "gut", "stomach", v, [420, 250], [560, 210]);
+  el("path", { d: "M342 210 C390 185 455 205 448 262 C442 312 395 332 352 312 C335 304 340 288 360 290 C395 292 410 262 395 240 C382 222 360 222 342 228 Z", fill: "#ef8f86", stroke: "#b0544b", "stroke-width": 3 }, st);
+  hit(P, "stomach", 420, 255, 30);
+  const oe = partOf(P, "gut", "oes", v, [320, 160], [470, 120]);
+  tube(oe, "M310 98 C310 150 318 190 346 220", "#efa49a", 13, "#b0544b");
+  hit(P, "oes", 314, 150, 22);
+  const mo = partOf(P, "gut", "mouth", v, [310, 78], [160, 70]);
+  el("path", { d: "M294 74 Q310 92 326 74 Z", fill: "#b5524a", stroke: "#7a2f28", "stroke-width": 2 }, mo);
+  hit(P, "mouth", 310, 80, 22);
+  return P;
+};
+
+// ---------- Skeleton ----------
+DIAG.skeleton = (v) => {
+  const P = {};
+  const bone = (g, d, w) => {
+    el("path", { d, fill: "none", stroke: BONE_LINE, "stroke-width": w + 5, "stroke-linecap": "round" }, g);
+    el("path", { d, fill: "none", stroke: BONE, "stroke-width": w, "stroke-linecap": "round" }, g);
+  };
+  const ri = partOf(P, "skeleton", "ribs", v, [255, 190], [500, 170]);
+  [46, 58, 64, 66, 62, 54].forEach((w, k) => {
+    const y = 136 + k * 21;
+    bone(ri, `M296 ${y} C${296 - w} ${y - 8} ${300 - w - 12} ${y + 22} ${304 - w} ${y + 34}`, 5);
+    bone(ri, `M304 ${y} C${304 + w} ${y - 8} ${300 + w + 12} ${y + 22} ${296 + w} ${y + 34}`, 5);
+  });
+  P.ribs.hits.push([345, 190], [250, 230], [350, 230]);
+  const cl = el("g", { "pointer-events": "none" }, v);
+  bone(cl, "M296 128 L240 136", 6);
+  bone(cl, "M304 128 L360 136", 6);
+  const sp = partOf(P, "skeleton", "spine", v, [300, 300], [110, 330]);
+  for (let y = 112; y < 330; y += 14) el("rect", { x: 291, y, width: 18, height: 11, rx: 3, fill: BONE, stroke: BONE_LINE, "stroke-width": 2 }, sp);
+  hit(P, "spine", 300, 300, 18);
+  hit(P, "spine", 300, 125, 16);
+  const hu = partOf(P, "skeleton", "humerus", v, [218, 200], [100, 200]);
+  bone(hu, "M230 150 L212 248", 11);
+  bone(hu, "M370 150 L388 248", 11);
+  hit(P, "humerus", 220, 200, 20);
+  hit(P, "humerus", 380, 200, 20);
+  const fo = partOf(P, "skeleton", "forearm", v, [204, 300], [100, 300]);
+  bone(fo, "M207 262 L195 345", 6);
+  bone(fo, "M217 262 L207 345", 6);
+  bone(fo, "M393 262 L405 345", 6);
+  bone(fo, "M383 262 L393 345", 6);
+  hit(P, "forearm", 202, 305, 20);
+  hit(P, "forearm", 398, 305, 20);
+  const hands = el("g", { "pointer-events": "none" }, v);
+  for (const [x, s] of [[200, -1], [400, 1]]) for (let f = 0; f < 4; f++) bone(hands, `M${x + s * (f * 4 - 4)} 352 L${x + s * (f * 6 - 9)} 378`, 3);
+  const pe = partOf(P, "skeleton", "pelvis", v, [300, 345], [500, 320]);
+  el("path", { d: "M240 330 C250 318 285 322 300 334 C315 322 350 318 360 330 C366 352 350 376 330 380 L270 380 C250 376 234 352 240 330 Z", fill: BONE, stroke: BONE_LINE, "stroke-width": 3 }, pe);
+  el("ellipse", { cx: 300, cy: 362, rx: 18, ry: 11, fill: "#fbefe2", stroke: BONE_LINE, "stroke-width": 2 }, pe);
+  const fe = partOf(P, "skeleton", "femur", v, [258, 425], [500, 430]);
+  bone(fe, "M262 384 L256 466", 13);
+  bone(fe, "M338 384 L344 466", 13);
+  hit(P, "femur", 342, 425, 18);
+  const sh = partOf(P, "skeleton", "shin", v, [256, 510], [500, 530]);
+  bone(sh, "M253 484 L250 538", 9);
+  bone(sh, "M263 484 L262 536", 5);
+  bone(sh, "M347 484 L350 538", 9);
+  bone(sh, "M337 484 L338 536", 5);
+  hit(P, "shin", 345, 512, 18);
+  const feet = el("g", { "pointer-events": "none" }, v);
+  bone(feet, "M252 544 L232 548", 7);
+  bone(feet, "M348 544 L368 548", 7);
+  const sk = partOf(P, "skeleton", "skull", v, [300, 60], [500, 50]);
+  el("path", { d: "M300 16 C338 16 344 50 340 74 C337 92 326 96 322 108 L278 108 C274 96 263 92 260 74 C256 50 262 16 300 16 Z", fill: BONE, stroke: BONE_LINE, "stroke-width": 3 }, sk);
+  for (const x of [284, 316]) el("ellipse", { cx: x, cy: 66, rx: 9, ry: 11, fill: "#5a4130" }, sk);
+  el("path", { d: "M296 82 L300 90 L304 82 Z", fill: "#5a4130" }, sk);
+  const joint = (key, pts, r, at, lab) => {
+    const g = partOf(P, "skeleton", key, v, at, lab);
+    for (const [x, y] of pts) {
+      el("circle", { cx: x, cy: y, r, fill: "#fff7e6", stroke: "#c07a2c", "stroke-width": 3 }, g);
+      hit(P, key, x, y, 20);
+    }
+  };
+  joint("shoulder", [[232, 142], [368, 142]], 11, [232, 142], [100, 110]);
+  joint("elbow", [[212, 254], [388, 254]], 9, [212, 254], [100, 255]);
+  joint("hip", [[262, 378], [338, 378]], 11, [338, 378], [500, 380]);
+  joint("knee", [[256, 475], [344, 475]], 10, [344, 475], [500, 478]);
+  return P;
+};
+
+// ---------- Arm: biceps and triceps (bend 0 = straight, 1 = fully bent) ----------
+DIAG.arm = (v, { bend = 0.35 } = {}) => {
+  const P = {};
+  const S = [100, 250];
+  const E = [380, 250];
+  const muscleG = el("g", {}, v);
+  const hu = partOf(P, "arm", "humerus", v, [240, 250], [240, 380]);
+  el("line", { x1: S[0], y1: S[1], x2: E[0], y2: E[1], stroke: BONE_LINE, "stroke-width": 30, "stroke-linecap": "round" }, hu);
+  el("line", { x1: S[0], y1: S[1], x2: E[0], y2: E[1], stroke: BONE, "stroke-width": 24, "stroke-linecap": "round" }, hu);
+  const fo = partOf(P, "arm", "forearm", v, [0, 0], [0, 0]);
+  const fBones = [0, 1].map(() => [el("line", { stroke: BONE_LINE, "stroke-width": 17, "stroke-linecap": "round" }, fo), el("line", { stroke: BONE, "stroke-width": 11, "stroke-linecap": "round" }, fo)]);
+  const hand = el("circle", { r: 26, fill: "#f6dcc4", stroke: "#c9a27e", "stroke-width": 3 }, fo);
+  const fhit = el("line", { stroke: "transparent", "stroke-width": 50 }, fo);
+  const bi = partOf(P, "arm", "biceps", v, [0, 0], [0, 0]);
+  const biP = el("path", { fill: "#d9604f", stroke: "#8e3326", "stroke-width": 3 }, bi);
+  const tr = partOf(P, "arm", "triceps", v, [0, 0], [0, 0]);
+  const trP = el("path", { fill: "#c95747", stroke: "#8e3326", "stroke-width": 3 }, tr);
+  muscleG.append(bi, tr);
+  const te = partOf(P, "arm", "tendon", v, [0, 0], [0, 0]);
+  const teL = el("line", { stroke: "#fffaf0", "stroke-width": 8, "stroke-linecap": "round" }, te);
+  const teO = el("line", { stroke: "#8a7764", "stroke-width": 12, "stroke-linecap": "round" }, te);
+  te.insertBefore(teO, teL);
+  const teHit = el("circle", { r: 22, fill: "transparent" }, te);
+  const sh = partOf(P, "arm", "shoulder", v, S, [100, 120]);
+  el("circle", { cx: S[0], cy: S[1], r: 26, fill: "#fff7e6", stroke: "#c07a2c", "stroke-width": 4 }, sh);
+  const eb = partOf(P, "arm", "elbow", v, E, [380, 380]);
+  el("circle", { cx: E[0], cy: E[1], r: 20, fill: "#fff7e6", stroke: "#c07a2c", "stroke-width": 4 }, eb);
+  const notes = el("g", { "pointer-events": "none" }, v);
+  const lens = (A, B, thick, up) => {
+    const dx = B[0] - A[0];
+    const dy = B[1] - A[1];
+    const L = Math.hypot(dx, dy);
+    const n = up ? [dy / L, -dx / L] : [-dy / L, dx / L];
+    const M = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2];
+    const c1 = [M[0] + n[0] * thick * 2, M[1] + n[1] * thick * 2];
+    const c2 = [M[0] - n[0] * thick * 0.5, M[1] - n[1] * thick * 0.5];
+    return `M${A[0]} ${A[1]} Q${c1[0]} ${c1[1]} ${B[0]} ${B[1]} Q${c2[0]} ${c2[1]} ${A[0]} ${A[1]} Z`;
+  };
+  let showNotes = null;
+  const pose = (b, show) => {
+    if (show !== undefined) showNotes = show;
+    const th = b * 2.0;
+    const d = [Math.cos(th), -Math.sin(th)];
+    const n = [-Math.sin(th), -Math.cos(th)];
+    const Wr = [E[0] + d[0] * 220, E[1] + d[1] * 220];
+    fBones.forEach(([o, i], k) => {
+      const off = k ? -7 : 7;
+      for (const ln of [o, i]) {
+        ln.setAttribute("x1", E[0] + n[0] * off);
+        ln.setAttribute("y1", E[1] + n[1] * off);
+        ln.setAttribute("x2", Wr[0] + n[0] * off);
+        ln.setAttribute("y2", Wr[1] + n[1] * off);
+      }
+    });
+    hand.setAttribute("cx", Wr[0] + d[0] * 22);
+    hand.setAttribute("cy", Wr[1] + d[1] * 22);
+    for (const [k, val] of [["x1", E[0] + d[0] * 30], ["y1", E[1] + d[1] * 30], ["x2", Wr[0]], ["y2", Wr[1]]]) fhit.setAttribute(k, val);
+    const I1 = [E[0] + d[0] * 46 + n[0] * 14, E[1] + d[1] * 46 + n[1] * 14];
+    const O1 = [128, 226];
+    const u = [O1[0] - I1[0], O1[1] - I1[1]];
+    const uL = Math.hypot(...u);
+    const T = [I1[0] + (u[0] / uL) * 48, I1[1] + (u[1] / uL) * 48];
+    biP.setAttribute("d", lens(O1, T, 16 + 26 * b, true));
+    for (const ln of [teL, teO]) {
+      ln.setAttribute("x1", T[0]);
+      ln.setAttribute("y1", T[1]);
+      ln.setAttribute("x2", I1[0]);
+      ln.setAttribute("y2", I1[1]);
+    }
+    teHit.setAttribute("cx", (T[0] + I1[0]) / 2);
+    teHit.setAttribute("cy", (T[1] + I1[1]) / 2);
+    const I2 = [E[0] - d[0] * 16 - n[0] * 20, E[1] - d[1] * 16 - n[1] * 20];
+    trP.setAttribute("d", lens([128, 274], I2, 16 + 26 * (1 - b), false));
+    const bm = [(O1[0] + T[0]) / 2, (O1[1] + T[1]) / 2 - 12 - 14 * b];
+    Object.assign(P.biceps, { at: bm, lab: [bm[0], 60] });
+    Object.assign(P.triceps, { at: [240, 284 + 14 * (1 - b)], lab: [200, 470] });
+    Object.assign(P.tendon, { at: [(T[0] + I1[0]) / 2, (T[1] + I1[1]) / 2], lab: [520, 300] });
+    Object.assign(P.forearm, { at: [E[0] + d[0] * 140, E[1] + d[1] * 140], lab: [520, b > 0.5 ? 120 : 380] });
+    P.forearm.hits = [[E[0] + d[0] * 140, E[1] + d[1] * 140], [E[0] + d[0] * 200, E[1] + d[1] * 200]];
+    P.tendon.hits = [P.tendon.at];
+    P.biceps.hits = [bm];
+    P.triceps.hits = [P.triceps.at];
+    notes.innerHTML = "";
+    if (showNotes === null) return;
+    const tight = showNotes === 1;
+    text(notes, 190, Math.max(40, bm[1] - 52), tight ? "biceps contracted" : "biceps relaxed", { "font-size": 21, fill: tight ? "#b3261e" : "#7a6552" });
+    text(notes, 240, 340 + 18 * (1 - b), tight ? "triceps relaxed" : "triceps contracted", { "font-size": 21, fill: tight ? "#7a6552" : "#b3261e" });
+  };
+  pose(bend);
+  hidden(P, "pose", pose);
+  hidden(P, "notes", notes);
+  return P;
+};
+
+// ---------- Brain, side view (face to the right) ----------
+DIAG.brain = (v) => {
+  const P = {};
+  const sk = partOf(P, "brain", "skull", v, [500, 150], [520, 60]);
+  el("rect", { x: 230, y: 380, width: 110, height: 180, fill: "#f6dcc4", stroke: "#c9a27e", "stroke-width": 3 }, sk);
+  el("path", { d: "M300 28 C440 28 530 110 530 220 C530 260 545 270 560 300 C548 310 535 312 530 330 C528 370 500 390 450 390 L180 392 C110 380 70 300 70 220 C70 110 160 28 300 28 Z", fill: "#f6dcc4", stroke: "#c9a27e", "stroke-width": 4 }, sk);
+  el("path", { d: "M300 46 C425 46 506 118 506 215 C506 300 450 360 300 368 C170 368 92 300 92 215 C92 118 175 46 300 46 Z", fill: "#efe3cf", stroke: BONE_LINE, "stroke-width": 3 }, sk);
+  el("ellipse", { cx: 488, cy: 210, rx: 10, ry: 6, fill: "#5a4130" }, sk);
+  P.skull.hits.push([540, 300], [90, 300], [300, 40]);
+  const ce = partOf(P, "brain", "cerebrum", v, [300, 160], [300, 24]);
+  el("path", { d: blob(300, 195, 182, 120, 1.3), fill: "#f4a6b5", stroke: "#b85a74", "stroke-width": 4 }, ce);
+  for (const [x, y, w] of [[200, 140, 70], [300, 110, 90], [390, 150, 70], [240, 220, 80], [350, 230, 80], [180, 270, 50], [420, 230, 50]])
+    el("path", { d: `M${x - w / 2} ${y} q${w / 8} -18 ${w / 4} 0 t${w / 4} 0 t${w / 4} 0 t${w / 4} 0`, fill: "none", stroke: "#c86b84", "stroke-width": 3 }, ce);
+  const st = partOf(P, "brain", "stem", v, [282, 345], [470, 400]);
+  el("path", { d: "M258 300 L306 300 L300 410 L266 410 Z", fill: "#e7a0ae", stroke: "#b85a74", "stroke-width": 3 }, st);
+  hit(P, "stem", 283, 380, 22);
+  const cb = partOf(P, "brain", "cerebellum", v, [180, 318], [110, 430]);
+  el("ellipse", { cx: 182, cy: 318, rx: 74, ry: 44, fill: "#e98da3", stroke: "#b85a74", "stroke-width": 4 }, cb);
+  for (let k = -2; k <= 2; k++) el("path", { d: `M${130 + Math.abs(k) * 8} ${318 + k * 14} Q182 ${306 + k * 16} ${236 - Math.abs(k) * 8} ${318 + k * 14}`, fill: "none", stroke: "#b85a74", "stroke-width": 2.5 }, cb);
+  const co = partOf(P, "brain", "cord", v, [283, 480], [470, 490]);
+  el("rect", { x: 268, y: 408, width: 30, height: 152, rx: 10, fill: "#f2c46d", stroke: "#c99a3d", "stroke-width": 3 }, co);
+  hit(P, "cord", 283, 470, 22);
+  hit(P, "cord", 283, 530, 22);
+  text(v, 560, 250, "face", { "font-size": 20, fill: "#8a7764", "pointer-events": "none" });
+  return P;
+};
+
+// ---------- Reflex arc ----------
+DIAG.reflex = (v) => {
+  const P = {};
+  const arm = el("g", { "pointer-events": "none" }, v);
+  el("path", { d: "M400 330 C330 360 260 420 180 455", fill: "none", stroke: "#f6dcc4", "stroke-width": 70, "stroke-linecap": "round" }, arm);
+  el("rect", { x: 30, y: 430, width: 100, height: 100, rx: 14, fill: "#dfe6ec", stroke: "#7b8a97", "stroke-width": 4 }, arm);
+  el("path", { d: "M130 455 C160 455 160 495 130 495", fill: "none", stroke: "#7b8a97", "stroke-width": 8 }, arm);
+  for (const x of [55, 80, 105]) el("path", { d: `M${x} 420 q-10 -15 0 -30 t0 -30`, fill: "none", stroke: "#e57373", "stroke-width": 4, "stroke-linecap": "round" }, arm);
+  text(arm, 80, 488, "HOT", { "font-size": 22, fill: "#b3261e" });
+  const co = partOf(P, "reflex", "cord", v, [508, 118], [470, 300]);
+  el("circle", { cx: 470, cy: 170, r: 95, fill: "#f7ead0", stroke: "#c9a86b", "stroke-width": 4 }, co);
+  el("path", { d: "M420 120 C440 140 460 150 470 150 C480 150 500 140 520 120 C530 150 505 165 495 170 C505 175 530 190 520 222 C500 200 480 192 470 192 C460 192 440 200 420 222 C410 190 435 175 445 170 C435 165 410 150 420 120 Z", fill: "#e3c995", stroke: "#b8955a", "stroke-width": 2 }, co);
+  P.cord.hits.push([425, 222], [440, 105]);
+  const brp = partOf(P, "reflex", "brain", v, [470, 40], [560, 30]);
+  el("line", { x1: 470, y1: 74, x2: 470, y2: 22, stroke: "#7e57c2", "stroke-width": 6, "stroke-dasharray": "10 8" }, brp);
+  el("polygon", { points: "458,26 470,6 482,26", fill: "#7e57c2" }, brp);
+  hit(P, "brain", 470, 45, 24);
+  const paths = [];
+  const nerve = (key, d, col, at, lab) => {
+    const g = partOf(P, "reflex", key, v, at, lab);
+    el("path", { d, fill: "none", stroke: "transparent", "stroke-width": 36 }, g);
+    const p = el("path", { d, fill: "none", stroke: col, "stroke-width": 8, "stroke-linecap": "round" }, g);
+    paths.push(p);
+    return g;
+  };
+  const se = nerve("sensory", "M150 470 C250 470 290 160 380 148 L446 150", "#1e6fd9", [255, 330], [110, 300]);
+  el("circle", { cx: 380, cy: 148, r: 13, fill: "#1e6fd9" }, se);
+  nerve("relay", "M446 150 C462 160 470 175 494 202", "#2e9b4f", [468, 172], [600, 150]);
+  const mo = nerve("motor", "M494 202 C540 240 540 320 470 330 C430 336 380 360 330 372", "#e0601f", [520, 280], [590, 420]);
+  el("circle", { cx: 494, cy: 205, r: 12, fill: "#e0601f" }, mo);
+  const ef = partOf(P, "reflex", "effector", v, [310, 380], [300, 500]);
+  el("ellipse", { cx: 310, cy: 382, rx: 70, ry: 28, fill: "#d9604f", stroke: "#8e3326", "stroke-width": 3, transform: "rotate(-22 310 382)" }, ef);
+  for (let k = -2; k <= 2; k++) el("line", { x1: 262, y1: 398 + k * 8, x2: 356, y2: 360 + k * 8, stroke: "#b44a3b", "stroke-width": 2 }, ef);
+  const re = partOf(P, "reflex", "receptor", v, [146, 470], [120, 380]);
+  el("circle", { cx: 146, cy: 470, r: 10, fill: "#ffeb3b", stroke: "#b8860b", "stroke-width": 3 }, re);
+  hit(P, "receptor", 146, 470, 24);
+  for (const p of paths) chevron(p.parentNode, p, 0.55, "#fff");
+  hidden(P, "paths", paths);
+  return P;
+};
+
+// ---------- A neuron ----------
+DIAG.neuron = (v) => {
+  const P = {};
+  const de = partOf(P, "neuron", "dendrites", v, [50, 230], [90, 110]);
+  for (const a of [150, 190, 220, 255, 120, 280]) {
+    const r = (a * Math.PI) / 180;
+    const x1 = 110 + Math.cos(r) * 40;
+    const y1 = 300 + Math.sin(r) * 40;
+    const x2 = 110 + Math.cos(r) * 100;
+    const y2 = 300 + Math.sin(r) * 100;
+    el("path", { d: `M${x1} ${y1} L${x2} ${y2} M${(x1 + x2) / 2 + Math.cos(r) * 10} ${(y1 + y2) / 2 + Math.sin(r) * 10} l${Math.cos(r + 0.7) * 34} ${Math.sin(r + 0.7) * 34} M${x2} ${y2} l${Math.cos(r - 0.6) * 26} ${Math.sin(r - 0.6) * 26}`, fill: "none", stroke: "#d29a3a", "stroke-width": 6, "stroke-linecap": "round" }, de);
+    hit(P, "dendrites", x2, y2, 24);
+  }
+  const ax = partOf(P, "neuron", "axon", v, [174, 300], [330, 400]);
+  el("line", { x1: 150, y1: 300, x2: 530, y2: 300, stroke: "#d29a3a", "stroke-width": 10 }, ax);
+  const my = partOf(P, "neuron", "myelin", v, [282, 300], [330, 200]);
+  for (let x = 190; x < 500; x += 64) {
+    el("rect", { x, y: 284, width: 50, height: 32, rx: 14, fill: "#fff3c4", stroke: "#c9a23d", "stroke-width": 3 }, my);
+    hit(P, "axon", x + 57, 300, 14);
+  }
+  const te = partOf(P, "neuron", "terminals", v, [580, 300], [530, 470]);
+  for (const [x, y] of [[585, 238], [600, 300], [585, 362]]) {
+    el("path", { d: `M530 300 Q560 ${300 + (y - 300) * 0.4} ${x} ${y}`, fill: "none", stroke: "#d29a3a", "stroke-width": 6 }, te);
+    el("circle", { cx: x, cy: y, r: 11, fill: "#f0b54a", stroke: "#a8761f", "stroke-width": 3 }, te);
+    hit(P, "terminals", x, y, 20);
+  }
+  const bo = partOf(P, "neuron", "body", v, [125, 330], [140, 470]);
+  el("circle", { cx: 110, cy: 300, r: 48, fill: "#ffd59a", stroke: "#c78a2c", "stroke-width": 4 }, bo);
+  const nu = partOf(P, "neuron", "nucleus", v, [110, 300], [110, 520]);
+  el("circle", { cx: 110, cy: 300, r: 17, fill: "#8e5bc4", stroke: "#5e3a8c", "stroke-width": 2 }, nu);
+  hit(P, "nucleus", 110, 300, 18);
+  const sig = el("g", { "pointer-events": "none" }, v);
+  el("line", { x1: 220, y1: 240, x2: 470, y2: 240, stroke: "#7a6552", "stroke-width": 4 }, sig);
+  el("polygon", { points: "470,230 490,240 470,250", fill: "#7a6552" }, sig);
+  text(sig, 345, 228, "signal travels this way", { "font-size": 21, fill: "#7a6552" });
+  return P;
+};
+
+// =====================================================================
+// Part information: name, what it does (info), a function clue (🦊), a deeper clue (🦁), and where to look (hint).
+const MEMBRANE = { name: "Cell membrane", info: "A thin, flexible layer around the cell. It controls what enters and leaves, such as water, oxygen and glucose (a sugar).", clue: "Tap the part that controls what enters and leaves the cell.", deep: "Tap the part that lets glucose in but stops the cell's contents leaking out." };
+const CYTO = { name: "Cytoplasm", info: "A jelly-like fluid that fills the cell. Many of the cell's chemical reactions take place here.", clue: "Tap the jelly-like fluid where many chemical reactions happen.", deep: "Tap the fluid in which the organelles (the cell's small working parts) are suspended.", where: "It is the jelly that fills the space between the other parts." };
+const NUC = { name: "Nucleus", info: "The control centre. It holds almost all of the cell's DNA, the coded instructions for building and running the cell.", clue: "Tap the part that holds most of the DNA and controls the cell.", where: "It is a large round structure." };
+const MITO = { name: "Mitochondria", info: "Small structures that release most of the energy stored in glucose, using oxygen. This is aerobic respiration, which happens in every living cell; it is not the same as breathing.", clue: "Tap the parts that release energy from food.", where: "Look for the small sausage shapes with folds inside." };
+const INFO = {
+  animal: {
+    membrane: { ...MEMBRANE, where: "It is the thin outer edge of the whole cell." },
+    cytoplasm: CYTO,
+    nucleus: { ...NUC, deep: "Tap the part, holding almost all the DNA, that a red blood cell pushes out as it matures." },
+    mito: { ...MITO, deep: "Tap the parts you would find in great numbers in a hard-working muscle cell." },
+    ribo: { name: "Ribosomes", info: "Very small structures that build proteins, following instructions copied from the DNA.", clue: "Tap the tiny structures that build proteins.", deep: "Tap the structures that read copied DNA instructions to assemble proteins.", where: "They are the tiny dark dots scattered through the cytoplasm." },
+  },
+  plant: {
+    wall: { name: "Cell wall", info: "A tough outer layer made of cellulose (a strong fibre). It supports the cell and keeps its shape. Animal cells have no cell wall.", clue: "Tap the tough cellulose layer that gives the cell its shape.", deep: "Tap the structure that explains why a plant cell keeps a box-like shape and an animal cell does not.", where: "It is the thick, stiff outer layer." },
+    membrane: { ...MEMBRANE, info: "A thin, flexible layer that controls what enters and leaves. In a plant cell it lies just inside the cell wall.", where: "It is the thin line just inside the thick outer wall." },
+    cytoplasm: CYTO,
+    nucleus: { ...NUC, deep: "Tap the part that holds the instructions for making a new cell." },
+    mito: { ...MITO, deep: "Tap the parts that release energy day and night, even in darkness when no photosynthesis is possible." },
+    chloro: { name: "Chloroplasts", info: "They contain green chlorophyll, which absorbs light energy to make glucose from carbon dioxide and water. This is photosynthesis.", clue: "Tap the parts where photosynthesis happens.", deep: "Tap the parts that a root cell, living in darkness underground, does not have.", where: "Look for the green oval shapes." },
+    vacuole: { name: "Vacuole", info: "A large space filled with cell sap: water with dissolved sugars and salts. When full, it presses outward and keeps the plant firm.", clue: "Tap the large space filled with cell sap.", deep: "Tap the part that shrinks when a plant wilts for lack of water.", where: "It is the big pale-blue space in the centre." },
+  },
+  heart: {
+    ra: { name: "Right atrium", info: "Receives oxygen-poor blood returning from the body through the vena cava.", clue: "Tap the chamber that receives blood returning from the body.", deep: "Tap the first chamber that blood from your toes enters.", where: "Atria (plural of atrium) are the upper chambers. The heart's right side is drawn on your left, as if the person faces you." },
+    rv: { name: "Right ventricle", info: "Pumps oxygen-poor blood to the lungs through the pulmonary artery.", clue: "Tap the chamber that pumps blood to the lungs.", deep: "Tap the chamber that pushes blood into an artery carrying oxygen-poor blood.", where: "Ventricles are the lower chambers. The heart's right side is drawn on your left." },
+    la: { name: "Left atrium", info: "Receives oxygen-rich blood returning from the lungs through the pulmonary veins.", clue: "Tap the chamber that receives blood from the lungs.", deep: "Tap the chamber that the pulmonary veins empty into.", where: "Atria are the upper chambers. The heart's left side is drawn on your right." },
+    lv: { name: "Left ventricle", info: "Pumps oxygen-rich blood to the whole body through the aorta. Its muscular wall is the thickest in the heart, because it pushes blood the farthest.", clue: "Tap the chamber that pumps blood to the whole body.", deep: "Tap the chamber with the thickest muscular wall.", where: "Ventricles are the lower chambers. The heart's left side is drawn on your right." },
+    septum: { name: "Septum", info: "A muscular wall dividing the left and right sides, so oxygen-rich and oxygen-poor blood do not mix.", clue: "Tap the wall that keeps oxygen-rich and oxygen-poor blood apart.", where: "It is the wall down the middle of the heart." },
+    valves: { name: "Valves", info: "Flaps that let blood flow one way only. The heart has four: two between the atria and ventricles (drawn here) and two where blood leaves for the arteries. The 'lub-dub' of a heartbeat is the sound of valves snapping shut.", clue: "Tap the flaps that stop blood flowing backwards.", deep: "Tap the structures whose closing makes the sound of a heartbeat.", where: "They are the small flaps between each atrium and the ventricle below it." },
+    aorta: { name: "Aorta", info: "The largest artery. It carries oxygen-rich blood from the left ventricle out to the body.", clue: "Tap the largest artery, which carries blood to the body.", deep: "Tap the vessel that carries blood at the highest pressure.", where: "It leaves the left ventricle and runs down to the body." },
+    vena: { name: "Vena cava", info: "The largest vein (there are two, upper and lower). It brings oxygen-poor blood from the body back to the right atrium.", clue: "Tap the large vein that brings blood back from the body.", deep: "Tap the vessel that delivers blood to the right atrium.", where: "It comes up from the body into the right atrium." },
+    pa: { name: "Pulmonary artery", info: "Carries oxygen-poor blood from the right ventricle to the lungs. It is an artery because it carries blood away from the heart.", clue: "Tap the vessel carrying blood from the heart to the lungs.", deep: "Tap the artery that carries oxygen-poor blood.", where: "'Pulmonary' means 'of the lungs'. It runs from the right ventricle up to the lungs." },
+    pv: { name: "Pulmonary veins", info: "Carry oxygen-rich blood from the lungs back to the left atrium. They are veins because they carry blood towards the heart.", clue: "Tap the vessels bringing blood from the lungs to the heart.", deep: "Tap the veins that carry oxygen-rich blood.", where: "They run from the lungs down to the left atrium." },
+    lungs: { name: "Lung capillaries", info: "Tiny vessels in the lungs where blood picks up oxygen and gives up carbon dioxide.", clue: "Tap the place where blood picks up oxygen.", deep: "Tap where oxygen-poor blood becomes oxygen-rich.", where: "Look at the top of the diagram." },
+    body: { name: "Body capillaries", info: "Tiny vessels throughout the body where blood delivers oxygen and food to cells and collects carbon dioxide.", clue: "Tap the place where blood delivers oxygen to the cells.", deep: "Tap where oxygen-rich blood becomes oxygen-poor.", where: "Look at the bottom of the diagram." },
+  },
+  vessels: {
+    artery: { name: "Artery", info: "A thick, muscular, stretchy wall withstands the high pressure of each heartbeat. Arteries carry blood away from the heart.", clue: "Tap the vessel with the thickest wall.", deep: "Tap the kind of vessel you feel as a pulse in your wrist.", where: "Look for the thick ring with a small space inside." },
+    vein: { name: "Vein", info: "A thinner wall and a wider space inside. Valves stop the blood flowing backwards. Veins carry blood towards the heart.", clue: "Tap the vessel with a thin wall and a wide space inside.", deep: "Tap the vessel that needs valves because the pressure inside it is low.", where: "Look for the thin ring with a wide space inside." },
+    cap: { name: "Capillary", info: "Its wall is only one cell thick, so oxygen, food and carbon dioxide can pass through. Red blood cells squeeze through in single file.", clue: "Tap the vessel whose wall is one cell thick.", deep: "Tap the only vessel where substances pass between blood and body cells.", where: "Look for the narrow tube with cells in single file." },
+    rbc: { name: "Red blood cells", info: "They carry oxygen using a red protein called haemoglobin. A mature red blood cell has no nucleus, leaving more room for haemoglobin.", clue: "Tap the cells that carry oxygen.", deep: "Tap the cells that have no nucleus.", where: "They are the many red discs." },
+    wbc: { name: "White blood cells", info: "They defend the body against germs: some swallow germs, others make antibodies.", clue: "Tap the cells that fight germs.", deep: "Tap the cells that make antibodies after a vaccination.", where: "They are the larger purple cells." },
+    platelets: { name: "Platelets", info: "Small fragments of cells that help blood to clot and seal a cut.", clue: "Tap the fragments that help blood clot.", deep: "Tap the part of blood that stops a cut from bleeding.", where: "They are the small, irregular purple bits." },
+    plasma: { name: "Plasma", info: "The pale yellow liquid part of blood, mostly water. It carries dissolved food, carbon dioxide, hormones and waste.", clue: "Tap the liquid part of blood.", deep: "Tap the part of blood that carries dissolved glucose.", where: "It is the pale yellow liquid around the cells." },
+  },
+  lungs: {
+    trachea: { name: "Trachea", info: "The windpipe. Rings of cartilage (firm, bendy tissue) hold it open so air can always pass.", clue: "Tap the windpipe.", deep: "Tap the tube held open by rings of cartilage.", where: "It is the tube at the top, with rings." },
+    bronchi: { name: "Bronchi", info: "The trachea divides into two bronchi (singular: bronchus), one leading into each lung.", clue: "Tap the two tubes that lead into the lungs.", deep: "Tap where the airway first divides in two.", where: "They branch left and right from the bottom of the trachea." },
+    bronchioles: { name: "Bronchioles", info: "Smaller and smaller branching tubes inside the lungs, like the twigs of an upside-down tree.", clue: "Tap the small branching tubes inside the lungs.", deep: "Tap the airways that end in air sacs.", where: "They are the thin branching lines inside each lung." },
+    alveoli: { name: "Alveoli", info: "Tiny air sacs at the ends of the bronchioles; an adult has hundreds of millions. Here oxygen passes into the blood.", clue: "Tap the tiny air sacs where gases are exchanged.", deep: "Tap where oxygen leaves the air and enters the blood.", where: "Look for the small bunch of round sacs, like grapes." },
+    lung: { name: "Lungs", info: "Two spongy organs that fill most of the chest. The left lung is a little smaller, leaving room for the heart.", clue: "Tap the spongy organs that fill the chest.", deep: "Tap the organs, one of which is smaller to make room for the heart.", where: "They are the two large pink organs." },
+    diaphragm: { name: "Diaphragm", info: "A dome-shaped sheet of muscle under the lungs. When it contracts it flattens, the chest gets bigger, and air flows in.", clue: "Tap the muscle that flattens when you breathe in.", deep: "Tap the muscle whose sudden spasms cause hiccups.", where: "It is the curved dome beneath the lungs." },
+    ribs: { name: "Ribs", info: "The rib cage protects the lungs and heart. Intercostal muscles between the ribs lift them up and out when you breathe in.", clue: "Tap the bones that protect the lungs.", deep: "Tap the bones that the intercostal muscles move.", where: "They are the curved bones around the chest." },
+  },
+  alveolus: {
+    air: { name: "Alveolus", info: "One air sac. Its wall is only one cell thick and is kept moist, so gases cross it easily.", clue: "Tap the air sac.", deep: "Tap the structure whose wall is one cell thick and moist.", where: "It is the large round sac in the middle." },
+    cap: { name: "Capillary", info: "A tiny blood vessel wrapped around the air sac. Blood arrives oxygen-poor and leaves oxygen-rich.", clue: "Tap the blood vessel wrapped around the air sac.", where: "It is the curved red tube around the sac." },
+    o2: { name: "Oxygen in", ask: "Tap the arrows showing oxygen moving into the blood.", info: "Oxygen diffuses (spreads from where there is more of it to where there is less) from the air in the sac into the blood.", clue: "Tap the arrows showing the gas the blood picks up.", deep: "Tap the gas diffusing outward, from the sac into the blood.", where: "Look for the blue arrows labelled O₂." },
+    co2: { name: "Carbon dioxide out", ask: "Tap the arrows showing carbon dioxide leaving the blood.", info: "Carbon dioxide diffuses from the blood into the air sac, and you breathe it out.", clue: "Tap the arrows showing the waste gas leaving the blood.", deep: "Tap the gas diffusing inward, from the blood into the sac.", where: "Look for the green arrows labelled CO₂." },
+    rbc: { name: "Red blood cells", info: "They pick up oxygen in the lungs and carry it to every cell in the body.", clue: "Tap the cells that carry oxygen away.", where: "They are the discs inside the capillary." },
+    tube: { name: "Bronchiole", info: "The small airway that brings fresh air to the air sac.", clue: "Tap the airway that brings fresh air in.", where: "It is the short tube at the top." },
+  },
+  gut: {
+    mouth: { name: "Mouth", info: "Teeth cut and grind food. Saliva moistens it and contains amylase, an enzyme that starts turning starch into sugar.", clue: "Tap where digestion begins.", deep: "Tap where the digestion of starch begins.", where: "Digestion begins at the very top." },
+    oes: { name: "Oesophagus", info: "The food pipe, about 25 cm long in an adult. Waves of muscle squeezing, called peristalsis, push food down, even if you are upside down.", clue: "Tap the tube that carries food to the stomach.", deep: "Tap the tube where peristalsis first pushes swallowed food along.", where: "It is the tube from the mouth down to the stomach." },
+    stomach: { name: "Stomach", info: "A muscular bag that churns food with acid and an enzyme called pepsin, which starts to digest protein. The acid also kills many germs.", clue: "Tap the organ that churns food with acid.", deep: "Tap the organ in which protein digestion begins.", where: "It is the J-shaped bag on your right side of the picture." },
+    liver: { name: "Liver", info: "The largest organ inside the body. It makes bile, which breaks fat into tiny droplets, and it processes and stores nutrients.", clue: "Tap the organ that makes bile.", deep: "Tap the largest organ inside the body.", where: "It is the large dark-red organ at the top, on your left." },
+    gall: { name: "Gall bladder", info: "A small bag that stores bile from the liver and squeezes it into the small intestine.", clue: "Tap the small bag that stores bile.", deep: "Tap the store that releases bile after a fatty meal.", where: "It is the small green bag tucked under the liver." },
+    pancreas: { name: "Pancreas", info: "Makes digestive enzymes that flow into the small intestine, and the hormone insulin, which controls sugar in the blood.", clue: "Tap the organ that makes enzymes and insulin.", deep: "Tap the organ with two jobs: digestion and controlling blood sugar.", where: "It is the long yellow-orange organ below the stomach." },
+    small: { name: "Small intestine", info: "About 6 to 7 metres long in an adult. Digestion finishes here, and millions of tiny finger-like villi absorb nutrients into the blood.", clue: "Tap where most nutrients are absorbed into the blood.", deep: "Tap the longest part of the digestive system.", where: "It is the long coiled tube in the middle." },
+    large: { name: "Large intestine", info: "About 1.5 metres long but wider than the small intestine. It absorbs water, and trillions of helpful bacteria live here.", clue: "Tap where most of the remaining water is absorbed.", deep: "Tap the part named for its width, not its length.", where: "It forms a frame around the coiled tube." },
+    rectum: { name: "Rectum", info: "The last section. It stores undigested waste until it leaves the body.", clue: "Tap where waste is stored before it leaves the body.", where: "It is at the very end, at the bottom." },
+  },
+  skeleton: {
+    skull: { name: "Skull", info: "Protects the brain. A newborn's skull plates are separate, with soft gaps; they gradually fuse (join) into one strong case.", clue: "Tap the bones that protect the brain.", deep: "Tap the bones that are separate plates in a newborn and later fuse.", where: "It is at the very top." },
+    spine: { name: "Spine", info: "A column of small bones called vertebrae. It holds you upright, lets you bend, and protects the spinal cord.", clue: "Tap the column of bones that protects the spinal cord.", deep: "Tap the bones called vertebrae.", where: "It runs down the middle." },
+    ribs: { name: "Ribs", info: "Twelve pairs of curved bones forming the rib cage, which protects the heart and lungs and moves when you breathe.", clue: "Tap the bones that protect the heart and lungs.", deep: "Tap the bones that the intercostal muscles lift when you breathe in.", where: "They curve around the chest." },
+    pelvis: { name: "Pelvis", info: "A strong bowl of bones that connects the legs to the spine and supports the weight of the upper body.", clue: "Tap the bowl of bones joining the legs to the spine.", deep: "Tap the bone that contains the sockets of the hip joints.", where: "It is the bowl shape at the base of the spine." },
+    femur: { name: "Femur", info: "The thigh bone: the longest and strongest bone in the body.", clue: "Tap the longest bone in the body.", deep: "Tap the bone whose rounded top forms the ball of the hip joint.", where: "It is the long bone of the upper leg." },
+    humerus: { name: "Humerus", info: "The upper-arm bone. Its rounded top fits into a socket in the shoulder blade.", clue: "Tap the upper-arm bone.", deep: "Tap the bone that the biceps and triceps lie along.", where: "It is the bone of the upper arm." },
+    forearm: { name: "Radius and ulna", info: "The two forearm bones. The radius can roll around the ulna, letting you turn your palm up or down.", clue: "Tap the two bones of the forearm.", deep: "Tap the pair of bones that let you turn your palm over.", where: "They run from the elbow to the wrist." },
+    shin: { name: "Tibia and fibula", info: "The two lower-leg bones. The tibia (shinbone) carries most of the body's weight; the thin fibula helps to steady the ankle.", clue: "Tap the two bones of the lower leg.", deep: "Tap the bones that include the shinbone.", where: "They run from the knee to the ankle." },
+    shoulder: { name: "Shoulder joint", info: "A ball-and-socket joint: the round top of the humerus sits in a shallow socket, so the arm can swing in almost any direction.", clue: "Tap a ball-and-socket joint in the arm.", deep: "Tap the most freely moving joint in the body.", where: "It is where the arm joins the body." },
+    hip: { name: "Hip joint", info: "A ball-and-socket joint with a deep socket. It is very stable, but moves less freely than the shoulder.", clue: "Tap a ball-and-socket joint in the leg.", deep: "Tap the ball-and-socket joint with the deeper socket.", where: "It is where the leg joins the pelvis." },
+    elbow: { name: "Elbow joint", info: "A hinge joint: it bends and straightens in one direction, like a door hinge.", clue: "Tap a hinge joint in the arm.", deep: "Tap the joint that the biceps bends.", where: "It is halfway down the arm." },
+    knee: { name: "Knee joint", info: "A hinge joint (it can also twist a little). The kneecap, or patella, protects its front.", clue: "Tap a hinge joint in the leg.", deep: "Tap the joint protected at the front by the patella.", where: "It is halfway down the leg." },
+  },
+  arm: {
+    humerus: { name: "Humerus", info: "The upper-arm bone. Both the biceps and the triceps lie along it.", clue: "Tap the upper-arm bone.", where: "It is the bone of the upper arm." },
+    forearm: { name: "Radius and ulna", info: "The two forearm bones. The biceps pulls on the radius to lift the forearm.", clue: "Tap the bones that the biceps lifts.", where: "They run from the elbow to the hand." },
+    biceps: { name: "Biceps", info: "The muscle on the front of the upper arm. When it contracts (shortens), it pulls the forearm up and the arm bends.", clue: "Tap the muscle that bends the arm.", deep: "Tap the muscle that relaxes as you straighten your arm.", where: "It is on top of the upper arm." },
+    triceps: { name: "Triceps", info: "The muscle on the back of the upper arm. When it contracts, it pulls the forearm down and the arm straightens.", clue: "Tap the muscle that straightens the arm.", deep: "Tap the muscle that relaxes as you lift a cup to your mouth.", where: "It is underneath the upper arm." },
+    tendon: { name: "Tendon", info: "A tough cord that joins a muscle to a bone. When the muscle pulls, the tendon passes the pull to the bone.", clue: "Tap the cord joining muscle to bone.", deep: "Tap the tissue that passes the biceps' pull to the forearm.", where: "Look where the biceps attaches to the forearm." },
+    elbow: { name: "Elbow joint", info: "A hinge joint. It is the pivot of the lever that the biceps pulls.", clue: "Tap the hinge joint.", deep: "Tap the pivot of the forearm lever.", where: "It is where the upper arm meets the forearm." },
+    shoulder: { name: "Shoulder joint", info: "A ball-and-socket joint, where the arm meets the body.", clue: "Tap the ball-and-socket joint.", where: "It is at the far left, where the arm starts." },
+  },
+  brain: {
+    cerebrum: { name: "Cerebrum", info: "The largest part of the brain. It handles thinking, memory, language, the senses and the movements you choose to make.", clue: "Tap the part you use to think and remember.", deep: "Tap the part that controls the movements you choose to make.", where: "It is the large wrinkled part on top." },
+    cerebellum: { name: "Cerebellum", info: "Tucked under the back of the brain. It coordinates movement and balance, so you can walk, ride a bike or catch a ball.", clue: "Tap the part that controls balance.", deep: "Tap the part working hardest as you learn to ride a bike smoothly.", where: "It is the small striped part at the back, underneath." },
+    stem: { name: "Brain stem", info: "Connects the brain to the spinal cord. It controls automatic actions such as breathing and heart rate.", clue: "Tap the part that controls breathing and heart rate.", deep: "Tap the part that keeps you breathing while you sleep.", where: "It is the stalk below the brain." },
+    cord: { name: "Spinal cord", info: "A thick bundle of nerve cells inside the spine. It carries messages between the brain and the body, and handles some reflexes.", clue: "Tap the bundle of nerves that runs down the back.", deep: "Tap the part of the central nervous system outside the skull.", where: "It runs down from the brain stem." },
+    skull: { name: "Skull", info: "Bone that encases and protects the brain. A cushion of fluid around the brain helps to absorb knocks.", clue: "Tap what protects the brain.", where: "It is the outer case of the head." },
+  },
+  reflex: {
+    receptor: { name: "Receptor", info: "Sense cells in the skin detect a stimulus (a change), here heat.", clue: "Tap where the heat is first detected.", deep: "Tap where the stimulus is detected.", where: "Look at the fingertip touching the hot mug." },
+    sensory: { name: "Sensory neuron", info: "Carries the signal from the receptor to the spinal cord.", clue: "Tap the neuron carrying the signal to the spinal cord.", deep: "Tap the neuron whose cell body sits just outside the spinal cord.", where: "It is the blue nerve from the finger." },
+    relay: { name: "Relay neuron", info: "Also called an interneuron. Inside the spinal cord, it passes the signal straight to a motor neuron, without waiting for the brain to decide.", clue: "Tap the neuron linking the other two inside the spinal cord.", deep: "Tap the short link that lets the reflex skip the thinking brain.", where: "It is the short green link inside the spinal cord." },
+    motor: { name: "Motor neuron", info: "Carries the signal from the spinal cord to a muscle.", clue: "Tap the neuron that carries the signal to the muscle.", deep: "Tap the last neuron in the arc.", where: "It is the orange nerve running to the muscle." },
+    effector: { name: "Effector", info: "The muscle that responds. Here it contracts and pulls the hand away from the heat.", clue: "Tap the muscle that responds.", deep: "Tap the part that carries out the response.", where: "It is the muscle in the upper arm." },
+    cord: { name: "Spinal cord", info: "A slice through the spinal cord. The reflex is routed here, close to the body, instead of through the thinking brain.", clue: "Tap where the reflex signal is routed.", where: "It is the round slice at the top right." },
+    brain: { name: "Pathway to the brain", info: "A signal also travels up to the brain. It arrives a moment after the reflex, so you feel the pain after your hand has already moved.", clue: "Tap the path that tells the brain what happened.", deep: "Tap the reason you feel pain only after you have moved.", where: "Follow the dashed line upward." },
+  },
+  neuron: {
+    dendrites: { name: "Dendrites", info: "Short branches that receive signals from other neurons.", clue: "Tap the branches that receive signals.", where: "They are the short branches around the cell body." },
+    body: { name: "Cell body", info: "Contains the nucleus and keeps the neuron alive.", clue: "Tap the part that contains the nucleus.", where: "It is the round part on the left." },
+    nucleus: { name: "Nucleus", info: "Holds the neuron's DNA, like the nucleus of any other cell.", clue: "Tap where the neuron's DNA is kept.", where: "It is the dark spot in the cell body." },
+    axon: { name: "Axon", info: "A long fibre that carries the signal away from the cell body. Some axons are about a metre long, reaching from the spine to the toes.", clue: "Tap the long fibre that carries the signal away.", where: "It is the long thin fibre; tap a gap between the pale segments." },
+    myelin: { name: "Myelin sheath", info: "A fatty coating that insulates the axon. The signal jumps from gap to gap, so it travels much faster.", clue: "Tap the fatty coating that speeds signals up.", where: "They are the pale segments wrapped around the axon." },
+    terminals: { name: "Axon terminals", info: "They pass the signal to the next cell across a tiny gap called a synapse, using chemical messengers.", clue: "Tap where the signal passes to the next cell.", where: "They are the branches at the far right end." },
+  },
+};
+const DIAG_NAME = { animal: "Animal cell", plant: "Plant cell", heart: "Heart", vessels: "Vessels & blood", lungs: "Lungs", alveolus: "Air sac", gut: "Digestive system", skeleton: "Skeleton", arm: "Arm muscles", brain: "Brain", reflex: "Reflex arc", neuron: "Neuron" };
+const DIAG_INTRO = {
+  animal: "An animal cell, greatly magnified and simplified. Tap any part to label it and learn its job.",
+  plant: "A plant cell. Compare it with the animal cell: which parts are new? (Plant cells have ribosomes too; they are left out here.) Tap any part to label it.",
+  heart: "The double circulation, drawn as a simplified plan. The person faces you, so the heart's right side is on your left. Bright red is oxygen-rich blood; dark red is oxygen-poor blood. Blood is never blue. Tap any part to label it.",
+  vessels: "Three kinds of blood vessel, cut across, and a drop of blood under a microscope. Tap any part to label it.",
+  lungs: "The breathing system, seen from the front: the person faces you, so their left lung is on your right. Tap any part to label it.",
+  alveolus: "One air sac (alveolus), greatly magnified, with its capillary. Tap any part to label it.",
+  gut: "The digestive system, seen from the front: the person faces you, so their right side is on your left. Food travels about 8 metres from mouth to end. Tap any organ to label it.",
+  skeleton: "The skeleton: 206 bones in an adult. Tap any bone or joint to label it.",
+  arm: "Muscles can only pull. Press Bend or Straighten below, and watch which muscle contracts. Tap any part to label it.",
+  brain: "The brain, seen from the side, with the face to the right. Tap any part to label it.",
+  reflex: "A reflex arc: what happens when your finger touches something hot. Tap any part to label it.",
+  neuron: "A neuron (nerve cell). Signals travel from left to right. Tap any part to label it.",
+};
+
+// Multiple-choice facts: [question, answer, [wrong answers], hint, why, icon]
+const FACTS = {
+  bd1: {
+    easy: [
+      ["Which part of a cell contains DNA and controls the cell?", "Nucleus", ["Cytoplasm", "Cell membrane", "Vacuole"], "Which part is called the control centre?", "The nucleus holds DNA, the coded instructions for the cell.", "🧬"],
+      ["Which pair of parts is found in plant cells but never in animal cells?", "Cell wall and chloroplasts", ["Nucleus and cytoplasm", "Membrane and mitochondria", "Mitochondria and nucleus"], "Which parts help a plant stay rigid and make its own food?", "Plant cells have a cellulose cell wall and chloroplasts; animal cells have neither. Plant cells also have a large permanent vacuole.", "🌱"],
+      ["Who named cells after looking at cork in 1665?", "Robert Hooke", ["Isaac Newton", "Charles Darwin", "Louis Pasteur"], "He was an English scientist who drew what he saw in a book called Micrographia.", "Robert Hooke saw tiny box-like spaces in cork and called them cells, from the Latin cella, a small room.", "🔬"],
+      ["Which order runs from smallest to largest?", "cell → tissue → organ → system", ["organ → cell → tissue → system", "tissue → cell → system → organ", "system → organ → tissue → cell"], "A tissue is made of many cells. What is an organ made of?", "Cells form tissues, tissues form organs, and organs work together in organ systems.", "🧩"],
+      ["What is a tissue?", "Similar cells working together", ["One very large cell", "A tiny part inside a cell", "A group of organs"], "Muscle tissue is made of many muscle cells.", "A tissue is a group of similar cells doing the same job, such as muscle tissue.", "🧱"],
+      ["Most animal and plant cells are between 10 and 100 … across.", "micrometres (µm)", ["millimetres (mm)", "centimetres (cm)", "metres (m)"], "Most cells are too small to see without a microscope. Which unit is smallest?", "A micrometre is one thousandth of a millimetre, so most cells are far too small to see with the naked eye.", "📏"],
+    ],
+    medium: [
+      ["Do plant cells have mitochondria?", "Yes: they respire too", ["No: chloroplasts replace them", "Only in flowers", "Only at night"], "Plants make glucose by photosynthesis. How do they release the energy stored in it?", "Plant cells contain mitochondria and release energy by respiration, just as animal cells do.", "🌿"],
+      ["Why do root cells have no chloroplasts?", "No light reaches them", ["Roots need no energy", "Chloroplasts are too heavy", "Soil would clog them"], "What do chloroplasts need in order to work?", "Chloroplasts capture light for photosynthesis. Underground there is no light, so root cells do not have them.", "🥕"],
+      ["Which of these is an organ?", "Stomach", ["Muscle cell", "Muscle tissue", "Digestive system"], "An organ is made of several tissues working together.", "The stomach is an organ: it contains muscle tissue, lining tissue and more. The digestive system is a group of organs.", "🧩"],
+      ["Which part releases energy from glucose?", "Mitochondria", ["Nucleus", "Cell wall", "Vacuole"], "Which part carries out respiration?", "Mitochondria release energy from glucose and oxygen in respiration.", "⚡"],
+      ["In the 1670s, who first saw living single-celled organisms, through lenses he made himself?", "Antonie van Leeuwenhoek", ["Robert Hooke", "William Harvey", "Galileo Galilei"], "He was a Dutch cloth merchant who ground remarkably powerful lenses.", "Antonie van Leeuwenhoek described tiny living 'animalcules' in water in the 1670s.", "🔎"],
+      ["A cell has a wall and a nucleus but no chloroplasts. What could it be?", "A plant root cell", ["A human cheek cell", "A red blood cell", "A human muscle cell"], "Which cells have walls? And which of those live in the dark?", "Of these, only a plant cell has a wall; a root cell lacks chloroplasts because it lives in darkness.", "🧐"],
+      ["What does the cell membrane do?", "Controls what enters and leaves", ["Makes the cell green", "Stores the DNA", "Makes the cell rigid"], "Think of a gatekeeper.", "The membrane lets useful substances in and waste out, while keeping the cell's contents inside.", "🚪"],
+    ],
+    hard: [
+      ["Which of your cells has no nucleus when mature?", "Red blood cell", ["Nerve cell", "White blood cell", "Muscle cell"], "Which cell needs as much room as possible for one oxygen-carrying protein?", "A mature red blood cell loses its nucleus, making more room for haemoglobin, which carries oxygen.", "🩸"],
+      ["Cell theory states that new cells come from…", "existing cells dividing", ["non-living matter", "the air", "the food we eat"], "Think about how a cut on your skin heals.", "All cells come from pre-existing cells by division. This is one of the three ideas of cell theory.", "🔁"],
+      ["Why do muscle cells contain many mitochondria?", "They need much energy", ["They store water", "They make proteins for others", "They need extra DNA"], "What do mitochondria do, and what does a working muscle use a lot of?", "Contracting muscles use energy rapidly, and mitochondria release it from glucose.", "💪"],
+      ["A cheek cell is stained with a dye. Which part shows up darkest?", "The nucleus", ["The cytoplasm", "The membrane", "The cell wall"], "Stains such as methylene blue bind strongly to DNA. Where is the DNA?", "Common stains bind to DNA, so the nucleus appears as a dark spot. (A cheek cell has no wall at all.)", "🎨"],
+      ["Hooke saw empty boxes in cork. Why were they empty?", "The cells were dead", ["Cells are always empty", "His microscope was faulty", "Living cells hold only air"], "Cork is bark. Is it living?", "Cork is made of dead plant cells; their contents had gone, leaving only the walls that Hooke saw.", "🍾"],
+      ["Which statement is best supported by evidence?", "All living things are made of cells", ["Only animals are made of cells", "Only plants are made of cells", "Viruses are made of cells"], "Think of bacteria, plants, fungi and animals. Are viruses cells?", "Every organism studied, from bacteria to whales, is made of one or more cells. Viruses are not cells at all.", "🔬"],
+    ],
+  },
+  bd2: {
+    easy: [
+      ["How many chambers does the human heart have?", "4", ["2", "3", "6"], "Count two upper chambers and two lower ones.", "Two atria on top and two ventricles below: four chambers.", "🫀"],
+      ["Arteries carry blood…", "away from the heart", ["towards the heart", "only to the lungs", "only to the brain"], "A for artery, A for away.", "Arteries carry blood away from the heart; veins carry it back.", "➡️"],
+      ["Which side of the heart pumps blood to the lungs?", "The right side", ["The left side", "Both sides equally", "Neither side"], "Blood returning from the body enters which atrium?", "Blood from the body enters the right side, which pumps it to the lungs.", "🫁"],
+      ["What colour is the blood inside your veins?", "Dark red", ["Blue", "Green", "Clear"], "Think of blood taken from a vein for a blood test.", "Blood is always red. Oxygen-poor blood is darker red; veins only look bluish through skin because of how skin scatters light.", "🩸"],
+      ["Which blood cells carry oxygen?", "Red blood cells", ["White blood cells", "Platelets", "Plasma"], "What gives blood its colour?", "Red blood cells contain haemoglobin, which carries oxygen.", "🔴"],
+      ["In 1628, who showed that the heart pumps blood round the body in a circuit?", "William Harvey", ["Robert Hooke", "Galen", "Isaac Newton"], "He was physician to King Charles I of England.", "William Harvey published his evidence for the circulation of the blood in 1628.", "📜"],
+    ],
+    medium: [
+      ["Why is the left ventricle's wall thicker than the right's?", "It pumps blood round the body", ["It holds more blood", "It pumps blood to the lungs", "It receives blood from the body"], "Which journey is longer: to the lungs or to the toes?", "The left ventricle must push blood around the entire body, which needs more force than the short trip to the lungs.", "💪"],
+      ["Why is human circulation called double?", "Blood passes the heart twice per circuit", ["We have two hearts", "Blood flows both ways at once", "Each vessel has two walls"], "Trace one full loop: body → heart → ? → heart → body.", "Blood goes heart → lungs → heart → body → heart: it passes through the heart twice in one complete circuit.", "🔁"],
+      ["What do heart valves do?", "Stop blood flowing backwards", ["Make blood red", "Add oxygen to blood", "Speed up the heartbeat"], "Think of a one-way door.", "Valves open in one direction only, keeping blood moving forwards.", "🚪"],
+      ["Which vessels have walls only one cell thick?", "Capillaries", ["Arteries", "Veins", "The aorta"], "Where must oxygen pass out of the blood into cells?", "Capillary walls are one cell thick, so substances can pass between blood and cells.", "🧵"],
+      ["Blood leaves the right ventricle. Where does it go next?", "Pulmonary artery, to the lungs", ["Aorta, to the body", "Vena cava", "Left atrium"], "The right side handles oxygen-poor blood. Where must it go to collect oxygen?", "Right ventricle → pulmonary artery → lungs.", "🗺️"],
+      ["Which part of blood helps it to clot?", "Platelets", ["Red blood cells", "Plasma", "Haemoglobin"], "They are small fragments of cells.", "Platelets gather at a wound and help form a clot.", "🩹"],
+    ],
+    hard: [
+      ["Which artery carries oxygen-poor blood?", "Pulmonary artery", ["Aorta", "Coronary artery", "Every artery"], "Arteries are defined by direction, not by oxygen.", "The pulmonary artery carries blood away from the heart to the lungs, before it has picked up oxygen.", "🧠"],
+      ["Which vein carries oxygen-rich blood?", "Pulmonary vein", ["Vena cava", "Every vein", "No vein ever does"], "Which veins come from the place where blood gains oxygen?", "Pulmonary veins carry freshly oxygenated blood from the lungs to the heart.", "🧠"],
+      ["In diagrams, why is the heart's right side drawn on your left?", "We draw the person facing us", ["The heart is on the right", "It is a random custom", "The right side is smaller"], "Face a friend. Which side of their body is opposite your left hand?", "Anatomical diagrams show the body facing you, so its right side appears on your left.", "🪞"],
+      ["Harvey argued that blood circulates, rather than being made fresh from food. His key evidence?", "Blood pumped per hour outweighs the body", ["He saw capillaries", "An ancient book said so", "Blood is red"], "Harvey used calculation. Compare how much blood is pumped with how much food we eat.", "Harvey estimated that the blood pumped in an hour weighed more than a person. No body could make that much from food, so the same blood must go round and round.", "🧮"],
+      ["Why do many veins have valves?", "Blood pressure in veins is low", ["Blood in veins moves fastest", "Veins carry oxygen-rich blood", "Valves make blood red"], "Think of blood in your legs, which must rise up to the heart.", "With low pressure, blood in the legs could sink backwards; valves keep it moving towards the heart.", "🦵"],
+      ["A blood test shows very few platelets. What problem might follow?", "Cuts slow to stop bleeding", ["Shortness of breath", "Poor eyesight", "Weak bones"], "What job do platelets do?", "Platelets help blood to clot, so too few can make cuts bleed for longer.", "🩺"],
+    ],
+  },
+  bd3: {
+    easy: [
+      ["Which gas does your body need from the air?", "Oxygen", ["Carbon dioxide", "Helium", "Neon"], "Your cells use it to release energy from food.", "Your cells need oxygen for respiration.", "🌬️"],
+      ["Which waste gas do you breathe out?", "Carbon dioxide", ["Oxygen", "Hydrogen", "Helium"], "It is made in your cells during respiration.", "Respiration produces carbon dioxide, which your blood carries to the lungs to be breathed out.", "💨"],
+      ["What is the trachea?", "The windpipe", ["The food pipe", "A lung", "A muscle under the lungs"], "It is the tube with rings in your neck.", "The trachea, or windpipe, carries air to the lungs.", "🫁"],
+      ["Which order does air follow on its way in?", "trachea → bronchi → bronchioles → alveoli", ["alveoli → bronchi → trachea → bronchioles", "bronchi → trachea → alveoli → bronchioles", "bronchioles → alveoli → trachea → bronchi"], "Start with the widest tube and finish in the tiniest sacs.", "Air passes down the trachea, into two bronchi, through branching bronchioles, and into the alveoli.", "🌳"],
+      ["Which muscle under the lungs helps you breathe?", "Diaphragm", ["Biceps", "Heart", "Stomach"], "It is shaped like a dome.", "The diaphragm contracts and flattens to draw air into the lungs.", "⛺"],
+      ["Where does oxygen pass into the blood?", "In the alveoli", ["In the trachea", "In the stomach", "In the heart"], "Look for the tiniest air sacs.", "Gas exchange happens across the thin walls of the alveoli.", "🫧"],
+    ],
+    medium: [
+      ["When you breathe in, the diaphragm…", "contracts and flattens", ["relaxes and domes up", "stops moving", "pushes the lungs up"], "A contracting muscle shortens. What happens to a dome when its muscle shortens?", "The diaphragm contracts and flattens, making the chest larger so that air flows in.", "⬇️"],
+      ["Why are the walls of the alveoli so thin?", "Gases diffuse a short distance", ["To make lungs lighter", "To keep germs out", "To hold more blood"], "How far must oxygen travel to reach the blood?", "A wall one cell thick gives gases the shortest possible distance to diffuse.", "🫧"],
+      ["Breathing and respiration: which is true?", "Respiration releases energy in cells", ["They are the same thing", "Respiration happens only in lungs", "Breathing happens in mitochondria"], "Where do mitochondria work?", "Breathing moves air in and out of the lungs; respiration releases energy inside every living cell.", "⚡"],
+      ["Diffusion means particles spread…", "from crowded to less crowded", ["from cold to hot only", "from less crowded to crowded", "only through tubes"], "Think of a drop of food colouring in water.", "In diffusion, particles spread from where they are more concentrated to where they are less concentrated.", "🫗"],
+      ["Why does your breathing speed up when you run?", "Muscles need more oxygen", ["The lungs get hotter", "The heart stops", "To cool the stomach"], "What do working muscles use, and what do they produce?", "Working muscles respire faster: they need more oxygen and produce more carbon dioxide.", "🏃"],
+      ["About what share of ordinary air is oxygen?", "About 21%", ["About 78%", "About 50%", "About 1%"], "Most of the air, about 78%, is nitrogen.", "Air is about 78% nitrogen and about 21% oxygen.", "🌍"],
+    ],
+    hard: [
+      ["Why do lungs have hundreds of millions of tiny alveoli instead of one big sac?", "Far more surface area", ["Fewer germs", "Lighter lungs", "Easier to cough"], "Compare the surface of one big balloon with that of many tiny ones holding the same air.", "Many tiny sacs give a vastly greater surface area, so far more oxygen can diffuse at once.", "🫧"],
+      ["When your chest gets bigger, why does air rush in?", "Pressure inside falls below outside", ["Lungs suck like a pump", "The nose blows it in", "Oxygen is pulled by blood"], "More space for the same air means lower pressure.", "A larger chest lowers the air pressure inside the lungs; air flows in from the higher pressure outside.", "🎈"],
+      ["Why does the trachea need rings of cartilage?", "To stop it collapsing", ["To make sounds", "To trap dust", "To carry food"], "What would happen to a soft tube when air pressure inside it drops?", "The cartilage rings keep the airway open as pressure changes during breathing.", "⭕"],
+      ["Exhaled air still contains about 16% oxygen. What does this show?", "Only part of the oxygen is absorbed", ["The lungs make oxygen", "Breathing is useless", "All oxygen is used each breath"], "Inhaled air holds about 21% oxygen. Compare.", "About 5 of every 21 parts of oxygen are absorbed; the rest is breathed out again.", "🔍"],
+      ["What are hiccups?", "Sudden spasms of the diaphragm", ["A stomach infection", "Extra heartbeats", "A lung disease"], "Which breathing muscle can twitch on its own?", "Hiccups are sudden, involuntary contractions of the diaphragm, followed by the vocal cords snapping shut.", "😮"],
+      ["Inhaled air is about 0.04% carbon dioxide; exhaled air about 4%. How many times more?", "About 100 times", ["About 4 times", "About 10 times", "About 1,000 times"], "Divide 4 by 0.04.", "4 ÷ 0.04 = 100, so exhaled air holds about 100 times as much carbon dioxide.", "🧮"],
+    ],
+  },
+  bd4: {
+    easy: [
+      ["Where does digestion begin?", "Mouth", ["Stomach", "Small intestine", "Liver"], "Where does food enter the body?", "Digestion begins in the mouth: teeth break food up and saliva starts digesting starch.", "👄"],
+      ["Which organ absorbs most nutrients into the blood?", "Small intestine", ["Large intestine", "Stomach", "Oesophagus"], "It is the longest part, with millions of villi.", "Most nutrients are absorbed through the villi of the small intestine.", "🌀"],
+      ["What does the large intestine mainly absorb?", "Water", ["Protein", "Bile", "Oxygen"], "What is left once the nutrients have gone?", "The large intestine absorbs water from the undigested remains.", "💧"],
+      ["What is the oesophagus?", "The food pipe", ["The windpipe", "A bone", "Part of the liver"], "It leads to the stomach.", "The oesophagus carries swallowed food from the mouth to the stomach.", "⬇️"],
+      ["Which order is correct? (M mouth, O oesophagus, S stomach, SI small intestine, LI large intestine)", "M → O → S → SI → LI", ["M → S → O → LI → SI", "O → M → S → SI → LI", "M → O → SI → S → LI"], "Food must reach the stomach before the intestines.", "Mouth → oesophagus → stomach → small intestine → large intestine.", "🗺️"],
+      ["About how long is the small intestine in an adult?", "About 6–7 metres", ["About 6–7 centimetres", "About 60 metres", "About 1 metre"], "It is much longer than a person is tall, folded up inside.", "The small intestine is about 6 to 7 metres long in an adult, coiled to fit inside the abdomen.", "📏"],
+    ],
+    medium: [
+      ["What does amylase in saliva do?", "Starts breaking starch into sugar", ["Kills all germs", "Digests fat", "Absorbs water"], "Amylase works on starch.", "Amylase is an enzyme that breaks starch into sugars.", "🍞"],
+      ["What is an enzyme?", "A protein that speeds up a reaction", ["A kind of vitamin", "A kind of bacterium", "A digestive organ"], "Enzymes make digestion happen fast enough to be useful.", "Enzymes are proteins that speed up chemical reactions, such as breaking large food molecules into small ones.", "⚙️"],
+      ["Which organ makes bile?", "Liver", ["Gall bladder", "Pancreas", "Stomach"], "Careful: one organ makes it and another stores it.", "The liver makes bile; the gall bladder stores it.", "🟢"],
+      ["What does bile do to fat?", "Breaks it into tiny droplets", ["Turns it into sugar", "Absorbs it", "Makes it solid"], "Think of washing-up liquid on a greasy pan.", "Bile breaks fat into tiny droplets, giving the enzyme lipase much more surface to work on.", "🫧"],
+      ["What are villi for?", "More surface for absorption", ["Grinding food", "Making acid", "Storing bile"], "They are millions of tiny finger-like folds.", "Villi greatly increase the surface area of the small intestine, so nutrients are absorbed quickly.", "🖐️"],
+      ["What is peristalsis?", "Waves of muscle squeezing food along", ["A digestive enzyme", "A kind of tooth", "Stomach acid"], "Think of squeezing toothpaste along a tube.", "Peristalsis is a wave of muscle contraction that pushes food through the gut.", "〰️"],
+    ],
+    hard: [
+      ["Why can you swallow while standing on your head?", "Peristalsis pushes food along", ["Gravity still helps", "The stomach sucks food in", "You cannot"], "Is gravity needed, or do muscles do the work?", "Peristalsis, not gravity, moves food along the oesophagus, so swallowing works upside down.", "🙃"],
+      ["The large intestine is shorter than the small. Why is it called large?", "It is wider", ["It is heavier", "It is older", "It holds more blood"], "Large in which dimension?", "The large intestine is about 1.5 m long but wider than the small intestine.", "↔️"],
+      ["The pancreas has two quite different jobs. Which pair?", "Digestive enzymes and insulin", ["Bile and acid", "Saliva and mucus", "Blood cells and bone"], "One job is digestion; the other controls blood sugar.", "The pancreas makes digestive enzymes and the hormone insulin, which controls blood sugar.", "🧪"],
+      ["Lipase breaks fats into…", "fatty acids and glycerol", ["amino acids", "glucose", "starch"], "Lip- means fat. Amino acids come from proteins.", "Lipase breaks fats into fatty acids and glycerol, small enough to be absorbed.", "🧈"],
+      ["Besides helping pepsin work, what does stomach acid do?", "Kills many germs in food", ["Absorbs water", "Makes bile", "Digests fibre"], "Food is not sterile. What protects you?", "Stomach acid kills many of the microbes swallowed with food.", "🛡️"],
+      ["Why does bread taste sweeter if you chew it for a long time?", "Amylase turns starch to sugar", ["Bread contains hidden honey", "Teeth make sugar", "Saliva is sugary"], "Bread is mostly starch. Which enzyme acts on starch?", "Amylase in saliva breaks starch into sugars, which taste sweet.", "🍞"],
+    ],
+  },
+  bd5: {
+    easy: [
+      ["How many bones does an adult human have?", "206", ["106", "300", "26"], "It is a little over two hundred.", "An adult skeleton has 206 bones.", "🦴"],
+      ["A newborn has about 270–300 bones. Why do adults have fewer?", "Some bones fuse together", ["Bones fall out", "Babies have extra fingers", "Bones dissolve"], "Think of a baby's skull plates.", "As a child grows, some bones fuse (join), for example the plates of the skull.", "👶"],
+      ["Which joint is a hinge joint?", "Elbow", ["Shoulder", "Hip", "Neck"], "A hinge bends one way, like a door.", "The elbow bends and straightens in one direction only: a hinge joint.", "🚪"],
+      ["Which joint is a ball-and-socket joint?", "Hip", ["Knee", "Elbow", "Finger"], "It lets the leg swing in many directions.", "The hip and shoulder are ball-and-socket joints.", "⚾"],
+      ["Muscles can only…", "pull", ["push", "push and pull", "twist"], "A muscle contracts, which means it shortens.", "A muscle contracts (shortens) and pulls; it cannot push.", "💪"],
+      ["What is the longest bone in the body?", "Femur", ["Humerus", "Spine", "Stapes"], "It is in the thigh.", "The femur, or thigh bone, is the longest and strongest bone.", "📏"],
+      ["Which bones protect the brain?", "Skull", ["Ribs", "Pelvis", "Femur"], "Think of a helmet made of bone.", "The skull encases and protects the brain.", "🪖"],
+    ],
+    medium: [
+      ["When the biceps contracts, the triceps…", "relaxes", ["contracts too", "pushes", "locks"], "They are a pair that work against each other.", "In an antagonistic pair, one muscle contracts while the other relaxes.", "↕️"],
+      ["Which muscle contracts to straighten your arm?", "Triceps", ["Biceps", "Diaphragm", "Heart"], "Which muscle pulls on the back of the elbow?", "The triceps contracts and pulls the forearm straight.", "💪"],
+      ["What joins bone to bone at a joint?", "Ligaments", ["Tendons", "Nerves", "Veins"], "Tendons join muscle to bone.", "Ligaments are tough bands joining bone to bone; tendons join muscle to bone.", "🔗"],
+      ["Where are many blood cells made?", "In bone marrow", ["In the stomach", "In the skin", "In the lungs"], "Look inside the bones.", "Red bone marrow, inside many bones, makes blood cells.", "🦴"],
+      ["Why do muscles work in antagonistic (opposing) pairs?", "Each can only pull", ["They are lazy", "One is always broken", "Bones push them"], "If a muscle cannot push, how does a bent arm straighten again?", "Because each muscle can only pull, a second muscle is needed to pull the bone back the other way.", "↔️"],
+      ["What kind of muscle is the heart made of?", "Cardiac muscle", ["Skeletal muscle", "Smooth muscle", "Bone"], "Cardio- means heart.", "The heart is cardiac muscle, which contracts all your life without tiring.", "🫀"],
+      ["What is the smallest bone in the body?", "Stapes, in the ear", ["Kneecap", "Little toe bone", "A wrist bone"], "It helps you hear.", "The stapes, in the middle ear, is about 3 mm long.", "👂"],
+    ],
+    hard: [
+      ["Why is the hip joint more stable than the shoulder?", "Its socket is deeper", ["It has no ligaments", "It is a hinge", "It is made of cartilage"], "Compare a ball in a deep cup with a ball on a saucer.", "The hip's deep socket holds the ball firmly; the shoulder's shallow socket trades stability for range of movement.", "⚖️"],
+      ["More than half of all your bones are in…", "your hands and feet", ["your skull", "your spine", "your ribs"], "Each hand has 27 bones and each foot 26.", "27 + 27 + 26 + 26 = 106, which is more than half of 206.", "🖐️"],
+      ["Where on the forearm is the biceps tendon attached?", "Just below the elbow", ["At the wrist", "At the fingertips", "On the humerus"], "A muscle must cross a joint to move it. Which bone does the biceps lift?", "The biceps attaches to the radius just below the elbow, so a small shortening swings the hand a long way.", "📐"],
+      ["Bones contain living cells. Which observation is evidence for this?", "A broken bone heals", ["Bones are white", "Bones are hard", "Bones are heavy"], "Which observation needs living cells to explain it?", "Healing requires living cells that build new bone; colour, hardness and weight do not show life.", "🔍"],
+      ["Which statement is true?", "Smooth muscle works without your choosing", ["You decide when your gut squeezes", "The heart is skeletal muscle", "Smooth muscle moves your arm"], "Do you decide when to digest your lunch?", "Smooth muscle, in organs such as the gut, works automatically; skeletal muscle moves when you choose.", "🧠"],
+      ["A baby's skull has soft gaps between its plates. What is one advantage?", "The skull can grow with the brain", ["It makes the baby lighter", "It improves eyesight", "It keeps the brain cool"], "The brain grows enormously in the first years of life.", "The gaps let the skull enlarge as the brain grows; the plates fuse later.", "👶"],
+    ],
+  },
+  bd6: {
+    easy: [
+      ["The brain and spinal cord together are called…", "the central nervous system", ["the digestive system", "the skeleton", "the circulatory system"], "Central means in the middle, in charge.", "The brain and spinal cord form the central nervous system.", "🧠"],
+      ["Nerve signals are…", "electrical impulses", ["sound waves", "drops of blood", "beams of light"], "They travel along neurons very fast.", "Neurons carry tiny electrical impulses, made by charged particles (ions) moving in and out across the neuron's membrane. Between neurons, chemicals carry the signal.", "⚡"],
+      ["Which sense organ detects light?", "Eye", ["Ear", "Tongue", "Nose"], "Which organ do you close at night?", "The eye detects light.", "👁️"],
+      ["Which part of the brain coordinates balance?", "Cerebellum", ["Cerebrum", "Brain stem", "Spinal cord"], "It is the small part at the back, underneath.", "The cerebellum coordinates balance and smooth movement.", "🤸"],
+      ["Pulling your hand from a hot pan before you think is called…", "a reflex", ["a habit", "a memory", "a dream"], "It is automatic and very fast.", "A reflex is a fast, automatic response that protects you.", "🔥"],
+      ["What protects the spinal cord?", "The spine", ["The ribs", "The skull", "The pelvis"], "The cord runs inside a column of bones.", "The vertebrae of the spine surround and protect the spinal cord.", "🦴"],
+    ],
+    medium: [
+      ["Which order is a reflex arc?", "receptor → sensory → relay → motor → muscle", ["muscle → motor → brain → receptor", "sensory → receptor → muscle → relay", "brain → receptor → motor → relay"], "Begin where the stimulus is detected.", "Receptor → sensory neuron → relay neuron → motor neuron → effector muscle.", "🔁"],
+      ["Why is a reflex faster than a decision?", "It skips the thinking brain", ["Reflex nerves are thicker", "Reflexes use blood", "Decisions use the spine"], "Where is the signal routed in a reflex?", "The signal is routed through the spinal cord, so there is no wait for the thinking brain to decide.", "⏱️"],
+      ["Which part of the brain controls breathing and heart rate?", "Brain stem", ["Cerebrum", "Cerebellum", "Skull"], "These happen automatically, even in sleep.", "The brain stem controls automatic actions such as breathing and heart rate.", "💤"],
+      ["Which of these is also a true sense, beyond the famous five?", "Balance", ["Luck", "Memory", "Kindness"], "Which one has its own sense organ, in the inner ear?", "Balance is sensed by the inner ear. Scientists count further senses too, such as temperature and the position of your limbs.", "🧭"],
+      ["Which neuron carries signals from the spinal cord to a muscle?", "Motor neuron", ["Sensory neuron", "Relay neuron", "Receptor"], "Motor means to do with movement.", "Motor neurons carry signals to muscles, causing movement.", "🏃"],
+      ["About how many neurons are in a human brain?", "About 86 billion", ["About 86 thousand", "About 86 million", "About 86 trillion"], "It is an immense number, more than ten times the number of people on Earth.", "Careful counts estimate about 86 billion neurons in an adult human brain.", "🔢"],
+    ],
+    hard: [
+      ["What does the myelin sheath do?", "Insulates the axon and speeds signals", ["Makes neurons grow", "Stores memories", "Produces blood"], "Think of the plastic coating on an electric wire.", "Myelin insulates the axon; signals jump between the gaps and travel much faster.", "⚡"],
+      ["What is a synapse?", "A tiny gap crossed by chemicals", ["A kind of brain cell", "A bone in the ear", "A blood vessel"], "How does a signal pass from one neuron to the next?", "A synapse is a tiny gap between neurons; chemical messengers carry the signal across.", "🔀"],
+      ["Claim: 'We use only 10% of our brains.' What does the evidence show?", "False: scans show activity everywhere", ["True: 90% is spare", "True for children only", "It cannot be tested"], "Brain scans record which areas are active. What do they show over a day?", "Brain scans show activity in every region over the course of a day. The 10% claim is a myth.", "🔍"],
+      ["You touch a hot pan. Why do you feel pain just after your hand has moved?", "The reflex acts before the brain knows", ["Pain signals are lost", "The hand feels nothing", "The muscle feels it first"], "Which route is shorter: to the spinal cord, or all the way to the brain?", "The reflex is routed through the spinal cord; the signal reaching the brain, which produces the feeling, arrives a moment later.", "🔥"],
+      ["After a spinal cord injury in the neck, why might the legs be affected?", "Brain-to-leg signals pass through it", ["The legs have no nerves", "The neck controls blood", "The legs need the skull"], "Trace a signal from the brain to a toe.", "Signals between the brain and the legs travel through the spinal cord, so damage above blocks them.", "🧠"],
+      ["What is special about the knee-jerk reflex?", "It needs only two neurons", ["The cerebrum controls it", "It needs the eyes", "It is learned"], "Does it need a relay neuron?", "In the knee-jerk reflex, a sensory neuron connects directly to a motor neuron in the spinal cord: no relay neuron is needed.", "🦵"],
+    ],
+  },
+  bd7: {
+    easy: [
+      ["How long should you wash your hands with soap?", "At least 20 seconds", ["2 seconds", "5 minutes", "No soap is needed"], "About as long as singing 'Happy Birthday' twice.", "Scrubbing with soap for at least 20 seconds removes most germs.", "🧼"],
+      ["About how much sleep do children aged 6 to 12 need each night?", "9 to 12 hours", ["4 to 5 hours", "6 to 7 hours", "15 to 18 hours"], "It is more than adults need.", "The American Academy of Sleep Medicine recommends 9 to 12 hours a night for children aged 6 to 12.", "😴"],
+      ["How much moderate-to-vigorous activity (enough to make you breathe harder) do children need each day?", "At least 60 minutes", ["5 minutes", "None", "8 hours"], "About one hour.", "The World Health Organization recommends an average of at least 60 minutes of moderate-to-vigorous activity a day for ages 5 to 17.", "🏃"],
+      ["Which nutrient is mainly used for growth and repair?", "Protein", ["Sugar", "Fat", "Water"], "Muscles are built mostly from it.", "Proteins supply the building blocks (amino acids) for growth and repair.", "🥚"],
+      ["What causes a common cold?", "A virus", ["Getting wet", "A bacterium", "Eating ice cream"], "It is a germ too small to see with an ordinary microscope.", "Colds are caused by viruses, which spread from person to person.", "🤧"],
+      ["What does a vaccine teach your body?", "To recognise a germ quickly", ["To grow taller", "To digest faster", "To need less sleep"], "It trains the immune system.", "A vaccine trains your immune system to recognise a germ, so it can respond quickly if the real germ arrives.", "💉"],
+      ["Which mineral helps build strong bones and teeth?", "Calcium", ["Iron", "Salt", "Sugar"], "Milk and cheese are rich in it.", "Calcium is a main mineral in bones and teeth.", "🥛"],
+    ],
+    medium: [
+      ["Why does soap work better than water alone?", "It lifts grease and germs off", ["It is colder", "It smells pleasant", "It hardens skin"], "Germs cling to the oils on your skin. Can water alone wash oil away?", "Soap molecules grip both oil and water, so oily dirt and germs are lifted off and rinsed away. Soap also breaks apart the fatty outer layer of many viruses.", "🧼"],
+      ["Antibiotics are medicines that work against…", "bacteria", ["viruses", "all germs", "only pain"], "Is a cold caused by a bacterium?", "Antibiotics kill bacteria or stop them growing; they do not work against viruses.", "💊"],
+      ["In 1796, Edward Jenner carried out the experiment that founded vaccination. Against which disease?", "Smallpox", ["Influenza", "Chickenpox", "Measles"], "He used material from cowpox, a milder disease.", "Jenner used cowpox to protect people against smallpox; vaccine comes from vacca, Latin for cow.", "🐄"],
+      ["Fact or opinion: 'Broccoli tastes horrible.'", "Opinion (a preference)", ["Fact", "A scientific law", "A measurement"], "Could two honest people disagree about it?", "Taste is a preference: it cannot be proved true or false for everyone.", "🥦"],
+      ["Fact or opinion: 'Broccoli contains vitamin C.'", "Fact: it can be measured", ["Opinion", "A guess", "A preference"], "Could a laboratory test check it?", "A fact can be checked by evidence; broccoli's vitamin C can be measured.", "🥦"],
+      ["Why do we need fibre in our food?", "It keeps food moving through the gut", ["It gives the most energy", "It builds muscle", "It carries oxygen"], "Fibre is not digested. What does bulk do in the intestines?", "Fibre adds bulk that the gut muscles can push along, keeping digestion regular.", "🌾"],
+      ["Why do we need iron in our diet?", "To make haemoglobin", ["To make teeth white", "To digest fat", "To grow hair"], "Which protein in red blood cells carries oxygen?", "Iron is part of haemoglobin, which carries oxygen in red blood cells.", "🩸"],
+    ],
+    hard: [
+      ["How does a vaccine work?", "A harmless version trains immunity", ["It kills every germ at once", "It replaces white blood cells", "It is an antibiotic"], "What does the immune system need in order to recognise a germ?", "A vaccine contains a weakened or inactivated germ, a harmless piece of it, or instructions to make that piece. White blood cells learn to recognise it and remember it.", "💉"],
+      ["Herd immunity: why can vaccinating most people protect a baby too young for the vaccine?", "The germ cannot spread easily", ["Babies are never ill", "Vaccines spread through air", "Babies inherit it later"], "For a germ to reach the baby, it must pass from person to person.", "If most people are immune, the germ rarely finds someone to infect, so it seldom reaches those who cannot be vaccinated.", "🛡️"],
+      ["'My grandfather never exercised and lived to 95, so exercise is pointless.' What is wrong?", "One case cannot outweigh large studies", ["Nothing: the reasoning is sound", "Grandfathers always exaggerate", "95 is not old"], "Is one example enough evidence about millions of people?", "One example (an anecdote) can be true yet unrepresentative. Studies of many thousands of people show that exercise improves health on average.", "📊"],
+      ["An advert says '9 out of 10 people prefer SuperJuice.' Which question should you ask first?", "How many were asked, and who?", ["What colour is the bottle?", "Is the advert funny?", "Is the actor famous?"], "A claim is only as strong as the evidence behind it.", "If only 10 people were asked, or they were chosen by the company, the claim tells us little.", "🧐"],
+      ["Why should antibiotics not be taken for a cold?", "Colds are viral, not bacterial", ["Colds are too mild", "They taste bitter", "They make colds last longer"], "Which kinds of germ do antibiotics act on?", "Antibiotics act on bacteria, not viruses. Using them needlessly also helps bacteria evolve resistance.", "💊"],
+      ["In what year was smallpox declared eradicated (wiped out worldwide)?", "1980", ["1796", "1900", "2020"], "It was nearly two centuries after Jenner's first vaccine.", "After a worldwide vaccination campaign, the World Health Organization declared smallpox eradicated in 1980.", "🌍"],
+      ["What does the brain do during sleep?", "Sorts and stores memories", ["Switches off completely", "Stops the heart", "Stops breathing"], "Why does learning stick better after a good night's sleep?", "During sleep the brain consolidates memories, and the body releases growth hormone and repairs tissue.", "🧠"],
+    ],
+  },
+};
+
+// Claims to test (truth and reasoning), used in the challenge.
+const CLAIMS = [
+  ["Claim: 'Blood in your veins is blue until it meets air.' Is it true?", "No: sealed blood from a vein is dark red", ["Yes: veins look blue", "Yes: a teacher said so", "It cannot be tested"], "How could you test it? Blood tests collect blood in sealed tubes, without air.", "Blood collected from a vein into a sealed, airless tube is dark red. Veins look bluish only because of how skin scatters light.", "🩸"],
+  ["Claim: 'Swallowed chewing gum stays in your stomach for seven years.' What does the evidence show?", "False: it passes through in days", ["True: gum never moves", "True for adults only", "Nobody could know"], "Doctors can follow what passes through the gut.", "Gum is not digested, but peristalsis moves it through the gut like other undigested material, usually within days.", "🍬"],
+  ["'Galen was a great doctor, so his idea that the liver constantly makes new blood must be right.' Is this good reasoning?", "No: fame is not evidence", ["Yes: experts are always right", "Yes: it is very old", "Yes: it sounds sensible"], "What made people change their minds in 1628?", "A person's reputation does not make a claim true. Harvey's measurements showed that the same blood must circulate.", "🏛️"],
+  ["'All mammals breathe air. Whales are mammals. So whales breathe air.' Does the conclusion follow?", "Yes: true reasons that support it", ["No: whales live in water", "No: it is only an opinion", "Only if a scientist says so"], "Check two things: are the reasons true, and do they lead to the conclusion?", "Both reasons are true, and together they guarantee the conclusion. That is a sound argument.", "🐋"],
+  ["'All fish live in water. Whales live in water. So whales are fish.' Is this sound?", "No: the conclusion does not follow", ["Yes: both reasons are true", "Yes: whales look like fish", "No: fish do not live in water"], "Many things live in water. Does living in water make something a fish?", "Both reasons are true, but they do not support the conclusion. Whales are mammals: they breathe air and feed their young on milk.", "🐟"],
+  ["Children who sleep more tend to get better marks. Does that alone prove sleep causes better marks?", "No: something else could explain both", ["Yes: they go together", "Yes: sleep is good", "No: sleep has no effect"], "Could a third factor, such as a calm home, cause both?", "When two things occur together, one does not necessarily cause the other. A fair test that changes only sleep is needed.", "📈"],
+  ["A famous footballer says a drink makes you run faster. Is this good evidence?", "No: we need a fair test", ["Yes: he is a fast runner", "Yes: he is famous", "Yes: adverts must be true"], "Is the footballer a reliable source on this? What would a fair test look like?", "Fame is not evidence, and the footballer may be paid. A fair test would compare runners with and without the drink, keeping everything else the same.", "⚽"],
+];
+
+// =====================================================================
+// Number problems. Each returns { text, ans, wrong, hint, steps, hints?, choices? }.
+const pow2 = (n) => 2 ** n;
+const hhmm = (h) => `${String(((h % 24) + 24) % 24).padStart(2, "0")}:00`;
+const GEN = {
+  cells: {
+    easy: [
+      () => {
+        const s = pick([10, 20, 25, 40, 50, 100]);
+        const a = 1000 / s;
+        return { text: `A cell is ${s} µm wide. How many such cells fit side by side across 1 mm? (1 mm = 1000 µm)`, ans: a, wrong: [10000 / s, 1000 - s], hints: { [10000 / s]: "That would fit across 1 cm. Use 1 mm = 1000 µm." }, hint: `How many groups of ${s} make 1000?`, steps: ["1 mm = 1000 µm", `1000 ÷ ${s} = ${a}`], icon: "🔬" };
+      },
+      () => {
+        const n = pickInt(4, 9);
+        const s = pick([20, 25, 30, 40, 50]);
+        return { text: `${n} cells, each ${s} µm wide, sit in a row. How long is the row, in µm?`, ans: n * s, wrong: [n + s, n * s + s, n * s - s], hint: `The row is ${n} lots of ${s} µm.`, steps: [`${n} × ${s} = ${n * s} µm`], icon: "📏" };
+      },
+    ],
+    medium: [
+      () => {
+        const s = pick([20, 25, 40, 50, 80, 100]);
+        const a = 10000 / s;
+        return { text: `How many cells ${s} µm wide fit across 1 cm? (1 cm = 10 mm and 1 mm = 1000 µm)`, ans: a, wrong: [1000 / s, 100000 / s], hints: { [1000 / s]: "That is across 1 mm. A centimetre is ten times longer." }, hint: "First convert 1 cm into micrometres.", steps: ["1 cm = 10 mm = 10,000 µm", `10,000 ÷ ${s} = ${fmtN(a)}`], icon: "🔬" };
+      },
+      () => {
+        const x = pick([0.02, 0.05, 0.08, 0.1, 0.25]);
+        const a = Math.round(x * 1000);
+        return { text: `A cell measures ${x} mm across. How many µm is that?`, ans: a, wrong: [Math.round(x * 100), Math.round(x * 10000)], hint: "Each millimetre is 1000 micrometres. Multiply.", steps: ["1 mm = 1000 µm", `${x} × 1000 = ${a} µm`], icon: "📐" };
+      },
+      () => {
+        const w = pick([1, 2, 3]);
+        const s = pick([20, 25, 40, 50]);
+        const a = (w * 1000) / s;
+        return { text: `A strip of tissue is ${w} mm wide, and its cells are ${s} µm across. How many cells span the strip?`, ans: a, wrong: [(w * 100) / s, 1000 / s === a ? a * 2 : 1000 / s], hint: "Convert the strip's width into micrometres first.", steps: [`${w} mm = ${w * 1000} µm`, `${w * 1000} ÷ ${s} = ${a}`], icon: "🧱" };
+      },
+    ],
+    hard: [
+      () => {
+        const combos = [];
+        for (const a of [10, 20, 25, 40, 50]) for (const m of [200, 400, 500, 1000, 1500, 2000]) if ((a * m) % 1000 === 0) combos.push([a, m]);
+        const [a, m] = pick(combos);
+        const img = (a * m) / 1000;
+        return { text: `A cell ${a} µm across is drawn ${img} mm wide. What is the magnification? (Magnification = image size ÷ real size, in the same units.)`, ans: m, wrong: [m / 10, m * 10, img * a], hint: "Convert the drawing's size into micrometres, then divide.", steps: [`${img} mm = ${fmtN(img * 1000)} µm`, `${fmtN(img * 1000)} ÷ ${a} = ${fmtN(m)}`, `Magnification ×${fmtN(m)}`], icon: "🔍" };
+      },
+      () => {
+        const combos = [];
+        for (const a of [8, 10, 20, 25, 40, 50]) for (const m of [400, 500, 1000, 1500, 2000]) if ((a * m) % 1000 === 0) combos.push([a, m]);
+        const [a, m] = pick(combos);
+        const img = (a * m) / 1000;
+        return { text: `Under a magnification of ×${fmtN(m)}, a cell's image is ${img} mm wide. How wide is the real cell, in µm?`, ans: a, wrong: [a * 10, img * 10, a / 2], hint: "Real size = image size ÷ magnification. Work in micrometres.", steps: [`${img} mm = ${fmtN(img * 1000)} µm`, `${fmtN(img * 1000)} ÷ ${fmtN(m)} = ${a} µm`], icon: "🔍" };
+      },
+      () => {
+        const b = pick([2, 4, 5]);
+        const c = pick([40, 60, 80, 100].filter((x) => x % b === 0));
+        return { text: `A bacterium is ${b} µm long. How many, end to end, would stretch across a cheek cell ${c} µm wide?`, ans: c / b, wrong: [c * b, c - b, c / b + b], hint: `How many lengths of ${b} µm make ${c} µm?`, steps: [`${c} ÷ ${b} = ${c / b}`, "Bacteria are far smaller than most of your cells."], icon: "🦠" };
+      },
+    ],
+  },
+  heart: {
+    easy: [
+      () => {
+        const c = pickInt(16, 25);
+        return { text: `You count ${c} heartbeats in 15 seconds. What is your heart rate in beats per minute?`, ans: 4 * c, wrong: [2 * c, c + 45, 6 * c], hints: { [2 * c]: "15 seconds is a quarter of a minute, not a half." }, hint: "How many 15-second blocks are in one minute?", steps: ["60 s ÷ 15 s = 4", `${c} × 4 = ${4 * c} beats per minute`], icon: "⏱️" };
+      },
+      () => {
+        const r = pick([60, 70, 75, 80, 90]);
+        const m = pick([2, 3, 5, 10]);
+        return { text: `A heart beats ${r} times a minute. How many beats is that in ${m} minutes?`, ans: r * m, wrong: [r + m, r * (m + 1), r * m * 10], hint: `${m} minutes means ${m} lots of ${r}.`, steps: [`${r} × ${m} = ${r * m}`], icon: "🫀" };
+      },
+    ],
+    medium: [
+      () => {
+        const r = pick([60, 65, 70, 72, 75, 80, 85, 90]);
+        return { text: `At ${r} beats per minute, how many times does a heart beat in one hour?`, ans: r * 60, wrong: [r * 24, r * 600, r * 6], hints: { [r * 24]: "You multiplied by 24, but an hour has 60 minutes." }, hint: "How many minutes are in an hour?", steps: [`${r} × 60 = ${fmtN(r * 60)} beats per hour`], icon: "⏰" };
+      },
+      () => {
+        const r = pick([60, 70, 75, 80, 90]);
+        return { text: `At ${r} beats per minute, how many times does a heart beat in one day?`, ans: r * 1440, wrong: [r * 60, r * 24, r * 144], hints: { [r * 60]: "That is one hour's beats. How many hours are in a day?", [r * 24]: "That forgets the 60 minutes in each hour." }, hint: "Work out the beats in one hour first, then in 24 hours.", steps: [`${r} × 60 = ${fmtN(r * 60)} per hour`, `${fmtN(r * 60)} × 24 = ${fmtN(r * 1440)} per day`], icon: "📅" };
+      },
+      () => {
+        const s = pick([60, 70, 75, 80]);
+        const r = pick([60, 70, 80]);
+        return { text: `Each beat pushes out about ${s} mL of blood. At ${r} beats per minute, how many mL is pumped each minute?`, ans: s * r, wrong: [s + r, s * r * 10, s * 60], hint: `Each of the ${r} beats pumps ${s} mL.`, steps: [`${s} × ${r} = ${fmtN(s * r)} mL per minute`, `That is about ${fmtN((s * r) / 1000)} litres every minute.`], icon: "🩸" };
+      },
+    ],
+    hard: [
+      () => {
+        const s = pick([60, 70, 80]);
+        const r = pick([60, 65, 70, 75, 80]);
+        const a = (s * r * 60) / 1000;
+        return { text: `Each beat pumps about ${s} mL. At ${r} beats per minute, how many litres does the heart pump in one hour?`, ans: a, wrong: [(s * r) / 1000, a * 24, a / 10], hints: { [(s * r) / 1000]: "That is litres per minute. How many minutes in an hour?" }, hint: "Find mL per minute, then per hour, then convert: 1 L = 1000 mL.", steps: [`${s} × ${r} = ${fmtN(s * r)} mL per minute`, `× 60 = ${fmtN(s * r * 60)} mL per hour`, `÷ 1000 = ${fmtN(a)} L per hour`], icon: "🧮" };
+      },
+      () => {
+        const combos = [];
+        for (const s of [60, 70, 75, 80, 100]) for (const r of [60, 70, 75, 80]) for (const B of [4, 5, 6]) if ((B * 60000) % (s * r) === 0) combos.push([s, r, B]);
+        const [s, r, B] = pick(combos);
+        const t = (B * 60000) / (s * r);
+        return { text: `A body holds ${B} L of blood. The heart pumps ${s} mL a beat, ${r} beats a minute. How many seconds to pump ${B} L?`, ans: t, wrong: [Math.round(t / 2), t * 2, t + 60], hint: "Find the mL pumped per minute, then compare it with the blood volume in mL.", steps: [`${s} × ${r} = ${fmtN(s * r)} mL per minute`, `${B} L = ${fmtN(B * 1000)} mL`, `${fmtN(B * 1000)} ÷ ${fmtN(s * r)} × 60 s = ${t} s`], icon: "⏱️" };
+      },
+      () => {
+        const r = pick([60, 70, 80]);
+        const a = r * 60 * 24 * 365;
+        return { text: `At ${r} beats per minute, how many times does a heart beat in a 365-day year?`, ans: a, wrong: [r * 60 * 24 * 30, r * 60 * 365, r * 24 * 365], hint: "Per hour, then per day, then per year.", steps: [`${r} × 60 = ${fmtN(r * 60)} per hour`, `× 24 = ${fmtN(r * 1440)} per day`, `× 365 = ${fmtN(a)} per year`], icon: "📆" };
+      },
+    ],
+  },
+  lungs: {
+    easy: [
+      () => {
+        const c = pickInt(4, 6);
+        return { text: `You count ${c} breaths in 15 seconds. How many breaths is that per minute?`, ans: 4 * c, wrong: [2 * c, c + 15, 6 * c], hints: { [2 * c]: "15 seconds is a quarter of a minute, not a half." }, hint: "How many 15-second blocks are in one minute?", steps: ["60 ÷ 15 = 4", `${c} × 4 = ${4 * c} breaths per minute`], icon: "⏱️" };
+      },
+      () => {
+        const r = pick([12, 15, 18, 20]);
+        const m = pick([2, 3, 5, 10]);
+        return { text: `You breathe ${r} times a minute. How many breaths in ${m} minutes?`, ans: r * m, wrong: [r + m, r * (m + 1), r * m * 10], hint: `${m} lots of ${r}.`, steps: [`${r} × ${m} = ${r * m}`], icon: "🌬️" };
+      },
+    ],
+    medium: [
+      () => {
+        const r = pick([12, 14, 15, 16, 18, 20]);
+        return { text: `At ${r} breaths a minute, how many breaths do you take in one hour?`, ans: r * 60, wrong: [r * 24, r * 600, r * 6], hints: { [r * 24]: "An hour has 60 minutes, not 24." }, hint: "How many minutes are in an hour?", steps: [`${r} × 60 = ${fmtN(r * 60)}`], icon: "⏰" };
+      },
+      () => {
+        const r = pick([12, 15, 16, 18, 20]);
+        return { text: `At ${r} breaths a minute, how many breaths do you take in one day?`, ans: r * 1440, wrong: [r * 60, r * 24, r * 144], hints: { [r * 60]: "That is one hour. How many hours are in a day?" }, hint: "Per hour first, then per day.", steps: [`${r} × 60 = ${fmtN(r * 60)} per hour`, `× 24 = ${fmtN(r * 1440)} per day`], icon: "📅" };
+      },
+      () => {
+        const r = pick([12, 14, 15, 16, 18, 20]);
+        return { text: `Each breath at rest moves about 500 mL of air. At ${r} breaths a minute, how many mL of air per minute?`, ans: 500 * r, wrong: [500 + r, 50 * r, 5000 * r], hint: `${r} breaths of 500 mL each.`, steps: [`500 × ${r} = ${fmtN(500 * r)} mL`, `That is ${fmtN(r / 2)} litres a minute.`], icon: "🎈" };
+      },
+    ],
+    hard: [
+      () => {
+        const r = pick([12, 14, 15, 16, 18, 20]);
+        return { text: `Each breath moves 500 mL of air, and about 5% of that volume is oxygen taken into the blood. At ${r} breaths a minute, how many mL of oxygen per minute?`, ans: 25 * r, wrong: [5 * r, 500 * r, 25 + r], hint: "Find 5% of 500 mL first: 10% is 50 mL.", steps: ["10% of 500 = 50, so 5% = 25 mL per breath", `25 × ${r} = ${25 * r} mL per minute`], icon: "🫁" };
+      },
+      () => {
+        const r = pick([12, 14, 15, 16]);
+        return { text: `At ${r} breaths a minute, each of 0.5 L, how many litres of air do you breathe in a day?`, ans: r * 720, wrong: [r * 1440, r * 30, r * 72], hints: { [r * 1440]: "That counts breaths, not litres. Each breath is only half a litre." }, hint: "Breaths per day, then multiply by 0.5 (halve).", steps: [`${r} × 1440 = ${fmtN(r * 1440)} breaths per day`, `× 0.5 = ${fmtN(r * 720)} L`], icon: "🌍" };
+      },
+      () => {
+        const a = pick([12, 14, 16]);
+        const b = pick([36, 40, 44]);
+        const m = pick([5, 10]);
+        return { text: `At rest you take ${a} breaths a minute; running, ${b}. How many more breaths in ${m} minutes of running than in ${m} minutes of rest?`, ans: (b - a) * m, wrong: [b * m, b - a, (b + a) * m], hint: "Find the extra breaths in one minute, then multiply.", steps: [`${b} − ${a} = ${b - a} more each minute`, `${b - a} × ${m} = ${(b - a) * m}`], icon: "🏃" };
+      },
+    ],
+  },
+  gut: {
+    easy: [
+      () => {
+        const [L, h, a] = pick([[600, 120, 5], [600, 150, 4], [600, 100, 6], [650, 130, 5], [700, 140, 5]]);
+        return { text: `Suppose a small intestine is ${L} cm long, and you are ${h} cm tall. How many times your height is it?`, ans: a, wrong: [a + 2, a * 10, L - h > 9 ? 3 : 2], hint: `How many lots of ${h} make ${L}?`, steps: [`${L} ÷ ${h} = ${a}`], icon: "📏" };
+      },
+      () => {
+        const s = pick([600, 650, 700]);
+        return { text: `Add these lengths: oesophagus 25 cm, small intestine ${s} cm, large intestine 150 cm. What is the total in cm?`, ans: 25 + s + 150, wrong: [s + 150, 25 + s, 25 + s + 15], hint: "Add all three parts.", steps: [`25 + ${s} + 150 = ${25 + s + 150} cm`, `That is ${(25 + s + 150) / 100} metres.`], icon: "➕" };
+      },
+    ],
+    medium: [
+      () => {
+        const x = pick([6, 6.5, 7, 1.5, 0.25]);
+        return { text: `A section of gut is ${x} m long. How many centimetres is that?`, ans: Math.round(x * 100), wrong: [Math.round(x * 10), Math.round(x * 1000)], hint: "1 m = 100 cm.", steps: ["1 m = 100 cm", `${x} × 100 = ${Math.round(x * 100)} cm`], icon: "📐" };
+      },
+      () => {
+        const [T, a, b] = [pick([12, 13]), pick([3, 4]), pick([5, 6])];
+        const ans = hhmm(T + a + b);
+        return { text: `Suppose a meal spends ${a} hours in the stomach, then ${b} hours in the small intestine. You eat at ${hhmm(T)}. When does it reach the large intestine?`, ans, choices: [hhmm(T + a), hhmm(T + b), hhmm(T + a + b + 2)], hint: "Add both times to the starting time.", steps: [`${a} + ${b} = ${a + b} hours`, `${hhmm(T)} + ${a + b} h = ${ans}`], icon: "🕒" };
+      },
+      () => {
+        const [t, s, p] = pick([[8, 6, 75], [10, 6, 60], [7.5, 6, 80]]);
+        return { text: `Suppose the whole gut is ${t} m long and the small intestine is ${s} m of it. What percentage is the small intestine?`, ans: p, wrong: [100 - p, s * 10, p / 2], hint: `Write it as a fraction: ${s} out of ${t}. Then make it out of 100.`, steps: [`${s} ÷ ${t} = ${p / 100}`, `${p / 100} × 100 = ${p}%`], icon: "📊" };
+      },
+    ],
+    hard: [
+      () => {
+        const T = pick([18, 19, 20]);
+        const a = pick([3, 4]);
+        const b = pick([5, 6]);
+        const ans = hhmm(T + a + b);
+        return { text: `Supper at ${hhmm(T)} spends ${a} h in the stomach and ${b} h in the small intestine. At what time (24-hour clock) does it reach the large intestine?`, ans, choices: [hhmm(T + a), hhmm(T + a + b + 12), hhmm(T + b)], hint: "Count on past midnight carefully: 24:00 becomes 00:00.", steps: [`${a} + ${b} = ${a + b} h`, `${hhmm(T)} + ${a + b} h = ${ans} the next morning`], icon: "🌙" };
+      },
+      () => {
+        const s = pick([600, 650, 700]);
+        return { text: `A small intestine is ${s / 100} m long; an oesophagus is 25 cm long. How many times longer is the small intestine?`, ans: s / 25, wrong: [s / 100 / 25 > 1 ? 2 : 3, (s / 100) * 25, s / 25 + 10], hint: "Put both lengths in the same unit before dividing.", steps: [`${s / 100} m = ${s} cm`, `${s} ÷ 25 = ${s / 25}`], icon: "📏" };
+      },
+      () => {
+        const [L, h, v] = pick([[6, 5, 2], [6, 4, 2.5], [7.2, 6, 2], [6.3, 7, 1.5]]);
+        return { text: `Suppose food travels the ${L} m of small intestine in ${h} hours. What is its average speed in cm per minute?`, ans: v, wrong: [v * 2, L / h > 1 ? Math.round((L / h) * 100) / 100 : 1, v * 60], hint: "Convert metres to cm and hours to minutes, then divide.", steps: [`${L} m = ${L * 100} cm; ${h} h = ${h * 60} min`, `${L * 100} ÷ ${h * 60} = ${v} cm per minute`], icon: "🐌" };
+      },
+    ],
+  },
+  bones: {
+    easy: [
+      () => {
+        const B = pick([270, 280, 290, 300]);
+        return { text: `Suppose a newborn has ${B} bones and an adult has 206. How many fewer does the adult have?`, ans: B - 206, wrong: [B + 206, B - 200, 206 - (B - 206)], hint: "Subtract the adult's bones from the baby's.", steps: [`${B} − 206 = ${B - 206}`, "The difference is due to bones fusing as you grow."], icon: "👶" };
+      },
+      () => {
+        const v = pick([["both hands", 27, "Each hand has 27 bones."], ["both feet", 26, "Each foot has 26 bones."]]);
+        return { text: `${v[2]} How many bones are in ${v[0]}?`, ans: v[1] * 2, wrong: [v[1] + 2, v[1], v[1] * 3], hint: "Two lots of the same number.", steps: [`${v[1]} × 2 = ${v[1] * 2}`], icon: "🖐️" };
+      },
+    ],
+    medium: [
+      () => ({ text: "Each hand has 27 bones and each foot 26. How many of an adult's 206 bones are NOT in the hands or feet?", ans: 100, wrong: [106, 153, 180], hints: { 106: "106 is the number IN the hands and feet. Subtract it from 206." }, hint: "Find the hands-and-feet total first.", steps: ["27 + 27 + 26 + 26 = 106", "206 − 106 = 100"], icon: "🦴" }),
+      () => {
+        const h = pick([120, 128, 132, 140]);
+        return { text: `A thigh bone (femur) is roughly a quarter of a person's height. About how long is the femur of someone ${h} cm tall?`, ans: h / 4, wrong: [h / 2, h - 4, h / 3 === Math.round(h / 3) ? h / 3 : h / 4 + 10], hint: "A quarter means divide by 4.", steps: [`${h} ÷ 4 = ${h / 4} cm`], icon: "📏" };
+      },
+      () => ({ text: "An adult has 12 pairs of ribs. A typical adult hand has 27 bones. How many more bones are in two hands than in all the ribs?", ans: 30, wrong: [15, 3, 42], hint: "12 pairs = 24 ribs. Two hands = 54 bones.", steps: ["12 × 2 = 24 ribs", "27 × 2 = 54 hand bones", "54 − 24 = 30"], icon: "🧮" }),
+    ],
+    hard: [
+      () => {
+        const combos = [];
+        for (const L of [10, 20, 30, 40, 50]) for (const D of [30, 35]) for (const d of [3, 4, 5, 6]) if ((L * D) % d === 0) combos.push([L, D, d]);
+        const [L, D, d] = pick(combos);
+        const F = (L * D) / d;
+        return { text: `Forearm lever: pivot at the elbow, a ${L} N load ${D} cm from it, biceps attached ${d} cm from it. What pull must the biceps give? (Ignore the arm's weight.)`, ans: F, wrong: [L, (L * d) / D > 1 ? Math.round((L * d) / D) : L * 2, L * D], hint: "Balance the turning effects: pull × its distance = load × its distance.", steps: [`pull × ${d} = ${L} × ${D} = ${L * D}`, `pull = ${L * D} ÷ ${d} = ${F} N`], icon: "⚖️" };
+      },
+      () => ({ text: "Hands and feet contain 106 of the 206 bones. To the nearest whole percent, what percentage is that?", ans: 51, wrong: [49, 53, 106], hint: "106 ÷ 206, then × 100. It is a little over a half.", steps: ["106 ÷ 206 ≈ 0.515", "≈ 51%"], icon: "📊" }),
+      () => {
+        const combos = [];
+        for (const s of [1, 2, 3]) for (const d of [4, 5]) for (const D of [30, 32, 35, 40]) if ((s * D) % d === 0) combos.push([s, d, D]);
+        const [s, d, D] = pick(combos);
+        return { text: `The biceps, attached ${d} cm from the elbow, shortens by ${s} cm. About how far does the hand, ${D} cm from the elbow, move?`, ans: (s * D) / d, wrong: [s, s * d, D - d], hint: `The hand is ${D / d} times as far from the pivot as the tendon is.`, steps: [`${D} ÷ ${d} = ${D / d} times as far from the pivot`, `${s} × ${D / d} = ${(s * D) / d} cm`, "A short pull close to the pivot gives a large movement."], icon: "📐" };
+      },
+    ],
+  },
+  nerves: {
+    easy: [
+      () => {
+        const v = pick([20, 40, 50, 100]);
+        return { text: `A nerve signal travels at ${v} metres per second. How many milliseconds does it take to travel 1 m? (1 s = 1000 ms)`, ans: 1000 / v, wrong: [v, 100 / v === Math.round(100 / v) ? 100 / v : 1000 / v + 5, 1000 * v], hint: `What fraction of a second does 1 m take, if ${v} m take a whole second?`, steps: [`1 m takes 1/${v} of a second`, `1000 ÷ ${v} = ${1000 / v} ms`], icon: "⚡" };
+      },
+      () => {
+        const v = pick([20, 50, 60, 100]);
+        const t = pick([2, 3, 4]);
+        return { text: `A signal travels ${v} m every second. How far does it travel in ${t} seconds?`, ans: v * t, wrong: [v + t, v * t * 10, v], hint: `${t} lots of ${v}.`, steps: [`${v} × ${t} = ${v * t} m`], icon: "🏁" };
+      },
+    ],
+    medium: [
+      () => {
+        const combos = [];
+        for (const d of [0.6, 0.8, 1.2, 1.5, 1.8]) for (const v of [30, 40, 50, 60, 75, 100, 120]) {
+          const t = (d * 1000) / v;
+          if (Math.abs(t - Math.round(t)) < 1e-9) combos.push([d, v, Math.round(t)]);
+        }
+        const [d, v, t] = pick(combos);
+        return { text: `A signal must travel ${d} m along a nerve at ${v} m/s. How many milliseconds does it take?`, ans: t, wrong: [t * 10, Math.round(v / d), t + 10], hint: "Time = distance ÷ speed. Then convert seconds to milliseconds.", steps: [`${d} ÷ ${v} = ${t / 1000} s`, `${t / 1000} s = ${t} ms`], icon: "⚡" };
+      },
+      () => {
+        const v1 = pick([50, 100]);
+        const v2 = pick([1, 2]);
+        const a = 1000 / v2 - 1000 / v1;
+        return { text: `Over 1 m, a touch signal travels at ${v1} m/s and a slow pain signal at ${v2} m/s. How many ms later does the pain signal arrive?`, ans: a, wrong: [1000 / v2, 1000 / v1, v1 - v2], hint: "Find each travel time in ms, then subtract.", steps: [`Touch: 1000 ÷ ${v1} = ${1000 / v1} ms`, `Pain: 1000 ÷ ${v2} = ${1000 / v2} ms`, `${1000 / v2} − ${1000 / v1} = ${a} ms`], icon: "🦶" };
+      },
+    ],
+    hard: [
+      () => {
+        const t = pick([0.1, 0.2, 0.3]);
+        const d = Math.round(500 * t * t);
+        return { text: `A dropped ruler falls about 5 × t² metres in t seconds. If you catch it after ${t} s, how many cm has it fallen?`, ans: d, wrong: [Math.round(500 * t), d * 2, Math.round(50 * t * t) || 1], hint: "Square the time first, then multiply by 5, then convert metres to cm.", steps: [`${t}² = ${Math.round(t * t * 100) / 100}`, `5 × ${Math.round(t * t * 100) / 100} = ${d / 100} m`, `${d / 100} m = ${d} cm`], icon: "📏" };
+      },
+      () => {
+        const [d, ms] = pick([[5, 100], [20, 200], [45, 300], [80, 400]]);
+        return { text: `A ruler falls about 5 × t² metres in t seconds. You catch it after it has fallen ${d} cm. What was your reaction time, in ms?`, ans: ms, wrong: [ms / 2, ms * 2, d * 10 === ms ? ms + 50 : d * 10], hint: `Convert ${d} cm to metres, divide by 5, then find the number that squares to it.`, steps: [`${d} cm = ${d / 100} m`, `t² = ${d / 100} ÷ 5 = ${d / 500}`, `t = ${ms / 1000} s = ${ms} ms`, "(The 5 is about half of g, the pull of gravity, 9.8 m/s². Exactly: t = √(2d ÷ g).)"], icon: "⏱️" };
+      },
+      () => {
+        const T = pick([200, 220, 250]);
+        const [P, V, c] = pick([[1.5, 50, 30], [1.5, 100, 15], [2, 50, 40], [2, 100, 20]]);
+        return { text: `Your reaction time is ${T} ms. Signals travel ${P} m in total along nerves at ${V} m/s. How many ms are left for the brain to process?`, ans: T - c, wrong: [T, c, T + c], hint: "Find the nerve travel time in ms, then subtract it from the reaction time.", steps: [`${P} ÷ ${V} = ${c / 1000} s = ${c} ms`, `${T} − ${c} = ${T - c} ms`, "Most of a reaction is spent in processing, not travelling."], icon: "🧠" };
+      },
+    ],
+  },
+  health: {
+    easy: [
+      () => {
+        const m = pick([60, 70, 80, 90]);
+        return { text: `You play actively for ${m} minutes every day. How many minutes is that in a week?`, ans: m * 7, wrong: [m + 7, m * 5, m * 70], hint: "A week has 7 days.", steps: [`${m} × 7 = ${m * 7} minutes`], icon: "⚽" };
+      },
+      () => {
+        const h = pick([9, 10, 11]);
+        return { text: `You sleep ${h} hours every night. How many hours of sleep is that in a week?`, ans: h * 7, wrong: [h + 7, h * 5, h * 6], hint: "Seven nights.", steps: [`${h} × 7 = ${h * 7} hours`], icon: "😴" };
+      },
+      () => {
+        const n = pick([5, 6, 8]);
+        return { text: `You wash your hands for 20 seconds, ${n} times a day. How many seconds is that altogether?`, ans: 20 * n, wrong: [20 + n, 2 * n, 200 * n], hint: `${n} lots of 20.`, steps: [`20 × ${n} = ${20 * n} seconds`], icon: "🧼" };
+      },
+    ],
+    medium: [
+      () => {
+        const [label, n] = pick([["1 hour", 3], ["80 minutes", 4], ["100 minutes", 5], ["2 hours", 6]]);
+        return { text: `One bacterium divides into two every 20 minutes (in ideal conditions). Starting from one, how many are there after ${label}?`, ans: pow2(n), wrong: [n * 2, pow2(n - 1), n + 1], hint: "Count the 20-minute periods, then double that many times.", steps: [`${label} = ${n} periods of 20 minutes`, `${Array(n).fill(2).join(" × ")} = ${pow2(n)}`], icon: "🦠" };
+      },
+      () => {
+        const [h, f, w] = pick([[8, "1/3", ["1/8", "1/4", "1/2"]], [9, "3/8", ["1/3", "1/9", "1/2"]], [10, "5/12", ["1/10", "1/2", "1/3"]], [12, "1/2", ["1/12", "1/3", "2/3"]]]);
+        return { text: `You sleep ${h} hours a day. What fraction of the day is that, in simplest form?`, ans: f, choices: w, hint: `Write ${h} out of 24, then simplify.`, steps: [`${h}/24 = ${f}`], icon: "🌙" };
+      },
+      () => {
+        const m = pick([30, 60]);
+        return { text: `If you exercise ${m} minutes every day for a 365-day year, how many hours is that?`, ans: (m * 365) / 60, wrong: [m * 365, 365, (m * 365) / 100], hint: "Find the total minutes, then divide by 60.", steps: [`${m} × 365 = ${fmtN(m * 365)} minutes`, `÷ 60 = ${fmtN((m * 365) / 60)} hours`], icon: "📅" };
+      },
+    ],
+    hard: [
+      () => {
+        const [target, n] = pick([[100, 7], [500, 9], [1000, 10]]);
+        return { text: `One bacterium doubles every 20 minutes. Starting from one, after how many minutes will there first be more than ${fmtN(target)}?`, ans: n * 20, wrong: [n * 10, (n - 1) * 20, target / 5], hint: "Keep doubling: 2, 4, 8, 16, … Count the doublings needed.", steps: [`2 to the power ${n} = ${fmtN(pow2(n))}, the first power of 2 above ${fmtN(target)}`, `${n} doublings × 20 min = ${n * 20} minutes`], icon: "🦠" };
+      },
+      () => {
+        const [A, h] = pick([[6, 10], [6, 12], [9, 8], [12, 10], [12, 9]]);
+        const y = (A * h) / 24;
+        return { text: `Suppose you have slept ${h} hours every day of your ${A} years. How many years of your life have you spent asleep?`, ans: y, wrong: [A - y, (A * h) / 12, h / 2], hint: `What fraction of each day is ${h} hours? Take that fraction of ${A} years.`, steps: [`${h}/24 of each day is sleep`, `${A} × ${h} ÷ 24 = ${y} years`], icon: "😴" };
+      },
+      () => {
+        const m = pick([50, 60, 70, 80, 90]);
+        return { text: `Roughly 60% of an adult's body mass is water. About how many kg of water are in a ${m} kg adult?`, ans: (m * 6) / 10, wrong: [m - 60, m * 6, m / 6], hint: "10% of the mass, then times 6.", steps: [`10% of ${m} = ${m / 10}`, `${m / 10} × 6 = ${(m * 6) / 10} kg`], icon: "💧" };
+      },
+    ],
+  },
+};
+const TOPIC = { bd1: "cells", bd2: "heart", bd3: "lungs", bd4: "gut", bd5: "bones", bd6: "nerves", bd7: "health" };
+
+// Contest-style, multi-step problems for the top level of the challenge.
+const CONTEST = [
+  () => {
+    const combos = [];
+    for (const s of [60, 70, 75, 80]) for (const r of [60, 72, 75, 80]) for (const B of [4, 5, 6]) {
+      const n = (s * r * 60) / 1000 / B;
+      if (Number.isInteger(n)) combos.push([s, r, B, n]);
+    }
+    const [s, r, B, n] = pick(combos);
+    return { text: `Harvey's reasoning, with modern numbers: ${s} mL per beat, ${r} beats a minute, ${B} L of blood in the body. How many times an hour is a volume equal to all the blood pumped?`, ans: n, wrong: [n * 60 > 999 ? n + 12 : n * 2, Math.round(n / 2), (s * r * 60) / 1000], hint: "Find the litres pumped in an hour, then divide by the blood volume.", steps: [`${s} × ${r} × 60 = ${fmtN(s * r * 60)} mL = ${fmtN((s * r * 60) / 1000)} L per hour`, `${fmtN((s * r * 60) / 1000)} ÷ ${B} = ${n}`, "So the same blood must circulate, as Harvey argued."], icon: "📜" };
+  },
+  () => {
+    const [h, b, k] = pick([[60, 12, 5], [60, 15, 4], [72, 12, 6], [72, 18, 4], [80, 16, 5], [80, 20, 4], [90, 15, 6], [90, 18, 5]]);
+    return { text: `Your heart beats ${h} times a minute and you breathe ${b} times a minute. How many heartbeats is that per breath?`, ans: k, wrong: [h - b, h + b, b / 2 === Math.round(b / 2) ? b / 2 : k + 2], hint: "In one minute, share the heartbeats equally between the breaths.", steps: [`${h} ÷ ${b} = ${k}`], icon: "🫀" };
+  },
+  () => {
+    const [m, cw, nw] = pick([[1500, 60, 15], [1000, 50, 8], [2000, 80, 12], [500, 25, 3]]);
+    return { text: `A drawing at ×${fmtN(m)} shows a cell ${cw} mm wide with a nucleus ${nw} mm wide. How wide is the real nucleus, in µm?`, ans: (nw * 1000) / m, wrong: [(cw * 1000) / m, nw, (nw * 1000) / m * 10], hint: "Only the nucleus matters. Convert its drawn size to µm, then divide by the magnification.", steps: [`${nw} mm = ${fmtN(nw * 1000)} µm`, `${fmtN(nw * 1000)} ÷ ${fmtN(m)} = ${(nw * 1000) / m} µm`], icon: "🔬" };
+  },
+  () => {
+    const [d, v, t] = pick([[0.6, 40, 30], [0.9, 60, 30], [1.2, 60, 40], [0.6, 60, 20], [0.9, 40, 45], [1.2, 40, 60]]);
+    const x = pick([1, 2]);
+    return { text: `A reflex signal travels ${d} m to the spinal cord and ${d} m back, at ${v} m/s, plus ${x} ms in the cord. Total time, in ms?`, ans: t + x, wrong: [t / 2 + x, t, t * 2 + x], hint: "Total distance first. Then time = distance ÷ speed, in ms.", steps: [`${d} + ${d} = ${Math.round(d * 20) / 10} m`, `${Math.round(d * 20) / 10} ÷ ${v} = ${t / 1000} s = ${t} ms`, `${t} + ${x} = ${t + x} ms`], icon: "⚡" };
+  },
+  () => ({ text: "A heart beats 70 times a minute for 80 years of 365 days. Roughly how many beats is that?", ans: "about 3 billion", choices: ["about 30 million", "about 300 million", "about 30 billion"], hint: "70 × 60 × 24 × 365 is about 37 million beats a year. Now multiply by 80.", steps: ["70 × 60 × 24 × 365 = 36,792,000 per year", "× 80 ≈ 2,943,000,000, about 3 billion"], icon: "🔢" }),
+  () => {
+    const [n, tgt] = pick([[3, 8], [4, 16], [5, 32], [6, 64]]);
+    return { text: `A cut lets in 10 bacteria. Each doubles every 20 minutes. After ${n * 20} minutes, how many bacteria are there?`, ans: 10 * tgt, wrong: [10 + tgt, tgt, 10 * n * 2], hint: "Count the doublings. Each one doubles the whole group of 10.", steps: [`${n * 20} min = ${n} doublings`, `10 × 2 to the power ${n} = 10 × ${tgt} = ${10 * tgt}`, "This is why cleaning a cut promptly matters."], icon: "🦠" };
+  },
+  () => {
+    const r = pick([14, 15, 16]);
+    const b = pick([60, 70, 75, 80]);
+    return { text: `In one hour at rest, a person breathes ${r} times a minute and their heart beats ${b} times a minute. How many more heartbeats than breaths in that hour?`, ans: (b - r) * 60, wrong: [b - r, (b + r) * 60, b * 60], hint: "Find the difference each minute, then for 60 minutes.", steps: [`${b} − ${r} = ${b - r} more each minute`, `${b - r} × 60 = ${fmtN((b - r) * 60)}`], icon: "🧮" };
+  },
+];
+
+const REAL = {
+  bd1: { title: "A cell in a bag", need: "a zip-top bag, clear jelly or hair gel, a plum, some raisins or beans, green peas and a small box.", steps: ["The bag is the cell membrane; the jelly is the cytoplasm.", "Add a plum for the nucleus and raisins for the mitochondria.", "For a plant cell, put the bag in a box (the cell wall) and add green peas for chloroplasts.", "Explain each part to a grown-up as you add it."], safe: "Do not eat anything used in the model. A grown-up helps with any cutting." },
+  bd2: { title: "Find your pulse", need: "a clock or timer that shows seconds, paper and a pencil.", steps: ["Press two fingers gently on the inside of your wrist, below the thumb.", "Count the beats for 15 seconds, then multiply by 4.", "Do 30 star jumps, then measure again straight away.", "Measure every minute until it returns to normal. Record the numbers in a table."], safe: "Use your fingers, not your thumb, which has its own pulse. Stop if you feel unwell and tell a grown-up." },
+  bd3: { title: "Measure your breathing", need: "a timer, paper and a pencil.", steps: ["Sit quietly and count your breaths for one minute.", "Rest a hand on your belly: feel it move out as your diaphragm flattens.", "Jog on the spot for one minute, then count again.", "Draw a bar chart of the two rates. Explain why they differ."], safe: "Exercise gently, with a grown-up nearby." },
+  bd4: { title: "How long is your gut?", need: "a ball of string or wool, a tape measure, and scissors used by a grown-up.", steps: ["Measure and cut 6.5 m of string: the length of a small intestine.", "Measure and cut 1.5 m for the large intestine.", "Lay them out beside you. How many times your height is the small intestine?", "Coil the long string into a space the size of your belly. How does the body fit it in?"], safe: "A grown-up handles the scissors. Never put string around your neck." },
+  bd5: { title: "Feel your muscles work", need: "a light book and a table.", steps: ["Rest one hand on the front of your upper arm, over the biceps.", "Lift the book by bending your elbow: feel the biceps harden as it contracts.", "Move your hand to the back of the arm, then press down on the table: feel the triceps contract.", "Find two hinge joints and two ball-and-socket joints in your body. Show how each moves."], safe: "Use a book you can lift easily. Never strain." },
+  bd6: { title: "Ruler-drop reaction test", need: "a 30 cm ruler and a grown-up.", steps: ["Hold your thumb and finger open at the 0 cm end of the hanging ruler.", "The grown-up drops it without warning; catch it as fast as you can.", "Read the cm mark: 5 cm ≈ 0.10 s, 10 cm ≈ 0.14 s, 20 cm ≈ 0.20 s, 30 cm ≈ 0.25 s.", "Do five tries, find the average, then compare your left and right hands."], safe: "Use a plastic or wooden ruler, and keep faces well away." },
+  bd7: { title: "Glitter germs", need: "hand cream, a pinch of glitter, soap and a sink.", steps: ["Rub a little cream on your hands and sprinkle on glitter: these are the 'germs'.", "Rinse with water only for 10 seconds. How much glitter is left?", "Now wash with soap for 20 seconds, scrubbing between fingers and under nails.", "Explain why soap removed more. In what ways is glitter NOT like real germs?"], safe: "Keep glitter away from eyes. A grown-up helps with clean-up." },
+  bd8: { title: "Teach it", need: "paper and pencils.", steps: ["Choose one body system.", "Draw and label it from memory.", "Teach it to a grown-up in under three minutes.", "Ask them one question to check they understood."], safe: "Afterwards, check every label against this app: is each one true?" },
+};
+const EXPLAIN = {
+  bd1: "Explain how an animal cell differs from a plant cell. Name the parts only plant cells have, and say what each one does.",
+  bd2: "Trace one drop of blood from the right atrium all the way back to the right atrium. Explain why this is called a double circulation.",
+  bd3: "Explain how air enters your lungs when the diaphragm contracts, and how oxygen then reaches your blood.",
+  bd4: "Follow a bite of bread from your mouth to your large intestine. Say what happens in each organ, and what enzymes do.",
+  bd5: "Explain why muscles must work in pairs. Use the biceps and triceps and the words contract and relax.",
+  bd6: "Explain the steps of a reflex arc when you touch something hot, and why a reflex is faster than a decision.",
+  bd7: "Explain how a vaccine prepares your body to fight a germ. Then explain why soap works better than water alone.",
+  bd8: "Choose the hardest problem you solved. Explain your method step by step, and say how you know your answer is reasonable.",
+};
+
+// =====================================================================
+// Question sets
+const LEVELS = [["easy", "🐣 Grade 4"], ["medium", "🦊 Grade 5–6"], ["hard", "🦁 Grade 7–8"]];
+const MODES = [["explore", "🔍 Explore"], ...LEVELS];
+const UNIT_DIAGS = { bd1: ["animal", "plant"], bd2: ["heart", "vessels"], bd3: ["lungs", "alveolus"], bd4: ["gut"], bd5: ["skeleton", "arm"], bd6: ["brain", "reflex", "neuron"] };
+const lowerFirst = (s) => s.charAt(0).toLowerCase() + s.slice(1);
+const mcQ = ([t, a, w, hint, why, icon]) => ({ kind: "mc", text: t, ans: a, opts: shuffle([a, ...w]).map((x) => ({ label: x, v: x })), hint, why, icon: icon || "❓" });
+const nopts = (ans, wrong = []) => {
+  const s = [];
+  const add = (x) => {
+    if (typeof x !== "number" || !Number.isFinite(x) || x <= 0) return;
+    x = Math.round(x * 1000) / 1000;
+    if (!s.includes(x) && s.length < 4) s.push(x);
+  };
+  add(ans);
+  wrong.forEach(add);
+  const step = Number.isInteger(ans) ? Math.max(1, Math.round(ans / 10)) : Math.max(0.5, Math.round(ans * 2) / 20);
+  for (const f of [1, -1, 2, -2, 3, 4]) add(ans + f * step);
+  return s.sort((a, b) => a - b);
+};
+const numQ = (g) => ({
+  kind: "num",
+  text: g.text,
+  ans: g.ans,
+  opts: g.choices ? shuffle([g.ans, ...g.choices]).map((x) => ({ label: x, v: x })) : nopts(g.ans, g.wrong).map((n) => ({ label: fmtN(n), v: n })),
+  hint: (v) => g.hints?.[v] || g.hint,
+  why: g.steps.join(". ") + ".",
+  steps: g.steps,
+  icon: g.icon || "🧮",
+});
+function tapQs(diags, level) {
+  const out = [];
+  const seen = new Set();
+  for (const d of diags)
+    for (const [k, inf] of Object.entries(INFO[d])) {
+      const t = level === "easy" ? inf.ask || `Tap the ${lowerFirst(inf.name)}.` : level === "medium" ? inf.clue : inf.deep || inf.clue;
+      if (seen.has(t)) continue;
+      seen.add(t);
+      out.push({ kind: "tap", diag: d, part: k, text: t, hint: inf.where, why: `<b>${inf.name}</b>. ${inf.info}` });
+    }
+  return out;
+}
+function fromGen(list, n, seen) {
+  const out = [];
+  const order = shuffle(list);
+  let guard = 0;
+  while (out.length < n && guard < 80) {
+    const g = order[guard % order.length]();
+    guard += 1;
+    if (seen.has(g.text)) continue;
+    seen.add(g.text);
+    out.push(numQ(g));
+  }
+  return out;
+}
+function makeSet(id, level) {
+  const seen = new Set();
+  const diags = UNIT_DIAGS[id] || [];
+  const out = [];
+  if (diags.length) out.push(...shuffle(tapQs(diags, level)).slice(0, 4));
+  out.push(...shuffle(FACTS[id][level]).slice(0, diags.length ? 3 : 7).map(mcQ));
+  out.push(...fromGen(GEN[TOPIC[id]][level], 3, seen));
+  return shuffle(out);
+}
+function challengeSet(level) {
+  const seen = new Set();
+  const all = (lv) => Object.values(GEN).flatMap((t) => t[lv]);
+  const out =
+    level === "easy" ? [...fromGen(all("easy"), 5, seen), ...fromGen(all("medium"), 3, seen)] : level === "medium" ? [...fromGen(all("medium"), 4, seen), ...fromGen(all("hard"), 3, seen)] : [...fromGen(all("hard"), 3, seen), ...fromGen(CONTEST, 4, seen)];
+  out.push(...shuffle(CLAIMS).slice(0, level === "easy" ? 2 : 3).map(mcQ));
+  return shuffle(out);
+}
+
+// =====================================================================
+// Shared UI
+const chipsHtml = (modes, cur) => `<div class="ap-chips" data-levels>${modes.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div>`;
+const onChips = (id, fn) =>
+  $("[data-levels]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    shell.mark(id, { level: b.dataset.lv });
+    window.OC?.touch();
+    VOICE.hush();
+    fn(b.dataset.lv);
+  });
+const setStatus = (s) => {
+  const b = $("[data-status]");
+  if (b) b.textContent = s;
+};
+const cardBox = (g) => el("rect", { x: 640, y: 14, width: 346, height: 532, rx: 24, fill: "#fffaf0", stroke: "#e0cfb5", "stroke-width": 3 }, g);
+function infoCard(g, p, maxY = 530) {
+  g.innerHTML = "";
+  cardBox(g);
+  const n = lines(g, 813, 68, p.name, 18, 36, { "font-size": 30, fill: "var(--accent-dark)" });
+  let y = 68 + n * 36 + 20;
+  for (const l of wrap(p.info, 24)) {
+    if (y > maxY) break;
+    text(g, 813, y, l, { "font-size": 23, fill: "#4d3c2e", "font-weight": 600 });
+    y += 31;
+  }
+}
+function qCard(v, q) {
+  el("rect", { x: 30, y: 18, width: 940, height: 524, rx: 34, fill: "#fffaf0", stroke: "#e0cfb5", "stroke-width": 3 }, v);
+  emoji(v, 90, 70, q.icon, 52);
+  const n = lines(v, 525, 86, q.text, 44, 44, { "font-size": 33, fill: "#2b1d12" });
+  el("g", { class: "bd-sol", "data-y": 86 + (n - 1) * 44 }, v);
+}
+function solCard(v, q) {
+  const s = v.querySelector(".bd-sol");
+  if (!s || s.childNodes.length) return;
+  let y = Number(s.dataset.y) + 62;
+  text(s, 500, y, q.kind === "num" ? "Worked solution" : "Why", { "font-size": 26, fill: "var(--accent-dark)" });
+  y += 46;
+  const items = q.steps || [q.why];
+  const max = q.steps ? 44 : 54;
+  const size = q.steps ? 30 : 27;
+  for (const st of items) {
+    const k = lines(s, 500, y, st, max, 38, { "font-size": size, fill: "#2e7d46" });
+    y += k * 38 + 4;
+  }
+}
+function overlay(cls, html, speech) {
+  document.querySelector(".bd-real")?.remove();
+  const box = document.createElement("div");
+  box.className = `kt-how bd-real ${cls}`;
+  box.innerHTML = html;
+  document.body.appendChild(box);
+  VOICE.speak(spoken(speech));
+  box.querySelector(".kt-go").addEventListener("click", () => {
+    VOICE.hush();
+    box.remove();
+  });
+}
+const explainCard = (id) =>
+  overlay("", `<div class="kt-how-card" role="dialog" aria-label="Explain it"><div class="kt-how-icon" aria-hidden="true">🗣️</div><h2>Explain it</h2><p>${EXPLAIN[id]}</p><p class="safe">Say it aloud to a grown-up in 2–4 clear sentences, or write it down. Use the scientific words you learned, and say how you know each point is true.</p><button type="button" class="kt-go">✓ Done</button></div>`, `Explain it. ${EXPLAIN[id]} Say it aloud to a grown-up in two to four clear sentences, or write it down.`);
+const realCard = (r) =>
+  overlay("", `<div class="kt-how-card" role="dialog" aria-label="Try it for real"><h2>🏠 Try it for real: ${r.title}</h2><p><b>You need:</b> ${r.need}</p><ol>${r.steps.map((s) => `<li>${s}</li>`).join("")}</ol><p class="safe">🧡 ${r.safe}</p><button type="button" class="kt-go">✓ OK</button></div>`, `Try it for real: ${r.title}. You need: ${r.need} ${r.steps.join(" ")} ${r.safe}`);
+
+function finishScreen(id, total, first, host, again) {
+  fresh();
+  el("rect", { x: 200, y: 60, width: 600, height: 430, rx: 40, fill: "#fffaf0", stroke: "var(--accent)", "stroke-width": 5 }, view);
+  emoji(view, 500, 160, "🏆", 110);
+  text(view, 500, 300, "Set complete", { "font-size": 58, fill: "#2b1d12" });
+  text(view, 500, 360, `${first} of ${total} correct on the first attempt`, { "font-size": 31, fill: "var(--accent-dark)" });
+  text(view, 500, 420, "Next: explain your reasoning aloud.", { "font-size": 28, fill: "#5a4130" });
+  confetti();
+  MUSIC.chime();
+  shell.mark(id, { done: true });
+  window.OC?.touch();
+  setStatus("Finished");
+  const effort = first === total ? "Every answer was reasoned carefully." : "You persisted through the difficult ones, which is how understanding grows.";
+  say(`Set complete: ${total} questions. ${effort} Next, press Explain it.`, { voice: false });
+  VOICE.speak(spoken(`You completed all ${total} questions. ${effort} Now, explain it: ${EXPLAIN[id]}`));
+  host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-explain>🗣️ Explain it</button><button type="button" data-real>🏠 Try it for real</button><button type="button" data-again2>🔁 Again</button></div>`;
+  host.onclick = (event) => {
+    if (event.target.closest("[data-explain]")) explainCard(id);
+    else if (event.target.closest("[data-real]")) realCard(REAL[id]);
+    else if (event.target.closest("[data-again2]")) again();
+  };
+}
+
+// =====================================================================
+// One unit: Explore (tap-to-label) plus three levels of 10 questions.
+function runner(id, cfg) {
+  const my = token;
+  const modes = cfg.modes || LEVELS;
+  let level = shell.progress()[id]?.level || modes[0][0];
+  if (!modes.some((m) => m[0] === level)) level = modes[0][0];
+  let qs = [];
+  let i = 0;
+  let first = 0;
+  let tries = 0;
+  let q = null;
+  let busy = false;
+  let P = null;
+  let tags = null;
+  let card = null;
+  let curTap = null;
+  let cur = 0;
+  let bend = 0.35;
+  const seenParts = (cfg.diags || []).map(() => new Set());
+  panel(`<div class="ap-row">${chipsHtml(modes, level)}<p class="ap-status" data-status></p></div><div class="bd-pick" data-choices></div>`);
+  const host = $("[data-choices]");
+  const isAns = (v) => String(v) === String(q.ans);
+  const buttonFor = (v) => [...host.querySelectorAll("[data-c]")].find((b, k) => String(q.opts[k]?.v) === String(v));
+
+  const explore = () => {
+    const d = cfg.diags[cur];
+    fresh();
+    P = DIAG[d](view, { bend });
+    tags = el("g", {}, view);
+    card = el("g", {}, view);
+    const btns = el("g", {}, view);
+    let last = null;
+    const blank = () => {
+      card.innerHTML = "";
+      cardBox(card);
+      emoji(card, 813, 170, "👆", 80);
+      lines(card, 813, 300, "Tap any part of the diagram to label it.", 17, 38, { "font-size": 28, fill: "#5a4130" });
+    };
+    blank();
+    const total = Object.keys(P).length;
+    const status = () => setStatus(`${DIAG_NAME[d]}: ${seenParts[cur].size} of ${total} labelled`);
+    status();
+    curTap = (k) => {
+      if (my !== token || !P[k]) return;
+      window.OC?.touch();
+      view.querySelectorAll(".bd-hi").forEach((n) => n.classList.remove("bd-hi"));
+      P[k].g.classList.add("bd-hi");
+      last = k;
+      tags.innerHTML = "";
+      tag(tags, P[k]);
+      const isNew = !seenParts[cur].has(k);
+      seenParts[cur].add(k);
+      infoCard(card, P[k], d === "arm" ? 440 : 530);
+      MUSIC.play("xylophone", [72, 74, 76, 77, 79, 81, 83, 84, 86, 88, 89, 91, 93, 95][seenParts[cur].size - 1] || 84, { gain: 0.3 });
+      status();
+      const done = isNew && seenParts[cur].size === total;
+      if (done) MUSIC.chime();
+      talk(`<b>${P[k].name}.</b> ${P[k].info}${done ? ` You have now labelled every part of the ${DIAG_NAME[d].toLowerCase()}. ${cfg.diags.length > 1 ? "Open another diagram, or choose" : "Choose"} a level to test yourself.` : ""}`);
+    };
+    tappable(view, P, (k) => curTap?.(k));
+    if (d === "heart") flow(P.paths, my, { n: 3, speed: 55 });
+    if (d === "reflex") flow(P.paths, my, { n: 2, speed: 110, r: 6, fill: "#fff59d" });
+    if (d === "arm") {
+      const mk = (x, label, target, primary) => {
+        const g = el("g", { class: "bd-btn", "data-bend": target }, btns);
+        el("rect", { x, y: 466, width: 156, height: 66, rx: 20, fill: primary ? "var(--accent)" : "#fff", stroke: "var(--accent-dark)", "stroke-width": 3 }, g);
+        text(g, x + 78, 508, label, { "font-size": 25, fill: primary ? "#fff" : "var(--accent-dark)" });
+      };
+      mk(652, "💪 Bend", 1, true);
+      mk(820, "Straighten", 0, false);
+      btns.addEventListener("pointerdown", async (event) => {
+        const b = event.target.closest(".bd-btn");
+        if (!b || my !== token) return;
+        event.stopPropagation();
+        const to = Number(b.dataset.bend);
+        const from = bend;
+        window.OC?.touch();
+        MUSIC.play("xylophone", to ? 79 : 72, { gain: 0.3 });
+        talk(to ? "The <b>biceps contracts</b> and shortens, pulling the forearm up. The triceps relaxes and is stretched." : "The <b>triceps contracts</b>, pulling the forearm straight; the biceps relaxes. Each muscle can only pull, so they work as an antagonistic (opposing) pair.");
+        const ok = await tween(900, (t) => {
+          bend = from + (to - from) * t;
+          P.pose(bend, to);
+        }, () => my === token && view.contains(btns));
+        if (ok && last) {
+          tags.innerHTML = "";
+          tag(tags, P[last]);
+        }
+      });
+    }
+    host.innerHTML = cfg.diags.length > 1 ? `<div class="ap-buttons">${cfg.diags.map((x, k) => `<button type="button" data-d="${k}"${k === cur ? ' class="primary"' : ""}>${DIAG_NAME[x]}</button>`).join("")}</div>` : "";
+    host.onclick = (event) => {
+      const b = event.target.closest("[data-d]");
+      if (!b || my !== token) return;
+      VOICE.hush();
+      cur = Number(b.dataset.d);
+      explore();
+    };
+    talk(DIAG_INTRO[d]);
+  };
+
+  const begin = () => {
+    q = null;
+    busy = false;
+    curTap = null;
+    host.onclick = null;
+    host.innerHTML = "";
+    if (level === "explore") return explore();
+    qs = cfg.make(level);
+    i = 0;
+    first = 0;
+    ask();
+  };
+  const revealTap = (k) => {
+    view.querySelectorAll(".bd-hi").forEach((n) => n.classList.remove("bd-hi"));
+    P[k].g.classList.add("bd-hi");
+    tags.innerHTML = "";
+    tag(tags, P[k]);
+    infoCard(card, P[k]);
+  };
+  const ask = () => {
+    q = qs[i];
+    tries = 0;
+    busy = false;
+    fresh();
+    setStatus(`Question ${i + 1} of ${qs.length}`);
+    host.onclick = null;
+    host.innerHTML = "";
+    curTap = null;
+    if (q.kind === "tap") {
+      P = DIAG[q.diag](view, {});
+      tags = el("g", {}, view);
+      card = el("g", {}, view);
+      cardBox(card);
+      emoji(card, 813, 80, "🔎", 56);
+      lines(card, 813, 170, q.text, 19, 38, { "font-size": 28, fill: "#2b1d12" });
+      curTap = (k) => answer(k);
+      tappable(view, P, (k) => curTap?.(k));
+    } else {
+      qCard(view, q);
+      choices(host, q.opts, (o, b) => answer(o.v, b));
+    }
+    talk(q.text);
+  };
+  function answer(v, button) {
+    if (my !== token || busy || !q) return;
+    if (q.kind === "tap" && !P[v]) return;
+    window.OC?.touch();
+    button = button || (q.opts ? buttonFor(v) : null);
+    const right = q.kind === "tap" ? v === q.part : isAns(v);
+    if (right) {
+      busy = true;
+      button?.classList.add("right");
+      MUSIC.chime();
+      if (!tries) first += 1;
+      window.OC?.count("body questions");
+      if (q.kind === "tap") revealTap(q.part);
+      else solCard(view, q);
+      talk(`${pick(GOOD)} ${q.why}`);
+      return nextBtn();
+    }
+    tries += 1;
+    if (button) {
+      button.classList.add("wrong");
+      button.disabled = true;
+    }
+    MUSIC.oops();
+    if (q.kind === "tap") {
+      tags.innerHTML = "";
+      tag(tags, P[v], { bad: true });
+    }
+    const h = q.kind === "tap" ? `You tapped: ${P[v].name}. ${q.hint}` : typeof q.hint === "function" ? q.hint(v) : q.hint;
+    if (tries === 1) return talk(`${pick(OOPS)} ${h}`);
+    busy = true;
+    if (q.kind === "tap") revealTap(q.part);
+    else {
+      buttonFor(q.ans)?.classList.add("right");
+      solCard(view, q);
+    }
+    talk(`Here is the reasoning. ${q.why}`);
+    nextBtn();
+  }
+  const nextBtn = () => {
+    setTimeout(() => {
+      if (my !== token || !busy) return;
+      host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-next>${i + 1 >= qs.length ? "Finish 🏁" : "Next ▶"}</button></div>`;
+      host.onclick = (event) => event.target.closest("[data-next]") && next();
+    }, 500);
+  };
+  const next = () => {
+    if (my !== token || !busy) return;
+    VOICE.hush();
+    i += 1;
+    if (i >= qs.length) finishScreen(id, qs.length, first, host, begin);
+    else ask();
+  };
+  onChips(id, (lv) => {
+    level = lv;
+    begin();
+  });
+  window.__bd = {
+    state: () => ({ level, i, total: qs.length, first, tries, kind: q?.kind, ans: q?.kind === "tap" ? q.part : q?.ans, say: $("[data-say]")?.innerText }),
+    right: () => (q ? (answer(q.kind === "tap" ? q.part : q.ans), "right") : "no q"),
+    wrong: () => {
+      if (!q) return "no q";
+      if (q.kind === "tap") {
+        const k = Object.keys(P).find((x) => x !== q.part);
+        answer(k);
+        return "wrong " + k;
+      }
+      const o = q.opts.find((x) => !isAns(x.v) && !buttonFor(x.v)?.disabled);
+      answer(o.v);
+      return "wrong " + o.v;
+    },
+    tap: (k) => (curTap?.(k), k),
+    next: () => (host.querySelector("[data-next]")?.click(), "next"),
+    qs: () => qs,
+    P: () => P,
+  };
+  begin();
+}
+
+const tween = (ms, fn, alive) =>
+  new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(true);
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!alive()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+
+// =====================================================================
+// 👀 See it
+function seeIt() {
+  const my = token;
+  const pop = (api, g, ms = 600) => api.tween(ms, (t) => g.setAttribute("opacity", t));
+  explain(
+    [
+      {
+        say: "Why study the human body? Knowing how your body works helps you keep it healthy: why we sleep, eat well, exercise and wash our hands. Doctors, nurses and medical scientists use exactly this knowledge every day.",
+        draw: everyday([["🩺", "Visiting the doctor"], ["🏃", "Exercise and fitness"], ["🥗", "Choosing good food"], ["🧼", "Stopping germs"]]),
+      },
+      {
+        say: "Your body is organised in levels. Similar cells form a tissue. Tissues form an organ, such as the heart. Organs work together in an organ system, and all the systems together make an organism: you.",
+        async draw(v, api) {
+          const st = [["Cell", "a heart muscle cell"], ["Tissue", "heart muscle tissue"], ["Organ", "the heart"], ["Organ system", "circulatory system"], ["Organism", "you"]];
+          for (let k = 0; k < 5; k++) {
+            const x = 100 + k * 200;
+            const g = el("g", { opacity: 0 }, v);
+            el("rect", { x: x - 90, y: 110, width: 180, height: 320, rx: 26, fill: "#fffaf0", stroke: "var(--accent)", "stroke-width": 4 }, g);
+            if (k === 0) {
+              el("ellipse", { cx: x, cy: 215, rx: 62, ry: 28, fill: "#f4a6a0", stroke: "#a8443c", "stroke-width": 3 }, g);
+              el("circle", { cx: x, cy: 215, r: 10, fill: "#6c4fa3" }, g);
+            } else if (k === 1) {
+              for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+                el("ellipse", { cx: x - 46 + c * 46 + (r % 2) * 12, cy: 175 + r * 40, rx: 24, ry: 15, fill: "#f4a6a0", stroke: "#a8443c", "stroke-width": 2 }, g);
+                el("circle", { cx: x - 46 + c * 46 + (r % 2) * 12, cy: 175 + r * 40, r: 4, fill: "#6c4fa3" }, g);
+              }
+            } else if (k === 2) emoji(g, x, 210, "🫀", 96);
+            else if (k === 3) {
+              el("ellipse", { cx: x, cy: 215, rx: 66, ry: 72, fill: "none", stroke: RICH, "stroke-width": 7, "stroke-dasharray": "14 9" }, g);
+              emoji(g, x, 212, "🫀", 56);
+            } else emoji(g, x, 210, "🧍", 100);
+            text(g, x, 345, st[k][0], { "font-size": st[k][0].length > 8 ? 24 : 30, fill: "#2b1d12" });
+            lines(g, x, 385, st[k][1], 13, 27, { "font-size": 21, fill: "#7a6552", "font-weight": 600 });
+            if (k) text(g, x - 100, 230, "→", { "font-size": 40, fill: "var(--accent-dark)" });
+            await pop(api, g);
+            MUSIC.play("harp", 60 + k * 4, { gain: 0.3 });
+            await api.wait(1100);
+          }
+          const cap = el("g", { opacity: 0 }, v);
+          text(cap, 500, 495, "Each level is built from the one before.", { "font-size": 28, fill: "var(--accent-dark)" });
+          await pop(api, cap);
+        },
+      },
+      {
+        say: "In 1665, the English scientist Robert Hooke looked at a thin slice of cork through his microscope. He saw rows of tiny empty boxes and called them cells, from the Latin cella, a small room. He was seeing the walls of dead plant cells. He was also a fine artist: his book, Micrographia, is famous for its drawings.",
+        async draw(v, api) {
+          const m = el("g", { opacity: 0 }, v);
+          el("rect", { x: 130, y: 440, width: 200, height: 22, rx: 8, fill: "#6d4c41" }, m);
+          el("rect", { x: 290, y: 200, width: 22, height: 245, rx: 6, fill: "#8d6e63" }, m);
+          el("path", { d: "M300 210 Q300 150 245 150", fill: "none", stroke: "#8d6e63", "stroke-width": 18 }, m);
+          el("rect", { x: 205, y: 120, width: 50, height: 220, rx: 10, fill: "#c8a165", stroke: "#7a5a2e", "stroke-width": 4, transform: "rotate(-12 230 230)" }, m);
+          el("rect", { x: 200, y: 90, width: 40, height: 40, rx: 8, fill: "#a1887f", stroke: "#5d4037", "stroke-width": 3, transform: "rotate(-12 220 110)" }, m);
+          el("rect", { x: 160, y: 360, width: 140, height: 12, rx: 4, fill: "#5d4037" }, m);
+          text(m, 230, 505, "Robert Hooke, 1665", { "font-size": 30, fill: "#2b1d12" });
+          text(m, 230, 540, "Micrographia", { "font-size": 24, fill: "#7a6552", "font-style": "italic" });
+          await pop(api, m, 800);
+          const clip = el("clipPath", { id: "bdHooke" }, v);
+          el("circle", { cx: 680, cy: 270, r: 210 }, clip);
+          el("circle", { cx: 680, cy: 270, r: 214, fill: "#f7efe0", stroke: "#3a2a1c", "stroke-width": 12 }, v);
+          const cork = el("g", { "clip-path": "url(#bdHooke)" }, v);
+          const rows = [];
+          for (let r = 0; r < 9; r++) {
+            const row = el("g", { opacity: 0 }, cork);
+            for (let c = 0; c < 9; c++) el("rect", { x: 470 + c * 50 + (r % 2) * 25, y: 60 + r * 48, width: 44, height: 40, rx: 8, fill: "#f3dcb4", stroke: "#8a6a4f", "stroke-width": 4 }, row);
+            rows.push(row);
+          }
+          for (const row of rows) {
+            await api.tween(220, (t) => row.setAttribute("opacity", t));
+            MUSIC.tick();
+          }
+          const lab = el("g", { opacity: 0 }, v);
+          text(lab, 680, 530, "cork 'cells': empty walls", { "font-size": 26, fill: "var(--accent-dark)" });
+          await pop(api, lab);
+        },
+      },
+      {
+        say: "Through a modern light microscope, cells scraped gently from the inside of your cheek look like flat, irregular shapes. A stain (a coloured dye) makes each nucleus show up as a dark spot. The thin edge is the cell membrane, and the cytoplasm fills the rest.",
+        async draw(v, api) {
+          el("circle", { cx: 500, cy: 280, r: 240, fill: "#f4f6f8", stroke: "#3a2a1c", "stroke-width": 12 }, v);
+          const cells = [[400, 200, 0.2], [590, 190, 1.4], [500, 330, 2.1], [370, 380, 3.3], [640, 370, 4.2]];
+          for (const [x, y, s] of cells) {
+            const g = el("g", { opacity: 0 }, v);
+            el("path", { d: blob(x, y, 82, 64, s, 14), fill: "#d6e6f7", stroke: "#4f7fbf", "stroke-width": 3 }, g);
+            el("circle", { cx: x + 8, cy: y - 4, r: 12, fill: "#2c4f8a" }, g);
+            await pop(api, g, 500);
+          }
+          await api.wait(600);
+          const P = { name: "", at: [0, 0], lab: [0, 0] };
+          const notes = [["Nucleus", [508, 326], [790, 120]], ["Cytoplasm", [470, 350], [790, 470]], ["Cell membrane", [500, 268], [200, 80]]];
+          for (const [name, at, lab] of notes) {
+            tag(v, { ...P, name, at, lab }, { maxX: 1000 });
+            MUSIC.play("harp", 67, { gain: 0.3 });
+            await api.wait(1100);
+          }
+        },
+      },
+      {
+        say: "Cells are tiny. Most animal and plant cells are between 10 and 100 micrometres across, and a micrometre is one thousandth of a millimetre. Forty cells, each 25 micrometres wide, fit across just one millimetre.",
+        async draw(v, api) {
+          text(v, 500, 80, "1 millimetre = 1000 micrometres (µm)", { "font-size": 34, fill: "#2b1d12" });
+          el("rect", { x: 100, y: 250, width: 800, height: 40, rx: 8, fill: "#fff", stroke: "#5a4130", "stroke-width": 4 }, v);
+          for (let k = 0; k <= 10; k++) el("line", { x1: 100 + k * 80, x2: 100 + k * 80, y1: 290, y2: k % 5 ? 305 : 315, stroke: "#5a4130", "stroke-width": 3 }, v);
+          text(v, 100, 345, "0", { "font-size": 26, fill: "#5a4130" });
+          text(v, 900, 345, "1 mm", { "font-size": 26, fill: "#5a4130" });
+          const count = text(v, 500, 420, "", { "font-size": 34, fill: "var(--accent-dark)" });
+          for (let k = 0; k < 40; k++) {
+            el("circle", { cx: 110 + k * 20, cy: 225, r: 9, fill: "#f4a6a0", stroke: "#a8443c", "stroke-width": 2 }, v);
+            count.textContent = `${k + 1} cells × 25 µm = ${(k + 1) * 25} µm`;
+            if (k % 5 === 4) MUSIC.play("xylophone", 72 + ((k / 5) | 0) * 2, { gain: 0.25 });
+            await api.wait(110);
+          }
+          const g = el("g", { opacity: 0 }, v);
+          text(g, 500, 490, "So 40 cells of 25 µm span just 1 mm.", { "font-size": 34, fill: "#2e7d46" });
+          await pop(api, g);
+        },
+      },
+      {
+        say: "Your organs work in systems, each with a main job. You will study six of them: the circulatory, respiratory, digestive, skeletal, muscular and nervous systems.",
+        async draw(v, api) {
+          const items = [["🫀", "Circulatory", "moves blood"], ["🫁", "Respiratory", "brings in oxygen"], ["🍎", "Digestive", "breaks down food"], ["🦴", "Skeletal", "support, protection"], ["💪", "Muscular", "movement"], ["🧠", "Nervous", "signals, control"]];
+          for (let k = 0; k < 6; k++) {
+            const x = 180 + (k % 3) * 320;
+            const y = 40 + Math.floor(k / 3) * 250;
+            const g = el("g", { opacity: 0 }, v);
+            el("rect", { x: x - 145, y, width: 290, height: 225, rx: 26, fill: "#fffaf0", stroke: "var(--accent)", "stroke-width": 4 }, g);
+            emoji(g, x, y + 70, items[k][0], 70);
+            text(g, x, y + 160, items[k][1], { "font-size": 32, fill: "#2b1d12" });
+            text(g, x, y + 200, items[k][2], { "font-size": 24, fill: "#7a6552", "font-weight": 600 });
+            await pop(api, g, 450);
+            MUSIC.play("harp", 62 + k * 3, { gain: 0.3 });
+            await api.wait(450);
+          }
+        },
+      },
+      {
+        say: "How do we know any of this? For about 1,400 years, doctors trusted Galen, a famous Greek physician who learned much from careful dissection, but who taught that the liver constantly makes new blood from food. In 1628, William Harvey tested the idea: he estimated how much blood the heart pumps in an hour and found it weighed more than a whole person. A famous name is not evidence; careful measurement is.",
+        async draw(v, api) {
+          const a = el("g", { opacity: 0 }, v);
+          el("rect", { x: 50, y: 40, width: 420, height: 380, rx: 30, fill: "#fbefe2", stroke: "#b98b5e", "stroke-width": 4 }, a);
+          emoji(a, 260, 110, "🏛️", 70);
+          text(a, 260, 200, "Galen, about AD 200", { "font-size": 28, fill: "#2b1d12" });
+          lines(a, 260, 250, "Claim: the liver keeps making new blood, which the body uses up.", 26, 34, { "font-size": 25, fill: "#5a4130", "font-weight": 600 });
+          text(a, 260, 395, "Trusted on authority", { "font-size": 23, fill: "#b3261e" });
+          await pop(api, a, 700);
+          await api.wait(1500);
+          const b = el("g", { opacity: 0 }, v);
+          el("rect", { x: 530, y: 40, width: 420, height: 380, rx: 30, fill: "#eef7e4", stroke: "#2e7d46", "stroke-width": 4 }, b);
+          emoji(b, 740, 110, "📜", 70);
+          text(b, 740, 200, "William Harvey, 1628", { "font-size": 28, fill: "#2b1d12" });
+          lines(b, 740, 250, "Claim: the same blood goes round and round, pumped by the heart.", 26, 34, { "font-size": 25, fill: "#5a4130", "font-weight": 600 });
+          text(b, 740, 395, "Tested by measurement", { "font-size": 23, fill: "#2e7d46" });
+          await pop(api, b, 700);
+          await api.wait(800);
+          const c = el("g", { opacity: 0 }, v);
+          text(c, 500, 490, "Ask: Is it true? How do we know?", { "font-size": 34, fill: "var(--accent-dark)" });
+          await pop(api, c);
+          MUSIC.chime();
+        },
+      },
+      {
+        say: "Explain it. In two to four sentences, tell a grown-up how the body is organised from cells to organism, and why Harvey's evidence was stronger than Galen's reputation.",
+        async draw(v, api) {
+          const g = el("g", { opacity: 0 }, v);
+          el("rect", { x: 120, y: 50, width: 760, height: 460, rx: 36, fill: "#fffaf0", stroke: "var(--accent)", "stroke-width": 5 }, g);
+          emoji(g, 500, 130, "🗣️", 90);
+          text(g, 500, 250, "Explain it", { "font-size": 52, fill: "#2b1d12" });
+          ["What are the five levels, smallest first?", "What is a tissue? What is an organ?", "Why did measurement beat reputation?"].forEach((t, k) => text(g, 500, 320 + k * 50, t, { "font-size": 30, fill: "#5a4130" }));
+          text(g, 500, 480, "Say it aloud in 2–4 sentences, or write it.", { "font-size": 24, fill: "var(--accent-dark)" });
+          await pop(api, g, 900);
+        },
+      },
+    ],
+    { alive: () => my === token, onDone: () => shell.go("bd1"), title: "The Human Body" }
+  );
+}
+
+const units = {
+  bd0: seeIt,
+  bd1: () => runner("bd1", { modes: MODES, diags: UNIT_DIAGS.bd1, make: (lv) => makeSet("bd1", lv) }),
+  bd2: () => runner("bd2", { modes: MODES, diags: UNIT_DIAGS.bd2, make: (lv) => makeSet("bd2", lv) }),
+  bd3: () => runner("bd3", { modes: MODES, diags: UNIT_DIAGS.bd3, make: (lv) => makeSet("bd3", lv) }),
+  bd4: () => runner("bd4", { modes: MODES, diags: UNIT_DIAGS.bd4, make: (lv) => makeSet("bd4", lv) }),
+  bd5: () => runner("bd5", { modes: MODES, diags: UNIT_DIAGS.bd5, make: (lv) => makeSet("bd5", lv) }),
+  bd6: () => runner("bd6", { modes: MODES, diags: UNIT_DIAGS.bd6, make: (lv) => makeSet("bd6", lv) }),
+  bd7: () => runner("bd7", { modes: LEVELS, make: (lv) => makeSet("bd7", lv) }),
+  bd8: () => runner("bd8", { modes: LEVELS, make: challengeSet }),
+};
+
+const bdStyle = document.createElement("style");
+bdStyle.textContent = `
+.bd-part,.bd-btn{cursor:pointer}
+.bd-hi{filter:drop-shadow(0 0 4px #ffb300) drop-shadow(0 0 2px #ff8f00)}
+.bd-pick .kt-choices button{min-height:50px;min-width:80px;padding:6px 16px;font-size:17px;line-height:1.2;border-radius:18px;white-space:normal}
+.bd-pick .kt-choices button:disabled{opacity:.55}
+.bd-pick .ap-buttons button{min-height:48px;font-size:16px}
+.bd-real .kt-how-card p{margin:0;color:#2b1d12;font:700 clamp(15px,2.1vw,19px)/1.35 var(--sans);text-align:left;width:100%}
+.bd-real .kt-how-card h2{font-size:clamp(20px,3vw,28px)}
+.bd-real p.safe{color:#8a4b14;background:#fff4e2;border-radius:14px;padding:8px 12px}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){.bd-pick .kt-choices{gap:4px}.bd-pick .kt-choices button{min-height:42px;min-width:56px;font-size:13.5px;line-height:1.08;padding:2px 10px}.bd-pick .ap-buttons button{min-height:42px;font-size:14px;padding:0 12px}}
+`;
+document.head.appendChild(bdStyle);
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    bd0: { icon: "👀", title: "See it", steps: ["Watch each picture and listen.", "Press Next ▶ to continue.", "Press Let's play when you are ready."] },
+    bd1: { icon: "🔬", title: "Cells", steps: ["Explore: tap any part of a cell to label it.", "Then choose a level.", "Tap the diagram, or tap an answer below."] },
+    bd2: { icon: "🫀", title: "Heart & blood", steps: ["Explore: tap any part to label it.", "Then choose a level.", "Tap the diagram, or tap an answer below."] },
+    bd3: { icon: "🫁", title: "Lungs & breathing", steps: ["Explore: tap any part to label it.", "Then choose a level.", "Tap the diagram, or tap an answer below."] },
+    bd4: { icon: "🍎", title: "Digestion", steps: ["Explore: tap any organ to label it.", "Then choose a level.", "Tap the diagram, or tap an answer below."] },
+    bd5: { icon: "🦴", title: "Bones & muscles", steps: ["Explore the skeleton and the arm muscles.", "Press Bend and Straighten to see muscles pull.", "Then choose a level and answer."] },
+    bd6: { icon: "🧠", title: "Brain & nerves", steps: ["Explore the brain, a reflex and a neuron.", "Then choose a level.", "Tap the diagram, or tap an answer below."] },
+    bd7: { icon: "🧼", title: "Keeping healthy", steps: ["Read the question card.", "Think it through, then tap an answer.", "Then read the reasoning."] },
+    bd8: { icon: "🏆", title: "Body challenge", steps: ["Choose your level.", "Work each problem out on paper first.", "Tap your answer, then study the worked solution."] },
+  },
+  start: "bd0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+    document.querySelector(".bd-real")?.remove();
+  },
+  subject: "Science",
+  activity: "Human Body",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 77, 79, 81, 83, 84, 86, 88, 89, 91, 93, 95]);
+MUSIC.preload("harp", [60, 62, 64, 65, 67, 68, 71, 72, 74, 76, 77]);
+</script>
+</body>
+</html>

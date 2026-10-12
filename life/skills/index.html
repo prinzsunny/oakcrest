@@ -1,0 +1,1787 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Life Skills · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="life">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Life Skills</b><small>Life skills · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, pickInt, wait, confetti, choices, explain, everyday, emoji, numpad, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+const INK = "#2b1d12";
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "ls0", label: "See it", icon: "👀" },
+  { id: "ls1", label: "1. Money jars", icon: "🫙" },
+  { id: "ls2", label: "2. My routines", icon: "⏰" },
+  { id: "ls3", label: "3. Healthy body", icon: "🥦" },
+  { id: "ls4", label: "4. Safety smarts", icon: "🦺" },
+  { id: "ls5", label: "5. Feelings & calm", icon: "💛" },
+  { id: "ls6", label: "6. Chores & helping", icon: "🧹" },
+];
+
+// Precise, serious feedback. Praise reasoning, never speed or "smart".
+const EFFORT = ["Correct.", "Correct, and here is why:", "Correct. Your reasoning holds:", "Correct. You checked carefully:"];
+const LEARN = ["Not quite. Consider this:", "Mistakes are how we learn. Let's look at why:", "Not yet. Think it through:"];
+
+// ---------- small helpers ----------
+function fresh() {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+}
+const tween = (ms, fn, alive) =>
+  new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(true);
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!alive()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+const toSvg = (event) => {
+  const p = view.createSVGPoint();
+  p.x = event.clientX;
+  p.y = event.clientY;
+  return p.matrixTransform(view.getScreenCTM().inverse());
+};
+function wrap(str, n) {
+  const lines = [];
+  for (const word of String(str).split(" ")) {
+    const last = lines[lines.length - 1];
+    if (last && (last + " " + word).length <= n) lines[lines.length - 1] = last + " " + word;
+    else lines.push(word);
+  }
+  return lines;
+}
+function lines(parent, x, y, str, n, size, attrs = {}) {
+  const ls = wrap(str, n);
+  ls.forEach((line, i) => text(parent, x, y + i * size * 1.22 - ((ls.length - 1) * size * 1.22) / 2, line, { "font-size": size, fill: INK, ...attrs }));
+  return ls.length;
+}
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const fmtTime = (m) => `${Math.floor(m / 60) % 12 || 12}:${String(m % 60).padStart(2, "0")}`;
+const cents = (c) => (c < 100 ? `${c}¢` : `$${(c / 100).toFixed(2)}`);
+const dollarsWord = (d) => `${d} dollar${d === 1 ? "" : "s"}`;
+const centsSay = (c) => (c < 100 ? `${c} cents` : c % 100 ? `${dollarsWord(Math.floor(c / 100))} and ${c % 100} cents` : dollarsWord(c / 100));
+
+// A calm picture card: a row of big pictures and a short caption.
+function scene(glyphs, caption, { bg = "#fffaf0" } = {}) {
+  fresh();
+  el("rect", { x: 30, y: 24, width: 940, height: 512, rx: 34, fill: bg, stroke: "#eadcc4", "stroke-width": 4 }, view);
+  const n = glyphs.length;
+  const size = [0, 180, 150, 125, 105][n] || 95;
+  const gap = Math.min(250, 860 / n);
+  glyphs.forEach((g, i) => emoji(view, 500 + (i - (n - 1) / 2) * gap, caption ? 200 : 260, g, size));
+  if (caption) lines(view, 500, 430, caption, 36, 34);
+}
+
+// Picture tile used by sort and order rounds.
+function tile(parent, glyph, label, w, h, extra) {
+  el("rect", { x: -w / 2, y: -h / 2, width: w, height: h, rx: 22, fill: "#fff", stroke: "#d9c7ab", "stroke-width": 3, class: "ls-face" }, parent);
+  emoji(parent, 0, -h / 2 + 52, glyph, 62);
+  const ls = wrap(label, Math.max(8, Math.floor(w / 12.5))).slice(0, 2);
+  const lab = el("g", { class: "ls-lab" }, parent);
+  ls.forEach((line, i) => text(lab, 0, -h / 2 + 116 + i * 25 - (extra ? 0 : (ls.length - 1) * 4), line, { "font-size": 22, fill: INK }));
+  if (extra) text(lab, 0, h / 2 - 12, extra, { "font-size": 22, fill: "var(--accent-dark)", "font-weight": 900 });
+}
+
+// ---------- the game engine: levels, 8 rounds, tries, reveal, calm finish ----------
+const LV = [["easy", "🐣 Easy"], ["medium", "🦊 Medium"], ["hard", "🦁 Hard"]];
+function game(id, cfg) {
+  const my = token;
+  const live = () => my === token;
+  let level = shell.progress()[id]?.level || "easy";
+  let list = [];
+  let round = 0;
+  panel(`<div class="ap-row"><div class="ap-chips" data-levels>${LV.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === level}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div><div class="ls-ans" data-ans></div>`);
+  const ans = $("[data-ans]");
+  const status = (t) => {
+    const s = $("[data-status]");
+    if (s) s.textContent = t;
+  };
+  $("[data-levels]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    level = b.dataset.lv;
+    shell.mark(id, { level });
+    window.OC?.touch();
+    VOICE.hush();
+    begin();
+  });
+  const nextBtn = () => {
+    const last = round === list.length - 1;
+    ans.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-next>${last ? "🎉 Finish" : "Next ▶"}</button><button type="button" data-hear aria-label="Hear it again">🔁</button></div>`;
+    ans.onclick = (event) => {
+      if (event.target.closest("[data-hear]")) return VOICE.speak($("[data-say]")?.innerHTML || "");
+      if (!event.target.closest("[data-next]")) return;
+      ans.onclick = null;
+      window.OC?.touch();
+      round += 1;
+      next();
+    };
+  };
+  const hearBtn = () => {
+    ans.innerHTML = `<div class="ap-buttons"><button type="button" data-hear>🔁 Hear it again</button></div>`;
+    ans.onclick = (event) => event.target.closest("[data-hear]") && VOICE.speak($("[data-say]")?.innerHTML || "");
+  };
+  const ctx = {
+    live,
+    ans,
+    hearBtn,
+    level: () => level,
+    miss() {
+      MUSIC.oops();
+      window.OC?.touch();
+    },
+    async solved(r, msg) {
+      if (!live()) return;
+      MUSIC.chime();
+      window.OC?.count(cfg.count);
+      if (r.then) {
+        ans.onclick = null;
+        ans.innerHTML = "";
+        await sayAsync(`${pick(EFFORT)} ${msg}`);
+        if (!live()) return;
+        return run(r.then, true);
+      }
+      say(`${pick(EFFORT)} ${msg}`);
+      nextBtn();
+      if (r.onSolved) r.onSolved(live);
+    },
+    reveal(r, msg) {
+      if (!live()) return;
+      say(msg);
+      if (r.then) {
+        ans.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-go>Next ▶</button></div>`;
+        ans.onclick = (event) => event.target.closest("[data-go]") && run(r.then, true);
+        return;
+      }
+      nextBtn();
+      if (r.onSolved) r.onSolved(live);
+    },
+  };
+  const run = (r, keep) => {
+    ans.onclick = null;
+    ans.innerHTML = "";
+    if (!keep) fresh();
+    window.__lsRound = r;
+    r.draw?.(view);
+    TYPES[r.type](r, ctx);
+  };
+  const next = () => {
+    if (!live()) return;
+    if (round >= list.length) return (cfg.finale ? cfg.finale(ctx, finish) : finish());
+    status(`Round ${round + 1} of ${list.length}`);
+    run(list[round]);
+  };
+  const finish = (real = cfg.real) => {
+    if (!live()) return;
+    fresh();
+    el("rect", { x: 30, y: 24, width: 940, height: 512, rx: 34, fill: "#fffaf0", stroke: "#eadcc4", "stroke-width": 4 }, view);
+    emoji(view, 500, 170, "🌟", 150);
+    text(view, 500, 360, "Complete", { "font-size": 60, fill: INK });
+    lines(view, 500, 440, cfg.end, 40, 30, { fill: "var(--accent-dark)" });
+    confetti();
+    MUSIC.chime();
+    shell.mark(id, { done: true });
+    status("All done");
+    say(`You have completed all ${list.length} rounds. ${cfg.end} Next, explain the idea in your own words, then try it for real.`);
+    ans.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-explain>🗣️ Explain it</button><button type="button" data-real>🏠 Try it for real</button><button type="button" data-again aria-label="Play again">🔁</button></div>`;
+    ans.onclick = (event) => {
+      if (event.target.closest("[data-explain]")) explainCard(cfg.explain);
+      else if (event.target.closest("[data-real]")) realCard(real);
+      else if (event.target.closest("[data-again]")) begin();
+    };
+  };
+  const begin = () => {
+    list = cfg.deck(level);
+    round = 0;
+    next();
+  };
+  begin();
+}
+
+const TYPES = {
+  // Tap the right picture/answer. First miss: a thinking hint. Second miss: show the answer and WHY.
+  choice(r, c) {
+    let tries = 0;
+    let done = false;
+    const opts = r.keep ? r.options : shuffle(r.options);
+    say(r.say);
+    choices(c.ans, opts.map((o) => ({ label: o.label, o })), (x, btn) => {
+      if (!c.live() || done || btn.disabled) return;
+      window.OC?.touch();
+      const buttons = [...c.ans.querySelectorAll("[data-c]")];
+      if (x.o.ok) {
+        done = true;
+        btn.classList.add("right");
+        buttons.forEach((b) => (b.disabled = true));
+        c.solved(r, r.why);
+        return;
+      }
+      tries += 1;
+      btn.classList.add("wrong");
+      btn.disabled = true;
+      c.miss();
+      if (tries >= 2) {
+        done = true;
+        const i = opts.findIndex((o) => o.ok);
+        buttons[i].classList.add("right");
+        buttons.forEach((b) => (b.disabled = true));
+        c.reveal(r, `${pick(LEARN)} The answer is <b>${opts[i].label}</b>. ${r.why}`);
+      } else say(`${pick(LEARN)} ${x.o.no || r.hint}`);
+    });
+  },
+  // Type a number on the pad.
+  num(r, c) {
+    let tries = 0;
+    let done = false;
+    say(r.say);
+    const pad = numpad(c.ans, {
+      max: 4,
+      onEnter(v) {
+        if (!c.live() || done) return;
+        window.OC?.touch();
+        if (v === r.answer) {
+          done = true;
+          return c.solved(r, r.why);
+        }
+        tries += 1;
+        c.miss();
+        pad.clear();
+        if (tries >= 2) {
+          done = true;
+          c.reveal(r, `${pick(LEARN)} The answer is <b>${r.answer}</b>. ${r.why}`);
+        } else say(`${pick(LEARN)} You said ${v}. ${typeof r.hint === "function" ? r.hint(v) : r.hint}`);
+      },
+    });
+  },
+  // Drag (or tap, then tap a box) each picture into the right box.
+  sort(r, c) {
+    const zones = r.zones.map((z) => ({ ...z, n: 0 }));
+    if (!zones[0].w) {
+      const n = zones.length;
+      const zw = (960 - (n - 1) * 18) / n;
+      zones.forEach((z, i) => Object.assign(z, { x: 20 + i * (zw + 18), y: 232, w: zw, h: 312 }));
+    }
+    zones.forEach((z) => {
+      z.g = el("g", { class: "ls-zone", "data-z": z.key }, view);
+      (r.drawZone || drawBin)(z.g, z);
+    });
+    const n = r.items.length;
+    const tw = Math.min(150, (960 - (n - 1) * 14) / n);
+    const items = r.items.map((it, i) => {
+      const hx = 500 + (i - (n - 1) / 2) * (tw + 14);
+      const g = el("g", { class: "ls-item", "data-i": i, transform: `translate(${hx} 122)` }, view);
+      tile(g, it.g, it.t, tw, 150);
+      return { ...it, i, g, hx, hy: 122, misses: 0, placed: false };
+    });
+    let left = n;
+    let sel = null;
+    let drag = null;
+    const home = (it) => it.g.setAttribute("transform", `translate(${it.hx} ${it.hy})`);
+    const mark = (it, on) => it.g.querySelector(".ls-face").setAttribute("stroke", on ? "var(--accent)" : "#d9c7ab");
+    const ok = (it, z) => (r.accept ? r.accept(it, z, zones) : it.zone === z.key);
+    const put = (it, z) => {
+      const k = z.n++;
+      const [px, py] = z.slot ? z.slot(k) : binSlot(z, k);
+      it.placed = true;
+      it.g.classList.add("done");
+      mark(it, false);
+      it.g.querySelector(".ls-lab").setAttribute("opacity", 0);
+      it.g.querySelector(".ls-face").setAttribute("opacity", 0.0);
+      it.g.setAttribute("transform", `translate(${px} ${py}) scale(0.62)`);
+      view.appendChild(it.g);
+      r.onPlace?.(z, zones);
+      MUSIC.play("xylophone", 72 + [0, 4, 7, 12, 16, 19, 24][Math.min(6, n - left)], { gain: 0.4 });
+      left -= 1;
+      if (!left) c.solved(r, r.done);
+    };
+    const drop = (it, z) => {
+      if (!c.live() || it.placed) return;
+      sel = null;
+      window.OC?.touch();
+      const res = ok(it, z);
+      if (res === true) {
+        put(it, z);
+        if (left) say(it.why || "Correct.");
+        return;
+      }
+      it.misses += 1;
+      c.miss();
+      home(it);
+      mark(it, false);
+      if (it.misses >= 2) {
+        const right = zones.find((zz) => ok(it, zz) === true);
+        say(`${it.why || `It goes in ${right.label}.`}`);
+        if (right) put(it, right);
+      } else say(`${pick(LEARN)} ${typeof res === "string" ? res : r.ask(it)}`);
+    };
+    const zoneAt = (p) => zones.find((z) => p.x >= z.x && p.x <= z.x + z.w && p.y >= z.y && p.y <= z.y + z.h);
+    view.addEventListener("pointerdown", (event) => {
+      if (!c.live()) return;
+      const g = event.target.closest(".ls-item");
+      if (g && !g.classList.contains("done")) {
+        const it = items[Number(g.dataset.i)];
+        drag = { it, p0: toSvg(event), moved: false };
+        view.appendChild(it.g);
+        try {
+          view.setPointerCapture(event.pointerId);
+        } catch {}
+        return;
+      }
+      const zg = event.target.closest(".ls-zone");
+      if (zg && sel) drop(sel, zones.find((z) => z.key === zg.dataset.z));
+    });
+    view.addEventListener("pointermove", (event) => {
+      if (!drag) return;
+      const p = toSvg(event);
+      const dx = p.x - drag.p0.x;
+      const dy = p.y - drag.p0.y;
+      if (Math.hypot(dx, dy) > 12) drag.moved = true;
+      if (drag.moved) drag.it.g.setAttribute("transform", `translate(${drag.it.hx + dx} ${drag.it.hy + dy})`);
+    });
+    const up = (event) => {
+      if (!drag) return;
+      const { it, moved } = drag;
+      drag = null;
+      if (moved) {
+        const z = zoneAt(toSvg(event));
+        if (z) drop(it, z);
+        else home(it);
+      } else {
+        if (sel) mark(sel, false);
+        sel = it;
+        mark(it, true);
+        MUSIC.play("woodblock", 79, { gain: 0.25 });
+        say(`${it.t}. Now tap the box where it belongs.`);
+      }
+    };
+    view.addEventListener("pointerup", up);
+    view.addEventListener("pointercancel", up);
+    say(r.say);
+    c.hearBtn();
+  },
+  // Tap the picture cards in a sensible order. A card fits when everything it needs is already done.
+  order(r, c) {
+    const n = r.cards.length;
+    const cw = Math.min(172, (960 - (n - 1) * 16) / n);
+    const order = shuffle(r.cards.map((_, i) => i));
+    const slotX = (k) => 500 + (k - (n - 1) / 2) * (cw + 16);
+    for (let k = 0; k < n; k++) {
+      el("rect", { x: slotX(k) - cw / 2, y: 312, width: cw, height: 176, rx: 22, fill: "#fbf6ee", stroke: "#cdbb9f", "stroke-width": 3, "stroke-dasharray": "12 9" }, view);
+      el("circle", { cx: slotX(k), cy: 312, r: 22, fill: "var(--accent)" }, view);
+      text(view, slotX(k), 320, k + 1, { "font-size": 24, fill: "#fff" });
+    }
+    const cards = r.cards.map((cd, i) => {
+      const pos = order.indexOf(i);
+      const hx = slotX(pos);
+      const g = el("g", { class: "ls-card", "data-i": i, transform: `translate(${hx} 136)` }, view);
+      tile(g, cd.g, cd.t, cw, 176, r.mins ? `${cd.m} min` : null);
+      return { ...cd, i, g, hx, placed: false };
+    });
+    const placed = [];
+    let misses = 0;
+    let busy = false;
+    const can = (cd) => (cd.a || []).every((j) => placed.includes(j));
+    const place = async (cd) => {
+      busy = true;
+      cd.placed = true;
+      placed.push(cd.i);
+      misses = 0;
+      cd.g.classList.add("done");
+      const k = placed.length - 1;
+      const x0 = cd.hx;
+      MUSIC.play("xylophone", 72 + [0, 2, 4, 5, 7, 9][k % 6], { gain: 0.4 });
+      await tween(600, (t) => cd.g.setAttribute("transform", `translate(${x0 + (slotX(k) - x0) * t} ${136 + 264 * t})`), c.live);
+      busy = false;
+      if (!c.live()) return;
+      if (placed.length === n) return c.solved(r, r.done);
+    };
+    view.addEventListener("pointerdown", (event) => {
+      const g = event.target.closest(".ls-card");
+      if (!g || busy || !c.live()) return;
+      const cd = cards[Number(g.dataset.i)];
+      if (cd.placed) return;
+      window.OC?.touch();
+      if (can(cd)) {
+        if (placed.length < n - 1) say(`${placed.length + 1}. ${cd.t}.`);
+        place(cd);
+        return;
+      }
+      misses += 1;
+      c.miss();
+      cd.g.querySelector(".ls-face").setAttribute("stroke", "#e0603a");
+      setTimeout(() => cd.g.querySelector(".ls-face").setAttribute("stroke", "#d9c7ab"), 700);
+      if (misses >= 2) {
+        const nxt = cards.find((x) => !x.placed && can(x));
+        say(`${nxt.t} comes next. ${nxt.why || `It has to happen before you can ${cd.t.toLowerCase()}.`}`);
+        place(nxt);
+      } else say(`${pick(LEARN)} What has to happen before you can ${cd.t.toLowerCase()}?`);
+    });
+    say(r.say);
+    c.hearBtn();
+  },
+  custom(r, c) {
+    r.start(c);
+  },
+};
+
+function drawBin(g, z) {
+  el("rect", { x: z.x, y: z.y, width: z.w, height: z.h, rx: 26, fill: z.soft, stroke: z.color, "stroke-width": 5 }, g);
+  emoji(g, z.x + 40, z.y + 34, z.glyph, 40);
+  text(g, z.x + z.w / 2 + 18, z.y + 46, z.label, { "font-size": z.label.length > 12 ? 24 : 30, fill: z.color, "font-weight": 900 });
+}
+function binSlot(z, k) {
+  const step = 84;
+  const cols = Math.max(1, Math.floor((z.w - 16) / step));
+  const col = k % cols;
+  const row = Math.floor(k / cols);
+  return [z.x + z.w / 2 + (col - (cols - 1) / 2) * step, z.y + 120 + row * 92];
+}
+function drawJar(g, z) {
+  const { x, y, w, h } = z;
+  el("rect", { x: x + w * 0.2, y, width: w * 0.6, height: 28, rx: 9, fill: "#b88a5a", stroke: "#7a5233", "stroke-width": 3 }, g);
+  el("rect", { x: x + w * 0.06, y: y + 24, width: w * 0.88, height: h - 24, rx: 40, fill: "#eef7fb", stroke: "#8fb4c4", "stroke-width": 5 }, g);
+  el("rect", { x: x + w * 0.06, y: y + 54, width: w * 0.88, height: 52, fill: z.color }, g);
+  text(g, x + w / 2, y + 92, `${z.label}`, { "font-size": 34, fill: "#fff", "font-weight": 900 });
+  emoji(g, x + w / 2, y + 150, z.glyph, 44, { opacity: 0.85 });
+  if (z.cap !== undefined) z.countText = text(g, x + w / 2, y + 206, `0 of ${z.cap}`, { "font-size": 26, fill: INK });
+}
+const jarSlot = (z) => (k) => [z.x + z.w / 2 + ((k % 3) - 1) * 64, z.y + z.h - 42 - Math.floor(k / 3) * 46];
+
+// ---------- "Try it for real" card ----------
+function realCard({ title, need, steps, safe = "Do this with a grown-up." }) {
+  document.querySelector(".ls-real")?.remove();
+  VOICE.hush();
+  const box = document.createElement("div");
+  box.className = "ls-real";
+  box.innerHTML = `<div class="ls-real-card" role="dialog" aria-label="Try it for real"><h2>🏠 Try it for real</h2><h3>${title}</h3><p><b>You need:</b> ${need}</p><ol>${steps.map((s) => `<li>${s}</li>`).join("")}</ol><p class="ls-safe">👪 ${safe}</p><button type="button" class="kt-go" data-close-real>✓ OK</button></div>`;
+  document.body.appendChild(box);
+  VOICE.speak(`Try it for real. ${title}. You need: ${need}. ${steps.join(" ")} ${safe}`);
+  box.addEventListener("click", (event) => {
+    if (event.target === box || event.target.closest("[data-close-real]")) {
+      VOICE.hush();
+      box.remove();
+    }
+  });
+}
+
+// ---------- "Explain it": say the reasoning in 2 to 4 full sentences ----------
+function explainCard({ q, starters, check }) {
+  document.querySelector(".ls-real")?.remove();
+  VOICE.hush();
+  const box = document.createElement("div");
+  box.className = "ls-real";
+  box.innerHTML = `<div class="ls-real-card" role="dialog" aria-label="Explain it"><h2>🗣️ Explain it</h2><h3>${q}</h3><p>Answer in 2 to 4 full sentences, out loud to a grown-up or in writing.</p><p><b>Sentence starters:</b></p><ol>${starters.map((s) => `<li>${s}</li>`).join("")}</ol><p class="ls-safe">A strong answer includes: ${check}</p><button type="button" class="kt-go" data-close-real>✓ Done</button></div>`;
+  document.body.appendChild(box);
+  VOICE.speak(`Explain it. ${q} Answer in 2 to 4 full sentences. You might begin: ${starters.join(" ... ")}`);
+  box.addEventListener("click", (event) => {
+    if (event.target === box || event.target.closest("[data-close-real]")) {
+      VOICE.hush();
+      box.remove();
+    }
+  });
+}
+
+const lsStyle = document.createElement("style");
+lsStyle.textContent = `
+.ap-panel>*{flex-shrink:0}
+.ls-ans{display:flex;justify-content:center;width:100%}
+.ls-ans .kt-choices button{min-height:54px;font-size:19px;white-space:normal;line-height:1.2;padding:6px 16px;max-width:100%}
+.ls-item,.ls-card,.ls-zone,.ls-thing{cursor:pointer}
+.ls-jobs button{min-width:52px;min-height:52px;font-size:28px;padding:0 8px}
+.ls-real{position:fixed;inset:0;z-index:45;display:grid;place-items:center;padding:12px;background:rgba(43,29,18,.4)}
+.ls-real-card{width:min(580px,100%);max-height:100%;overflow:auto;padding:18px 22px;border-radius:26px;background:#fff;box-shadow:0 18px 40px rgba(0,0,0,.25);color:${INK};font:700 17px/1.35 var(--sans);text-align:left}
+.ls-real-card h2{margin:0;color:var(--accent-dark);font:900 22px/1.2 var(--sans)}
+.ls-real-card h3{margin:4px 0 6px;font:900 20px/1.2 var(--sans)}
+.ls-real-card p{margin:4px 0}
+.ls-real-card ol{margin:6px 0;padding-left:22px}
+.ls-real-card li{margin:3px 0}
+.ls-real-card .ls-safe{padding:6px 10px;border-radius:12px;background:var(--accent-soft);color:var(--accent-dark)}
+.ls-real-card .kt-go{display:block;margin:10px auto 0}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){.ls-ans .kt-choices button{min-height:44px;font-size:15.5px;padding:4px 12px}.ls-real-card{font-size:15px;padding:12px 16px}.ls-real-card .kt-go{min-height:46px}}
+`;
+document.head.appendChild(lsStyle);
+
+// =====================================================================
+// MONEY: stewardship (give, save, spend), budgets, percentages, simple interest
+// =====================================================================
+const NEEDS = [
+  ["🍎", "Healthy food", "Food supplies the energy and nutrients your body requires. It is a need."],
+  ["💧", "Water", "Your body is more than half water and needs fresh water daily. A need."],
+  ["🧥", "Warm coat", "A coat protects your body from cold. In winter it is a need."],
+  ["🏠", "A home", "Shelter keeps you safe and dry. It is a need."],
+  ["👟", "Shoes", "Shoes protect your feet from injury. They are a need."],
+  ["💊", "Medicine when sick", "Medicine, given by a grown-up, helps the body recover. A need."],
+  ["🪥", "Toothbrush", "Brushing helps prevent tooth decay. A toothbrush is a need."],
+  ["🛏️", "A bed", "Sleep is essential to health, so a place to sleep is a need."],
+];
+const WANTS = [
+  ["🧸", "New teddy", "A new teddy is pleasant, but your health and safety do not depend on it. A want."],
+  ["🍭", "Lollipop", "A lollipop is a treat. Pleasant, not necessary: a want."],
+  ["🎮", "Video game", "A video game is entertainment, not a necessity. A want."],
+  ["🎈", "Balloon", "A balloon gives a little enjoyment. A want."],
+  ["🍦", "Ice cream", "Ice cream is a treat, not a requirement. A want."],
+  ["🚗", "Toy car", "A toy car is enjoyable but not necessary. A want."],
+  ["⭐", "Stickers", "Stickers are decorative. A want."],
+];
+// Medium: pairs where a need and a want look alike.
+const PAIRS = [
+  [["👟", "Plain shoes", "Plain shoes fully meet the need: protecting your feet."], ["✨", "Light-up shoes", "The lights add enjoyment, not protection. The extra cost buys a want."]],
+  [["💧", "Water", "Water is what your body actually requires. A need."], ["🥤", "Soda", "Soda is mostly water and sugar. It does not meet a need better than plain water. A want."]],
+  [["🥪", "Lunch", "Lunch supplies the energy for the afternoon. A need."], ["🍰", "Cake", "Cake is for celebrations. A want."]],
+  [["🧥", "Winter coat", "One warm coat meets the need."], ["🧢", "A fifth cap", "You already own caps. Another one is a want."]],
+  [["📚", "School books", "Books are tools for learning. A need."], ["🦄", "Unicorn toy", "A toy is a want."]],
+];
+const NW_ZONES = [
+  { key: "need", label: "NEED", glyph: "🏠", color: "#2e8f55", soft: "#e2f4e8" },
+  { key: "want", label: "WANT", glyph: "✨", color: "#8a44b8", soft: "#f1e5fa" },
+];
+function nwRound(level) {
+  let items;
+  if (level === "easy") items = [...shuffle(NEEDS).slice(0, 2).map((x) => [x, "need"]), ...shuffle(WANTS).slice(0, 2).map((x) => [x, "want"])];
+  else items = shuffle(PAIRS).slice(0, 2).flatMap(([a, b]) => [[a, "need"], [b, "want"]]);
+  return {
+    type: "sort",
+    say: "A need is required for health and safety. A want is pleasant but not required. Drag each picture to NEED or WANT.",
+    zones: NW_ZONES,
+    items: shuffle(items.map(([[g, t, why], zone]) => ({ g, t, why, zone }))),
+    ask: (it) => `Apply the test: could you stay healthy and safe without ${it.t.toLowerCase()}?`,
+    done: "A good steward (someone who manages what is entrusted to them) pays for needs first, then chooses wants with care.",
+  };
+}
+const JAR_Z = [
+  { key: "give", label: "GIVE", glyph: "💛", color: "#e0603a" },
+  { key: "save", label: "SAVE", glyph: "🐷", color: "#2f6fd6" },
+  { key: "spend", label: "SPEND", glyph: "🛒", color: "#2e8f55" },
+];
+function jarsRound(n, give, save) {
+  const cap = { give, save, spend: n - give - save };
+  const zones = JAR_Z.map((z, i) => {
+    const zz = { ...z, cap: cap[z.key], x: 60 + i * 310, y: 228, w: 260, h: 318 };
+    zz.slot = jarSlot(zz);
+    return zz;
+  });
+  return {
+    type: "sort",
+    say: `Your allowance this week is ${n} dollars. Put ${give} in GIVE, ${save} in SAVE, and the rest in SPEND.`,
+    zones,
+    drawZone: drawJar,
+    items: Array.from({ length: n }, () => ({ g: "💵", t: "$1" })),
+    accept: (it, z) => (z.n < cap[z.key] ? true : `The ${z.label} jar already holds its ${cap[z.key]}. Which jar is still short?`),
+    onPlace: (z) => z.countText && (z.countText.textContent = `${z.n} of ${z.cap}${z.n === z.cap ? " ✓" : ""}`),
+    done: `Give $${give}, save $${save}, spend $${cap.spend}: ${give} + ${save} + ${cap.spend} = ${n}. Every dollar has a purpose. That plan is called a budget.`,
+  };
+}
+const GOAL_ITEMS = [["📕", "A book"], ["⚽", "A soccer ball"], ["🪁", "A kite"], ["🧩", "A puzzle"], ["🎨", "A paint set"], ["🛼", "A pair of roller skates"], ["🔭", "A small telescope"], ["🎻", "A set of violin strings"]];
+function goalRound(cost, per) {
+  const [glyph, name] = pick(GOAL_ITEMS);
+  const weeks = Math.ceil(cost / per);
+  const exact = weeks * per === cost;
+  const max = weeks * per;
+  const X = (v) => 90 + (v / max) * 760;
+  let fill;
+  let label;
+  return {
+    type: "num",
+    answer: weeks,
+    say: `${name} costs $${cost}. You save $${per} each week. How many weeks until you have enough?`,
+    hint: exact ? `This is division: how many groups of ${per} make ${cost}? You may skip-count along the bar.` : `Skip-count by ${per}. Does any week land exactly on ${cost}? If not, which is the first week that reaches or passes it?`,
+    why: exact ? `$${cost} ÷ $${per} = ${weeks}. After ${weeks} weeks you have exactly $${cost}.` : `${cost} ÷ ${per} is ${Math.floor(cost / per)} remainder ${cost % per}. After ${weeks - 1} weeks you have only $${(weeks - 1) * per}, which is short. After ${weeks} weeks you have $${max}, which is enough. So we round up to ${weeks}.`,
+    draw(v) {
+      text(v, 500, 62, `${name}: $${cost}. Saving $${per} per week.`, { "font-size": 32, fill: INK });
+      el("rect", { x: 90, y: 270, width: 760, height: 64, rx: 32, fill: "#f3ece0", stroke: "#cdbb9f", "stroke-width": 3 }, v);
+      fill = el("rect", { x: 90, y: 270, width: 0, height: 64, rx: 32, fill: "var(--accent)" }, v);
+      for (let k = 1; k <= weeks; k++) {
+        el("line", { x1: X(k * per), x2: X(k * per), y1: 262, y2: 342, stroke: "#8a7764", "stroke-width": 3 }, v);
+        text(v, X(k * per), 378, `$${k * per}`, { "font-size": weeks > 8 ? 22 : 24, fill: "#5a4130" });
+      }
+      text(v, 90, 378, "$0", { "font-size": 24, fill: "#5a4130" });
+      el("line", { x1: X(cost), x2: X(cost), y1: 190, y2: 270, stroke: "#e0603a", "stroke-width": 5 }, v);
+      emoji(v, X(cost), 150, glyph, 70);
+      const tx = Math.min(X(cost) + 30, 870);
+      el("rect", { x: tx, y: 120, width: 96, height: 46, rx: 12, fill: "#fff3d1", stroke: "#c98a00", "stroke-width": 3 }, v);
+      text(v, tx + 48, 152, `$${cost}`, { "font-size": 26, fill: INK });
+      label = text(v, 500, 460, "Number of weeks = ?", { "font-size": 34, fill: "var(--accent-dark)" });
+    },
+    async onSolved(live) {
+      for (let k = 1; k <= weeks; k++) {
+        const w0 = Number(fill.getAttribute("width"));
+        if (!(await tween(500, (t) => fill.setAttribute("width", w0 + (X(k * per) - 90 - w0) * t), live))) return;
+        label.textContent = `Week ${k}: $${k * per}`;
+        MUSIC.play("xylophone", 72 + [0, 2, 4, 5, 7, 9, 11, 12, 14, 16][Math.min(9, k - 1)], { gain: 0.4 });
+        await wait(250);
+        if (!live()) return;
+      }
+    },
+  };
+}
+const SHOP = [["✏️", "pencil"], ["🍎", "apple"], ["🧃", "juice box"], ["⭐", "sheet of stickers"], ["🎈", "balloon"], ["🍪", "cookie"]];
+const an = (w) => (/^[aeiou]/i.test(w) ? "An" : "A");
+function changeRound(price, pay) {
+  const [glyph, name] = pick(SHOP);
+  const back = pay - price;
+  return {
+    type: "num",
+    answer: back,
+    say: `${an(name)} ${name} costs ${centsSay(price)}. You pay with a ${pay / 100} dollar bill. How much change do you receive, in cents?`,
+    hint: `Shopkeepers count up: from ${price} to the next ten, then to the next dollar, then to ${pay}. Add the jumps.`,
+    why: `${pay} − ${price} = ${back}. Check by adding: ${price} + ${back} = ${pay}. Your change is ${centsSay(back)}.`,
+    draw(v) {
+      el("rect", { x: 70, y: 90, width: 330, height: 260, rx: 28, fill: "#fff3d1", stroke: "#c98a00", "stroke-width": 4 }, v);
+      emoji(v, 235, 180, glyph, 110);
+      text(v, 235, 315, cents(price), { "font-size": 52, fill: INK });
+      text(v, 500, 230, "pay", { "font-size": 26, fill: "#8a7764" });
+      el("path", { d: "M440 250H570M550 232L574 250L550 268", stroke: "#8a7764", "stroke-width": 6, fill: "none", "stroke-linecap": "round" }, v);
+      el("rect", { x: 600, y: 140, width: 320, height: 150, rx: 14, fill: "#cfe3c4", stroke: "#4e7a45", "stroke-width": 4 }, v);
+      el("rect", { x: 614, y: 154, width: 292, height: 122, rx: 8, fill: "none", stroke: "#6f9a63", "stroke-width": 2 }, v);
+      text(v, 760, 236, `$${pay / 100}`, { "font-size": 60, fill: "#2f5a28" });
+      text(v, 760, 340, `= ${pay} cents`, { "font-size": 28, fill: "#2f5a28" });
+      text(v, 500, 470, `${pay}¢ − ${price}¢ = ?¢`, { "font-size": 42, fill: "var(--accent-dark)" });
+    },
+  };
+}
+function splitRound(n, s) {
+  const spend = n - 1 - s;
+  return {
+    type: "num",
+    answer: spend,
+    say: `Your allowance is $${n}. You place $1 in GIVE and $${s} in SAVE. How many dollars remain for SPEND?`,
+    hint: `Begin with ${n}. Subtract each amount already assigned. What remains?`,
+    why: `${n} − 1 − ${s} = ${spend}. Check: 1 + ${s} + ${spend} = ${n}.`,
+    draw(v) {
+      text(v, 500, 60, `Allowance: $${n}`, { "font-size": 34, fill: INK });
+      const vals = ["$1", `$${s}`, "?"];
+      JAR_Z.forEach((z, i) => {
+        const g = el("g", {}, v);
+        drawJar(g, { ...z, x: 90 + i * 290, y: 110, w: 240, h: 300 });
+        text(g, 90 + i * 290 + 120, 360, vals[i], { "font-size": 60, fill: i === 2 ? "var(--accent-dark)" : INK });
+      });
+      text(v, 500, 470, `$${n} − $1 − $${s} = ?`, { "font-size": 40, fill: "var(--accent-dark)" });
+    },
+  };
+}
+function sheet(v, title, rows) {
+  text(v, 500, 62, title, { "font-size": 34, fill: INK });
+  el("rect", { x: 180, y: 92, width: 640, height: 64 * rows.length + 24, rx: 20, fill: "#fffaf0", stroke: "#d9c7ab", "stroke-width": 3 }, v);
+  rows.forEach(([a, b, color], i) => {
+    text(v, 220, 146 + i * 64, a, { "font-size": 32, fill: color || INK, "text-anchor": "start" });
+    text(v, 780, 146 + i * 64, b, { "font-size": 32, fill: color || INK, "text-anchor": "end" });
+  });
+}
+function budgetRound(level) {
+  if (level === "medium") {
+    const [budget, a, b] = pick([[10, 4, 3], [12, 5, 4], [15, 6, 7], [10, 2, 5], [20, 8, 9]]);
+    const [[ga, na, fa], [gb, nb, fb]] = shuffle([["📓", "Notebook", "a notebook"], ["🖍️", "Pencils", "a set of pencils"], ["📕", "Paperback", "a paperback"], ["🧩", "Puzzle", "a puzzle"]]).slice(0, 2);
+    return {
+      type: "num",
+      answer: budget - a - b,
+      say: `Your SPEND budget is $${budget}. You buy ${fa} for $${a} and ${fb} for $${b}. How much of the budget remains?`,
+      hint: "First find the total spent. Then subtract it from the budget.",
+      why: `Spent: $${a} + $${b} = $${a + b}. Remaining: $${budget} − $${a + b} = $${budget - a - b}.`,
+      draw: (v) => sheet(v, "Budget sheet", [["Budget", `$${budget}`], [`${ga} ${na}`, `− $${a}`], [`${gb} ${nb}`, `− $${b}`], ["Remaining", "$?", "var(--accent-dark)"]]),
+    };
+  }
+  const [n, g, s] = pick([[20, 10, 50], [10, 10, 50], [20, 10, 40], [40, 10, 50], [30, 10, 30]]);
+  const give = (n * g) / 100;
+  const save = (n * s) / 100;
+  return {
+    type: "num",
+    answer: n - give - save,
+    say: `Your allowance is $${n}. You give ${g} percent and save ${s} percent. How many dollars remain to spend?`,
+    hint: `Percent means "out of 100". Find ${g} percent of ${n} and ${s} percent of ${n} first.`,
+    why: `${g}% of $${n} = $${give}. ${s}% of $${n} = $${save}. $${n} − $${give} − $${save} = $${n - give - save}, which is ${100 - g - s}% of the allowance.`,
+    draw: (v) => sheet(v, "Budget by percent", [["Allowance", `$${n}`], [`GIVE ${g}%`, "$?", "#e0603a"], [`SAVE ${s}%`, "$?", "#2f6fd6"], ["SPEND", "$?", "#2e8f55"]]),
+  };
+}
+const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+function percentRound(level) {
+  if (level === "medium") {
+    const [n, p] = pick([[10, 50], [20, 50], [20, 25], [12, 25], [10, 10], [30, 10], [40, 25]]);
+    const parts = p === 50 ? 2 : p === 25 ? 4 : 10;
+    return {
+      type: "num",
+      answer: (n * p) / 100,
+      say: `You receive $${n} and decide to save ${p} percent. How many dollars do you save?`,
+      hint: p === 50 ? "50 percent is one half. What is half of the amount?" : p === 25 ? "25 percent is one quarter: half of a half." : "10 percent is one tenth. Split the amount into 10 equal parts.",
+      why: `${p}% = 1/${parts}. One ${parts === 2 ? "half" : parts === 4 ? "quarter" : "tenth"} of $${n} is $${(n * p) / 100}.`,
+      draw: (v) => {
+        text(v, 500, 62, `${p}% of $${n} = ?`, { "font-size": 40, fill: INK });
+        const w = 800 / parts;
+        for (let k = 0; k < parts; k++) el("rect", { x: 100 + k * w, y: 180, width: w - 6, height: 120, rx: 14, fill: k === 0 ? "#2f6fd6" : "#e8eef8", stroke: "#2f6fd6", "stroke-width": 3 }, v);
+        text(v, 500, 370, `$${n} split into ${parts} equal parts`, { "font-size": 30, fill: "#5a4130" });
+        text(v, 500, 440, `Percent means "per hundred": ${p}% = ${p}/100`, { "font-size": 28, fill: "var(--accent-dark)" });
+      },
+    };
+  }
+  const [part, whole] = pick([[6, 24], [5, 20], [3, 12], [9, 36], [2, 20], [10, 40], [5, 10]]);
+  const g = gcd(part, whole);
+  const pct = (part / whole) * 100;
+  return {
+    type: "num",
+    answer: pct,
+    say: `Of your $${whole} allowance, you saved $${part}. What percent did you save?`,
+    hint: `Write it as a fraction, ${part} over ${whole}. Simplify it, then ask: how many out of 100?`,
+    why: `${part}/${whole} = ${part / g}/${whole / g} = ${pct}/100 = ${pct}%.`,
+    draw: (v) => sheet(v, "What percent was saved?", [["Allowance", `$${whole}`], ["Saved", `$${part}`, "#2f6fd6"], ["Percent saved", "?%", "var(--accent-dark)"]]),
+  };
+}
+function bankPic(v, rows) {
+  emoji(v, 190, 220, "🏦", 170);
+  rows.forEach(([s, color], i) => text(v, 640, 140 + i * 78, s, { "font-size": 36, fill: color || INK }));
+}
+// Simple interest: I = P × r × t (the bank pays a percent of the principal each year).
+function interestRound(P, r, t) {
+  const I = (P * r * t) / 100;
+  return {
+    type: "num",
+    answer: t === 1 ? P + I : I,
+    say:
+      t === 1
+        ? `You keep $${P} in a savings account. The bank pays ${r} percent interest each year. How much is in the account after 1 year?`
+        : `You keep $${P} in a savings account that pays ${r} percent simple interest per year. How many dollars of interest do you earn in ${t} years?`,
+    hint: t === 1 ? `${r} percent means $${r} for every $100. How many hundreds are in $${P}?` : `Find one year's interest first: $${r} for every $100. Then multiply by the number of years.`,
+    why:
+      t === 1
+        ? `$${P} is ${P / 100} hundred${P > 100 ? "s" : ""}, so one year's interest is ${P / 100} × $${r} = $${I}. Balance: $${P} + $${I} = $${P + I}. Interest is the payment a bank makes for the use of your money. (For one year, simple and compound interest give the same amount.)`
+        : `One year: ${r}% of $${P} = $${(P * r) / 100}. For ${t} years: $${(P * r) / 100} × ${t} = $${I}. The rule for simple interest: interest = principal × rate × time. Simple interest is paid only on the original principal. Many real accounts pay compound interest, where last year's interest also earns interest, so the balance grows a little faster.`,
+    draw(v) {
+      bankPic(v, [[`Principal: $${P}`], [`Rate: ${r}% per year`, "#2e8f55"], [`Time: ${t} year${t > 1 ? "s" : ""}`], [t === 1 ? "Balance: $?" : "Interest: $?", "var(--accent-dark)"]]);
+    },
+  };
+}
+const moneyDeck = {
+  easy: () => [jarsRound(3, 1, 1), nwRound("easy"), jarsRound(4, 1, 1), nwRound("easy"), jarsRound(5, 1, 2), nwRound("easy"), jarsRound(6, 1, 2), nwRound("easy")],
+  medium: () => {
+    const g = shuffle([[12, 2], [10, 2], [15, 3], [20, 5], [16, 4], [18, 3], [9, 3], [14, 2], [20, 4], [24, 3], [30, 5]]);
+    const p = shuffle([15, 25, 35, 40, 45, 55, 60, 65, 70, 85, 90, 37, 52, 78]);
+    return [goalRound(...g[0]), changeRound(p[0], 100), budgetRound("medium"), percentRound("medium"), nwRound("medium"), splitRound(pick([6, 8, 10]), pick([2, 3])), goalRound(...g[1]), percentRound("medium")];
+  },
+  hard: () => {
+    const c = shuffle([[25, 3], [17, 4], [22, 5], [13, 2], [29, 6], [19, 4], [40, 7], [35, 8]]);
+    const i1 = pick([[100, 2], [200, 3], [300, 2], [200, 4], [400, 3], [500, 4]]);
+    const i2 = pick([[200, 3, 2], [100, 5, 3], [300, 2, 4], [400, 3, 2], [500, 2, 3], [200, 4, 5]]);
+    return [
+      interestRound(i1[0], i1[1], 1),
+      goalRound(...c[0]),
+      budgetRound("hard"),
+      changeRound(pick([125, 240, 315, 360, 275, 410, 163, 288]), 500),
+      {
+        type: "choice",
+        say: "You keep $50 in a jar under your bed for a whole year. How much is in the jar at the end of the year?",
+        draw: () => scene(["🫙", "🛏️", "📅"], "$50 in a jar for one year"),
+        options: [{ label: "$50", ok: true }, { label: "$51", no: "Who would add the extra dollar? Does a jar pay interest?" }, { label: "$60", no: "Interest is paid by a bank for using your money. Can a jar use it?" }],
+        hint: "Does a jar add money to your savings? Who pays interest, and why?",
+        why: "A jar stores money but adds nothing. A bank pays interest because it lends your deposit to others while you are not using it.",
+      },
+      interestRound(...i2),
+      percentRound("hard"),
+      {
+        type: "num",
+        answer: 3,
+        say: "You want a game that costs $20. You have already saved $8, and you add $4 each week. How many more weeks do you need?",
+        hint: "Two steps. First: how much more money is needed? Second: how many weeks of $4 cover that?",
+        why: "$20 − $8 = $12 still needed. $12 ÷ $4 = 3 weeks.",
+        draw: (v) => sheet(v, "Savings plan", [["Price", "$20"], ["Already saved", "$8", "#2f6fd6"], ["Saved per week", "$4", "#2e8f55"], ["Weeks needed", "?", "var(--accent-dark)"]]),
+      },
+    ];
+  },
+};
+
+// =====================================================================
+// ROUTINES
+// =====================================================================
+const EASY_SEQ = [
+  [["🧦", "Put on socks"], ["👟", "Put on shoes"], ["🚪", "Go outside"]],
+  [["🛁", "Take a bath"], ["👚", "Put on pajamas"], ["😴", "Go to sleep"]],
+  [["🧼", "Wash hands"], ["🥪", "Eat lunch"], ["🍽️", "Clear your plate"]],
+  [["🪥", "Toothpaste on brush"], ["😁", "Brush 2 minutes"], ["🚰", "Spit out the foam"]],
+  [["⏰", "Wake up"], ["👕", "Get dressed"], ["🎒", "Go to school"]],
+  [["🧸", "Play with toys"], ["🧺", "Put toys away"], ["🍽️", "Come to dinner"]],
+  [["🚽", "Use the toilet"], ["🧼", "Wash hands"], ["🧻", "Dry hands"]],
+  [["🌱", "Plant a seed"], ["💧", "Water it"], ["🌻", "Watch it grow"]],
+];
+// a: what must be done first. The game accepts any order that respects these.
+const ROUTINES = [
+  { name: "morning", by: [465, 480], cards: [{ g: "⏰", t: "Wake up", m: 1, a: [] }, { g: "🚽", t: "Use the toilet", m: 3, a: [0] }, { g: "🧼", t: "Wash hands", m: 1, a: [1], why: "We wash hands after the toilet." }, { g: "👕", t: "Get dressed", m: 5, a: [0] }, { g: "🥣", t: "Eat breakfast", m: 15, a: [2], why: "Clean hands before we eat." }, { g: "👟", t: "Put on shoes", m: 2, a: [3], why: "Clothes go on before shoes." }] },
+  { name: "bedtime", by: [480, 510], cards: [{ g: "🛁", t: "Take a bath", m: 15, a: [] }, { g: "👚", t: "Put on pajamas", m: 3, a: [0], why: "Bath first, then clean pajamas." }, { g: "🪥", t: "Brush teeth", m: 2, a: [] }, { g: "📖", t: "Read a story", m: 10, a: [1] }, { g: "😴", t: "Say goodnight", m: 1, a: [1, 2, 3], why: "Goodnight is the final step, after everything else is finished." }] },
+  { name: "after school", by: [300, 330], cards: [{ g: "🎒", t: "Unpack backpack", m: 3, a: [] }, { g: "🧼", t: "Wash hands", m: 1, a: [] }, { g: "🍎", t: "Eat a snack", m: 10, a: [1], why: "Clean hands before we eat." }, { g: "📚", t: "Reading time", m: 20, a: [0] }, { g: "🧸", t: "Free play", m: 30, a: [3], why: "Responsibilities first, then free time." }] },
+  { name: "dinner", by: [390, 420], cards: [{ g: "🧼", t: "Wash hands", m: 1, a: [] }, { g: "🍴", t: "Set the table", m: 5, a: [0] }, { g: "🍝", t: "Eat dinner", m: 20, a: [1] }, { g: "🍽️", t: "Clear your plate", m: 2, a: [2] }, { g: "🧽", t: "Wipe the table", m: 3, a: [3], why: "Clear the plates, then wipe." }] },
+  { name: "going out", by: [570, 600], cards: [{ g: "🚽", t: "Use the toilet", m: 3, a: [] }, { g: "🧦", t: "Put on socks", m: 1, a: [] }, { g: "👟", t: "Put on shoes", m: 2, a: [1], why: "Socks go on before shoes." }, { g: "🧥", t: "Put on coat", m: 2, a: [] }, { g: "🚪", t: "Go out the door", m: 1, a: [0, 2, 3], why: "Get ready first, then go out." }] },
+];
+function routinePick(k) {
+  const R = pick(ROUTINES);
+  const all = R.cards;
+  const anc = (i, seen = new Set()) => {
+    for (const j of all[i].a) if (!seen.has(j)) (seen.add(j), anc(j, seen));
+    return seen;
+  };
+  const keep = shuffle(all.map((_, i) => i)).slice(0, Math.min(k, all.length)).sort((x, y) => x - y);
+  const cards = keep.map((i) => ({ ...all[i], a: [...anc(i)].filter((j) => keep.includes(j)).map((j) => keep.indexOf(j)) }));
+  return { name: R.name, by: R.by, cards };
+}
+function routineRound(level) {
+  const { name, by, cards } = routinePick(level === "hard" ? 5 : 4);
+  const ms = cards.map((c) => c.m);
+  const sum = ms.reduce((a, b) => a + b, 0);
+  const r = {
+    type: "order",
+    mins: true,
+    cards,
+    say: `Build the ${name} checklist. Tap the cards in a logical order: each step only after the steps it depends on.`,
+    done: `Every step comes after the steps it depends on. That is a logical sequence.`,
+  };
+  if (level === "medium")
+    r.then = {
+      type: "num",
+      answer: sum,
+      say: "Now find the total duration. How many minutes does the whole checklist take?",
+      hint: "Add two numbers at a time. Look for pairs that make a ten.",
+      why: `${ms.join(" + ")} = ${sum} minutes.`,
+      draw: (v) => text(v, 500, 536, `${ms.join(" + ")} = ? minutes`, { "font-size": 30, fill: "var(--accent-dark)" }),
+    };
+  else {
+    const leave = pick(by);
+    const start = leave - sum;
+    const opts = shuffle([...new Set([start, start + 5, start - 5, start + 10])]).slice(0, 4);
+    r.then = {
+      type: "choice",
+      say: `You want to be done at ${fmtTime(leave)}. The checklist takes ${sum} minutes. What time should you start?`,
+      options: opts.map((t) => ({ label: fmtTime(t), ok: t === start })),
+      hint: `First find the total minutes. Then count back from ${fmtTime(leave)}: back to the hour first, then the rest.`,
+      why: `${ms.join(" + ")} = ${sum} minutes. ${sum} minutes before ${fmtTime(leave)} is ${fmtTime(start)}.`,
+      draw: (v) => text(v, 500, 536, `Done at ${fmtTime(leave)}. Start at ?`, { "font-size": 30, fill: "var(--accent-dark)" }),
+    };
+  }
+  return r;
+}
+const ACTS = [["🏊", "swim"], ["🎹", "piano"], ["⚽", "soccer"], ["📚", "library"], ["🎨", "art"], ["👵", "Grandma"]];
+function weekPic(v, plan, title, hi = -1) {
+  text(v, 500, 50, title, { "font-size": 30, fill: INK });
+  for (let d = 0; d < 7; d++) {
+    const x = 40 + d * 134;
+    el("rect", { x, y: 78, width: 120, height: 450, rx: 18, fill: d === hi ? "var(--accent-soft)" : d > 4 ? "#f4efe6" : "#fff", stroke: d === hi ? "var(--accent)" : "#d9c7ab", "stroke-width": 3 }, v);
+    text(v, x + 60, 116, DAYS[d].slice(0, 3), { "font-size": 26, fill: "var(--accent-dark)" });
+    (plan[d] || []).forEach(([g, t], k) => {
+      emoji(v, x + 60, 180 + k * 110, g, 60);
+      text(v, x + 60, 236 + k * 110, t, { "font-size": 22, fill: "#5a4130" });
+    });
+  }
+}
+function weekPlan() {
+  const free = pickInt(0, 6);
+  const acts = shuffle(ACTS);
+  const main = acts[0];
+  const plan = Array.from({ length: 7 }, () => []);
+  const k = pickInt(2, 3);
+  shuffle([0, 1, 2, 3, 4, 5, 6].filter((d) => d !== free)).slice(0, k).forEach((d) => plan[d].push(main));
+  for (let d = 0; d < 7; d++) if (d !== free && plan[d].length < 2 && (!plan[d].length || Math.random() < 0.3)) plan[d].push(pick(acts.slice(1)));
+  return { free, main, plan, k };
+}
+function weekRound(kind) {
+  if (kind === "free") {
+    const w = weekPlan();
+    const others = shuffle([0, 1, 2, 3, 4, 5, 6].filter((d) => d !== w.free)).slice(0, 2);
+    return {
+      type: "choice",
+      say: "Here is your week. Which day has nothing scheduled?",
+      draw: (v) => weekPic(v, w.plan, "My week"),
+      options: [w.free, ...others].map((d) => ({ label: DAYS[d], ok: d === w.free })),
+      hint: "Scan each column. Which one is empty?",
+      why: `${DAYS[w.free]} is free. Good planners leave unscheduled time for rest and family.`,
+    };
+  }
+  if (kind === "count") {
+    const w = weekPlan();
+    return {
+      type: "choice",
+      say: `How many days this week have ${w.main[1]}?`,
+      draw: (v) => weekPic(v, w.plan, `How many days have ${w.main[1]}?`),
+      options: [1, 2, 3, 4].map((x) => ({ label: String(x), ok: x === w.k })),
+      hint: `Find each ${w.main[1]} picture and count them systematically, left to right.`,
+      why: `${w.main[1][0].toUpperCase()}${w.main[1].slice(1)} is on ${w.k} days.`,
+    };
+  }
+  if (kind === "minutes5" || kind === "minutes7") {
+    const days = kind === "minutes5" ? 5 : 7;
+    const m = pick([10, 15, 20]);
+    const [g, t] = days === 5 ? ["🎹", "piano"] : ["📖", "read"];
+    const plan = Array.from({ length: 7 }, (_, d) => (d < days ? [[g, `${m} min`]] : []));
+    return {
+      type: "num",
+      answer: m * days,
+      say: days === 5 ? `You practice piano ${m} minutes each school day, Monday to Friday. How many minutes in the week?` : `You read ${m} minutes every day, all 7 days. How many minutes in the week?`,
+      draw: (v) => weekPic(v, plan, `${t}: ${m} minutes a day`),
+      hint: `${m} minutes, ${days} times. That is multiplication. Can you skip-count by ${m}?`,
+      why: `${m} × ${days} = ${m * days} minutes${m * days >= 60 ? `, which is ${Math.floor((m * days) / 60)} hour${m * days >= 120 ? "s" : ""}${(m * days) % 60 ? ` and ${(m * days) % 60} minutes` : ""}` : ""}.`,
+    };
+  }
+  // due date
+  const d = pickInt(0, 6);
+  const n = pick([7, 8, 9, 10, 14]);
+  const due = (d + n) % 7;
+  const others = shuffle([0, 1, 2, 3, 4, 5, 6].filter((x) => x !== due)).slice(0, 2);
+  return {
+    type: "choice",
+    say: `Today is ${DAYS[d]}. Your library book is due in ${n} days. What day is it due?`,
+    draw: (v) => weekPic(v, [[], [], [], [], [], [], []].map((p, i) => (i === d ? [["📚", "today"]] : p)), `Today is ${DAYS[d]}. Due in ${n} days.`, d),
+    options: [due, ...others].map((x) => ({ label: DAYS[x], ok: x === due })),
+    hint: `A week is 7 days. In 7 days it is ${DAYS[d]} again. Then count on.`,
+    why: `In 7 days it is ${DAYS[d]} again${n > 7 ? `. ${n - 7} more day${n - 7 > 1 ? "s" : ""} is ${DAYS[due]}` : ""}.`,
+  };
+}
+// Elapsed time: start time + duration = end time, across the hour.
+function endRound() {
+  const start = pick([400, 415, 425, 440, 1050, 1075, 1110]);
+  const dur = pick([25, 35, 45, 50, 55]);
+  const end = start + dur;
+  const opts = shuffle([...new Set([end, end + 10, end - 10, end + 60])]).slice(0, 4);
+  const toHour = 60 - (start % 60);
+  return {
+    type: "choice",
+    say: `You begin practice at ${fmtTime(start)} and it lasts ${dur} minutes. At what time do you finish?`,
+    draw: (v) => {
+      text(v, 500, 70, `Start ${fmtTime(start)} + ${dur} minutes = ?`, { "font-size": 38, fill: INK });
+      el("line", { x1: 100, x2: 900, y1: 300, y2: 300, stroke: "#5a4130", "stroke-width": 5 }, v);
+      const X = (m) => 100 + ((m - start) / dur) * 800;
+      [[start, fmtTime(start)], [start + toHour, fmtTime(start + toHour)], [end, "?"]].forEach(([m, l]) => {
+        if (m > end) return;
+        el("line", { x1: X(m), x2: X(m), y1: 280, y2: 320, stroke: "#5a4130", "stroke-width": 4 }, v);
+        text(v, X(m), 365, l, { "font-size": 30, fill: l === "?" ? "var(--accent-dark)" : INK });
+      });
+      if (toHour < dur) {
+        text(v, (X(start) + X(start + toHour)) / 2, 260, `+${toHour}`, { "font-size": 28, fill: "#2f6fd6" });
+        text(v, (X(start + toHour) + X(end)) / 2, 260, `+${dur - toHour}`, { "font-size": 28, fill: "#2f6fd6" });
+      }
+      text(v, 500, 470, "A timeline: jump to the hour first", { "font-size": 28, fill: "#8a7764" });
+    },
+    options: opts.map((t) => ({ label: fmtTime(t), ok: t === end })),
+    hint: `How many minutes from ${fmtTime(start)} to the next hour? Then add what is left.`,
+    why: toHour < dur ? `${fmtTime(start)} + ${toHour} minutes = ${fmtTime(start + toHour)}. ${dur} − ${toHour} = ${dur - toHour} more minutes gives ${fmtTime(end)}.` : `${fmtTime(start)} + ${dur} minutes = ${fmtTime(end)}.`,
+  };
+}
+const routineDeck = {
+  easy: () =>
+    shuffle(EASY_SEQ).map((seq) => {
+      const cards = seq.map(([g, t], i) => ({ g, t, a: i ? [i - 1] : [] }));
+      return { type: "order", cards, say: `Put these steps in order: ${shuffle(seq.map((s) => s[1])).join(", ")}. Tap the first step.`, done: `${seq.map((s) => s[1]).join(", then ")}.` };
+    }),
+  medium: () => [routineRound("medium"), weekRound("free"), routineRound("medium"), routineRound("medium"), weekRound("count"), routineRound("medium"), weekRound("minutes5"), routineRound("medium")],
+  hard: () => [routineRound("hard"), weekRound("due"), endRound(), weekRound("minutes7"), routineRound("hard"), endRound(), routineRound("hard"), weekRound("due")],
+};
+
+// =====================================================================
+// HEALTHY BODY (MyPlate, CDC handwashing, ADA brushing, AAP sleep, CDC activity)
+// =====================================================================
+const GROUPS = {
+  fruits: { label: "Fruits", color: "#d9443a", items: [["🍎", "Apple"], ["🍌", "Banana"], ["🍇", "Grapes"], ["🍓", "Strawberry"], ["🍊", "Orange"], ["🍐", "Pear"]], why: "is a fruit: the seed-bearing part of a plant. Fruits supply vitamins, such as vitamin C, and fibre." },
+  vegetables: { label: "Veggies", color: "#3f9a45", items: [["🥦", "Broccoli"], ["🥕", "Carrot"], ["🥬", "Lettuce"], ["🥔", "Potato"], ["🧅", "Onion"]], why: "is a vegetable: an edible leaf, root, stem or flower. Vegetables supply vitamins, minerals and fibre. (Cooks and MyPlate also call some seed-bearing fruits, such as cucumbers and peppers, vegetables.)" },
+  grains: { label: "Grains", color: "#e38a1e", items: [["🍞", "Bread"], ["🍚", "Rice"], ["🍝", "Pasta"], ["🥯", "Bagel"], ["🥣", "Oatmeal"]], why: "is a grain food, made from seeds such as wheat, rice or oats. Grains supply carbohydrates, the body's main fuel." },
+  protein: { label: "Protein", color: "#7d4fb0", items: [["🥚", "Egg"], ["🍗", "Chicken"], ["🐟", "Fish"], ["🥜", "Peanuts"]], why: "is a protein food. Protein supplies amino acids, the building blocks the body uses to build and repair muscle." },
+  dairy: { label: "Dairy", color: "#2f73c9", items: [["🥛", "Milk"], ["🧀", "Cheese"]], why: "is dairy, made from milk. Dairy supplies calcium, a mineral that builds bones and teeth." },
+};
+const PC = { x: 400, y: 380, r: 160 };
+function plateZones() {
+  const { x, y, r } = PC;
+  const q = (key, qx, qy) => ({ key, label: GROUPS[key].label, color: GROUPS[key].color, x: qx, y: qy, w: r, h: r, slot: (k) => [x + (qx < x ? -1 : 1) * r * (0.45 + k * 0.22), qy < y ? y - r * 0.55 : y + r * 0.58] });
+  return [q("fruits", x - r, y - r), q("grains", x, y - r), q("vegetables", x - r, y), q("protein", x, y), { key: "dairy", label: "Dairy", color: GROUPS.dairy.color, x: 640, y: 236, w: 150, h: 170, slot: () => [715, 344] }];
+}
+function drawPlateZone(g, z) {
+  const { x, y, r } = PC;
+  if (z.key === "dairy") {
+    el("path", { d: "M650 250H780L766 400H664Z", fill: "#e3eefb", stroke: z.color, "stroke-width": 5, "stroke-linejoin": "round" }, g);
+    text(g, 715, 290, "Dairy", { "font-size": 26, fill: z.color });
+    return;
+  }
+  const sx = z.x < x ? -1 : 1;
+  const sy = z.y < y ? -1 : 1;
+  const a = [x + sx * r, y];
+  const b = [x, y + sy * r];
+  const sweep = sx * sy > 0 ? 1 : 0;
+  el("path", { d: `M${x} ${y}L${a[0]} ${a[1]}A${r} ${r} 0 0 ${sweep} ${b[0]} ${b[1]}Z`, fill: z.color, "fill-opacity": 0.85, stroke: "#fff", "stroke-width": 6 }, g);
+  text(g, x + sx * r * 0.5, sy < 0 ? y - r * 0.12 : y + r * 0.26, z.label, { "font-size": 24, fill: "#fff" });
+}
+function plateRound(k) {
+  const keys = shuffle(Object.keys(GROUPS)).slice(0, k);
+  const items = keys.map((key) => {
+    const [g, t] = pick(GROUPS[key].items);
+    return { g, t, zone: key, why: `${t} ${GROUPS[key].why}` };
+  });
+  return {
+    type: "sort",
+    say: "Build a balanced plate. Drag each food to its food group.",
+    zones: plateZones(),
+    draw: (v) => {
+      el("circle", { cx: PC.x, cy: PC.y, r: PC.r + 16, fill: "#fff", stroke: "#d9c7ab", "stroke-width": 4 }, v);
+      text(v, 860, 300, "MyPlate", { "font-size": 28, fill: "#5a4130" });
+      text(v, 860, 336, "½ fruits", { "font-size": 22, fill: "#5a4130" });
+      text(v, 860, 362, "and veggies", { "font-size": 22, fill: "#5a4130" });
+    },
+    drawZone: drawPlateZone,
+    items,
+    ask: (it) => `Classify ${it.t.toLowerCase()}: is it made from milk, from a grain seed, from an animal, a nut or a legume (the bean family, which includes peanuts), or is it a plant part? If a plant part, does it carry seeds?`,
+    done: "A balanced plate draws on several food groups, so it supplies several kinds of nutrients. MyPlate advises making half the plate fruits and vegetables.",
+  };
+}
+const fact = (say, pic, cap, right, wrongs, why, hint) => ({
+  type: "choice",
+  say,
+  draw: () => scene(pic, cap),
+  options: [{ label: right, ok: true }, ...wrongs.map((w) => ({ label: w }))],
+  hint: hint || "Recall what you learned in See it. Which answer is supported by evidence?",
+  why,
+});
+const HAND = { type: "order", say: "How do we wash our hands? Tap the steps in order.", done: "Wet, lather, scrub for 20 seconds, rinse, dry. This is the sequence the CDC recommends.", cards: [{ g: "💧", t: "Wet hands", a: [] }, { g: "🧼", t: "Add soap", a: [0] }, { g: "👐", t: "Scrub 20 seconds", a: [1], why: "Soap must be applied before scrubbing can lift the germs." }, { g: "🚰", t: "Rinse", a: [2], why: "Scrub first, then rinse the soap away." }, { g: "🧻", t: "Dry hands", a: [3], why: "Drying is last: germs transfer more easily from wet hands." }] };
+const healthDeck = {
+  easy: () =>
+    [
+      plateRound(3),
+      fact("Which one cleans germs off your hands? Soap and water, juice, or crayons?", ["🧼", "🧃", "🖍️"], "Which one cleans germs?", "🧼 Soap and water", ["🧃 Juice", "🖍️ Crayons"], "Soap and water lift germs off the skin."),
+      plateRound(3),
+      fact("Which one helps keep your teeth clean? A toothbrush, candy, or a sock?", ["🪥", "🍬", "🧦"], "Which one keeps teeth clean?", "🪥 Toothbrush", ["🍬 Candy", "🧦 Sock"], "Brush your teeth two times a day, for two minutes."),
+      plateRound(3),
+      fact("It is nighttime. What does your body need? Sleep, video games, or candy?", ["🌙", "🛏️"], "It is nighttime.", "😴 Sleep", ["🎮 Video games", "🍭 Candy"], "Sleep is when your body grows and your brain stores what you learned."),
+      plateRound(3),
+      fact("Which is a good way to move your body? Ride a bike, or watch TV all day?", ["🚲", "📺"], "Which one moves your body?", "🚲 Ride a bike", ["📺 Watch TV all day"], "Exercise strengthens your heart, which is itself a muscle."),
+    ],
+  medium: () =>
+    [
+      HAND,
+      fact("Why does soap clean better than water alone?", ["🧼", "💧"], "Soap versus water", "Soap grabs oil and lifts germs", ["Soap is hotter", "Soap smells nice"], "One end of a soap molecule is attracted to water, the other to oil and fat. Soap surrounds oily dirt and germs so water can rinse them away.", "Germs cling to the oils on your skin. Does water mix with oil?"),
+      plateRound(5),
+      fact("Milk and cheese are rich in which mineral, needed for strong bones?", ["🥛", "🧀", "🦴"], "Dairy and bones", "Calcium", ["Sugar", "Caffeine"], "Calcium is the mineral that makes bones and teeth hard. Dairy foods are a major source."),
+      fact("Bread, rice and pasta are rich in which nutrient, the body's main fuel?", ["🍞", "🍚", "🍝"], "Grains", "Carbohydrates", ["Calcium", "Vitamin C"], "Carbohydrates break down into glucose (a sugar), which your cells burn for energy."),
+      fact("How long should you brush your teeth each time?", ["🪥", "😁"], "Brushing", "2 minutes", ["10 seconds", "20 minutes"], "The American Dental Association advises 2 minutes, twice a day, with fluoride toothpaste."),
+      fact("How much sleep do children aged 6 to 12 need each night?", ["😴", "🌙"], "Sleep", "9 to 12 hours", ["5 hours", "15 hours"], "The American Academy of Pediatrics advises 9 to 12 hours for ages 6 to 12."),
+      fact("Oranges and strawberries are rich in which vitamin?", ["🍊", "🍓"], "Fruit and vitamins", "Vitamin C", ["Vitamin D", "Calcium"], "Vitamin C helps heal cuts and keeps gums healthy. Calcium is a mineral, not a vitamin. Your skin makes vitamin D in sunlight, and it is also added to milk.", "Which choice is a vitamin found in fruit? Is calcium a vitamin or a mineral?"),
+    ],
+  hard: () => {
+    const sl = shuffle([[480, 420], [540, 420], [480, 360], [420, 360], [540, 480]]); // bedtime (PM) and wake (AM), in minutes after 12
+    const sleep = ([bed, wake]) => {
+      const a = (720 - bed) / 60;
+      const b = wake / 60;
+      const hours = a + b;
+      return {
+        type: "num",
+        answer: hours,
+        say: `Bedtime is ${fmtTime(bed)} PM. Wake up is ${fmtTime(wake)} AM. How many hours of sleep is that?`,
+        hint: `Count the hours from ${fmtTime(bed)} up to 12 midnight. Then count from midnight to ${fmtTime(wake)}. What do you get?`,
+        why: `${fmtTime(bed)} PM to midnight is ${a} hours. Midnight to ${fmtTime(wake)} AM is ${b} hours. ${a} + ${b} = ${hours} hours. That is within the recommended 9 to 12 hours.`,
+        draw: (v) => {
+          text(v, 500, 70, `Bed ${fmtTime(bed)} PM → Up ${fmtTime(wake)} AM`, { "font-size": 36, fill: INK });
+          emoji(v, 200, 260, "🛏️", 140);
+          emoji(v, 800, 260, "🌅", 140);
+          el("path", { d: "M320 260H680M660 242L684 260L660 278", stroke: "#8a7764", "stroke-width": 6, fill: "none", "stroke-linecap": "round" }, v);
+          emoji(v, 500, 200, "🌙", 70);
+          text(v, 500, 450, "How many hours?", { "font-size": 38, fill: "var(--accent-dark)" });
+        },
+      };
+    };
+    const mv = shuffle([[20, 25], [15, 30], [25, 10], [30, 20]]);
+    const move = ([a, b]) => ({
+      type: "num",
+      answer: 60 - a - b,
+      say: `You walked ${a} minutes and biked ${b} minutes today. How many more minutes of play reach 60?`,
+      hint: `First add ${a} and ${b}. How far is that from 60?`,
+      why: `${a} + ${b} = ${a + b}. 60 − ${a + b} = ${60 - a - b} more minutes.`,
+      draw: (v) => {
+        text(v, 500, 70, "Goal: 60 minutes of moving", { "font-size": 34, fill: INK });
+        el("rect", { x: 100, y: 230, width: 800, height: 70, rx: 35, fill: "#f3ece0", stroke: "#cdbb9f", "stroke-width": 3 }, v);
+        el("rect", { x: 100, y: 230, width: (a / 60) * 800, height: 70, rx: 35, fill: "#3f9a45" }, v);
+        el("rect", { x: 100 + (a / 60) * 800, y: 230, width: (b / 60) * 800, height: 70, fill: "#2f73c9" }, v);
+        emoji(v, 100 + (a / 120) * 800, 180, "🚶", 60);
+        emoji(v, 100 + ((a + b / 2) / 60) * 800, 180, "🚲", 60);
+        text(v, 100 + (a / 120) * 800, 345, `${a} min`, { "font-size": 26, fill: "#3f9a45" });
+        text(v, 100 + ((a + b / 2) / 60) * 800, 345, `${b} min`, { "font-size": 26, fill: "#2f73c9" });
+        text(v, 100 + ((a + b + (60 - a - b) / 2) / 60) * 800, 275, "?", { "font-size": 40, fill: "var(--accent-dark)" });
+        text(v, 900, 345, "60", { "font-size": 26, fill: INK });
+      },
+    });
+    return [
+      sleep(sl[0]),
+      move(mv[0]),
+      {
+        type: "num",
+        answer: 28,
+        say: "You brush 2 minutes, 2 times a day. How many minutes of brushing is that in one week?",
+        hint: "How many minutes in one day? Then, a week has 7 days.",
+        why: "2 × 2 = 4 minutes a day. 4 × 7 = 28 minutes a week.",
+        draw: () => scene(["🪥", "☀️", "🌙"], "2 minutes, morning and night, for 7 days"),
+      },
+      fact("During deep sleep, the body releases a substance that helps children grow. What is it?", ["😴", "📏"], "Sleep science", "Growth hormone", ["Adrenaline", "Saliva"], "Growth hormone (a chemical messenger) is released in bursts, and the largest burst usually comes during deep sleep early in the night. Short sleep can mean less of it.", "Which of these is a hormone linked to growing taller?"),
+      fact("What does your brain do with the day's learning while you sleep?", ["🧠", "🌙"], "Sleep and memory", "Stores and organises it", ["Deletes all of it", "Nothing at all"], "During sleep the brain replays and strengthens new memories. Scientists call this memory consolidation.", "Why might a fact feel easier the morning after you practised it?"),
+      sleep(sl[1]),
+      fact("Your heart is a muscle. What happens to it with regular exercise?", ["🫀", "🏃"], "Exercise and the heart", "It pumps more blood per beat", ["It shrinks", "It stops resting"], "Like any muscle, the heart strengthens with use. A stronger heart moves more blood with each beat, so a fit person's resting heart rate is often lower.", "What happens to any muscle that is used regularly?"),
+      fact("Why does toothpaste contain fluoride?", ["🪥", "🦷"], "Fluoride", "It strengthens enamel", ["It adds flavour", "It makes bubbles"], "Enamel is the hard outer layer of a tooth. Fluoride makes it more resistant to the acid that bacteria produce from sugar."),
+    ];
+  },
+};
+
+// =====================================================================
+// SAFETY (gentle)
+// =====================================================================
+const SAFE_EASY = [
+  [["👩", "🧒", "🚸"], "Holding a grown-up's hand to cross the street", true, "Crossing with a grown-up, holding hands, keeps you safe."],
+  [["🍳", "🔥"], "The stove is on. Touch the pan?", false, "A stove can burn. Only grown-ups use the stove."],
+  [["🔪"], "A sharp knife is on the table. Pick it up?", false, "Sharp knives can cut. Let a grown-up handle knives."],
+  [["🚲", "⛑️"], "Wearing a helmet on your bike", true, "A helmet protects your head."],
+  [["💊"], "Pills that look like candy. Eat them?", false, "Medicine is not candy. Only take it from your grown-up."],
+  [["🔌", "✏️"], "Poke a pencil into a plug?", false, "Plugs have electricity. Never poke things into them."],
+  [["🧑‍🚒", "🏫"], "A firefighter visits your class", true, "Firefighters are safe helpers."],
+  [["🏊", "👩"], "Swimming with a grown-up watching", true, "Always swim with a grown-up watching."],
+  [["🍬", "🚗"], "Someone you don't know says: come to my car for candy", false, "Say no, and go tell your grown-up right away."],
+];
+const safeEasy = ([pic, cap, safe, why]) => ({
+  type: "choice",
+  keep: true,
+  say: `${cap}${/[?.!]$/.test(cap) ? "" : "."} Is that safe? Tap Safe, or Stop.`,
+  draw: () => scene(pic, cap),
+  options: [{ label: "✅ Safe", ok: safe }, { label: "🛑 Stop! Ask a grown-up", ok: !safe }],
+  hint: "Think: could someone get hurt?",
+  why,
+});
+const s911 = () => ({
+  type: "sort",
+  say: "Is it an emergency? Drag each picture: Call 911, or Not 911.",
+  zones: [
+    { key: "yes", label: "Call 911", glyph: "📞", color: "#d9443a", soft: "#fde5dc" },
+    { key: "no", label: "Not 911", glyph: "🙂", color: "#2f73c9", soft: "#e3eefb" },
+  ],
+  items: shuffle([
+    ...shuffle([["🔥", "Smoke and fire", "Fire is an emergency. Get out, then call 911."], ["😵", "Someone won't wake up", "Someone badly hurt is an emergency. Call 911."], ["🚗", "A car crash", "A crash can hurt people. Call 911."]]).slice(0, 2).map(([g, t, why]) => ({ g, t, why, zone: "yes" })),
+    ...shuffle([["🧸", "A broken toy", "A broken toy is sad, but nobody is in danger. Not 911."], ["🍕", "Hungry for pizza", "Being hungry is not an emergency. Not 911."], ["📺", "TV won't turn on", "A grown-up can fix the TV. Not 911."], ["🩹", "A small scrape", "A grown-up and a bandage can help. Not 911."]]).slice(0, 2).map(([g, t, why]) => ({ g, t, why, zone: "no" })),
+  ]),
+  ask: () => "Is someone in danger, or badly hurt, right now?",
+  done: "911 is only for emergencies: when someone is in danger or badly hurt.",
+});
+const sHelpers = () => ({
+  type: "sort",
+  say: "Who is a safe helper? Drag each picture into Safe helper, or Say no.",
+  zones: [
+    { key: "yes", label: "Safe helper", glyph: "🦸", color: "#2e8f55", soft: "#e2f4e8" },
+    { key: "no", label: "Say no, tell", glyph: "🙅", color: "#d9443a", soft: "#fde5dc" },
+  ],
+  items: shuffle([
+    ...shuffle([["👮", "Police officer"], ["👩‍🏫", "Your teacher"], ["🏪", "Store worker at the counter"], ["👩‍👧", "A mom with kids"]]).slice(0, 2).map(([g, t]) => ({ g, t, zone: "yes", why: `${t}: a safe helper if you need help.` })),
+    ...shuffle([["🚗", "Stranger in a car: get in"], ["🐶", "Stranger: help find my puppy"], ["🍬", "Stranger: come for candy"]]).slice(0, 2).map(([g, t]) => ({ g, t, zone: "no", why: "A safe grown-up you do not know will not ask a child to go somewhere with them or to help them. Say no, and tell your grown-up." })),
+  ]),
+  ask: (it) => `Is ${it.t.toLowerCase()} asking you to go somewhere? Or someone you can ask for help?`,
+  done: "Safe helpers help where everyone can see. You never have to go with anyone.",
+});
+const safetyDeck = {
+  easy: () => shuffle(SAFE_EASY).slice(0, 8).map(safeEasy),
+  medium: () => [
+    s911(),
+    fact("Before you cross the street with your grown-up, what do you do?", ["🛑", "🚸"], "At the curb", "Stop, look left, right, left", ["Run fast", "Look at your feet"], "Stop at the curb, look left, right, and left again, and cross with your grown-up."),
+    fact("You can't find your grown-up in a store. What should you do?", ["🏬", "🧒"], "Lost in a store", "Stay put. Ask a store worker", ["Go out to the parking lot", "Hide"], "Stay where you are and ask a safe helper, like a worker at the counter or a mom with kids.", "Where would your grown-up look for you? Who works in the store?"),
+    sHelpers(),
+    fact("A game asks you to type your home address. What do you do?", ["💻", "🏠"], "A game asks for your address", "Don't type it. Tell a grown-up", ["Type it in", "Send a photo too"], "Never share your name, address or photo online. Tell a grown-up."),
+    fact("You want to help cook. What do you do first?", ["🍳", "🧒"], "Helping in the kitchen", "Wash hands, ask a grown-up", ["Turn on the stove", "Use a sharp knife"], "Clean hands, and a grown-up handles the hot stove and sharp knives."),
+    fact("The smoke alarm beeps and you smell smoke. What do you do?", ["🔔", "💨"], "The smoke alarm beeps", "Get low and go outside", ["Hide under the bed", "Look for your toys"], "Get out and stay out, then go to your family meeting spot. Belongings can be replaced; people cannot.", "Is it safer inside or outside when there is smoke?"),
+    fact("What number do you call in an emergency?", ["📞"], "Emergency number", "911", ["411", "123"], "In the United States, 911 is the number for emergencies."),
+  ],
+  hard: () => [
+    { type: "order", say: "You are lost in a store. Tap what to do, in order.", done: "Stay put, find a safe helper, and say your grown-up's phone number.", cards: [{ g: "✋", t: "Stop and stay put", a: [] }, { g: "🔎", t: "Find a safe helper", a: [0], why: "Stay put first, so your grown-up can find you." }, { g: "🗣️", t: "Say your grown-up's phone number", a: [1] }] },
+    fact("If your clothes ever catch fire, what do you do?", ["🔥", "👕"], "Fire safety", "Stop, drop and roll", ["Run fast", "Hide"], "Running pushes more oxygen into the flames, and fire needs oxygen. Stop, drop to the ground, cover your face, and roll to smother it.", "What does fire need in order to burn? Does running give it more or less of that?"),
+    { type: "order", say: "Crossing the street. Tap the steps in a safe order.", done: "Hold hands, stop, look left, right, left, then walk and keep looking.", cards: [{ g: "🤝", t: "Hold a grown-up's hand", a: [] }, { g: "🛑", t: "Stop at the curb", a: [] }, { g: "👀", t: "Look left, right, left", a: [1] }, { g: "🚶", t: "Walk across, keep looking", a: [0, 2], why: "Look first, then walk with your grown-up." }] },
+    { type: "num", answer: 911, say: "What number do you call in an emergency? Type it.", hint: "It has three numbers. It starts with 9.", why: "911 is the emergency number in the United States.", draw: () => scene(["📞", "🚑", "🚒"], "Emergency number") },
+    fact("Someone you don't know says: let's keep this a secret from your mom.", ["🤫"], "A secret from your grown-up?", "Tell your grown-up anyway", ["Keep the secret"], "Safe grown-ups never ask kids to keep secrets from their parents. Surprises, like a birthday gift, are OK because everyone finds out soon."),
+    { type: "order", say: "The smoke alarm beeps. Tap the steps in order.", done: "Get low, get out, go to the meeting spot. Call 911 from outside: a grown-up does it, or you do if no grown-up is there.", cards: [{ g: "🔔", t: "Hear the smoke alarm", a: [] }, { g: "🧎", t: "Get low and go out", a: [0] }, { g: "🌳", t: "Go to the meeting spot", a: [1] }, { g: "📞", t: "A grown-up calls 911", a: [1], why: "Get out first, then call from outside." }] },
+    fact("A message in a game says: what school do you go to?", ["🎮", "💬"], "A game chat asks a question", "Don't answer. Tell a grown-up", ["Tell them", "Send a photo"], "Your name, school and address are private. Tell a grown-up about the message."),
+    fact("Your friend found a lighter and wants to try it.", ["🔥", "🧒"], "A lighter on the floor", "Don't touch. Tell a grown-up", ["Try it", "Hide it in your pocket"], "Lighters and matches are tools for grown-ups. Tell a grown-up right away."),
+  ],
+};
+
+// =====================================================================
+// FEELINGS & CALM
+// =====================================================================
+const FEEL = ["Happy", "Sad", "Mad", "Scared", "Surprised", "Sleepy"];
+const FACES = [["😀", "Happy"], ["😢", "Sad"], ["😠", "Mad"], ["😨", "Scared"], ["😮", "Surprised"], ["😴", "Sleepy"]];
+const faceRound = ([g, f]) => {
+  const opts = shuffle([f, ...shuffle(FEEL.filter((x) => x !== f)).slice(0, 2)]);
+  return { type: "choice", keep: true, say: `How does this face feel? ${opts.join(", or ")}?`, draw: () => scene([g], ""), options: opts.map((o) => ({ label: o, ok: o === f })), hint: "Look at the eyes and the mouth. What do they tell you?", why: `This face looks ${f.toLowerCase()}. All feelings are OK.` };
+};
+const sit = (pic, cap, right, wrongs, why) => {
+  const opts = shuffle([right, ...wrongs]);
+  return { type: "choice", keep: true, say: `${cap} How might you feel? ${opts.join(", or ")}?`, draw: () => scene(pic, cap), options: opts.map((o) => ({ label: o, ok: o === right })), hint: "Imagine it is happening to you. How would your body feel?", why };
+};
+const SIT_EASY = [
+  [["🎂", "🎉"], "It is your birthday party.", "Happy", ["Sad", "Scared"], "A party with people you love feels happy."],
+  [["🍦", "😢"], "Your ice cream fell on the ground.", "Sad", ["Happy", "Sleepy"], "Losing something you wanted can feel sad."],
+  [["⛈️", "🌙"], "Loud thunder in the night.", "Scared", ["Happy", "Sleepy"], "A sudden loud noise in the dark triggers fear, the body's alarm system. Thunder itself is only sound; it cannot hurt you."],
+  [["🎁"], "You open a box and a puppy is inside.", "Surprised", ["Sad", "Mad"], "Surprise is the feeling of something unexpected happening."],
+];
+const SIT_MED = [
+  [["🧱", "💥"], "Your block tower fell down for the third time.", "Frustrated", ["Sleepy", "Excited"], "Frustrated is how we feel when we try and try, and it doesn't work yet."],
+  [["🚚", "👋"], "Your best friend is moving far away.", "Sad", ["Excited", "Silly"], "Missing someone you love feels sad."],
+  [["🦁", "🎟️"], "Tomorrow your family goes to the zoo.", "Excited", ["Angry", "Bored"], "Excitement is eager energy about something good that is coming."],
+  [["🚲", "🏅"], "You learned to ride your bike all by yourself.", "Proud", ["Scared", "Grumpy"], "Reaching a goal through your own hard work brings a feeling of pride."],
+];
+const SIT_HARD = [
+  [["🏊", "🧒"], "First day at a new swim class. You don't know anyone.", "Nervous", ["Proud", "Silly"], "New situations often make us feel nervous. That is normal, and it usually gets easier with time."],
+  [["🏖️", "🌧️"], "The beach trip is canceled because of rain.", "Disappointed", ["Proud", "Excited"], "Disappointed is when something you hoped for doesn't happen."],
+  [["🎁", "👦"], "Your brother gets a new toy and you don't.", "Jealous", ["Calm", "Proud"], "Jealous, or more precisely envious, means wanting what someone else has. Naming the feeling helps you manage it."],
+  [["🛝", "🧒"], "Everyone is playing, but no one asked you to join.", "Lonely", ["Proud", "Excited"], "Lonely is wanting to be with others. You can ask: can I play too?"],
+];
+const tool = (cap, pic, right, wrongs, why) => ({
+  type: "choice",
+  say: `${cap} Which calm-down tool could help?`,
+  draw: () => scene(pic, cap),
+  options: [{ label: right, ok: true }, ...wrongs.map((w) => ({ label: w, no: "Would that help you feel calm, or make things bigger?" }))],
+  hint: "Which one helps your body slow down?",
+  why,
+});
+const TOOLS = [
+  ["You feel very angry.", ["😠"], "🌬️ Take 5 slow breaths", ["👊 Hit something", "😱 Scream at someone"], "Slow breathing, especially a long breath out, helps switch on the parasympathetic nervous system (the body's calming system), which slows your heart rate."],
+  ["You feel worried at bedtime.", ["😟", "🌙"], "🧸 Hug teddy, tell a grown-up", ["🤐 Keep it secret all night", "🤸 Jump on the bed"], "Sharing a worry with a grown-up makes it smaller."],
+  ["Your feelings are big and loud.", ["😣"], "🤫 Quiet corner, count to 10", ["🧸 Throw toys", "💥 Break something"], "A quiet corner and slow counting help big feelings shrink."],
+];
+const breathe = {
+  type: "custom",
+  start(c) {
+    say("Let's breathe together. Smell the flower, then blow out the candle. Press Start.");
+    const v = view;
+    el("rect", { x: 30, y: 24, width: 940, height: 512, rx: 34, fill: "#f2f8fb", stroke: "#cfe3ec", "stroke-width": 4 }, v);
+    const ring = el("circle", { cx: 500, cy: 290, r: 90, fill: "var(--accent-soft)", stroke: "var(--accent)", "stroke-width": 6 }, v);
+    const word = text(v, 500, 300, "Ready?", { "font-size": 40, fill: INK });
+    const left = emoji(v, 150, 290, "🌸", 90);
+    const right = emoji(v, 850, 290, "🕯️", 90);
+    left.setAttribute("opacity", 0.5);
+    right.setAttribute("opacity", 0.5);
+    const counter = text(v, 500, 90, "", { "font-size": 32, fill: "var(--accent-dark)" });
+    c.ans.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-b>🌬️ Start</button></div>`;
+    c.ans.onclick = async (event) => {
+      if (!event.target.closest("[data-b]")) return;
+      c.ans.innerHTML = "";
+      window.OC?.touch();
+      for (let k = 1; k <= 3; k++) {
+        counter.textContent = `Breath ${k} of 3`;
+        word.textContent = "Breathe in…";
+        left.setAttribute("opacity", 1);
+        right.setAttribute("opacity", 0.4);
+        VOICE.speak("Breathe in");
+        MUSIC.play("harp", 60, { gain: 0.3 });
+        if (!(await tween(4000, (t) => ring.setAttribute("r", 90 + 110 * t), c.live))) return;
+        word.textContent = "Breathe out…";
+        left.setAttribute("opacity", 0.4);
+        right.setAttribute("opacity", 1);
+        VOICE.speak("Breathe out");
+        MUSIC.play("harp", 55, { gain: 0.3 });
+        if (!(await tween(4000, (t) => ring.setAttribute("r", 200 - 110 * t), c.live))) return;
+      }
+      word.textContent = "Calm";
+      c.ans.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-ok>✓ I did it</button></div>`;
+      c.ans.onclick = (e) => e.target.closest("[data-ok]") && c.solved(breathe, "Slow breathing, especially a long breath out, helps switch on the parasympathetic nervous system (the body's calming system), which slows your heart rate.");
+    };
+  },
+};
+// 5-4-3-2-1 grounding: notice with your five senses.
+const ROOM = [
+  { g: "🐦", x: 210, y: 150, s: 64, t: "bird", tags: "see hear" },
+  { g: "🖼️", x: 460, y: 140, s: 76, t: "picture", tags: "see touch" },
+  { g: "⏰", x: 690, y: 150, s: 66, t: "clock", tags: "see touch hear" },
+  { g: "📻", x: 880, y: 190, s: 66, t: "radio", tags: "see touch hear" },
+  { g: "🧸", x: 130, y: 430, s: 86, t: "teddy", tags: "see touch" },
+  { g: "🐱", x: 300, y: 440, s: 86, t: "cat", tags: "see touch hear" },
+  { g: "🌸", x: 510, y: 300, s: 66, t: "flower", tags: "see touch smell" },
+  { g: "🍪", x: 640, y: 440, s: 66, t: "cookie", tags: "see touch smell taste" },
+  { g: "🥛", x: 760, y: 440, s: 66, t: "milk", tags: "see touch smell taste" },
+  { g: "📚", x: 890, y: 430, s: 76, t: "books", tags: "see touch" },
+];
+const STEPS = [
+  ["see", 5, "👀 Tap 5 things you can SEE.", "Everything in the room can be seen."],
+  ["touch", 4, "✋ Tap 4 things you could TOUCH.", "Could your hand reach and feel it?"],
+  ["hear", 3, "👂 Tap 3 things that could make a SOUND.", "Does it tick, sing, play or meow?"],
+  ["smell", 2, "👃 Tap 2 things you could SMELL.", "Which ones have a smell your nose can find?"],
+  ["taste", 1, "👅 Tap 1 thing you could TASTE.", "What is safe to put in your mouth?"],
+];
+const ground = {
+  type: "custom",
+  start(c) {
+    const v = view;
+    el("rect", { x: 0, y: 60, width: W, height: 300, fill: "#fdf3e3" }, v);
+    el("rect", { x: 0, y: 360, width: W, height: 200, fill: "#ead7b8" }, v);
+    el("rect", { x: 110, y: 90, width: 200, height: 130, rx: 10, fill: "#cfe8f7", stroke: "#a8632d", "stroke-width": 6 }, v);
+    el("rect", { x: 420, y: 330, width: 180, height: 20, rx: 6, fill: "#a8632d" }, v);
+    const bar = text(v, 500, 44, "", { "font-size": 30, fill: "var(--accent-dark)" });
+    const things = ROOM.map((it, i) => {
+      const g = el("g", { class: "ls-thing", "data-i": i }, v);
+      el("circle", { cx: it.x, cy: it.y, r: it.s * 0.7, fill: "transparent" }, g);
+      const ring = el("circle", { cx: it.x, cy: it.y, r: it.s * 0.68, fill: "none", stroke: "var(--accent)", "stroke-width": 6, opacity: 0 }, g);
+      emoji(g, it.x, it.y, it.g, it.s);
+      return { ...it, g, ring, on: false };
+    });
+    let step = 0;
+    let got = 0;
+    let misses = 0;
+    let busy = false;
+    const show = () => {
+      const [, n, msg] = STEPS[step];
+      got = 0;
+      misses = 0;
+      things.forEach((t) => ((t.on = false), t.ring.setAttribute("opacity", 0)));
+      bar.textContent = `${"54321"[step]} · ${STEPS[step][0].toUpperCase()} · 0 of ${n}`;
+      say(msg);
+    };
+    v.addEventListener("pointerdown", async (event) => {
+      const g = event.target.closest(".ls-thing");
+      if (!g || busy || !c.live()) return;
+      const t = things[Number(g.dataset.i)];
+      if (t.on) return;
+      window.OC?.touch();
+      const [tag, n, , ask] = STEPS[step];
+      if (t.tags.split(" ").includes(tag)) {
+        t.on = true;
+        t.ring.setAttribute("opacity", 1);
+        got += 1;
+        MUSIC.play("xylophone", 72 + [0, 2, 4, 7, 9][got - 1], { gain: 0.4 });
+        bar.textContent = `${"54321"[step]} · ${tag.toUpperCase()} · ${got} of ${n}`;
+        VOICE.speak(`${t.t}`);
+        if (got === n) {
+          busy = true;
+          await wait(900);
+          if (!c.live()) return;
+          step += 1;
+          busy = false;
+          if (step === STEPS.length) return c.solved(ground, "That is 5-4-3-2-1 grounding. Directing attention to your senses draws it away from a worry, and the body settles.");
+          show();
+        }
+      } else {
+        misses += 1;
+        c.miss();
+        if (misses >= 2) {
+          const good = things.filter((x) => !x.on && x.tags.split(" ").includes(tag)).map((x) => x.t);
+          say(`Can you ${tag} the ${t.t}? Not really. Try: ${good.join(", ")}.`);
+        } else say(`Can you ${tag} the ${t.t}? ${ask}`);
+      }
+    });
+    show();
+    c.hearBtn();
+  },
+};
+const feelDeck = {
+  easy: () => shuffle([...shuffle(FACES).slice(0, 4).map(faceRound), ...SIT_EASY.map((s) => sit(...s))]),
+  medium: () => {
+    const s = shuffle(SIT_MED);
+    const t = shuffle(TOOLS);
+    return [sit(...s[0]), tool(...t[0]), faceRound(pick(FACES.slice(1, 4))), breathe, sit(...s[1]), ground, sit(...s[2]), tool(...t[1])];
+  },
+  hard: () => {
+    const s = shuffle(SIT_HARD);
+    const small = pick([["✏️", "Your pencil broke."], ["🥪", "Your sandwich is cut the wrong way."], ["🎲", "You lost a board game."]]);
+    return [
+      sit(...s[0]),
+      {
+        type: "order",
+        say: "A plan for big feelings. Tap the steps in order.",
+        done: "Stop, breathe, name the feeling, then choose a tool.",
+        cards: [{ g: "🛑", t: "Stop", a: [] }, { g: "🌬️", t: "Take a slow breath", a: [0] }, { g: "🏷️", t: "Name the feeling", a: [1] }, { g: "🧰", t: "Choose a calm tool", a: [2], why: "When you know the feeling, you can pick the right tool." }],
+      },
+      sit(...s[1]),
+      fact("Your friend grabbed your crayon. Which is a calm, strong thing to say?", ["🖍️", "✋"], "Your crayon was grabbed", "I feel upset when you grab. Please ask.", ["You're mean.", "Grab it back"], "An I-statement says how you feel and what you need, without hurting anyone.", "Which one says how YOU feel and what you need?"),
+      fact(`${small[1]} How big is this problem?`, [small[0]], small[1], "🟢 Small problem", ["🟡 Medium problem", "🔴 Big problem"], "Nobody is hurt and it can be fixed. A small problem gets a small reaction.", "Is anyone hurt? Can it be fixed quickly?"),
+      ground,
+      sit(...s[2]),
+      fact("Your friend is crying because she fell down. What can you do?", ["😢", "🩹"], "Your friend fell down", "Ask: are you OK? Get a grown-up", ["Laugh", "Walk away"], "Kind words and getting help show you care."),
+    ];
+  },
+};
+
+// =====================================================================
+// CHORES & HELPING
+// =====================================================================
+const ME = [["🧸", "Put toys away"], ["🧺", "Clothes in the hamper"], ["🥄", "Set out spoons"], ["🪴", "Water the plants"], ["📚", "Books on the shelf"], ["🛏️", "Make my bed"], ["🧦", "Match socks"], ["🧽", "Wipe the table"]];
+const GROWN = [["🍳", "Cook on the stove", "The stove is hot."], ["🔪", "Cut with a sharp knife", "Sharp knives can cut."], ["🚗", "Drive the car", "Only grown-ups drive."], ["🪜", "Climb a tall ladder", "You could fall from up high."], ["🧴", "Use cleaning spray", "Sprays have strong chemicals."], ["🕯️", "Light candles", "Fire is for grown-ups."]];
+const WITH = [["🍪", "Bake cookies", "You can measure and mix; a grown-up handles the hot oven."], ["🍽️", "Wash the dishes", "You can wash plastic cups. A grown-up washes knives and glass."], ["🛒", "Grocery shopping", "You can find foods on the list. A grown-up pays."], ["🐕", "Walk the dog", "A grown-up comes along near roads."], ["🚙", "Wash the car", "You can scrub the wheels while a grown-up helps."]];
+const choreSort = (three) => {
+  const zones = three
+    ? [
+        { key: "me", label: "Me", glyph: "🧒", color: "#2e8f55", soft: "#e2f4e8" },
+        { key: "with", label: "With help", glyph: "🤝", color: "#c98a00", soft: "#fff3d1" },
+        { key: "grown", label: "Grown-up", glyph: "🧑", color: "#d9443a", soft: "#fde5dc" },
+      ]
+    : [
+        { key: "me", label: "I can do it", glyph: "🧒", color: "#2e8f55", soft: "#e2f4e8" },
+        { key: "grown", label: "Grown-up job", glyph: "🧑", color: "#d9443a", soft: "#fde5dc" },
+      ];
+  const k = 2;
+  const items = [
+    ...shuffle(ME).slice(0, k).map(([g, t]) => ({ g, t, zone: "me", why: `${t}: you can do this independently. It contributes to the household.` })),
+    ...shuffle(GROWN).slice(0, three ? 1 : k).map(([g, t, w]) => ({ g, t, zone: "grown", why: `${t} is a grown-up job. ${w}` })),
+    ...(three ? shuffle(WITH).slice(0, 2).map(([g, t, w]) => ({ g, t, zone: "with", why: `${t}: do it together. ${w}` })) : []),
+  ];
+  return {
+    type: "sort",
+    say: three ? "Who can do each job? Drag it to Me, With help, or Grown-up." : "Who can do each job? Drag it to I can do it, or Grown-up job.",
+    zones,
+    items: shuffle(items),
+    ask: (it) => `Think about ${it.t.toLowerCase()}. Is anything hot, sharp, high up, or strong? Could you do part of it?`,
+    done: "Each person contributes according to what they can safely do.",
+  };
+};
+const choreDeck = {
+  easy: () => [
+    choreSort(false),
+    fact("Toys are all over the floor. What can you do?", ["🧸", "🚗", "🧩"], "Toys on the floor", "🧺 Put them away", ["🙈 Leave them", "🦶 Kick them"], "Putting toys away keeps your room safe and tidy.", "What would help the room?"),
+    choreSort(false),
+    fact("Dinner is almost ready. How can you help?", ["🍝", "🍽️"], "Dinner time", "🥄 Set out the spoons", ["📺 Watch TV", "🏃 Run around"], "Setting the table is a real contribution to the family meal."),
+    choreSort(false),
+    fact("Your baby brother dropped his cup. What can you do?", ["👶", "🥤"], "The cup fell", "🤲 Pick it up for him", ["😆 Laugh", "🚶 Walk away"], "Helping someone younger is an act of kindness and responsibility."),
+    choreSort(false),
+    fact("Your clothes are on the floor. Where do they go?", ["👕", "🧦"], "Clothes on the floor", "🧺 In the hamper", ["🛏️ Under the bed", "🚪 Out the door"], "Dirty clothes go in the hamper so they can be washed."),
+  ],
+  medium: () => {
+    const p = pick([3, 4, 5]);
+    const s = pick([5, 6, 7]);
+    const pl = pick([3, 4]);
+    return [
+      choreSort(true),
+      { type: "num", answer: p * 2, say: `You set the table for ${p} people. Each needs a fork and a spoon. How many pieces do you bring?`, hint: "How many for one person? Now do that for each person.", why: `${p} × 2 = ${p * 2} pieces.`, draw: () => scene(Array(Math.min(4, p)).fill("🍴"), `${p} people, a fork and a spoon each`) },
+      fact("Why do families share jobs?", ["👨‍👩‍👧‍👦", "🏠"], "Family jobs", "So everyone helps", ["To get candy", "Because jobs are boring"], "When everyone helps a little, nobody has to do it all."),
+      choreSort(true),
+      { type: "num", answer: s, say: `You find ${s * 2} socks in the laundry. How many pairs can you make?`, hint: "A pair is 2 socks. How many 2s are in the pile?", why: `${s * 2} socks ÷ 2 = ${s} pairs.`, draw: () => scene(["🧦", "🧦", "🧺"], `${s * 2} socks`) },
+      fact("You finished your job. What could you do next?", ["✅", "🙋"], "Job finished", "Ask: how else can I help?", ["Hide so nobody asks", "Mess it up again"], "Asking how to help shows you care about your family."),
+      choreSort(true),
+      { type: "num", answer: pl * 2, say: `${pl} plants each need 2 cups of water. How many cups do you pour?`, hint: "Count 2 cups for each plant.", why: `${pl} × 2 = ${pl * 2} cups.`, draw: () => scene([...Array(pl).fill("🪴"), "💧"], `${pl} plants, 2 cups each`) },
+    ];
+  },
+  hard: () => {
+    const [toys, kids] = pick([[12, 3], [12, 4], [15, 3], [16, 4], [18, 3]]);
+    return [
+      { type: "num", answer: toys / kids, say: `${toys} toys are on the floor. ${kids} children share the cleanup fairly. How many toys does each child pick up?`, hint: `Share them out one at a time. Or: what times ${kids} makes ${toys}?`, why: `${toys} ÷ ${kids} = ${toys / kids}. Fair means equal shares.`, draw: () => scene(["🧸", "🚗", "🧩", "🪀"], `${toys} toys, ${kids} helpers`) },
+      choreSort(true),
+      { type: "num", answer: 7, say: "A family has 28 jobs a week. 4 people share them equally. How many jobs does each person do?", hint: "What times 4 makes 28?", why: "28 ÷ 4 = 7 jobs each. That is one per day.", draw: () => scene(["👨", "👩", "👧", "👦"], "28 jobs shared by 4 people") },
+      { type: "num", answer: 30, say: "Folding one load of laundry takes 10 minutes. How many minutes for 3 loads?", hint: "Count by 10s, three times.", why: "10 + 10 + 10 = 30 minutes.", draw: () => scene(["🧺", "🧺", "🧺"], "3 loads, 10 minutes each") },
+      fact("Dishes take 10 minutes. Sweeping takes 20. You and your sister always do them. Is it fair if you always pick dishes?", ["🍽️", "🧹"], "Sharing jobs fairly", "No. Take turns", ["Yes, always"], "Taking turns is fair, so each of you does the long job sometimes."),
+      { type: "num", answer: 14, say: "You feed the fish 2 times a day. How many feedings in one week?", hint: "2 a day. How many days are in a week?", why: "2 × 7 = 14 feedings.", draw: () => scene(["🐠", "☀️", "🌙"], "2 times a day, 7 days") },
+      choreSort(true),
+      fact("You promised to water the plants this week, but you forgot today. What do you do?", ["🪴", "💧"], "Oops, I forgot", "Water them now, say sorry", ["Hide it", "Blame someone"], "Being responsible means fixing it and keeping your promise."),
+    ];
+  },
+};
+const JOBS = [["🛏️", "Make my bed"], ["🧸", "Tidy my toys"], ["🥄", "Set the table"], ["🪴", "Water the plants"], ["🧺", "Laundry helper"], ["🧽", "Wipe the table"]];
+function chooseJob(c, finish) {
+  fresh();
+  el("rect", { x: 30, y: 24, width: 940, height: 512, rx: 34, fill: "#fffaf0", stroke: "#eadcc4", "stroke-width": 4 }, view);
+  text(view, 500, 80, "My family job this week", { "font-size": 40, fill: INK });
+  JOBS.forEach(([g, t], i) => {
+    const x = 180 + (i % 3) * 320;
+    const y = 220 + Math.floor(i / 3) * 190;
+    const jg = el("g", { class: "ls-thing", "data-j": i }, view);
+    el("rect", { x: x - 140, y: y - 80, width: 280, height: 180, rx: 24, fill: "transparent" }, jg);
+    emoji(jg, x, y, g, 90);
+    text(jg, x, y + 90, t, { "font-size": 26, fill: "#5a4130" });
+  });
+  say("You have completed the rounds. Now commit to one family job to do every day this week. Tap a picture.");
+  c.ans.innerHTML = `<div class="ap-chips ls-jobs">${JOBS.map(([g, t], i) => `<button type="button" data-j="${i}" aria-label="${t}">${g}</button>`).join("")}</div>`;
+  let chosen = false;
+  const pickJob = (i) => {
+    if (!c.live() || chosen) return;
+    chosen = true;
+    const t = JOBS[i][1];
+    MUSIC.chime();
+    window.OC?.touch();
+    finish({
+      title: `My family job: ${t}`,
+      need: "paper, crayons, tape, and your family job",
+      steps: [`Draw “${t}” at the top of the paper.`, "Draw 7 boxes, one for each day.", "Tape it where you will see it.", "Do your job each day and colour a box.", "At the end of the week, report to your family: what went well, and what you would improve."],
+      safe: "A grown-up shows you how to do the job safely the first time.",
+    });
+  };
+  c.ans.onclick = (event) => {
+    const b = event.target.closest("[data-j]");
+    if (b) pickJob(Number(b.dataset.j));
+  };
+  view.addEventListener("pointerdown", (event) => {
+    const g = event.target.closest("[data-j]");
+    if (g) pickJob(Number(g.dataset.j));
+  });
+}
+
+// =====================================================================
+// SEE IT
+// =====================================================================
+function seeIt() {
+  const my = token;
+  explain(
+    [
+      { say: "Why study life skills? They are the practical knowledge for running your own life well: caring for your body, your belongings, your money, and other people.", draw: everyday([["🪥", "Caring for my body"], ["🧸", "Caring for my things"], ["🫙", "Caring for my money"], ["🤝", "Caring for others"]]) },
+      {
+        say: "A steward manages money with purpose. Divide each allowance among three jobs: give, save and spend. Here, five dollars: 1 to give, 2 to save, 2 to spend. A steward does not hoard; money is meant to do good.",
+        async draw(v, api) {
+          const jars = JAR_Z.map((z, i) => {
+            const g = el("g", {}, v);
+            drawJar(g, { ...z, x: 120 + i * 270, y: 220, w: 220, h: 320 });
+            return 120 + i * 270 + 110;
+          });
+          const plan = [0, 1, 1, 2, 2];
+          const count = [0, 0, 0];
+          const bills = plan.map((_, i) => emoji(v, 260 + i * 120, 90, "💵", 74));
+          await api.wait(1200);
+          for (let i = 0; i < 5; i++) {
+            const j = plan[i];
+            const tx = jars[j] + (count[j] - 0.5) * 60 + (j === 0 ? 30 : 0);
+            const ty = 470 - 0;
+            const x0 = 260 + i * 120;
+            count[j] += 1;
+            await api.tween(900, (t) => bills[i].setAttribute("transform", `translate(${(tx - x0) * t} ${(ty - 90) * t}) `));
+            MUSIC.play("xylophone", 72 + [0, 4, 7, 9, 12][i], { gain: 0.35 });
+            await api.wait(350);
+          }
+        },
+      },
+      {
+        say: "A savings goal: a book costs 12 dollars. If you save 2 dollars each week, you reach the goal in 6 weeks, because 12 divided by 2 is 6.",
+        async draw(v, api) {
+          const X = (d) => 110 + (d / 12) * 740;
+          text(v, 500, 70, "Book: $12 · save $2 a week", { "font-size": 36, fill: INK });
+          emoji(v, X(12), 170, "📕", 80);
+          el("rect", { x: 110, y: 250, width: 740, height: 70, rx: 35, fill: "#f3ece0", stroke: "#cdbb9f", "stroke-width": 3 }, v);
+          const fill = el("rect", { x: 110, y: 250, width: 0, height: 70, rx: 35, fill: "var(--accent)" }, v);
+          const lab = text(v, 500, 440, "", { "font-size": 40, fill: "var(--accent-dark)" });
+          for (let k = 1; k <= 6; k++) {
+            el("line", { x1: X(2 * k), x2: X(2 * k), y1: 242, y2: 328, stroke: "#8a7764", "stroke-width": 3 }, v);
+            text(v, X(2 * k), 366, `$${2 * k}`, { "font-size": 26, fill: "#5a4130" });
+          }
+          await api.wait(1500);
+          for (let k = 1; k <= 6; k++) {
+            const w0 = X(2 * (k - 1)) - 110;
+            await api.tween(700, (t) => fill.setAttribute("width", w0 + (X(2 * k) - X(2 * (k - 1))) * t));
+            lab.textContent = `Week ${k}: $${2 * k}`;
+            MUSIC.play("xylophone", 72 + [0, 2, 4, 5, 7, 12][k - 1], { gain: 0.35 });
+            await api.wait(500);
+          }
+          lab.textContent = "6 weeks: $12. Goal reached.";
+        },
+      },
+      {
+        say: "A routine is a fixed sequence of steps. Each step has a duration, and the durations add up to the total: 1 + 5 + 15 + 2 = 23 minutes.",
+        async draw(v, api) {
+          const cards = [["⏰", "Wake up", 1], ["👕", "Get dressed", 5], ["🥣", "Breakfast", 15], ["👟", "Shoes on", 2]];
+          let sum = 0;
+          const tot = text(v, 500, 470, "", { "font-size": 40, fill: "var(--accent-dark)" });
+          for (let i = 0; i < 4; i++) {
+            const [g, t, m] = cards[i];
+            const x = 155 + i * 230;
+            const gg = el("g", { opacity: 0, transform: `translate(${x} 250)` }, v);
+            tile(gg, g, t, 190, 200, `${m} min`);
+            el("circle", { cx: -70, cy: -80, r: 22, fill: "var(--accent)" }, gg);
+            text(gg, -70, -72, i + 1, { "font-size": 24, fill: "#fff" });
+            await api.tween(700, (tt) => gg.setAttribute("opacity", tt));
+            sum += m;
+            tot.textContent = `${cards.slice(0, i + 1).map((c) => c[2]).join(" + ")} = ${sum} minutes`;
+            MUSIC.play("xylophone", 72 + i * 3, { gain: 0.35 });
+            await api.wait(900);
+          }
+        },
+      },
+      {
+        say: "A healthy plate has five food groups: fruits, vegetables, grains, protein, and dairy. Each group supplies different nutrients. Half the plate should be fruits and vegetables.",
+        async draw(v, api) {
+          const zones = plateZones();
+          el("circle", { cx: PC.x, cy: PC.y - 40, r: PC.r + 16, fill: "#fff", stroke: "#d9c7ab", "stroke-width": 4 }, v);
+          const ex = { fruits: "🍎", grains: "🍞", vegetables: "🥦", protein: "🥚", dairy: "🥛" };
+          for (const key of ["fruits", "vegetables", "grains", "protein", "dairy"]) {
+            const z = zones.find((q) => q.key === key);
+            const g = el("g", { opacity: 0, transform: "translate(0 -40)" }, v);
+            drawPlateZone(g, z);
+            const [sx, sy] = z.slot(0);
+            emoji(g, sx, sy - 14, ex[key], 44);
+            await api.tween(700, (t) => g.setAttribute("opacity", t));
+            MUSIC.play("xylophone", 72 + ["fruits", "vegetables", "grains", "protein", "dairy"].indexOf(key) * 3, { gain: 0.35 });
+            await api.wait(800);
+          }
+          text(v, 870, 230, "½", { "font-size": 60, fill: INK });
+          text(v, 870, 280, "fruits +", { "font-size": 24, fill: INK });
+          text(v, 870, 310, "veggies", { "font-size": 24, fill: INK });
+        },
+      },
+      {
+        say: "Four evidence-based numbers: wash hands for at least 20 seconds (CDC). Brush teeth 2 minutes, twice a day (American Dental Association). Sleep 9 to 12 hours if you are 6 to 12 years old (American Academy of Pediatrics). Move and play at least 60 minutes a day from age 6 (CDC).",
+        async draw(v, api) {
+          const cards = [["🧼", "20 seconds", "wash hands"], ["🪥", "2 minutes", "twice a day"], ["😴", "9–12 hours", "of sleep"], ["🏃", "60 minutes", "of play"]];
+          for (let i = 0; i < 4; i++) {
+            const [g, big, small] = cards[i];
+            const x = 40 + i * 235;
+            const gg = el("g", { opacity: 0 }, v);
+            el("rect", { x, y: 110, width: 215, height: 330, rx: 28, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, gg);
+            emoji(gg, x + 107, 200, g, 90);
+            text(gg, x + 107, 330, big, { "font-size": 32, fill: "var(--accent-dark)" });
+            text(gg, x + 107, 375, small, { "font-size": 24, fill: INK });
+            await api.tween(600, (t) => gg.setAttribute("opacity", t));
+            await api.wait(1400);
+          }
+        },
+      },
+      {
+        say: "Safe helpers can help you if you are lost: a police officer, a firefighter, a teacher, or a store worker at the counter. 9-1-1 is for emergencies.",
+        async draw(v, api) {
+          const ppl = [["👮", "Police"], ["🧑‍🚒", "Firefighter"], ["👩‍🏫", "Teacher"], ["🏪", "Store worker"]];
+          for (let i = 0; i < 4; i++) {
+            const g = el("g", { opacity: 0 }, v);
+            emoji(g, 140 + i * 240, 170, ppl[i][0], 110);
+            text(g, 140 + i * 240, 290, ppl[i][1], { "font-size": 26, fill: INK });
+            await api.tween(600, (t) => g.setAttribute("opacity", t));
+            await api.wait(500);
+          }
+          const g = el("g", { opacity: 0 }, v);
+          el("rect", { x: 330, y: 350, width: 340, height: 120, rx: 30, fill: "#fde5dc", stroke: "#d9443a", "stroke-width": 5 }, g);
+          text(g, 500, 432, "📞 911", { "font-size": 60, fill: "#b8331f" });
+          text(g, 500, 520, "for emergencies", { "font-size": 28, fill: INK });
+          await api.tween(800, (t) => g.setAttribute("opacity", t));
+        },
+      },
+      {
+        say: "Every feeling carries information, and all feelings are acceptable. When one is strong: stop, take a slow breath, name the feeling, and choose a calm-down tool.",
+        async draw(v, api) {
+          const ring = el("circle", { cx: 500, cy: 260, r: 80, fill: "var(--accent-soft)", stroke: "var(--accent)", "stroke-width": 6 }, v);
+          const w = text(v, 500, 272, "in…", { "font-size": 40, fill: INK });
+          ["😀", "😢", "😠", "😨"].forEach((f, i) => emoji(v, [110, 230, 770, 890][i], 260, f, 80));
+          text(v, 500, 500, "Stop · Breathe · Name it · Choose a tool", { "font-size": 30, fill: "var(--accent-dark)" });
+          for (let k = 0; k < 2; k++) {
+            w.textContent = "Breathe in…";
+            await api.tween(3000, (t) => ring.setAttribute("r", 80 + 90 * t));
+            w.textContent = "Breathe out…";
+            await api.tween(3000, (t) => ring.setAttribute("r", 170 - 90 * t));
+          }
+          w.textContent = "Calm";
+        },
+      },
+    ],
+    { alive: () => my === token, onDone: () => shell.go("ls1"), title: "Life Skills" }
+  );
+}
+
+// =====================================================================
+// UNITS
+// =====================================================================
+const units = {
+  ls0: seeIt,
+  ls1: () =>
+    game("ls1", {
+      deck: (lv) => moneyDeck[lv](),
+      count: "money rounds",
+      end: "You planned giving, saving and spending with real arithmetic.",
+      explain: { q: "Why should money be divided into give, save and spend, and how does saving grow?", starters: ["A good steward divides money because…", "Saving for a goal works by…", "A bank pays interest because…"], check: "the three jobs of money, one calculation (for example weeks to a goal), and what interest is." },
+      real: { title: "Make your three money jars", need: "3 clean jars or cups, paper, crayons, tape, your allowance", steps: ["Make three labels: GIVE, SAVE and SPEND.", "Tape one label on each jar.", "When you get your allowance, split it into the jars.", "Draw your savings goal on the SAVE jar.", "Choose with your family where the GIVE money will go."], safe: "Do this with a grown-up. Coins are small: keep them away from little brothers and sisters." },
+    }),
+  ls2: () =>
+    game("ls2", {
+      deck: (lv) => routineDeck[lv](),
+      count: "routines planned",
+      end: "You sequenced routines and calculated with time.",
+      explain: { q: "How do you plan a routine so that you finish on time?", starters: ["First I put the steps in an order where…", "Then I add the durations…", "To find my start time I…"], check: "the idea that some steps depend on others, adding minutes, and counting back from the finish time." },
+      real: { title: "My morning checklist", need: "paper, crayons, tape", steps: ["Fold the paper into 5 boxes.", "Draw one morning step in each box, in order.", "Tape it by your bed or the door.", "Each morning, point to each step when it is done.", "After a week, talk about what helped."], safe: "A grown-up helps you choose a good spot to hang it." },
+    }),
+  ls3: () =>
+    game("ls3", {
+      deck: (lv) => healthDeck[lv](),
+      count: "healthy body rounds",
+      end: "You connected food groups, nutrients, sleep and hygiene to how the body works.",
+      explain: { q: "Choose one healthy habit and explain the science behind it.", starters: ["The habit I chose is…", "It works because inside the body…", "The evidence-based amount is…"], check: "a specific habit, the biological reason (for example calcium, carbohydrates, growth hormone, or soap lifting oils), and the recommended amount." },
+      real: { title: "Healthy plate detective", need: "your dinner plate, soap and water", steps: ["At dinner, find each food group on your plate.", "Is half the plate fruits and veggies?", "Before eating, wash hands: hum Happy Birthday two times.", "At bedtime, brush teeth for 2 minutes.", "Tell a grown-up what time you went to sleep."], safe: "Do this with a grown-up at mealtime." },
+    }),
+  ls4: () =>
+    game("ls4", {
+      deck: (lv) => safetyDeck[lv](),
+      count: "safety rounds",
+      end: "You reasoned through how to stay safe and whom to ask for help.",
+      explain: { q: "What makes something an emergency, and what should you do if you are lost?", starters: ["An emergency is when…", "If I am lost, I first…", "A safe helper is someone who…"], check: "a clear definition of emergency, the steps for being lost, and an example of a safe helper." },
+      real: { title: "Safety practice", need: "a grown-up, a phone number written on paper", steps: ["Learn your grown-up's phone number. Say it 3 times.", "At a store, find the safe helpers: workers at the counter.", "On a walk, practice: stop at the curb, look left, right, left.", "At home, find your family's meeting spot outside.", "Ask: where is our smoke alarm?"], safe: "Never cross the street alone. Practice only with a grown-up holding your hand." },
+    }),
+  ls5: () =>
+    game("ls5", {
+      deck: (lv) => feelDeck[lv](),
+      count: "feelings rounds",
+      end: "You named feelings precisely and practised regulating them.",
+      explain: { q: "Describe a time you had a strong feeling. Name it precisely and say which calming tool would help.", starters: ["I felt … (the precise word) when…", "My body showed it by…", "The tool I would use is … because…"], check: "a precise feeling word, the situation, and a tool with a reason it works." },
+      real: { title: "Make a calm-down corner", need: "a pillow, a soft toy, paper and crayons", steps: ["Pick a quiet corner with a grown-up.", "Put a pillow and a soft toy there.", "Draw faces: happy, sad, mad, scared. Tape them up.", "Draw your calm tools: breathe, count to 10, hug teddy.", "When a feeling is big, go there and try 5-4-3-2-1."], safe: "Tell a grown-up when you have a big feeling. They want to help." },
+    }),
+  ls6: () =>
+    game("ls6", {
+      deck: (lv) => choreDeck[lv](),
+      count: "helping rounds",
+      end: "You judged which jobs are safe for you and shared work fairly.",
+      explain: { q: "Why do families share household work, and how do you decide what is fair?", starters: ["Families share work because…", "A job is safe for me when…", "Fair sharing means…"], check: "a reason for sharing work, a safety rule (hot, sharp, high, chemicals), and a fair-sharing idea such as equal shares or taking turns." },
+      finale: chooseJob,
+      real: { title: "My family job", need: "paper, crayons, tape", steps: ["Pick one family job.", "Do it every day this week.", "Color a box each day."], safe: "A grown-up shows you how to do the job safely." },
+    }),
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    ls0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    ls1: { icon: "🫙", title: "Money jars", steps: ["Drag each dollar into GIVE, SAVE or SPEND.", "Need or want? Drag each picture to its box.", "Harder levels: type your answer on the number pad."] },
+    ls2: { icon: "⏰", title: "My routines", steps: ["Tap the picture cards in a sensible order.", "Add up the minutes when asked.", "Plan your week: tap the right answer."] },
+    ls3: { icon: "🥦", title: "Healthy body", steps: ["Drag each food to its place on the plate.", "Tap the answer that keeps your body healthy.", "Hard level: work out the numbers."] },
+    ls4: { icon: "🦺", title: "Safety smarts", steps: ["Look at the picture and listen.", "Tap the safe thing to do.", "Always ask a grown-up if you are not sure."] },
+    ls5: { icon: "💛", title: "Feelings & calm", steps: ["Look at the face or the story.", "Tap the feeling word.", "Try the calm-down tools with me."] },
+    ls6: { icon: "🧹", title: "Chores & helping", steps: ["Drag each job to who can do it.", "Tap the answer that helps.", "At the end, choose your family job."] },
+  },
+  start: "ls0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+    document.querySelector(".ls-real")?.remove();
+  },
+  subject: "Life Skills",
+  activity: "Life Skills",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 75, 76, 77, 78, 79, 81, 83, 84, 86, 88, 91, 96]);
+MUSIC.preload("woodblock", [79]);
+MUSIC.preload("harp", [55, 60]);
+window.__lsDecks = { moneyDeck, routineDeck, healthDeck, safetyDeck, feelDeck, choreDeck }; // test hook
+</script>
+</body>
+</html>

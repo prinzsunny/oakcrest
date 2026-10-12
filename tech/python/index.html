@@ -1,0 +1,2490 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>First Python · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="tech">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>First Python</b><small>Coding · Advanced</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, wait, confetti, explain, everyday, emoji } = KIT;
+const stage = $("[data-stage]");
+let token = 0;
+const C = String.raw;
+
+// ===== PYTHON ENGINE =====
+// Real CPython (Pyodide, pinned version) runs inside a Web Worker, so a runaway program can never freeze the page:
+// a step limit (sys.settrace) stops long loops politely, and a wall-clock timeout terminates the worker as a last resort.
+// Pyodide is about 10 MB; it is fetched only when a coding unit opens, and the CDN lets the browser cache it for a year.
+const PYODIDE_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
+const STEP_LIMIT = 200000;
+
+// The turtle's pen lives in JavaScript (in the worker); the Python module "turtle" below is a thin, checked wrapper over it.
+const WORKER_SRC = C`
+let py = null;
+const T = { x: 0, y: 0, h: 0, pen: true, c: "#2b1d12", w: 3, segs: [], shown: true, fc: "#2b1d12", fill: null, fills: [], bg: "" };
+const R = (v) => Math.round(v * 1e6) / 1e6;
+function moveTo(nx, ny) {
+  nx = R(nx); ny = R(ny);
+  if (T.pen && (nx !== T.x || ny !== T.y)) T.segs.push([T.x, T.y, nx, ny, T.c, T.w]);
+  if (T.fill && T.fill.pts.length < 20000) T.fill.pts.push([nx, ny]);
+  T.x = nx; T.y = ny;
+}
+const ocjs = {
+  reset() { Object.assign(T, { x: 0, y: 0, h: 0, pen: true, c: "#2b1d12", w: 3, segs: [], shown: true, fc: "#2b1d12", fill: null, fills: [], bg: "" }); },
+  fd(d) { const a = (T.h * Math.PI) / 180; moveTo(T.x + d * Math.cos(a), T.y + d * Math.sin(a)); },
+  turn(a) { T.h = R((((T.h + a) % 360) + 360) % 360); },
+  seth(a) { T.h = R(((a % 360) + 360) % 360); },
+  goto(x, y) { moveTo(x, y); },
+  pen(b) { T.pen = !!b; },
+  isdown() { return T.pen; },
+  color(c) { T.c = c; },
+  getcolor() { return T.c; },
+  width(w) { T.w = w; },
+  getwidth() { return T.w; },
+  x() { return T.x; },
+  y() { return T.y; },
+  h() { return T.h; },
+  count() { return T.segs.length; },
+  show(b) { T.shown = !!b; },
+  fillcolor(c) { T.fc = c; },
+  getfill() { return T.fc; },
+  // As in Python's turtle, the fill sits beneath the lines drawn after begin_fill() and appears at end_fill().
+  beginfill() { T.fill = { pts: [[T.x, T.y]], at: T.segs.length }; },
+  endfill() {
+    if (T.fill && T.fill.pts.length >= 3 && T.fills.length < 2000) T.fills.push({ pts: T.fill.pts, c: T.fc, at: T.fill.at, end: T.segs.length });
+    T.fill = null;
+  },
+  filling() { return !!T.fill; },
+  bg(c) { T.bg = c; },
+};
+self.onmessage = async (e) => {
+  const m = e.data;
+  if (m.type === "init") {
+    try {
+      importScripts(m.url + "pyodide.js");
+      py = await loadPyodide({ indexURL: m.url });
+      py.registerJsModule("_ocjs", ocjs);
+      py.runPython(m.prelude);
+      postMessage({ type: "ready", version: py.runPython("import sys; sys.version.split()[0]") });
+    } catch (err) {
+      postMessage({ type: "fail", msg: String(err && err.message ? err.message : err).slice(0, 300) });
+    }
+  } else if (m.type === "run") {
+    let res;
+    try {
+      ocjs.reset();
+      const fn = py.globals.get("_oc_run");
+      res = JSON.parse(fn(m.code, m.tests || "", py.toPy(m.inputs || []), m.limit));
+      fn.destroy();
+    } catch (err) {
+      res = { out: "", err: { type: "InternalError", msg: String(err).slice(0, 300), line: null }, fails: [], steps: 0 };
+    }
+    res.segs = T.segs.slice(0, 20000);
+    res.turtle = { x: T.x, y: T.y, h: T.h, shown: T.shown };
+    res.fills = T.fills;
+    res.bg = T.bg;
+    postMessage({ type: "done", id: m.id, res });
+  }
+};
+`;
+
+const PRELUDE = C`
+import sys, json, builtins, traceback, types, math, re
+import _ocjs
+
+class _StepLimit(BaseException):
+    pass
+
+class _OutLimit(BaseException):
+    pass
+
+class _Out:
+    # plain: only what print() wrote (this is what the checks compare); shown: the console view, which also
+    # shows input() prompts and the preset answers, marked so that the page can style them.
+    def __init__(self):
+        self.parts = []
+        self.shown = []
+        self.n = 0
+    def write(self, s):
+        s = str(s)
+        self.n += len(s)
+        if self.n > 20000:
+            raise _OutLimit()
+        self.parts.append(s)
+        self.shown.append(s)
+        return len(s)
+    def echo(self, prompt, value):
+        self.n += len(prompt) + len(value)
+        self.shown.append(prompt + "\x01" + value + "\x02\n")
+    def flush(self):
+        pass
+    def getvalue(self):
+        return "".join(self.parts)
+
+_COLOURS = {
+    "black": "#2b1d12", "white": "#ffffff", "red": "#e53935", "orange": "#fb8c00", "yellow": "#f2b705",
+    "green": "#2e9d48", "blue": "#1e6fd9", "purple": "#8e24aa", "pink": "#ec4899", "brown": "#8d5a2b",
+    "grey": "#7a7a7a", "gray": "#7a7a7a", "cyan": "#00acc1", "magenta": "#d81b60", "gold": "#d4a017",
+    "navy": "#1a2f80", "teal": "#00897b", "violet": "#7e57c2", "lime": "#7cb342", "maroon": "#800000",
+    "olive": "#7d7d00", "indigo": "#3f51b5", "turquoise": "#1ec8b4", "crimson": "#c8102e",
+}
+
+def _num(v, fname):
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        raise TypeError(f"{fname}() needs a number, not {type(v).__name__} {v!r}")
+    if v != v or v in (float("inf"), float("-inf")):
+        raise ValueError(f"{fname}() needs an ordinary number, not {v!r}")
+    return float(v)
+
+def _room():
+    if _ocjs.count() >= 20000:
+        raise RuntimeError("the turtle has drawn more than 20,000 lines; that is the limit here")
+
+def _colour(c, fname="color"):
+    if isinstance(c, (tuple, list)) and len(c) == 3:
+        if all(isinstance(v, (int, float)) and 0 <= v <= 1 for v in c):
+            return "#%02x%02x%02x" % tuple(round(v * 255) for v in c)
+        raise ValueError(f"{fname}(): each of the three colour numbers must be between 0 and 1")
+    if not isinstance(c, str):
+        raise TypeError(f"{fname}() needs a colour name in quotation marks, such as 'red'")
+    s = c.strip().lower()
+    if s in _COLOURS:
+        return _COLOURS[s]
+    if re.fullmatch(r"#[0-9a-f]{6}", s):
+        return s
+    if re.fullmatch(r"#[0-9a-f]{3}", s):
+        return "#" + "".join(ch * 2 for ch in s[1:])
+    raise ValueError(f"I do not know the colour {c!r}. Try 'red', 'blue', 'green' or a code such as '#ff8800'")
+
+turtle = types.ModuleType("turtle")
+turtle.__doc__ = ("OakCrest turtle: forward, back, left, right, penup, pendown, color, pencolor, fillcolor, begin_fill, end_fill, "
+                  "bgcolor, pensize, goto, setheading, home, circle, position, heading. Angles are in degrees; heading 0 is east "
+                  "and positive angles turn anticlockwise, as in Python's own turtle. Differences: there is one turtle (Turtle() "
+                  "gives you that same turtle), and speed() has no effect: the drawing is shown when the program ends.")
+
+def forward(distance):
+    d = _num(distance, "forward")
+    _room()
+    _ocjs.fd(d)
+
+def back(distance):
+    forward(-_num(distance, "back"))
+
+def left(angle):
+    _ocjs.turn(_num(angle, "left"))
+
+def right(angle):
+    _ocjs.turn(-_num(angle, "right"))
+
+def penup():
+    _ocjs.pen(False)
+
+def pendown():
+    _ocjs.pen(True)
+
+def isdown():
+    return bool(_ocjs.isdown())
+
+def _one(args, fname):
+    # A colour given as one value ('red', '#ff8800', (1, 0.5, 0)) or as three numbers (1, 0.5, 0).
+    if len(args) == 3:
+        return _colour(tuple(args), fname)
+    if len(args) == 1:
+        return _colour(args[0], fname)
+    raise TypeError(f"{fname}() needs one colour, such as 'red'")
+
+def pencolor(*args):
+    if not args:
+        return _ocjs.getcolor()
+    _ocjs.color(_one(args, "pencolor"))
+
+def fillcolor(*args):
+    if not args:
+        return _ocjs.getfill()
+    _ocjs.fillcolor(_one(args, "fillcolor"))
+
+def color(*args):
+    # As in Python's turtle: color('red') sets the pen and the fill; color('red', 'yellow') sets the pen, then the fill.
+    if not args:
+        return (_ocjs.getcolor(), _ocjs.getfill())
+    if len(args) == 2:
+        _ocjs.color(_colour(args[0]))
+        _ocjs.fillcolor(_colour(args[1]))
+        return
+    c = _one(args, "color")
+    _ocjs.color(c)
+    _ocjs.fillcolor(c)
+
+def begin_fill():
+    _ocjs.beginfill()
+
+def end_fill():
+    _ocjs.endfill()
+
+def filling():
+    return bool(_ocjs.filling())
+
+def bgcolor(*args):
+    if args:
+        _ocjs.bg(_one(args, "bgcolor"))
+
+def pensize(width=None):
+    if width is None:
+        return _ocjs.getwidth()
+    w = _num(width, "pensize")
+    if w <= 0 or w > 40:
+        raise ValueError("pensize() needs a number greater than 0 and no more than 40")
+    _ocjs.width(w)
+
+def goto(x, y=None):
+    if y is None and isinstance(x, (tuple, list)):
+        x, y = x
+    x = _num(x, "goto")
+    y = _num(y, "goto")
+    _room()
+    _ocjs.goto(x, y)
+
+def setheading(angle):
+    _ocjs.seth(_num(angle, "setheading"))
+
+def home():
+    goto(0, 0)
+    setheading(0)
+
+class Vec2D(tuple):
+    # Python's turtle reports positions as a Vec2D, which prints with two decimal places, such as (0.00,100.00).
+    def __repr__(self):
+        return "(%.2f,%.2f)" % self
+
+def position():
+    return Vec2D((xcor(), ycor()))
+
+def xcor():
+    return float(round(_ocjs.x(), 4)) + 0.0
+
+def ycor():
+    return float(round(_ocjs.y(), 4)) + 0.0
+
+def heading():
+    return float(round(_ocjs.h(), 4) % 360) + 0.0
+
+def circle(radius, extent=360, steps=None):
+    r = _num(radius, "circle")
+    ext = _num(extent, "circle")
+    if steps is None:
+        steps = max(12, min(120, int(abs(ext) / 360 * (24 + abs(r) / 4))))
+    w = ext / steps
+    w2 = 0.5 * w
+    ln = 2 * r * math.sin(math.radians(w2))
+    if r < 0:
+        ln, w, w2 = -ln, -w, -w2
+    left(w2)
+    for _ in range(int(steps)):
+        forward(ln)
+        left(w)
+    left(-w2)
+
+def _nothing(*args, **kwargs):
+    return None
+
+def hideturtle():
+    _ocjs.show(False)
+
+def showturtle():
+    _ocjs.show(True)
+
+_made = [0]
+
+class Turtle:
+    # This page has a single turtle. One Turtle() works as in Python; a second would silently share the first one's pen,
+    # so it is refused with an honest message instead.
+    def __init__(self, *args, **kwargs):
+        _made[0] += 1
+        if _made[0] > 1:
+            raise NotImplementedError("this page has only one turtle, so Turtle() can be used once per program. In full Python each Turtle() is a separate turtle.")
+    def __getattr__(self, name):
+        return getattr(turtle, name)
+
+class _Screen:
+    def bgcolor(self, *args):
+        return bgcolor(*args)
+    def __getattr__(self, name):
+        return _nothing
+
+def Screen():
+    return _Screen()
+
+_names = dict(forward=forward, fd=forward, back=back, bk=back, backward=back, left=left, lt=left, right=right, rt=right,
+              penup=penup, pu=penup, up=penup, pendown=pendown, pd=pendown, down=pendown, isdown=isdown,
+              color=color, pencolor=pencolor, fillcolor=fillcolor, begin_fill=begin_fill, end_fill=end_fill, filling=filling,
+              bgcolor=bgcolor, pensize=pensize, width=pensize, goto=goto, setpos=goto, setposition=goto,
+              setheading=setheading, seth=setheading, home=home, position=position, pos=position, xcor=xcor, ycor=ycor,
+              heading=heading, circle=circle, speed=_nothing, done=_nothing, mainloop=_nothing, exitonclick=_nothing,
+              hideturtle=hideturtle, ht=hideturtle, showturtle=showturtle, st=showturtle, shape=_nothing,
+              tracer=_nothing, Vec2D=Vec2D,
+              Turtle=Turtle, Screen=Screen)
+turtle.__all__ = list(_names)
+_BUILTINS = dict(builtins.__dict__)
+
+def _fresh():
+    # Each run starts clean, even if the last program reassigned something (turtle.color = 'red', builtins.print = ...).
+    for k, v in _names.items():
+        setattr(turtle, k, v)
+    for k in [k for k in vars(turtle) if k not in _names and not k.startswith("__")]:
+        delattr(turtle, k)
+    sys.modules["turtle"] = turtle
+    for k, v in _BUILTINS.items():
+        if builtins.__dict__.get(k) is not v:
+            setattr(builtins, k, v)
+    sys.setrecursionlimit(1000)
+    _made[0] = 0
+
+_fresh()
+
+def _oc_run(code, tests, inputs, limit):
+    _fresh()
+    out = _Out()
+    steps = [0]
+    feed = [str(v) for v in inputs]
+    fails = []
+
+    def _input(prompt=""):
+        if not feed:
+            out.echo(str(prompt), "?")
+            raise EOFError("input() was called, but there are no more preset inputs")
+        v = feed.pop(0)
+        out.echo(str(prompt), v)
+        return v
+
+    def local(frame, event, arg):
+        if event == "line":
+            steps[0] += 1
+            if steps[0] > limit:
+                raise _StepLimit()
+        return local
+
+    def glob(frame, event, arg):
+        if frame.f_code.co_filename == "<your code>":
+            return local
+        return None
+
+    def check(got, want, label):
+        if isinstance(want, bool):
+            ok = got is want
+        elif isinstance(want, float):
+            ok = isinstance(got, (int, float)) and not isinstance(got, bool) and abs(got - want) < 1e-6
+        else:
+            ok = type(got) == type(want) and got == want
+        if not ok and len(fails) < 4:
+            fails.append(f"{label} gave {got!r}; the correct result is {want!r}")
+
+    ns = {"__name__": "__main__", "__builtins__": builtins, "input": _input}
+    err = None
+    old = sys.stdout
+    try:
+        compiled = compile(code, "<your code>", "exec")
+        sys.stdout = out
+        sys.settrace(glob)
+        exec(compiled, ns)
+        if tests:
+            tns = dict(ns)
+            tns["_check"] = check
+            exec(compile(tests, "<tests>", "exec"), tns)
+    except SyntaxError as e:
+        err = {"type": type(e).__name__, "msg": str(e.msg), "line": e.lineno if e.filename == "<your code>" else None}
+    except _StepLimit:
+        err = {"type": "StepLimit", "msg": f"more than {limit:,} steps", "line": None}
+    except _OutLimit:
+        err = {"type": "OutputLimit", "msg": "more than 20,000 characters of output", "line": None}
+    except SystemExit:
+        err = None
+    except BaseException as e:
+        tb = traceback.extract_tb(e.__traceback__)
+        mine = [f.lineno for f in tb if f.filename == "<your code>"]
+        where = tb[-1].filename if tb else ""
+        line = mine[-1] if mine else None
+        if isinstance(e, RecursionError) and len(mine) > 3:
+            # The deepest frame stops on whatever line it had reached (often the def line); the recursive call is the
+            # line that repeats in almost every frame.
+            line = max(set(mine), key=mine.count)
+        err = {"type": type(e).__name__, "msg": str(e)[:400], "line": line, "inTests": where == "<tests>" and not mine}
+    finally:
+        sys.settrace(None)
+        sys.stdout = old
+    # CPython switches tracing off once the tracer raises; if the program caught that exception, report the limit anyway.
+    if err is None and steps[0] > limit:
+        err = {"type": "StepLimit", "msg": f"more than {limit:,} steps", "line": None}
+    return json.dumps({"out": out.getvalue(), "shown": "".join(out.shown), "err": err, "fails": fails, "steps": steps[0]})
+`;
+
+const PY = (() => {
+  let worker = null;
+  let ready = null;
+  let state = "idle";
+  let why = "";
+  let pending = null;
+  let seq = 0;
+  let version = "";
+  let chain = Promise.resolve();
+  const listeners = new Set();
+  const set = (s, info = "") => {
+    state = s;
+    why = info;
+    listeners.forEach((f) => f(s, info));
+  };
+  function boot() {
+    if (ready) return ready;
+    set("loading");
+    ready = new Promise((resolve) => {
+      let w;
+      try {
+        w = new Worker(URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" })));
+      } catch (error) {
+        ready = null;
+        set("failed", String(error));
+        return resolve(false);
+      }
+      worker = w;
+      let timer = 0;
+      const fail = (msg) => {
+        clearTimeout(timer);
+        w.terminate();
+        if (worker === w) worker = null;
+        ready = null;
+        set("failed", msg);
+        resolve(false);
+      };
+      timer = setTimeout(() => fail("Loading took longer than two minutes."), 120000);
+      w.onmessage = (e) => {
+        const m = e.data;
+        if (m.type === "ready") {
+          clearTimeout(timer);
+          version = m.version;
+          set("ready");
+          resolve(true);
+        } else if (m.type === "fail") fail(m.msg);
+        else if (m.type === "done" && pending && m.id === pending.id) {
+          const p = pending;
+          pending = null;
+          clearTimeout(p.timer);
+          p.resolve(m.res);
+          // A failure inside the runner itself can leave Python unusable: start a fresh one for the next run.
+          if (m.res.err && m.res.err.type === "InternalError") abort("InternalError");
+        }
+      };
+      w.onerror = (e) => {
+        e.preventDefault?.();
+        fail(e.message || "The Python worker stopped.");
+      };
+      w.postMessage({ type: "init", url: PYODIDE_URL, prelude: PRELUDE });
+    });
+    return ready;
+  }
+  // Ends a run that will not finish (or that the learner stops) by discarding the worker; Python reloads from the browser cache.
+  function abort(type) {
+    if (worker) worker.terminate();
+    worker = null;
+    ready = null;
+    set("idle");
+    if (pending) {
+      const p = pending;
+      pending = null;
+      clearTimeout(p.timer);
+      p.resolve({ out: "", err: { type, msg: "", line: null }, fails: [], segs: [], steps: 0 });
+    }
+    boot();
+  }
+  function runNow(code, { tests = "", inputs = [], limit = STEP_LIMIT, wall = 9000 } = {}) {
+    return boot().then((ok) => {
+      if (!ok || !worker) return { out: "", err: { type: "Unavailable", msg: why, line: null }, fails: [], segs: [], steps: 0 };
+      return new Promise((resolve) => {
+        const id = ++seq;
+        pending = { id, resolve, timer: setTimeout(() => abort("Timeout"), wall) };
+        worker.postMessage({ type: "run", id, code, tests, inputs, limit });
+      });
+    });
+  }
+  return {
+    boot,
+    run: (code, opts) => (chain = chain.then(() => runNow(code, opts))),
+    stop: () => pending && abort("Stopped"),
+    busy: () => !!pending,
+    state: () => state,
+    why: () => why,
+    version: () => version,
+    on: (f) => listeners.add(f),
+    off: (f) => listeners.delete(f),
+  };
+})();
+
+// ---- output and drawing checks (pure) ----
+const linesOf = (s) => {
+  const out = String(s || "").replace(/\r/g, "").split("\n").map((l) => l.replace(/\s+$/, ""));
+  while (out.length && out[out.length - 1] === "") out.pop();
+  return out;
+};
+const sameOut = (a, b) => linesOf(a).join("\n") === linesOf(b).join("\n");
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const show = (s) => `<code>${esc(s === "" ? "(an empty line)" : s)}</code>`;
+
+function outReason(got, want) {
+  const g = linesOf(got);
+  const w = linesOf(want);
+  if (!g.length) return "Your program printed nothing. Which line should print?";
+  for (let i = 0; i < Math.max(g.length, w.length); i++) {
+    if (g[i] === w[i]) continue;
+    if (g[i] === undefined) return `Your output stops after ${g.length} line${g.length === 1 ? "" : "s"}; the goal has ${w.length}. Line ${i + 1} should be ${show(w[i])}.`;
+    if (w[i] === undefined) return `Your output has ${g.length} lines; the goal has only ${w.length}. Line ${i + 1}, ${show(g[i])}, is extra.`;
+    const caseOnly = g[i].toLowerCase() === w[i].toLowerCase();
+    const spaceOnly = g[i].replace(/\s+/g, "") === w[i].replace(/\s+/g, "");
+    return `Line ${i + 1} of your output is ${show(g[i])}; the goal is ${show(w[i])}.${caseOnly ? " Look closely at capital letters: Python treats them as different characters." : spaceOnly ? " Look closely at the spaces." : ""}`;
+  }
+  return true;
+}
+
+// Merges a run of connected, same-direction strokes into sides, so that forward(50) twice counts as one side of 100.
+function sides(segs) {
+  const out = [];
+  for (const [x1, y1, x2, y2, c] of segs) {
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    if (len < 1e-6) continue;
+    const dir = Math.atan2(y2 - y1, x2 - x1);
+    const last = out[out.length - 1];
+    if (last && Math.abs(last.x2 - x1) < 0.01 && Math.abs(last.y2 - y1) < 0.01 && Math.abs(Math.sin(last.dir - dir)) < 1e-4 && Math.cos(last.dir - dir) > 0) {
+      last.x2 = x2;
+      last.y2 = y2;
+      last.len += len;
+    } else out.push({ x1, y1, x2, y2, len, dir, c });
+  }
+  return out;
+}
+function shapeInfo(segs) {
+  const s = sides(segs);
+  if (!s.length) return { n: 0, sides: s, closed: false, turning: 0, colours: 0 };
+  const closed = Math.hypot(s[s.length - 1].x2 - s[0].x1, s[s.length - 1].y2 - s[0].y1) < 0.5;
+  let turn = 0;
+  for (let i = 0; i < s.length; i++) {
+    if (i === s.length - 1 && !closed) break;
+    const a = s[i].dir;
+    const b = s[(i + 1) % s.length].dir;
+    let d = ((b - a) * 180) / Math.PI;
+    while (d > 180) d -= 360;
+    while (d <= -180) d += 360;
+    turn += d;
+  }
+  return { n: s.length, sides: s, closed, turning: Math.round(Math.abs(turn) / 360), colours: new Set(segs.map((x) => x[4])).size };
+}
+const r1 = (v) => Math.round(v * 10) / 10;
+// A regular closed figure: n equal sides of a given length, and (for stars) a given turning number.
+function polyCheck({ n, len, turning = 1 }, segs) {
+  const info = shapeInfo(segs);
+  if (!info.n) return "Nothing was drawn. Is the pen down, and does the turtle move forward?";
+  if (info.n !== n) return `I count ${info.n} side${info.n === 1 ? "" : "s"}; this figure needs exactly ${n}.${info.n > n ? " Check how many times your loop repeats." : ""}`;
+  const off = info.sides.find((s) => Math.abs(s.len - len) > 0.5);
+  if (off) return `Every side should be ${len} long, but one side is ${r1(off.len)}.`;
+  if (!info.closed) {
+    const e = info.sides[info.sides.length - 1];
+    return `The figure does not close: the last side ends at (${r1(e.x2)}, ${r1(e.y2)}), not back at the start (${r1(info.sides[0].x1)}, ${r1(info.sides[0].y1)}). Check the angle of each turn.`;
+  }
+  if (info.turning !== turning) return turning === 1 ? "The sides cross each other, so this is not a simple polygon. Check the turning angle: the turns of a polygon add up to 360°." : `The turtle turned through ${info.turning * 360}° in total; this star needs ${turning * 360}° (${turning} full turns).`;
+  return true;
+}
+
+// Runs one exercise and returns the visible run plus a verdict: true, or a reason (HTML) why it is not yet correct.
+async function evaluate(item, code) {
+  const res = await PY.run(code, { tests: item.tests || "", inputs: item.inputs || [] });
+  const verdict = await judge(item, code, res);
+  return { res, verdict };
+}
+async function judge(item, code, res) {
+  if (res.err) return errorReason(res.err);
+  if (item.tests && res.fails.length) return `Your code ran, but a test failed: ${show(res.fails[0])}.${res.fails.length > 1 ? ` (${res.fails.length} tests failed.)` : ""}`;
+  if (item.out !== undefined) {
+    const r = outReason(res.out, item.out);
+    if (r !== true) return r;
+  }
+  if (item.last !== undefined) {
+    const g = linesOf(res.out);
+    const l = g[g.length - 1];
+    if (l !== item.last) return `The last line of your output is ${show(l ?? "")}; it should be ${show(item.last)}.`;
+  }
+  if (item.lastNum !== undefined) {
+    const g = linesOf(res.out);
+    const v = Number((g[g.length - 1] || "").trim());
+    if (!Number.isFinite(v) || Math.abs(v - item.lastNum) > 1e-6) return `The last line of your output is ${show(g[g.length - 1] ?? "")}; it should be the number ${item.lastNum}.`;
+  }
+  if (item.draw) {
+    const r = typeof item.draw === "function" ? item.draw(res.segs, shapeInfo(res.segs), res) : polyCheck(item.draw, res.segs);
+    if (r !== true) return r;
+  }
+  if (item.check) {
+    const r = item.check(res, code);
+    if (r !== true) return r;
+  }
+  const bare = code.replace(/#.*$/gm, "");
+  for (const [re, msg] of item.need || []) if (!re.test(bare)) return `The result is right, but ${msg}`;
+  for (const [re, msg] of item.avoid || []) if (re.test(bare)) return `The result is right, but ${msg}`;
+  // A correct program is correct for every value, not only the one in front of you: re-run it with other values.
+  for (const v of item.vary || []) {
+    let c2 = code;
+    if (v.sub) {
+      if (!v.sub[0].test(c2)) return `Keep the line that sets ${v.name || "the starting value"} (such as ${show(v.sub[1])}) so that I can test your program with other values.`;
+      c2 = c2.replace(v.sub[0], v.sub[1]);
+    }
+    const r2 = await PY.run(c2, { tests: item.tests || "", inputs: v.inputs || item.inputs || [] });
+    const when = v.sub ? `with ${show(v.sub[1])}` : `with the inputs ${(v.inputs || []).map(show).join(" and ")}`;
+    if (r2.err) return `Your program works for the first value, but ${when} it stops with ${r2.err.type === "StepLimit" ? "a loop that never ends" : `a ${esc(r2.err.type)}`}. A program must be correct for every value, not just one.`;
+    const g = linesOf(r2.out);
+    let ok = true;
+    let want = "";
+    if (v.out !== undefined) {
+      ok = sameOut(r2.out, v.out);
+      want = linesOf(v.out).join(" / ");
+    } else if (v.last !== undefined) {
+      ok = g[g.length - 1] === v.last;
+      want = v.last;
+    } else if (v.lastNum !== undefined) {
+      ok = Math.abs(Number((g[g.length - 1] || "").trim()) - v.lastNum) < 1e-6;
+      want = String(v.lastNum);
+    }
+    if (!ok) return `It works for the first value, but ${when} it prints ${show(v.last !== undefined || v.lastNum !== undefined ? g[g.length - 1] ?? "" : g.join(" / "))} instead of ${show(want)}. A program must be correct for every value, not just one.`;
+  }
+  return true;
+}
+
+const ERR_HELP = {
+  SyntaxError: "Python could not read this line. Look for a missing colon at the end of an if, for, while or def line, a missing bracket, or a missing quotation mark.",
+  IndentationError: "The spaces at the start of the line do not match. The lines inside a block (after a colon) are indented by the same amount, usually 4 spaces.",
+  TabError: "Tabs and spaces are mixed. Use 4 spaces for each level of indentation.",
+  NameError: "Python does not know this name. Is it spelled exactly the same everywhere (capitals matter)? Was it given a value on an earlier line? Words meant as text need quotation marks.",
+  TypeError: "A value of the wrong type was used: for example, adding a number to a string, or calling a function with the wrong number of arguments (the values in the brackets).",
+  ValueError: "The type is right but the value is not acceptable, such as int('seven').",
+  ZeroDivisionError: "Division by zero has no answer, in Python or in mathematics.",
+  IndexError: "There is no item at that position. Positions start at 0, so a list of 3 items has positions 0, 1 and 2.",
+  KeyError: "That key is not in the dictionary.",
+  AttributeError: "This kind of value has no method or attribute with that name. Check the spelling after the dot.",
+  RecursionError: "A function kept calling itself and never reached a stopping case (a base case).",
+  EOFError: "The program asked for more input() values than the preset inputs provide.",
+  UnboundLocalError: "A variable was used inside a function before it was given a value there.",
+  StepLimit: `The program ran more than ${STEP_LIMIT.toLocaleString("en")} steps, so I stopped it. A while loop whose condition never becomes False runs forever.`,
+  OutputLimit: "The program printed more than 20,000 characters, so I stopped it. Is a loop printing without end?",
+  Timeout: "The program took too long (more than a few seconds), so I stopped it and restarted Python.",
+  Stopped: "You stopped the program.",
+  Unavailable: "Python is not loaded, so the program could not run.",
+  InternalError: "Something went wrong inside the Python runner. Press Run again.",
+};
+function errorReason(err) {
+  if (["Stopped", "Timeout", "Unavailable", "InternalError"].includes(err.type)) return ERR_HELP[err.type];
+  const where = err.line ? ` on line ${err.line}` : "";
+  if (err.inTests && err.type === "NameError") {
+    const name = (err.msg.match(/'([^']+)'/) || [])[1];
+    return `Your code must define the function ${show(name || "?")} exactly as named in the task. I could not find it.`;
+  }
+  return `Your program stopped with a <b>${esc(err.type === "StepLimit" ? "step limit" : err.type)}</b>${where}. ${ERR_HELP[err.type] || "Read the message in the output: it names the problem."}`;
+}
+// ===== ENGINE END =====
+
+// ===== BANK =====
+// kind: learn (example to adapt), predict (choose the output before running), write (from scratch), fix (find the defect).
+// Checks: out (exact printed output), last / lastNum (last line), tests (Python _check calls), draw (turtle figure),
+// need / avoid (method rules), vary (re-run with other values: a program must be right for every value, not one).
+// lv: 1 = grade 4, 2 = grade 5–6, 3 = grade 7–8 / contest.
+const FOR = [/\bfor\b/, "this challenge asks you to use a for loop."];
+const WHILE = [/\bwhile\b/, "this challenge asks you to use a while loop."];
+const IF = [/\bif\b/, "this challenge asks you to decide with if."];
+const RET = [/\breturn\b/, "the function must return its answer with return (printing is not the same as returning)."];
+const sub = (name, line) => ({ sub: [new RegExp(`^${name}\\s*=.*$`, "m"), line], name });
+
+const BANK = {
+  p1: [
+    { t: "learn", lv: 1, title: "Your first program", say: "<code>print</code> displays a value. Text inside quotation marks is a <b>string</b>. Change the program so that it prints exactly <code>I am learning Python.</code>", code: C`print("Hello, world!")`, out: "I am learning Python.", hints: ["Only the words inside the quotation marks change; keep print( and the brackets.", "The full stop belongs inside the quotation marks too."], sol: C`print("I am learning Python.")`, why: "print(...) displays the value inside its brackets. The quotation marks show where the string begins and ends; they are not printed." },
+    { t: "write", lv: 1, title: "Three lines", say: "Each <code>print</code> ends with a new line. Write a program that prints <code>Red</code>, <code>Orange</code> and <code>Yellow</code>, each on its own line.", code: C`# Print Red, Orange and Yellow on three lines
+`, out: "Red\nOrange\nYellow", hints: ["You need three print instructions, one for each line.", "The first one is print(\"Red\")."], sol: C`print("Red")
+print("Orange")
+print("Yellow")`, why: "Python runs the lines from top to bottom, and each print finishes its line, so three prints produce three lines in that order." },
+    { t: "predict", lv: 1, title: "Text or arithmetic?", code: C`print("3 + 4")
+print(3 + 4)`, options: ["3 + 4\n7", "7\n7", "3 + 4\n3 + 4", "7\n3 + 4"], answer: 0, hints: ["Which line has quotation marks? A string is printed exactly as it is written."], why: "Inside quotation marks, 3 + 4 is only text, so it is printed as written. Without quotation marks it is an expression (a calculation), and Python prints its value, 7." },
+    { t: "learn", lv: 2, title: "Joining strings", say: "With strings, <code>+</code> joins them end to end; this is called <b>concatenation</b>. Make the program print <code>sunflower</code> by joining two strings with +.", code: C`print("snow" + "ball")`, out: "sunflower", need: [[/(["'])\w+\1\s*\+\s*(["'])\w+\2/, "join two strings with +, such as \"sun\" + \"flower\"."]], hints: ["Split the word into two parts.", "print(\"sun\" + \"flower\")"], sol: C`print("sun" + "flower")`, why: "+ applied to two strings makes one new string, with the second placed directly after the first. No space is added unless you put one inside the quotation marks." },
+    { t: "predict", lv: 2, title: "Multiplying a string", code: C`print("ha" * 3)`, options: ["ha3", "ha ha ha", "hahaha", "An error"], answer: 2, hints: ["Multiplication is repeated addition. What is \"ha\" + \"ha\" + \"ha\"?"], why: "A string multiplied by a whole number is repeated that many times, with nothing between the copies: \"ha\" * 3 is \"hahaha\"." },
+    { t: "write", lv: 2, title: "A ruled line", say: "Print a line of exactly 20 dashes (<code>-</code>) using <code>*</code>, so that you need not count them by hand.", code: C`# Print 20 dashes using *
+`, out: "-".repeat(20), need: [[/\*\s*20|20\s*\*/, "use * with the number 20 rather than typing every dash."]], hints: ["A string times a number repeats the string.", "print(\"-\" * 20)"], sol: C`print("-" * 20)`, why: "\"-\" * 20 builds a string of 20 dashes. A number in the code is easier to check, and to change, than twenty typed characters." },
+    { t: "predict", lv: 2, title: "Commas in print", code: C`print("Total:", 2 * 21)`, options: ["Total:42", "Total: 2 * 21", "Total: 42", "Total:, 42"], answer: 2, hints: ["The comma separates two values. What does print put between them? And is 2 * 21 inside quotation marks?"], why: "print can take several values separated by commas. It prints each one with a single space between them. 2 * 21 is not in quotation marks, so it is calculated: 42." },
+    { t: "predict", lv: 3, title: "Counting characters", code: C`print(len("hello world"))`, options: ["10", "11", "2", "hello world"], answer: 1, hints: ["len counts characters. Is a space a character?"], why: "len counts every character in the string, and the space between the words is a character too: 5 + 1 + 5 = 11." },
+    { t: "write", lv: 3, title: "Capital letters", say: "Strings have <b>methods</b>: actions written after a dot. <code>.upper()</code> capitalises every letter. Make the program print <code>PYTHON IS FUN</code> by using <code>.upper()</code>.", code: C`print("python is fun")`, out: "PYTHON IS FUN", need: [[/\.upper\(\)/, "use the .upper() method."]], hints: ["The method goes straight after the string, before the closing bracket of print.", "print(\"python is fun\".upper())"], sol: C`print("python is fun".upper())`, why: "\"python is fun\".upper() creates a new string in which each lower-case letter is replaced by its capital. Spaces and other characters are unchanged." },
+    { t: "fix", lv: 3, title: "Apostrophe trouble", say: "This program should print <code>It's a lovely day</code>, but it stops with an error. Run it, read the message, and correct it.", code: C`print('It's a lovely day')`, out: "It's a lovely day", hints: ["Python reads 'It' as a complete string, because the apostrophe looks like the closing quotation mark.", "Use double quotation marks around a string that contains an apostrophe."], sol: C`print("It's a lovely day")`, why: "A string that begins with ' ends at the next ' (unless that one is escaped as \\'). The apostrophe in It's therefore ended the string too early. Double quotation marks avoid the clash." },
+    { t: "predict", lv: 3, title: "An invisible character", code: C`print("one\ntwo")`, options: [C`one\ntwo`, "one\ntwo", "onetwo", "one two"], answer: 1, hints: ["Inside a string, a backslash begins an escape sequence: a code for a character that is hard to type."], why: "\\n (backslash, n) is an escape sequence meaning \"new line\". It is typed as two characters but stored as one, so the output continues on the next line." },
+  ],
+  p2: [
+    { t: "learn", lv: 1, title: "A labelled box", say: "<code>apples = 5</code> stores 5 under the name apples. The next line takes the old value and adds to it. Change only the 3 so that the program prints <code>12</code>.", code: C`apples = 5
+apples = apples + 3
+print(apples)`, out: "12", need: [[/apples\s*=\s*5\b/, "keep the first line, apples = 5."], [/apples\s*=\s*apples\s*\+\s*7/, "change the 3 in the second line."]], hints: ["The program begins with 5. What must be added to 5 to make 12?"], sol: C`apples = 5
+apples = apples + 7
+print(apples)`, why: "The right-hand side is worked out first, using the old value: 5 + 7 = 12. Then the result is stored in apples, replacing the 5." },
+    { t: "predict", lv: 1, title: "Not a formula", code: C`x = 4
+y = x * 3
+x = 10
+print(y)`, options: ["30", "12", "40", "10"], answer: 1, hints: ["When the line y = x * 3 runs, what is x? Does that line run again later?"], why: "y = x * 3 is calculated once, when that line runs, while x is 4. Changing x afterwards does not recalculate y. An assignment is an instruction, not a permanent equation." },
+    { t: "predict", lv: 1, title: "Quotient and remainder", code: C`print(17 // 5)
+print(17 % 5)`, options: ["3.4\n2", "3\n2", "2\n3", "3\n3"], answer: 1, hints: ["// asks how many whole 5s fit into 17. % asks what is left over."], why: "// is floor division: three whole 5s fit into 17. % gives the remainder: 17 = 5 × 3 + 2, so it is 2." },
+    { t: "write", lv: 2, title: "Sharing sweets", say: "47 sweets are shared equally among 6 friends. Print how many each friend receives, then, on the next line, how many are left over. Use <code>//</code> and <code>%</code> with the two variables.", code: C`sweets = 47
+friends = 6
+`, out: "7\n5", need: [[/sweets\s*\/\/\s*friends/, "use sweets // friends."], [/sweets\s*%\s*friends/, "use sweets % friends."]], vary: [{ ...sub("sweets", "sweets = 100"), out: "16\n4" }], hints: ["Each friend receives sweets // friends.", "The remainder is sweets % friends."], sol: C`sweets = 47
+friends = 6
+print(sweets // friends)
+print(sweets % friends)`, why: "sweets // friends is the whole number each friend receives (7, since 6 × 7 = 42), and sweets % friends is what remains: 47 − 42 = 5." },
+    { t: "predict", lv: 2, title: "Ordinary division", code: C`print(7 / 2)
+print(8 / 2)`, options: ["3.5\n4", "3\n4", "3.5\n4.0", "4\n4"], answer: 2, hints: ["A single / always gives the same type of number, whether or not the division is exact."], why: "A single / always produces a float (a number with a decimal point), even when the division is exact, so 8 / 2 is 4.0 rather than 4." },
+    { t: "write", lv: 2, title: "Minutes to hours", say: "Using <code>//</code> and <code>%</code>, print <code>2 hours and 15 minutes</code> for 135 minutes. It must also work if the value of minutes changes.", code: C`minutes = 135
+`, out: "2 hours and 15 minutes", vary: [{ ...sub("minutes", "minutes = 200"), out: "3 hours and 20 minutes" }, { ...sub("minutes", "minutes = 59"), out: "0 hours and 59 minutes" }], hints: ["There are 60 minutes in an hour: minutes // 60 counts whole hours.", "print(minutes // 60, \"hours and\", minutes % 60, \"minutes\")"], sol: C`minutes = 135
+print(minutes // 60, "hours and", minutes % 60, "minutes")`, why: "minutes // 60 counts the whole hours, and minutes % 60 gives the minutes left over: 135 = 2 × 60 + 15." },
+    { t: "predict", lv: 2, title: "Order of operations", code: C`print(2 + 3 * 4)
+print((2 + 3) * 4)`, options: ["20\n20", "14\n20", "14\n14", "20\n14"], answer: 1, hints: ["Python follows the same order of operations as mathematics."], why: "Multiplication comes before addition, so 2 + 12 = 14. Brackets are worked out first, so (2 + 3) × 4 = 20." },
+    { t: "write", lv: 3, title: "Digit sum", say: "<code>n</code> is a three-digit number. Using <code>//</code> and <code>%</code> (not strings), print the sum of its digits. For 472: 4 + 7 + 2 = <code>13</code>.", code: C`n = 472
+`, out: "13", need: [[/%\s*10/, "use % 10 to find the last digit."]], avoid: [[/\bstr\s*\(/, "this challenge asks for arithmetic with // and %, not str()."]], vary: [{ ...sub("n", "n = 905"), out: "14" }, { ...sub("n", "n = 100"), out: "1" }, { ...sub("n", "n = 999"), out: "27" }], hints: ["n % 10 is the ones digit. What does n // 10 do to 472?", "The tens digit is n // 10 % 10, and the hundreds digit is n // 100."], sol: C`n = 472
+hundreds = n // 100
+tens = n // 10 % 10
+ones = n % 10
+print(hundreds + tens + ones)`, why: "n % 10 is the ones digit, the remainder after dividing by 10. n // 10 removes the last digit, so n // 10 % 10 is the tens digit, and n // 100 is the hundreds digit." },
+    { t: "predict", lv: 3, title: "A simultaneous swap", code: C`a = 5
+b = 8
+a, b = b, a
+print(a, b)`, options: ["5 8", "8 5", "8 8", "5 5"], answer: 1, hints: ["Python evaluates the entire right-hand side before it assigns anything."], why: "The right-hand side becomes the pair (8, 5) first; then a receives 8 and b receives 5. Both assignments use the old values." },
+    { t: "predict", lv: 3, title: "Rounding down a negative", code: C`print(-7 // 2)`, options: ["-3", "-3.5", "-4", "3"], answer: 2, hints: ["// always rounds down, towards minus infinity. Is −4 or −3 lower?"], why: "// rounds down, towards minus infinity, not towards zero. −7 ÷ 2 = −3.5, and the next whole number down is −4. Check: 2 × (−4) + 1 = −7, so −7 % 2 is 1." },
+    { t: "fix", lv: 3, title: "An average", say: "This program should print the mean (average) of 7, 8 and 9, which is <code>8.0</code>. It prints something else. Locate the defect and correct it.", code: C`total = 7 + 8 + 9 / 3
+print(total)`, out: "8.0", hints: ["Which does Python do first, + or /?", "Brackets make the additions happen first."], sol: C`total = (7 + 8 + 9) / 3
+print(total)`, why: "Division happens before addition, so only the 9 was divided by 3, giving 7 + 8 + 3.0 = 18.0. Brackets force the sum first: 24 ÷ 3 = 8.0." },
+    { t: "predict", lv: 3, title: "Powers", code: C`print(2 ** 10)`, options: ["20", "1024", "100", "2048"], answer: 1, hints: ["** means \"to the power of\": 2 ** 3 is 2 × 2 × 2."], why: "2 ** 10 is ten 2s multiplied together. Doubling ten times: 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024." },
+  ],
+  p3: [
+    { t: "learn", lv: 1, title: "Asking a question", inputs: ["Ada"], say: "<code>input()</code> waits for the user to type an answer; here the answers are preset. Change the greeting so that it prints <code>Welcome, Ada!</code> and still works for any name.", code: C`name = input("What is your name? ")
+print("Hello, " + name + "!")`, last: "Welcome, Ada!", vary: [{ inputs: ["Grace"], last: "Welcome, Grace!" }], hints: ["Only the word Hello needs to change.", "Keep + name + so the greeting uses whatever was typed."], sol: C`name = input("What is your name? ")
+print("Welcome, " + name + "!")`, why: "input() returns whatever was typed, as a string, and the variable name keeps it. Joining strings around name makes the greeting work for any name, not only one." },
+    { t: "predict", lv: 2, title: "A string, not a number", inputs: ["4"], code: C`n = input("Number: ")
+print(n * 3)`, options: ["12", "444", "4 4 4", "An error"], answer: 1, hints: ["What type of value does input() return, even when digits are typed?"], why: "input() always returns a string, even if the user types digits. A string times 3 repeats it, so \"4\" * 3 is \"444\"." },
+    { t: "fix", lv: 2, title: "One more", inputs: ["9"], say: "This program should print one more than the number typed in, but it stops with an error. Read the message and correct it.", code: C`num = input("Pick a number: ")
+print("One more is", num + 1)`, out: "One more is 10", vary: [{ inputs: ["41"], out: "One more is 42" }], hints: ["The error is a TypeError. What type is num?", "int(...) converts a string of digits into a whole number."], sol: C`num = int(input("Pick a number: "))
+print("One more is", num + 1)`, why: "\"9\" + 1 mixes a string with a number, which Python refuses (a TypeError). int() converts the string \"9\" into the number 9, and 9 + 1 = 10." },
+    { t: "write", lv: 2, title: "A product", inputs: ["6", "7"], say: "Read two whole numbers with <code>input()</code> and print their product as the last line. The preset inputs are 6 and 7.", code: C`# Read two whole numbers, then print their product
+`, last: "42", need: [[/input\s*\(/, "read the numbers with input()."]], vary: [{ inputs: ["12", "11"], last: "132" }], hints: ["Call input() twice and convert each answer with int().", "a = int(input(\"First: \"))"], sol: C`a = int(input("First number: "))
+b = int(input("Second number: "))
+print(a * b)`, why: "Each input() returns a string, so int() turns it into a number before multiplying. Because the program uses whatever is typed, it works for any pair of numbers." },
+    { t: "write", lv: 3, title: "Celsius to Fahrenheit", inputs: ["100"], say: "Read a temperature in degrees Celsius and print it in degrees Fahrenheit, using F = C × 9 ÷ 5 + 32. For 100 °C the answer is 212.", code: C`# F = C * 9 / 5 + 32
+`, lastNum: 212, need: [[/input\s*\(/, "read the temperature with input()."]], vary: [{ inputs: ["37"], lastNum: 98.6 }, { inputs: ["-40"], lastNum: -40 }], hints: ["Convert the input with float() so that decimals are allowed.", "f = c * 9 / 5 + 32"], sol: C`c = float(input("Degrees Celsius: "))
+f = c * 9 / 5 + 32
+print(f)`, why: "Between freezing and boiling there are 100 Celsius degrees but 180 Fahrenheit degrees, hence × 9 ÷ 5; and water freezes at 32 °F, hence + 32. At −40 the two scales agree." },
+    { t: "write", lv: 3, title: "Hours, minutes, seconds", inputs: ["3725"], say: "Read a number of seconds and print the hours, minutes and seconds it contains, separated by spaces. 3725 seconds gives <code>1 2 5</code>.", code: C`# Read the seconds, then print hours minutes seconds
+`, last: "1 2 5", vary: [{ inputs: ["86399"], last: "23 59 59" }, { inputs: ["59"], last: "0 0 59" }], hints: ["One hour is 3600 seconds.", "After removing whole hours, s % 3600 seconds remain; split those with // 60 and % 60."], sol: C`s = int(input("Seconds: "))
+print(s // 3600, s % 3600 // 60, s % 60)`, why: "s // 3600 counts whole hours. The remainder s % 3600 is split into whole minutes with // 60, and the last seconds are s % 60: 3725 = 3600 + 2 × 60 + 5." },
+    { t: "predict", lv: 3, title: "Strings and numbers", inputs: ["3", "5"], code: C`a = input("a: ")
+b = input("b: ")
+print(a + b)
+print(int(a) + int(b))`, options: ["8\n8", "35\n8", "35\n35", "8\n35"], answer: 1, hints: ["What does + do to two strings?"], why: "a and b are the strings \"3\" and \"5\", so a + b joins them into \"35\". After int() they are numbers, and 3 + 5 = 8." },
+    { t: "write", lv: 3, title: "Day of the week", inputs: ["10"], say: "Day 1 is a Monday and day 8 is a Monday again. Read a day number and print the day of the week from 1 (Monday) to 7 (Sunday). Day 10 gives <code>3</code>.", code: C`# Read a day number, then print 1 to 7
+`, last: "3", vary: [{ inputs: ["14"], last: "7" }, { inputs: ["7"], last: "7" }, { inputs: ["1"], last: "1" }, { inputs: ["365"], last: "1" }], hints: ["n % 7 gives 0 to 6, but you need 1 to 7. What goes wrong for day 7?", "Shift first: (n − 1) % 7 gives 0 for Monday up to 6 for Sunday. Then add 1."], sol: C`n = int(input("Day number: "))
+print((n - 1) % 7 + 1)`, why: "The days repeat in a cycle of 7, which is exactly what % 7 measures. Subtracting 1 first makes Monday 0, and adding 1 at the end turns 0 to 6 back into 1 to 7. This is modular arithmetic, the mathematics of clocks." },
+  ],
+  p4: [
+    { t: "learn", lv: 1, title: "Counting with range", say: "A <b>for loop</b> repeats its indented lines once for each value. <code>range(5)</code> gives 0, 1, 2, 3, 4: five values, starting at 0 and stopping <i>before</i> 5. Make it print 1 to 5.", code: C`for i in range(5):
+    print(i)`, out: "1\n2\n3\n4\n5", need: [FOR, [/range\s*\(/, "use range."]], hints: ["range can take a start and a stop: range(start, stop).", "The stop value is never included."], sol: C`for i in range(1, 6):
+    print(i)`, why: "range(1, 6) starts at 1 and stops before 6. Because the stop value is never included, it is a common source of off-by-one errors." },
+    { t: "predict", lv: 1, title: "What repeats?", code: C`for i in range(3):
+    print("Hip")
+print("Hooray")`, options: ["Hip\nHip\nHip\nHooray", "Hip\nHooray\nHip\nHooray\nHip\nHooray", "Hip\nHip\nHip", "Hip\nHooray"], answer: 0, hints: ["Which lines are indented under the for line?"], why: "Only the indented line belongs to the loop, so Hip is printed three times. print(\"Hooray\") is not indented, so it runs once, after the loop has finished." },
+    { t: "predict", lv: 1, title: "A step", code: C`for n in range(2, 10, 3):
+    print(n)`, options: ["2\n5\n8", "2\n5\n8\n11", "3\n6\n9", "2\n3\n4"], answer: 0, hints: ["The third number is the step: how much to add each time."], why: "Start at 2 and add 3 each time: 2, 5, 8. The next value, 11, is not below 10, so the loop stops." },
+    { t: "write", lv: 2, title: "The 7 times table", say: "With a for loop, print the 7 times table from <code>7 x 1 = 7</code> to <code>7 x 10 = 70</code>, one line each.", code: C`# Print 7 x 1 = 7 up to 7 x 10 = 70
+`, out: Array.from({ length: 10 }, (_, i) => `7 x ${i + 1} = ${7 * (i + 1)}`).join("\n"), need: [FOR], hints: ["Loop over range(1, 11).", "print(\"7 x\", i, \"=\", 7 * i)"], sol: C`for i in range(1, 11):
+    print("7 x", i, "=", 7 * i)`, why: "The loop variable i takes the values 1 to 10. Each line uses it twice: once to display the multiplier and once to calculate the product." },
+    { t: "write", lv: 2, title: "One to one hundred", say: "Use a loop to add every whole number from 1 to 100, then print the total. Begin with <code>total = 0</code>.", code: C`total = 0
+`, out: "5050", need: [FOR], avoid: [[/\bsum\s*\(/, "this challenge asks you to accumulate the total with a loop, not sum()."]], hints: ["Each time round the loop, add the loop variable to total.", "total = total + i, inside a loop over range(1, 101)."], sol: C`total = 0
+for i in range(1, 101):
+    total = total + i
+print(total)`, why: "total is an accumulator: it starts at 0 and the loop adds each number to it. A famous story, possibly embellished, says the young Gauss found the total without adding: 50 pairs (1 + 100, 2 + 99, …) each worth 101 make 5050." },
+    { t: "predict", lv: 2, title: "Counting down", code: C`for i in range(10, 0, -2):
+    print(i)`, options: ["10\n8\n6\n4\n2", "10\n8\n6\n4\n2\n0", "8\n6\n4\n2\n0", "2\n4\n6\n8\n10"], answer: 0, hints: ["A negative step counts down. Is the stop value ever included?"], why: "A step of −2 counts down from 10. The stop value 0 is not included, so the last value printed is 2." },
+    { t: "fix", lv: 2, title: "Off by one", say: "This program should print the whole numbers from 1 to 10. It does not quite. Find the defect and correct it.", code: C`for i in range(1, 10):
+    print(i)`, out: Array.from({ length: 10 }, (_, i) => i + 1).join("\n"), need: [FOR], hints: ["Run it. What is the last number printed?", "range stops before its second number."], sol: C`for i in range(1, 11):
+    print(i)`, why: "range stops before its second number, so range(1, 10) ends at 9. To include 10, the stop must be 11." },
+    { t: "write", lv: 3, title: "A triangle of stars", say: "Print this triangle of 5 rows using a loop: <code>*</code>, <code>**</code>, <code>***</code>, <code>****</code>, <code>*****</code>.", code: C`# Row 1 has 1 star, row 5 has 5
+`, out: "*\n**\n***\n****\n*****", need: [FOR], hints: ["A string times a number repeats it.", "On row number row, print \"*\" * row."], sol: C`for row in range(1, 6):
+    print("*" * row)`, why: "The loop variable counts the rows, 1 to 5, and \"*\" * row is a string of exactly that many stars, so each row is one star longer." },
+    { t: "write", lv: 3, title: "Odd numbers", say: "Add the odd numbers 1 + 3 + 5 + … + 19 using <code>range</code> with a step, and print the total.", code: C`total = 0
+`, out: "100", need: [FOR, [/range\s*\(\s*1\s*,\s*(19|2\d)\s*,\s*2\s*\)/, "use range with a step of 2, such as range(1, 20, 2)."]], hints: ["range(start, stop, step): start at 1, step 2.", "The stop must be above 19, for example 20."], sol: C`total = 0
+for n in range(1, 20, 2):
+    total = total + n
+print(total)`, why: "range(1, 20, 2) gives the ten odd numbers 1 to 19, which sum to 100 = 10 × 10. In fact the first n odd numbers always sum to n², because each odd number adds an L-shaped layer around a square of dots." },
+    { t: "predict", lv: 3, title: "A loop inside a loop", code: C`for a in range(1, 3):
+    for b in range(1, 4):
+        print(a * b, end=" ")
+    print()`, options: ["1 2 3\n2 4 6", "1 2 3 2 4 6", "1\n2\n3\n2\n4\n6", "1 2\n2 4\n3 6"], answer: 0, hints: ["end=\" \" replaces the usual new line with a space. When does the empty print() run?"], why: "For each value of a, the inner loop runs completely. end=\" \" keeps the products on one line, and the empty print() then ends the line: two rows (a = 1, 2) of three products each." },
+    { t: "write", lv: 3, title: "Powers of two", say: "With a loop, print the powers of two from 2⁰ = 1 up to 2¹⁰ = 1024, one per line.", code: C`# 1, 2, 4, ... 1024
+`, out: Array.from({ length: 11 }, (_, i) => 2 ** i).join("\n"), need: [FOR], hints: ["2 ** i is 2 to the power i.", "Loop i over range(11): that is 0 to 10."], sol: C`for i in range(11):
+    print(2 ** i)`, why: "range(11) gives the exponents 0 to 10, eleven values in all. 2 ** 0 is 1, because a power of zero is the empty product." },
+  ],
+  p5: [
+    { t: "learn", lv: 1, title: "Warm or cool", say: "<code>if</code> runs its indented lines only when the condition is True; <code>else</code> runs otherwise. Add an <code>elif</code> so that temperatures below 10 print <code>Cold</code>.", code: C`temperature = 28
+if temperature > 25:
+    print("Warm")
+else:
+    print("Cool")`, out: "Warm", need: [[/\belif\b/, "use elif."]], vary: [{ ...sub("temperature", "temperature = 5"), out: "Cold" }, { ...sub("temperature", "temperature = 15"), out: "Cool" }, { ...sub("temperature", "temperature = 10"), out: "Cool" }], hints: ["elif goes between the if block and else, with its own condition and colon.", "elif temperature < 10:"], sol: C`temperature = 28
+if temperature > 25:
+    print("Warm")
+elif temperature < 10:
+    print("Cold")
+else:
+    print("Cool")`, why: "Python tests the conditions from the top and runs only the first branch whose condition is True; else catches every case that no condition matched." },
+    { t: "predict", lv: 1, title: "Odd or even", code: C`x = 7
+if x % 2 == 0:
+    print("even")
+else:
+    print("odd")`, options: ["even", "odd", "even\nodd", "Nothing is printed"], answer: 1, hints: ["What is the remainder when 7 is divided by 2?"], why: "7 % 2 is 1, so the condition 1 == 0 is False and the else branch runs. Note that == compares, while = assigns." },
+    { t: "predict", lv: 2, title: "Equal or not?", code: C`print(3 == 3.0)
+print("3" == 3)`, options: ["True\nTrue", "True\nFalse", "False\nFalse", "False\nTrue"], answer: 1, hints: ["Is \"3\" a number?"], why: "3 and 3.0 are the same number, so they are equal. \"3\" is a string, a piece of text, and text is never equal to a number." },
+    { t: "write", lv: 2, title: "Grades", say: "Print <code>A</code> for a score of 90 or more, <code>B</code> for 80 to 89, <code>C</code> for 70 to 79 and <code>D</code> below 70.", code: C`score = 85
+`, out: "B", need: [IF], vary: [{ ...sub("score", "score = 90"), out: "A" }, { ...sub("score", "score = 79"), out: "C" }, { ...sub("score", "score = 12"), out: "D" }, { ...sub("score", "score = 80"), out: "B" }, { ...sub("score", "score = 70"), out: "C" }], hints: ["Test the highest grade first, then use elif for the next.", "Use >= so that exactly 90, 80 and 70 receive the higher grade."], sol: C`score = 85
+if score >= 90:
+    print("A")
+elif score >= 80:
+    print("B")
+elif score >= 70:
+    print("C")
+else:
+    print("D")`, why: "Because the conditions are tested in order, a score that reaches elif score >= 80 is already known to be below 90. Using >= puts each boundary value in the higher grade." },
+    { t: "fix", lv: 2, title: "The wrong order", say: "This should print <code>A</code> for 95, <code>B</code> for 85, <code>C</code> for 72 and <code>D</code> below 70. It prints C for 95. Correct it.", code: C`score = 95
+if score >= 70:
+    print("C")
+elif score >= 80:
+    print("B")
+elif score >= 90:
+    print("A")
+else:
+    print("D")`, out: "A", vary: [{ ...sub("score", "score = 85"), out: "B" }, { ...sub("score", "score = 72"), out: "C" }, { ...sub("score", "score = 50"), out: "D" }], hints: ["Only the first true branch runs. Is 95 >= 70 True?", "Test the strictest condition first."], sol: C`score = 95
+if score >= 90:
+    print("A")
+elif score >= 80:
+    print("B")
+elif score >= 70:
+    print("C")
+else:
+    print("D")`, why: "Only the first true branch runs. 95 >= 70 is True, so C was printed and the later tests were never reached. Testing the strictest condition first corrects it." },
+    { t: "write", lv: 2, title: "FizzBuzz", say: "Print the numbers 1 to 15, but print <code>Fizz</code> for multiples of 3, <code>Buzz</code> for multiples of 5, and <code>FizzBuzz</code> for multiples of both.", code: C`for n in range(1, 16):
+    `, out: Array.from({ length: 15 }, (_, i) => ((i + 1) % 15 === 0 ? "FizzBuzz" : (i + 1) % 3 === 0 ? "Fizz" : (i + 1) % 5 === 0 ? "Buzz" : String(i + 1))).join("\n"), need: [FOR, IF], hints: ["n % 3 == 0 tests for a multiple of 3.", "Which test must come first, so that 15 is not caught as Fizz?"], sol: C`for n in range(1, 16):
+    if n % 15 == 0:
+        print("FizzBuzz")
+    elif n % 3 == 0:
+        print("Fizz")
+    elif n % 5 == 0:
+        print("Buzz")
+    else:
+        print(n)`, why: "A multiple of both 3 and 5 is a multiple of 15, so that test must come first; otherwise the Fizz branch would catch 15 and FizzBuzz would never be printed." },
+    { t: "predict", lv: 3, title: "and, or, not", code: C`a = 5
+print(1 < a < 10)
+print(a > 3 and a > 8)
+print(not a == 5)`, options: ["True\nFalse\nFalse", "True\nTrue\nFalse", "False\nFalse\nTrue", "True\nFalse\nTrue"], answer: 0, hints: ["and is True only when both sides are True. not reverses True and False."], why: "1 < a < 10 means 1 < a and a < 10: both True. and needs both sides True, but 5 > 8 is False. a == 5 is True, and not turns it into False." },
+    { t: "write", lv: 3, title: "Leap years", say: "In the Gregorian calendar (introduced in 1582), a year is a leap year if it is divisible by 4, except that a century year must also be divisible by 400. Print <code>True</code> or <code>False</code> for <code>year</code>.", code: C`year = 2024
+`, out: "True", vary: [{ ...sub("year", "year = 1900"), out: "False" }, { ...sub("year", "year = 2000"), out: "True" }, { ...sub("year", "year = 2023"), out: "False" }, { ...sub("year", "year = 2100"), out: "False" }], hints: ["A century year is divisible by 100.", "Divisible by 4 and (not divisible by 100, or divisible by 400)."], sol: C`year = 2024
+print(year % 4 == 0 and (year % 100 != 0 or year % 400 == 0))`, why: "A year is a leap year when it is divisible by 4 and either is not a century year or is divisible by 400. So 1900 was not a leap year, but 2000 was. The rule keeps the calendar in step with the seasons." },
+    { t: "write", lv: 3, title: "The largest of three", say: "Print the largest of a, b and c using <code>if</code> and comparisons, without <code>max()</code>.", code: C`a = 12
+b = 31
+c = 7
+`, out: "31", need: [IF], avoid: [[/\bmax\s*\(|\bsorted\s*\(|\.sort\s*\(/, "this challenge asks you to decide with if and comparisons, not max() or sorting."]], vary: [{ sub: [/^a\s*=.*\nb\s*=.*\nc\s*=.*$/m, "a = 40\nb = 9\nc = 40"], name: "a, b and c", out: "40" }, { sub: [/^a\s*=.*\nb\s*=.*\nc\s*=.*$/m, "a = 3\nb = 5\nc = 8"], name: "a, b and c", out: "8" }, { sub: [/^a\s*=.*\nb\s*=.*\nc\s*=.*$/m, "a = 9\nb = 2\nc = 4"], name: "a, b and c", out: "9" }], hints: ["If a is at least as large as both b and c, it is the largest.", "Otherwise one comparison between b and c decides."], sol: C`a = 12
+b = 31
+c = 7
+if a >= b and a >= c:
+    print(a)
+elif b >= c:
+    print(b)
+else:
+    print(c)`, why: "If a is at least as large as both others, it is the largest. Otherwise the largest is b or c, and one comparison decides. Using >= handles ties correctly." },
+    { t: "write", lv: 3, title: "Multiples of 3 or 5", say: "Count how many whole numbers from 1 to 1000 are divisible by 3 or by 5, and print the count.", code: C`count = 0
+`, out: "467", need: [FOR, IF], hints: ["Loop over range(1, 1001) and test each number with %.", "Use or: n % 3 == 0 or n % 5 == 0."], sol: C`count = 0
+for n in range(1, 1001):
+    if n % 3 == 0 or n % 5 == 0:
+        count = count + 1
+print(count)`, why: "A second method agrees: there are 333 multiples of 3 and 200 of 5, but the 66 multiples of 15 were counted twice, so 333 + 200 − 66 = 467. Two independent methods agreeing is strong evidence." },
+  ],
+  p6: [
+    { t: "learn", lv: 1, title: "A countdown", say: "A <b>while loop</b> repeats as long as its condition is True. Change the program so that it counts down from 10 in steps of 2, then prints <code>Lift-off!</code>", code: C`n = 5
+while n > 0:
+    print(n)
+    n = n - 1
+print("Lift-off!")`, out: "10\n8\n6\n4\n2\nLift-off!", need: [WHILE], hints: ["Two numbers change: the starting value and the amount subtracted each time."], sol: C`n = 10
+while n > 0:
+    print(n)
+    n = n - 2
+print("Lift-off!")`, why: "Each pass subtracts 2. When n reaches 0, the condition n > 0 is False, so the loop ends and the line after it runs." },
+    { t: "predict", lv: 1, title: "Doubling", code: C`n = 1
+while n < 50:
+    n = n * 2
+print(n)`, options: ["32", "50", "64", "128"], answer: 2, hints: ["Write down n after each pass: 2, 4, 8, … When is the condition checked?"], why: "n doubles: 2, 4, 8, 16, 32, 64. When n is 32 the condition 32 < 50 is still True, so it doubles once more; then 64 < 50 is False and the loop stops." },
+    { t: "fix", lv: 2, title: "A loop that never ends", say: "This should print 0 to 4. Run it: it never stops by itself, so the safety limit stops it. Find the defect and correct it.", code: C`i = 0
+while i < 5:
+    print(i)`, out: "0\n1\n2\n3\n4", need: [WHILE], hints: ["What inside the loop changes i?", "Add a line inside the loop that increases i by 1."], sol: C`i = 0
+while i < 5:
+    print(i)
+    i = i + 1`, why: "Nothing inside the loop changed i, so i < 5 stayed True for ever. Every while loop needs something in its body that eventually makes the condition False." },
+    { t: "write", lv: 2, title: "Halving", say: "Starting from 100, print n and then halve it with <code>// 2</code>, for as long as n is greater than 0.", code: C`n = 100
+`, out: "100\n50\n25\n12\n6\n3\n1", need: [WHILE], hints: ["while n > 0:", "Inside the loop: print(n), then n = n // 2."], sol: C`n = 100
+while n > 0:
+    print(n)
+    n = n // 2`, why: "// 2 halves and rounds down, so 25 becomes 12 and 1 becomes 0, which ends the loop. Halving reaches 0 quickly: about seven steps for 100." },
+    { t: "write", lv: 2, title: "Past one thousand", say: "Starting with 1, how many doublings are needed before the number is more than 1000? Use a while loop and print the count.", code: C`n = 1
+count = 0
+`, out: "10", need: [WHILE], hints: ["Keep doubling while n <= 1000, and add 1 to count each time."], sol: C`n = 1
+count = 0
+while n <= 1000:
+    n = n * 2
+    count = count + 1
+print(count)`, why: "2⁹ = 512 is not yet more than 1000, but 2¹⁰ = 1024 is, so 10 doublings are needed. Repeated doubling is exponential growth, which becomes enormous very quickly." },
+    { t: "write", lv: 3, title: "The Collatz rule", say: "If n is even, halve it; if it is odd, make it 3n + 1. Starting from n, print every number up to and including 1.", code: C`n = 6
+`, out: "6\n3\n10\n5\n16\n8\n4\n2\n1", need: [WHILE], vary: [{ ...sub("n", "n = 7"), out: "7\n22\n11\n34\n17\n52\n26\n13\n40\n20\n10\n5\n16\n8\n4\n2\n1" }, { ...sub("n", "n = 1"), out: "1" }], hints: ["Print n first, then loop while n != 1.", "Inside the loop, use if n % 2 == 0 to choose the rule, then print the new n."], sol: C`n = 6
+print(n)
+while n != 1:
+    if n % 2 == 0:
+        n = n // 2
+    else:
+        n = 3 * n + 1
+    print(n)`, why: "The loop runs until n is 1. No one has proved that every starting number reaches 1: this is the Collatz conjecture, still unsolved, although computers have checked an enormous range of starting values." },
+    { t: "write", lv: 3, title: "Digit sum for any size", say: "Using a while loop with <code>% 10</code> and <code>// 10</code>, print the sum of the digits of n, however many digits it has. For 98765 that is 35.", code: C`n = 98765
+`, out: "35", need: [WHILE], avoid: [[/\bstr\s*\(/, "this challenge asks for arithmetic with // and %, not str()."]], vary: [{ ...sub("n", "n = 7"), out: "7" }, { ...sub("n", "n = 1000"), out: "1" }, { ...sub("n", "n = 0"), out: "0" }], hints: ["n % 10 is the last digit; n // 10 removes it.", "Repeat while n > 0, adding each last digit to a total."], sol: C`n = 98765
+total = 0
+while n > 0:
+    total = total + n % 10
+    n = n // 10
+print(total)`, why: "Each pass removes the last digit with // 10 after adding it to the total with % 10. When no digits remain, n is 0 and the loop stops, so it works for any number of digits." },
+    { t: "predict", lv: 3, title: "Trace the loop", code: C`total = 0
+i = 10
+while i > 0:
+    total += i
+    i -= 3
+print(total)`, options: ["22", "18", "27", "55"], answer: 0, hints: ["List the values of i: 10, 7, … When does i > 0 fail?"], why: "i takes the values 10, 7, 4 and 1; next it would be −2, which fails i > 0. So total is 10 + 7 + 4 + 1 = 22. (+= adds to a variable; -= subtracts.)" },
+    { t: "write", lv: 3, title: "Euclid's algorithm", say: "Print the greatest common divisor of a and b with Euclid's method: while b is not 0, replace (a, b) with (b, a % b). Then a is the answer.", code: C`a = 48
+b = 18
+`, out: "6", need: [WHILE], avoid: [[/math\s*\.\s*gcd|\bimport\b[^\n]*\bgcd\b/, "write the algorithm yourself rather than using math.gcd."]], vary: [{ sub: [/^a\s*=.*\nb\s*=.*$/m, "a = 1071\nb = 462"], name: "a and b", out: "21" }, { sub: [/^a\s*=.*\nb\s*=.*$/m, "a = 17\nb = 5"], name: "a and b", out: "1" }], hints: ["while b != 0:", "a, b = b, a % b"], sol: C`a = 48
+b = 18
+while b != 0:
+    a, b = b, a % b
+print(a)`, why: "Any number that divides both a and b also divides a % b, and any number that divides both b and a % b also divides a. So the pairs (a, b) and (b, a % b) have exactly the same common divisors, and the greatest common divisor stays the same while the numbers shrink, until the remainder is 0. Euclid described this in his Elements, about 300 BC." },
+  ],
+  p7: [
+    { t: "learn", lv: 1, title: "A list of planets", say: "A <b>list</b> keeps values in order. Indices start at 0, so <code>planets[0]</code> is Mercury. Make the program print <code>Earth</code> and then <code>Mars</code>, using indices.", code: C`planets = ["Mercury", "Venus", "Earth", "Mars"]
+print(planets[0])
+print(len(planets))`, out: "Earth\nMars", need: [[/planets\s*\[/, "use indices such as planets[2]."]], avoid: [[/print\s*\(\s*["']/, "print the items by index rather than typing their names."]], hints: ["Count from 0: Mercury 0, Venus 1, …", "Index −1 means the last item."], sol: C`planets = ["Mercury", "Venus", "Earth", "Mars"]
+print(planets[2])
+print(planets[-1])`, why: "Earth is the third item, so its index is 2. Index −1 always means the last item, however long the list is." },
+    { t: "predict", lv: 1, title: "Negative indices", code: C`letters = ["a", "b", "c", "d", "e"]
+print(letters[1])
+print(letters[-2])`, options: ["a\nd", "b\nd", "b\ne", "a\ne"], answer: 1, hints: ["Index 1 is the second item. Index −1 is the last, so −2 is …?"], why: "Index 1 is the second item, b. Negative indices count from the end: −1 is e, so −2 is d." },
+    { t: "predict", lv: 2, title: "A slice", code: C`nums = [10, 20, 30, 40, 50]
+print(nums[1:3])`, options: ["[10, 20, 30]", "[20, 30]", "[20, 30, 40]", "20 30"], answer: 1, hints: ["A slice stops before its second index, just as range does."], why: "nums[1:3] starts at index 1 and stops before index 3, so it holds the items at indices 1 and 2. A slice is itself a list, so it prints with brackets." },
+    { t: "write", lv: 2, title: "Total and mean", say: "Without <code>sum()</code>, add up the list with a for loop. Print the total, then the mean (the total divided by how many there are).", code: C`scores = [7, 9, 4, 10, 5]
+`, out: "35\n7.0", need: [FOR], avoid: [[/\bsum\s*\(/, "this challenge asks you to accumulate the total with a loop, not sum()."]], vary: [{ ...sub("scores", "scores = [1, 2, 3, 4]"), out: "10\n2.5" }], hints: ["for s in scores: visits each item in turn.", "The mean is total / len(scores)."], sol: C`scores = [7, 9, 4, 10, 5]
+total = 0
+for s in scores:
+    total = total + s
+print(total)
+print(total / len(scores))`, why: "A for loop over a list visits each item once. len(scores) counts the items, so total / len(scores) is the mean; / always gives a float, hence 7.0." },
+    { t: "fix", lv: 2, title: "No such position", say: "This should print the last colour, <code>blue</code>, but it stops with an error. Correct it.", code: C`colours = ["red", "green", "blue"]
+print(colours[3])`, out: "blue", hints: ["The error is an IndexError. What are the indices of a list of three items?"], sol: C`colours = ["red", "green", "blue"]
+print(colours[-1])`, why: "Three items have indices 0, 1 and 2; there is no index 3. colours[2] or colours[-1] is the last item." },
+    { t: "write", lv: 2, title: "Building a list", say: "Start with an empty list, use <code>.append()</code> in a loop to add the squares 1, 4, 9, … 100, then print the list.", code: C`squares = []
+`, out: "[1, 4, 9, 16, 25, 36, 49, 64, 81, 100]", need: [FOR, [/\.append\s*\(/, "use .append() to add each square."]], hints: ["Loop n over range(1, 11).", "squares.append(n * n)"], sol: C`squares = []
+for n in range(1, 11):
+    squares.append(n * n)
+print(squares)`, why: ".append(x) adds x to the end of the list, so the list grows by one item on each pass of the loop." },
+    { t: "write", lv: 3, title: "Hottest day", say: "Without <code>max()</code> or <code>.index()</code>, find the largest value and its index. For this list print <code>21 at index 3</code>.", code: C`temps = [12, 17, 9, 21, 15]
+`, out: "21 at index 3", need: [FOR], avoid: [[/\bmax\s*\(|\.index\s*\(|\bsorted\s*\(|\.sort\s*\(/, "this challenge asks you to search with a loop, not max(), sorting or .index()."]], vary: [{ ...sub("temps", "temps = [5, 3, 8]"), out: "8 at index 2" }, { ...sub("temps", "temps = [30, 2, 4]"), out: "30 at index 0" }], hints: ["Keep the best value so far and where it was. Begin with the first item.", "for i in range(len(temps)): compare temps[i] with the best so far."], sol: C`temps = [12, 17, 9, 21, 15]
+best = temps[0]
+where = 0
+for i in range(len(temps)):
+    if temps[i] > best:
+        best = temps[i]
+        where = i
+print(best, "at index", where)`, why: "The loop keeps a record of the best value seen so far and its index. Starting with the first item (not with 0) keeps it correct even if every value were negative." },
+    { t: "predict", lv: 3, title: "Two names, one list", code: C`a = [1, 2]
+b = a
+b.append(3)
+print(a)`, options: ["[1, 2]", "[1, 2, 3]", "[3]", "An error"], answer: 1, hints: ["Does b = a make a copy, or give the same list a second name?"], why: "b = a does not copy the list; it gives the same list a second name. Changing it through b changes the single list that a also names. To copy, write b = a[:]." },
+    { t: "write", lv: 3, title: "Long words", say: "Count the words in the list that have more than 4 letters, and print the count.", code: C`words = ["owl", "python", "code", "banana", "pi"]
+`, out: "2", need: [FOR, IF], vary: [{ ...sub("words", 'words = ["algorithm", "loop", "variable"]'), out: "2" }, { ...sub("words", 'words = ["a"]'), out: "0" }], hints: ["len(word) is the number of letters.", "Add 1 to a counter when len(word) > 4."], sol: C`words = ["owl", "python", "code", "banana", "pi"]
+count = 0
+for word in words:
+    if len(word) > 4:
+        count = count + 1
+print(count)`, why: "The loop tests each word with len(word) > 4 and counts only those that pass. \"code\" has exactly 4 letters, so it is not more than 4." },
+    { t: "predict", lv: 3, title: "Backwards", code: C`s = "PYTHON"
+print(s[::-1])`, options: ["PYTHON", "NOHTYP", "N", "P"], answer: 1, hints: ["A slice can have a step, like range. What does a step of −1 do?"], why: "Strings can be sliced like lists. A step of −1 walks backwards through the whole string, so it is reversed." },
+  ],
+  p8: [
+    { t: "learn", lv: 1, title: "A function", say: "<code>def</code> defines a <b>function</b>, a named block of code; <code>name</code> is its parameter. Add a third call so that the program also greets <code>Grace</code>.", code: C`def greet(name):
+    print("Hello, " + name + "!")
+
+greet("Ada")
+greet("Alan")`, out: "Hello, Ada!\nHello, Alan!\nHello, Grace!", need: [[/greet\s*\(\s*["']Grace["']\s*\)/, "call greet(\"Grace\")."]], hints: ["A call is the function's name followed by a value in brackets.", "greet(\"Grace\")"], sol: C`def greet(name):
+    print("Hello, " + name + "!")
+
+greet("Ada")
+greet("Alan")
+greet("Grace")`, why: "Each call runs the function again with a new value for its parameter, so the instructions are written once and reused. (Ada Lovelace, Alan Turing and Grace Hopper were pioneers of computing.)" },
+    { t: "predict", lv: 1, title: "Return values", code: C`def double(x):
+    return x * 2
+
+print(double(5) + double(1))`, options: ["12", "11", "10\n2", "7"], answer: 0, hints: ["Work out each call first: double(5) is …?"], why: "return sends a value back to the place where the function was called. double(5) is 10 and double(1) is 2, so the expression is 10 + 2 = 12." },
+    { t: "write", lv: 2, title: "Area of a rectangle", say: "Complete <code>area(width, height)</code> so that it <b>returns</b> the area of a rectangle. I shall test it with several rectangles.", code: C`def area(width, height):
+    # return the area
+    pass
+
+print(area(3, 4))`, tests: C`_check(area(3, 4), 12, "area(3, 4)")
+_check(area(10, 10), 100, "area(10, 10)")
+_check(area(7, 1), 7, "area(7, 1)")`, need: [RET], hints: ["Replace pass with a return line.", "return width * height"], sol: C`def area(width, height):
+    return width * height
+
+print(area(3, 4))`, why: "The area of a rectangle is width × height. Returning it, rather than printing it, lets other code use the answer, for example to add two areas together." },
+    { t: "predict", lv: 2, title: "Printing is not returning", code: C`def f(x):
+    print(x + 1)
+
+y = f(2)
+print(y)`, options: ["3\n3", "3\nNone", "None\n3", "3"], answer: 1, hints: ["Does f contain a return statement? What does a function give back without one?"], why: "f prints 3, but it has no return statement, so it returns the special value None, and y holds None. Displaying a value and returning it are different things." },
+    { t: "write", lv: 2, title: "Even or odd", say: "Write <code>is_even(n)</code>, which returns <code>True</code> if n is even and <code>False</code> otherwise.", code: C`def is_even(n):
+    pass
+`, tests: C`_check(is_even(4), True, "is_even(4)")
+_check(is_even(7), False, "is_even(7)")
+_check(is_even(0), True, "is_even(0)")
+_check(is_even(-2), True, "is_even(-2)")
+_check(is_even(13), False, "is_even(13)")`, need: [RET], hints: ["n % 2 is 0 for even numbers.", "return n % 2 == 0"], sol: C`def is_even(n):
+    return n % 2 == 0`, why: "The comparison n % 2 == 0 is already True or False, so the function can return it directly; no if is needed. Zero is even, because 0 = 2 × 0." },
+    { t: "fix", lv: 2, title: "The bigger one", say: "<code>biggest(a, b)</code> should return the larger of two numbers, but a test fails. Find the defect.", code: C`def biggest(a, b):
+    if a > b:
+        return a
+    return a
+
+print(biggest(3, 9))`, tests: C`_check(biggest(3, 9), 9, "biggest(3, 9)")
+_check(biggest(9, 3), 9, "biggest(9, 3)")
+_check(biggest(5, 5), 5, "biggest(5, 5)")
+_check(biggest(-1, -4), -1, "biggest(-1, -4)")`, avoid: [[/\bmax\s*\(/, "correct the function itself rather than using max()."]], hints: ["Which value should be returned when a > b is False?"], sol: C`def biggest(a, b):
+    if a > b:
+        return a
+    return b
+
+print(biggest(3, 9))`, why: "When a > b is False, b is the larger (or they are equal), so the last line must return b. One test, biggest(9, 3), passed by luck; several tests revealed the defect." },
+    { t: "write", lv: 3, title: "Factorial", say: "<code>n!</code> (n factorial) is 1 × 2 × … × n, and 0! is 1. Write <code>factorial(n)</code> that returns it.", code: C`def factorial(n):
+    pass
+`, tests: C`_check(factorial(0), 1, "factorial(0)")
+_check(factorial(1), 1, "factorial(1)")
+_check(factorial(5), 120, "factorial(5)")
+_check(factorial(10), 3628800, "factorial(10)")`, need: [RET], avoid: [[/math\.factorial|from math import/, "write the calculation yourself rather than using math.factorial."]], hints: ["Start a product at 1 and multiply by each number from 1 to n.", "for k in range(1, n + 1): product = product * k"], sol: C`def factorial(n):
+    product = 1
+    for k in range(1, n + 1):
+        product = product * k
+    return product`, why: "The product starts at 1, the identity for multiplication. For n = 0 the loop runs zero times, so factorial(0) is 1, exactly as the definition requires." },
+    { t: "write", lv: 3, title: "Prime test", say: "Write <code>is_prime(n)</code>. A prime has exactly two divisors, 1 and itself; so 1 is not prime. Return True or False.", code: C`def is_prime(n):
+    pass
+`, tests: C`_check(is_prime(1), False, "is_prime(1)")
+_check(is_prime(2), True, "is_prime(2)")
+_check(is_prime(9), False, "is_prime(9)")
+_check(is_prime(17), True, "is_prime(17)")
+_check(is_prime(91), False, "is_prime(91)")
+_check(is_prime(97), True, "is_prime(97)")
+_check(is_prime(7919), True, "is_prime(7919)")`, need: [RET], hints: ["Numbers below 2 are not prime. Then try each divisor d from 2 upwards.", "If n % d == 0 for some d between 2 and n − 1, n is not prime. (Testing up to the square root of n is enough.)"], sol: C`def is_prime(n):
+    if n < 2:
+        return False
+    d = 2
+    while d * d <= n:
+        if n % d == 0:
+            return False
+        d = d + 1
+    return True`, why: "If n = a × b, one of a and b is at most √n, so testing divisors up to √n is enough. 91 = 7 × 13 looks prime but is not: a test is evidence; an impression is not." },
+    { t: "write", lv: 3, title: "Counting vowels", say: "Write <code>count_vowels(text)</code>, which returns how many of the letters a, e, i, o, u (capital or not) the text contains.", code: C`def count_vowels(text):
+    pass
+`, tests: C`_check(count_vowels("banana"), 3, 'count_vowels("banana")')
+_check(count_vowels("Python"), 1, 'count_vowels("Python")')
+_check(count_vowels("AEIOU"), 5, 'count_vowels("AEIOU")')
+_check(count_vowels("rhythm"), 0, 'count_vowels("rhythm")')
+_check(count_vowels(""), 0, 'count_vowels("")')`, need: [RET], hints: ["for ch in text: visits each character.", "ch.lower() in \"aeiou\" tests for a vowel of either case."], sol: C`def count_vowels(text):
+    count = 0
+    for ch in text:
+        if ch.lower() in "aeiou":
+            count = count + 1
+    return count`, why: "The loop examines each character; .lower() makes capitals match too, and in checks membership in the string \"aeiou\". Here y is not counted, by the rule given." },
+    { t: "predict", lv: 3, title: "Local variables", code: C`x = 10
+
+def change():
+    x = 5
+
+change()
+print(x)`, options: ["5", "10", "None", "An error"], answer: 1, hints: ["Is the x inside the function the same variable as the x outside?"], why: "Assigning x inside a function creates a new local variable that exists only during the call. The x outside is a different variable and still holds 10." },
+    { t: "write", lv: 3, title: "Recursion", say: "A function may call itself. Write <code>total(n)</code> returning 1 + 2 + … + n <b>recursively</b>: total(1) is 1, and total(n) is n + total(n − 1).", code: C`def total(n):
+    pass
+`, tests: C`_check(total(1), 1, "total(1)")
+_check(total(4), 10, "total(4)")
+_check(total(100), 5050, "total(100)")`, need: [RET, [/total\s*\(\s*n\s*-\s*1\s*\)/, "total must call itself as total(n - 1)."]], hints: ["The base case: if n == 1, return 1.", "Otherwise return n + total(n - 1)."], sol: C`def total(n):
+    if n == 1:
+        return 1
+    return n + total(n - 1)`, why: "Each call hands a smaller problem to the next, and the base case, n == 1, stops the chain. Without a base case the calls would go on until Python stops them with a RecursionError." },
+  ],
+  p9: [
+    { t: "learn", lv: 1, title: "Finish the square", say: "The turtle draws as it moves. <code>forward(100)</code> moves 100 steps; <code>left(90)</code> turns 90° anticlockwise (to the turtle's left). The turtle starts at the centre, facing east (to the right). Two sides are done: finish the square.", code: C`import turtle
+
+turtle.forward(100)
+turtle.left(90)
+turtle.forward(100)
+turtle.left(90)
+`, draw: { n: 4, len: 100 }, hints: ["A square has four equal sides.", "Two more forward(100) lines are needed, with a left(90) between them."], sol: C`import turtle
+
+turtle.forward(100)
+turtle.left(90)
+turtle.forward(100)
+turtle.left(90)
+turtle.forward(100)
+turtle.left(90)
+turtle.forward(100)
+turtle.left(90)`, why: "Four sides of 100 with a 90° turn after each bring the turtle back to its start: 4 × 90° = 360°, one full turn." },
+    { t: "write", lv: 1, title: "A loop of sides", say: "Draw a square with sides of 150 using a <code>for</code> loop, so that forward and left are written only once.", code: C`import turtle
+
+`, draw: { n: 4, len: 150 }, need: [FOR], hints: ["for i in range(4):", "Inside the loop: turtle.forward(150) and turtle.left(90)."], sol: C`import turtle
+
+for i in range(4):
+    turtle.forward(150)
+    turtle.left(90)`, why: "The loop repeats one side and one turn four times. Changing a single number now changes every side." },
+    { t: "write", lv: 2, title: "Equilateral triangle", say: "Draw an equilateral triangle with sides of 120. Think carefully about the turn.", code: C`import turtle
+
+`, draw: { n: 3, len: 120 }, need: [FOR], hints: ["The turtle turns through 360° in total on the way round.", "Each turn is 360 ÷ 3 = 120°, not 60°."], sol: C`import turtle
+
+for i in range(3):
+    turtle.forward(120)
+    turtle.left(120)`, why: "The turtle turns by the exterior angle, 360° ÷ 3 = 120°. The interior angle of the triangle is 180° − 120° = 60°, which is why 60 is a tempting but wrong guess." },
+    { t: "write", lv: 2, title: "Hexagon", say: "Draw a regular hexagon with sides of 80.", code: C`import turtle
+
+`, draw: { n: 6, len: 80 }, need: [FOR], hints: ["A regular hexagon has 6 equal sides.", "Each turn is 360 ÷ 6."], sol: C`import turtle
+
+for i in range(6):
+    turtle.forward(80)
+    turtle.left(60)`, why: "Six turns of 360° ÷ 6 = 60° make one full turn, so the figure closes. Bees build hexagonal cells, which tile a flat surface with no gaps." },
+    { t: "predict", lv: 2, title: "Which figure?", code: C`from turtle import *
+
+for i in range(5):
+    forward(100)
+    left(72)`, options: ["A pentagon", "A five-pointed star", "A hexagon", "An open zigzag"], answer: 0, verifyDraw: { n: 5, len: 100 }, hints: ["How many sides? And what is 5 × 72?"], why: "Five sides with turns of 72° make 5 × 72 = 360°, one full turn, so the figure closes as a regular pentagon." },
+    { t: "write", lv: 2, title: "Any polygon", say: "Complete <code>polygon(sides, length)</code> so that it draws any regular polygon, calculating the turn as <code>360 / sides</code>.", code: C`import turtle
+
+def polygon(sides, length):
+    pass
+
+polygon(8, 60)`, draw: { n: 8, len: 60 }, need: [[/def\s+polygon/, "keep the function polygon."], [/360\s*\/\s*sides/, "calculate the turn as 360 / sides."]], vary: [{ sub: [/^polygon\(8, 60\)$/m, "polygon(5, 90)"], name: "the call", draw: { n: 5, len: 90 } }], hints: ["Inside the function: a loop over range(sides).", "turtle.forward(length) and turtle.left(360 / sides)."], sol: C`import turtle
+
+def polygon(sides, length):
+    for i in range(sides):
+        turtle.forward(length)
+        turtle.left(360 / sides)
+
+polygon(8, 60)`, why: "One function now draws every regular polygon, because the turn is calculated from the number of sides. This is abstraction: solving a whole family of problems at once." },
+    { t: "write", lv: 3, title: "A five-pointed star", say: "Draw a five-pointed star with 5 lines of length 200. Use a loop.", code: C`import turtle
+
+`, draw: { n: 5, len: 200, turning: 2 }, need: [FOR], hints: ["Tracing a five-pointed star, the turtle turns round twice: 720° in total.", "720 ÷ 5 = 144°."], sol: C`import turtle
+
+for i in range(5):
+    turtle.forward(200)
+    turtle.right(144)`, why: "A star's lines cross, and the turtle turns through two full turns, 720°, so each of the five turns is 720° ÷ 5 = 144°." },
+    { t: "write", lv: 3, title: "A square spiral", say: "Draw a spiral: at least 15 lines turning 90°, each line longer than the one before.", code: C`import turtle
+
+length = 10
+`, draw: (segs, info) => {
+      if (info.n < 15) return `I count ${info.n} lines; the spiral needs at least 15.`;
+      for (let i = 1; i < info.n; i++) if (info.sides[i].len <= info.sides[i - 1].len + 0.01) return `Line ${i + 1} is not longer than line ${i}. Increase length inside the loop.`;
+      return true;
+    }, need: [[/\b(for|while)\b/, "this challenge asks you to use a loop."]], hints: ["Use a loop; after each line, add to length.", "for i in range(20): forward(length), left(90), length = length + 10"], sol: C`import turtle
+
+length = 10
+for i in range(20):
+    turtle.forward(length)
+    turtle.left(90)
+    length = length + 10`, why: "Because length grows on every pass, each line is longer than the last, and the turtle never returns to a previous line. A variable that changes inside a loop creates a pattern that changes." },
+    { t: "write", lv: 3, title: "A rosette", say: "Draw 12 squares (side 100), turning 30° after each square, to make a rosette. Use a loop inside a loop.", code: C`import turtle
+
+`, draw: (segs, info) => {
+      if (info.n !== 48) return `I count ${info.n} sides; 12 squares need 48.`;
+      if (info.sides.some((s) => Math.abs(s.len - 100) > 0.5)) return "Every side should be 100 long.";
+      for (let q = 4; q < 48; q += 4) {
+        const d = Math.abs(((((info.sides[q].dir - info.sides[q - 4].dir) * 180) / Math.PI) % 360 + 540) % 360 - 180);
+        if (Math.abs(d - 30) > 0.5) return `Square ${q / 4 + 1} is turned ${Math.round(d)}° from the one before; each square should be turned 30°.`;
+      }
+      return true;
+    }, need: [[/^[ \t]*for\b[\s\S]*^[ \t]*for\b/m, "use one loop inside another."]], hints: ["The inner loop draws one square; the outer loop repeats it 12 times.", "After each square, turn left(30): 12 × 30° = 360°."], sol: C`import turtle
+
+for k in range(12):
+    for i in range(4):
+        turtle.forward(100)
+        turtle.left(90)
+    turtle.left(30)`, why: "The inner loop draws one complete square and returns the turtle to the centre; the outer loop rotates it by 30° twelve times, 360° in all, so the pattern has 12-fold rotational symmetry." },
+    { t: "write", lv: 3, title: "Nearly a circle", say: "Draw a regular polygon with 36 sides of length 10. How does it compare with a circle?", code: C`import turtle
+
+`, draw: { n: 36, len: 10 }, need: [FOR], hints: ["36 sides means 36 turns, and they must total 360°.", "Each turn is 10°."], sol: C`import turtle
+
+for i in range(36):
+    turtle.forward(10)
+    turtle.left(10)`, why: "With many short sides a polygon looks like a circle. Its perimeter is 36 × 10 = 360, and its width is about 115, close to 360 ÷ π ≈ 114.6, because a circle's circumference is π times its diameter." },
+    { t: "write", lv: 3, title: "Three colours", say: "Draw an equilateral triangle with sides of 150, each side in a different colour, by looping over the list <code>colours</code>.", code: C`import turtle
+
+colours = ["red", "green", "blue"]
+`, draw: (segs, info) => {
+      const r = polyCheck({ n: 3, len: 150 }, segs);
+      if (r !== true) return r;
+      return info.colours >= 3 ? true : "Each side should be a different colour: call turtle.color(c) before drawing each side.";
+    }, need: [[/for\s+\w+\s+in\s+colours/, "loop over the list, as in for c in colours:"]], hints: ["for c in colours: visits each colour in turn.", "Inside: turtle.color(c), turtle.forward(150), turtle.left(120)."], sol: C`import turtle
+
+colours = ["red", "green", "blue"]
+for c in colours:
+    turtle.color(c)
+    turtle.forward(150)
+    turtle.left(120)`, why: "A for loop can visit the items of a list directly. The list has three colours, so the loop runs three times, one side per colour." },
+  ],
+  p10: [
+    { t: "predict", lv: 1, title: "Counting letters", code: C`word = "banana"
+print(word.count("a"))`, options: ["2", "3", "6", "a"], answer: 1, hints: ["Count the a's in banana by hand."], why: "The .count method returns how many times the substring appears: b-a-n-a-n-a has three a's." },
+    { t: "fix", lv: 1, title: "A missing colon", say: "This should print Go three times. Run it, read the error, and correct it.", code: C`for i in range(3)
+    print("Go")`, out: "Go\nGo\nGo", hints: ["The error names line 1. What must end every for line?"], sol: C`for i in range(3):
+    print("Go")`, why: "Every line that opens a block (for, while, if, def) ends with a colon. Without it Python cannot tell where the block begins." },
+    { t: "write", lv: 1, title: "Counting in fives", say: "Print 5, 10, 15, … 50, one per line, using <code>range</code> with a step.", code: C`# 5, 10, ... 50
+`, out: Array.from({ length: 10 }, (_, i) => 5 * (i + 1)).join("\n"), need: [FOR, [/range\s*\([^)]*,[^)]*,\s*5\s*\)/, "use range with a step of 5."]], hints: ["range(start, stop, step)", "range(5, 51, 5)"], sol: C`for n in range(5, 51, 5):
+    print(n)`, why: "range(5, 51, 5) starts at 5 and adds 5 each time; the stop is 51 so that 50 is included." },
+    { t: "predict", lv: 1, title: "Step by step", code: C`x = 3
+x = x * x
+x = x + x
+print(x)`, options: ["9", "12", "18", "36"], answer: 2, hints: ["Write x after each line."], why: "x becomes 3 × 3 = 9, then 9 + 9 = 18. Each line uses the value that the line before produced." },
+    { t: "fix", lv: 1, title: "Indentation", say: "This should add 1 + 2 + 3 + 4 and print <code>10</code>. Correct the error.", code: C`total = 0
+for n in range(1, 5):
+total = total + n
+print(total)`, out: "10", hints: ["The body of a for loop must be indented."], sol: C`total = 0
+for n in range(1, 5):
+    total = total + n
+print(total)`, why: "Indentation is how Python knows which lines belong to the loop. The addition must be indented; print(total) must not be, so that it runs once at the end." },
+    { t: "write", lv: 1, title: "Triple", say: "Write <code>triple(n)</code>, which returns three times n.", code: C`def triple(n):
+    pass
+`, tests: C`_check(triple(2), 6, "triple(2)")
+_check(triple(0), 0, "triple(0)")
+_check(triple(-5), -15, "triple(-5)")`, need: [RET], hints: ["return n * 3"], sol: C`def triple(n):
+    return n * 3`, why: "return gives the result back to whoever called the function, so triple(2) can be printed or used in a larger expression." },
+    { t: "predict", lv: 2, title: "Sorting", code: C`nums = [3, 1, 4, 1, 5]
+nums.sort()
+print(nums[0], nums[-1])`, options: ["3 5", "1 5", "1 1", "5 1"], answer: 1, hints: ["After .sort(), where are the smallest and largest values?"], why: ".sort() rearranges the list into ascending order, [1, 1, 3, 4, 5]. The first item is then the smallest and the last is the largest." },
+    { t: "fix", lv: 2, title: "A faulty average", say: "This should print the mean of the list, <code>6.0</code>. Find the defect.", code: C`nums = [4, 8, 6]
+total = 0
+for n in nums:
+    total = n
+print(total / len(nums))`, out: "6.0", hints: ["Trace total through the loop. Does it accumulate?"], sol: C`nums = [4, 8, 6]
+total = 0
+for n in nums:
+    total = total + n
+print(total / len(nums))`, why: "total = n replaced the total each time, so it held only the last item, 6, and 6 ÷ 3 = 2.0. total = total + n accumulates: 18 ÷ 3 = 6.0." },
+    { t: "write", lv: 2, title: "Palindromes", say: "Write <code>is_palindrome(s)</code>, returning True if s reads the same backwards (like <code>level</code>).", code: C`def is_palindrome(s):
+    pass
+`, tests: C`_check(is_palindrome("level"), True, 'is_palindrome("level")')
+_check(is_palindrome("racecar"), True, 'is_palindrome("racecar")')
+_check(is_palindrome("python"), False, 'is_palindrome("python")')
+_check(is_palindrome("a"), True, 'is_palindrome("a")')
+_check(is_palindrome("abca"), False, 'is_palindrome("abca")')`, need: [RET], hints: ["s[::-1] is s reversed.", "return s == s[::-1]"], sol: C`def is_palindrome(s):
+    return s == s[::-1]`, why: "A palindrome equals its own reverse, and s[::-1] is the reverse, so one comparison decides. Note that \"abca\" fails although its ends match: every pair must match." },
+    { t: "predict", lv: 2, title: "A middle slice", code: C`s = "abcdef"
+print(s[1:4])`, options: ["abc", "bcd", "bcde", "abcd"], answer: 1, hints: ["Index 1 is b. The slice stops before index 4."], why: "s[1:4] takes indices 1, 2 and 3: b, c, d. As with range, the stop index is not included." },
+    { t: "write", lv: 2, title: "Triangular numbers", say: "Print the first 10 triangular numbers on one line, separated by spaces: <code>1 3 6 10 15 21 28 36 45 55</code>.", code: C`# Each one adds the next whole number
+`, out: "1 3 6 10 15 21 28 36 45 55", need: [FOR], hints: ["Keep a running total; add 1, then 2, then 3, …", "print(total, end=\" \") keeps the numbers on one line."], sol: C`total = 0
+for n in range(1, 11):
+    total = total + n
+    print(total, end=" ")`, why: "The nth triangular number is 1 + 2 + … + n, the number of dots in a triangle with n rows. A running total produces each one from the previous one." },
+    { t: "predict", lv: 2, title: "Two operators", code: C`print(10 % 3 + 10 // 3)`, options: ["4", "3", "1", "13"], answer: 0, hints: ["Work out each part: 10 % 3, then 10 // 3."], why: "10 % 3 is 1 and 10 // 3 is 3, so the sum is 4. (Check: 10 = 3 × 3 + 1.)" },
+    { t: "write", lv: 3, title: "Least common multiple", say: "Write <code>lcm(a, b)</code>, the smallest positive number that both a and b divide. Hint: lcm(a, b) × gcd(a, b) = a × b.", code: C`def lcm(a, b):
+    pass
+`, tests: C`_check(lcm(4, 6), 12, "lcm(4, 6)")
+_check(lcm(21, 6), 42, "lcm(21, 6)")
+_check(lcm(7, 13), 91, "lcm(7, 13)")
+_check(lcm(5, 5), 5, "lcm(5, 5)")`, need: [RET], avoid: [[/math\.lcm|\blcm\s*=\s*math/, "write it yourself rather than using math.lcm."]], hints: ["Find the gcd first with Euclid's loop: while b: a, b = b, a % b.", "Remember the original a and b before the loop changes them."], sol: C`def lcm(a, b):
+    x, y = a, b
+    while y != 0:
+        x, y = y, x % y
+    return a * b // x`, why: "Because lcm × gcd = a × b, the lcm is a × b // gcd. Using // keeps the answer a whole number, and Euclid's loop finds the gcd quickly." },
+    { t: "write", lv: 3, title: "Primes below 50", say: "Build a list of all the primes below 50 and print it.", code: C`primes = []
+`, out: "[2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]", need: [FOR], hints: ["For each n from 2 to 49, test whether any d from 2 to n − 1 divides it.", "Append n when no divisor is found."], sol: C`primes = []
+for n in range(2, 50):
+    prime = True
+    for d in range(2, n):
+        if n % d == 0:
+            prime = False
+    if prime:
+        primes.append(n)
+print(primes)`, why: "For each candidate n, the inner loop searches for a divisor; prime stays True only if none is found. There are 15 primes below 50." },
+    { t: "write", lv: 3, title: "Fibonacci", say: "In the Fibonacci sequence each term is the sum of the two before: 1, 1, 2, 3, 5, 8, … Write <code>fib(n)</code> that returns the nth term (fib(1) = 1).", code: C`def fib(n):
+    pass
+`, tests: C`_check(fib(1), 1, "fib(1)")
+_check(fib(2), 1, "fib(2)")
+_check(fib(10), 55, "fib(10)")
+_check(fib(20), 6765, "fib(20)")`, need: [RET], hints: ["Keep two variables, a and b, for the last two terms.", "Repeat n − 1 times: a, b = b, a + b."], sol: C`def fib(n):
+    a, b = 1, 1
+    for i in range(n - 1):
+        a, b = b, a + b
+    return a`, why: "Two variables carry the last two terms forward, so each new term costs one addition. Leonardo of Pisa (Fibonacci) used this sequence in 1202 in a puzzle about rabbits." },
+    { t: "write", lv: 3, title: "Binary", say: "Write <code>binary(n)</code> that returns n written in base 2 as a string, without <code>bin()</code>. binary(5) is <code>\"101\"</code>.", code: C`def binary(n):
+    pass
+`, tests: C`_check(binary(5), "101", "binary(5)")
+_check(binary(0), "0", "binary(0)")
+_check(binary(8), "1000", "binary(8)")
+_check(binary(255), "11111111", "binary(255)")`, need: [RET], avoid: [[/\bbin\s*\(|format\s*\(|:b\}/, "build the digits yourself with % 2 and // 2."]], hints: ["n % 2 is the last binary digit; n // 2 removes it.", "Build the string from the right: digits = str(n % 2) + digits. Handle 0 separately."], sol: C`def binary(n):
+    if n == 0:
+        return "0"
+    digits = ""
+    while n > 0:
+        digits = str(n % 2) + digits
+        n = n // 2
+    return digits`, why: "Dividing by 2 repeatedly peels off the binary digits from the right, just as % 10 and // 10 peel off decimal digits. Computers store every number in base 2." },
+    { t: "predict", lv: 3, title: "A list comprehension", code: C`print([x * x for x in range(5) if x % 2 == 0])`, options: ["[0, 4, 16]", "[0, 1, 4, 9, 16]", "[4, 16]", "[1, 9]"], answer: 0, hints: ["Which x in range(5) are even? Then square them."], why: "A list comprehension builds a list in one expression: for each x from 0 to 4 that is even (0, 2, 4), it includes x * x: 0, 4, 16." },
+    { t: "fix", lv: 3, title: "Endless recursion", say: "<code>count_down(3)</code> should print 3, 2, 1. It never reaches a stopping case. Correct it.", code: C`def count_down(n):
+    if n == 0:
+        return
+    print(n)
+    count_down(n)
+
+count_down(3)`, out: "3\n2\n1", hints: ["Each call should work on a smaller problem. Does n ever change?"], sol: C`def count_down(n):
+    if n == 0:
+        return
+    print(n)
+    count_down(n - 1)
+
+count_down(3)`, why: "The recursive call passed the same n, so the base case n == 0 was never reached. Calling count_down(n - 1) shrinks the problem until it stops." },
+    { t: "write", lv: 3, title: "Caesar cipher", say: "Write <code>caesar(text, shift)</code>: shift each lower-case letter along the alphabet, wrapping z round to a; leave other characters unchanged.", code: C`def caesar(text, shift):
+    pass
+`, tests: C`_check(caesar("abc", 1), "bcd", 'caesar("abc", 1)')
+_check(caesar("xyz", 3), "abc", 'caesar("xyz", 3)')
+_check(caesar("hello, world", 13), "uryyb, jbeyq", 'caesar("hello, world", 13)')
+_check(caesar("python", 0), "python", 'caesar("python", 0)')`, need: [RET], hints: ["ord(\"a\") is 97; chr(97) is \"a\". Position in the alphabet: ord(ch) − 97.", "New letter: chr((ord(ch) − 97 + shift) % 26 + 97)."], sol: C`def caesar(text, shift):
+    result = ""
+    for ch in text:
+        if "a" <= ch <= "z":
+            result += chr((ord(ch) - 97 + shift) % 26 + 97)
+        else:
+            result += ch
+    return result`, why: "% 26 wraps the alphabet round like a clock, so z + 3 becomes c. The Roman historian Suetonius reports that Julius Caesar used a shift of three." },
+    { t: "predict", lv: 3, title: "Recursion traced", code: C`def f(n):
+    if n <= 1:
+        return 1
+    return n * f(n - 1)
+
+print(f(4))`, options: ["10", "24", "4", "1"], answer: 1, hints: ["f(4) = 4 × f(3), and f(3) = 3 × f(2) …"], why: "f(4) = 4 × 3 × 2 × f(1) = 24: this is the factorial function, written recursively." },
+    { t: "write", lv: 3, title: "Counting primes", say: "How many primes are there below 1000? Count them with a program and print the number.", code: C`count = 0
+`, out: "168", need: [FOR], hints: ["Reuse the prime test: try divisors d while d * d <= n.", "Count n from 2 to 999 when no divisor is found."], sol: C`count = 0
+for n in range(2, 1000):
+    d = 2
+    prime = True
+    while d * d <= n:
+        if n % d == 0:
+            prime = False
+            break
+        d = d + 1
+    if prime:
+        count = count + 1
+print(count)`, why: "Testing divisors only up to √n keeps the program fast. There are 168 primes below 1000; primes thin out as numbers grow, yet Euclid proved there are infinitely many." },
+    { t: "predict", lv: 3, title: "Decimal surprise", code: C`print(0.1 + 0.2 == 0.3)`, options: ["True", "False", "0.3", "An error"], answer: 1, hints: ["Computers store floats in binary. Can 0.1 be written exactly in binary?"], why: "0.1 and 0.2 have no exact binary form (as 1/3 has no exact decimal form), so the stored sum is 0.30000000000000004. Compare floats with a tolerance, such as abs(a − b) < 1e-9." },
+    { t: "predict", lv: 3, title: "A real copy", code: C`a = [1, 2, 3]
+b = a[:]
+b.append(4)
+print(len(a), len(b))`, options: ["4 4", "3 4", "3 3", "4 3"], answer: 1, hints: ["Does a[:] create a new list or another name for the same one?"], why: "a[:] is a slice of the whole list, which is a new list with the same items. Appending to the copy leaves the original unchanged." },
+    { t: "write", lv: 3, title: "Most frequent letter", say: "Write <code>most_common(text)</code> returning the letter that occurs most often in text. If letters tie, return the one that comes first in the alphabet.", code: C`def most_common(text):
+    pass
+`, tests: C`_check(most_common("banana"), "a", 'most_common("banana")')
+_check(most_common("mississippi"), "i", 'most_common("mississippi")')
+_check(most_common("abcabc"), "a", 'most_common("abcabc")')
+_check(most_common("zzyy"), "y", 'most_common("zzyy")')`, need: [RET], hints: ["Try each letter of the alphabet in order and use text.count(letter).", "Replace the best only when a count is strictly greater, so ties keep the earlier letter."], sol: C`def most_common(text):
+    best = ""
+    best_count = 0
+    for letter in "abcdefghijklmnopqrstuvwxyz":
+        n = text.count(letter)
+        if n > best_count:
+            best = letter
+            best_count = n
+    return best`, why: "Visiting the letters in alphabetical order and replacing the best only on a strictly greater count means that a tie keeps the earlier letter: mississippi has four i's and four s's, so the answer is i." },
+  ],
+};
+
+const UNIT_INFO = {
+  p1: { key: "print", words: "string, print, quotation marks, concatenation", prompt: "Explain what this program does and why each part of the output appears exactly as it does." },
+  p2: { key: "vars", words: "variable, assign, //, %, order of operations", prompt: "Explain how the values of the variables change as the program runs, and why the result is correct." },
+  p3: { key: "input", words: "input, string, int, convert", prompt: "Explain where the program's values come from and why converting them was or was not necessary." },
+  p4: { key: "for", words: "loop, range, start, stop, step", prompt: "Explain which values the loop variable takes and why the loop runs exactly that many times." },
+  p5: { key: "if", words: "condition, True, False, elif, else", prompt: "Explain which branch runs for different values, and why the order of the tests matters." },
+  p6: { key: "while", words: "condition, loop, terminate, trace", prompt: "Explain why the loop eventually stops, and trace the values of the variables." },
+  p7: { key: "lists", words: "list, index, zero-based, slice, append", prompt: "Explain how the program uses positions in the list, and why indices begin at 0." },
+  p8: { key: "func", words: "function, parameter, return, test", prompt: "Explain what the function receives, what it returns, and how the tests show that it is correct." },
+  p9: { key: "turtle", words: "forward, turn, exterior angle, 360°, loop", prompt: "Explain why your figure closes (or does not), using the angles the turtle turns through." },
+  p10: { key: "mixed", words: "algorithm, test, evidence, defect", prompt: "Explain your solution in plain words and what evidence shows that it is correct for every case, not only one." },
+};
+const REAL = {
+  p1: { title: "Be the interpreter", need: "paper, a pencil and a grown-up", steps: ["The grown-up writes five print lines, some with quotation marks and some with arithmetic, such as print(\"2 + 2\") and print(2 + 2).", "Write exactly what each line would print, character by character.", "Check your answers here by typing and running them. Where you differed, explain why the computer is right."], safe: "Do this together with a grown-up." },
+  p2: { title: "Variable boxes", need: "three small boxes or cups, paper labels, scraps of paper and a grown-up", steps: ["Label the boxes x, y and total. The grown-up reads a short program aloud, one line at a time.", "For each assignment, throw away the old slip and put a new slip with the new value in the box.", "At the end, read the boxes. Then run the same program here to check."], safe: "Do this together with a grown-up." },
+  p3: { title: "A paper program", need: "paper, a pencil and a grown-up", steps: ["Write a short program that uses input(), for example one that asks for two numbers and prints their sum.", "The grown-up is the user and gives the inputs; you are the computer and follow the program exactly.", "Try an input that breaks it, such as a word instead of a number. What should a careful program do then?"], safe: "Do this together with a grown-up." },
+  p4: { title: "A human loop", need: "a grown-up and a clear space", steps: ["Write: for i in range(1, 6): clap i times.", "Perform it exactly. How many claps in total? (1 + 2 + 3 + 4 + 5.)", "Change it to range(1, 6, 2) and predict before you perform."], safe: "Leave space around you, with a grown-up nearby." },
+  p5: { title: "Sorting machine", need: "about 20 number cards (or scraps of paper) and a grown-up", steps: ["Write a rule with if, elif and else, such as: if n % 3 == 0, left pile; elif n % 2 == 0, middle pile; else right pile.", "Sort the cards exactly by your rule.", "Swap the order of the first two tests. Predict which cards move, then check."], safe: "Do this together with a grown-up." },
+  p6: { title: "Guess my number", need: "a grown-up, paper and a pencil", steps: ["The grown-up thinks of a whole number from 1 to 100 and answers only higher, lower or correct.", "Always guess the middle of the numbers still possible, and write down each guess.", "Your strategy is a while loop: while not correct, halve the range. Why are seven guesses always enough? (2⁷ = 128.)"], safe: "Play together with a grown-up." },
+  p7: { title: "Index cards", need: "8 cards, a pen and a grown-up", steps: ["Write a word on each card and lay them in a row. Label the positions 0 to 7 above, and −8 to −1 below.", "The grown-up calls an index, such as 3 or −2; you point to the card.", "Now call slices, such as [2:5], and pick up exactly the right cards."], safe: "Do this together with a grown-up." },
+  p8: { title: "The function machine", need: "a grown-up, paper and a pencil", steps: ["The grown-up is a function with a secret rule (for example: return 2 × n + 1).", "You choose inputs; the grown-up returns outputs. Record each pair in a table.", "State your hypothesis, then test it on a new input before you claim it. Did the evidence support you?"], safe: "Do this together with a grown-up." },
+  p9: { title: "Walk a polygon", need: "chalk, a protractor or set square, and a grown-up, on a safe paved space", steps: ["Walk 5 steps, turn through 72°, and repeat 5 times, marking your path in chalk.", "Did you finish where you started? What was the total of all your turns?", "Now try 144° five times. Which figure did you walk?"], safe: "Walk slowly, with a grown-up, away from roads and stairs." },
+  p10: { title: "Code review", need: "a grown-up who programs, if possible, and one of your solutions", steps: ["Show one solution and explain it line by line, without reading the model answer.", "Ask the grown-up for one test case that might break it. Predict the result, then run it.", "If it failed, correct it and explain what the test revealed."], safe: "Do this together with a grown-up." },
+};
+const EXAMPLES = [
+  ["Star burst", C`import turtle
+
+colours = ["red", "orange", "gold", "green", "blue", "purple"]
+for i in range(36):
+    turtle.color(colours[i % 6])
+    turtle.forward(200)
+    turtle.right(170)`],
+  ["Circle spiral", C`import turtle
+
+turtle.color("teal")
+for size in range(10, 160, 10):
+    turtle.circle(size)
+    turtle.left(24)`],
+  ["Times table grid", C`for row in range(1, 10):
+    line = ""
+    for col in range(1, 10):
+        line += str(row * col).rjust(4)
+    print(line)`],
+  ["Collatz record", C`best, length = 1, 1
+for start in range(1, 1000):
+    n, steps = start, 1
+    while n != 1:
+        n = n // 2 if n % 2 == 0 else 3 * n + 1
+        steps += 1
+    if steps > length:
+        best, length = start, steps
+print("Below 1000,", best, "takes the longest:", length, "numbers")`],
+  ["Square spiral", C`import turtle
+
+for i in range(60):
+    turtle.color(["blue", "crimson"][i % 2])
+    turtle.forward(i * 5)
+    turtle.left(91)`],
+];
+// ===== BANK END =====
+
+// ===== UI =====
+const LV = { 1: "🐣", 2: "🦊", 3: "🦁" };
+const LV_NAME = { 1: "grade 4", 2: "grades 5–6", 3: "grades 7–8" };
+const KIND = { learn: "Example", predict: "Predict", write: "Write", fix: "Fix the bug" };
+const WELL = ["Correct.", "Correct, and well reasoned.", "Correct. Your persistence paid off.", "Correct. Testing and revising is exactly how programmers work."];
+const store = {
+  get(key) {
+    try {
+      return JSON.parse(localStorage.getItem(key) || "null");
+    } catch {
+      return null;
+    }
+  },
+  set(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch {
+      return false;
+    }
+  },
+};
+const MONO = 'ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace';
+
+const pyStyle = document.createElement("style");
+pyStyle.textContent = `
+.py-app{position:absolute;inset:0;display:grid;gap:8px;padding:8px;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"top top" "ed pick" "ed side";background:#f8f2e8;text-align:left;font-family:var(--sans)}
+.py-top{grid-area:top;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;min-width:0}
+.py-goal{display:flex;align-items:center;gap:8px;min-width:0;flex:1 1 200px;padding:6px 12px;border-radius:14px;background:var(--accent-soft);color:var(--accent-dark);font:900 18px/1.2 var(--sans)}
+.py-goal span{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.py-goal small{flex:none;padding:2px 8px;border-radius:10px;background:#fff;color:var(--accent-dark);font:800 13px/1.3 var(--sans)}
+.py-tools{display:flex;gap:6px;align-items:center;margin-left:auto}
+.py-tools button{min-height:46px;min-width:46px;padding:0 12px;border:0;border-radius:16px;background:#fff;box-shadow:0 3px 0 #e2d6c4;font:900 17px/1 var(--sans);color:var(--ink);cursor:pointer;white-space:nowrap;touch-action:manipulation}
+.py-tools button:active{transform:translateY(2px);box-shadow:0 1px 0 #e2d6c4}
+.py-tools button:disabled{opacity:.45;cursor:default}
+.py-tools .go{background:#1f8f4f;color:#fff;box-shadow:0 3px 0 #146b39;min-width:96px}
+.py-tools .go[data-pulse]{animation:py-glow 1.4s ease-in-out infinite}
+.py-tools .halt{background:#d8452f;color:#fff;box-shadow:0 3px 0 #a63322}
+.py-tools [hidden]{display:none}
+.py-tabs{display:none;border-radius:16px;background:#fff;box-shadow:0 3px 0 #e2d6c4;padding:3px}
+.py-tabs button{box-shadow:none;min-height:40px;border-radius:13px;background:none}
+.py-tabs button[aria-pressed=true]{background:var(--accent);color:#fff}
+.py-ed{grid-area:ed;position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);min-height:0;border-radius:16px;background:#fffdf8;box-shadow:0 0 0 1px #eadfce;overflow:hidden}
+.py-gut{padding:12px 8px 40px 10px;min-width:2.2em;overflow:hidden;background:#f6efe3;color:#a8957b;font:600 var(--fs,20px)/1.5 ${MONO};text-align:right;user-select:none;-webkit-user-select:none;white-space:pre}
+.py-gut b{display:block;font-weight:600}
+.py-gut b.bad{color:#fff;background:#d8452f;border-radius:6px;margin:0 -4px;padding:0 4px}
+.py-ta{display:block;width:100%;height:100%;box-sizing:border-box;margin:0;padding:12px 14px 40px 10px;border:0;outline:0;resize:none;background:transparent;color:#2b1d12;font:600 var(--fs,20px)/1.5 ${MONO};white-space:pre;overflow:auto;tab-size:4;-moz-tab-size:4;caret-color:var(--accent-dark);overscroll-behavior:contain;user-select:text;-webkit-user-select:text}
+.py-ta[readonly]{color:#3d2c1e;background:repeating-linear-gradient(135deg,transparent 0 14px,rgba(234,223,206,.25) 14px 28px)}
+.py-ed:focus-within{box-shadow:0 0 0 3px var(--accent)}
+.py-lock{position:absolute;right:10px;bottom:8px;padding:3px 10px;border-radius:10px;background:#efe5d6;color:#6b5a48;font:800 13px/1.4 var(--sans);pointer-events:none}
+.py-side{grid-area:side;display:flex;flex-direction:column;gap:8px;min-height:0}
+.py-canvas{position:relative;flex:1.5 1 0;min-height:0;border-radius:16px;background:#fffdf8;box-shadow:0 0 0 1px #eadfce;overflow:hidden}
+.py-canvas[hidden]{display:none}
+.py-canvas>svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.py-con{flex:1 1 0;min-height:90px;display:flex;flex-direction:column;border-radius:16px;background:#2a1f17;box-shadow:0 0 0 1px #1b130d;overflow:hidden}
+.py-con-h{display:flex;align-items:center;gap:8px;padding:6px 12px;background:#3a2c20;color:#e8d9c0;font:800 14px/1.3 var(--sans)}
+.py-con-h b{flex:none}
+.py-con-h span{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#bfae94;font-weight:700}
+.py-con-h i{margin-left:auto;font-style:normal;padding:2px 8px;border-radius:9px;background:#4a392b;color:#f1e4cd;white-space:nowrap}
+.py-con-h i.ok{background:#1f5f3a;color:#d9f5e3}
+.py-con-h i.bad{background:#7a2a1d;color:#ffe1d8}
+.py-out{flex:1;min-height:0;margin:0;padding:10px 14px;overflow:auto;color:#f6ecd9;font:600 calc(var(--fs,20px) - 2px)/1.45 ${MONO};white-space:pre-wrap;word-break:break-word;overscroll-behavior:contain;user-select:text;-webkit-user-select:text}
+.py-out .echo{color:#9fd3ff}
+.py-out .err{display:block;margin-top:6px;color:#ffb4a2}
+.py-out .help{display:block;margin-top:4px;color:#f0cdbf;font:700 calc(var(--fs,20px) - 4px)/1.4 var(--sans)}
+.py-out .note{color:#bfae94;font-family:var(--sans);font-weight:700}
+.py-out .load{display:block;color:#e8d9c0;font-family:var(--sans);font-weight:700;line-height:1.4}
+.py-out .load::after{content:"";display:inline-block;width:1.2em;text-align:left;animation:py-dots 1.6s steps(4) infinite}
+.py-out button{margin-top:8px;min-height:44px;padding:0 16px;border:0;border-radius:14px;background:#f6ecd9;color:#2a1f17;font:800 16px/1 var(--sans);cursor:pointer}
+@keyframes py-dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+@keyframes py-glow{0%,100%{box-shadow:0 3px 0 #146b39}50%{box-shadow:0 3px 0 #146b39,0 0 0 6px #ffcf5c}}
+.py-pick{grid-area:pick;display:flex;flex-direction:column;gap:6px;padding:8px 10px;border-radius:16px;background:#fff;box-shadow:0 0 0 1px #eadfce}
+.py-pick[hidden]{display:none}
+.py-pick>b{font:900 15px/1.2 var(--sans);color:var(--accent-dark)}
+.py-opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.py-opts button{display:flex;align-items:center;flex-wrap:wrap;gap:2px 6px;min-height:48px;padding:6px 10px;border:0;border-radius:14px;background:#f6efe3;box-shadow:0 3px 0 #e2d6c4;color:#2b1d12;font:700 17px/1.3 ${MONO};text-align:left;cursor:pointer;touch-action:manipulation}
+.py-opts button.words{font-family:var(--sans);font-weight:800}
+.py-opts button i{font-style:normal;color:#9c7f5f;font-weight:900;padding:0 2px;border-radius:5px;background:rgba(0,0,0,.06)}
+.py-opts button:disabled{cursor:default}
+.py-opts button.right{background:#22a05a;color:#fff;box-shadow:0 3px 0 #157a40}
+.py-opts button.right i{color:#c9f0d8}
+.py-opts button.wrong{background:#f6dcd4;box-shadow:0 0 0 2px #d9822b;opacity:.75}
+.py-app.compact{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"top" "main" "pick";gap:6px;padding:6px}
+.py-app.compact .py-ed,.py-app.compact .py-side{grid-area:main}
+.py-app.compact:not(.out) .py-side{display:none}
+.py-app.compact.out .py-ed{display:none}
+.py-app.compact .py-tabs{display:flex}
+.py-app.compact .py-goal{flex-basis:100%;font-size:15px;padding:4px 10px}
+.py-app.compact .py-tools{margin:0 auto}
+.py-app.compact .py-tools button{min-height:44px;padding:0 10px;font-size:15px}
+.py-app.compact .py-tools .go{min-width:76px}
+.py-app.compact .py-opts button{min-height:44px;font-size:15px;padding:4px 8px}
+.py-app.compact .py-pick{padding:6px 8px;gap:4px}
+.py-app.compact .py-pick>b{font-size:13.5px}
+.py-app.tiny .py-tools .lbl{display:none}
+.py-app.short .py-goal{display:none}
+.py-card p{margin:0;font:700 16px/1.35 var(--sans);color:#2b1d12;text-align:left}
+.py-card p.safe{color:#8a4b14;background:#fff4e2;border-radius:14px;padding:8px 12px}
+.py-card p.model{background:#eef6ff;border-radius:14px;padding:8px 12px}
+.py-card ol{counter-reset:s}
+.py-card textarea{width:100%;min-height:70px;padding:8px 10px;border:0;border-radius:14px;box-shadow:inset 0 0 0 2px #e2d6c4;font:600 16px/1.35 var(--sans);resize:vertical;box-sizing:border-box}
+.py-card .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.py-card .row button{min-height:48px;padding:0 16px;border:0;border-radius:16px;background:#f3ece1;font:800 16px/1 var(--sans);cursor:pointer}
+.py-card .row .kt-go{margin:0;min-width:0;background:var(--accent);color:#fff;box-shadow:0 4px 0 var(--accent-dark)}
+.py-nav{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px}
+.py-nav button{min-height:46px;min-width:46px;padding:0 14px;border:0;border-radius:16px;background:#fff;color:var(--ink);box-shadow:0 3px 0 #e2d6c4;font:800 16px/1 var(--sans);cursor:pointer;touch-action:manipulation}
+.py-nav button.primary{background:var(--accent);color:#fff;box-shadow:0 3px 0 var(--accent-dark)}
+.py-nav button[hidden]{display:none}
+.py-nav button[data-pulse]{animation:ap-pulse 1.4s ease-in-out infinite}
+.py-nav .ap-status{white-space:nowrap}
+.ap-say code,.py-card code{font:700 .92em/1 ${MONO};padding:1px 5px;border-radius:6px;background:#f3ece1;color:#5a2d0c;white-space:pre-wrap}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){.py-nav{gap:5px}.py-nav button{min-height:40px;min-width:42px;padding:0 10px;font-size:14.5px}}
+@media (max-height:460px){.ap-say{font-size:14.5px!important;line-height:1.3!important}}
+`;
+document.head.appendChild(pyStyle);
+
+// ---- the turtle's stage ----
+function drawTurtle(svgEl, segs, tur, { animate = false, alive = () => true } = {}) {
+  svgEl.innerHTML = "";
+  let x0 = -300;
+  let x1 = 300;
+  let y0 = -220;
+  let y1 = 220;
+  for (const [a, b, c, d] of segs) {
+    x0 = Math.min(x0, a - 20, c - 20);
+    x1 = Math.max(x1, a + 20, c + 20);
+    y0 = Math.min(y0, b - 20, d - 20);
+    y1 = Math.max(y1, b + 20, d + 20);
+  }
+  if (tur) {
+    x0 = Math.min(x0, tur.x - 20);
+    x1 = Math.max(x1, tur.x + 20);
+    y0 = Math.min(y0, tur.y - 20);
+    y1 = Math.max(y1, tur.y + 20);
+  }
+  const fills = (tur && tur.fills) || [];
+  for (const f of fills)
+    for (const [a, b] of f.pts) {
+      x0 = Math.min(x0, a - 20);
+      x1 = Math.max(x1, a + 20);
+      y0 = Math.min(y0, b - 20);
+      y1 = Math.max(y1, b + 20);
+    }
+  const k = Math.max((x1 - x0) / 600, (y1 - y0) / 440);
+  svgEl.setAttribute("viewBox", `${x0} ${-y1} ${x1 - x0} ${y1 - y0}`);
+  const g = el("g", { transform: "scale(1 -1)" }, svgEl);
+  if (tur && tur.bg) el("rect", { x: x0 - 5000, y: y0 - 5000, width: x1 - x0 + 10000, height: y1 - y0 + 10000, fill: tur.bg }, g);
+  const grid = el("g", { stroke: "#efe5d6", "stroke-width": k }, g);
+  for (let x = Math.ceil(x0 / 50) * 50; x <= x1; x += 50) el("line", { x1: x, x2: x, y1: y0, y2: y1, stroke: x === 0 ? "#dccbb0" : undefined, "stroke-width": x === 0 ? 2 * k : undefined }, grid);
+  for (let y = Math.ceil(y0 / 50) * 50; y <= y1; y += 50) el("line", { y1: y, y2: y, x1: x0, x2: x1, stroke: y === 0 ? "#dccbb0" : undefined, "stroke-width": y === 0 ? 2 * k : undefined }, grid);
+  const ink = el("g", { "stroke-linecap": "round", "stroke-linejoin": "round", fill: "none" }, g);
+  const sprite = el("g", {}, g);
+  el("path", { d: "M14 0L-9 8.5L-4 0L-9 -8.5Z", fill: "var(--accent)", stroke: "#fff", "stroke-width": 1.5 }, sprite);
+  const place = (x, y, h) => sprite.setAttribute("transform", `translate(${x} ${y}) rotate(${h}) scale(${Math.max(1, k)})`);
+  const lines = [];
+  const line = (s) => lines.push(el("line", { x1: s[0], y1: s[1], x2: s[2], y2: s[3], stroke: s[4], "stroke-width": s[5] * Math.max(1, k * 0.8) }, ink));
+  // A fill appears once the lines up to its end_fill() are drawn, beneath the lines drawn after its begin_fill().
+  let filled = 0;
+  const fillUpTo = (n) => {
+    while (filled < fills.length && fills[filled].end <= n) {
+      const f = fills[filled++];
+      const poly = el("polygon", { points: f.pts.map((p) => p.join(",")).join(" "), fill: f.c, stroke: "none", "fill-rule": "evenodd" }, ink);
+      if (lines[f.at]) ink.insertBefore(poly, lines[f.at]);
+    }
+  };
+  const end = () => {
+    if (tur) place(tur.x, tur.y, tur.h);
+    sprite.style.display = tur && tur.shown === false ? "none" : "";
+  };
+  place(0, 0, 0);
+  if (!animate || KIT.still.matches || !segs.length) {
+    segs.forEach(line);
+    fillUpTo(Infinity);
+    end();
+    return Promise.resolve();
+  }
+  const total = Math.min(2600, 260 + segs.length * 45);
+  return new Promise((resolve) => {
+    const t0 = performance.now();
+    let drawn = 0;
+    const frame = (now) => {
+      if (!alive() || !svgEl.isConnected) return resolve();
+      const want = Math.min(segs.length, Math.ceil(((now - t0) / total) * segs.length));
+      while (drawn < want) line(segs[drawn++]);
+      fillUpTo(drawn);
+      const s = segs[drawn - 1];
+      if (s) place(s[2], s[3], (Math.atan2(s[3] - s[1], s[2] - s[0]) * 180) / Math.PI);
+      if (drawn < segs.length) requestAnimationFrame(frame);
+      else {
+        end();
+        resolve();
+      }
+    };
+    requestAnimationFrame(frame);
+  });
+}
+
+// ---- the editor, console and stage, drawn inside [data-stage] ----
+function makeIDE({ onRun, onChange }) {
+  const my = token;
+  stage.innerHTML = "";
+  const app = document.createElement("div");
+  app.className = "py-app";
+  app.innerHTML = `
+<div class="py-top">
+  <div class="py-goal" data-goal><small data-lv></small><span data-title></span></div>
+  <div class="py-tools">
+    <div class="py-tabs" role="group" aria-label="View"><button type="button" data-tab="code" aria-pressed="true">Code</button><button type="button" data-tab="out" aria-pressed="false">Output</button></div>
+    <button type="button" data-reset aria-label="Restore the starting code" title="Restore the starting code">↺</button>
+    <button type="button" data-indent aria-label="Insert an indent of four spaces" title="Indent (4 spaces)">⇥</button>
+    <button type="button" class="go" data-run aria-label="Run">▶ <span class="lbl">Run</span></button>
+    <button type="button" class="halt" data-stop aria-label="Stop" hidden>■ <span class="lbl">Stop</span></button>
+  </div>
+</div>
+<div class="py-ed"><div class="py-gut" data-gut aria-hidden="true"></div><textarea class="py-ta" data-ta spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off" aria-label="Python code"></textarea><span class="py-lock" data-lock hidden>Read only: predict first</span></div>
+<div class="py-pick" data-pick hidden></div>
+<div class="py-side">
+  <div class="py-canvas" data-canvas hidden></div>
+  <div class="py-con"><div class="py-con-h"><b>Output</b><span data-inputs></span><i data-state></i></div><pre class="py-out" data-out aria-live="polite"></pre></div>
+</div>`;
+  stage.appendChild(app);
+  const q = (s) => app.querySelector(s);
+  const ta = q("[data-ta]");
+  const gut = q("[data-gut]");
+  const out = q("[data-out]");
+  const canvasBox = q("[data-canvas]");
+  const canvas = makeSvg("-300 -220 600 440", canvasBox);
+  let bad = 0;
+  let wantCanvas = false;
+
+  const gutter = () => {
+    const n = ta.value.split("\n").length;
+    gut.innerHTML = Array.from({ length: n }, (_, i) => `<b${i + 1 === bad ? ' class="bad"' : ""}>${i + 1}</b>`).join("");
+    gut.scrollTop = ta.scrollTop;
+  };
+  ta.addEventListener("scroll", () => (gut.scrollTop = ta.scrollTop));
+  ta.addEventListener("input", () => {
+    // iPad keyboards turn " and ' into curly quotation marks, which Python rejects; straighten them as they are typed.
+    if (/[\u201c\u201d\u201e\u2018\u2019\u201a]/.test(ta.value)) {
+      const a = ta.selectionStart;
+      const b = ta.selectionEnd;
+      ta.value = ta.value.replace(/[\u201c\u201d\u201e]/g, '"').replace(/[\u2018\u2019\u201a]/g, "'");
+      ta.setSelectionRange(a, b);
+    }
+    bad = 0;
+    gutter();
+    onChange?.(ta.value);
+  });
+  // execCommand keeps the browser's undo history; setRangeText is the fallback.
+  const insert = (s) => {
+    ta.focus();
+    const a = ta.selectionStart;
+    const b = ta.selectionEnd;
+    const done = s === "" ? a === b || document.execCommand?.("delete", false) : document.execCommand?.("insertText", false, s);
+    if (!done) {
+      ta.setRangeText(s, a, b, "end");
+      ta.dispatchEvent(new Event("input"));
+    }
+    if (ta.selectionStart !== a + s.length) ta.setSelectionRange(a + s.length, a + s.length);
+  };
+  ta.addEventListener("keydown", (e) => {
+    if (ta.readOnly) return;
+    const v = ta.value;
+    const a = ta.selectionStart;
+    const b = ta.selectionEnd;
+    const lineStart = v.lastIndexOf("\n", a - 1) + 1;
+    if (e.key === "Tab") {
+      e.preventDefault();
+      if (a !== b && v.slice(a, b).includes("\n")) {
+        // Indent or dedent every selected line.
+        const end = v.indexOf("\n", b - 1) < 0 ? v.length : v.indexOf("\n", b - 1);
+        const block = v.slice(lineStart, end);
+        const next = block.split("\n").map((l) => (e.shiftKey ? l.replace(/^ {1,4}/, "") : "    " + l)).join("\n");
+        ta.setSelectionRange(lineStart, end);
+        insert(next);
+        ta.setSelectionRange(lineStart, lineStart + next.length);
+      } else if (e.shiftKey) {
+        const lead = (v.slice(lineStart).match(/^ */) || [""])[0].length;
+        const cut = Math.min(4, lead);
+        if (cut) {
+          ta.setSelectionRange(lineStart, lineStart + cut);
+          insert("");
+          ta.setSelectionRange(Math.max(lineStart, a - cut), Math.max(lineStart, a - cut));
+        }
+      } else insert("    ");
+    } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      q("[data-run]").click();
+    } else if (e.key === "Enter" && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      const line = v.slice(lineStart, a);
+      let ind = (line.match(/^ */) || [""])[0];
+      if (/:\s*(#.*)?$/.test(line)) ind += "    ";
+      insert("\n" + ind);
+    } else if (e.key === "Backspace" && a === b && a > lineStart) {
+      const before = v.slice(lineStart, a);
+      if (/^ +$/.test(before) && before.length % 4 === 0) {
+        e.preventDefault();
+        ta.setSelectionRange(a - 4, a);
+        insert("");
+      }
+    }
+  });
+  const indentBtn = q("[data-indent]");
+  indentBtn.addEventListener("pointerdown", (e) => e.preventDefault());
+  indentBtn.addEventListener("click", () => !ta.readOnly && insert("    "));
+
+  const setTab = (t) => {
+    app.classList.toggle("out", t === "out");
+    app.querySelectorAll("[data-tab]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.tab === t)));
+  };
+  app.querySelector(".py-tabs").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-tab]");
+    if (b) setTab(b.dataset.tab);
+  });
+  const fit = () => {
+    const w = stage.clientWidth;
+    const h = stage.clientHeight;
+    const compact = w < 700;
+    app.classList.toggle("compact", compact);
+    app.classList.toggle("tiny", w < 400);
+    app.classList.toggle("short", compact && h < 330);
+    app.style.setProperty("--fs", w < 420 || h < 360 ? "15px" : compact || h < 470 ? "17px" : "20px");
+  };
+  const ro = new ResizeObserver(fit);
+  ro.observe(stage);
+  fit();
+
+  // Python's loading state, shown calmly in the console header and in the output while nothing has run.
+  let fresh = true;
+  const paintState = () => {
+    const s = PY.state();
+    const chip = q("[data-state]");
+    chip.className = s === "ready" ? "ok" : s === "failed" ? "bad" : "";
+    chip.textContent = s === "ready" ? `Python ${PY.version()}` : s === "failed" ? "Python not loaded" : "Loading Python";
+    const runBtn = q("[data-run]");
+    runBtn.disabled = s !== "ready";
+    runBtn.innerHTML = s === "ready" ? `▶ <span class="lbl">Run</span>` : s === "failed" ? `▶ <span class="lbl">Run</span>` : `⏳ <span class="lbl">Loading</span>`;
+    runBtn.title = s === "ready" ? "Run (Ctrl or ⌘ + Enter)" : s === "failed" ? "Python is not loaded" : "Python is loading";
+    if (s === "failed") {
+      out.innerHTML = `<span class="note">Python could not be loaded. It is downloaded from cdn.jsdelivr.net, so it needs an internet connection; after the first visit the browser keeps a copy. Predictions still work, but programs cannot run until Python loads.</span>\n<button type="button" data-retry>↻ Try again</button>`;
+      out.querySelector("[data-retry]").onclick = () => PY.boot();
+    } else if (fresh) out.innerHTML = s === "ready" ? `<span class="note">Press ▶ Run to run the program. Its output appears here.</span>` : `<span class="load">Loading Python. The first time takes a little while (about 10 MB); afterwards your browser keeps a copy</span>`;
+  };
+  const onState = () => (stage.contains(app) && my === token ? paintState() : PY.off(onState));
+  PY.on(onState);
+  paintState();
+  PY.boot();
+
+  q("[data-run]").addEventListener("click", () => onRun());
+  q("[data-stop]").addEventListener("click", () => PY.stop());
+
+  const api = {
+    app,
+    ta,
+    get code() {
+      return ta.value;
+    },
+    set code(v) {
+      ta.value = v;
+      bad = 0;
+      gutter();
+      ta.scrollTop = 0;
+      ta.scrollLeft = 0;
+    },
+    setGoal(lv, title, kind) {
+      q("[data-lv]").textContent = lv ? `${LV[lv]} ${kind || ""}`.trim() : kind || "";
+      q("[data-lv]").title = lv ? LV_NAME[lv] : "";
+      q("[data-title]").textContent = title;
+    },
+    setInputs(list) {
+      q("[data-inputs]").textContent = list && list.length ? `· preset inputs: ${list.join(", ")}` : "";
+    },
+    readOnly(on) {
+      ta.readOnly = on;
+      q("[data-lock]").hidden = !on;
+      indentBtn.disabled = on;
+    },
+    canvas(on) {
+      wantCanvas = on;
+      canvasBox.hidden = !on;
+      if (on) drawTurtle(canvas, [], { x: 0, y: 0, h: 0 });
+    },
+    tab: setTab,
+    clear(msg) {
+      fresh = !msg;
+      bad = 0;
+      gutter();
+      if (msg && PY.state() !== "failed") out.innerHTML = `<span class="note">${msg}</span>`;
+      else paintState();
+      if (wantCanvas) drawTurtle(canvas, [], { x: 0, y: 0, h: 0 });
+    },
+    busy(on) {
+      q("[data-run]").hidden = on;
+      q("[data-stop]").hidden = !on;
+      if (on) {
+        fresh = false;
+        out.innerHTML = `<span class="note">Running…</span>`;
+      }
+    },
+    pulseRun(on) {
+      q("[data-run]").toggleAttribute("data-pulse", on);
+    },
+    // Shows a finished run: printed output (inputs highlighted), the error in plain words, and the drawing.
+    show(res, { animate = true } = {}) {
+      fresh = false;
+      const shown = esc(res.shown ?? res.out ?? "").replace(/\x01([^\x02]*)\x02/g, '<span class="echo">$1</span>');
+      let html = shown;
+      if (res.err) {
+        const e = res.err;
+        const name = e.type === "StepLimit" ? "Stopped: step limit" : e.type === "OutputLimit" ? "Stopped: too much output" : e.type === "Timeout" ? "Stopped: time limit" : e.type;
+        html += `<span class="err">⚠ ${esc(name)}${e.line ? ` on line ${e.line}` : ""}${e.msg && !["StepLimit", "OutputLimit"].includes(e.type) ? `: ${esc(e.msg)}` : ""}</span><span class="help">${esc(ERR_HELP[e.type] || "")}</span>`;
+        bad = e.line || 0;
+        gutter();
+        if (bad) {
+          const lh = parseFloat(getComputedStyle(ta).lineHeight) || 30;
+          const top = (bad - 1) * lh;
+          if (top < ta.scrollTop || top > ta.scrollTop + ta.clientHeight - lh) ta.scrollTop = Math.max(0, top - ta.clientHeight / 2);
+        }
+      } else if (!res.out && !(res.segs || []).length) html += `<span class="note">(The program finished without printing anything.)</span>`;
+      out.innerHTML = html;
+      out.scrollTop = out.scrollHeight;
+      if (((res.segs || []).length || (res.fills || []).length || res.bg) && !wantCanvas) api.canvas(true);
+      if (wantCanvas) return drawTurtle(canvas, res.segs || [], res.turtle && { ...res.turtle, fills: res.fills, bg: res.bg }, { animate, alive: () => my === token });
+      return Promise.resolve();
+    },
+    // Prediction options: monospace output (new lines shown as ⏎) or plain words.
+    pick(options, onPick) {
+      const box = q("[data-pick]");
+      if (!options) {
+        box.hidden = true;
+        box.innerHTML = "";
+        return;
+      }
+      const words = options.every((o) => /^[A-Z][a-z]+( [a-z\-]+)+$|^An? /.test(o) && !o.includes("\n"));
+      box.hidden = false;
+      box.innerHTML = `<b>Your prediction: what will it ${words ? "draw or do" : "print"}?</b><div class="py-opts">${options
+        .map((o, i) => `<button type="button" data-o="${i}" class="${words || /^An? /.test(o) ? "words" : ""}">${o.split("\n").map(esc).join(' <i aria-label="new line">⏎</i> ')}</button>`)
+        .join("")}</div>`;
+      box.onclick = (e) => {
+        const b = e.target.closest("[data-o]");
+        if (b && !b.disabled) onPick(Number(b.dataset.o), b);
+      };
+    },
+    markPick(i, cls) {
+      const b = app.querySelector(`[data-o="${i}"]`);
+      if (b) b.classList.add(cls);
+      if (cls === "right") app.querySelectorAll("[data-o]").forEach((x) => (x.disabled = true));
+      else if (b) b.disabled = true;
+    },
+    stop() {
+      ro.disconnect();
+      PY.off(onState);
+    },
+  };
+  q("[data-reset]").addEventListener("click", () => api.onReset?.());
+  return api;
+}
+
+// ---- cards ----
+function card(html, speech) {
+  stage.querySelector(".py-card")?.remove();
+  const box = document.createElement("div");
+  box.className = "kt-how py-card";
+  box.innerHTML = `<div class="kt-how-card" role="dialog">${html}</div>`;
+  stage.appendChild(box);
+  if (speech) VOICE.speak(speech);
+  return box;
+}
+function explainCard({ title, prompt, words, model, where }) {
+  const box = card(
+    `<h2>🗣 Explain it: ${esc(title)}</h2><p>${prompt}</p><p><b>Use these words:</b> ${words}</p><textarea aria-label="Your explanation" placeholder="Write 2–4 sentences here, or say them aloud to a grown-up."></textarea><p class="model" hidden><b>A model explanation:</b> ${esc(model)}</p><div class="row"><button type="button" data-model>I have explained it: show a model</button><button type="button" class="kt-go" data-close>✓ Done</button></div>`,
+    `Explain it. ${prompt} Use these words: ${words}. Write two to four sentences, or say them aloud to a grown-up.`
+  );
+  const area = box.querySelector("textarea");
+  box.addEventListener("click", (e) => {
+    if (e.target.closest("[data-model]")) {
+      VOICE.hush();
+      box.querySelector(".model").hidden = false;
+      e.target.closest("[data-model]").remove();
+      VOICE.speak(`A model explanation. ${model} Compare it with yours. Is every statement in yours true, and does each one support your conclusion?`);
+      window.OC?.count("explanations");
+    }
+    if (e.target.closest("[data-close]")) {
+      VOICE.hush();
+      const said = area.value.trim();
+      if (said) {
+        const log = store.get("oc-py-explanations") || [];
+        log.push({ who: shell.learner(), where, text: said.slice(0, 1000), at: Date.now() });
+        store.set("oc-py-explanations", log.slice(-60));
+      }
+      box.remove();
+    }
+  });
+}
+function realCard(r) {
+  const box = card(
+    `<h2>🏠 Try it for real: ${esc(r.title)}</h2><p><b>You need:</b> ${r.need}</p><ol>${r.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol><p class="safe">${r.safe}</p><div class="row"><button type="button" class="kt-go" data-close>✓ Done</button></div>`,
+    `Try it for real: ${r.title}. You need: ${r.need}. ${r.steps.join(" ")} ${r.safe}`
+  );
+  box.querySelector("[data-close]").addEventListener("click", () => {
+    VOICE.hush();
+    box.remove();
+  });
+}
+
+// ---- a lesson unit: one exercise at a time ----
+let ide = null;
+function lessonUnit(uid) {
+  const my = token;
+  const list = BANK[uid];
+  const info = UNIT_INFO[uid];
+  const solved = new Set(shell.progress()[uid]?.solved || []);
+  let ci = list.findIndex((_, i) => !solved.has(i));
+  if (ci < 0) ci = 0;
+  let tries = 0;
+  let hintI = 0;
+  let attempted = false;
+  let answered = false;
+  let wrong = 0;
+  let saveT = 0;
+  const draftKey = () => `oc-py:${shell.learner()}:${uid}:${ci}`;
+  const host = panel(`<div class="py-nav"><button type="button" data-prev aria-label="Previous exercise">◀</button><p class="ap-status" data-status></p><button type="button" data-next aria-label="Next exercise">▶</button><button type="button" data-hint>💡 Hint</button><button type="button" data-show hidden>👀 Show me</button><button type="button" data-explain>🗣 Explain</button><button type="button" class="primary" data-real hidden>🏠 For real</button></div>`);
+  const btn = (k) => $(`[data-${k}]`, host);
+  ide = makeIDE({
+    onRun: run,
+    onChange(v) {
+      clearTimeout(saveT);
+      saveT = setTimeout(() => store.set(draftKey(), v), 400);
+      btn("next").removeAttribute("data-pulse");
+    },
+  });
+  ide.canvas(uid === "p9");
+  ide.onReset = () => {
+    if (my !== token) return;
+    ide.code = list[ci].code;
+    store.set(draftKey(), null);
+    ide.clear();
+    say("The starting code is restored.");
+  };
+  const status = () => {
+    const it = list[ci];
+    btn("status").textContent = `${LV[it.lv]} ${ci + 1} of ${list.length}${solved.has(ci) ? " ✓" : ""}`;
+    btn("status").title = LV_NAME[it.lv];
+  };
+  function win() {
+    const it = list[ci];
+    MUSIC.chime();
+    const first = !solved.has(ci);
+    solved.add(ci);
+    shell.mark(uid, { solved: [...solved], ...(solved.size >= Math.ceil(list.length * 0.7) ? { done: true } : {}) });
+    if (first) window.OC?.count("python exercises");
+    window.OC?.touch();
+    status();
+    const all = solved.size === list.length;
+    if (all) {
+      confetti();
+      btn("real").hidden = false;
+    }
+    btn("next").toggleAttribute("data-pulse", !all);
+    btn("explain").toggleAttribute("data-pulse", true);
+    return all;
+  }
+  function load(i) {
+    ci = (i + list.length) % list.length;
+    tries = 0;
+    hintI = 0;
+    attempted = false;
+    answered = false;
+    wrong = 0;
+    const it = list[ci];
+    const draft = it.t === "predict" ? null : store.get(draftKey());
+    ide.setGoal(it.lv, it.title, KIND[it.t]);
+    ide.setInputs(it.inputs);
+    ide.code = typeof draft === "string" ? draft : it.code;
+    ide.readOnly(it.t === "predict");
+    ide.clear(it.t === "predict" ? "Predict first. Then press ▶ Run to test your prediction." : "");
+    ide.tab("code");
+    ide.pulseRun(false);
+    ide.pick(it.t === "predict" ? it.options : null, onPick);
+    status();
+    btn("show").hidden = true;
+    btn("next").removeAttribute("data-pulse");
+    btn("explain").removeAttribute("data-pulse");
+    btn("real").hidden = solved.size !== list.length;
+    say(`<b>${ci + 1}. ${esc(it.title)}${/[.?!]$/.test(it.title) ? "" : "."}</b> ${it.t === "predict" ? (it.verifyDraw ? "Read the program. Which figure will it draw? Choose your prediction." : "Read the program. What exactly will it print? Choose your prediction.") : it.say}`);
+  }
+  function onPick(i, b) {
+    if (my !== token) return;
+    const it = list[ci];
+    if (answered) return;
+    attempted = true;
+    window.OC?.touch();
+    if (i === it.answer) {
+      answered = true;
+      ide.readOnly(false);
+      ide.markPick(i, "right");
+      const all = win();
+      ide.pulseRun(true);
+      say(`${wrong ? WELL[2] : pick(WELL.slice(0, 2))} ${esc(it.why)} ${all ? "You have completed every exercise in this unit." : ""} ${PY.state() === "failed" ? "When Python loads, run it to confirm." : "Press ▶ Run to confirm it with the computer."}`);
+    } else {
+      wrong += 1;
+      MUSIC.oops();
+      ide.markPick(i, "wrong");
+      if (wrong >= 2) {
+        answered = true;
+        ide.readOnly(false);
+        ide.markPick(it.answer, "right");
+        ide.pulseRun(true);
+        say(`Not quite. The answer is the highlighted one. ${esc(it.why)} Press ▶ Run to see the evidence for yourself.`);
+      } else say(`Not quite. ${esc(it.hints[0])} Mistakes are how we learn: choose again.`);
+    }
+  }
+  async function run() {
+    if (my !== token || PY.busy()) return;
+    const it = list[ci];
+    const code = ide.code;
+    if (it.t === "predict" && !answered) return say("Commit to a prediction first: choose one of the options. Then run the program to test it.");
+    window.OC?.touch();
+    ide.busy(true);
+    ide.pulseRun(false);
+    const at = ci;
+    let res;
+    let verdict = null;
+    if (it.t === "predict") res = await PY.run(code, { inputs: it.inputs || [] });
+    else ({ res, verdict } = await evaluate(it, code));
+    if (my !== token || at !== ci) return;
+    ide.busy(false);
+    window.OC?.count("python programs run");
+    const drawing = ide.show(res);
+    if (ide.app.classList.contains("compact")) ide.tab("out");
+    if (res.err && ["Unavailable", "Stopped", "Timeout"].includes(res.err.type)) {
+      if (res.err.type === "Unavailable") return say("Python is not loaded yet, so I cannot run the program. Check the internet connection and press Try again.");
+      return say(res.err.type === "Stopped" ? "Stopped. Python is restarting; it will be ready in a moment." : "The program took too long, so I stopped it and restarted Python. Is there a loop that never ends?");
+    }
+    if (it.t === "predict") {
+      await drawing;
+      if (my !== token || at !== ci) return;
+      const same = code === it.code;
+      if (!same) return say("You changed the program, so its output may differ from the original. Experimenting like this is a good way to test your understanding.");
+      if (it.verifyDraw) return say(`The drawing is the evidence: ${polyCheck(it.verifyDraw, res.segs) === true ? `a closed figure with ${it.verifyDraw.n} equal sides` : "look at it closely"}. ${solved.has(ci) ? "Your prediction is confirmed." : "Compare it with your prediction."} Press ▶ for the next exercise, or 🗣 Explain.`);
+      const ok = sameOut(res.out, it.options[it.answer]);
+      return say(ok ? `The computer confirms it: the output matches the correct prediction. A prediction tested by running the code is knowledge, not a guess. Press ▶ for the next exercise, or 🗣 Explain.` : "The output differs from what I expected. Please tell a grown-up: this exercise may contain an error.");
+    }
+    if (verdict === true) {
+      await drawing;
+      if (my !== token || at !== ci) return;
+      const all = win();
+      say(`${tries ? pick(WELL.slice(2)) : pick(WELL.slice(0, 2))} ${esc(it.why)} ${all ? "You have completed every exercise in this unit. Explain your thinking, then try it for real." : "Press 🗣 Explain to put the idea into words, or ▶ for the next exercise."}`);
+      return;
+    }
+    if (code === it.code) {
+      attempted = true;
+      return say(`${it.t === "fix" ? "That is the program as given, with its defect. Read the output closely: what is wrong, and on which line?" : it.t === "learn" ? "That is the example as given. Now make the change the task asks for, then run it again." : "That is the starting code. Now complete the task, then run it again."}`);
+    }
+    attempted = true;
+    tries += 1;
+    MUSIC.oops();
+    say(`Not quite. ${res.err && !res.err.inTests ? `Your program stopped with a <b>${esc(res.err.type === "StepLimit" ? "step limit" : res.err.type)}</b>${res.err.line ? ` on line ${res.err.line}` : ""}. Read the explanation in the output, then look closely at that line.` : verdict}${tries >= 2 ? " You may press 👀 Show me to study a model solution." : " Mistakes are how we learn."}`);
+    if (tries >= 2) btn("show").hidden = false;
+  }
+  host.onclick = (e) => {
+    if (my !== token) return;
+    const b = e.target.closest("button");
+    if (!b) return;
+    window.OC?.touch();
+    const it = list[ci];
+    if (b.dataset.prev !== undefined) load(ci - 1);
+    else if (b.dataset.next !== undefined) load(ci + 1);
+    else if (b.dataset.hint !== undefined) {
+      if (!attempted) return say(it.t === "predict" ? "First commit to a prediction: choose an option. Then I can help you reason about it." : "First commit to an idea: write some code and press ▶ Run. Then I can help you reason about what you observe.");
+      if (it.t === "predict" && answered) return say(esc(it.why));
+      say(`${hintI === 0 ? "Consider this." : "A further hint."} ${esc(it.hints[Math.min(hintI, it.hints.length - 1)])}`);
+      hintI += 1;
+    } else if (b.dataset.show !== undefined) {
+      ide.code = it.sol;
+      store.set(draftKey(), it.sol);
+      ide.clear();
+      say(`Here is a model solution. Read it line by line, press ▶ Run to verify it, then explain it in your own words.`);
+    } else if (b.dataset.explain !== undefined) {
+      b.removeAttribute("data-pulse");
+      explainCard({ title: it.title, where: `${uid}#${ci + 1}`, model: it.why, ...info });
+    } else if (b.dataset.real !== undefined) realCard(REAL[uid]);
+  };
+  load(ci);
+}
+
+// ---- free studio ----
+function studioUnit() {
+  const my = token;
+  const key = () => `oc-py:${shell.learner()}:studio`;
+  let ex = 0;
+  let saveT = 0;
+  const host = panel(`<div class="py-nav"><button type="button" data-ex>✨ Example</button><button type="button" data-new>🗑 New</button><button type="button" data-explain>🗣 Explain</button></div>`);
+  ide = makeIDE({
+    onRun: run,
+    onChange(v) {
+      clearTimeout(saveT);
+      saveT = setTimeout(() => store.set(key(), v), 400);
+    },
+  });
+  ide.canvas(true);
+  ide.setGoal(0, "Write any program you like", "Studio");
+  const saved = store.get(key());
+  ide.code = typeof saved === "string" ? saved : C`# Your own program. It is kept automatically on this device.
+import turtle
+
+for i in range(8):
+    turtle.forward(120)
+    turtle.left(135)
+`;
+  ide.clear();
+  ide.onReset = () => {
+    ide.code = "";
+    store.set(key(), "");
+    ide.clear();
+  };
+  say("This is your studio. Write any program; it is kept automatically. ✨ Example offers programs to study: predict what each will do before you run it.");
+  async function run() {
+    if (my !== token || PY.busy()) return;
+    window.OC?.touch();
+    ide.busy(true);
+    const res = await PY.run(ide.code);
+    if (my !== token) return;
+    ide.busy(false);
+    window.OC?.count("python programs run");
+    ide.show(res);
+    if (ide.app.classList.contains("compact")) ide.tab("out");
+    if (res.err) say(errorReason(res.err));
+    else say(`Finished${res.segs.length ? `: ${res.segs.length} line${res.segs.length === 1 ? "" : "s"} drawn` : ""}${linesOf(res.out).length ? `${res.segs.length ? " and" : ":"} ${linesOf(res.out).length} line${linesOf(res.out).length === 1 ? "" : "s"} printed` : ""}. Did it do what you predicted?`, { voice: false });
+  }
+  host.onclick = (e) => {
+    if (my !== token) return;
+    const b = e.target.closest("button");
+    if (!b) return;
+    window.OC?.touch();
+    if (b.dataset.ex !== undefined) {
+      const [name, code] = EXAMPLES[ex % EXAMPLES.length];
+      ex += 1;
+      ide.code = code;
+      store.set(key(), code);
+      ide.clear();
+      say(`Example: ${name}. Read it first and predict what it will do; then press ▶ Run to test your prediction.`);
+    } else if (b.dataset.new !== undefined) {
+      ide.code = "";
+      store.set(key(), "");
+      ide.clear();
+      say("A clean page.");
+    } else if (b.dataset.explain !== undefined) explainCard({ title: "your own program", where: "studio", words: "algorithm, loop, variable, function", prompt: "Explain what your program does, part by part, and what you would change to improve it.", model: "A strong explanation states the goal, describes each part in order (for example: the loop repeats the move and turn eight times), and says why the result follows from the instructions." });
+  };
+}
+
+// ---- See it ----
+function seeIt() {
+  const my = token;
+  const mono = { "font-family": MONO, "font-weight": 700, "text-anchor": "start" };
+  const codeCard = (v, x, y, w, lines, size = 26) => {
+    const g = el("g", { transform: `translate(${x} ${y})` }, v);
+    el("rect", { width: w, height: lines.length * (size * 1.6) + 30, rx: 18, fill: "#fffdf8", stroke: "#e0cfb5", "stroke-width": 3 }, g);
+    const rows = lines.map((l, i) => {
+      text(g, 34, 15 + (i + 1) * size * 1.6 - size * 0.45, String(i + 1), { ...mono, "font-size": size * 0.8, fill: "#b9a68b", "text-anchor": "end" });
+      // Leading spaces matter in Python, so they become no-break spaces that SVG will not collapse.
+      return text(g, 50, 15 + (i + 1) * size * 1.6 - size * 0.45, l.replace(/^ +/, (m) => "\u00a0".repeat(m.length)), { ...mono, "font-size": size, fill: "#2b1d12" });
+    });
+    return { g, rows, h: lines.length * (size * 1.6) + 30 };
+  };
+  const consoleBox = (v, x, y, w, h) => {
+    const g = el("g", { transform: `translate(${x} ${y})` }, v);
+    el("rect", { width: w, height: h, rx: 18, fill: "#2a1f17" }, g);
+    text(g, 20, 34, "Output", { "font-size": 22, fill: "#bfae94", "text-anchor": "start" });
+    return g;
+  };
+  explain(
+    [
+      {
+        say: "Programming means writing precise instructions that a computer carries out. Python is one of the most widely used programming languages: scientists analyse data with it, and engineers use it to build websites, tools and games.",
+        draw: everyday([["🔬", "Science and data"], ["🌦️", "Weather forecasts"], ["🌐", "Websites"], ["🎮", "Games and tools"]]),
+      },
+      {
+        say: "A computer does exactly what you write, not what you meant. Python runs a program one line at a time, from top to bottom. Watch each line run and its output appear.",
+        async draw(v, api) {
+          const c = codeCard(v, 60, 140, 470, ['name = "Ada"', 'print("Hello,", name)', "print(2 + 3)"]);
+          const con = consoleBox(v, 580, 140, 360, 200);
+          const arrow = text(v, 40, 0, "▶", { "font-size": 30, fill: "var(--accent)" });
+          const outs = [null, "Hello, Ada", "5"];
+          let k = 0;
+          for (let i = 0; i < 3; i++) {
+            const y = 140 + 15 + (i + 1) * 26 * 1.6 - 26 * 0.45;
+            arrow.setAttribute("y", y);
+            c.rows[i].setAttribute("fill", "var(--accent-dark)");
+            MUSIC.play("xylophone", 72 + i * 4, { gain: 0.25 });
+            await api.wait(700);
+            if (outs[i]) {
+              const t = text(con, 20, 80 + k * 40, outs[i], { ...mono, "font-size": 28, fill: "#f6ecd9", opacity: 0 });
+              k += 1;
+              await api.tween(400, (p) => t.setAttribute("opacity", p));
+            }
+            c.rows[i].setAttribute("fill", "#2b1d12");
+            await api.wait(500);
+          }
+          arrow.setAttribute("opacity", 0);
+          text(v, 500, 440, "Line 1 stores a value; lines 2 and 3 print.", { "font-size": 28, fill: "#2b1d12" });
+          text(v, 500, 484, "Change one character and the result can change.", { "font-size": 24, fill: "#6b5a48" });
+        },
+      },
+      {
+        say: "Python was created by Guido van Rossum, a Dutch programmer, and first released in 1991. He named it after the British comedy series Monty Python's Flying Circus, not after the snake. Python 3, the version you will use, appeared in 2008.",
+        async draw(v, api) {
+          text(v, 500, 70, "A short history of Python", { "font-size": 34, fill: "#2b1d12" });
+          el("line", { x1: 100, x2: 900, y1: 300, y2: 300, stroke: "#c9b8a1", "stroke-width": 6, "stroke-linecap": "round" }, v);
+          const marks = [
+            [180, "1991", "First released", "by Guido van Rossum"],
+            [500, "2008", "Python 3", "the version used today"],
+            [820, "Today", "Among the most used", "languages in the world"],
+          ];
+          for (const [x, yr, a, b] of marks) {
+            const g = el("g", { opacity: 0 }, v);
+            el("circle", { cx: x, cy: 300, r: 16, fill: "var(--accent)", stroke: "#fff", "stroke-width": 4 }, g);
+            text(g, x, 260, yr, { "font-size": 34, fill: "var(--accent-dark)" });
+            text(g, x, 350, a, { "font-size": 24, fill: "#2b1d12" });
+            text(g, x, 382, b, { "font-size": 22, fill: "#6b5a48", "font-weight": 600 });
+            await api.tween(500, (t) => g.setAttribute("opacity", t));
+            await api.wait(700);
+          }
+          const tv = el("g", { opacity: 0 }, v);
+          emoji(tv, 330, 470, "📺", 56);
+          text(tv, 380, 482, "Named after Monty Python's Flying Circus (BBC, 1969–1974)", { "font-size": 23, fill: "#2b1d12", "text-anchor": "start" });
+          await api.tween(600, (t) => tv.setAttribute("opacity", t));
+        },
+      },
+      {
+        say: "A variable is a name that refers to a value, like a labelled box. In Python, the equals sign means assign, not equals: score = score + 2 takes the old value, adds 2, and stores the result under the same name.",
+        async draw(v, api) {
+          const c = codeCard(v, 60, 120, 420, ["score = 5", "score = score + 2", "print(score)"]);
+          const box = el("g", { transform: "translate(640 150)" }, v);
+          el("path", { d: "M0 40L60 0H240L180 40Z", fill: "#e8c99a" }, box);
+          el("rect", { x: 0, y: 40, width: 180, height: 170, fill: "#d9a96a", stroke: "#a87a43", "stroke-width": 3 }, box);
+          el("path", { d: "M180 40L240 0V170L180 210Z", fill: "#c4904f" }, box);
+          el("rect", { x: 20, y: 150, width: 140, height: 44, rx: 8, fill: "#fff" }, box);
+          text(box, 90, 181, "score", { ...mono, "font-size": 26, fill: "#2b1d12", "text-anchor": "middle" });
+          const val = text(box, 90, 120, "", { "font-size": 64, fill: "#2b1d12" });
+          const hi = (i) => c.rows.forEach((r, j) => r.setAttribute("fill", i === j ? "var(--accent-dark)" : "#2b1d12"));
+          hi(0);
+          await api.wait(600);
+          val.textContent = "5";
+          await api.tween(400, (t) => val.setAttribute("opacity", t));
+          await api.wait(900);
+          hi(1);
+          const calc = text(v, 270, 380, "5 + 2 = 7", { "font-size": 34, fill: "var(--accent-dark)", opacity: 0 });
+          await api.tween(500, (t) => calc.setAttribute("opacity", t));
+          await api.wait(700);
+          await api.tween(400, (t) => val.setAttribute("opacity", 1 - t));
+          val.textContent = "7";
+          await api.tween(400, (t) => val.setAttribute("opacity", t));
+          hi(2);
+          text(v, 500, 480, "The old value 5 is replaced by 7.", { "font-size": 26, fill: "#2b1d12" });
+        },
+      },
+      {
+        say: "A for loop repeats instructions. range(5) produces five values, 0, 1, 2, 3 and 4: it starts at 0 and stops before 5. Counting from zero is one of the first habits a programmer learns.",
+        async draw(v, api) {
+          codeCard(v, 60, 90, 420, ["for i in range(5):", "    print(i)"]);
+          const cells = [];
+          for (let i = 0; i < 6; i++) {
+            const g = el("g", { transform: `translate(${110 + i * 135} 300)` }, v);
+            el("rect", { width: 110, height: 110, rx: 18, fill: i === 5 ? "#f3ece1" : "#fff", stroke: i === 5 ? "#d8c8b0" : "var(--accent)", "stroke-width": 4, "stroke-dasharray": i === 5 ? "10 8" : undefined }, g);
+            text(g, 55, 74, String(i), { "font-size": 54, fill: i === 5 ? "#b9a68b" : "#2b1d12" });
+            cells.push(g);
+          }
+          const note5 = text(v, 110 + 5 * 135 + 55, 450, "not included", { "font-size": 22, fill: "#a2452f", opacity: 0 });
+          for (let i = 0; i < 5; i++) {
+            cells[i].querySelector("rect").setAttribute("fill", "var(--accent-soft)");
+            MUSIC.play("xylophone", 72 + i * 2, { gain: 0.25 });
+            await api.wait(550);
+          }
+          await api.tween(500, (t) => note5.setAttribute("opacity", t));
+          text(v, 420, 470, "five values: 0 to 4", { "font-size": 28, fill: "var(--accent-dark)" });
+        },
+      },
+      {
+        say: "Python can draw. The turtle moves forward and turns, leaving a line behind it. Four sides of 100 with a turn of 90 degrees after each make a square, because four turns of 90 degrees make one full turn, 360 degrees.",
+        async draw(v, api) {
+          codeCard(v, 40, 110, 430, ["import turtle", "", "for i in range(4):", "    turtle.forward(100)", "    turtle.left(90)"], 24);
+          const g = el("g", { transform: "translate(620 400)" }, v);
+          el("rect", { x: -60, y: -300, width: 360, height: 360, rx: 20, fill: "#fffdf8", stroke: "#eadfce", "stroke-width": 3 }, g);
+          const pts = [[0, 0], [220, 0], [220, -220], [0, -220], [0, 0]];
+          const tur = el("path", { d: "M18 0L-12 11L-5 0L-12 -11Z", fill: "var(--accent)" }, g);
+          let total = 0;
+          const turnLbl = text(v, 730, 520, "turned: 0°", { "font-size": 26, fill: "var(--accent-dark)" });
+          for (let i = 0; i < 4; i++) {
+            const [ax, ay] = pts[i];
+            const [bx, by] = pts[i + 1];
+            const ln = el("line", { x1: ax, y1: ay, x2: ax, y2: ay, stroke: "#2b1d12", "stroke-width": 6, "stroke-linecap": "round" }, g);
+            g.appendChild(tur);
+            const ang = -90 * i;
+            await api.tween(700, (t) => {
+              ln.setAttribute("x2", ax + (bx - ax) * t);
+              ln.setAttribute("y2", ay + (by - ay) * t);
+              tur.setAttribute("transform", `translate(${ax + (bx - ax) * t} ${ay + (by - ay) * t}) rotate(${ang})`);
+            });
+            await api.tween(400, (t) => tur.setAttribute("transform", `translate(${bx} ${by}) rotate(${ang - 90 * t})`));
+            total += 90;
+            turnLbl.textContent = `turned: ${total}°`;
+            MUSIC.play("woodblock", 72 + i * 3, { gain: 0.3 });
+          }
+        },
+      },
+      {
+        say: "Errors are information, not failure. An error message names the problem and the line. And a program that merely looks right is not proven right: programmers test it on several cases. Running the code is the evidence.",
+        async draw(v, api) {
+          codeCard(v, 60, 90, 420, ["score = 10", "print(scroe)"]);
+          const con = consoleBox(v, 540, 90, 410, 210);
+          const t1 = text(con, 20, 90, "NameError on line 2:", { ...mono, "font-size": 24, fill: "#ffb4a2", opacity: 0 });
+          const t2 = text(con, 20, 130, "name 'scroe' is", { ...mono, "font-size": 24, fill: "#ffb4a2", opacity: 0 });
+          const t3 = text(con, 20, 165, "not defined", { ...mono, "font-size": 24, fill: "#ffb4a2", opacity: 0 });
+          await api.wait(600);
+          for (const t of [t1, t2, t3]) await api.tween(300, (p) => t.setAttribute("opacity", p));
+          await api.wait(900);
+          const steps = [
+            ["1", "Read the message: which line?"],
+            ["2", "Form a hypothesis: a misspelt name."],
+            ["3", "Correct it and run again: the evidence."],
+          ];
+          for (let i = 0; i < 3; i++) {
+            const g = el("g", { opacity: 0 }, v);
+            el("circle", { cx: 120, cy: 360 + i * 56, r: 20, fill: "var(--accent)" }, g);
+            text(g, 120, 368 + i * 56, steps[i][0], { "font-size": 22, fill: "#fff" });
+            text(g, 156, 369 + i * 56, steps[i][1], { "font-size": 26, fill: "#2b1d12", "text-anchor": "start" });
+            await api.tween(400, (p) => g.setAttribute("opacity", p));
+            await api.wait(500);
+          }
+        },
+      },
+    ],
+    { alive: () => my === token, onDone: () => shell.go("p1"), title: "First Python", doneLabel: "Begin ▶" }
+  );
+}
+
+const UNITS = [
+  { id: "p0", label: "See it", icon: "👀" },
+  { id: "p1", label: "1. print & strings", icon: "💬" },
+  { id: "p2", label: "2. Variables & arithmetic", icon: "📦" },
+  { id: "p3", label: "3. Interactive programs", icon: "⌨️" },
+  { id: "p4", label: "4. for loops & range", icon: "🔁" },
+  { id: "p5", label: "5. if, elif & else", icon: "🔀" },
+  { id: "p6", label: "6. while loops", icon: "⏳" },
+  { id: "p7", label: "7. Lists & indexing", icon: "📋" },
+  { id: "p8", label: "8. Functions", icon: "🧩" },
+  { id: "p9", label: "9. Turtle drawing", icon: "🐢" },
+  { id: "p10", label: "10. Challenges", icon: "🏆" },
+  { id: "p11", label: "11. Free studio", icon: "🎨" },
+];
+const units = { p0: seeIt, p11: studioUnit };
+for (const u of UNITS) if (!units[u.id]) units[u.id] = () => lessonUnit(u.id);
+const RUN_STEP = "Press ▶ Run, and read the output; ⇥ inserts an indent.";
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    p0: { icon: "👀", title: "See it", steps: ["Watch each picture and listen.", "Press Next ▶ to continue.", "Press Begin when you are ready."] },
+    p1: { icon: "💬", title: "print & strings", steps: ["Read the task in the speech bubble.", "Edit the code on the left. " + RUN_STEP, "For a prediction, choose an answer before you run the code."] },
+    p2: { icon: "📦", title: "Variables & arithmetic", steps: ["A variable is a name for a value; = assigns.", "// is whole-number division and % is the remainder.", RUN_STEP] },
+    p3: { icon: "⌨️", title: "Interactive programs", steps: ["input() reads an answer; here the answers are preset.", "The preset inputs are listed above the output.", "I also test your program with other inputs."] },
+    p4: { icon: "🔁", title: "for loops & range", steps: ["The indented lines repeat once for each value.", "range(5) gives 0, 1, 2, 3, 4: it stops before 5.", RUN_STEP] },
+    p5: { icon: "🔀", title: "if, elif & else", steps: ["if runs its block only when the condition is True.", "Only the first true branch runs.", "I test your program with several values."] },
+    p6: { icon: "⏳", title: "while loops", steps: ["A while loop repeats as long as its condition is True.", "Something in the loop must make the condition False.", "A safety limit stops a loop that never ends."] },
+    p7: { icon: "📋", title: "Lists & indexing", steps: ["A list keeps values in order.", "Indices start at 0; −1 is the last item.", RUN_STEP] },
+    p8: { icon: "🧩", title: "Functions", steps: ["def defines a function; return sends back its answer.", "I test your function with several inputs.", "A failed test tells you exactly what went wrong."] },
+    p9: { icon: "🐢", title: "Turtle drawing", steps: ["forward moves; left and right turn by an angle.", "The drawing appears on the right (Output on a phone).", "I check that the figure has the right sides and closes."] },
+    p10: { icon: "🏆", title: "Challenges", steps: ["Predict, fix and write: from 🐣 to 🦁.", "💡 Hint helps after a real attempt.", "👀 Show me appears after two attempts."] },
+    p11: { icon: "🎨", title: "Free studio", steps: ["Write any program; it is kept on this device.", "✨ Example shows programs to study.", "Predict first, then run to test your prediction."] },
+  },
+  start: "p0",
+  onStop() {
+    token += 1;
+    if (PY.busy()) PY.stop();
+    ide?.stop();
+    ide = null;
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Tech",
+  activity: "First Python",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+window.__py = { PY, BANK, evaluate, judge, polyCheck, shapeInfo, sameOut, EXAMPLES };
+MUSIC.preload?.("xylophone", [72, 74, 76, 78, 80, 84]);
+MUSIC.preload?.("woodblock", [72, 75, 78, 81]);
+</script>
+</body>
+</html>

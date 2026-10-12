@@ -2,7 +2,7 @@
   const $ = (selector) => document.querySelector(selector);
   const strip = (label) => label.replace(/^\d+\.\s*/, "");
 
-  function shell({ units, start, onUnit, onStop, subject, activity, how = {} }) {
+  function shell({ units, start, onUnit, onStop, subject, activity, how = {}, unitWord = "Game" }) {
     const learner = () => (window.OC ? OC.current() : "") || "Learner";
     // Unit ids repeat across apps (c0, g1 ...), so progress outside Music is kept per activity.
     const scope = subject === "Music" ? "" : `${activity}:`;
@@ -28,7 +28,7 @@
     const render = () => {
       const unit = units.find((u) => u.id === current);
       const index = units.indexOf(unit);
-      if (pickButton) pickButton.innerHTML = `<span class="ap-pick-icon" aria-hidden="true">${iconOf(unit, index)}</span><span class="ap-pick-text"><small>Game ${index + 1} of ${units.length}</small><b>${strip(unit.label)}</b></span><span class="ap-pick-arrow" aria-hidden="true">▾</span>`;
+      if (pickButton) pickButton.innerHTML = `<span class="ap-pick-icon" aria-hidden="true">${iconOf(unit, index)}</span><span class="ap-pick-text"><small>${unitWord} ${index + 1} of ${units.length}</small><b>${strip(unit.label)}</b></span><span class="ap-pick-arrow" aria-hidden="true">▾</span>`;
       const done = progress();
       menu.innerHTML = `<div class="ap-menu-card"><div class="ap-menu-head"><h2>Choose a game</h2><button type="button" class="ap-menu-close" data-close aria-label="Close">✕</button></div><div class="ap-tiles">${units
         .map((u, i) => {
