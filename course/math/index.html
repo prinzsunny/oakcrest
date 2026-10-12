@@ -873,7 +873,333 @@ function digitSumCount() {
   return NQ("digitSumCount", { s }, `How many 3-digit numbers have a digit sum of ${s}?`, ans, "Organise by the hundreds digit and count the possibilities for the other two digits.", `Counting by hundreds digit: ${Array.from({ length: 9 }, (_, h) => h + 1).map((h) => [h, Array.from({ length: 100 }, (_, t) => t).filter((t) => h + Math.floor(t / 10) + (t % 10) === s).length]).filter((x) => x[1]).map((x) => `${x[0]}__: ${x[1]}`).join(", ")}. Total ${ans}.`);
 }
 
-const API = { R, P, f, nl, balance, column, dots, areaModel, rect, barModel, strips, clock, ruler, grid, flow, digitValue, fromExpanded, unitsIn, stepFrom, maxMin, regroupSum, mulPow, roundProduct, powZeros, expForm, baseVal, binOnes, digitSumBlocks, countList, pageDigits, multiplesBetween, noDigit, compareSym, orderNums, lessThanCount, missingCompare, roundTo, midpoint, nlArrow, intOp, intDistance, ratioPart, rateScale, ratioSimplify, fracOf, wholeFromPart, fracCompare, equivMissing, fracSimplify, fracOrder, fracArith, addN, subN, subZeros, missingAddend, decAdd, lastDigit, carries, series, termCount, magicMissing, missingDigitAdd, abba, compAdd, yearsBC, equalize, sumDiff, revDiff, mulN, distrib, nearRoundMul, diffSquares, nearSquare, expr, substitute, linEq, legs, timesAsMany, ageProb, backChain, halfPlus, outfits, chooseQ, arrange, paths, digitPerm, squaresInGrid, factorCount, primePick, gcdLcm, div9Missing, remainder, weekday, powLastDigit, mod9, crt, convert, mixedUnits, rectPA, sideFrom, rulerRead, triPar, lArea, boxVS, paintedCube, elapsed, clockRead, percentOf, rateQ, coinsQ, fewestCoins, coinWays, estSum, productDigits, sciNot, nineCheck, parityExpr, kthOdd, oddsInRange, oddSum, consecSq, sumCubes, switchFlips, eraseInvariant, digitSumCount };
+// ---------- harder generators for lessons 1–4 (multi-step, contest flavour) ----------
+const PN = ["ones", "tens", "hundreds", "thousands", "ten-thousands", "hundred-thousands", "millions", "ten-millions", "hundred-millions"];
+const dOf = (n) => String(n).split("").map(Number);
+const dSum = (n) => dOf(n).reduce((s, x) => s + x, 0);
+const permsOf = (a) => (a.length <= 1 ? [a] : a.flatMap((x, i) => permsOf(a.slice(0, i).concat(a.slice(i + 1))).map((p) => [x, ...p])));
+// k-digit number with digit `d` exactly at the listed places (place 0 = ones) and nowhere else
+function withDigitAt(len, d, places) {
+  let s = "";
+  for (let k = len - 1; k >= 0; k--) {
+    if (places.includes(k)) { s += d; continue; }
+    let x; do x = R(k === len - 1 ? 1 : 0, 9); while (x === d); s += x;
+  }
+  return +s;
+}
+function twoSameDigit() {
+  const len = R(6, 7), d = R(1, 9), [i, j] = SH([...Array(len).keys()]).slice(0, 2).sort((a, b) => b - a);
+  const n = withDigitAt(len, d, [i, j]), ans = d * 10 ** i - d * 10 ** j;
+  return NQ("twoSameDigit", { n, d }, `In ${f(n)}, how much greater is the value of the left ${d} than the value of the right ${d}?`, ans, `Name the place of each ${d} and write its value before subtracting.`, `The left ${d} is in the ${PN[i]} place, worth ${f(d * 10 ** i)}; the right ${d} is in the ${PN[j]} place, worth ${f(d * 10 ** j)}. ${f(d * 10 ** i)} − ${f(d * 10 ** j)} = ${f(ans)}.`);
+}
+function valueRatio() {
+  const d = R(1, 9), i = R(3, 6), j = R(0, i - 2), a = withDigitAt(R(i + 1, 7), d, [i]), b = withDigitAt(R(Math.max(j + 1, 3), 6), d, [j]), ans = 10 ** (i - j);
+  return NQ("valueRatio", { a, b, d }, `The value of the ${d} in ${f(a)} is how many times the value of the ${d} in ${f(b)}?`, ans, "Write both values in full, or count how many places apart the two digits stand.", `In ${f(a)} the ${d} is worth ${f(d * 10 ** i)} (${PN[i]}); in ${f(b)} it is worth ${f(d * 10 ** j)} (${PN[j]}). The places are ${i - j} apart and each place is worth 10 times the next, so the ratio is ${Array(i - j).fill(10).join(" × ")} = ${f(ans)}.`);
+}
+// clue puzzles about a 5-digit number; clues are data so the checker can test all 90,000 candidates
+const clueText = (c) => ({
+  rel: () => `the ${PN[c[1]]} digit is ${c[3]} times the ${PN[c[2]]} digit`,
+  plus: () => `the ${PN[c[1]]} digit is ${c[3]} more than the ${PN[c[2]]} digit`,
+  eq: () => `the ${PN[c[1]]} digit is ${c[2]}`,
+  sum: () => `the sum of my digits is ${c[1]}`,
+  par: () => `I am ${c[1] ? "odd" : "even"}`,
+  sumOf: () => `the ${PN[c[1]]} digit equals the ${PN[c[2]]} digit plus the ${PN[c[3]]} digit`,
+}[c[0]]());
+const clueOk = (c, D) => (c[0] === "rel" ? D[c[1]] === c[3] * D[c[2]] : c[0] === "plus" ? D[c[1]] === D[c[2]] + c[3] : c[0] === "eq" ? D[c[1]] === c[2] : c[0] === "sum" ? D.reduce((s, x) => s + x, 0) === c[1] : c[0] === "par" ? D[0] % 2 === c[1] : D[c[1]] === D[c[2]] + D[c[3]]);
+const placeDigits = (n) => dOf(n).reverse(); // index = place
+function digitClues() {
+  for (;;) {
+    const n = R(10000, 99999), D = placeDigits(n), cand = [];
+    for (let p = 0; p < 5; p++) for (let q = 0; q < 5; q++) if (p !== q) {
+      if (D[q] > 0 && D[p] % D[q] === 0 && D[p] / D[q] >= 2) cand.push(["rel", p, q, D[p] / D[q]]);
+      if (D[p] - D[q] >= 1 && Math.random() < 0.5) cand.push(["plus", p, q, D[p] - D[q]]);
+      for (let r = q + 1; r < 5; r++) if (r !== p && D[p] === D[q] + D[r] && D[q] && D[r]) cand.push(["sumOf", p, q, r]);
+    }
+    if (cand.length < 3) continue;
+    const pool = SH(cand).concat([["sum", dSum(n)], ["par", D[0] % 2]]);
+    const eqs = SH([0, 1, 2, 3, 4]).map((p) => ["eq", p, D[p]]);
+    const chosen = [];
+    let sols = null;
+    const solve = (cs) => { const out = []; for (let x = 10000; x <= 99999; x++) { const E = placeDigits(x); if (cs.every((c) => clueOk(c, E))) { out.push(x); if (out.length > 1) break; } } return out; };
+    for (const c of pool) { chosen.push(c); if (chosen.length >= 3) { sols = solve(chosen); if (sols.length === 1) break; } }
+    if (!sols || sols.length !== 1) { chosen.push(eqs[0]); sols = solve(chosen); }
+    if (sols.length !== 1 || chosen.length > 5 || chosen.length < 3 || chosen.filter((c) => c[0] === "eq").length > 1) continue;
+    const rows = chosen.map((c) => clueText(c));
+    const verify = chosen.map((c) => (c[0] === "sum" ? `${dOf(n).join(" + ")} = ${c[1]}` : c[0] === "par" ? `ones digit ${D[0]} is ${D[0] % 2 ? "odd" : "even"}` : c[0] === "eq" ? `${PN[c[1]]} = ${c[2]}` : c[0] === "rel" ? `${D[c[1]]} = ${c[3]} × ${D[c[2]]}` : c[0] === "plus" ? `${D[c[1]]} = ${D[c[2]]} + ${c[3]}` : `${D[c[1]]} = ${D[c[2]]} + ${D[c[3]]}`));
+    return NQ("digitClues", { clues: chosen }, `I am a 5-digit number. ${rows.map((r, i) => (i ? r : r[0].toUpperCase() + r.slice(1))).join("; ")}. What number am I?`, n, "Start with the clue that allows the fewest digit pairs, list those pairs, then test each against the other clues.", `List the digit pairs each relation allows, combine them place by place, and discard every case that breaks a clue; exactly one number survives: ${f(n)}. Check: ${verify.join("; ")}.`);
+  }
+}
+const PLN = ["ones", "tens", "hundreds", "thousands", "ten-thousands", "hundred-thousands"];
+function opsChain() {
+  for (;;) {
+    const n = rndNum(7, 0.3), ks = SH([1, 2, 3, 4, 5]).slice(0, 3), ops = ks.map((k, i) => [i === 1 ? -1 : 1, R(11, 48), k]);
+    let x = n; const steps = [];
+    for (const [s, c, k] of ops) { x += s * c * 10 ** k; steps.push(`${s > 0 ? "+" : "−"} ${f(c * 10 ** k)} → ${f(x)}`); }
+    if (x < 1e6 || x > 9999999) continue;
+    const verb = (s) => (s > 0 ? "add" : "subtract");
+    return NQ("opsChain", { n, ops }, `Start at ${f(n)}. ${ops.map(([s, c, k], i) => `${i ? (i === 2 ? "then " : "") : ""}${verb(s)} ${c} ${PLN[k]}`).join(", ").replace(/^./, (c) => c.toUpperCase())}. Where do you finish?`, x, `Convert each instruction to a number first: ${ops[0][1]} ${PLN[ops[0][2]]} is how much?`, `${ops.map(([, c, k]) => `${c} ${PLN[k]} = ${f(c * 10 ** k)}`).join("; ")}. Then ${f(n)} ${steps.join(" ")}.`);
+  }
+}
+function maxMinCond() {
+  for (;;) {
+    const ds = SH([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, 5), mode = P(["bigEven", "smallOdd", "bigOdd", "smallEven", "near"]);
+    const all = permsOf(ds).filter((p) => p[0]).map((p) => +p.join(""));
+    const desc = (a) => a.slice().sort((x, y) => y - x), asc = (a) => { const o = a.slice().sort((x, y) => x - y); if (o[0] === 0) { const i = o.findIndex((x) => x); [o[0], o[i]] = [o[i], o[0]]; } return o; };
+    if (mode === "near") {
+      const T = R(2, 8) * 10000 + P([0, 0, 5000]), below = Math.max(...all.filter((x) => x < T)), above = Math.min(...all.filter((x) => x > T));
+      if (!isFinite(below) || !isFinite(above) || T - below === above - T) continue;
+      const ans = T - below < above - T ? below : above;
+      return NQ("maxMinCond", { ds, mode, T }, `Using ${ds.join(", ")} once each, make the 5-digit number CLOSEST to ${f(T)}.`, ans, `Find the best number just below ${f(T)} and the best just above it, then compare the two gaps.`, `Just below: ${f(below)} (gap ${f(T - below)}). Just above: ${f(above)} (gap ${f(above - T)}). The smaller gap wins: ${f(ans)}.`);
+    }
+    const want = mode.includes("Even") ? 0 : 1, ends = ds.filter((d) => d % 2 === want), big = mode.startsWith("big");
+    const ok = all.filter((x) => x % 2 === want);
+    if (!ends.length || !ok.length) continue;
+    const ans = big ? Math.max(...ok) : Math.min(...ok);
+    const e = big ? Math.min(...ends) : Math.max(...ends), rest = ds.filter((d) => d !== e), rule = +(big ? desc(rest) : asc(rest)).join("") * 10 + e;
+    if (rule !== ans) continue; // the rule stated below must match the brute-force answer
+    const word = want ? "odd" : "even";
+    return NQ("maxMinCond", { ds, mode }, `Using ${ds.join(", ")} once each, what is the ${big ? "LARGEST" : "SMALLEST"} ${word.toUpperCase()} 5-digit number?`, ans, `An ${word === "odd" ? "odd" : "even"} number must end in an ${word} digit. Which ${word} digit should you sacrifice to the ones place?`, `The ones digit must be ${word}: ${ends.join(" or ")}. Put the ${big ? "smallest" : "largest"} of these, ${e}, last, so the ${big ? "larger" : "smaller"} digits stay in the valuable places, and arrange the rest in ${big ? "decreasing" : "increasing"} order${!big && rest.includes(0) ? " (never a leading zero)" : ""}: ${f(ans)}.`);
+  }
+}
+function diffMaxMin() {
+  const ds = SH([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, 4);
+  if (!ds.includes(0) && Math.random() < 0.6) ds[R(0, 3)] = 0;
+  if (new Set(ds).size < 4) return diffMaxMin();
+  const all = permsOf(ds).filter((p) => p[0]).map((p) => +p.join("")), hi = Math.max(...all), lo = Math.min(...all);
+  return NQ("diffMaxMin", { ds }, `Using ${ds.join(", ")} once each, find the difference between the largest and the smallest 4-digit numbers you can make.`, hi - lo, "Build the largest and the smallest separately. Which digit may not stand first?", `Largest: ${f(hi)} (digits in decreasing order). Smallest: ${f(lo)} (smallest non-zero digit first, then increasing). ${f(hi)} − ${f(lo)} = ${f(hi - lo)}.`);
+}
+const ONESW = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
+const TENSW = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+const w3 = (n) => { const h = Math.floor(n / 100), r = n % 100, o = []; if (h) o.push(ONESW[h] + " hundred"); if (r) o.push(r < 20 ? ONESW[r] : TENSW[Math.floor(r / 10)] + (r % 10 ? "-" + ONESW[r % 10] : "")); return o.join(" "); };
+const inWords = (n) => [[1e9, "billion"], [1e6, "million"], [1e3, "thousand"], [1, ""]].map(([u, nm]) => { const k = Math.floor(n / u) % 1000; return k ? w3(k) + (nm ? " " + nm : "") : ""; }).filter(Boolean).join(", ");
+function wordsZeros() {
+  const per = [R(1, 99), P([0, R(1, 999), R(1, 20)]), P([0, R(1, 999), R(10, 90)]), P([R(1, 9), R(10, 99), R(100, 999)])];
+  const n = per[0] * 1e9 + per[1] * 1e6 + per[2] * 1e3 + per[3], s = String(n), z = s.split("").filter((c) => c === "0").length;
+  const per3 = per.slice(1).map((p) => String(p).padStart(3, "0"));
+  return NQ("wordsZeros", { n, w: inWords(n) }, `Write "${inWords(n)}" as a numeral. How many zeros does it contain?`, z, "Write each period (billions, millions, thousands, ones) as exactly three digits, except the first.", `Period by period: ${per[0]} | ${per3.join(" | ")}, so the numeral is ${f(n)}. It contains ${PL(z, "zero")}.`);
+}
+function secondsDays() {
+  const day = Math.random() < 0.6, n = R(1, 9) * 10 ** R(day ? 6 : 5, 7), u = day ? 86400 : 3600, ans = Math.floor(n / u);
+  return NQ("secondsDays", { n, u }, `How many complete ${day ? "days" : "hours"} are there in ${f(n)} seconds?`, ans, day ? "How many seconds are in one day? Build it: 60 × 60 × 24." : "How many seconds are in one hour?", `One ${day ? "day" : "hour"} is ${day ? "60 × 60 × 24 = 86,400" : "60 × 60 = 3,600"} seconds. ${f(n)} ÷ ${f(u)} = ${f(ans)} remainder ${f(n % u)}, so ${f(ans)} complete ${day ? "days" : "hours"}.`);
+}
+function incDigits() {
+  const k = R(2, 5), up = Math.random() < 0.5;
+  const C = (n, r) => (r === 0 ? 1 : (C(n - 1, r - 1) * n) / r), ans = up ? C(9, k) : C(10, k);
+  return NQ("incDigits", { k, up }, `How many ${k}-digit numbers have digits that strictly ${up ? "increase" : "decrease"} from left to right? (${up ? "Such as " + "13579".slice(0, k) : "Such as " + "97530".slice(0, k)}.)`, ans, up ? "Once you choose which digits to use, how many ways are there to arrange them in increasing order? Can 0 be used?" : "Once you choose the digits, the order is forced. Can 0 be one of them here?", up ? `Any set of ${k} different digits from 1–9 can be written in increasing order in exactly one way, and 0 can never appear (it would have to come first). So count the sets: choose ${k} of 9 digits = ${ans}.` : `Any set of ${k} different digits from 0–9 can be written in decreasing order in exactly one way, and 0 can only come last, which is allowed. So count the sets: choose ${k} of 10 digits = ${ans}.`);
+}
+function digitTally(lo = 100, hi = 999) {
+  const N = R(lo, hi), d = R(0, 9);
+  let ans = 0; for (let x = 1; x <= N; x++) for (const c of String(x)) if (+c === d) ans++;
+  const by = [0, 0, 0]; for (let x = 1; x <= N; x++) { const s = String(x); for (let p = 0; p < s.length; p++) if (+s[s.length - 1 - p] === d) by[p]++; }
+  return NQ("digitTally", { N, d }, `You write every whole number from 1 to ${f(N)}. How many times do you write the digit ${d}?`, ans, "Count place by place: how many times does the digit appear in the ones place? In the tens place? In the hundreds place?", `Ones place: ${by[0]}. Tens place: ${by[1]}. Hundreds place: ${by[2]}${d === 0 ? " (a leading zero is never written)" : ""}. Total ${ans}.`);
+}
+// ----- powers of ten -----
+function bigRegroup() {
+  const a = R(1, 9), b = R(11, 39), c = R(11, 69), d = R(11, 140), tot = a * 1000 + b * 100 + c * 10 + d, ask = P(["n", "n", "tens", "hundreds"]);
+  const ans = ask === "n" ? tot : ask === "tens" ? Math.floor(tot / 10) : Math.floor(tot / 100);
+  return NQ("bigRegroup", { a, b, c, d, ask }, `${ask === "n" ? "What number is" : `How many whole ${ask} are in`} ${a} thousand${a > 1 ? "s" : ""} + ${b} hundreds + ${c} tens + ${d} ones?`, ans, "Convert each part to ones, add, then regroup.", `${f(a * 1000)} + ${f(b * 100)} + ${f(c * 10)} + ${d} = ${f(tot)}${ask === "n" ? "." : `, which contains ${f(ans)} whole ${ask} (cover the last ${ask === "tens" ? "digit" : "two digits"}).`}`);
+}
+function bigDivide() {
+  const b = P([2, 3, 4, 5, 6, 8, 12, 15, 16, 25]), q = R(2, 9) * P([1, 10, 100]), j = R(1, 3), extra = R(1, 3), divisor = b * 10 ** j, dividend = b * q * 10 ** (j + extra), ans = q * 10 ** extra;
+  if (ans > 9999999 || dividend > 9e10) return bigDivide();
+  return NQ("bigDivide", { dividend, divisor }, `Compute ${f(dividend)} ÷ ${f(divisor)}.`, ans, `Cancel the same number of zeros from both numbers first.`, `Remove ${j} zero${j > 1 ? "s" : ""} from each: ${f(dividend / 10 ** j)} ÷ ${b} = ${f(ans)}.`);
+}
+const tz = (bn) => { let k = 0; while (bn % 10n === 0n && bn > 0n) { bn /= 10n; k++; } return k; };
+const twoFive = (n) => { let a = 0, b = 0; while (n % 2 === 0) { n /= 2; a++; } while (n % 5 === 0) { n /= 5; b++; } return [a, b]; };
+function trailingZeros() {
+  const pool = [4, 8, 16, 25, 40, 50, 75, 125, 12, 35, 15, 20, 32, 625, 250, 24, 45];
+  const ns = SH(pool).slice(0, R(3, 4)), prod = ns.reduce((p, x) => p * BigInt(x), 1n), ans = tz(prod);
+  const tw = ns.map(twoFive), t2 = tw.reduce((s, x) => s + x[0], 0), t5 = tw.reduce((s, x) => s + x[1], 0);
+  return NQ("trailingZeros", { ns }, `How many zeros are at the end of ${ns.join(" × ")}?`, ans, "Each final zero needs one factor 2 paired with one factor 5. Count the 2s and the 5s.", `Factors of 2: ${tw.map((x) => x[0]).join(" + ")} = ${t2}. Factors of 5: ${tw.map((x) => x[1]).join(" + ")} = ${t5}. Each 10 uses one of each, so there are ${Math.min(t2, t5)} tens: ${PL(ans, "zero")}.`);
+}
+function powDigits(hard = false) {
+  const m = hard ? R(8, 30) : R(3, 12), e = hard ? R(1, 12) : R(1, 6), twoBig = Math.random() < 0.5, a = twoBig ? m + e : m, b = twoBig ? m : m + e;
+  const left = twoBig ? 2n ** BigInt(e) : 5n ** BigInt(e), ans = (2n ** BigInt(a) * 5n ** BigInt(b)).toString().length;
+  return NQ("powDigits", { a, b }, `How many digits does 2${SUP(a)} × 5${SUP(b)} have?`, ans, "Pair each 2 with a 5 to make a ten. What is left over?", `2${SUP(a)} × 5${SUP(b)} = (2 × 5)${SUP(m)} × ${twoBig ? 2 : 5}${SUP(e)} = 10${SUP(m)} × ${left}. ${left} has ${String(left).length} digit${String(left).length > 1 ? "s" : ""}, followed by ${m} zeros: ${String(left).length} + ${m} = ${ans} digits.`);
+}
+function expArith() {
+  const a = R(2, 9), b = R(2, 9), c = R(1, a + b - 1), form = R(0, 2);
+  if (form === 0) return NQ("expArith", { form, a, b, c }, `10${SUP(a)} × 10${SUP(b)} ÷ 10${SUP(c)} = 10 to what power?`, a + b - c, "Multiplying adds factors of 10; dividing removes them.", `${a} + ${b} factors of 10, minus ${c}: ${a} + ${b} − ${c} = ${a + b - c}.`);
+  if (form === 1) { const z = R(2, 4); return NQ("expArith", { form, a, z }, `10${SUP(a)} × ${f(10 ** z)} ÷ 10 = 10 to what power?`, a + z - 1, `Write ${f(10 ** z)} as a power of ten first.`, `${f(10 ** z)} = 10${SUP(z)}, so the exponent is ${a} + ${z} − 1 = ${a + z - 1}.`); }
+  const k = R(2, 4), m = R(2, 4); return NQ("expArith", { form, k, m }, `(10${SUP(k)})${SUP(m)} = 10 to what power?`, k * m, `(10${SUP(k)})${SUP(m)} means ${m} copies of 10${SUP(k)} multiplied together.`, `${m} groups of ${k} factors of 10: ${m} × ${k} = ${k * m}.`);
+}
+function billsCount() {
+  const b = P([20, 50, 100]), A = R(1, 9) * 10 ** R(4, 7) * (b === 20 ? P([1, 2]) : 1), ans = A / b;
+  if (!Number.isInteger(ans) || ans > 9999999) return billsCount();
+  return NQ("billsCount", { A, b }, `How many $${b} bills make $${f(A)}?`, ans, b === 100 ? "Dividing by 100 removes two zeros." : `Divide by 10 first, then by ${b / 10}.`, `$${f(A)} ÷ ${b} = ${f(A / 10)} ÷ ${b / 10} = ${f(ans)} bills.`);
+}
+function smallestMultiplier() {
+  const i = R(0, 4), j = R(0, 4), m = P([1, 3, 7, 9, 11]), A = 2 ** i * 5 ** j * m, k = R(Math.max(2, Math.min(i, j) + 1), 4);
+  if (A < 6) return smallestMultiplier();
+  const ans = 2 ** Math.max(0, k - i) * 5 ** Math.max(0, k - j);
+  return NQ("smallestMultiplier", { A, k }, `What is the smallest whole number n for which ${f(A)} × n is a multiple of ${f(10 ** k)}?`, ans, `${f(10 ** k)} = 2${SUP(k)} × 5${SUP(k)}. How many 2s and 5s does ${A} already have?`, `${A} = ${[i ? `2${i > 1 ? SUP(i) : ""}` : "", j ? `5${j > 1 ? SUP(j) : ""}` : "", m > 1 ? String(m) : ""].filter(Boolean).join(" × ")}. A multiple of ${f(10 ** k)} needs ${k} twos and ${k} fives, so n must supply ${[k > i ? `${PL(k - i, "more factor")} of 2` : "", k > j ? `${PL(k - j, "more factor")} of 5` : ""].filter(Boolean).join(" and ")}: n = ${ans}.`);
+}
+const POWS = []; for (let b = 2; b <= 9; b++) for (let e = 2; e <= 12; e++) if (b ** e <= 2e7 && b ** e >= 30) POWS.push([b, e]);
+function powCompare() {
+  for (;;) {
+    const ps = SH(POWS).slice(0, 4), vals = ps.map(([b, e]) => b ** e);
+    if (new Set(vals).size < 4) continue;
+    const sorted = vals.slice().sort((x, y) => x - y); if (sorted[3] > 4 * sorted[0]) continue; // keep them close
+    const big = Math.random() < 0.5, want = big ? Math.max(...vals) : Math.min(...vals), lab = ([b, e]) => `${b}${SUP(e)}`;
+    return { fam: "powCompare", v: { ps, big }, q: `Which is ${big ? "GREATEST" : "LEAST"}?`, options: ps.map(lab), answer: lab(ps[vals.indexOf(want)]), hint: "Evaluate each power by repeated multiplication, or compare them through a common base.", why: `${ps.map((p, i) => `${lab(p)} = ${f(vals[i])}`).join("; ")}. The ${big ? "greatest" : "least"} is ${lab(ps[vals.indexOf(want)])}.` };
+  }
+}
+function factZeros() {
+  const n = R(10, 130), ans = Math.floor(n / 5) + Math.floor(n / 25) + Math.floor(n / 125);
+  return NQ("factZeros", { n }, `The number 1 × 2 × 3 × … × ${n} is written out in full. How many zeros are at its end?`, ans, "Each end zero needs a 2 and a 5. Which factor is scarcer? Do not forget numbers like 25 that hold two 5s.", `Factors of 2 are plentiful, so count the 5s. Multiples of 5: ${Math.floor(n / 5)}. Multiples of 25 give a second 5: ${Math.floor(n / 25)}.${n >= 125 ? ` 125 gives a third: 1.` : ""} Total ${ans} zeros.`);
+}
+function digitSumPow() {
+  const n = R(6, 40), m = R(2, 999), big = 10n ** BigInt(n) - BigInt(m), s = big.toString(), ans = s.split("").reduce((a, c) => a + +c, 0);
+  const k = String(m).length, tail = s.slice(-k), nines = s.length - k;
+  return NQ("digitSumPow", { n, m }, `What is the sum of the digits of 10${SUP(n)} − ${m}?`, ans, `Try a small case first: 10³ − ${m < 100 ? m : 25} = ? What do the digits look like?`, `10${SUP(n)} − ${m} is written as ${nines} nines followed by ${tail} (the last ${k} digits are 10${SUP(k)} − ${m} = ${+tail}, written as ${tail}). Digit sum: 9 × ${nines} + ${tail.split("").join(" + ")} = ${ans}.`);
+}
+// ----- other bases -----
+const BN = { 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight", 9: "nine" };
+function toBase() {
+  const b = P([2, 3, 4, 5, 5, 8]), n = b === 2 ? R(20, 120) : b === 8 ? R(70, 500) : R(b * b + 1, b * b * b * (b === 3 ? 3 : 1) - 1), s = n.toString(b);
+  const places = []; for (let i = s.length - 1; i >= 0; i--) places.push(b ** i);
+  return NQ("toBase", { n, b }, `Write ${n} in base ${BN[b]}. (Type the base-${BN[b]} digits.)`, +s, `The places in base ${BN[b]} are ${places.join(", ")}. How many of the largest place fit into ${n}?`, `${n} = ${s.split("").map((c, i) => `${c} × ${places[i]}`).join(" + ")}, so ${n} is ${s} in base ${BN[b]}.`);
+}
+function fromBase() {
+  const b = P([3, 4, 6, 7, 8]), len = R(3, 4); let s = String(R(1, b - 1)); for (let i = 1; i < len; i++) s += R(0, b - 1);
+  const places = []; for (let i = len - 1; i >= 0; i--) places.push(b ** i); const ans = s.split("").reduce((t, c) => t * b + +c, 0);
+  return NQ("fromBase", { s, b }, `What is ${s} (base ${BN[b]}) in base ten?`, ans, `The places are worth ${places.join(", ")}.`, `${s.split("").map((c, i) => `${c} × ${places[i]}`).join(" + ")} = ${f(ans)}.`);
+}
+function baseAdd() {
+  const b = P([4, 5, 5, 6]), x = R(b * b, b ** 3 - 1), y = R(b, b ** 3 - 1), s = (x + y).toString(b);
+  return NQ("baseAdd", { x: x.toString(b), y: y.toString(b), b }, `Add in base ${BN[b]}: ${x.toString(b)} + ${y.toString(b)}. Give the answer in base ${BN[b]}.`, +s, `Add column by column. In base ${BN[b]}, ${b} in any column regroups into 1 in the next column.`, `In base ten the numbers are ${x} and ${y}; their sum is ${x + y}, which is ${s} in base ${BN[b]}. (Column by column: whenever a column reaches ${b} or more, carry 1 and keep the excess.)`);
+}
+function findBase() {
+  for (;;) {
+    const b = R(3, 9), len = R(2, 3); let s = String(R(1, b - 1)); for (let i = 1; i < len; i++) s += R(0, b - 1);
+    const val = s.split("").reduce((t, c) => t * b + +c, 0), maxd = Math.max(...s.split("").map(Number));
+    if (val < 10 || +s === val) continue;
+    const places = []; for (let i = len - 1; i >= 0; i--) places.push(`${b}${i > 1 ? SUP(i) : ""}`.replace(/^(\d+)$/, (m) => (i === 0 ? "1" : m)));
+    return NQ("findBase", { s, val }, `In some base, the numeral ${s} stands for ${val}. What is the base?`, b, `Call the base b. Write ${s} as an expression in b and test b = ${maxd + 1}, ${maxd + 2}, …. Why can the base not be ${maxd} or less?`, `The digit ${maxd} appears, so the base is at least ${maxd + 1}. A bigger base gives a bigger value, so only one base works: in base ${b}, ${s} = ${s.split("").map((c, i) => `${c} × ${b ** (len - 1 - i)}`).join(" + ")} = ${val}.`);
+  }
+}
+function sexagesimal() {
+  const mode = R(0, 2);
+  if (mode === 0) { const a = R(1, 9), b = R(1, 59), c = R(0, 59), ans = a * 3600 + b * 60 + c; return NQ("sexagesimal", { mode, a, b, c }, `A Babylonian scribe writes a number in base sixty with the place digits ${a} | ${b} | ${c}. What is it in base ten?`, ans, "In base sixty the places are 1, 60 and 60 × 60.", `${a} × 3,600 + ${b} × 60 + ${c} = ${f(a * 3600)} + ${f(b * 60)} + ${c} = ${f(ans)}.`); }
+  if (mode === 1) { const h = R(1, 5), m = R(10, 59), s = R(10, 59), h2 = R(1, 4), m2 = R(10, 59), s2 = R(10, 59), ans = (h + h2) * 3600 + (m + m2) * 60 + s + s2; return NQ("sexagesimal", { mode, h, m, s, h2, m2, s2 }, `${h} h ${m} min ${s} s + ${h2} h ${m2} min ${s2} s. How many seconds is that altogether?`, ans, "Convert each time to seconds (1 h = 3,600 s, 1 min = 60 s), or add like units and regroup.", `${h + h2} h = ${f((h + h2) * 3600)} s, ${m + m2} min = ${f((m + m2) * 60)} s, plus ${s + s2} s: ${f(ans)} s.`); }
+  const t = R(4000, 30000), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60, ask = P(["min", "s"]);
+  return NQ("sexagesimal", { mode, t, ask }, `${f(t)} seconds = h hours, m minutes and s seconds (with m and s below 60). What is ${ask === "min" ? "m" : "s"}?`, ask === "min" ? m : s, "Take out whole hours (3,600 s each) first, then whole minutes.", `${f(t)} = ${h} × 3,600 + ${f(t - h * 3600)}; ${f(t - h * 3600)} = ${m} × 60 + ${s}. So ${h} h ${m} min ${s} s, and ${ask === "min" ? "m" : "s"} = ${ask === "min" ? m : s}.`);
+}
+function blocksExchanges() {
+  for (;;) {
+    const n = R(120, 999), ds = dSum(n), e = R(1, 12), K = ds + 9 * e;
+    if (K > n) continue;
+    return NQ("blocksExchanges", { n, K }, `${n} is built with exactly ${K} blocks (hundreds, tens and ones). Starting from the fewest-block build, how many times was one block exchanged for ten smaller ones?`, e, "What is the fewest number of blocks? How many blocks does one exchange add?", `Fewest blocks: ${dOf(n).join(" + ")} = ${ds}. Each exchange removes 1 block and adds 10, a gain of 9. (${K} − ${ds}) ÷ 9 = ${e} exchanges.`);
+  }
+}
+function blocksWays() {
+  for (;;) {
+    const n = R(150, 600), K = dSum(n) + 9 * R(1, 3);
+    const ways = []; for (let h = 0; h * 100 <= n; h++) for (let t = 0; h * 100 + t * 10 <= n; t++) { const o = n - 100 * h - 10 * t; if (h + t + o === K) ways.push(`${h}h ${t}t ${o}o`); }
+    if (ways.length < 2) continue;
+    return NQ("blocksWays", { n, K }, `In how many different ways can you build ${n} using EXACTLY ${K} blocks (hundreds, tens and ones)?`, ways.length, `The fewest is ${dSum(n)}; each exchange adds 9. How many exchanges are needed, and in how many ways can they be split between breaking hundreds and breaking tens?`, `${K} − ${dSum(n)} = ${K - dSum(n)} = 9 × ${(K - dSum(n)) / 9}, so ${(K - dSum(n)) / 9} exchanges. The possible builds are ${ways.join(", ")}: ${ways.length} ways.`);
+  }
+}
+function baseCount() {
+  const b = P([2, 3, 4, 5, 6, 8]), k = R(2, b === 2 ? 6 : 4), ans = (b - 1) * b ** (k - 1);
+  return NQ("baseCount", { b, k }, `How many ${k}-digit numerals are there in base ${BN[b]}? (A numeral does not begin with 0.)`, ans, "How many choices for the first digit (it cannot be 0)? For each other digit?", `First digit: ${b - 1} choices (1 to ${b - 1}). ${k - 1 === 1 ? "The second digit" : `Each of the other ${k - 1} digits`}: ${b} choices. ${b - 1} × ${Array(k - 1).fill(b).join(" × ")} = ${f(ans)}.`);
+}
+function binCount() {
+  const N = R(30, 250), k = R(2, 4), ans = Array.from({ length: N }, (_, i) => i + 1).filter((x) => x.toString(2).split("").filter((c) => c === "1").length === k).length;
+  const m = Math.floor(Math.log2(N)) + 1;
+  return NQ("binCount", { N, k }, `How many whole numbers from 1 to ${N} have exactly ${k} ones when written in base two?`, ans, `Every number below ${2 ** (m - 1)} uses at most ${m - 1} binary places: choose which ${k} places hold a 1. Then handle ${2 ** (m - 1)} to ${N} separately.`, `Below ${2 ** (m - 1)}: choose ${k} of ${m - 1} places = ${Array.from({ length: 2 ** (m - 1) - 1 }, (_, i) => i + 1).filter((x) => x.toString(2).split("").filter((c) => c === "1").length === k).length}. From ${2 ** (m - 1)} to ${N} (leading 1 fixed, the remaining places need ${k - 1} more ones and must stay ≤ ${N}): ${ans - Array.from({ length: 2 ** (m - 1) - 1 }, (_, i) => i + 1).filter((x) => x.toString(2).split("").filter((c) => c === "1").length === k).length}. Total ${ans}.`);
+}
+function smallestDigitSum() {
+  const S = R(20, 50), k = Math.ceil(S / 9), lead = S - 9 * (k - 1), ans = +(String(lead) + "9".repeat(k - 1));
+  return NQ("smallestDigitSum", { S }, `What is the smallest whole number whose digits add up to ${S}?`, ans, "First make the number of digits as small as possible. Then make the leading digit as small as possible.", `Each digit is at most 9, so ${k - 1} digits give at most ${9 * (k - 1)} < ${S}: at least ${k} digits are needed. With ${k} digits, keep the leading digit smallest by making every other digit 9: ${S} − ${9 * (k - 1)} = ${lead}. Answer ${f(ans)}.`);
+}
+// ----- counting with digits -----
+function countListHard() {
+  const s = R(3, 12), a = R(2, 90), n = R(30, 400), b = a + s * (n - 1), mode = P(["list", "list", "between"]);
+  if (mode === "between") { const lo = R(100, 900), hi = lo + R(150, 2500), m = R(3, 13), first = Math.ceil((lo + 1) / m) * m, last = Math.floor((hi - 1) / m) * m, ans = (last - first) / m + 1;
+    return NQ("countListHard", { mode, lo, hi, m }, `How many multiples of ${m} lie strictly between ${f(lo)} and ${f(hi)}?`, ans, "Find the first and the last multiple inside the range, then count the steps between them.", `First: ${f(first)} = ${m} × ${first / m}. Last: ${f(last)} = ${m} × ${last / m}. Count: ${last / m} − ${first / m} + 1 = ${ans}.`); }
+  return NQ("countListHard", { mode, a, s, b }, `How many numbers are in the list ${a}, ${a + s}, ${a + 2 * s}, …, ${f(b)}?`, n, "Last − first, divided by the step, gives the number of gaps. How many numbers is that?", `(${f(b)} − ${a}) ÷ ${s} = ${n - 1} gaps, and a list has one more number than gaps: ${n}.`);
+}
+const digitsUpTo = (N) => { let d = 0; for (let p = 1; p <= N; p++) d += String(p).length; return d; };
+function pagesFromDigits(big = false) {
+  const N = big ? R(1000, 3000) : R(100, 999), D = digitsUpTo(N);
+  const parts = big ? `Pages 1–9 use 9 digits, 10–99 use 180 and 100–999 use 2,700: 2,889 in all. The remaining ${f(D - 2889)} digits are ${f((D - 2889) / 4)} four-digit pages, from 1,000 to ${f(N)}.` : `Pages 1–99 use 9 + 180 = 189 digits. The remaining ${f(D - 189)} digits are ${f((D - 189) / 3)} three-digit pages, from 100 to ${N}.`;
+  return NQ("pagesFromDigits", { D }, `A printer numbers the pages of a book starting at 1 and uses exactly ${f(D)} digits. How many pages does the book have?`, N, big ? "How many digits do pages 1–999 use altogether?" : "How many digits do pages 1–99 use?", parts);
+}
+function pageDigitsRange() {
+  const A = R(20, 99), B = R(150, 999), ans = digitsUpTo(B) - digitsUpTo(A - 1);
+  return NQ("pageDigitsRange", { A, B }, `A chapter runs from page ${A} to page ${B}, inclusive. How many digits are printed in its page numbers?`, ans, "Split the pages into 2-digit and 3-digit page numbers, and count each group carefully (last − first + 1).", `Pages ${A}–99: ${100 - A} pages × 2 = ${2 * (100 - A)} digits. Pages 100–${B}: ${B - 99} pages × 3 = ${3 * (B - 99)} digits. Total ${f(ans)}.`);
+}
+function noDigitsCount() {
+  const mode = P(["neither", "exactlyOne", "atLeast2"]), [d1, d2] = SH([1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, 2), z = Math.random() < 0.3 ? 0 : d2;
+  if (mode === "neither") { const cnt = count3((x) => !x.includes(String(d1)) && !x.includes(String(z)));
+    return NQ("noDigitsCount", { mode, d1, d2: z }, `How many 3-digit numbers contain neither the digit ${d1} nor the digit ${z}?`, cnt, "Count the choices for each place separately. Which place cannot be 0?", z === 0 ? `Hundreds: 8 choices (not 0 or ${d1}). Tens and ones: 8 choices each (not ${d1} or 0). 8 × 8 × 8 = ${cnt}.` : `Hundreds: 7 choices (not 0, ${d1} or ${z}). Tens and ones: 8 choices each (not ${d1} or ${z}). 7 × 8 × 8 = ${cnt}.`); }
+  if (mode === "exactlyOne") { const cnt = count3((x) => x.split("").filter((c) => c === String(d1)).length === 1);
+    return NQ("noDigitsCount", { mode, d1 }, `How many 3-digit numbers contain the digit ${d1} exactly once?`, cnt, "Split by the place where the digit stands, and count the choices for the other two places.", `${d1} in the hundreds place: 9 × 9 = 81 (tens and ones avoid ${d1}). ${d1} in the tens place: 8 × 9 = 72 (hundreds avoids 0 and ${d1}). ${d1} in the ones place: 8 × 9 = 72. Total 81 + 72 + 72 = ${cnt}.`); }
+  const cnt = count3((x) => new Set(x).size < 3);
+  return NQ("noDigitsCount", { mode }, "How many 3-digit numbers have at least two equal digits (such as 404 or 774)?", cnt, "Count the numbers whose three digits are all different, then use complementary counting.", `All different: 9 × 9 × 8 = 648 (hundreds not 0; tens any of the other 9; ones any of the remaining 8). 900 − 648 = ${cnt}.`);
+}
+const count3 = (pred) => { let k = 0; for (let x = 100; x <= 999; x++) if (pred(String(x))) k++; return k; };
+function twoNumbers() {
+  for (;;) {
+    const ds = SH([1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, 4), mode = P(["sumMax", "sumMin", "prodMax", "prodMin", "diffMin"]);
+    const vals = permsOf(ds).map((p) => [10 * p[0] + p[1], 10 * p[2] + p[3]]);
+    const score = (a, b) => (mode.startsWith("sum") ? a + b : mode.startsWith("prod") ? a * b : Math.abs(a - b));
+    const scores = vals.map(([a, b]) => score(a, b)), best = mode.endsWith("Max") ? Math.max(...scores) : Math.min(...scores);
+    const [w, x, y, z] = [...ds].sort((a, b) => b - a); // w > x > y > z
+    // the arrangement each stated rule produces; it must agree with the brute-force best
+    const rule = { sumMax: [10 * w + y, 10 * x + z], sumMin: [10 * z + x, 10 * y + w], prodMax: [10 * w + z, 10 * x + y], prodMin: [10 * z + x, 10 * y + w], diffMin: null }[mode];
+    let why;
+    if (rule) {
+      if (score(...rule) !== best) continue;
+      why = { sumMax: `In a sum only the choice of tens digits matters: put the two largest digits, ${w} and ${x}, in the tens places. ${rule[0]} + ${rule[1]} = ${best}.`,
+        sumMin: `Put the two smallest digits, ${z} and ${y}, in the tens places. ${rule[0]} + ${rule[1]} = ${best}.`,
+        prodMax: `The two largest digits, ${w} and ${x}, lead. Swapping the ones digits changes the product by 10 × (difference of tens digits) × (difference of ones digits), so the larger ones digit, ${y}, belongs with the SMALLER tens digit ${x}. ${rule[0]} × ${rule[1]} = ${f(best)}.`,
+        prodMin: `The two smallest digits, ${z} and ${y}, lead. By the same swapping argument, the larger ones digit, ${w}, belongs with the LARGER tens digit ${y}. ${rule[0]} × ${rule[1]} = ${f(best)}.`,
+      }[mode];
+    } else {
+      const pair = vals[scores.indexOf(best)], hi = Math.max(...pair), lo = Math.min(...pair);
+      why = `The difference is 10 × (gap between the tens digits) − (gap between the ones digits), and the ones gap is at most 8, so a smaller tens gap always wins: choose two tens digits as close in value as possible. If several pairs are equally close, prefer the one that leaves the ones digits furthest apart. Then give the larger number the smaller ones digit: ${hi} − ${lo} = ${best}.`;
+    }
+    const word = { sumMax: "largest possible SUM", sumMin: "smallest possible SUM", prodMax: "largest possible PRODUCT", prodMin: "smallest possible PRODUCT", diffMin: "smallest possible DIFFERENCE" }[mode];
+    return NQ("twoNumbers", { ds, mode }, `Use each of ${ds.join(", ")} exactly once to make two 2-digit numbers with the ${word}. What is that ${word.split(" ").pop().toLowerCase()}?`, best, "Which places matter most? Decide the tens digits first, then compare the few remaining arrangements.", why);
+  }
+}
+function palCount() {
+  const lo = R(100, 2500), hi = Math.min(9999, lo + R(200, 3000));
+  const isPal = (x) => { const s = String(x); return s === s.split("").reverse().join(""); };
+  const segs = [];
+  for (const L of [3, 4]) {
+    const ps = []; for (let x = Math.max(lo, 10 ** (L - 1)); x <= Math.min(hi, 10 ** L - 1); x++) if (isPal(x)) ps.push(x);
+    if (ps.length) { const cut = L === 3 ? 10 : 100, h1 = Math.floor(ps[0] / cut), h2 = Math.floor(ps.at(-1) / cut); segs.push({ L, a: ps[0], b: ps.at(-1), h1, h2, n: ps.length }); }
+  }
+  const ans = segs.reduce((s, g) => s + g.n, 0);
+  if (!ans) return palCount();
+  return NQ("palCount", { lo, hi }, `A palindrome reads the same forwards and backwards (such as 383 or 2,112). How many palindromes are there from ${f(lo)} to ${f(hi)}, inclusive?`, ans, "A 3- or 4-digit palindrome is fixed by its first two digits. Find the first and last palindromes in the range and count the first halves between them.", segs.map((g) => `${g.L}-digit palindromes run from ${f(g.a)} (first half ${g.h1}) to ${f(g.b)} (first half ${g.h2}): ${g.h2} − ${g.h1} + 1 = ${g.n}.`).join(" ") + (segs.length > 1 ? ` Total ${ans}.` : ""));
+}
+function allDigitsFrom() {
+  const set = P([["odd", [1, 3, 5, 7, 9]], ["even", [0, 2, 4, 6, 8]], ["prime", [2, 3, 5, 7]], ["at most 3", [0, 1, 2, 3]]]), k = R(3, 4), N = 10 ** k - 1;
+  const [nm, D] = set, nz = D.filter((d) => d).length, per = [];
+  for (let len = 1; len <= k; len++) per.push(nz * D.length ** (len - 1));
+  const ans = per.reduce((a, b) => a + b, 0);
+  return NQ("allDigitsFrom", { nm, D, N }, `How many whole numbers from 1 to ${f(N)} have every digit ${nm === "at most 3" ? "at most 3" : nm}?`, ans, "Count 1-digit, 2-digit, 3-digit … numbers separately. The first digit cannot be 0.", `Allowed digits: ${D.join(", ")}. ${per.map((c, i) => `${i + 1}-digit: ${nz}${i ? " × " + Array(i).fill(D.length).join(" × ") : ""} = ${c}`).join("; ")}. Total ${f(ans)}.`);
+}
+function distinctDigitCount() {
+  const k = R(2, 5), rep = Math.random() < 0.5; let all = 9; for (let i = 1; i < k; i++) all *= 10 - i;
+  const total = 9 * 10 ** (k - 1), ans = rep ? total - all : all;
+  return NQ("distinctDigitCount", { k, rep }, rep ? `How many ${k}-digit numbers have at least one repeated digit?` : `How many ${k}-digit numbers have all their digits different?`, ans, rep ? "Count the numbers with all digits different first. How many k-digit numbers are there in total?" : "Fill the places from the left: how many choices for each?", `All different: 9${Array.from({ length: k - 1 }, (_, i) => " × " + (9 - i)).join("")} = ${f(all)} (the first digit is not 0; each later digit avoids those already used).${rep ? ` There are ${f(total)} ${k}-digit numbers, so ${f(total)} − ${f(all)} = ${f(ans)} repeat a digit.` : ""}`);
+}
+function prod32() {
+  const ds = SH([1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, 5);
+  let best = 0, arg = null; for (const p of permsOf(ds)) { const a = 100 * p[0] + 10 * p[1] + p[2], b = 10 * p[3] + p[4]; if (a * b > best) { best = a * b; arg = [a, b]; } }
+  return NQ("prod32", { ds }, `Use each of ${ds.join(", ")} exactly once to make a 3-digit number and a 2-digit number whose PRODUCT is as large as possible. What is the product?`, best, "The two largest digits must lead both numbers. Which number should get the largest digit? Test the few candidates.", `The leading digits must be the two largest, and the next digits the next two largest. Testing the handful of arrangements of these shows the best is ${arg[0]} × ${arg[1]} = ${f(best)}.`);
+}
+function kDigitWithD() {
+  const k = 4, d = R(0, 9), all = 9000, none = d === 0 ? 9 ** 4 : 8 * 9 ** 3, ans = all - none;
+  return NQ("kDigitWithD", { k, d }, `How many 4-digit numbers contain at least one digit ${d}?`, ans, `Count the 4-digit numbers with NO ${d}, then subtract from 9,000.`, d === 0 ? `No 0: 9 × 9 × 9 × 9 = 6,561. 9,000 − 6,561 = ${f(ans)}.` : `No ${d}: 8 × 9 × 9 × 9 = 5,832 (first digit not 0 or ${d}). 9,000 − 5,832 = ${f(ans)}.`);
+}
+
+const API = { twoSameDigit, valueRatio, digitClues, opsChain, maxMinCond, diffMaxMin, wordsZeros, secondsDays, incDigits, digitTally, bigRegroup, bigDivide, trailingZeros, powDigits, expArith, billsCount, smallestMultiplier, powCompare, factZeros, digitSumPow, toBase, fromBase, baseAdd, findBase, sexagesimal, blocksExchanges, blocksWays, baseCount, binCount, smallestDigitSum, countListHard, pagesFromDigits, pageDigitsRange, noDigitsCount, twoNumbers, palCount, allDigitsFrom, distinctDigitCount, prod32, kDigitWithD, R, P, f, nl, balance, column, dots, areaModel, rect, barModel, strips, clock, ruler, grid, flow, digitValue, fromExpanded, unitsIn, stepFrom, maxMin, regroupSum, mulPow, roundProduct, powZeros, expForm, baseVal, binOnes, digitSumBlocks, countList, pageDigits, multiplesBetween, noDigit, compareSym, orderNums, lessThanCount, missingCompare, roundTo, midpoint, nlArrow, intOp, intDistance, ratioPart, rateScale, ratioSimplify, fracOf, wholeFromPart, fracCompare, equivMissing, fracSimplify, fracOrder, fracArith, addN, subN, subZeros, missingAddend, decAdd, lastDigit, carries, series, termCount, magicMissing, missingDigitAdd, abba, compAdd, yearsBC, equalize, sumDiff, revDiff, mulN, distrib, nearRoundMul, diffSquares, nearSquare, expr, substitute, linEq, legs, timesAsMany, ageProb, backChain, halfPlus, outfits, chooseQ, arrange, paths, digitPerm, squaresInGrid, factorCount, primePick, gcdLcm, div9Missing, remainder, weekday, powLastDigit, mod9, crt, convert, mixedUnits, rectPA, sideFrom, rulerRead, triPar, lArea, boxVS, paintedCube, elapsed, clockRead, percentOf, rateQ, coinsQ, fewestCoins, coinWays, estSum, productDigits, sciNot, nineCheck, parityExpr, kthOdd, oddsInRange, oddSum, consecSq, sumCubes, switchFlips, eraseInvariant, digitSumCount };
 
 return API;
 })();
@@ -882,7 +1208,7 @@ const COURSE = {"key": "math", "title": "Math: Year 1 Advanced", "icon": "🧮",
 "10 tens = 1 hundred",
 "10 hundreds = 1 thousand",
 "1,000 thousands = 1 million",
-"1,000 millions = 1 billion"]}},
+"1,000 millions = 1 billion (the modern English standard; some older British usage meant a million millions)"]}},
 {"say": "Commas separate the digits into <b>periods</b> (groups of three), counting from the right. Read each period as an ordinary number, then name it: billions, millions, thousands.", "show": {"type": "big", "text": "2 | 407 | 215", "caption": "two million, four hundred seven thousand, two hundred fifteen"}},
 {"say": "A zero is a <b>placeholder</b>: it holds an empty place so that the other digits keep their values. Remove it from 407 and the 4 collapses from hundreds to tens.", "show": {"type": "big", "text": "407 ≠ 47"}},
 {"say": "<b>Expanded form</b> writes a number as the sum of its digits' values.", "show": {"type": "big", "text": "2,407,215 =\n2,000,000 + 400,000 + 7,000\n+ 200 + 10 + 5"}},
@@ -894,55 +1220,49 @@ const COURSE = {"key": "math", "title": "Math: Year 1 Advanced", "icon": "🧮",
 "11½ days"],
 ["1,000,000,000",
 "32 years"]]}},
+{"say": "Compare two values of the same digit by counting the places between them. In 7,000,700 the left 7 is worth 7,000,000 and the right 7 is worth 700. They stand four places apart, so the left 7 is worth 10 × 10 × 10 × 10 = 10,000 times as much.", "show": {"type": "big", "text": "7,000,700\n7,000,000 ÷ 700 = 10,000"}},
 {"say": "<b>Explain it.</b> Why does the 4 in 2,407,215 have a greater value than the 7, even though 7 is the larger digit?", "show": {"type": "list", "items": ["Say it in 2–4 complete sentences.",
 "Use the precise words from this lesson.",
 "Give one example of your own."], "caption": "Explain it — to a grown-up or in writing"}}], "practice": [{"q": "What is the value of the 4 in 2,407,215?", "options": ["4",
 "4,000",
 "40,000",
 "400,000"], "answer": "400,000", "hint": "Count the places from the right: ones, tens, hundreds… Where is the 4?", "why": "The 4 is in the hundred-thousands place, so it is worth 400,000."},
-{"gen": () => MG.digitValue(5)},
-{"q": "Write 50,000 + 3,000 + 60 + 2 as a single numeral.", "type": "number", "answer": 53062, "hint": "Is there a hundreds part? What holds an empty place?", "why": "5 ten-thousands, 3 thousands, 0 hundreds, 6 tens, 2 ones = 53,062."},
-{"gen": () => MG.fromExpanded(5)},
-{"q": "How many thousands make one million?", "type": "number", "answer": 1000, "hint": "A million is 1,000,000. How many groups of 1,000 is that?", "why": "1,000 × 1,000 = 1,000,000, so a million is one thousand thousands."},
-{"gen": () => MG.stepFrom(5)},
 {"q": "Which numeral is three hundred six thousand, forty?", "options": ["306,040",
 "300,640",
 "306,400",
 "360,040"], "answer": "306,040", "hint": "Write the thousands period first, then the ones period: 306 | 040.", "why": "Three hundred six thousand is 306 in the thousands period; forty is 040 in the ones period: 306,040."},
-{"gen": () => MG.maxMin(4)},
-{"q": "What number is 10 more than 99,995?", "type": "number", "answer": 100005, "hint": "What happens when you pass 99,999?", "why": "99,995 + 5 = 100,000, and 5 more makes 100,005."},
-{"gen": () => MG.digitValue(6)},
-{"q": "What number is 1,000 less than one million?", "type": "number", "answer": 999000, "hint": "Think of one million as 1,000 thousands.", "why": "1,000 thousands − 1 thousand = 999 thousands = 999,000."},
-{"gen": () => MG.fromExpanded(6)},
-{"q": "Arrange from least to greatest.", "type": "order", "items": ["100,909",
-"10,099",
-"9,999",
-"1,000,000"], "answer": ["9,999",
-"10,099",
-"100,909",
-"1,000,000"], "hint": "Count the digits of each number first.", "why": "4, 5, 6 and 7 digits: for whole numbers, more digits means greater value."},
-{"gen": () => MG.unitsIn(5, 3)},
 {"q": "In 7,777,777, the leftmost 7 is worth how many times as much as the 7 immediately to its right?", "options": ["7 times",
 "10 times",
 "100 times",
 "1,000 times"], "answer": "10 times", "hint": "How do neighbouring places compare in base ten?", "why": "Neighbouring places differ by a factor of 10: 7,000,000 = 10 × 700,000."},
-{"gen": () => MG.stepFrom(6)},
-{"q": "Using 5, 0, 3 and 8 once each, what is the LARGEST 4-digit number?", "type": "number", "answer": 8530, "hint": "Which digit belongs in the most valuable place?", "why": "Greatest digits in the greatest places: 8,530."},
-{"gen": () => MG.maxMin(5)},
-{"q": "Using 5, 0, 3 and 8 once each, what is the SMALLEST 4-digit number?", "type": "number", "answer": 3058, "hint": "A 4-digit number cannot begin with 0. What is the smallest permitted first digit?", "why": "Begin with 3, then 0, 5, 8: 3,058."},
-{"gen": () => MG.digitValue(7)},
-{"q": "Which number equals 4 hundreds + 25 tens + 3 ones?", "options": ["653",
-"4,253",
-"428",
-"703"], "answer": "653", "hint": "How much are 25 tens?", "why": "25 tens = 250, so 400 + 250 + 3 = 653."},
-{"gen": () => MG.fromExpanded(7)},
-{"q": "How many millions are in one billion?", "type": "number", "answer": 1000, "hint": "A billion is written with 9 zeros, a million with 6.", "why": "1,000,000,000 ÷ 1,000,000 = 1,000."},
-{"gen": () => MG.regroupSum()},
-{"gen": () => MG.maxMin(6)}], "challenge": [{"q": "How many 3-digit numbers have digits whose sum is 3? (102 is one.)", "type": "number", "answer": 6, "hint": "Make an organised list by first digit: 1, 2 or 3.", "why": "First digit 1: 102, 111, 120. First digit 2: 201, 210. First digit 3: 300. Six numbers."},
+{"gen": () => MG.twoSameDigit()},
+{"gen": () => MG.valueRatio()},
+{"gen": () => MG.opsChain()},
+{"gen": () => MG.maxMinCond()},
+{"gen": () => MG.wordsZeros()},
+{"gen": () => MG.twoSameDigit()},
+{"gen": () => MG.diffMaxMin()},
+{"gen": () => MG.valueRatio()},
+{"q": "You write every whole number from 1 to 100. How many times do you write the digit 7?", "type": "number", "answer": 20, "hint": "Count 7s in the ones place and in the tens place separately.", "why": "Ones place: 7, 17, …, 97 gives 10. Tens place: 70–79 gives 10. (77 contributes one to each list.) Total 20."},
+{"gen": () => MG.opsChain()},
+{"gen": () => MG.secondsDays()},
+{"gen": () => MG.maxMinCond()},
+{"gen": () => MG.wordsZeros()},
 {"q": "You write every whole number from 1 to 100. How many digits do you write altogether?", "type": "number", "answer": 192, "hint": "Count the 1-digit numbers, the 2-digit numbers and 100 separately.", "why": "1–9: 9 digits. 10–99: 90 × 2 = 180. 100: 3. Total 192."},
-{"q": "Writing all the numbers from 1 to 100, how many times do you write the digit 7?", "type": "number", "answer": 20, "hint": "Count 7s in the ones place and in the tens place separately.", "why": "Ones place: 7, 17, …, 97 gives 10. Tens place: 70–79 gives 10. (77 contributes one to each list.) Total 20."},
+{"gen": () => MG.digitClues()},
+{"gen": () => MG.maxMinCond()},
+{"gen": () => MG.secondsDays()},
+{"gen": () => MG.diffMaxMin()},
+{"gen": () => MG.digitClues()},
+{"q": "How many 3-digit numbers have digits whose sum is 3? (102 is one.)", "type": "number", "answer": 6, "hint": "Make an organised list by first digit: 1, 2 or 3.", "why": "First digit 1: 102, 111, 120. First digit 2: 201, 210. First digit 3: 300. Six numbers."},
+{"gen": () => MG.digitClues()},
+{"gen": () => MG.opsChain()},
+{"gen": () => MG.wordsZeros()}], "challenge": [{"q": "A 6-digit number begins with the digit 1. If that 1 is moved from the front to the end, the new number is exactly three times the original. What is the original number?", "type": "number", "answer": 142857, "hint": "Write the number as 1 followed by a 5-digit block x, so it equals 100,000 + x. What does the new number equal in terms of x?", "why": "Original = 100,000 + x; new = 10x + 1. So 10x + 1 = 3(100,000 + x) = 300,000 + 3x, giving 7x = 299,999 and x = 42,857. The number is 142,857 (and 428,571 = 3 × 142,857)."},
+{"gen": () => MG.incDigits()},
+{"gen": () => MG.digitTally(300, 999)},
+{"q": "What is the smallest 7-digit number whose digits are all different and add up to 30?", "type": "number", "answer": 1023789, "hint": "Keep the leading digits as small as possible: start 1, 0, 2, … How large must the last digits be to reach 30?", "why": "Begin 1, 0, 2, 3 (sum 6). The last three digits must be different, unused and sum to 24, which forces 7, 8, 9. Could the fifth digit be smaller? 1, 0, 2, 3, 4 leaves two digits summing to 20, impossible (at most 9 + 8 = 17). So the answer is 1,023,789."},
 {"gen": () => MG.digitSumCount()},
-{"gen": () => MG.pageDigits()}], "extend": "Investigate other large-number names: look up 'trillion', 'quadrillion' and 'googol' (10 to the 100th power). Write each in digits, and find one real quantity in the world (stars, grains of sand, cells in a body) that is about a billion or a trillion.", "offline": "Find five large numbers in print at home (a calendar, a package, a newspaper). Read each aloud using period names, and write one of them in expanded form."},
+{"q": "How many whole numbers from 1 to 1,000,000 have a digit sum of exactly 2?", "type": "number", "answer": 21, "hint": "The digits must be either one 2 and the rest 0, or two 1s and the rest 0. How many places are available?", "why": "Numbers up to 999,999 have six places (leading zeros allowed in the count; 1,000,000 has digit sum 1). One 2: 6 choices of place. Two 1s: choose 2 of 6 places = 15. Total 6 + 15 = 21."}], "extend": "Investigate other large-number names: look up 'trillion', 'quadrillion' and 'googol' (10 to the 100th power). Write each in digits, and find one real quantity in the world (stars, grains of sand, cells in a body) that is about a billion or a trillion.", "offline": "Find five large numbers in print at home (a calendar, a package, a newspaper). Read each aloud using period names, and write one of them in expanded form."},
 {"title": "Regrouping and powers of ten", "icon": "🔟", "learn": [{"say": "Ten units in one place may be exchanged for one unit in the next place. This exchange is called <b>regrouping</b>.", "show": {"type": "svg", "markup": "<svg viewBox='0 0 600 320' xmlns='http://www.w3.org/2000/svg' font-family='system-ui,sans-serif'><rect x='40' y='140' width='26' height='26' fill='#fed7aa' stroke='#1f2937' stroke-width='2'/><rect x='70' y='140' width='26' height='26' fill='#fed7aa' stroke='#1f2937' stroke-width='2'/><rect x='100' y='140' width='26' height='26' fill='#fed7aa' stroke='#1f2937' stroke-width='2'/><rect x='130' y='140' width='26' height='26' fill='#fed7aa' stroke='#1f2937' stroke-width='2'/><rect x='160' y='140' width='26' height='26' fill='#fed7aa' stroke='#1f2937' stroke-width='2'/><rect x='190' y='140' width='26' height='26' fill='#fed7aa' stroke='#1f2937' stroke-width='2'/><rect x='220' y='140' width='26' height='26' fill='#fed7aa' stroke='#1f2937' stroke-width='2'/><rect x='250' y='140' width='26' height='26' fill='#fed7aa' stroke='#1f2937' stroke-width='2'/><rect x='280' y='140' width='26' height='26' fill='#fed7aa' stroke='#1f2937' stroke-width='2'/><rect x='310' y='140' width='26' height='26' fill='#fed7aa' stroke='#1f2937' stroke-width='2'/><line x1='350' y1='153' x2='420' y2='153' stroke='#2563eb' stroke-width='5'/><path d='M420 141 L440 153 L420 165 Z' fill='#2563eb'/><rect x='480' y='30' width='26' height='26' fill='#dbeafe' stroke='#1f2937' stroke-width='2'/><rect x='480' y='56' width='26' height='26' fill='#dbeafe' stroke='#1f2937' stroke-width='2'/><rect x='480' y='82' width='26' height='26' fill='#dbeafe' stroke='#1f2937' stroke-width='2'/><rect x='480' y='108' width='26' height='26' fill='#dbeafe' stroke='#1f2937' stroke-width='2'/><rect x='480' y='134' width='26' height='26' fill='#dbeafe' stroke='#1f2937' stroke-width='2'/><rect x='480' y='160' width='26' height='26' fill='#dbeafe' stroke='#1f2937' stroke-width='2'/><rect x='480' y='186' width='26' height='26' fill='#dbeafe' stroke='#1f2937' stroke-width='2'/><rect x='480' y='212' width='26' height='26' fill='#dbeafe' stroke='#1f2937' stroke-width='2'/><rect x='480' y='238' width='26' height='26' fill='#dbeafe' stroke='#1f2937' stroke-width='2'/><rect x='480' y='264' width='26' height='26' fill='#dbeafe' stroke='#1f2937' stroke-width='2'/><text x='185' y='220' font-size='28' fill='#1f2937' text-anchor='middle' font-weight='700'>10 ones</text><text x='493' y='312' font-size='24' fill='#2563eb' text-anchor='middle' font-weight='700'>1 ten</text></svg>"}},
 {"say": "Multiplying by 10 shifts every digit one place to the left; a zero fills the empty ones place. Multiplying by 100 shifts two places.", "show": {"type": "big", "text": "34 × 10 = 340\n34 × 100 = 3,400"}},
 {"say": "Dividing by 10 shifts every digit one place to the right.", "show": {"type": "big", "text": "5,600 ÷ 10 = 560"}},
@@ -963,43 +1283,40 @@ const COURSE = {"key": "math", "title": "Math: Year 1 Advanced", "icon": "🧮",
 "1,000,000"]]}},
 {"say": "Multiplying powers of ten adds the exponents: 10² × 10³ is (10 × 10) × (10 × 10 × 10), which is five factors of 10 in all. (Careful: 'five factors of 10' is 100,000, not 'five tens', which is 50.)", "show": {"type": "big", "text": "10² × 10³ = 10⁵"}},
 {"say": "To count the tens inside a number, cover the ones digit: 3,450 contains 345 tens. Cover two digits to count hundreds: 34 hundreds.", "show": {"type": "big", "text": "3,45|0 → 345 tens\n34|50 → 34 hundreds"}},
+{"say": "A final zero is a factor of 10, and 10 = 2 × 5. To count the zeros at the end of a product, count its factors of 2 and of 5: each pair makes one ten, so the scarcer factor decides.", "show": {"type": "big", "text": "2⁵ × 5⁷ = (2 × 5)⁵ × 5²\n= 25 × 100,000 = 2,500,000"}},
 {"say": "<b>Explain it.</b> Explain why multiplying a whole number by 10 always puts a zero on the end. Use the word 'place'.", "show": {"type": "list", "items": ["Say it in 2–4 complete sentences.",
 "Use the precise words from this lesson.",
 "Give one example of your own."], "caption": "Explain it — to a grown-up or in writing"}}], "practice": [{"q": "How many tens are in 3,450?", "type": "number", "answer": 345, "hint": "Cover the ones digit. What remains?", "why": "3,450 = 345 × 10, so 345 tens."},
-{"gen": () => MG.mulPow()},
-{"q": "How many whole hundreds are in 52,700?", "type": "number", "answer": 527, "hint": "Cover the last two digits.", "why": "52,700 = 527 × 100."},
-{"gen": () => MG.mulPow()},
-{"q": "Compute 27 × 100.", "type": "number", "answer": 2700, "hint": "Multiplying by 100 shifts digits two places left.", "why": "27 becomes 2,700."},
-{"gen": () => MG.roundProduct()},
-{"q": "Compute 48,000 ÷ 10.", "type": "number", "answer": 4800, "hint": "Dividing by 10 shifts digits one place right.", "why": "48,000 ÷ 10 = 4,800."},
-{"gen": () => MG.powZeros()},
-{"q": "Which number is 10⁴?", "options": ["40",
-"1,000",
-"10,000",
-"100,000"], "answer": "10,000", "hint": "10⁴ = 10 × 10 × 10 × 10. How many zeros?", "why": "A 1 followed by four zeros: 10,000."},
-{"gen": () => MG.unitsIn(4, 1)},
 {"q": "How many zeros are in the numeral for 10⁶ × 10³?", "type": "number", "answer": 9, "hint": "Add the exponents.", "why": "10⁶ × 10³ = 10⁹ = 1,000,000,000: nine zeros."},
-{"gen": () => MG.mulPow()},
-{"q": "Compute 6 thousands + 14 hundreds + 3 tens.", "type": "number", "answer": 7430, "hint": "14 hundreds is more than a thousand. Regroup.", "why": "14 hundreds = 1,400; 6,000 + 1,400 + 30 = 7,430."},
-{"gen": () => MG.roundProduct()},
-{"q": "Which is NOT equal to 500?", "options": ["5 hundreds",
-"50 tens",
-"500 ones",
-"5 tens"], "answer": "5 tens", "hint": "Evaluate each.", "why": "5 tens is 50; the others are 500."},
-{"gen": () => MG.unitsIn(5, 2)},
-{"q": "Compute 10 × 10 × 10 × 10 × 10.", "type": "number", "answer": 100000, "hint": "Count the tens.", "why": "10⁵ = 100,000."},
-{"gen": () => MG.regroupSum()},
-{"q": "A carton holds 10 boxes, and each box holds 10 pencils. How many pencils are in 35 cartons?", "type": "number", "answer": 3500, "hint": "How many pencils fill one carton?", "why": "One carton: 10 × 10 = 100 pencils. 35 cartons: 3,500."},
-{"gen": () => MG.expForm()},
 {"q": "Compute 300 × 4,000.", "type": "number", "answer": 1200000, "hint": "Multiply 3 × 4, then count the zeros.", "why": "3 × 4 = 12, and there are 2 + 3 = 5 zeros: 1,200,000."},
-{"gen": () => MG.mulPow()},
-{"q": "Compute 6,000,000 ÷ 2,000.", "type": "number", "answer": 3000, "hint": "Remove the same number of zeros from both: what is 6,000 ÷ 2?", "why": "6,000,000 ÷ 2,000 = 6,000 ÷ 2 = 3,000."},
-{"gen": () => MG.powZeros()},
-{"gen": () => MG.roundProduct()}], "challenge": [{"q": "Compute 2 × 10⁵ + 3 × 10³ + 7 × 10¹.", "type": "number", "answer": 203070, "hint": "Evaluate each term. Which places will hold zeros?", "why": "200,000 + 3,000 + 70 = 203,070."},
-{"q": "What is the smallest whole number n for which 25 × n is a multiple of 1,000?", "type": "number", "answer": 40, "hint": "1,000 = 25 × 40. Could a smaller n work? Think about the factors of 1,000.", "why": "25 × n must contain the factors 2 × 2 × 2 × 5 × 5 × 5. 25 supplies 5 × 5, so n needs 2 × 2 × 2 × 5 = 40."},
-{"q": "You have 3 thousand-cubes, 25 hundred-flats, 34 ten-rods and 18 unit cubes. What number do they represent?", "type": "number", "answer": 5858, "hint": "Find each value, then add, regrouping as needed.", "why": "3,000 + 2,500 + 340 + 18 = 5,858."},
+{"gen": () => MG.bigRegroup()},
+{"gen": () => MG.expArith()},
+{"gen": () => MG.bigDivide()},
+{"gen": () => MG.billsCount()},
+{"gen": () => MG.trailingZeros()},
+{"gen": () => MG.bigRegroup()},
+{"gen": () => MG.powCompare()},
+{"gen": () => MG.expArith()},
+{"q": "A stack of 1,000 sheets of paper is 10 cm thick. How many sheets are in a stack 100 m tall?", "type": "number", "answer": 1000000, "hint": "Convert 100 m to centimetres first. How many 10 cm stacks fit?", "why": "100 m = 100 × 100 cm = 10,000 cm. That is 10,000 ÷ 10 = 1,000 stacks of 1,000 sheets: 1,000 × 1,000 = 1,000,000 sheets."},
+{"gen": () => MG.powDigits()},
+{"gen": () => MG.smallestMultiplier()},
+{"gen": () => MG.trailingZeros()},
+{"gen": () => MG.bigDivide()},
+{"q": "Compute 2 × 10⁵ + 3 × 10³ + 7 × 10¹.", "type": "number", "answer": 203070, "hint": "Evaluate each term. Which places will hold zeros?", "why": "200,000 + 3,000 + 70 = 203,070."},
+{"gen": () => MG.powCompare()},
+{"gen": () => MG.smallestMultiplier()},
+{"gen": () => MG.powDigits()},
+{"gen": () => MG.billsCount()},
+{"gen": () => MG.expArith()},
+{"gen": () => MG.trailingZeros()},
+{"q": "What is the smallest whole number n for which 25 × n is a multiple of 1,000?", "type": "number", "answer": 40, "hint": "1,000 = 2 × 2 × 2 × 5 × 5 × 5. Which of these factors does 25 already supply?", "why": "25 × n must contain the factors 2 × 2 × 2 × 5 × 5 × 5. 25 supplies 5 × 5, so n needs 2 × 2 × 2 × 5 = 40."},
+{"gen": () => MG.powDigits()},
+{"gen": () => MG.smallestMultiplier()}], "challenge": [{"gen": () => MG.factZeros()},
+{"gen": () => MG.digitSumPow()},
 {"q": "How many zeros are at the end of 2⁵ × 5⁷?", "type": "number", "answer": 5, "hint": "Pair each 2 with a 5 to make a ten. How many pairs, and what is left over?", "why": "2⁵ × 5⁵ = 10⁵, and the extra 5² = 25: the number is 2,500,000, ending in 5 zeros."},
-{"q": "Compute 9 × (10³ + 10² + 10¹ + 1).", "type": "number", "answer": 9999, "hint": "What is 10³ + 10² + 10¹ + 1 as a numeral?", "why": "1,111 × 9 = 9,999."}], "extend": "Read about the Indian origin of our digits and of zero, carried to Europe by the mathematician al-Khwarizmi's writings and by Fibonacci's book Liber Abaci (1202). Write a paragraph explaining why Roman numerals made multiplication so much harder than our place-value system.", "offline": "Bundle straws or sticks into tens with rubber bands, then ten tens into a hundred. Use the bundles to show 247, then show it again using only tens and ones."},
+{"gen": () => MG.powDigits(true)},
+{"q": "What is the smallest whole number n for which 1,250 × n is a power of ten (10, 100, 1,000, …)?", "type": "number", "answer": 8, "hint": "Factor 1,250 into 2s and 5s. A power of ten has equal numbers of each.", "why": "1,250 = 2 × 5⁴. A power of ten needs as many 2s as 5s, so n must supply 2³ = 8: 1,250 × 8 = 10,000 = 10⁴. Any other factor (such as 3) would spoil the power of ten."},
+{"q": "How many digits does 4¹⁰ × 5¹⁵ have?", "type": "number", "answer": 17, "hint": "Rewrite 4¹⁰ as a power of 2 first.", "why": "4¹⁰ = 2²⁰. Then 2²⁰ × 5¹⁵ = (2 × 5)¹⁵ × 2⁵ = 32 × 10¹⁵: the digits 3 and 2 followed by 15 zeros, 17 digits in all."}], "extend": "Read about the Indian origin of our digits and of zero, carried to Europe by the mathematician al-Khwarizmi's writings and by Fibonacci's book Liber Abaci (1202). Write a paragraph explaining why Roman numerals made multiplication so much harder than our place-value system.", "offline": "Bundle straws or sticks into tens with rubber bands, then ten tens into a hundred. Use the bundles to show 247, then show it again using only tens and ones."},
 {"title": "Many names for a number; other bases", "icon": "🧩", "learn": [{"say": "One number can be written in many ways. Exchange a hundred for ten tens and the number is unchanged.", "show": {"type": "table", "rows": [["Hundreds",
 "Tens",
 "Ones"],
@@ -1020,47 +1337,40 @@ const COURSE = {"key": "math", "title": "Math: Year 1 Advanced", "icon": "🧮",
 {"say": "Ten is not the only possible base. In <b>base five</b> the places are worth 1, 5, 25, 125, and only the digits 0 to 4 are used.", "show": {"type": "svg", "markup": "<svg viewBox='0 0 600 360' xmlns='http://www.w3.org/2000/svg' font-family='system-ui,sans-serif'><text x='300' y='40' font-size='22' fill='#6b7280' text-anchor='middle' font-weight='700'>231 in base five</text><rect x='40' y='70' width='165.3' height='56' rx='8' fill='#fed7aa'/><text x='122.7' y='106' font-size='24' fill='#ea580c' text-anchor='middle' font-weight='700'>25</text><rect x='40' y='134' width='165.3' height='90' rx='8' fill='#fff' stroke='#1f2937' stroke-width='3'/><text x='122.7' y='196' font-size='50' fill='#1f2937' text-anchor='middle' font-weight='700'>2</text><rect x='213.3' y='70' width='165.3' height='56' rx='8' fill='#fed7aa'/><text x='296' y='106' font-size='24' fill='#ea580c' text-anchor='middle' font-weight='700'>5</text><rect x='213.3' y='134' width='165.3' height='90' rx='8' fill='#fff' stroke='#1f2937' stroke-width='3'/><text x='296' y='196' font-size='50' fill='#1f2937' text-anchor='middle' font-weight='700'>3</text><rect x='386.7' y='70' width='165.3' height='56' rx='8' fill='#fed7aa'/><text x='469.3' y='106' font-size='24' fill='#ea580c' text-anchor='middle' font-weight='700'>1</text><rect x='386.7' y='134' width='165.3' height='90' rx='8' fill='#fff' stroke='#1f2937' stroke-width='3'/><text x='469.3' y='196' font-size='50' fill='#1f2937' text-anchor='middle' font-weight='700'>1</text><text x='300' y='348' font-size='21' fill='#6b7280' text-anchor='middle' font-weight='700'>2 × 25 + 3 × 5 + 1 = 66</text></svg>"}},
 {"say": "Computers use <b>base two</b> (binary): the places are 1, 2, 4, 8, 16, and the only digits are 0 and 1.", "show": {"type": "svg", "markup": "<svg viewBox='0 0 600 360' xmlns='http://www.w3.org/2000/svg' font-family='system-ui,sans-serif'><text x='300' y='40' font-size='22' fill='#6b7280' text-anchor='middle' font-weight='700'>10110 in base two</text><rect x='40' y='70' width='96' height='56' rx='8' fill='#fed7aa'/><text x='88' y='106' font-size='24' fill='#ea580c' text-anchor='middle' font-weight='700'>16</text><rect x='40' y='134' width='96' height='90' rx='8' fill='#fff' stroke='#1f2937' stroke-width='3'/><text x='88' y='196' font-size='50' fill='#1f2937' text-anchor='middle' font-weight='700'>1</text><rect x='144' y='70' width='96' height='56' rx='8' fill='#fed7aa'/><text x='192' y='106' font-size='24' fill='#ea580c' text-anchor='middle' font-weight='700'>8</text><rect x='144' y='134' width='96' height='90' rx='8' fill='#fff' stroke='#1f2937' stroke-width='3'/><text x='192' y='196' font-size='50' fill='#1f2937' text-anchor='middle' font-weight='700'>0</text><rect x='248' y='70' width='96' height='56' rx='8' fill='#fed7aa'/><text x='296' y='106' font-size='24' fill='#ea580c' text-anchor='middle' font-weight='700'>4</text><rect x='248' y='134' width='96' height='90' rx='8' fill='#fff' stroke='#1f2937' stroke-width='3'/><text x='296' y='196' font-size='50' fill='#1f2937' text-anchor='middle' font-weight='700'>1</text><rect x='352' y='70' width='96' height='56' rx='8' fill='#fed7aa'/><text x='400' y='106' font-size='24' fill='#ea580c' text-anchor='middle' font-weight='700'>2</text><rect x='352' y='134' width='96' height='90' rx='8' fill='#fff' stroke='#1f2937' stroke-width='3'/><text x='400' y='196' font-size='50' fill='#1f2937' text-anchor='middle' font-weight='700'>1</text><rect x='456' y='70' width='96' height='56' rx='8' fill='#fed7aa'/><text x='504' y='106' font-size='24' fill='#ea580c' text-anchor='middle' font-weight='700'>1</text><rect x='456' y='134' width='96' height='90' rx='8' fill='#fff' stroke='#1f2937' stroke-width='3'/><text x='504' y='196' font-size='50' fill='#1f2937' text-anchor='middle' font-weight='700'>0</text><text x='300' y='348' font-size='21' fill='#6b7280' text-anchor='middle' font-weight='700'>16 + 4 + 2 = 22</text></svg>"}},
 {"say": "History connection: the Babylonians, about 4,000 years ago, counted in <b>base sixty</b>. We still use it: 60 seconds in a minute, 60 minutes in an hour.", "show": {"type": "big", "text": "1 hour = 60 min = 3,600 s\n= 60 × 60"}},
+{"say": "To write a base-ten number in another base, take out the largest place value as many times as you can, then the next place value, and so on. The counts become the digits.", "show": {"type": "big", "text": "87 = 3 × 25 + 2 × 5 + 2\n87 = 322 (base five)"}},
 {"say": "<b>Explain it.</b> Explain how base five and base ten are alike and how they differ. Why can't the digit 5 appear in base five?", "show": {"type": "list", "items": ["Say it in 2–4 complete sentences.",
 "Use the precise words from this lesson.",
 "Give one example of your own."], "caption": "Explain it — to a grown-up or in writing"}}], "practice": [{"q": "Compute 3 hundreds + 15 tens + 6 ones.", "type": "number", "answer": 456, "hint": "15 tens exceeds 100. Regroup.", "why": "15 tens = 150; 300 + 150 + 6 = 456."},
-{"gen": () => MG.baseVal(5)},
-{"q": "Compute 2 thousands + 13 hundreds + 4 ones.", "type": "number", "answer": 3304, "hint": "13 hundreds = 1,300.", "why": "2,000 + 1,300 + 4 = 3,304."},
-{"gen": () => MG.baseVal(2)},
-{"q": "Which number is 7 × 10³ + 5 × 10¹ + 2?", "options": ["752",
-"7,052",
-"7,502",
-"70,052"], "answer": "7,052", "hint": "10³ is thousands and 10¹ is tens. Which places are empty?", "why": "7 thousands, 0 hundreds, 5 tens, 2 ones: 7,052."},
-{"gen": () => MG.digitSumBlocks()},
-{"q": "352 = 2 hundreds + ___ tens + 2 ones. How many tens?", "type": "number", "answer": 15, "hint": "One hundred has been exchanged. For how many tens?", "why": "352 − 200 − 2 = 150 = 15 tens."},
-{"gen": () => MG.binOnes()},
-{"q": "What is the fewest number of base-ten blocks needed to build 4,325?", "type": "number", "answer": 14, "hint": "What do the digits tell you?", "why": "4 + 3 + 2 + 5 = 14 blocks."},
-{"gen": () => MG.baseVal(5)},
-{"q": "Which is the exponent form of 5,060?", "options": ["5 × 10³ + 6 × 10¹",
-"5 × 10³ + 6 × 10²",
-"5 × 10⁴ + 6 × 10¹",
-"5 × 10² + 6 × 10¹"], "answer": "5 × 10³ + 6 × 10¹", "hint": "In which place is the 5? The 6?", "why": "5 is in the thousands place (10³) and 6 in the tens place (10¹)."},
-{"gen": () => MG.expForm()},
-{"q": "Which is NOT equal to 240?", "options": ["24 tens",
-"2 hundreds 4 tens",
-"1 hundred 14 tens",
-"20 tens 4 ones"], "answer": "20 tens 4 ones", "hint": "Evaluate each carefully.", "why": "20 tens 4 ones = 204. The others equal 240."},
-{"gen": () => MG.baseVal(2)},
 {"q": "What is the value of 231 (base five) in base ten?", "type": "number", "answer": 66, "hint": "The places in base five are 25, 5 and 1.", "why": "2 × 25 + 3 × 5 + 1 = 50 + 15 + 1 = 66."},
-{"gen": () => MG.regroupSum()},
 {"q": "What is the value of 10110 (base two) in base ten?", "type": "number", "answer": 22, "hint": "The places are 16, 8, 4, 2, 1.", "why": "16 + 0 + 4 + 2 + 0 = 22."},
-{"gen": () => MG.baseVal(5)},
-{"q": "What is the value of 1111 (base two)?", "type": "number", "answer": 15, "hint": "Add the place values that hold a 1.", "why": "8 + 4 + 2 + 1 = 15."},
-{"gen": () => MG.binOnes()},
-{"q": "What is the value of 100 (base five)?", "type": "number", "answer": 25, "hint": "The third place in base five is worth 5 × 5.", "why": "1 × 25 = 25. Just as 100 in base ten is 10 × 10."},
-{"gen": () => MG.digitSumBlocks()},
-{"q": "2 hours = how many seconds?", "type": "number", "answer": 7200, "hint": "One hour is 60 × 60 seconds.", "why": "1 hour = 3,600 s, so 2 hours = 7,200 s."},
-{"gen": () => MG.baseVal(2)},
-{"gen": () => MG.expForm()}], "challenge": [{"q": "In how many different ways can you build 352 using EXACTLY 28 blocks (hundreds, tens and ones)?", "type": "number", "answer": 3, "hint": "The fewest is 10 blocks; each exchange adds 9. How many exchanges give 28?", "why": "28 = 10 + 9 + 9: two exchanges. Two hundreds broken (1h 25t 2o), one hundred and one ten (2h 14t 12o), or two tens (3h 3t 22o): 3 ways."},
-{"q": "I am a 4-digit even number. My digit sum is 10, my hundreds digit is 0, and my thousands digit is 3 times my ones digit. What number am I?", "type": "number", "answer": 6022, "hint": "The ones digit is even and cannot be 0. Why?", "why": "Ones 2 gives thousands 6, and 6 + 0 + t + 2 = 10 gives t = 2: 6,022. Ones 4 would need thousands 12, impossible."},
-{"q": "Write 45 in base two, then count how many 1s appear in its digits.", "type": "number", "answer": 4, "hint": "Subtract the largest powers of two you can: 32, 16, 8, 4, 2, 1.", "why": "45 = 32 + 8 + 4 + 1 = 101101 (base two). It has four 1s."},
-{"q": "What is the smallest whole number whose digit sum is 20?", "type": "number", "answer": 299, "hint": "Two digits sum to at most 18. Then keep the leading digit small.", "why": "Three digits are needed; making the hundreds digit as small as possible gives 2 + 9 + 9: 299."},
-{"gen": () => MG.digitSumCount()},
-{"q": "What is the largest 3-digit number in base five, written in base ten?", "type": "number", "answer": 124, "hint": "Which is the largest digit allowed in base five?", "why": "444 (base five) = 4 × 25 + 4 × 5 + 4 = 124, which is 125 − 1."}], "extend": "Make a binary counting chart from 0 to 31 using five fingers (thumb = 1, index = 2, middle = 4, ring = 8, little = 16). Learn to show any number to 31 on one hand, and write a short explanation of why every number has exactly one binary form.", "offline": "Use coins as place value: pennies are ones, dimes tens, dollar bills hundreds. Show a grown-up three different ways to make 245 cents, and explain each exchange you made."},
+{"gen": () => MG.fromBase()},
+{"gen": () => MG.toBase()},
+{"gen": () => MG.sexagesimal()},
+{"gen": () => MG.blocksExchanges()},
+{"gen": () => MG.findBase()},
+{"gen": () => MG.baseCount()},
+{"gen": () => MG.toBase()},
+{"q": "In base five, which number comes immediately after 4444 (base five)? Give its value in base ten.", "type": "number", "answer": 625, "hint": "What happens in base five when every place already holds the largest digit, 4?", "why": "Adding 1 to 4444 (base five) regroups in every place, giving 10000 (base five), just as 9,999 + 1 = 10,000 in base ten. 10000 (base five) = 5 × 5 × 5 × 5 = 625."},
+{"gen": () => MG.baseAdd()},
+{"gen": () => MG.sexagesimal()},
+{"gen": () => MG.fromBase()},
+{"gen": () => MG.findBase()},
+{"q": "How many digits does the base-two numeral for 1,000 have?", "type": "number", "answer": 10, "hint": "List the powers of two: 1, 2, 4, …, 512, 1,024. Which is the largest that fits into 1,000?", "why": "512 = 2⁹ ≤ 1,000 < 1,024 = 2¹⁰, so the highest place used is the 512s place, the tenth place from the right: 10 digits (1,000 = 1111101000 in base two)."},
+{"gen": () => MG.blocksExchanges()},
+{"gen": () => MG.baseAdd()},
+{"gen": () => MG.toBase()},
+{"gen": () => MG.baseCount()},
+{"gen": () => MG.sexagesimal()},
+{"gen": () => MG.findBase()},
+{"q": "I am a 4-digit even number. My digit sum is 10, my hundreds digit is 0, and my thousands digit is 3 times my ones digit. What number am I?", "type": "number", "answer": 6022, "hint": "The ones digit is even and cannot be 0. Why?", "why": "Ones 2 gives thousands 6, and 6 + 0 + t + 2 = 10 gives t = 2: 6,022. Ones 4 would need thousands 12, impossible; ones 0 would make the thousands digit 0."},
+{"gen": () => MG.baseAdd()},
+{"gen": () => MG.fromBase()},
+{"gen": () => MG.blocksExchanges()}], "challenge": [{"gen": () => MG.blocksWays()},
+{"gen": () => MG.binCount()},
+{"gen": () => MG.smallestDigitSum()},
+{"q": "You have one each of 1 g, 3 g, 9 g and 27 g weights and a balance. Weights may go on either pan, beside the object or opposite it. How many different whole-gram masses, from 1 g upward, can you weigh?", "type": "number", "answer": 40, "hint": "Each weight can be on the object's pan, on the other pan, or unused. What is the heaviest mass you can weigh?", "why": "Each weight contributes +w, −w or 0, so the measurable masses are the positive totals of ±1 ± 3 ± 9 ± 27. The largest is 1 + 3 + 9 + 27 = 40, and every whole number from 1 to 40 can be reached (this is base three with digits −1, 0 and 1): 40 masses."},
+{"q": "Someone who counts in base eight writes every number from 1 up to 100 (base eight). How many digits does she write?", "type": "number", "answer": 122, "hint": "Convert the boundaries: 7, 77 (base eight) and 100 (base eight) are which base-ten numbers?", "why": "1-digit numerals: 1 to 7, which is 7 digits. 2-digit numerals: 10 to 77 (base eight), that is 8 to 63, which is 56 numbers × 2 = 112 digits. Then 100 (base eight) uses 3. Total 7 + 112 + 3 = 122."},
+{"gen": () => MG.blocksWays()}], "extend": "Make a binary counting chart from 0 to 31 using five fingers (thumb = 1, index = 2, middle = 4, ring = 8, little = 16). Learn to show any number to 31 on one hand, and write a short explanation of why every number has exactly one binary form.", "offline": "Use coins as place value: pennies are ones, dimes tens, dollar bills hundreds. Show a grown-up three different ways to make 245 cents, and explain each exchange you made."},
 {"title": "Review: digit detective", "icon": "🕵️", "learn": [{"say": "Review: a digit's place sets its value, and each place is worth ten times the place to its right.", "show": {"type": "svg", "markup": "<svg viewBox='0 0 600 320' xmlns='http://www.w3.org/2000/svg' font-family='system-ui,sans-serif'><rect x='20' y='70' width='74' height='56' rx='8' fill='#dbeafe'/><text x='57' y='106' font-size='18' fill='#2563eb' text-anchor='middle' font-weight='700' textLength='66' lengthAdjust='spacingAndGlyphs'>1,000,000</text><rect x='20' y='134' width='74' height='96' rx='8' fill='#fff' stroke='#1f2937' stroke-width='3'/><text x='57' y='200' font-size='54' fill='#1f2937' text-anchor='middle' font-weight='700'>3</text><rect x='100' y='70' width='74' height='56' rx='8' fill='#dbeafe'/><text x='137' y='106' font-size='19' fill='#2563eb' text-anchor='middle' font-weight='700'>100,000</text><rect x='100' y='134' width='74' height='96' rx='8' fill='#fff' stroke='#1f2937' stroke-width='3'/><text x='137' y='200' font-size='54' fill='#1f2937' text-anchor='middle' font-weight='700'>8</text><rect x='180' y='70' width='74' height='56' rx='8' fill='#dbeafe'/><text x='217' y='106' font-size='19' fill='#2563eb' text-anchor='middle' font-weight='700'>10,000</text><rect x='180' y='134' width='74' height='96' rx='8' fill='#fff' stroke='#1f2937' stroke-width='3'/><text x='217' y='200' font-size='54' fill='#1f2937' text-anchor='middle' font-weight='700'>5</text><rect x='260' y='70' width='74' height='56' rx='8' fill='#dbeafe'/><text x='297' y='106' font-size='22' fill='#2563eb' text-anchor='middle' font-weight='700'>1,000</text><rect x='260' y='134' width='74' height='96' rx='8' fill='#fff' stroke='#1f2937' stroke-width='3'/><text x='297' y='200' font-size='54' fill='#1f2937' text-anchor='middle' font-weight='700'>6</text><rect x='340' y='70' width='74' height='56' rx='8' fill='#dbeafe'/><text x='377' y='106' font-size='22' fill='#2563eb' text-anchor='middle' font-weight='700'>100</text><rect x='340' y='134' width='74' height='96' rx='8' fill='#fff' stroke='#1f2937' stroke-width='3'/><text x='377' y='200' font-size='54' fill='#1f2937' text-anchor='middle' font-weight='700'>1</text><rect x='420' y='70' width='74' height='56' rx='8' fill='#dbeafe'/><text x='457' y='106' font-size='22' fill='#2563eb' text-anchor='middle' font-weight='700'>10</text><rect x='420' y='134' width='74' height='96' rx='8' fill='#fff' stroke='#1f2937' stroke-width='3'/><text x='457' y='200' font-size='54' fill='#1f2937' text-anchor='middle' font-weight='700'>0</text><rect x='500' y='70' width='74' height='56' rx='8' fill='#dbeafe'/><text x='537' y='106' font-size='22' fill='#2563eb' text-anchor='middle' font-weight='700'>1</text><rect x='500' y='134' width='74' height='96' rx='8' fill='#fff' stroke='#1f2937' stroke-width='3'/><text x='537' y='200' font-size='54' fill='#1f2937' text-anchor='middle' font-weight='700'>4</text><text x='300' y='40' font-size='20' fill='#6b7280' text-anchor='middle' font-weight='700'>3,856,104</text><text x='300' y='280' font-size='18' fill='#6b7280' text-anchor='middle' font-weight='700'>place value of each column (top) and its digit (below)</text></svg>"}},
 {"say": "For the greatest number from given digits, place the largest digits in the most valuable places. For the least, the smallest digits go first, but never a leading zero.", "show": {"type": "big", "text": "digits 4, 9, 1, 7\ngreatest 9,741\nleast 1,479"}},
 {"say": "To count a list such as 25, 26, …, 80, subtract and then add one: 80 − 25 + 1 = 56. Forgetting the 'plus one' is the classic <b>fencepost error</b>.", "show": {"type": "big", "text": "count = last − first + 1"}},
@@ -1077,25 +1387,18 @@ const COURSE = {"key": "math", "title": "Math: Year 1 Advanced", "icon": "🧮",
 "900",
 "2,700"]]}},
 {"say": "A powerful counting method is <b>complementary counting</b>: count what you do NOT want, and subtract from the total.", "show": {"type": "big", "text": "with a zero\n= all − without a zero"}},
+{"say": "Counting can also run <b>backwards</b>. If a book's page numbers use 1,002 digits, pages 1–99 account for 189 of them; the remaining 813 digits are 271 three-digit pages, so the last page is 99 + 271 = 370.", "show": {"type": "big", "text": "1,002 − 189 = 813\n813 ÷ 3 = 271 → last page 370"}},
 {"say": "<b>Explain it.</b> Describe the fencepost error and explain, using a fence with posts every metre, why the 'plus one' is needed.", "show": {"type": "list", "items": ["Say it in 2–4 complete sentences.",
 "Use the precise words from this lesson.",
 "Give one example of your own."], "caption": "Explain it — to a grown-up or in writing"}}], "practice": [{"q": "Using 2, 0, 6, 9 and 4 once each, what is the largest 5-digit number?", "type": "number", "answer": 96420, "hint": "Largest digit in the most valuable place.", "why": "9, 6, 4, 2, 0: 96,420."},
-{"gen": () => MG.countList()},
-{"q": "Using 2, 0, 6, 9 and 4 once each, what is the smallest 5-digit number?", "type": "number", "answer": 20469, "hint": "The first digit can't be 0. Where should 0 go?", "why": "Begin with 2, then 0: 20,469."},
-{"gen": () => MG.pageDigits()},
 {"q": "How many numbers are in the list 25, 26, 27, …, 80?", "type": "number", "answer": 56, "hint": "Last − first, and then?", "why": "80 − 25 + 1 = 56."},
-{"gen": () => MG.multiplesBetween()},
 {"q": "A book has pages 1 to 120. How many digits are printed in its page numbers?", "type": "number", "answer": 252, "hint": "Split into 1-, 2- and 3-digit page numbers.", "why": "9 + 180 = 189 for pages 1–99; pages 100–120 are 21 × 3 = 63. Total 252."},
-{"gen": () => MG.noDigit()},
-{"q": "Which digit is in the ten-thousands place of 3,856,104?", "options": ["3",
-"8",
-"5",
-"6"], "answer": "5", "hint": "Count from the right: ones, tens, hundreds, thousands, ten thousands.", "why": "4 ones, 0 tens, 1 hundred, 6 thousands, 5 ten-thousands."},
-{"gen": () => MG.maxMin(5)},
-{"q": "How many 3-digit numbers are there?", "type": "number", "answer": 900, "hint": "Smallest 100, largest 999. Use the counting rule.", "why": "999 − 100 + 1 = 900."},
-{"gen": () => MG.countList()},
-{"q": "How many multiples of 3 lie between 10 and 100?", "type": "number", "answer": 30, "hint": "First multiple is 12, last is 99. How many threes is each?", "why": "12 = 3 × 4 and 99 = 3 × 33, so 33 − 4 + 1 = 30."},
-{"gen": () => MG.pageDigits()},
+{"gen": () => MG.countListHard()},
+{"gen": () => MG.pageDigitsRange()},
+{"gen": () => MG.noDigitsCount()},
+{"gen": () => MG.twoNumbers()},
+{"gen": () => MG.distinctDigitCount()},
+{"gen": () => MG.countListHard()},
 {"q": "Arrange from least to greatest.", "type": "order", "items": ["10² × 11",
 "1,010",
 "10³ + 1",
@@ -1103,24 +1406,27 @@ const COURSE = {"key": "math", "title": "Math: Year 1 Advanced", "icon": "🧮",
 "1,010",
 "10² × 11",
 "10⁴ − 1"], "hint": "Evaluate each first.", "why": "1,001 < 1,010 < 1,100 < 9,999."},
-{"gen": () => MG.multiplesBetween()},
+{"gen": () => MG.pagesFromDigits()},
+{"gen": () => MG.palCount()},
+{"gen": () => MG.digitTally(100, 400)},
+{"gen": () => MG.noDigitsCount()},
 {"q": "How many 2-digit numbers have a tens digit GREATER than the ones digit? (Such as 41.)", "type": "number", "answer": 45, "hint": "Tens digit 1 allows one ones digit (0); tens digit 2 allows two…", "why": "1 + 2 + … + 9 = 45."},
-{"gen": () => MG.countList()},
-{"q": "How many 3-digit numbers contain no digit 0?", "type": "number", "answer": 729, "hint": "Each of the three places has how many choices?", "why": "9 × 9 × 9 = 729."},
-{"gen": () => MG.noDigit()},
-{"q": "Which is greatest?", "options": ["4 × 10⁴",
-"39,999",
-"40,100",
-"399 × 100"], "answer": "40,100", "hint": "Evaluate: 4 × 10⁴ = ?", "why": "40,000; 39,999; 40,100; 39,900. Greatest: 40,100."},
-{"gen": () => MG.pageDigits()},
-{"q": "How many 3-digit numbers have at least one digit 5?", "type": "number", "answer": 252, "hint": "Count those with NO 5, then subtract from 900.", "why": "No 5: 8 × 9 × 9 = 648 (hundreds digit can't be 0 or 5). 900 − 648 = 252."},
-{"gen": () => MG.multiplesBetween()},
-{"gen": () => MG.maxMin(5)}], "challenge": [{"q": "A printer numbers a book's pages starting at 1 and uses exactly 192 digits. How many pages does the book have?", "type": "number", "answer": 100, "hint": "How many digits do pages 1–99 use?", "why": "Pages 1–99 use 189 digits. The remaining 3 digits are one 3-digit page: page 100."},
-{"q": "How many whole numbers from 1 to 1,000 contain at least one digit 0?", "type": "number", "answer": 181, "hint": "Handle 2-digit, 3-digit and 1,000 separately; use complementary counting for 3-digit numbers.", "why": "2-digit: 9. 3-digit: 900 − 729 = 171. Plus 1,000. Total 181."},
-{"q": "Using each of 1, 2, 3, 4 once, form two 2-digit numbers. What is the largest possible SUM?", "type": "number", "answer": 73, "hint": "Which digits deserve the tens places?", "why": "4 and 3 in the tens places: 40 + 30 + 2 + 1 = 73."},
-{"q": "A book uses 1,002 digits to number its pages. How many pages does it have?", "type": "number", "answer": 370, "hint": "Pages 1–99 use 189 digits. How many 3-digit pages use the rest?", "why": "1,002 − 189 = 813 digits, which is 271 three-digit pages: pages 100 to 370."},
-{"gen": () => MG.digitSumCount()},
-{"q": "Writing every whole number from 1 to 199, how many times do you write the digit 1?", "type": "number", "answer": 140, "hint": "Count 1s in the ones place, the tens place and the hundreds place separately.", "why": "Ones place: 20. Tens place: 10–19 and 110–119 give 20. Hundreds place: 100–199 give 100. Total 140."}], "extend": "Write a 'Solution Notebook' entry for the 1,002-digit book problem: state the problem, show the reasoning in clear steps, and finish with a sentence describing the general method for any number of digits.", "offline": "Play 'Greatest number wins': each player draws 4 digit cards one at a time and must place each in a 4-place chart before drawing the next. Afterwards, explain one placement decision and whether it was wise."},
+{"gen": () => MG.allDigitsFrom()},
+{"gen": () => MG.twoNumbers()},
+{"gen": () => MG.pagesFromDigits()},
+{"gen": () => MG.distinctDigitCount()},
+{"gen": () => MG.palCount()},
+{"gen": () => MG.allDigitsFrom()},
+{"gen": () => MG.twoNumbers()},
+{"q": "How many whole numbers from 1 to 1,000 contain at least one digit 0?", "type": "number", "answer": 181, "hint": "Handle 2-digit, 3-digit and 1,000 separately; use complementary counting for 3-digit numbers.", "why": "2-digit: 10, 20, …, 90 gives 9. 3-digit: 900 − 9 × 9 × 9 = 900 − 729 = 171. Plus 1,000. Total 181."},
+{"gen": () => MG.pageDigitsRange()},
+{"gen": () => MG.noDigitsCount()},
+{"gen": () => MG.countListHard()}], "challenge": [{"gen": () => MG.pagesFromDigits(true)},
+{"gen": () => MG.prod32()},
+{"gen": () => MG.kDigitWithD()},
+{"q": "Writing every whole number from 1 to 199, how many times do you write the digit 1?", "type": "number", "answer": 140, "hint": "Count 1s in the ones place, the tens place and the hundreds place separately.", "why": "Ones place: 20. Tens place: 10–19 and 110–119 give 20. Hundreds place: 100–199 give 100. Total 140."},
+{"q": "How many 3-digit numbers have digits whose product is 12?", "type": "number", "answer": 15, "hint": "List the sets of three digits with product 12 (a digit cannot be 12 itself), then count the orders of each set.", "why": "Digit sets: {1, 2, 6}, {1, 3, 4} and {2, 2, 3}. The first two have 3 × 2 × 1 = 6 orders each; {2, 2, 3} has only 3 (the 3 goes in one of three places). 6 + 6 + 3 = 15."},
+{"gen": () => MG.digitTally(500, 999)}], "extend": "Write a 'Solution Notebook' entry for the 1,002-digit book problem: state the problem, show the reasoning in clear steps, and finish with a sentence describing the general method for any number of digits.", "offline": "Play 'Greatest number wins': each player draws 4 digit cards one at a time and must place each in a 4-place chart before drawing the next. Afterwards, explain one placement decision and whether it was wise."},
 {"title": "Comparing and inequalities", "icon": "⚖️", "learn": [{"say": "To compare whole numbers, first count the digits: more digits means a greater number.", "show": {"type": "big", "text": "1,000,000 > 999,999", "caption": "7 digits against 6 digits"}},
 {"say": "With equal digit counts, compare from the LEFT, place by place, until the digits differ. That place decides.", "show": {"type": "big", "text": "48,372 < 48,519", "caption": "Equal 4 and 8; in the hundreds, 3 is less than 5"}},
 {"say": "The <b>inequality</b> symbols: &gt; reads 'is greater than' and &lt; reads 'is less than'. The open side always faces the greater number.", "show": {"type": "big", "text": "5 > 3     3 < 5"}},
