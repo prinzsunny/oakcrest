@@ -54,12 +54,18 @@ box.addEventListener("click", (event) => {
   if (event.target.closest("[data-manage]")) openManage();
 });
 const LEVEL_OPTIONS = (value) => '<option value="auto"' + (!value || value === "auto" ? " selected" : "") + ">Match age</option>" + OC.LEVELS.map((l) => '<option' + (l === value ? " selected" : "") + ">" + l + "</option>").join("");
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function rowOf(name, i) {
   const p = name === null ? {} : OC.profile(name);
-  return '<div class="oc-person" data-row="' + i + '"><label class="oc-field">Name or nickname<input class="oc-input" data-name-in value="' + OC.escapeHtml(name || "") + '" placeholder="First name" autocomplete="off"></label>' +
-    '<label class="oc-field">Birth month<input class="oc-input" type="month" data-birth value="' + (p.birth || "") + '"></label>' +
+  const [by, bm] = (p.birth || "").split("-");
+  const thisYear = new Date().getFullYear();
+  const years = [];
+  for (let y = thisYear; y >= thisYear - 18; y--) years.push(y);
+  return '<div class="oc-person" data-row="' + i + '">' +
+    '<label class="oc-field oc-name">Name or nickname<input class="oc-input" data-name-in value="' + OC.escapeHtml(name || "") + '" placeholder="First name" autocomplete="off"></label>' +
+    '<div class="oc-field">Birthday (month and year)<div class="oc-pair"><select class="oc-input" data-bm aria-label="Birth month"><option value="">Month</option>' + MONTHS.map((m, k) => '<option value="' + String(k + 1).padStart(2, "0") + '"' + (Number(bm) === k + 1 ? " selected" : "") + ">" + m + "</option>").join("") + '</select><select class="oc-input" data-by aria-label="Birth year"><option value="">Year</option>' + years.map((y) => "<option" + (Number(by) === y ? " selected" : "") + ">" + y + "</option>").join("") + "</select></div></div>" +
     '<label class="oc-field">Works at<select class="oc-input" data-level>' + LEVEL_OPTIONS(p.level) + "</select></label>" +
-    (name === null ? "" : '<button type="button" class="oc-button ghost" data-del="' + i + '">Remove</button>') + "</div>";
+    (name === null ? "" : '<button type="button" class="oc-remove" data-del="' + i + '">Remove</button>') + "</div>";
 }
 function openManage() {
   const list = OC.learners();
@@ -85,7 +91,9 @@ dialog.querySelector("form").addEventListener("submit", (event) => {
     if (!name || names.includes(name)) return;
     const i = row.dataset.row;
     if (i !== "new" && old[i] && old[i] !== name) OC.renameLearner(old[i], name);
-    OC.saveProfile(name, { birth: row.querySelector("[data-birth]").value, level: row.querySelector("[data-level]").value });
+    const bm = row.querySelector("[data-bm]").value;
+    const by = row.querySelector("[data-by]").value;
+    OC.saveProfile(name, { birth: bm && by ? by + "-" + bm : "", level: row.querySelector("[data-level]").value });
     names.push(name);
   });
   OC.saveLearners(names);
