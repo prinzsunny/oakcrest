@@ -1,0 +1,2309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chemistry Lab · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="science">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Chemistry Lab</b><small>Science · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, wait, confetti, choices, explain, everyday, emoji, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+const BENCH = 470;
+let token = 0;
+let view = null;
+let uid = 0;
+const STOP = Symbol("stop");
+const nid = (p) => `${p}${++uid}`;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const INK = "#2b1d12";
+
+const UNITS = [
+  { id: "c0", label: "See it", icon: "👀" },
+  { id: "c1", label: "1. Solid, liquid, gas", icon: "🧊" },
+  { id: "c2", label: "2. Dissolve or not?", icon: "🥄" },
+  { id: "c3", label: "3. Density tower", icon: "🍯" },
+  { id: "c4", label: "4. Acids & bases", icon: "🧪" },
+  { id: "c5", label: "5. Fizz!", icon: "🎈" },
+  { id: "c6", label: "6. Crystals", icon: "💎" },
+  { id: "c7", label: "7. Can we undo it?", icon: "🍳" },
+];
+
+// ---------- speech without emoji names ----------
+const plainSpeech = (html) =>
+  html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/[\p{Extended_Pictographic}️‍]/gu, "")
+    .replace(/−\s?(\d)/g, "minus $1")
+    .replace(/°C/g, " degrees Celsius")
+    .replace(/°F/g, " degrees Fahrenheit")
+    .replace(/\bpH\b/g, "P H")
+    .replace(/\s+/g, " ")
+    .trim();
+const tell = (html) => {
+  say(html, { voice: false });
+  VOICE.speak(plainSpeech(html));
+};
+const tellAsync = (html) => {
+  say(html, { voice: false });
+  return VOICE.speakAsync(plainSpeech(html));
+};
+
+// ---------- styles ----------
+const chStyle = document.createElement("style");
+chStyle.textContent = `
+.ch-trybtn{position:absolute;top:10px;right:10px;z-index:3;min-height:44px;padding:0 16px;border:0;border-radius:22px;background:#fff;color:var(--accent-dark);box-shadow:0 3px 0 #e2d6c4,0 0 0 2px var(--accent-soft);font:800 15px/1 var(--sans);cursor:pointer;touch-action:manipulation}
+.ch-trybtn:active{transform:translateY(2px)}
+.ch-acts{display:flex;justify-content:center;max-width:100%}
+.ch-acts .kt-choices button{min-height:54px;font-size:18px;padding:0 16px}
+.ch-acts .kt-choices button.picked{background:var(--accent-soft);box-shadow:0 0 0 3px var(--accent)}
+.ch-acts .ap-buttons button{min-height:56px;font-size:19px}
+.ch-sw{display:inline-block;width:22px;height:22px;border-radius:50%;vertical-align:-5px;margin-right:6px;box-shadow:inset 0 0 0 2px rgba(0,0,0,.15)}
+.ch-puff{animation:ch-rise 2.6s ease-in infinite;transform-box:fill-box}
+.ch-bub{animation:ch-bub 1.3s ease-in infinite;transform-box:fill-box}
+@keyframes ch-rise{0%{transform:translateY(0) scale(.7);opacity:0}25%{opacity:.85}100%{transform:translateY(-90px) scale(1.25);opacity:0}}
+@keyframes ch-bub{0%{transform:translateY(0);opacity:0}20%{opacity:1}100%{transform:translateY(-120px);opacity:0}}
+.ch-try{position:fixed;inset:0;z-index:45;display:grid;place-items:center;padding:12px;background:rgba(43,29,18,.35);backdrop-filter:blur(3px)}
+.ch-card{width:min(820px,100%);max-height:100%;overflow:auto;padding:16px 20px;border-radius:26px;background:#fffdf8;box-shadow:0 24px 60px rgba(0,0,0,.25);color:${INK};font:700 16px/1.35 var(--sans);animation:ap-rise .25s cubic-bezier(.32,.72,0,1) both}
+.ch-card h2{margin:0 0 8px;display:flex;align-items:center;gap:10px;font:900 clamp(20px,3vw,28px)/1.15 var(--sans)}
+.ch-card h2 span{display:grid;place-items:center;width:52px;height:52px;flex:none;border-radius:50%;background:var(--accent-soft);font-size:30px}
+.ch-cols{display:grid;grid-template-columns:1fr 1.4fr;gap:10px 18px}
+.ch-card h3{margin:4px 0 4px;color:var(--accent-dark);font:900 15px/1.2 var(--sans);text-transform:uppercase;letter-spacing:.05em}
+.ch-card ul,.ch-card ol{margin:0;padding-left:22px}
+.ch-card li{margin:2px 0}
+.ch-note{margin-top:8px;padding:8px 12px;border-radius:14px;background:#eef8f0}
+.ch-safe{margin-top:6px;padding:8px 12px;border-radius:14px;background:#fff1e6;box-shadow:inset 0 0 0 2px #f3c39b}
+.ch-card .kt-go{display:block;margin:10px auto 0;min-height:52px}
+@media (max-width:640px){.ch-cols{grid-template-columns:1fr}.ch-card{font-size:14.5px;padding:12px 14px}}
+@media (max-height:460px){.ch-card{font-size:13.5px;padding:10px 14px}.ch-card h2 span{width:40px;height:40px;font-size:24px}.ch-cols{grid-template-columns:1fr 1.4fr}.ch-card .kt-go{min-height:42px}}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){.ch-trybtn{min-height:38px;font-size:13px;padding:0 10px;top:6px;right:6px}.ch-acts .kt-choices button,.ch-acts .ap-buttons button{min-height:44px;font-size:15.5px;padding:0 12px}}
+`;
+document.head.appendChild(chStyle);
+
+// ---------- "Try it for real" cards ----------
+const TRY = {
+  c1: {
+    icon: "🧊",
+    title: "Ice cube melting test",
+    need: ["3 ice cubes", "3 small plates", "a sunny window", "a shady spot", "a fridge"],
+    steps: ["Put one ice cube on a plate in the sun.", "Put one in the shade, and one in the fridge.", "Guess which melts first. Then look every 10 minutes."],
+    notice: "Warmer places melt ice sooner. Heat makes the tiny particles move faster, so they break free.",
+    safe: "Do it with a grown-up. Wipe up drips so nobody slips.",
+  },
+  c2: {
+    icon: "🧂",
+    title: "Salt-water drying dish",
+    need: ["a cup of warm water", "2 spoons of salt", "a dark plate", "a spoon"],
+    steps: ["A grown-up makes the warm water.", "Stir in the salt until you can't see it.", "Pour a thin layer on the dark plate.", "Leave it in a sunny place for a few days."],
+    notice: "The water dries up (evaporates) into the air, and the salt is left behind as crystals.",
+    safe: "With a grown-up. Never taste your experiments.",
+  },
+  c3: {
+    icon: "🍯",
+    title: "Kitchen density jar",
+    need: ["a tall clear glass", "honey", "dish soap", "water with a drop of food colouring", "vegetable oil", "a coin, a ping-pong ball, an ice cube"],
+    steps: ["Pour slowly down the side: honey, then soap, then water, then oil.", "Wait a minute and look at the layers.", "Gently drop in the coin, the ball and the ice cube."],
+    notice: "The liquids stack in layers. Heavy-for-their-size things sink lower.",
+    safe: "A grown-up helps with pouring. Don't drink it. Wash your hands after.",
+  },
+  c4: {
+    icon: "🥬",
+    title: "Red cabbage colour test",
+    need: ["red cabbage leaves", "hot water (grown-up)", "a strainer", "clear cups", "lemon juice, vinegar, water, baking soda"],
+    steps: ["A grown-up cuts the cabbage and soaks it in hot water for 10 minutes.", "When it is cool, strain out the purple juice.", "Pour some juice into each cup.", "Add a little of each test liquid. Watch the colour!"],
+    notice: "Lemon and vinegar turn it pink (acids). Water stays purple. Baking soda turns it blue-green (a base).",
+    safe: "A grown-up does the knife and hot water. Never taste. Use kitchen things only, never cleaners.",
+  },
+  c5: {
+    icon: "🎈",
+    title: "Balloon on a bottle",
+    need: ["an empty plastic bottle", "half a cup of vinegar", "2 spoons of baking soda", "a balloon", "a funnel", "goggles or sunglasses"],
+    steps: ["Pour the vinegar into the bottle.", "Use the funnel to put the baking soda inside the balloon.", "Stretch the balloon over the bottle top.", "Lift the balloon so the soda falls in!"],
+    notice: "It fizzes and makes carbon dioxide gas. The gas fills the balloon.",
+    safe: "Wear goggles for fizzing. Do it with a grown-up. The candle test is only for a grown-up to show.",
+  },
+  c6: {
+    icon: "🍭",
+    title: "Sugar string crystals",
+    need: ["1 cup of water", "2 to 3 cups of sugar", "a clean glass jar", "cotton string", "a pencil and a paper clip"],
+    steps: ["A grown-up heats the water and stirs in sugar until no more dissolves.", "Let it cool a little and pour it into the jar.", "Tie the string to the pencil, add the clip, and hang it in the jar.", "Look every day for about a week."],
+    notice: "Sugar crystals grow on the string as the water slowly dries up.",
+    safe: "Hot sugar water can burn. Only a grown-up does the hot steps.",
+  },
+  c7: {
+    icon: "🍫",
+    title: "Kitchen changes hunt",
+    need: ["an ice cube", "a square of chocolate", "a slice of bread", "a grown-up with a toaster"],
+    steps: ["Melt the chocolate on a warm plate, then put it in the fridge.", "Watch the ice cube melt. Can you freeze it back?", "Watch a grown-up toast the bread. Can it go back?"],
+    notice: "Melting can be undone. Toasting makes something new, so it can't be undone.",
+    safe: "Only grown-ups use the toaster and the stove.",
+  },
+};
+
+function openTry(id) {
+  const t = TRY[id];
+  if (!t) return;
+  document.querySelector(".ch-try")?.remove();
+  const box = document.createElement("div");
+  box.className = "ch-try";
+  box.setAttribute("role", "dialog");
+  box.setAttribute("aria-label", "Try it for real");
+  box.innerHTML = `<div class="ch-card"><h2><span aria-hidden="true">${t.icon}</span>🏠 Try it for real: ${t.title}</h2><div class="ch-cols"><div><h3>You need</h3><ul>${t.need.map((x) => `<li>${x}</li>`).join("")}</ul></div><div><h3>Steps</h3><ol>${t.steps.map((x) => `<li>${x}</li>`).join("")}</ol></div></div><div class="ch-note">👀 <b>Notice:</b> ${t.notice}</div><div class="ch-safe">⚠️ <b>Safety:</b> ${t.safe}</div><button type="button" class="kt-go" data-close>✓ Got it</button></div>`;
+  document.body.appendChild(box);
+  VOICE.speak(plainSpeech(`Try it for real: ${t.title}. ${t.steps.join(" ")} Notice: ${t.notice} Safety: ${t.safe}`));
+  box.addEventListener("click", (e) => {
+    if (e.target === box || e.target.closest("[data-close]")) {
+      VOICE.hush();
+      box.remove();
+    }
+  });
+  window.OC?.touch();
+}
+
+// ---------- drawing helpers ----------
+function fresh(id) {
+  stage.innerHTML = "";
+  document.querySelector(".ch-try")?.remove();
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  const defs = el("defs", {}, view);
+  const wall = el("linearGradient", { id: "chWall", x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  el("stop", { offset: 0, "stop-color": "#f4fbf5" }, wall);
+  el("stop", { offset: 1, "stop-color": "#f6faf3" }, wall);
+  el("rect", { x: -1500, y: -1000, width: W + 3000, height: H + 1000, fill: "#f6faf3" }, view);
+  el("rect", { width: W, height: H, fill: "url(#chWall)" }, view);
+  el("rect", { x: -1500, y: BENCH, width: W + 3000, height: H - BENCH + 1000, fill: "#e3bf8f" }, view);
+  el("rect", { x: -1500, y: BENCH, width: W + 3000, height: 10, fill: "#c99a62" }, view);
+  for (let x = 40; x < W; x += 160) el("path", { d: `M${x} ${BENCH + 34}q60 -8 120 0`, stroke: "#d4a874", "stroke-width": 3, fill: "none" }, view);
+  if (id && TRY[id]) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ch-trybtn";
+    b.textContent = "🏠 Try it for real";
+    b.addEventListener("click", () => openTry(id));
+    stage.appendChild(b);
+  }
+  return view;
+}
+
+// Predict → Test → Why strip, top left.
+let stepNodes = [];
+function drawSteps(parent) {
+  stepNodes = [];
+  [["🤔", "Predict"], ["🧪", "Test"], ["💡", "Why"]].forEach(([icon, word], i) => {
+    const g = el("g", { transform: `translate(${16 + i * 162} 12)` }, parent);
+    const r = el("rect", { width: 150, height: 46, rx: 23, fill: "#fff", stroke: "#cfe6d4", "stroke-width": 3 }, g);
+    emoji(g, 28, 22, icon, 26);
+    const t = text(g, 92, 31, word, { "font-size": 24, fill: "#6b7d70" });
+    stepNodes.push({ r, t });
+    if (i < 2) text(parent, 16 + i * 162 + 156, 44, "›", { "font-size": 26, fill: "#9bb8a2" });
+  });
+}
+function setStep(i) {
+  stepNodes.forEach((s, k) => {
+    s.r.setAttribute("fill", k === i ? "var(--accent)" : k < i ? "var(--accent-soft)" : "#fff");
+    s.r.setAttribute("stroke", k <= i ? "var(--accent)" : "#cfe6d4");
+    s.t.setAttribute("fill", k === i ? "#fff" : k < i ? "var(--accent-dark)" : "#6b7d70");
+  });
+}
+
+function glass(parent, x, y, w, h, { level = 0.6, color = "#9ad7f5", op = 0.8 } = {}) {
+  const g = el("g", {}, parent);
+  const id = nid("chg");
+  const cp = el("clipPath", { id }, g);
+  const d = `M${x} ${y}L${x + 8} ${y + h - 20}Q${x + 10} ${y + h} ${x + 30} ${y + h}L${x + w - 30} ${y + h}Q${x + w - 10} ${y + h} ${x + w - 8} ${y + h - 20}L${x + w} ${y}Z`;
+  el("path", { d }, cp);
+  el("path", { d, fill: "#ffffff", opacity: 0.6 }, g);
+  const inner = el("g", { "clip-path": `url(#${id})` }, g);
+  const liq = el("rect", { x: x - 5, y: y + h * (1 - level), width: w + 10, height: h * level + 5, fill: color, opacity: op }, inner);
+  const front = el("g", { "clip-path": `url(#${id})` }, g);
+  el("path", { d, fill: "none", stroke: "#7d98a6", "stroke-width": 6, "stroke-linejoin": "round" }, g);
+  el("path", { d: `M${x + 20} ${y + 22}L${x + 26} ${y + h - 44}`, stroke: "#fff", "stroke-width": 8, "stroke-linecap": "round", opacity: 0.75 }, g);
+  const o = {
+    g,
+    inner,
+    front,
+    liq,
+    x,
+    y,
+    w,
+    h,
+    level,
+    yAt: (lv) => y + h * (1 - lv),
+    set(lv, col) {
+      o.level = lv;
+      liq.setAttribute("y", y + h * (1 - lv));
+      liq.setAttribute("height", h * lv + 5);
+      if (col) liq.setAttribute("fill", col);
+    },
+  };
+  return o;
+}
+
+const hex = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+const mix = (a, b, t) => {
+  const A = hex(a);
+  const B = hex(b);
+  return `#${A.map((v, i) => Math.round(lerp(v, B[i], t)).toString(16).padStart(2, "0")).join("")}`;
+};
+
+// A zoom circle with moving particles. Modes: lattice (hold place and wiggle), wander (slide, liquid), fly (gas).
+function Zoom(parent, cx, cy, R, alive, { label = "🔬 Zoomed in", bg = "#f2fafe" } = {}) {
+  const g = el("g", { transform: `translate(${cx} ${cy})` }, parent);
+  el("line", { x1: R * 0.7, y1: R * 0.7, x2: R * 1.06, y2: R * 1.06, stroke: "#8a5a3a", "stroke-width": 26, "stroke-linecap": "round" }, g);
+  el("circle", { r: R, fill: bg, stroke: "#5a4130", "stroke-width": 10 }, g);
+  const id = nid("chz");
+  const cp = el("clipPath", { id }, g);
+  el("circle", { r: R - 5 }, cp);
+  const inner = el("g", { "clip-path": `url(#${id})` }, g);
+  const over = el("g", { "clip-path": `url(#${id})` }, g);
+  if (label) text(g, -R + 6, -R - 8, label, { "font-size": 23, fill: "#5a4130", "text-anchor": "start" });
+  const z = {
+    g,
+    inner,
+    over,
+    R,
+    ps: [],
+    heat: 1,
+    add(p) {
+      const q = { x: 0, y: 0, vx: 0, vy: 0, r: 13, fill: "#4aa3df", mode: "wander", top: -R, bot: R, spd: 1, shake: 3, ...p };
+      q.hx ??= q.x;
+      q.hy ??= q.y;
+      q.node = el("circle", { cx: q.x, cy: q.y, r: q.r, fill: q.fill, stroke: "rgba(0,0,0,.25)", "stroke-width": 2 }, inner);
+      z.ps.push(q);
+      return q;
+    },
+  };
+  const frame = () => {
+    if (!alive() || !g.isConnected) return;
+    const ht = z.heat;
+    const ps = z.ps;
+    for (const p of ps) {
+      if (p.mode === "lattice" || p.mode === "stuck") {
+        p.x += (p.hx - p.x) * 0.12;
+        p.y += (p.hy - p.y) * 0.12;
+        const j = p.mode === "stuck" ? 0 : p.shake * ht;
+        p.dx = (Math.random() - 0.5) * j;
+        p.dy = (Math.random() - 0.5) * j;
+      } else {
+        const s = (p.mode === "fly" ? 4.6 : 1.1) * ht * p.spd;
+        p.vx += (Math.random() - 0.5) * s * 0.6;
+        p.vy += (Math.random() - 0.5) * s * 0.6;
+        const v = Math.hypot(p.vx, p.vy);
+        if (v > s) {
+          p.vx *= s / v;
+          p.vy *= s / v;
+        }
+        p.x += p.vx;
+        p.y += p.vy;
+        const top = p.mode === "fly" ? -R : p.top;
+        const bot = p.mode === "fly" ? R : p.bot;
+        if (p.y < top + p.r) {
+          p.y += (top + p.r - p.y) * 0.25;
+          p.vy = Math.abs(p.vy);
+        }
+        if (p.y > bot - p.r) {
+          p.y -= (p.y - bot + p.r) * 0.25;
+          p.vy = -Math.abs(p.vy);
+        }
+        const d = Math.hypot(p.x, p.y);
+        const lim = R - p.r - 6;
+        if (d > lim) {
+          p.x *= lim / d;
+          p.y *= lim / d;
+          const nx = p.x / d;
+          const ny = p.y / d;
+          const dot = p.vx * nx + p.vy * ny;
+          if (dot > 0) {
+            p.vx -= 2 * dot * nx;
+            p.vy -= 2 * dot * ny;
+          }
+        }
+        p.dx = 0;
+        p.dy = 0;
+      }
+    }
+    for (let i = 0; i < ps.length; i++)
+      for (let j = i + 1; j < ps.length; j++) {
+        const a = ps[i];
+        const b = ps[j];
+        const fa = a.mode === "wander" || a.mode === "fly";
+        const fb = b.mode === "wander" || b.mode === "fly";
+        if (!fa && !fb) continue;
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const d = Math.hypot(dx, dy) || 0.01;
+        const min = a.r + b.r + 1;
+        if (d < min) {
+          const push = (min - d) / (fa && fb ? 2 : 1);
+          const ux = dx / d;
+          const uy = dy / d;
+          if (fa) {
+            a.x -= ux * push;
+            a.y -= uy * push;
+          }
+          if (fb) {
+            b.x += ux * push;
+            b.y += uy * push;
+          }
+        }
+      }
+    for (const p of ps) {
+      p.node.setAttribute("cx", (p.x + p.dx).toFixed(1));
+      p.node.setAttribute("cy", (p.y + p.dy).toFixed(1));
+    }
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+  return z;
+}
+const grid = (cols, rows, gap, cx = 0, cy = 0) => {
+  const out = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) out.push({ x: cx + (c - (cols - 1) / 2) * gap, y: cy + (r - (rows - 1) / 2) * gap });
+  return out;
+};
+
+const tw = (ms, fn, alive) =>
+  new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(true);
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!alive()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+
+const LEVELS = [["easy", "🐣 Easy"], ["medium", "🦊 Medium"], ["hard", "🦁 Hard"]];
+const levelRow = (cur) => `<div class="ap-row"><div class="ap-chips" data-levels>${LEVELS.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div>`;
+
+// Bubbles that rise (CSS animated) inside a group.
+function bubbles(parent, x0, x1, y, n, { r = [5, 10], fill = "#ffffff", stroke = "#7d98a6" } = {}) {
+  const g = el("g", {}, parent);
+  for (let i = 0; i < n; i++) {
+    const c = el("circle", { class: "ch-bub", cx: lerp(x0, x1, Math.random()), cy: y - Math.random() * 20, r: lerp(r[0], r[1], Math.random()), fill, stroke, "stroke-width": 2, opacity: 0 }, g);
+    c.style.animationDelay = `${(Math.random() * 1.3).toFixed(2)}s`;
+  }
+  return g;
+}
+function puffs(parent, x, y, n = 4, spread = 60) {
+  const g = el("g", {}, parent);
+  for (let i = 0; i < n; i++) {
+    const c = el("circle", { class: "ch-puff", cx: x + (i - (n - 1) / 2) * (spread / Math.max(1, n - 1)) * 2, cy: y, r: 26, fill: "#e9eef2", opacity: 0 }, g);
+    c.style.animationDelay = `${(i * 0.6).toFixed(2)}s`;
+  }
+  return g;
+}
+
+// ---------- the Predict → Test → Why game engine ----------
+// make(level) returns rounds: { q, o: [[v, label]...], a, why, draw(ctx) -> scene, test(ctx, scene), hint?, tries? }
+function labGame(id, { make, word = "experiments" }) {
+  const my = token;
+  let level = shell.progress()[id]?.level || "easy";
+  let gen = 0;
+  panel(`${levelRow(level)}<div class="ch-acts" data-acts></div>`);
+  const acts = $("[data-acts]");
+  const start = () => {
+    const g = ++gen;
+    const alive = () => my === token && g === gen;
+    const list = make(level);
+    let round = 0;
+    const ctx = {
+      alive,
+      level,
+      wait: (ms) => new Promise((res, rej) => setTimeout(() => (alive() ? res() : rej(STOP)), KIT.still.matches ? Math.min(ms, 200) : ms)),
+      tween: async (ms, fn) => {
+        if (!(await tw(ms, fn, alive))) throw STOP;
+      },
+      say: (h) => alive() && tell(h),
+      sayAsync: async (h) => {
+        await tellAsync(h);
+        if (!alive()) throw STOP;
+      },
+      press: (buttons) =>
+        new Promise((resolve) => {
+          if (!alive()) return;
+          acts.innerHTML = `<div class="ap-buttons">${buttons.map(([k, l, primary]) => `<button type="button" data-a="${k}"${primary ? ' class="primary" data-pulse' : ""}>${l}</button>`).join("")}</div>`;
+          acts.onclick = (e) => {
+            const b = e.target.closest("[data-a]");
+            if (!b || !alive()) return;
+            window.OC?.touch();
+            acts.onclick = null;
+            resolve(b.dataset.a);
+          };
+        }),
+    };
+    const play = async () => {
+      const r = list[round];
+      $("[data-status]").textContent = `Experiment ${round + 1} of ${list.length}`;
+      fresh(id);
+      const scene = r.draw(ctx) || {};
+      drawSteps(view);
+      setStep(0);
+      tell(`🤔 <b>Predict:</b> ${r.q}`);
+      let tries = 0;
+      const guess = await new Promise((resolve) => {
+        const opts = r.keep ? r.o : shuffle(r.o);
+        window.__chRound = { r, opts, round };
+        choices(acts, opts.map(([v, label]) => ({ v, label })), (o, button) => {
+          if (!alive()) return;
+          window.OC?.touch();
+          if (r.tries && o.v !== r.a && tries === 0) {
+            tries += 1;
+            button.classList.add("wrong");
+            button.disabled = true;
+            MUSIC.oops();
+            tell(`Mistakes are how we learn. ${r.hint || "What do you notice? Try again."}`);
+            return;
+          }
+          acts.onclick = null;
+          button.classList.add("picked");
+          resolve(o.v);
+        });
+      });
+      if (!alive()) return;
+      setStep(1);
+      await r.test(ctx, scene, guess);
+      if (!alive()) return;
+      setStep(2);
+      const ok = guess === r.a;
+      if (ok) MUSIC.chime();
+      else MUSIC.oops();
+      const lead = ok
+        ? tries
+          ? "You tried again and found it!"
+          : pick(["Your prediction matched!", "Just as you predicted!", "You predicted it!"])
+        : r.tries
+          ? "Now we know! Let's look why."
+          : pick(["Surprise! Scientists get surprised all the time. Let's look why.", "Not what we predicted, and that's how scientists learn! Here's why."]);
+      tell(`💡 ${lead} ${r.why}`);
+      window.OC?.count(word);
+      round += 1;
+      await ctx.press([["next", round >= list.length ? "🏁 Finish" : "Next ▶", true]]);
+      if (!alive()) return;
+      if (round >= list.length) finish();
+      else play().catch(onErr);
+    };
+    const finish = () => {
+      confetti();
+      MUSIC.chime();
+      shell.mark(id, { done: true });
+      setStep(2);
+      tell(`🎉 You made ${list.length} predictions and tested every one, just like a real scientist. You kept going! Now try it for real, away from the screen.`);
+      acts.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-a="try" data-pulse>🏠 Try it for real</button><button type="button" data-a="again">🔁 Again</button></div>`;
+      acts.onclick = (e) => {
+        const b = e.target.closest("[data-a]");
+        if (!b || !alive()) return;
+        if (b.dataset.a === "try") openTry(id);
+        else start();
+      };
+    };
+    const onErr = (e) => {
+      if (e !== STOP) console.error(e);
+    };
+    play().catch(onErr);
+  };
+  $("[data-levels]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    level = b.dataset.lv;
+    shell.mark(id, { level });
+    window.OC?.touch();
+    VOICE.hush();
+    start();
+  });
+  start();
+}
+
+// ================= 1. SOLID, LIQUID, GAS =================
+const toF = (c) => Math.round((c * 9) / 5 + 32);
+function slgScene(ctx, r) {
+  const v = view;
+  const sc = { T: r.start, fahr: !!r.fStart, presses: 0 };
+  const tx = 92;
+  const ty0 = 110;
+  const ty1 = 420;
+  const yOf = (T) => ty1 - ((T + 20) / 140) * (ty1 - ty0);
+  el("rect", { x: tx - 24, y: ty0 - 20, width: 48, height: ty1 - ty0 + 50, rx: 24, fill: "#fff", stroke: "#5a4130", "stroke-width": 5 }, v);
+  el("circle", { cx: tx, cy: ty1 + 34, r: 34, fill: "#e53935", stroke: "#5a4130", "stroke-width": 5 }, v);
+  const merc = el("rect", { x: tx - 10, y: yOf(sc.T), width: 20, height: ty1 + 34 - yOf(sc.T), rx: 10, fill: "#e53935" }, v);
+  const tick0 = text(v, tx + 34, yOf(0) + 8, "", { "font-size": 22, fill: "#2a6db0", "text-anchor": "start" });
+  const tick100 = text(v, tx + 34, yOf(100) + 8, "", { "font-size": 22, fill: "#c0392b", "text-anchor": "start" });
+  for (const T of [0, 100]) el("line", { x1: tx - 24, x2: tx + 30, y1: yOf(T), y2: yOf(T), stroke: "#5a4130", "stroke-width": 4 }, v);
+  const read = text(v, 320, 122, "", { "font-size": 48, fill: INK });
+  const pressT = text(v, 320, 528, "", { "font-size": 28, fill: "#7a4a1f" });
+  // hot plate + beaker
+  const plate = el("rect", { x: 200, y: BENCH - 30, width: 240, height: 30, rx: 8, fill: "#6f6a66" }, v);
+  const glow = el("rect", { x: 212, y: BENCH - 36, width: 216, height: 8, rx: 4, fill: "#ff7a1a", opacity: 0 }, v);
+  const bk = glass(v, 215, 170, 210, BENCH - 40 - 170, { level: 0 });
+  const ice = el("g", {}, bk.inner);
+  [[235, 352], [300, 360], [360, 350], [270, 300], [335, 305]].forEach(([x, y]) => el("rect", { x, y, width: 54, height: 50, rx: 10, fill: "#e4f6ff", stroke: "#8fc9e6", "stroke-width": 3 }, ice));
+  const bub = bubbles(bk.inner, 235, 405, 420, 14);
+  const steam = puffs(v, 320, 150, 4, 70);
+  // zoom
+  const stateT = text(v, 745, 90, "", { "font-size": 32, fill: INK });
+  const z = Zoom(v, 745, 300, 165, ctx.alive);
+  const homes = grid(7, 5, 32, 0, 50);
+  homes.forEach((h) => z.add({ x: h.x, y: h.y, hx: h.x, hy: h.y, r: 14, fill: "#4aa3df", mode: "lattice", shake: 3 }));
+  const stateOf = (T) => (T < 0 ? "solid" : T === 0 ? "melt" : T < 100 ? "liquid" : T === 100 ? "boil" : "gas");
+  const show = () => {
+    const T = sc.T;
+    const st = stateOf(T);
+    const deg = (c) => (sc.fahr ? `${toF(c)} °F` : `${c} °C`.replace("-", "−"));
+    read.textContent = deg(T);
+    tick0.textContent = sc.fahr ? "32°F" : "0°C";
+    tick100.textContent = sc.fahr ? "212°F" : "100°C";
+    stateT.textContent = { solid: "🧊 Ice: a solid", melt: `🧊⇄💧 Melting point ${deg(0)}`, liquid: "💧 Water: a liquid", boil: `♨️ Boiling at ${deg(100)}`, gas: "☁️ Steam: a gas" }[st];
+    ice.setAttribute("opacity", st === "solid" ? 1 : st === "melt" ? 0.55 : 0);
+    ice.setAttribute("transform", st === "melt" ? "translate(32 40) scale(.9)" : "");
+    bk.set({ solid: 0, melt: 0.25, liquid: 0.55, boil: 0.5, gas: 0.06 }[st]);
+    bub.setAttribute("opacity", st === "boil" || (st === "liquid" && T >= 80) ? 1 : 0);
+    steam.setAttribute("opacity", st === "boil" || st === "gas" ? 1 : 0);
+    z.heat = clamp(0.35 + (T + 20) / 110, 0.35, 1.7);
+    z.ps.forEach((p, i) => {
+      p.shake = 2 + (T + 20) / 8;
+      if (st === "solid") p.mode = "lattice";
+      else if (st === "melt") {
+        p.mode = i < 18 ? "lattice" : "wander";
+        p.top = 30;
+      } else if (st === "liquid") {
+        p.mode = "wander";
+        p.top = -15;
+      } else if (st === "boil") {
+        p.mode = i < 27 ? "wander" : "fly";
+        p.top = 10;
+      } else p.mode = "fly";
+    });
+  };
+  show();
+  sc.setT = async (T, hot) => {
+    const from = sc.T;
+    glow.setAttribute("fill", hot ? "#ff7a1a" : "#7cc8f2");
+    plate.setAttribute("fill", hot ? "#7a5a48" : "#5f7380");
+    await ctx.tween(650, (t) => {
+      const cur = lerp(from, T, t);
+      merc.setAttribute("y", yOf(cur));
+      merc.setAttribute("height", ty1 + 34 - yOf(cur));
+      glow.setAttribute("opacity", Math.sin(t * Math.PI) * 0.9);
+    });
+    sc.T = T;
+    show();
+  };
+  sc.toggle = () => {
+    sc.fahr = !sc.fahr;
+    show();
+  };
+  sc.setPress = (n) => (pressT.textContent = n ? `Presses: ${n}` : "");
+  sc.show = show;
+  return sc;
+}
+function slgTest(r) {
+  return async (ctx, sc) => {
+    if (r.f) {
+      await ctx.wait(500);
+      sc.fahr = true;
+      sc.show();
+    }
+    if (r.goal === r.start) {
+      ctx.say(`🔬 ${r.look || "Look closely at the tiny particles in the zoom circle."}`);
+      await ctx.press([["see", "👀 I see it", true]]);
+      return;
+    }
+    const dir = Math.sign(r.goal - r.start);
+    ctx.say(`🧪 Let's test it! Tap ${dir > 0 ? "🔥 Hotter" : "❄️ Cooler"}${r.count ? " and count your presses" : ""}.`);
+    let n = 0;
+    while (dir > 0 ? sc.T < r.goal : sc.T > r.goal) {
+      const k = await ctx.press([["cool", "❄️ Cooler"], ["hot", "🔥 Hotter"], ["unit", "°C ⇄ °F"]]);
+      if (!ctx.alive()) return;
+      if (k === "unit") {
+        sc.toggle();
+        continue;
+      }
+      const d = k === "hot" ? 10 : -10;
+      const T = clamp(sc.T + d, -20, 120);
+      if (d * dir < 0) ctx.say(`That makes it ${d > 0 ? "hotter" : "colder"}. For this test, tap ${dir > 0 ? "🔥 Hotter" : "❄️ Cooler"}.`);
+      else {
+        n += 1;
+        if (r.count) sc.setPress(n);
+        MUSIC.play("xylophone", d > 0 ? 72 + Math.min(24, n * 2) : 96 - Math.min(24, n * 2), { gain: 0.3 });
+      }
+      await sc.setT(T, d > 0);
+    }
+    await ctx.wait(900);
+  };
+}
+const SLG = {
+  easy: [
+    { start: -10, goal: 20, q: "This is ice. What will happen if we heat it?", o: [["melt", "💧 It melts"], ["stay", "🧊 It stays ice"], ["stone", "🪨 It turns to stone"]], a: "melt", why: "Heat makes the tiny particles wiggle faster. At 0 °C they break free and slide. Ice melts into water!" },
+    { start: 20, goal: -10, q: "What will happen if we make water very cold?", o: [["freeze", "🧊 It freezes"], ["steam", "☁️ It makes steam"], ["hot", "🔥 It gets hot"]], a: "freeze", why: "Cold slows the particles down. At 0 °C they hold still in rows. Water freezes into ice." },
+    { start: 60, goal: 100, q: "What will happen if we heat water a lot?", o: [["steam", "☁️ It turns to steam"], ["ice", "🧊 It turns to ice"], ["same", "💧 Nothing happens"]], a: "steam", why: "At 100 °C water boils. Its particles fly apart and float away as a gas called steam." },
+    { start: 110, goal: 90, q: "Steam gets cooler. What will it turn into?", o: [["water", "💧 Water drops"], ["ice", "🧊 Ice"], ["gone", "💨 Nothing"]], a: "water", why: "Cool steam turns back into water drops. That's why a cold window gets wet when you take a hot bath!" },
+    { start: -10, goal: -10, q: "Ice is hard and keeps its shape. Is ice a solid, a liquid or a gas?", o: [["solid", "🧱 Solid"], ["liquid", "💧 Liquid"], ["gas", "💨 Gas"]], a: "solid", look: "The particles stay in rows and just wiggle.", why: "Ice is a solid. A solid keeps its own shape because its particles hold on tight." },
+    { start: 40, goal: 40, q: "Water pours and splashes. Is water a solid, a liquid or a gas?", o: [["solid", "🧱 Solid"], ["liquid", "💧 Liquid"], ["gas", "💨 Gas"]], a: "liquid", look: "The particles stay close but slide past each other.", why: "Water is a liquid. Liquids flow and take the shape of their cup." },
+    { start: 120, goal: 120, q: "Steam floats away into the air. Is steam a solid, a liquid or a gas?", o: [["solid", "🧱 Solid"], ["liquid", "💧 Liquid"], ["gas", "💨 Gas"]], a: "gas", look: "The particles zoom far apart.", why: "Steam is a gas. A gas spreads out to fill every space." },
+    { start: -20, goal: 20, q: "An ice lolly sits in the warm sun. What happens?", o: [["melt", "💧 It melts"], ["grow", "🧊 It grows"], ["same", "😐 Nothing"]], a: "melt", why: "The sun warms it. Above 0 °C, ice melts into a runny liquid. Drip, drip!" },
+  ],
+  medium: [
+    { start: -20, goal: -20, q: "In ice, how do the tiny particles move?", o: [["wiggle", "🧱 Wiggle in place"], ["slide", "🌊 Slide around"], ["fly", "💨 Fly far apart"]], a: "wiggle", look: "Watch: they stay in neat rows.", why: "In a solid the particles are packed in rows. They can only wiggle in place." },
+    { start: 40, goal: 40, q: "In water, how do the tiny particles move?", o: [["wiggle", "🧱 Wiggle in place"], ["slide", "🌊 Slide around"], ["fly", "💨 Fly far apart"]], a: "slide", look: "Watch: they stay close but slide.", why: "In a liquid the particles are close together but slide past each other. That's why water can pour." },
+    { start: 120, goal: 120, q: "In steam, how do the tiny particles move?", o: [["wiggle", "🧱 Wiggle in place"], ["slide", "🌊 Slide around"], ["fly", "💨 Fly far apart"]], a: "fly", look: "Watch: they zoom everywhere.", why: "In a gas the particles fly fast and far apart. They bounce off the walls." },
+    { start: -10, goal: 0, q: "At what temperature will this ice start to melt?", o: [["0", "0 °C"], ["50", "50 °C"], ["100", "100 °C"]], a: "0", why: "Ice melts at 0 °C. Water also freezes at 0 °C. It is the same point, going the other way." },
+    { start: 50, goal: 100, q: "At what temperature will this water boil?", o: [["0", "0 °C"], ["50", "50 °C"], ["100", "100 °C"]], a: "100", why: "At sea level, water boils at 100 °C. The particles get enough energy to fly away as steam." },
+    { start: 30, goal: 0, q: "We cool water down to 0 °C. What starts to happen?", o: [["freeze", "🧊 It freezes"], ["boil", "♨️ It boils"], ["none", "😐 Nothing"]], a: "freeze", why: "At 0 °C water starts to freeze. The particles slow down and lock into rows." },
+    { start: 10, goal: 90, q: "Do the particles move faster when it is hot or when it is cold?", o: [["hot", "🔥 Hot"], ["cold", "❄️ Cold"], ["same", "🟰 The same"]], a: "hot", why: "Heat is energy. More heat makes the particles move faster. Cold makes them slow down." },
+    { start: -10, goal: 20, q: "We heat ice from −10 °C up to 20 °C. What will it be?", o: [["ice", "🧊 Ice"], ["water", "💧 Water"], ["steam", "☁️ Steam"]], a: "water", why: "It passes 0 °C, so the ice melts. 20 °C is below 100 °C, so it stays liquid water." },
+  ],
+  hard: [
+    { start: 0, goal: 0, f: true, q: "Water freezes at 0 °C. On the Fahrenheit scale, that is…", o: [["32", "32 °F"], ["0", "0 °F"], ["100", "100 °F"]], a: "32", look: "Read the thermometer in °F.", why: "0 °C is 32 °F. Two scales, one temperature, like measuring in metres or feet." },
+    { start: 90, goal: 100, fStart: true, q: "Water boils at 100 °C. How many °F is that?", o: [["212", "212 °F"], ["100", "100 °F"], ["180", "180 °F"]], a: "212", why: "100 °C is 212 °F. From freezing to boiling is 100 steps in °C, but 180 steps in °F (212 − 32 = 180)." },
+    { start: 40, goal: 100, count: true, q: "Each 🔥 press adds 10 °C. Water is at 40 °C. How many presses to make it boil?", o: [["6", "6 presses"], ["4", "4 presses"], ["10", "10 presses"]], a: "6", why: "100 − 40 = 60, and 60 ÷ 10 = 6. Six presses of 10 °C." },
+    { start: -20, goal: 0, count: true, q: "Ice is at −20 °C. Each ❄️ or 🔥 press is 10 °C. How many 🔥 presses until it starts to melt?", o: [["2", "2 presses"], ["20", "20 presses"], ["3", "3 presses"]], a: "2", why: "From −20 to 0 is 20 degrees. 20 ÷ 10 = 2 presses." },
+    { start: 120, goal: 50, count: true, q: "Steam at 120 °C cools to 50 °C. What will it be then?", o: [["water", "💧 Liquid water"], ["steam", "☁️ Still steam"], ["ice", "🧊 Ice"]], a: "water", why: "Below 100 °C, steam turns back to liquid water. 50 °C is still above 0 °C, so it is not ice." },
+    { start: 120, goal: 120, q: "Which has the most energy: ice, water or steam?", o: [["ice", "🧊 Ice"], ["water", "💧 Water"], ["steam", "☁️ Steam"]], a: "steam", look: "Steam particles move the fastest.", why: "Steam had the most heat put in, so its particles move fastest. More energy means faster particles." },
+    { start: 50, goal: 50, q: "High up on a tall mountain the air is thinner. Water there boils at…", o: [["less", "⬇️ Less than 100 °C"], ["same", "🟰 Exactly 100 °C"], ["more", "⬆️ More than 100 °C"]], a: "less", look: "Here at sea level it boils at 100 °C.", why: "Thin air pushes down less, so water boils sooner. On top of Mount Everest it boils at only about 70 °C!" },
+    { start: 10, goal: -10, q: "When water freezes into ice, it…", o: [["bigger", "⬆️ Gets bigger"], ["smaller", "⬇️ Gets smaller"], ["same", "🟰 Stays the same"]], a: "bigger", why: "Water gets a little bigger when it freezes, because ice particles line up with gaps. That's why ice floats!" },
+  ],
+};
+function slgMake(level) {
+  return SLG[level].map((r) => ({ ...r, keep: false, draw: (ctx) => slgScene(ctx, r), test: slgTest(r) }));
+}
+
+// ================= 2. DISSOLVE OR NOT =================
+const SUBS = {
+  sugar: { name: "sugar", icon: "🍬", grain: "#ffffff", kind: "dis", particle: "#f6f1e7" },
+  salt: { name: "salt", icon: "🧂", grain: "#fafafa", kind: "dis", particle: "#f0f0f0" },
+  sand: { name: "sand", icon: "🏖️", grain: "#d9b56f", kind: "sink" },
+  pebbles: { name: "pebbles", icon: "🪨", grain: "#8d8d8d", kind: "sink", big: true },
+  oil: { name: "oil", icon: "🫒", grain: "#f2c94c", kind: "float" },
+  coffee: { name: "instant coffee", icon: "☕", grain: "#6b3e1f", kind: "dis", tint: "#b98a5e", particle: "#7a4a24" },
+  colour: { name: "food colouring", icon: "🔴", grain: "#e53935", kind: "dis", tint: "#f08f8a", particle: "#e53935" },
+  flour: { name: "flour", icon: "🌾", grain: "#fbf7ef", kind: "cloud" },
+  honey: { name: "honey", icon: "🍯", grain: "#e0a030", kind: "dis", tint: "#cfe0a0", particle: "#e0a030" },
+};
+const WATER = "#9ad7f5";
+
+function disOne(ctx, r) {
+  const v = view;
+  const s = SUBS[r.sub];
+  const gl = glass(v, 150, 170, 270, BENCH - 170, { level: 0.62 });
+  text(v, 285, 152, `${s.icon} ${s.name} + 💧 water`, { "font-size": 28, fill: INK });
+  // spoon with a pile
+  const spoon = el("g", { transform: "translate(450 120)" }, v);
+  el("rect", { x: 40, y: -6, width: 130, height: 14, rx: 7, fill: "#b9b9c0" }, spoon);
+  el("ellipse", { cx: 0, cy: 0, rx: 50, ry: 24, fill: "#cfd0d6", stroke: "#9a9ba3", "stroke-width": 3 }, spoon);
+  const pile = el("g", {}, spoon);
+  if (s.kind === "float") el("ellipse", { cx: 0, cy: -2, rx: 38, ry: 14, fill: s.grain }, pile);
+  else for (let i = 0; i < 14; i++) el(s.big ? "circle" : "rect", s.big ? { cx: -30 + (i % 5) * 15, cy: -6 - Math.floor(i / 5) * 9, r: 9, fill: s.grain, stroke: "#6d6d6d" } : { x: -32 + (i % 7) * 9, y: -10 - Math.floor(i / 7) * 8, width: 8, height: 8, fill: s.grain, stroke: "#bdb6a8", "stroke-width": 1 }, pile);
+  const inGlass = el("g", { opacity: 0 }, gl.inner);
+  const z = Zoom(v, 760, 310, 160, ctx.alive);
+  const waterPs = [];
+  for (let i = 0; i < 36; i++) waterPs.push(z.add({ x: -120 + (i % 9) * 30, y: -110 + Math.floor(i / 9) * 70 + (i % 2) * 20, r: 12, fill: "#4aa3df", mode: "wander", spd: 0.9 }));
+  const solute = [];
+  const OFF = 420;
+  if (s.kind === "dis") grid(4, 3, 26, 0, 105).forEach((h) => solute.push(z.add({ x: h.x, y: h.y - OFF, hx: h.x, hy: h.y - OFF, r: 12, fill: s.particle, mode: "stuck", shake: 1, later: "lattice" })));
+  else if (s.kind === "sink") solute.push(z.add({ x: 0, y: 100 - OFF, hx: 0, hy: 100 - OFF, r: s.big ? 58 : 46, fill: s.grain, mode: "stuck", later: "stuck" }));
+  else if (s.kind === "float") for (let i = 0; i < 14; i++) solute.push(z.add({ x: -100 + (i % 7) * 32, y: -110 - OFF, hx: -100 + (i % 7) * 32, hy: -110 - OFF, r: 13, fill: "#f2c94c", mode: "stuck", later: "wander", top: -160, bot: -40, spd: 0.7 }));
+  else if (s.kind === "cloud") for (let i = 0; i < 5; i++) solute.push(z.add({ x: -80 + i * 40, y: -40 - OFF, hx: -80 + i * 40, hy: -40 - OFF, r: 22, fill: "#fbf7ef", mode: "stuck", later: "wander", spd: 0.4 }));
+  return {
+    async pour() {
+      await ctx.tween(800, (t) => spoon.setAttribute("transform", `translate(${lerp(450, 330, t)} ${lerp(120, 150, t)}) rotate(${lerp(0, 70, t)})`));
+      pile.setAttribute("opacity", 0);
+      inGlass.setAttribute("opacity", 1);
+      const lv = gl.yAt(0.62);
+      if (s.kind === "float") {
+        const layer = el("rect", { x: 140, y: lv - 2, width: 300, height: 0, fill: "#f2c94c", opacity: 0.9 }, inGlass);
+        await ctx.tween(800, (t) => layer.setAttribute("height", 22 * t));
+      } else if (s.kind === "cloud") {
+        gl.liq.setAttribute("fill", "#e9eef0");
+      } else {
+        const grains = [];
+        for (let i = 0; i < 26; i++) grains.push(el(s.big ? "circle" : "rect", s.big ? { cx: 220 + (i % 9) * 15, cy: lv, r: 9, fill: s.grain } : { x: 220 + (i % 13) * 10, y: lv, width: 8, height: 8, fill: s.grain, stroke: "#bdb6a8" }, inGlass));
+        await ctx.tween(1000, (t) => grains.forEach((g, i) => g.setAttribute(s.big ? "cy" : "y", lerp(lv, BENCH - 16 - Math.floor(i / 13) * 9, t))));
+        this.grains = grains;
+      }
+      await ctx.tween(700, () => {});
+      solute.forEach((p) => {
+        p.hy += OFF;
+        p.y += OFF - 60;
+        p.mode = p.later;
+      });
+      spoon.setAttribute("opacity", 0);
+    },
+    async stir(k) {
+      const spin = el("path", { d: "M220 380q65 -40 130 0q-65 40 -130 0", fill: "none", stroke: "#7d98a6", "stroke-width": 4, "stroke-dasharray": "10 10", opacity: 0.8 }, gl.front);
+      MUSIC.play("woodblock", 79, { gain: 0.25 });
+      const frac = k / 3;
+      if (s.kind === "dis") {
+        const n = Math.round(solute.length * frac);
+        solute.slice(0, n).forEach((p) => (p.mode = "wander"));
+        (this.grains || []).forEach((g, i) => g.setAttribute("opacity", i < 26 * (1 - frac) ? 1 : 0));
+        if (s.tint) gl.liq.setAttribute("fill", mix(WATER, s.tint, frac));
+      } else if (s.kind === "float") {
+        solute.forEach((p) => {
+          p.top = -150;
+          p.bot = 150;
+        });
+        if (k === 3)
+          setTimeout(() => {
+            if (!ctx.alive()) return;
+            solute.forEach((p) => {
+              p.top = -160;
+              p.bot = -40;
+            });
+            waterPs.forEach((p) => (p.top = -30));
+          }, 1400);
+        else waterPs.forEach((p) => (p.top = -160));
+      } else if (s.kind === "cloud") {
+        if (k === 3) {
+          solute.forEach((p) => (p.top = 50));
+          setTimeout(() => ctx.alive() && gl.liq.setAttribute("fill", WATER), 1400);
+          const settle = el("rect", { x: 150, y: BENCH - 22, width: 270, height: 22, fill: "#f3efe6" }, gl.inner);
+          settle.setAttribute("opacity", 0);
+          setTimeout(() => ctx.alive() && settle.setAttribute("opacity", 1), 1600);
+        }
+      }
+      await ctx.tween(900, (t) => spin.setAttribute("transform", `rotate(${t * 360} 285 380)`));
+      spin.remove();
+    },
+  };
+}
+
+// Two glasses side by side: which dissolves sooner?
+function disRace(ctx, r) {
+  const v = view;
+  const sides = [r.left, r.right];
+  const out = [];
+  sides.forEach((sd, i) => {
+    const x = 80 + i * 300;
+    const gl = glass(v, x, 210, 220, BENCH - 210, { level: 0.6, color: sd.warm ? "#a9d8ef" : "#b9e2f7" });
+    text(v, x + 110, 186, sd.label, { "font-size": 28, fill: INK });
+    if (sd.warm) puffs(v, x + 110, 290, 3, 40);
+    const pile = el("g", {}, gl.inner);
+    const cube = sd.cube;
+    if (cube) el("rect", { x: x + 80, y: BENCH - 62, width: 60, height: 56, rx: 6, fill: "#fff", stroke: "#cfc6b6", "stroke-width": 3 }, pile);
+    else for (let k = 0; k < 24; k++) el("rect", { x: x + 60 + (k % 12) * 9, y: BENCH - 14 - Math.floor(k / 12) * 9, width: 8, height: 8, fill: "#fff", stroke: "#cfc6b6" }, pile);
+    out.push({ gl, pile, x, sd });
+  });
+  const zs = sides.map((sd, i) => {
+    const z = Zoom(v, 845, 175 + i * 230, 92, ctx.alive, { label: "" });
+    for (let k = 0; k < 18; k++) z.add({ x: -60 + (k % 4) * 40, y: -60 + Math.floor(k / 4) * 30, r: 10, fill: "#4aa3df", mode: "wander", spd: 1 });
+    z.sugar = grid(3, 2, 22, 0, 50).map((h) => z.add({ x: h.x, y: h.y, hx: h.x, hy: h.y, r: 10, fill: "#f6f1e7", mode: "lattice", shake: 1 }));
+    z.heat = sd.warm ? 1.6 : sd.stir ? 1.3 : 0.45;
+    emoji(v, 845 - 92 - 34, 175 + i * 230, sd.label.split(" ")[0], 40);
+    return z;
+  });
+  return {
+    async race() {
+      await ctx.tween(3200, (t) => {
+        out.forEach((o, i) => {
+          const rate = o.sd.rate;
+          const left = clamp(1 - t * rate, 0, 1);
+          o.pile.setAttribute("opacity", left);
+          o.pile.setAttribute("transform", `translate(${(o.x + 110) * (1 - left)} ${(BENCH - 10) * (1 - left)}) scale(${left})`);
+          zs[i].sugar.forEach((p, k) => { if (k < 6 * (1 - left)) p.mode = "wander"; });
+          if (o.sd.stir) o.gl.front.setAttribute("transform", `rotate(${Math.sin(t * 20) * 2} ${o.x + 110} 400)`);
+        });
+      });
+      out.forEach((o, i) => text(view, o.x + 110, 540, o.sd.rate >= 1 ? "✓ all gone" : "still some left", { "font-size": 24, fill: o.sd.rate >= 1 ? "#1f7a3c" : "#a8632d" }));
+    },
+  };
+}
+
+// Keep adding spoons: one or two glasses, each with a limit.
+function disSat(ctx, r) {
+  const v = view;
+  const cups = r.cups;
+  const out = cups.map((c, i) => {
+    const x = cups.length === 1 ? 220 : 90 + i * 330;
+    const gl = glass(v, x, 200, 230, BENCH - 200, { level: 0.62, color: c.warm ? "#a9d8ef" : WATER });
+    text(v, x + 115, 182, c.label, { "font-size": 28, fill: INK });
+    if (c.warm) puffs(v, x + 115, 210, 3, 40);
+    const pile = el("g", {}, gl.inner);
+    const count = text(v, x + 115, 530, "", { "font-size": cups.length > 1 ? 22 : 28, fill: "#5a4130" });
+    return { ...c, gl, pile, count, x, n: 0 };
+  });
+  if (cups.length === 1) {
+    const z = Zoom(v, 790, 300, 150, ctx.alive);
+    for (let k = 0; k < 20; k++) z.add({ x: -110 + (k % 7) * 36, y: -90 + Math.floor(k / 7) * 60, r: 12, fill: "#4aa3df", mode: "wander", spd: 0.9 });
+    out[0].z = z;
+  }
+  return {
+    out,
+    async add() {
+      for (const o of out) {
+        o.n += 1;
+        const extra = o.n - o.limit;
+        o.count.textContent = extra > 0 ? `${o.limit} dissolved, ${extra} on the bottom` : `${o.n} added, all dissolved`;
+        if (extra > 0) {
+          for (let k = 0; k < 10; k++) el("rect", { x: o.x + 40 + ((k * 17 + o.n * 7) % 150), y: BENCH - 12 - extra * 8 - (k % 2) * 6, width: 9, height: 9, fill: "#fff", stroke: "#cfc6b6" }, o.pile);
+        } else if (o.z) {
+          for (let q = 0; q < 2; q++) o.z.add({ x: Math.random() * 160 - 80, y: Math.random() * 160 - 80, r: 11, fill: "#f6f1e7", mode: "wander", spd: 0.9 });
+        }
+        if (extra > 0 && o.z) o.z.add({ x: 0, y: 120, hx: (o.n - 6) * 26 - 26, hy: 120, r: 11, fill: "#f6f1e7", mode: "lattice", shake: 1 });
+      }
+      MUSIC.play("woodblock", 79, { gain: 0.25 });
+      await ctx.wait(450);
+    },
+  };
+}
+
+function filterScene(ctx, r) {
+  const v = view;
+  const mixCol = r.salty ? "#b5dcef" : "#c7a46a";
+  const src = glass(v, 70, 230, 170, BENCH - 230, { level: 0.65, color: mixCol });
+  text(v, 155, 210, r.label, { "font-size": 26, fill: INK });
+  if (r.sand) for (let k = 0; k < 24; k++) el("rect", { x: 90 + (k % 12) * 11, y: BENCH - 14 - Math.floor(k / 12) * 9, width: 9, height: 9, fill: "#d9b56f" }, src.inner);
+  // funnel + paper + jar
+  el("path", { d: "M340 170L560 170L470 290L470 330L430 330L430 290Z", fill: "#eef6fa", stroke: "#7d98a6", "stroke-width": 5, "stroke-linejoin": "round" }, v);
+  el("path", { d: "M360 180L540 180L450 280Z", fill: "#fffaf0", stroke: "#d9cdb5", "stroke-width": 3 }, v);
+  text(v, 450, 156, "filter paper", { "font-size": 22, fill: "#7a6a58" });
+  const caught = el("path", { d: "M405 236L495 236L450 280Z", fill: "#d9b56f", opacity: 0 }, v);
+  const jar = glass(v, 375, 340, 150, BENCH - 340, { level: 0, color: r.salty ? "#b5dcef" : WATER });
+  const stream = el("rect", { x: 445, y: 280, width: 10, height: 0, fill: r.salty ? "#b5dcef" : WATER }, v);
+  const pourS = el("path", { d: "M240 236Q320 150 420 190", stroke: mixCol, "stroke-width": 12, fill: "none", "stroke-linecap": "round", opacity: 0 }, v);
+  const z = Zoom(v, 790, 300, 150, ctx.alive, { label: "🔬 The paper, zoomed in" });
+  for (let k = -140; k < 150; k += 46) el("rect", { x: k, y: -8, width: 30, height: 16, rx: 4, fill: "#e7dcc6" }, z.over);
+  for (let k = 0; k < 12; k++) z.add({ x: -100 + (k % 6) * 40, y: -110 + Math.floor(k / 6) * 40, r: 9, fill: "#4aa3df", mode: "wander", top: -150, bot: 150, spd: 1.2 });
+  if (r.salty) for (let k = 0; k < 6; k++) z.add({ x: -90 + k * 36, y: -60, r: 8, fill: "#c9c9c9", mode: "wander", top: -150, bot: 150, spd: 1.2 });
+  if (r.sand) for (let k = 0; k < 3; k++) z.add({ x: -90 + k * 90, y: -50, hx: -90 + k * 90, hy: -50, r: 30, fill: "#d9b56f", mode: "stuck" });
+  return {
+    async pour() {
+      pourS.setAttribute("opacity", 1);
+      await ctx.tween(1800, (t) => {
+        src.set(0.65 * (1 - t));
+        stream.setAttribute("height", t < 0.95 ? 60 : 0);
+        jar.set(0.55 * t);
+        caught.setAttribute("opacity", r.sand ? t : 0);
+      });
+      pourS.setAttribute("opacity", 0);
+      stream.setAttribute("height", 0);
+      if (r.sand) src.inner.querySelectorAll("rect:not(:first-child)").forEach((n) => n.setAttribute("opacity", 0));
+    },
+    jar,
+  };
+}
+
+function evapScene(ctx, r) {
+  const v = view;
+  const sun = el("g", { transform: "translate(860 150)" }, v);
+  for (let k = 0; k < 8; k++) el("line", { x1: 0, y1: -62, x2: 0, y2: -84, stroke: "#f5b400", "stroke-width": 8, "stroke-linecap": "round", transform: `rotate(${k * 45})` }, sun);
+  el("circle", { r: 50, fill: "#ffd23f" }, sun);
+  const day = text(v, 500, 130, "Day 0", { "font-size": 40, fill: INK });
+  text(v, 500, 172, r.label, { "font-size": 26, fill: "#5a4130" });
+  el("ellipse", { cx: 500, cy: BENCH - 20, rx: 260, ry: 40, fill: "#3d4a57" }, v);
+  const water = el("ellipse", { cx: 500, cy: BENCH - 30, rx: 230, ry: 28, fill: r.color || "#9fc7dc", opacity: 0.85 }, v);
+  const crystals = el("g", { opacity: 0 }, v);
+  for (let k = 0; k < 26; k++) {
+    const s = 6 + (k % 4) * 3;
+    el("rect", { x: 300 + ((k * 37) % 400), y: BENCH - 40 + ((k * 13) % 22), width: s, height: s, fill: "#ffffff", stroke: "#cfd6dc", "stroke-width": 1.5, transform: `rotate(${(k * 23) % 40} ${305 + ((k * 37) % 400)} ${BENCH - 35})` }, crystals);
+  }
+  const vapour = el("g", { opacity: 0 }, v);
+  for (let k = 0; k < 6; k++) emoji(vapour, 330 + k * 68, 330 - (k % 2) * 40, "💨", 40);
+  let n = 0;
+  return {
+    async day() {
+      n += 1;
+      day.textContent = `Day ${n}`;
+      MUSIC.play("xylophone", 72 + n * 4, { gain: 0.3 });
+      vapour.setAttribute("opacity", 0.8);
+      const from = 1 - (n - 1) / 3;
+      const to = 1 - n / 3;
+      await ctx.tween(1100, (t) => {
+        const k = lerp(from, to, t);
+        water.setAttribute("rx", 30 + 200 * k);
+        water.setAttribute("ry", 4 + 24 * k);
+        water.setAttribute("opacity", 0.85 * Math.max(k, 0.05));
+        crystals.setAttribute("opacity", r.leaves === false ? 0 : 1 - k);
+      });
+      vapour.setAttribute("opacity", 0);
+    },
+  };
+}
+
+function decantScene(ctx) {
+  const v = view;
+  const gl = glass(v, 170, 170, 260, BENCH - 170, { level: 0.5, color: WATER });
+  const oil = el("rect", { x: 160, y: gl.yAt(0.75), width: 290, height: gl.yAt(0.5) - gl.yAt(0.75), fill: "#f2c94c", opacity: 0.95 }, gl.inner);
+  text(v, 300, 150, "💧 water + 🫒 oil", { "font-size": 28, fill: INK });
+  const cup = glass(v, 620, 330, 140, BENCH - 330, { level: 0, color: "#f2c94c", op: 0.95 });
+  text(v, 690, 312, "oil cup", { "font-size": 24, fill: "#5a4130" });
+  const spoon = el("g", { transform: "translate(470 200)" }, v);
+  el("ellipse", { cx: 0, cy: 0, rx: 34, ry: 15, fill: "#cfd0d6", stroke: "#9a9ba3", "stroke-width": 3 }, spoon);
+  el("rect", { x: 26, y: -5, width: 110, height: 10, rx: 5, fill: "#b9b9c0" }, spoon);
+  let k = 0;
+  return {
+    async scoop() {
+      k += 1;
+      await ctx.tween(900, (t) => spoon.setAttribute("transform", `translate(${lerp(470, 690, t)} ${200 - Math.sin(t * Math.PI) * 60})`));
+      const top = gl.yAt(0.75 - 0.25 * (k / 3) * 0.999);
+      oil.setAttribute("y", top);
+      oil.setAttribute("height", Math.max(0, gl.yAt(0.5) - top));
+      cup.set(0.18 * k);
+      spoon.setAttribute("transform", "translate(470 200)");
+    },
+  };
+}
+
+const disWhy = {
+  sugar: "Sugar dissolves. Water particles pull the sugar particles apart and mix them in. It is still there, just too tiny to see.",
+  salt: "Salt dissolves. Its tiny particles spread out between the water particles. You can't see it, but it's still there.",
+  sand: "Sand does not dissolve. Its particles hold on too tightly, so the grains sink to the bottom.",
+  pebbles: "Pebbles don't dissolve. They are much too strong and heavy, so they sink.",
+  oil: "Oil does not dissolve in water. Oil particles stick to each other, and oil is lighter, so it floats on top.",
+  coffee: "Instant coffee dissolves. Its particles spread out and colour all the water brown.",
+  colour: "Food colouring dissolves. Its particles spread through all the water, so it all turns red.",
+  flour: "Flour makes the water cloudy, but it does not dissolve. Wait a while and it settles to the bottom.",
+  honey: "Honey dissolves when you stir. It spreads out into the water.",
+};
+function disRound(sub, extra = {}) {
+  const s = SUBS[sub];
+  const yes = s.kind === "dis";
+  return {
+    q: `We put ${s.name} in water and stir. Will it disappear?`,
+    o: [["yes", "✨ It dissolves (disappears)"], ["no", "👀 We can still see it"]],
+    a: yes ? "yes" : "no",
+    keep: true,
+    why: disWhy[sub],
+    draw: (ctx) => disOne(ctx, { sub }),
+    async test(ctx, sc) {
+      ctx.say("🧪 Let's test! Tap 🥄 Pour it in.");
+      await ctx.press([["pour", "🥄 Pour it in", true]]);
+      await sc.pour();
+      for (let k = 1; k <= 3; k++) {
+        ctx.say(`Now stir! Tap 🥄 Stir. (${k} of 3)`);
+        await ctx.press([["stir", "🌀 Stir", true]]);
+        await sc.stir.call(sc, k);
+      }
+      await ctx.wait(1500);
+    },
+    ...extra,
+  };
+}
+function raceRound(q, left, right, a, why) {
+  return {
+    q,
+    o: [["L", `⬅️ ${left.label}`], ["R", `➡️ ${right.label}`], ["same", "🟰 The same"]],
+    a,
+    keep: true,
+    why,
+    draw: (ctx) => disRace(ctx, { left, right }),
+    async test(ctx, sc) {
+      ctx.say("🧪 Let's test both glasses at the same time. Tap ▶ Start.");
+      await ctx.press([["go", "▶ Start", true]]);
+      await sc.race();
+      await ctx.wait(800);
+    },
+  };
+}
+function satRound(q, o, a, cups, presses, why) {
+  return {
+    q,
+    o,
+    a,
+    why,
+    draw: (ctx) => disSat(ctx, { cups }),
+    async test(ctx, sc) {
+      for (let k = 1; k <= presses; k++) {
+        ctx.say(`🧪 Add more, stir, and watch. (${k} of ${presses})`);
+        await ctx.press([["add", "🥄 Add more", true]]);
+        await sc.add();
+      }
+      await ctx.wait(900);
+    },
+  };
+}
+const DIS = {
+  easy: () => ["sugar", "sand", "salt", "oil", "coffee", "pebbles", "colour", "sand"].map((s, i) => (i === 7 ? disRound("oil") : disRound(s))),
+  medium: () => [
+    raceRound("Sugar in cold water or warm water: which dissolves sooner?", { label: "❄️ Cold", rate: 0.55 }, { label: "🔥 Warm", warm: true, rate: 1.1 }, "R", "Warm water particles move faster. They bump the sugar apart sooner."),
+    disRound("flour"),
+    raceRound("Stirred or not stirred: which dissolves sooner?", { label: "🥄 Stirred", stir: true, rate: 1.1 }, { label: "😴 Not stirred", rate: 0.45 }, "L", "Stirring moves fresh water past the sugar, so it dissolves sooner."),
+    disRound("honey"),
+    raceRound("A sugar cube or loose sugar: which dissolves sooner?", { label: "🧊 Cube", cube: true, rate: 0.5 }, { label: "✨ Loose", rate: 1.1 }, "R", "Small grains have more outside for the water to touch, so they dissolve sooner than one big cube."),
+    disRound("oil"),
+    raceRound("Salt in warm water or cold water: which dissolves sooner?", { label: "🔥 Warm", warm: true, rate: 1.1 }, { label: "❄️ Cold", rate: 0.55 }, "L", "Warmer water has faster particles, so it dissolves salt sooner too."),
+    disRound("salt"),
+  ],
+  hard: () => [
+    satRound("We add spoon after spoon of salt to a cup of water. What happens?", [["full", "🧂 Soon it stops dissolving"], ["forever", "♾️ It dissolves forever"], ["turns", "🔁 The water turns into salt"]], "full", [{ label: "🧂 salt + 1 cup of water", limit: 5 }], 7, "A cup of water can only hold about 5 big spoons of salt. Then it is full, or saturated, and extra salt sits on the bottom."),
+    satRound("Which can a cup of water dissolve more of: sugar or salt?", [["sugar", "🍬 Sugar"], ["salt", "🧂 Salt"], ["same", "🟰 The same"]], "sugar", [{ label: "🧂 salt", limit: 5 }, { label: "🍬 sugar", limit: 99 }], 7, "Salt stops at about 5 big spoons, but a cup of water can dissolve more than 30 big spoons of sugar!"),
+    satRound("Hot water or cold water: which can hold more sugar?", [["hot", "🔥 Hot"], ["cold", "❄️ Cold"], ["same", "🟰 The same"]], "hot", [{ label: "❄️ cold, ½ cup scoops", limit: 4 }, { label: "🔥 hot, ½ cup scoops", warm: true, limit: 11 }], 6, "Hot water holds more than twice as much sugar as cold water. That's how people make sugar crystals!"),
+    {
+      q: "Sand is mixed in water. How can we get the sand back?",
+      o: [["filter", "🧻 Pour it through a filter"], ["melt", "🔥 Wait for it to melt"], ["sugar", "🍬 Add sugar"]],
+      a: "filter",
+      why: "The filter paper has tiny holes. Water fits through, but the sand grains are too big, so they stay on the paper.",
+      draw: (ctx) => filterScene(ctx, { sand: true, label: "sand + water" }),
+      async test(ctx, sc) {
+        ctx.say("🧪 Tap 🫗 Pour to pour it through the filter.");
+        await ctx.press([["pour", "🫗 Pour", true]]);
+        await sc.pour();
+        await ctx.wait(900);
+      },
+    },
+    {
+      q: "Salt water goes through the filter. Will the paper catch the salt?",
+      o: [["no", "💧 No, the salt goes through"], ["yes", "🧻 Yes, the salt stays"]],
+      a: "no",
+      keep: true,
+      why: "Dissolved salt is split into particles even smaller than water's gaps in the paper. It goes right through, so the water is still salty.",
+      draw: (ctx) => filterScene(ctx, { salty: true, label: "salt water" }),
+      async test(ctx, sc) {
+        ctx.say("🧪 Tap 🫗 Pour, and watch the zoom circle.");
+        await ctx.press([["pour", "🫗 Pour", true]]);
+        await sc.pour();
+        await ctx.wait(1200);
+      },
+    },
+    {
+      q: "How can we get the salt back out of salt water?",
+      o: [["evap", "☀️ Let the water dry up"], ["filter", "🧻 Use a filter"], ["stir", "🥄 Stir it more"]],
+      a: "evap",
+      why: "The water evaporates into the air, but salt can't. So the salt is left behind as crystals.",
+      draw: (ctx) => evapScene(ctx, { label: "salt water in a dish" }),
+      async test(ctx, sc) {
+        for (let k = 1; k <= 3; k++) {
+          ctx.say(`🧪 Tap ☀️ Next day. (${k} of 3)`);
+          await ctx.press([["day", "☀️ Next day", true]]);
+          await sc.day();
+        }
+        await ctx.wait(700);
+      },
+    },
+    {
+      q: "Sand, salt and water are all mixed. What should we do first?",
+      o: [["filter", "🧻 Filter first, then dry"], ["dry", "☀️ Dry first, then filter"], ["none", "🙅 We can't separate it"]],
+      a: "filter",
+      why: "The filter catches the sand. Then the salty water dries up and leaves the salt. Two steps, two things back!",
+      draw: (ctx) => filterScene(ctx, { sand: true, salty: true, label: "sand + salt water" }),
+      async test(ctx, sc) {
+        ctx.say("🧪 Step 1: tap 🫗 Pour through the filter.");
+        await ctx.press([["pour", "🫗 Pour", true]]);
+        await sc.pour();
+        await ctx.wait(600);
+        fresh("c2");
+        const e = evapScene(ctx, { label: "the salty water that went through" });
+        drawSteps(view);
+        setStep(1);
+        for (let k = 1; k <= 3; k++) {
+          ctx.say(`Step 2: let the water dry up. Tap ☀️ Next day. (${k} of 3)`);
+          await ctx.press([["day", "☀️ Next day", true]]);
+          await e.day();
+        }
+        await ctx.wait(600);
+      },
+    },
+    {
+      q: "Oil floats on water. Can we separate them?",
+      o: [["yes", "🥄 Yes, scoop the oil off the top"], ["no", "🙅 No, never"]],
+      a: "yes",
+      keep: true,
+      why: "Oil and water don't mix. Let them settle, then scoop the oil off the top. Scientists use a special funnel to do this neatly.",
+      draw: (ctx) => decantScene(ctx),
+      async test(ctx, sc) {
+        for (let k = 1; k <= 3; k++) {
+          ctx.say(`🧪 Tap 🥄 Scoop. (${k} of 3)`);
+          await ctx.press([["s", "🥄 Scoop", true]]);
+          await sc.scoop();
+        }
+        await ctx.wait(600);
+      },
+    },
+  ],
+};
+
+// ================= 3. DENSITY TOWER =================
+const LIQ = {
+  honey: { name: "honey", icon: "🍯", color: "#d98e1c", d: 1.42, g: 340 },
+  soap: { name: "dish soap", icon: "🧴", color: "#3fb27f", d: 1.04, g: 250 },
+  water: { name: "water", icon: "💧", color: "#5fb2e8", d: 1.0, g: 240 },
+  oil: { name: "oil", icon: "🫒", color: "#f3d34a", d: 0.91, g: 220 },
+  salty: { name: "very salty water", icon: "🧂", color: "#9cc8e0", d: 1.1, g: 265 },
+};
+const OBJ = {
+  ball: { name: "ping-pong ball", icon: "🏓", d: 0.1 },
+  cork: { name: "cork", icon: "🍾", d: 0.24, draw: "cork" },
+  ice: { name: "ice cube", icon: "🧊", d: 0.92 },
+  coin: { name: "coin", icon: "🪙", d: 8.9 },
+  stone: { name: "stone", icon: "🪨", d: 2.6 },
+  grape: { name: "grape", icon: "🍇", d: 1.1 },
+  egg: { name: "egg", icon: "🥚", d: 1.03 },
+};
+function towerScene(ctx, r) {
+  const v = view;
+  const jx = 300;
+  const jy = 110;
+  const jw = 240;
+  const jh = BENCH - 110;
+  const jar = glass(v, jx, jy, jw, jh, { level: 0 });
+  const LH = 72;
+  const layers = [];
+  const addLayer = (key, h = 1) => {
+    const l = LIQ[key];
+    const g = el("g", {}, jar.inner);
+    const rect = el("rect", { x: jx - 5, y: 0, width: jw + 10, height: LH * h, fill: l.color, opacity: 0.92 }, g);
+    const lab = text(g, jx + jw / 2, LH * h * 0.5 + 9, l.name, { "font-size": 24, fill: "#2b1d12", opacity: 0.85 });
+    const ly = { key, l, g, rect, lab, h, y: 0 };
+    return ly;
+  };
+  const setY = (ly, y) => {
+    ly.y = y;
+    ly.g.setAttribute("transform", `translate(0 ${y})`);
+  };
+  // start layers (already settled)
+  for (const k of r.start || []) {
+    const ly = addLayer(k, r.h || 1);
+    layers.push(ly);
+  }
+  const settle = () => {
+    let y = BENCH;
+    [...layers].sort((a, b) => b.l.d - a.l.d).forEach((ly) => {
+      y -= LH * ly.h;
+      setY(ly, y);
+    });
+  };
+  settle();
+  // right side: the liquids in this test
+  const keys = r.list || [...new Set([...(r.start || []), ...(r.pour || [])])];
+  keys.forEach((k, i) => {
+    const l = LIQ[k];
+    const y = 150 + i * 72;
+    el("rect", { x: 600, y: y - 30, width: r.grams ? 360 : 300, height: 58, rx: 18, fill: "#fff", stroke: "#e3d8c6", "stroke-width": 3 }, v);
+    el("circle", { cx: 632, cy: y - 1, r: 18, fill: l.color, stroke: "#5a4130", "stroke-width": 2 }, v);
+    text(v, 662, y + 8, l.name, { "font-size": 26, fill: INK, "text-anchor": "start" });
+    if (r.grams) text(v, 945, y + 8, `${l.g} g`, { "font-size": 26, fill: "#a8632d", "text-anchor": "end" });
+  });
+  if (r.grams) text(v, 780, 104, "1 cup weighs about…", { "font-size": 24, fill: "#5a4130" });
+  else if ((r.pour || []).length > 1) text(v, 750, 104, "Poured in this order:", { "font-size": 24, fill: "#5a4130" });
+  const obj = el("g", { opacity: 0 }, v);
+  return {
+    jar,
+    layers,
+    async pour(key) {
+      const ly = addLayer(key, r.h || 1);
+      const top = BENCH - layers.reduce((s, x) => s + LH * x.h, 0) - LH * ly.h;
+      layers.push(ly);
+      const l = LIQ[key];
+      const stream = el("rect", { x: jx + jw / 2 - 9, y: 70, width: 18, height: 0, rx: 9, fill: l.color }, v);
+      const bottle = emoji(v, jx + jw / 2 + 40, 60, l.icon, 54);
+      setY(ly, top);
+      ly.g.setAttribute("opacity", 0);
+      await ctx.tween(700, (t) => {
+        stream.setAttribute("height", (top - 70) * t);
+        ly.g.setAttribute("opacity", t);
+      });
+      MUSIC.play("harp", 60 + layers.length * 4, { gain: 0.3 });
+      stream.remove();
+      bottle.remove();
+      // settle: animate every layer to its sorted place
+      const from = new Map(layers.map((x) => [x, x.y]));
+      let y = BENCH;
+      const to = new Map();
+      [...layers].sort((a, b) => b.l.d - a.l.d).forEach((x) => {
+        y -= LH * x.h;
+        to.set(x, y);
+      });
+      await ctx.tween(1300, (t) => layers.forEach((x) => setY(x, lerp(from.get(x), to.get(x), t))));
+      await ctx.wait(300);
+    },
+    restY(o) {
+      // object floats at the top of the first layer (from the top) denser than it
+      const order = [...layers].sort((a, b) => a.y - b.y);
+      for (const x of order) if (x.l.d > o.d) return x.y - 26;
+      return BENCH - 34;
+    },
+    async drop(key) {
+      const o = OBJ[key];
+      obj.innerHTML = "";
+      if (o.draw === "cork") {
+        el("path", { d: "M-24 -22L24 -22L20 22L-20 22Z", fill: "#c8955a", stroke: "#7a5230", "stroke-width": 3 }, obj);
+        for (const [cx, cy] of [[-8, -8], [8, 4], [-4, 12]]) el("circle", { cx, cy, r: 3, fill: "#9a6b3a" }, obj);
+      } else emoji(obj, 0, 0, o.icon, 56);
+      obj.setAttribute("opacity", 1);
+      const x = jx + jw / 2;
+      const end = this.restY(o);
+      await ctx.tween(1600, (t) => obj.setAttribute("transform", `translate(${x} ${lerp(70, end, t)})`));
+      MUSIC.play("woodblock", 72, { gain: 0.3 });
+      await ctx.wait(400);
+    },
+    obj,
+  };
+}
+function tRound({ q, o, a, why, start = [], pour = [], drop, grams, keep, list, h }) {
+  return {
+    q,
+    o,
+    a,
+    why,
+    keep,
+    draw: (ctx) => towerScene(ctx, { start, pour, grams, list, h }),
+    async test(ctx, sc) {
+      for (const k of pour) {
+        ctx.say(`🧪 Tap 🫗 Pour to add the ${LIQ[k].name}.`);
+        await ctx.press([["p", `🫗 Pour ${LIQ[k].icon}`, true]]);
+        await sc.pour(k);
+      }
+      if (!pour.length && !drop) {
+        ctx.say("🧪 Tap ⚖️ Weigh to weigh one cup of each.");
+        await ctx.press([["w", "⚖️ Weigh", true]]);
+        const ks = list || start;
+        const bars = ks.map((k, i) => {
+          const l = LIQ[k];
+          const y = 330 + i * 70;
+          text(view, 610, y + 34, l.icon, { "font-size": 34, "text-anchor": "start" });
+          return { b: el("rect", { x: 660, y, width: 0, height: 46, rx: 10, fill: l.color, stroke: "#5a4130", "stroke-width": 2 }, view), w: l.g, y, l };
+        });
+        await ctx.tween(1200, (t) => bars.forEach((x) => x.b.setAttribute("width", x.w * 0.85 * t)));
+        bars.forEach((x) => text(view, 660 + x.w * 0.85 - 10, x.y + 32, `${x.l.g} g`, { "font-size": 24, fill: "#2b1d12", "text-anchor": "end" }));
+        MUSIC.play("woodblock", 76, { gain: 0.3 });
+        if (bars.length === 2) {
+          const [a, b2] = [...bars].sort((p, q) => q.w - p.w);
+          const x1 = 660 + b2.w * 0.85;
+          const x2 = 660 + a.w * 0.85;
+          el("rect", { x: x1, y: b2.y, width: x2 - x1, height: 46, rx: 6, fill: "none", stroke: "#c0392b", "stroke-width": 3, "stroke-dasharray": "8 6" }, view);
+          text(view, (x1 + x2) / 2, b2.y + 76, `${a.w - b2.w} g more`, { "font-size": 24, fill: "#c0392b" });
+        }
+      }
+      if (drop) {
+        ctx.say(`🧪 Tap ✋ Drop to drop in the ${OBJ[drop].name}.`);
+        await ctx.press([["d", `✋ Drop ${OBJ[drop].icon}`, true]]);
+        await sc.drop(drop);
+      }
+      await ctx.wait(900);
+    },
+  };
+}
+const posO = [["top", "⬆️ Float on top"], ["bottom", "⬇️ Sink to the bottom"], ["mix", "🌀 Mix in"]];
+const fsO = [["float", "🛟 Float"], ["sink", "⚓ Sink"]];
+const whereO = [["top", "⬆️ At the very top"], ["middle", "↕️ In the middle"], ["bottom", "⬇️ At the very bottom"]];
+function eggRound(q, o, a, why) {
+  return {
+    q,
+    o,
+    a,
+    keep: true,
+    why,
+    draw(ctx) {
+      const v = view;
+      const gl = glass(v, 260, 150, 260, BENCH - 150, { level: 0.82, color: LIQ.water.color, op: 0.7 });
+      const egg = el("g", { transform: `translate(390 ${BENCH - 46})` }, gl.front);
+      el("ellipse", { rx: 34, ry: 44, fill: "#fbf1de", stroke: "#cdb48a", "stroke-width": 3 }, egg);
+      const count = text(v, 760, 250, "Salt: 0 spoons", { "font-size": 30, fill: INK });
+      emoji(v, 760, 340, "🧂", 90);
+      return { gl, egg, count };
+    },
+    async test(ctx, sc) {
+      for (let k = 1; k <= 3; k++) {
+        ctx.say(`🧪 Tap 🧂 Add salt and stir. (${k} of 3)`);
+        await ctx.press([["s", "🧂 Add salt", true]]);
+        sc.count.textContent = `Salt: ${k * 4} spoons`;
+        sc.gl.liq.setAttribute("fill", mix(LIQ.water.color, "#d9ecf5", k / 3));
+        MUSIC.play("woodblock", 79, { gain: 0.25 });
+        if (k === 3) await ctx.tween(1600, (t) => sc.egg.setAttribute("transform", `translate(390 ${lerp(BENCH - 46, 230, t)})`));
+        else await ctx.wait(600);
+      }
+      await ctx.wait(800);
+    },
+  };
+}
+const DEN = {
+  easy: () => [
+    tRound({ q: "We pour oil into water. Where will the oil go?", o: posO, a: "top", start: ["water"], pour: ["oil"], why: "Oil floats on water. A cup of oil is lighter than a cup of water." }),
+    tRound({ q: "We pour honey into water. Where will the honey go?", o: posO, a: "bottom", start: ["water"], pour: ["honey"], why: "Honey sinks. A cup of honey is much heavier than a cup of water." }),
+    tRound({ q: "Will a ping-pong ball float or sink in water?", o: fsO, a: "float", keep: true, start: ["water"], h: 3.5, drop: "ball", why: "It floats! The ball is full of air, so it's very light for its size." }),
+    tRound({ q: "Will a coin float or sink in water?", o: fsO, a: "sink", keep: true, start: ["water"], h: 3.5, drop: "coin", why: "It sinks. Metal is heavy for its size, heavier than the same amount of water." }),
+    tRound({ q: "We pour oil onto honey. Where will the oil go?", o: posO, a: "top", start: ["honey"], pour: ["oil"], why: "Oil stays on top. Honey is the heaviest, oil is the lightest." }),
+    tRound({ q: "Will an ice cube float or sink in water?", o: fsO, a: "float", keep: true, start: ["water"], h: 3.5, drop: "ice", why: "Ice floats! Water gets a bit bigger when it freezes, so ice is lighter for its size." }),
+    tRound({ q: "Will a stone float or sink in water?", o: fsO, a: "sink", keep: true, start: ["water"], h: 3.5, drop: "stone", why: "It sinks. A stone is heavier than the same amount of water." }),
+    tRound({ q: "We pour water onto oil. Where will the water go?", o: posO, a: "bottom", start: ["oil"], pour: ["water"], why: "The water sinks under the oil, because water is heavier for its size." }),
+  ],
+  medium: () => [
+    tRound({ q: "We pour four liquids into a jar. Which will end up at the very bottom?", o: [["honey", "🍯 Honey"], ["soap", "🧴 Dish soap"], ["water", "💧 Water"], ["oil", "🫒 Oil"]], a: "honey", pour: ["water", "oil", "honey", "soap"], why: "Honey is the heaviest for its size, so it sinks to the bottom." }),
+    tRound({ q: "Which liquid will float at the very top?", o: [["honey", "🍯 Honey"], ["soap", "🧴 Dish soap"], ["water", "💧 Water"], ["oil", "🫒 Oil"]], a: "oil", pour: ["soap", "honey", "oil", "water"], why: "Oil is the lightest for its size, so it floats on top of all the others." }),
+    tRound({ q: "We pour honey in last, on top of everything. Where will it end up?", o: posO, a: "bottom", start: ["soap", "water", "oil"], pour: ["honey"], why: "It doesn't matter what goes in first. The heaviest-for-its-size liquid still sinks to the bottom." }),
+    tRound({ q: "Dish soap or water: which ends up lower?", o: [["soap", "🧴 Dish soap"], ["water", "💧 Water"]], a: "soap", keep: true, start: ["water"], pour: ["soap"], why: "Dish soap is a little heavier for its size than water, so it sinks below it." }),
+    tRound({ q: "Where will a ping-pong ball stop in the tower?", o: whereO, a: "top", start: ["honey", "soap", "water", "oil"], drop: "ball", why: "The ball is lighter for its size than every liquid, so it floats on the very top." }),
+    tRound({ q: "Where will a coin stop in the tower?", o: whereO, a: "bottom", start: ["honey", "soap", "water", "oil"], drop: "coin", why: "The coin is heavier for its size than every liquid, even honey. It sinks all the way down." }),
+    tRound({ q: "Where will a cork stop in the tower?", o: whereO, a: "top", start: ["honey", "soap", "water", "oil"], drop: "cork", why: "Cork is full of tiny air pockets. It is lighter than oil, so it floats on top." }),
+    eggRound("An egg sinks in water. We stir in lots of salt. What will the egg do?", [["float", "⬆️ Float up"], ["sink", "⬇️ Stay at the bottom"]], "float", "Salt makes the water heavier for its size. Very salty water is heavier than the egg, so it floats!"),
+  ],
+  hard: () => [
+    tRound({ q: "A cup of honey weighs about 340 g. A cup of water weighs about 240 g. Which goes to the bottom?", o: [["honey", "🍯 Honey"], ["water", "💧 Water"]], a: "honey", keep: true, grams: true, start: ["water"], pour: ["honey"], why: "Same size cup, more grams: honey is denser. Denser liquids sink." }),
+    tRound({ q: "How many grams heavier is a cup of honey than a cup of water?", o: [["100", "100 g"], ["60", "60 g"], ["580", "580 g"]], a: "100", grams: true, list: ["honey", "water"], start: ["honey", "water"], why: "340 − 240 = 100. A cup of honey is about 100 g heavier." }),
+    tRound({ q: "Dish soap weighs about 250 g a cup. Will it go above or below the water (240 g)?", o: [["below", "⬇️ Below"], ["above", "⬆️ Above"]], a: "below", keep: true, grams: true, start: ["water"], pour: ["soap"], why: "250 g is more than 240 g, so the soap is denser and sinks below the water." }),
+    tRound({ q: "Which order is right, from bottom to top?", o: [["a", "340 g, 250 g, 240 g, 220 g"], ["b", "220 g, 240 g, 250 g, 340 g"], ["c", "240 g, 220 g, 340 g, 250 g"]], a: "a", grams: true, pour: ["oil", "water", "soap", "honey"], why: "The heaviest cup goes at the bottom, then the next, up to the lightest on top: biggest number to smallest." }),
+    tRound({ q: "An ice cube goes into oil on top of water. Where will it stop?", o: [["between", "↕️ Between the oil and water"], ["top", "⬆️ On top of the oil"], ["bottom", "⬇️ At the bottom"]], a: "between", grams: true, start: ["water", "oil"], h: 1.6, list: ["water", "oil"], drop: "ice", why: "Ice is a bit heavier than this oil but lighter than water. So it sinks through the oil and floats on the water!" }),
+    tRound({ q: "A grape sinks in water but floats on honey. A cup of grapes must weigh…", o: [["between", "between 240 g and 340 g"], ["less", "less than 240 g"], ["more", "more than 340 g"]], a: "between", grams: true, start: ["honey", "water"], h: 1.6, list: ["honey", "water"], drop: "grape", why: "Heavier than water (240 g) so it sinks in water. Lighter than honey (340 g) so it floats on honey." }),
+    eggRound("An egg sinks in tap water. Why might it float in very salty water?", [["dense", "🧂 Salt makes the water denser"], ["warm", "🔥 Salt makes the water warm"], ["light", "🪶 Salt makes the egg lighter"]], "dense", "Dissolved salt adds weight but hardly any size, so the water gets denser. Denser than the egg means the egg floats."),
+    tRound({ q: "Why does oil float on water?", o: [["lighter", "⚖️ A cup of oil is lighter"], ["thick", "🫠 Oil is thicker"], ["yellow", "🟡 Oil is yellow"]], a: "lighter", grams: true, start: ["water"], pour: ["oil"], why: "220 g is less than 240 g. Oil is less dense than water. Thick or thin doesn't decide it; density does." }),
+  ],
+};
+
+// ================= 4. ACIDS & BASES =================
+const PH_COL = ["#c81d3a", "#d42a4a", "#dd3d63", "#e0457b", "#d65ca8", "#a656b5", "#8a4fb3", "#6b55b8", "#3f6fd0", "#2f8fc0", "#2fae8a", "#45b94a", "#93c63a", "#d6cf34", "#e8d23a"];
+const phCol = (ph) => {
+  const i = clamp(Math.floor(ph), 0, 13);
+  return mix(PH_COL[i], PH_COL[i + 1], ph - i);
+};
+const TESTS = {
+  lemon: { name: "lemon juice", icon: "🍋", ph: 2 },
+  vinegar: { name: "vinegar", icon: "🍶", ph: 3 },
+  water: { name: "water", icon: "💧", ph: 7 },
+  soda: { name: "baking soda water", icon: "🥄", ph: 8.3 },
+  soap: { name: "soapy water", icon: "🧼", ph: 10 },
+  orange: { name: "orange juice", icon: "🍊", ph: 3.6 },
+  sugar: { name: "sugar water", icon: "🍬", ph: 7 },
+  wsoda: { name: "washing soda", icon: "🧺", ph: 11 },
+  apple: { name: "apple juice", icon: "🍎", ph: 3.6 },
+  milk: { name: "milk", icon: "🥛", ph: 6.7 },
+  egg: { name: "egg white", icon: "🥚", ph: 8.5 },
+  antacid: { name: "antacid tablet", icon: "💊", ph: 10 },
+  fizzy: { name: "fizzy drink", icon: "🥤", ph: 3 },
+  tomato: { name: "tomato juice", icon: "🍅", ph: 4.2 },
+  salt: { name: "salt water", icon: "🧂", ph: 7 },
+  lye: { name: "strong base (lab only)", icon: "⚗️", ph: 13 },
+};
+const groupOf = (ph) => (ph < 6.5 ? "acid" : ph <= 7.5 ? "neutral" : ph < 12.5 ? "base" : "strong");
+const colourWord = (ph) => (ph < 4.5 ? "pink" : ph < 6.5 ? "pink-purple" : ph <= 7.5 ? "purple" : ph < 9 ? "blue" : ph < 12.5 ? "green" : "yellow");
+const CAB = phCol(7);
+const sw = (ph, word) => `<span class="ch-sw" style="background:${phCol(ph)}"></span>${word}`;
+const colourO = [["pink", sw(2.5, "Pink")], ["purple", sw(7, "Purple")], ["green", sw(9.6, "Blue-green")]];
+const groupO = [["acid", "🍋 Acid"], ["neutral", "💧 Neutral"], ["base", "🧼 Base"]];
+
+function acidScene(ctx, r) {
+  const v = view;
+  const t = TESTS[r.item] || TESTS.vinegar;
+  // bottle
+  const bot = el("g", { transform: "translate(140 0)" }, v);
+  el("path", { d: "M-46 470L-46 300Q-46 270 -18 258L-18 214L18 214L18 258Q46 270 46 300L46 470Z", fill: "#f4f8fb", stroke: "#7d98a6", "stroke-width": 5 }, bot);
+  el("rect", { x: -20, y: 200, width: 40, height: 18, rx: 4, fill: "#5a4130" }, bot);
+  emoji(bot, 0, 380, t.icon, 60);
+  text(v, 140, 200 - 16, r.start != null ? "baking soda" : t.name, { "font-size": 24, fill: INK });
+  const gl = glass(v, 290, 180, 190, BENCH - 180, { level: 0.6, color: r.start != null ? phCol(r.start) : CAB, op: 0.92 });
+  text(v, 385, 160, "red cabbage juice", { "font-size": 22, fill: "#5a4130" });
+  // pH strip
+  const sx = 550;
+  const cw = 29;
+  const sy = 330;
+  for (let p = 0; p <= 14; p++) el("rect", { x: sx + p * cw, y: sy, width: cw, height: 52, fill: phCol(Math.min(p, 14)), stroke: "#fff", "stroke-width": 1 }, v);
+  el("rect", { x: sx, y: sy, width: cw * 15, height: 52, rx: 6, fill: "none", stroke: "#5a4130", "stroke-width": 3 }, v);
+  for (let p = 0; p <= 14; p += 2) text(v, sx + p * cw + cw / 2, sy + 80, p, { "font-size": 22, fill: "#4d3c2e" });
+  text(v, sx + 3 * cw, sy - 42, "ACID", { "font-size": 24, fill: "#c81d3a" });
+  text(v, sx + 7.5 * cw, sy - 42, "NEUTRAL", { "font-size": 24, fill: "#6b55b8" });
+  text(v, sx + 12 * cw, sy - 42, "BASE", { "font-size": 24, fill: "#2f8f5a" });
+  text(v, sx + 7.5 * cw, sy + 108, "pH scale", { "font-size": 22, fill: "#7a6a58" });
+  const arrow = el("g", { opacity: 0 }, v);
+  el("path", { d: "M-16 -30L16 -30L0 -6Z", fill: INK }, arrow);
+  const res1 = text(v, sx + 7.5 * cw, 176, "", { "font-size": 30, fill: INK });
+  const res2 = text(v, sx + 7.5 * cw, 226, "", { "font-size": 34, fill: INK });
+  const xOf = (ph) => sx + ph * cw + cw / 2;
+  const mark = (ph) => {
+    arrow.setAttribute("opacity", 1);
+    arrow.setAttribute("transform", `translate(${xOf(ph)} ${sy - 30})`);
+  };
+  const result = (ph, name) => {
+    res1.textContent = `${name}: pH ${Math.round(ph)}`;
+    const g = groupOf(ph);
+    res2.textContent = `${colourWord(ph)} → ${g === "strong" ? "STRONG BASE" : g.toUpperCase()}`;
+    res2.setAttribute("fill", g === "acid" ? "#c81d3a" : g === "neutral" ? "#6b55b8" : "#2f8f5a");
+  };
+  if (r.start != null) {
+    mark(r.start);
+    result(r.start, "vinegar");
+  }
+  return {
+    gl,
+    mark,
+    result,
+    xOf,
+    sy,
+    async pour() {
+      const stream = el("path", { d: "M180 214Q260 120 385 230", stroke: "#cfe6f2", "stroke-width": 12, fill: "none", "stroke-linecap": "round" }, v);
+      await ctx.tween(600, (k) => stream.setAttribute("opacity", k));
+      MUSIC.play("harp", 67, { gain: 0.3 });
+      await ctx.tween(1500, (k) => {
+        gl.set(0.6 + 0.15 * k, mix(CAB, phCol(t.ph), k));
+      });
+      stream.remove();
+      mark(t.ph);
+      result(t.ph, t.name);
+      await ctx.wait(500);
+    },
+  };
+}
+function acidRound(item, mode) {
+  const t = TESTS[item];
+  const g = groupOf(t.ph);
+  const cw = colourWord(t.ph);
+  const why = {
+    acid: `${t.name[0].toUpperCase() + t.name.slice(1)} is an acid. Acids taste sour (never taste lab things!) and turn cabbage juice pink or red.`,
+    neutral: `${t.name[0].toUpperCase() + t.name.slice(1)} is ${t.ph === 7 ? "neutral" : "very close to neutral"}: not an acid, not a base. The juice stays purple, about pH 7.`,
+    base: `${t.name[0].toUpperCase() + t.name.slice(1)} is a base. Bases feel slippery like soap and turn cabbage juice ${cw}.`,
+    strong: "A very strong base turns cabbage juice yellow. Strong bases can burn skin, so only scientists use them, with gloves and goggles.",
+  }[g];
+  const colourA = g === "acid" ? "pink" : g === "neutral" ? "purple" : "green";
+  return {
+    q: mode === "colour" ? `${t.icon} ${t.name[0].toUpperCase() + t.name.slice(1)} goes into purple cabbage juice. What colour will it turn?` : `${t.icon} Is ${t.name} an acid, neutral, or a base?`,
+    o: mode === "colour" ? colourO : groupO,
+    a: mode === "colour" ? colourA : g === "strong" ? "base" : g,
+    keep: true,
+    why,
+    draw: (ctx) => acidScene(ctx, { item }),
+    async test(ctx, sc) {
+      ctx.say(`🧪 Tap 🫗 Pour it in.`);
+      await ctx.press([["p", "🫗 Pour it in", true]]);
+      await sc.pour();
+      await ctx.wait(900);
+    },
+  };
+}
+function neutralRound(q, o, a, why) {
+  return {
+    q,
+    o,
+    a,
+    keep: true,
+    why,
+    draw: (ctx) => acidScene(ctx, { item: "soda", start: 3 }),
+    async test(ctx, sc) {
+      const steps = [5, 7, 8.3];
+      for (let k = 0; k < 3; k++) {
+        ctx.say(`🧪 Tap 🥄 Add baking soda. (${k + 1} of 3)`);
+        await ctx.press([["s", "🥄 Add baking soda", true]]);
+        const from = k ? steps[k - 1] : 3;
+        const fizz = bubbles(sc.gl.inner, 300, 470, 420, 12);
+        MUSIC.play("harp", 64 + k * 3, { gain: 0.3 });
+        await ctx.tween(1200, (t) => {
+          const ph = lerp(from, steps[k], t);
+          sc.gl.set(0.6, phCol(ph));
+          sc.mark(ph);
+        });
+        sc.result(steps[k], "mix");
+        fizz.remove();
+      }
+      await ctx.wait(800);
+    },
+  };
+}
+function tenRound() {
+  return {
+    q: "Each step down the pH scale is 10 times more acidic. How much more acidic is pH 3 than pH 5?",
+    o: [["100", "100 times"], ["2", "2 times"], ["20", "20 times"]],
+    a: "100",
+    why: "pH 5 to pH 4 is ×10, and pH 4 to pH 3 is ×10 again. 10 × 10 = 100 times more acidic!",
+    draw: (ctx) => acidScene(ctx, { item: "vinegar" }),
+    async test(ctx, sc) {
+      ctx.say("🧪 Tap 👀 Show me to see the jumps.");
+      await ctx.press([["s", "👀 Show me", true]]);
+      sc.mark(5);
+      for (const [a, b] of [[5, 4], [4, 3]]) {
+        const x1 = sc.xOf(a);
+        const x2 = sc.xOf(b);
+        const arc = el("path", { d: `M${x1} ${sc.sy - 6}Q${(x1 + x2) / 2} ${sc.sy - 70} ${x2} ${sc.sy - 6}`, stroke: "#c81d3a", "stroke-width": 5, fill: "none" }, view);
+        const lab = text(view, (x1 + x2) / 2, sc.sy - 56, "×10", { "font-size": 26, fill: "#c81d3a", opacity: 0 });
+        await ctx.tween(800, (t) => {
+          arc.setAttribute("opacity", t);
+          lab.setAttribute("opacity", t);
+          sc.mark(lerp(a, b, t));
+        });
+        MUSIC.play("xylophone", a === 5 ? 76 : 83, { gain: 0.35 });
+      }
+      sc.result(3, "vinegar");
+      await ctx.wait(900);
+    },
+  };
+}
+const ACID = {
+  easy: () => [acidRound("lemon", "colour"), acidRound("water", "colour"), acidRound("soda", "colour"), acidRound("vinegar", "colour"), acidRound("soap", "colour"), acidRound("orange", "colour"), acidRound("sugar", "colour"), acidRound("wsoda", "colour")],
+  medium: () => [
+    acidRound("apple", "group"),
+    acidRound("milk", "group"),
+    acidRound("egg", "group"),
+    acidRound("fizzy", "group"),
+    acidRound("antacid", "group"),
+    acidRound("tomato", "group"),
+    acidRound("salt", "group"),
+    neutralRound("Vinegar made the juice pink. We add baking soda, bit by bit. What happens to the colour?", [["blue", "🔄 Pink → purple → blue"], ["red", "🔴 It gets more red"], ["same", "🟰 It stays pink"]], "blue", "Baking soda is a base. It cancels out the acid. That's called neutralising, and it fizzes too!"),
+  ],
+  hard: () => [
+    {
+      ...acidRound("lemon", "group"),
+      q: "Lemon juice is pH 2. Soapy water is pH 10. Which one is the acid?",
+      o: [["lemon", "🍋 Lemon juice"], ["soap", "🧼 Soapy water"]],
+      a: "lemon",
+      why: "Below 7 is acid, above 7 is base. 2 is below 7, so lemon juice is the acid.",
+    },
+    {
+      ...acidRound("water", "group"),
+      q: "Pure water is pH 7. What is pH 7 called?",
+      o: [["neutral", "💧 Neutral"], ["acid", "🍋 Acid"], ["base", "🧼 Base"]],
+      a: "neutral",
+      why: "pH 7 is the middle of the scale: neutral. Not an acid and not a base.",
+    },
+    tenRound(),
+    {
+      ...acidRound("lye", "group"),
+      q: "A very strong base (pH 13) goes in. What colour will the cabbage juice turn?",
+      o: [["yellow", sw(13.5, "Yellow")], ["pink", sw(2.5, "Pink")], ["purple", sw(7, "Purple")]],
+      a: "yellow",
+    },
+    neutralRound("Acid plus base: what can happen when we mix them?", [["cancel", "⚖️ They cancel out (neutralise)"], ["stronger", "💪 The acid gets stronger"], ["nothing", "😐 Nothing at all"]], "cancel", "A base cancels out an acid. Mixed just right, you get close to neutral, pH 7. That's neutralising."),
+    {
+      ...acidRound("egg", "group"),
+      q: "Egg white is about pH 8. Which side of 7 is that?",
+      o: [["base", "🧼 Base side"], ["acid", "🍋 Acid side"]],
+      a: "base",
+      why: "8 is more than 7, so egg white is a weak base. The juice turns blue.",
+    },
+    {
+      ...acidRound("fizzy", "group"),
+      q: "Rain is a little acidic, about pH 5.6. A fizzy drink is about pH 3. Which is more acidic?",
+      o: [["fizzy", "🥤 Fizzy drink"], ["rain", "🌧️ Rain"]],
+      a: "fizzy",
+      why: "Lower pH means more acidic. 3 is lower than 5.6, so the fizzy drink is more acidic. That's why sugary fizzy drinks are hard on teeth.",
+    },
+    {
+      ...acidRound("antacid", "group"),
+      q: "Your tummy makes strong acid, about pH 2. A tummy-ache tablet (antacid) is a…",
+      o: [["base", "🧼 Base"], ["acid", "🍋 Acid"], ["neutral", "💧 Neutral"]],
+      a: "base",
+      why: "An antacid is a base. It cancels out some extra tummy acid. It turns cabbage juice green.",
+    },
+  ],
+};
+
+// ================= 5. FIZZ! =================
+function fizzScene(ctx, r) {
+  const v = view;
+  const bottles = r.bottles;
+  const out = bottles.map((b, i) => {
+    const x = bottles.length === 1 ? 330 : 210 + i * 290;
+    const g = el("g", {}, v);
+    const id = nid("chb");
+    const d = `M${x - 70} ${BENCH}L${x - 70} 350Q${x - 70} 314 ${x - 26} 298L${x - 22} 268L${x + 22} 268L${x + 26} 298Q${x + 70} 314 ${x + 70} 350L${x + 70} ${BENCH}Z`;
+    const cp = el("clipPath", { id }, g);
+    el("path", { d }, cp);
+    el("path", { d, fill: "#f4f8fb", opacity: 0.8 }, g);
+    const inner = el("g", { "clip-path": `url(#${id})` }, g);
+    const lv = BENCH - 24 * b.vin;
+    const liqCol = { vinegar: "#f1e7c8", water: "#cfe9f7", lemon: "#f7ef9a", sugar: "#eef2f4" }[b.liquid || "vinegar"];
+    const liq = el("rect", { x: x - 75, y: lv, width: 150, height: BENCH - lv + 5, fill: liqCol }, inner);
+    const foam = el("rect", { x: x - 75, y: lv, width: 150, height: 0, fill: "#fffaf0" }, inner);
+    const fz = el("g", { opacity: 0 }, inner);
+    bubbles(fz, x - 60, x + 60, BENCH - 6, 18, { r: [4, 10] });
+    el("path", { d, fill: "none", stroke: "#7d98a6", "stroke-width": 6, "stroke-linejoin": "round" }, g);
+    // balloon
+    const bal = el("g", {}, v);
+    const balloon = el("ellipse", { cx: x, cy: 240, rx: 20, ry: 26, fill: "#e85d75", stroke: "#b23a52", "stroke-width": 3 }, bal);
+    el("rect", { x: x - 18, y: 254, width: 36, height: 18, rx: 5, fill: "#d94b64" }, bal);
+    const soda = el("g", {}, bal);
+    for (let k = 0; k < b.soda * 5; k++) el("circle", { cx: x - 12 + (k % 5) * 6, cy: 248 - Math.floor(k / 5) * 6, r: 3, fill: "#fff" }, soda);
+    const two = bottles.length > 1;
+    const lab = text(v, x, BENCH + 36, two ? b.label || "" : "", { "font-size": 26, fill: "#5a4130" });
+    const counts = text(v, x, BENCH + 72, two ? `🥄 ${b.soda}  🫗 ${b.vin}` : "", { "font-size": 26, fill: INK });
+    return { ...b, x, liq, foam, fz, balloon, sodaG: soda, lv, lab, counts, inner };
+  });
+  const info = bottles.length === 1 ? el("g", {}, v) : null;
+  if (info) {
+    text(info, 760, 200, `🥄 Baking soda: ${bottles[0].soda} ${bottles[0].soda === 1 ? "spoon" : "spoons"}`, { "font-size": 28, fill: INK });
+    info.vinT = text(info, 760, 250, `🫗 ${bottles[0].liquidName || "Vinegar"}: ${bottles[0].vin} ${bottles[0].vin === 1 ? "splash" : "splashes"}`, { "font-size": 28, fill: INK });
+  }
+  const gasT = info ? text(info, 760, 320, "", { "font-size": 32, fill: "#b23a52" }) : null;
+  const leftT = info ? text(info, 760, 370, "", { "font-size": 26, fill: "#5a4130" }) : null;
+  const size = (puffs) => ({ rx: 20 + puffs * 13, ry: 26 + puffs * 14 });
+  return {
+    out,
+    async tip() {
+      MUSIC.play("woodblock", 76, { gain: 0.3 });
+      await ctx.tween(500, (t) => out.forEach((o) => o.sodaG.setAttribute("transform", `translate(0 ${t * (o.lv - 240)})`)));
+      out.forEach((o) => o.sodaG.setAttribute("opacity", 0));
+      const results = out.map((o) => {
+        const acid = (o.liquid || "vinegar") === "vinegar" || o.liquid === "lemon";
+        const puffs = acid ? Math.min(o.soda, o.vin) : 0;
+        return { o, acid, puffs };
+      });
+      results.forEach(({ o, acid }) => o.fz.setAttribute("opacity", acid ? 1 : 0.15));
+      MUSIC.play("harp", 72, { gain: 0.25 });
+      MUSIC.play("harp", 79, { gain: 0.2, at: 0 });
+      await ctx.tween(2200, (t) =>
+        results.forEach(({ o, acid, puffs }) => {
+          const s = size(puffs * t);
+          o.balloon.setAttribute("rx", s.rx);
+          o.balloon.setAttribute("ry", s.ry);
+          o.balloon.setAttribute("cy", 254 - s.ry + 8);
+          o.foam.setAttribute("y", o.lv - (acid ? 40 * Math.sin(t * Math.PI) : 0));
+          o.foam.setAttribute("height", acid ? 40 * Math.sin(t * Math.PI) : 0);
+        })
+      );
+      results.forEach(({ o, acid, puffs }) => {
+        o.fz.setAttribute("opacity", 0);
+        const sodaLeft = acid ? o.soda - puffs : o.soda;
+        const vinLeft = acid ? o.vin - puffs : o.vin;
+        o.liq.setAttribute("y", BENCH - 24 * Math.max(vinLeft, 0.5));
+        if (sodaLeft > 0) for (let k = 0; k < sodaLeft * 6; k++) el("circle", { cx: o.x - 40 + (k % 12) * 7, cy: BENCH - 6 - Math.floor(k / 12) * 6, r: 4, fill: "#fff", stroke: "#ddd" }, o.inner);
+        if (gasT) {
+          gasT.textContent = puffs ? `🎈 Gas made: ${puffs} ${puffs === 1 ? "puff" : "puffs"}` : "🎈 Hardly any gas";
+          if (acid) leftT.textContent = sodaLeft ? `Left over: ${sodaLeft} spoon${sodaLeft > 1 ? "s" : ""} of soda` : vinLeft ? `Left over: ${vinLeft} splash${vinLeft > 1 ? "es" : ""} of vinegar` : "Nothing left over";
+        } else o.counts.textContent = puffs ? `🎈 ${puffs} ${puffs === 1 ? "puff" : "puffs"}` : "🎈 hardly any";
+      });
+      return results;
+    },
+    async addSplash(k) {
+      const o = out[0];
+      o.vin += 0;
+      const puffs = Math.min(o.soda, k);
+      const s = size(puffs);
+      o.fz.setAttribute("opacity", k <= o.soda ? 1 : 0);
+      MUSIC.play("harp", 67 + k * 2, { gain: 0.25 });
+      const lvNow = BENCH - 24 * Math.max(0.5, k - Math.min(k, o.soda));
+      const rx0 = Number(o.balloon.getAttribute("rx"));
+      const ry0 = Number(o.balloon.getAttribute("ry"));
+      await ctx.tween(1400, (t) => {
+        o.balloon.setAttribute("rx", lerp(rx0, s.rx, t));
+        o.balloon.setAttribute("ry", lerp(ry0, s.ry, t));
+        o.balloon.setAttribute("cy", 254 - lerp(ry0, s.ry, t) + 8);
+      });
+      o.liq.setAttribute("y", lvNow);
+      o.fz.setAttribute("opacity", 0);
+      info.vinT.textContent = `🫗 Vinegar: ${k} ${k === 1 ? "splash" : "splashes"}`;
+      gasT.textContent = `🎈 Gas made: ${puffs} ${puffs === 1 ? "puff" : "puffs"}`;
+      leftT.textContent = k > o.soda ? `Left over: ${k - o.soda} splash${k - o.soda > 1 ? "es" : ""} of vinegar` : "";
+    },
+  };
+}
+function candleScene(ctx) {
+  const v = view;
+  const jug = el("g", { transform: "translate(300 0)" }, v);
+  el("path", { d: `M-80 ${BENCH}L-80 270L80 270L80 ${BENCH}Z`, fill: "#f4f8fb", stroke: "#7d98a6", "stroke-width": 6, "stroke-linejoin": "round" }, jug);
+  el("path", { d: "M80 270L104 252", stroke: "#7d98a6", "stroke-width": 6, "stroke-linecap": "round" }, jug);
+  el("rect", { x: -74, y: BENCH - 70, width: 148, height: 64, fill: "#f1e7c8" }, jug);
+  const fz = el("g", {}, jug);
+  bubbles(fz, -60, 60, BENCH - 10, 14, { r: [4, 9] });
+  text(jug, 0, 250, "CO₂ fizz jug", { "font-size": 24, fill: "#5a4130" });
+  const cx = 740;
+  el("rect", { x: cx - 26, y: BENCH - 130, width: 52, height: 130, rx: 6, fill: "#fff4dc", stroke: "#d9c6a0", "stroke-width": 3 }, v);
+  el("line", { x1: cx, x2: cx, y1: BENCH - 130, y2: BENCH - 146, stroke: "#333", "stroke-width": 4 }, v);
+  const flame = el("g", { transform: `translate(${cx} ${BENCH - 150})` }, v);
+  el("path", { d: "M0 -60Q24 -24 14 -6Q0 8 -14 -6Q-24 -24 0 -60Z", fill: "#ffb300" }, flame);
+  el("path", { d: "M0 -36Q10 -18 6 -8Q0 -2 -6 -8Q-10 -18 0 -36Z", fill: "#fff3b0" }, flame);
+  const smoke = puffs(v, cx, BENCH - 200, 3, 20);
+  smoke.setAttribute("opacity", 0);
+  text(v, 500, 525, "🕯️ Only a grown-up lights candles", { "font-size": 22, fill: "#a8632d" });
+  const gas = el("path", { d: `M404 250Q560 200 ${cx} ${BENCH - 170}`, stroke: "#b8c4cc", "stroke-width": 30, fill: "none", "stroke-linecap": "round", opacity: 0, "stroke-dasharray": "4 18" }, v);
+  return {
+    async pourGas() {
+      await ctx.tween(900, (t) => jug.setAttribute("transform", `translate(${300 + 40 * t} ${-40 * t}) rotate(${35 * t} 80 270)`));
+      await ctx.tween(1600, (t) => {
+        gas.setAttribute("opacity", 0.55 * Math.min(1, t * 2));
+        flame.setAttribute("transform", `translate(${cx} ${BENCH - 150}) scale(${clamp(1.3 - t * 1.3, 0, 1)})`);
+      });
+      flame.setAttribute("opacity", 0);
+      smoke.setAttribute("opacity", 1);
+      MUSIC.play("cello", 48, { gain: 0.3 });
+      await ctx.tween(700, (t) => gas.setAttribute("opacity", 0.55 * (1 - t)));
+    },
+  };
+}
+const fzO = [["fizz", "🫧 Lots of fizz"], ["little", "😐 Hardly any fizz"]];
+function fizzRound(q, o, a, why, bottles, extra = {}) {
+  return {
+    q,
+    o,
+    a,
+    why,
+    keep: extra.keep ?? true,
+    draw: (ctx) => fizzScene(ctx, { bottles }),
+    async test(ctx, sc) {
+      ctx.say("🧪 Lift the balloon so the soda falls in. Tap 🎈 Tip it in.");
+      await ctx.press([["t", "🎈 Tip it in", true]]);
+      await sc.tip();
+      await ctx.wait(900);
+    },
+    ...extra,
+  };
+}
+function candleRound(q, o, a, why) {
+  return {
+    q,
+    o,
+    a,
+    why,
+    draw: (ctx) => candleScene(ctx),
+    async test(ctx, sc) {
+      ctx.say("🧪 The jug is full of invisible gas. Tap 🫗 Pour the gas over the candle.");
+      await ctx.press([["p", "🫗 Pour the gas", true]]);
+      await sc.pourGas();
+      await ctx.wait(800);
+    },
+  };
+}
+const one = (soda, vin, liquid = "vinegar", liquidName) => [{ soda, vin, liquid, liquidName }];
+const FIZZ = {
+  easy: () => [
+    fizzRound("Baking soda falls into vinegar. What will happen?", [["fizz", "🫧 Lots of bubbles"], ["nothing", "😐 Nothing"], ["ice", "🧊 It turns to ice"]], "fizz", "Baking soda and vinegar make a brand-new gas called carbon dioxide. That's the fizz!", one(2, 2), { keep: false }),
+    fizzRound("The bubbles are full of gas. What will the gas do to the balloon?", [["up", "🎈 Blow it up"], ["pop", "💥 Pop it"], ["none", "😐 Nothing"]], "up", "The gas needs space, so it pushes into the balloon and blows it up.", one(2, 2), { keep: false }),
+    fizzRound("Baking soda falls into plain water. Will it fizz?", fzO, "little", "Hardly any fizz! Baking soda needs an acid, like vinegar, to make lots of gas. Water is not an acid.", one(2, 2, "water", "Water")),
+    fizzRound("Baking soda falls into lemon juice. Will it fizz?", fzO, "fizz", "Lots of fizz! Lemon juice is an acid, just like vinegar.", one(2, 2, "lemon", "Lemon juice")),
+    candleRound("We pour the invisible gas over a candle. What will happen?", [["out", "💨 The flame goes out"], ["big", "🔥 The flame gets bigger"], ["none", "😐 Nothing"]], "out", "Carbon dioxide pushes the air away. Fire needs air, so the flame goes out. Only a grown-up should do this one."),
+    fizzRound("More soda and more vinegar. Will the balloon be bigger or smaller?", [["bigger", "⬆️ Bigger"], ["smaller", "⬇️ Smaller"]], "bigger", "More soda and more vinegar make more gas, so the balloon gets bigger.", one(4, 4)),
+    fizzRound("Baking soda falls into sugar water. Will it fizz?", fzO, "little", "Hardly any fizz. Sugar water is not an acid, so no new gas is made.", one(2, 2, "sugar", "Sugar water")),
+    fizzRound("Can we see the gas inside the balloon?", [["no", "🙈 No, it's invisible"], ["yes", "👀 Yes, it's purple"]], "no", "Carbon dioxide is invisible, like air. We see bubbles only because liquid is around the gas.", one(2, 2)),
+  ],
+  medium: () => [
+    fizzRound("Lots of soda in both. Left has 1 splash of vinegar, right has 3. Which balloon gets bigger?", [["L", "⬅️ 1 splash"], ["R", "➡️ 3 splashes"], ["same", "🟰 Same"]], "R", "More vinegar can react with more soda, so more gas is made. The right balloon is bigger.", [{ soda: 4, vin: 1, label: "1 splash" }, { soda: 4, vin: 3, label: "3 splashes" }]),
+    candleRound("Why will the candle go out when we pour the gas?", [["air", "💨 The gas pushes the air away"], ["water", "💧 The gas is wet"], ["tired", "😴 The candle gets tired"]], "air", "A flame needs oxygen from the air. Carbon dioxide pushes the air away, so the flame goes out."),
+    candleRound("We can pour the gas DOWN onto a candle. Is carbon dioxide heavier or lighter than air?", [["heavy", "⬇️ Heavier"], ["light", "⬆️ Lighter"]], "heavy", "Carbon dioxide is heavier than air, so it pours down like an invisible liquid and sits around the candle."),
+    fizzRound("When the fizzing stops, is it still baking soda and vinegar?", [["new", "✨ No, new things were made"], ["same", "🔁 Yes, the same"]], "new", "The fizz made carbon dioxide, water and a new salt called sodium acetate. New stuff means a chemical change!", one(2, 2)),
+    fizzRound("Baking soda falls into lemon juice. Will it fizz?", fzO, "fizz", "Lemon juice is an acid, so it fizzes with baking soda too.", one(2, 2, "lemon", "Lemon juice")),
+    fizzRound("Baking soda falls into plain water. Will it fizz?", fzO, "little", "Water is not an acid. Baking soda just dissolves, with hardly any gas.", one(2, 2, "water", "Water")),
+    fizzRound("A tiny bit of soda, lots of vinegar. How big will the balloon get?", [["small", "🎈 Small"], ["huge", "🎈🎈 Huge"]], "small", "There's only a little soda. Once it is used up, the fizzing stops, even with lots of vinegar left.", one(1, 4)),
+    fizzRound("Where did the gas come from?", [["new", "✨ The mixing made it"], ["balloon", "🎈 It was in the balloon"], ["outside", "🌬️ From the air outside"]], "new", "The gas was made new! The soda and vinegar particles swapped partners and built carbon dioxide.", one(3, 3)),
+  ],
+  hard: () => [
+    fizzRound("In our lab, 1 spoon of soda + 1 splash of vinegar makes 1 puff of gas. 1 spoon + 1 splash makes how many puffs?", [["1", "1 puff"], ["2", "2 puffs"], ["0", "0 puffs"]], "1", "1 spoon needs 1 splash. Together they make 1 puff. (A splash is about a quarter cup.)", one(1, 1)),
+    fizzRound("2 spoons of soda, 3 splashes of vinegar. How many puffs?", [["2", "2 puffs"], ["3", "3 puffs"], ["5", "5 puffs"]], "2", "The soda runs out after 2 puffs. 1 splash of vinegar is left over. The one that runs out first is the limiting reactant.", one(2, 3)),
+    fizzRound("3 spoons of soda, 1 splash of vinegar. How many puffs?", [["1", "1 puff"], ["3", "3 puffs"], ["4", "4 puffs"]], "1", "Now the vinegar runs out first. Only 1 puff, and 2 spoons of soda are left as white powder.", one(3, 1)),
+    {
+      q: "2 spoons of soda. We add vinegar 1 splash at a time. After how many splashes does the balloon stop growing?",
+      o: [["2", "After 2 splashes"], ["4", "After 4 splashes"], ["1", "After 1 splash"]],
+      a: "2",
+      why: "Each splash uses 1 spoon. After 2 splashes the soda is all used up, so more vinegar can't make more gas.",
+      draw: (ctx) => fizzScene(ctx, { bottles: [{ soda: 2, vin: 0 }] }),
+      async test(ctx, sc) {
+        sc.out[0].sodaG.setAttribute("opacity", 0);
+        for (let k = 1; k <= 4; k++) {
+          ctx.say(`🧪 Tap 🫗 Add a splash. (${k} of 4)`);
+          await ctx.press([["a", "🫗 Add a splash", true]]);
+          await sc.addSplash(k);
+        }
+        await ctx.wait(800);
+      },
+    },
+    fizzRound("3 spoons of soda, 5 splashes of vinegar. What is left over?", [["vin2", "2 splashes of vinegar"], ["soda2", "2 spoons of soda"], ["none", "Nothing"]], "vin2", "3 spoons use 3 splashes. 5 − 3 = 2 splashes of vinegar are left over.", one(3, 5), { keep: false }),
+    fizzRound("4 spoons of soda and 4 splashes of vinegar. How many puffs?", [["4", "4 puffs"], ["8", "8 puffs"], ["2", "2 puffs"]], "4", "4 and 4 match exactly, so nothing is left over: 4 puffs. Chemists love a perfect match!", one(4, 4)),
+    fizzRound("We want 3 puffs of gas. Which mix will do it with nothing left over?", [["33", "3 spoons + 3 splashes"], ["31", "3 spoons + 1 splash"], ["13", "1 spoon + 3 splashes"]], "33", "3 puffs need 3 spoons and 3 splashes. With 1 of either, you only get 1 puff.", one(3, 3), { keep: false }),
+    fizzRound("Left: 2 spoons + 6 splashes. Right: 3 spoons + 6 splashes. How many puffs on the right?", [["3", "3 puffs"], ["6", "6 puffs"], ["2", "2 puffs"]], "3", "With lots of vinegar, the soda decides. 3 spoons make 3 puffs. Adding soda helped because soda was the limiting reactant.", [{ soda: 2, vin: 6, label: "2 + 6" }, { soda: 3, vin: 6, label: "3 + 6" }]),
+  ],
+};
+
+// ================= 6. CRYSTALS =================
+function snowflake(parent, x, y, s, arms = 6) {
+  const g = el("g", { transform: `translate(${x} ${y})` }, parent);
+  const list = [];
+  for (let k = 0; k < arms; k++) {
+    const a = el("g", { transform: `rotate(${(k * 360) / arms})` }, g);
+    el("line", { x1: 0, y1: 0, x2: 0, y2: -s, stroke: "#5aa7d6", "stroke-width": 10, "stroke-linecap": "round" }, a);
+    for (const f of [0.45, 0.72]) {
+      el("line", { x1: 0, y1: -s * f, x2: s * 0.22, y2: -s * (f + 0.18), stroke: "#5aa7d6", "stroke-width": 7, "stroke-linecap": "round" }, a);
+      el("line", { x1: 0, y1: -s * f, x2: -s * 0.22, y2: -s * (f + 0.18), stroke: "#5aa7d6", "stroke-width": 7, "stroke-linecap": "round" }, a);
+    }
+    list.push(a);
+  }
+  el("circle", { r: s * 0.14, fill: "#cfe9f8", stroke: "#5aa7d6", "stroke-width": 5 }, g);
+  return { g, arms: list };
+}
+function cube3d(parent, x, y, s, { fill = "#ffffff", stroke = "#9fb3c0" } = {}) {
+  const g = el("g", { transform: `translate(${x} ${y})` }, parent);
+  const dx = s * 0.5;
+  const dy = s * 0.3;
+  const faces = [
+    el("path", { d: `M0 0L${s} 0L${s} ${s}L0 ${s}Z`, fill, stroke, "stroke-width": 3 }, g),
+    el("path", { d: `M0 0L${dx} ${-dy}L${s + dx} ${-dy}L${s} 0Z`, fill: mix(fill, "#d7e6ef", 0.5), stroke, "stroke-width": 3 }, g),
+    el("path", { d: `M${s} 0L${s + dx} ${-dy}L${s + dx} ${s - dy}L${s} ${s}Z`, fill: mix(fill, "#b8cddb", 0.5), stroke, "stroke-width": 3 }, g),
+  ];
+  const corners = [[0, 0], [s, 0], [s, s], [0, s], [dx, -dy], [s + dx, -dy], [s + dx, s - dy], [dx, s - dy]];
+  return { g, faces, corners };
+}
+function crystalScene(ctx, r) {
+  const v = view;
+  const sc = {};
+  if (r.kind === "evap" || r.kind === "string" || r.kind === "speed" || r.kind === "temp") {
+    const jars = r.kind === "speed" || r.kind === "temp" ? 2 : 1;
+    sc.day = text(v, 500, 112, "Day 0", { "font-size": 38, fill: INK });
+    const sun = el("g", { transform: "translate(880 150)" }, v);
+    for (let k = 0; k < 8; k++) el("line", { x1: 0, y1: -56, x2: 0, y2: -76, stroke: "#f5b400", "stroke-width": 8, "stroke-linecap": "round", transform: `rotate(${k * 45})` }, sun);
+    el("circle", { r: 44, fill: "#ffd23f" }, sun);
+    sc.jars = [];
+    for (let j = 0; j < jars; j++) {
+      const x = jars === 1 ? 300 : 150 + j * 330;
+      const gl = glass(v, x, 190, 230, BENCH - 190, { level: 0.75, color: r.color || "#cfe8f4", op: 0.8 });
+      text(v, x + 115, 172, r.labels ? r.labels[j] : r.sugar || r.kind === "string" ? "🍬 sugar water" : "🧂 salt water", { "font-size": 26, fill: INK });
+      const cr = el("g", { opacity: 0 }, gl.front);
+      const big = r.kind === "speed" ? j === 0 : true;
+      if (r.kind === "string") {
+        el("rect", { x: x - 20, y: 176, width: 270, height: 14, rx: 7, fill: "#e0b25e", stroke: "#a8632d", "stroke-width": 2 }, v);
+        el("line", { x1: x + 115, x2: x + 115, y1: 190, y2: BENCH - 60, stroke: "#8a7764", "stroke-width": 3 }, v);
+        for (let k = 0; k < 16; k++) {
+          const yy = 240 + k * 11;
+          const s = 10 + (k % 3) * 5;
+          el("rect", { x: x + 115 - s / 2 + ((k % 2) * 2 - 1) * 8, y: yy, width: s, height: s * 0.8, fill: "#fff", stroke: "#b8cddb", "stroke-width": 2, transform: `rotate(${(k * 31) % 50 - 25} ${x + 115} ${yy})` }, cr);
+        }
+      } else {
+        const n = big ? 7 : 22;
+        for (let k = 0; k < n; k++) {
+          const s = big ? 26 + (k % 3) * 8 : 8 + (k % 3) * 3;
+          const cx = x + 30 + ((k * 53) % 170);
+          const by = BENCH - 6 - (k % 2) * 4;
+          if (r.sugar) el("path", { d: `M${cx} ${by}l${s} 0l${s * 0.3} ${-s}l${-s} 0Z`, fill: "#fff", stroke: "#b8cddb", "stroke-width": 2 }, cr);
+          else el("rect", { x: cx, y: by - s, width: s, height: s, fill: "#fff", stroke: "#b8cddb", "stroke-width": 2, transform: `rotate(${(k * 17) % 20 - 10} ${cx} ${BENCH - 10})` }, cr);
+        }
+      }
+      sc.jars.push({ gl, cr, rate: r.rates ? r.rates[j] : 1 });
+    }
+    sc.n = 0;
+    sc.next = async () => {
+      sc.n += 1;
+      sc.day.textContent = `Day ${sc.n * (r.step || 1)}`;
+      MUSIC.play("xylophone", 72 + sc.n * 4, { gain: 0.3 });
+      await ctx.tween(1100, (t) =>
+        sc.jars.forEach((jr) => {
+          const k = clamp(((sc.n - 1 + t) / 3) * jr.rate, 0, 1);
+          jr.gl.set(0.75 - (r.kind === "string" ? 0.4 : 0.68) * k);
+          jr.cr.setAttribute("opacity", k);
+        })
+      );
+    };
+  }
+  if (r.kind === "lattice") {
+    const z = Zoom(v, 330, 300, 170, ctx.alive, { label: "🔬 Salt, zoomed in a LOT" });
+    grid(6, 6, 40, 0, 0).forEach((h, i) => z.add({ x: h.x, y: h.y - 300, hx: h.x, hy: h.y, r: (Math.floor(i / 6) + (i % 6)) % 2 ? 13 : 18, fill: (Math.floor(i / 6) + (i % 6)) % 2 ? "#9b59b6" : "#2ecc71", mode: "lattice", shake: 1.5 }));
+    sc.z = z;
+    const c = cube3d(v, 700, 250, 140);
+    c.g.setAttribute("opacity", 0);
+    sc.cube = c;
+    text(v, 330, 520, "🟢 chlorine   🟣 sodium", { "font-size": 24, fill: INK });
+  }
+  if (r.kind === "shape") {
+    const z = Zoom(v, 500, 300, 175, ctx.alive, { label: r.sugar ? "🔍 Sugar grains, magnified" : "🔍 Salt grains, magnified" });
+    sc.z = z;
+    const g = el("g", { opacity: 0 }, z.over);
+    if (r.sugar)
+      for (const [x, y, s] of [[-80, -40, 70], [40, 30, 80], [-30, 70, 50]]) {
+        el("path", { d: `M${x} ${y}l${s} 0l${s * 0.3} ${-s * 0.5}l${-s} 0Z`, fill: "#e6eef3", stroke: "#8fa6b5", "stroke-width": 3 }, g);
+        el("path", { d: `M${x} ${y}l${s} 0l0 ${s * 0.7}l${-s} 0Z`, fill: "#fff", stroke: "#8fa6b5", "stroke-width": 3 }, g);
+        el("path", { d: `M${x + s} ${y}l${s * 0.3} ${-s * 0.5}l0 ${s * 0.7}l${-s * 0.3} ${s * 0.5}Z`, fill: "#d3e0e8", stroke: "#8fa6b5", "stroke-width": 3 }, g);
+      }
+    else for (const [x, y, s] of [[-110, -60, 70], [10, -40, 90], [-60, 50, 60], [60, 70, 50]]) cube3d(g, x, y, s);
+    sc.reveal = g;
+  }
+  if (r.kind === "snow") {
+    sc.flake = snowflake(v, 360, 295, 150);
+    sc.count = text(v, 780, 440, "", { "font-size": 90, fill: "#2a6db0" });
+    if (!r.many) {
+      const hx = el("g", { transform: "translate(780 230)" }, v);
+      for (let k = 0; k < 6; k++) {
+        const a1 = (k * Math.PI) / 3;
+        const a2 = ((k + 1) * Math.PI) / 3;
+        el("line", { x1: 70 * Math.cos(a1), y1: 70 * Math.sin(a1), x2: 70 * Math.cos(a2), y2: 70 * Math.sin(a2), stroke: "#9cc3dc", "stroke-width": 5 }, hx);
+      }
+      for (let k = 0; k < 6; k++) el("circle", { cx: 70 * Math.cos((k * Math.PI) / 3), cy: 70 * Math.sin((k * Math.PI) / 3), r: 18, fill: "#4aa3df", stroke: "#2a6db0", "stroke-width": 2 }, hx);
+      text(v, 780, 340, "frozen water: rings of 6", { "font-size": 24, fill: "#5a4130" });
+    }
+    if (r.many) {
+      sc.flake.g.setAttribute("transform", "translate(200 300) scale(.55)");
+      sc.more = [snowflake(v, 400, 300, 95), snowflake(v, 600, 300, 95)];
+    }
+  }
+  if (r.kind === "cube") {
+    sc.c = cube3d(v, 300, 210, 220);
+    sc.count = text(v, 800, 320, "", { "font-size": 90, fill: "#2a6db0" });
+  }
+  if (r.kind === "gems") {
+    [["💎", "diamond"], ["🧊", "ice"], ["🧂", "salt"], ["❄️", "snowflake"]].forEach(([e, n], i) => {
+      const x = 170 + i * 220;
+      el("circle", { cx: x, cy: 280, r: 86, fill: "#eef7ff", stroke: "#b8d6ea", "stroke-width": 4 }, v);
+      emoji(v, x, 270, e, 96);
+      text(v, x, 410, n, { "font-size": 28, fill: INK });
+    });
+    sc.tick = el("g", { opacity: 0 }, v);
+    text(sc.tick, 500, 470, "All crystals: particles in neat repeating patterns", { "font-size": 28, fill: "#1f7a3c" });
+  }
+  return sc;
+}
+function cRound(r) {
+  return {
+    ...r,
+    draw: (ctx) => crystalScene(ctx, r),
+    async test(ctx, sc) {
+      if (sc.next) {
+        for (let k = 1; k <= 3; k++) {
+          ctx.say(`🧪 Tap ☀️ Next day. (${k} of 3)`);
+          await ctx.press([["d", r.kind === "temp" ? "❄️ Let it cool" : "☀️ Next day", true]]);
+          await sc.next();
+        }
+      } else if (r.kind === "lattice") {
+        ctx.say("🧪 Tap 🔬 Zoom out to see what the rows build.");
+        await ctx.press([["z", "🔬 Zoom out", true]]);
+        sc.cube.g.setAttribute("opacity", 1);
+        await ctx.tween(1200, (t) => sc.cube.g.setAttribute("transform", `translate(${lerp(560, 700, t)} 250) scale(${lerp(0.3, 1, t)})`));
+      } else if (r.kind === "shape") {
+        ctx.say("🧪 Tap 🔍 Look closely.");
+        await ctx.press([["l", "🔍 Look closely", true]]);
+        await ctx.tween(1000, (t) => sc.reveal.setAttribute("opacity", t));
+      } else if (r.kind === "snow") {
+        ctx.say("🧪 Let's count the arms together. Tap 👆 Count.");
+        await ctx.press([["c", "👆 Count", true]]);
+        const flakes = [sc.flake, ...(sc.more || [])];
+        let n = 0;
+        for (const f of flakes)
+          for (const a of f.arms) {
+            n += 1;
+            a.querySelectorAll("line").forEach((l) => l.setAttribute("stroke", "#e0603a"));
+            sc.count.textContent = n;
+            MUSIC.play("xylophone", 72 + [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21, 23, 24, 26, 28, 29][n - 1], { gain: 0.35 });
+            VOICE.speak(String(n));
+            await ctx.wait(flakes.length > 1 ? 420 : 650);
+          }
+      } else if (r.kind === "cube") {
+        const corners = r.what === "corners";
+        ctx.say(`🧪 Let's count the ${corners ? "corners" : "faces"}. Tap 👆 Count.`);
+        await ctx.press([["c", "👆 Count", true]]);
+        if (corners) {
+          for (let k = 0; k < 8; k++) {
+            const [x, y] = sc.c.corners[k];
+            el("circle", { cx: x, cy: y, r: 13, fill: "#e0603a" }, sc.c.g);
+            sc.count.textContent = k + 1;
+            MUSIC.play("xylophone", 72 + [0, 2, 4, 5, 7, 9, 11, 12][k], { gain: 0.35 });
+            VOICE.speak(String(k + 1));
+            await ctx.wait(650);
+          }
+        } else {
+          const names = ["front", "top", "right side", "back", "bottom", "left side"];
+          for (let k = 0; k < 6; k++) {
+            if (k < 3) sc.c.faces[k].setAttribute("fill", ["#ffd9c9", "#ffe9b0", "#d6f0d8"][k]);
+            sc.count.textContent = k + 1;
+            ctx.say(`${k + 1}: the ${names[k]}${k >= 3 ? " (hidden)" : ""}`);
+            MUSIC.play("xylophone", 72 + [0, 2, 4, 5, 7, 9][k], { gain: 0.35 });
+            await ctx.wait(900);
+          }
+        }
+      } else if (r.kind === "gems") {
+        ctx.say("🧪 Tap 🔬 Zoom in.");
+        await ctx.press([["z", "🔬 Zoom in", true]]);
+        await ctx.tween(900, (t) => sc.tick.setAttribute("opacity", t));
+      }
+      await ctx.wait(900);
+    },
+  };
+}
+const CRY = {
+  easy: () => [
+    cRound({ kind: "evap", q: "Salt water sits in the sun for days. What will be left?", o: [["salt", "✨ Salt crystals"], ["nothing", "🫥 Nothing"], ["ice", "🧊 Ice"]], a: "salt", why: "The water dries up into the air, but the salt stays. It joins up into little crystals." }),
+    cRound({ kind: "shape", q: "What shape are salt crystals?", o: [["cube", "🧊 Little cubes"], ["ball", "⚪ Balls"], ["star", "⭐ Stars"]], a: "cube", why: "Salt crystals are little cubes, with square sides. Look at salt with a magnifying glass!" }),
+    cRound({ kind: "evap", sugar: true, color: "#f4ecd8", q: "Sugar water dries up. What will be left?", o: [["sugar", "✨ Sugar crystals"], ["salt", "🧂 Salt"], ["nothing", "🫥 Nothing"]], a: "sugar", why: "Sugar was hiding in the water. When the water dries up, sugar crystals are left." }),
+    cRound({ kind: "evap", q: "The water in the jar went down. Where did the water go?", o: [["air", "💨 Into the air"], ["crystal", "💎 Into the crystals"], ["salt", "🧂 It turned into salt"]], a: "air", why: "The water evaporated: it turned into a gas and floated away into the air." }),
+    cRound({ kind: "snow", q: "Snowflakes are ice crystals. How many arms does this snowflake have?", o: [["6", "6"], ["4", "4"], ["5", "5"]], a: "6", why: "6 arms! Every snowflake has 6 sides, because frozen water particles join up in a 6-sided pattern." }),
+    cRound({ kind: "string", q: "We hang a string in sugar water for many days. What will happen?", o: [["grow", "💎 Crystals grow on it"], ["melt", "🫠 The string melts"], ["none", "😐 Nothing"]], a: "grow", why: "As the water slowly dries up, the sugar joins onto the string and grows into crystals. That's rock candy!" }),
+    cRound({ kind: "evap", q: "Do the crystals get bigger or smaller as more days go by?", o: [["bigger", "⬆️ Bigger"], ["smaller", "⬇️ Smaller"]], a: "bigger", keep: true, why: "More water dries up each day, so more salt joins on. The crystals grow bigger." }),
+    cRound({ kind: "gems", q: "Which of these is a crystal: diamond, ice, salt or a snowflake?", o: [["all", "💎 All of them"], ["diamond", "💎 Only the diamond"], ["none", "🙅 None"]], a: "all", why: "They are all crystals! A crystal is anything whose tiny particles stack in a neat pattern." }),
+  ],
+  medium: () => [
+    cRound({ kind: "lattice", q: "Salt particles stack in neat rows. What shape will the rows build?", o: [["cube", "🧊 A cube"], ["ball", "⚪ A ball"], ["line", "➖ A long line"]], a: "cube", why: "Rows and rows in a square pattern build a cube. That's why every salt grain is a little cube!" }),
+    cRound({ kind: "shape", sugar: true, q: "What do sugar crystals look like up close?", o: [["slant", "🔷 Slanted blocks"], ["cube", "🧊 Perfect cubes"], ["star", "⭐ Stars"]], a: "slant", why: "Sugar crystals are blocks with slanted ends. Each crystal's shape comes from how its particles stack." }),
+    cRound({ kind: "temp", labels: ["❄️ cold sugar water", "🔥 hot sugar water"], rates: [0.4, 1], color: "#f4ecd8", q: "Hot sugar water holds lots of sugar. As it cools down, what happens?", o: [["crystals", "💎 Sugar comes out as crystals"], ["nothing", "😐 Nothing"], ["more", "🍬 It dissolves even more"]], a: "crystals", why: "Cool water can't hold as much sugar as hot water. The extra sugar comes out and builds crystals." }),
+    cRound({ kind: "speed", labels: ["🐢 dries slowly", "🐇 dries quickly"], rates: [0.8, 1.6], q: "One dish dries slowly, one dries quickly. Which grows bigger crystals?", o: [["slow", "🐢 Slowly"], ["fast", "🐇 Quickly"], ["same", "🟰 Same"]], a: "slow", keep: true, why: "When it dries slowly, particles have time to line up neatly on a few crystals, so they grow big." }),
+    cRound({ kind: "evap", q: "Can we dissolve the salt crystals again?", o: [["yes", "💧 Yes, add water"], ["no", "🙅 No, never"]], a: "yes", keep: true, why: "Yes! Add water and stir, and the salt dissolves again. Dissolving and drying can be undone." }),
+    cRound({ kind: "gems", q: "Is ice a crystal?", o: [["yes", "✅ Yes"], ["no", "❌ No"]], a: "yes", keep: true, why: "Yes! When water freezes, its particles lock into a neat 6-sided pattern. Ice is a crystal." }),
+    cRound({ kind: "evap", step: 1, q: "The water is 3 cm deep. It drops 1 cm each day. After how many days is it all gone?", o: [["3", "3 days"], ["1", "1 day"], ["6", "6 days"]], a: "3", why: "3 cm, take away 1 cm each day: 2, 1, 0. Gone after 3 days, and the crystals are left." }),
+    cRound({ kind: "snow", q: "How many arms does a snowflake have?", o: [["6", "6"], ["8", "8"], ["5", "5"]], a: "6", why: "Snowflakes always have 6 arms. Water particles freeze in a 6-sided pattern." }),
+  ],
+  hard: () => [
+    cRound({ kind: "snow", q: "Why does every snowflake have 6 arms?", o: [["hex", "⬡ Water freezes in a 6-sided pattern"], ["wind", "🌬️ The wind cuts them"], ["luck", "🎲 Just luck"]], a: "hex", why: "Frozen water particles link up in rings of 6, a hexagon. So every snowflake grows 6 ways." }),
+    cRound({ kind: "snow", q: "Are any two snowflakes exactly the same?", o: [["no", "🙅 Almost surely not"], ["yes", "👯 Yes, lots are"]], a: "no", keep: true, why: "Each snowflake takes its own path through the cloud, with different cold and wet air. So each grows its own way." }),
+    cRound({ kind: "cube", what: "faces", q: "A salt crystal is a cube. How many faces (flat sides) does a cube have?", o: [["6", "6"], ["4", "4"], ["8", "8"]], a: "6", why: "A cube has 6 square faces: front, back, top, bottom, left and right." }),
+    cRound({ kind: "cube", what: "corners", q: "How many corners does a cube have?", o: [["8", "8"], ["6", "6"], ["4", "4"]], a: "8", why: "4 corners on top and 4 on the bottom: 4 + 4 = 8 corners." }),
+    cRound({ kind: "snow", many: true, q: "3 snowflakes, 6 arms each. How many arms in all?", o: [["18", "18"], ["9", "9"], ["12", "12"]], a: "18", why: "6 + 6 + 6 = 18, or 3 × 6 = 18." }),
+    cRound({ kind: "temp", labels: ["❄️ cold sugar water", "🔥 hot sugar water"], rates: [0.4, 1], color: "#f4ecd8", q: "Why do people use HOT water to grow sugar crystals?", o: [["more", "🔥 Hot water holds more sugar"], ["fast", "💨 Hot water dries instantly"], ["hard", "🧊 Hot water makes sugar hard"]], a: "more", why: "Hot water dissolves lots more sugar. As it cools, the extra sugar must come out, and it builds crystals." }),
+    cRound({ kind: "gems", q: "Diamonds and quartz are crystals too. What makes something a crystal?", o: [["pattern", "🔁 Particles in a repeating pattern"], ["shiny", "✨ Being shiny"], ["hard", "🪨 Being hard"]], a: "pattern", why: "A crystal is about the inside: particles in a neat repeating pattern. Salt isn't hard, but it is a crystal!" }),
+    cRound({ kind: "speed", labels: ["🐢 dries slowly", "🐇 dries quickly"], rates: [0.8, 1.6], q: "To grow one big crystal, should the water dry slowly or quickly?", o: [["slow", "🐢 Slowly"], ["fast", "🐇 Quickly"]], a: "slow", keep: true, why: "Slow drying gives particles time to find their places on a few crystals. Fast drying makes lots of tiny ones." }),
+  ],
+};
+
+// ================= 7. CAN WE UNDO IT? =================
+const CHG = {
+  ice: { b: "🧊", a: "💧", name: "Melting ice", fwd: "🔥 Warm it", back: "❄️ Freeze it", rev: true, why: "Freeze the water and you get ice back. Melting can be undone: nothing new was made.", hint: "If we put the water in the freezer, what would happen?" },
+  egg: { b: "🥚", a: "🍳", name: "Frying an egg", fwd: "🔥 Fry it", back: "❄️ Cool it", rev: false, why: "A fried egg stays cooked, even when cold. Heat made new stuff, so it can't be undone.", hint: "Have you ever seen a cooked egg turn runny again?" },
+  choc: { b: "🍫", a: "🟤", name: "Melting chocolate", fwd: "🔥 Warm it", back: "❄️ Cool it", rev: true, why: "Cool melted chocolate and it goes hard again. It's still chocolate, so this can be undone.", hint: "What happens to melted chocolate in the fridge?" },
+  toast: { b: "🍞", a: "🟫", name: "Toasting bread", fwd: "🔥 Toast it", back: "❄️ Cool it", rev: false, why: "Toast stays toast! Heat made new brown stuff. You can't turn toast back into bread.", hint: "Can cooling toast make it soft white bread again?" },
+  freeze: { b: "💧", a: "🧊", name: "Freezing water", fwd: "❄️ Freeze it", back: "🔥 Warm it", rev: true, why: "Warm the ice and it melts back into water. Freezing can be undone.", hint: "What happens to an ice cube on a warm day?" },
+  cake: { b: "🥣", a: "🎂", name: "Baking a cake", fwd: "🔥 Bake it", back: "❄️ Cool it", rev: false, why: "Baking makes new stuff, with bubbles and a brown crust. A cake can't go back to batter.", hint: "Could you ever get the runny egg and flour back out of a cake?" },
+  butter: { b: "🧈", a: "🟡", name: "Melting butter", fwd: "🔥 Warm it", back: "❄️ Cool it", rev: true, why: "Cool melted butter and it goes solid again. It's still butter.", hint: "What does melted butter do in the fridge?" },
+  pop: { b: "🌽", a: "🍿", name: "Popping popcorn", fwd: "🔥 Heat it", back: "❄️ Cool it", rev: false, why: "Popped corn stays popped. The heat burst it open for good, so it can't be undone.", hint: "Can a popped piece of popcorn close up again?" },
+  sugar: { b: "🍬", a: "💧", name: "Dissolving sugar", fwd: "🥄 Stir it in", back: "☀️ Dry it up", rev: true, why: "Let the water dry up, and the sugar comes back as crystals. Dissolving can be undone.", hint: "What was left in the dish when salt water dried up?" },
+  rust: { b: "🔩", a: "🟠", name: "A nail rusting", fwd: "💧 Leave it wet", back: "☀️ Dry it", rev: false, why: "Rust is new stuff made from iron, water and air. Drying it doesn't turn it back into shiny iron.", hint: "Is rust the same stuff as the shiny nail? What new thing appeared?" },
+  steam: { b: "💧", a: "♨️", name: "Boiling water to steam", fwd: "🔥 Boil it", back: "❄️ Cool it", rev: true, why: "Cool the steam and it turns back into water drops. Boiling can be undone.", hint: "What happens to steam on a cold window?" },
+  apple: { b: "🍎", a: "🟤", name: "A cut apple going brown", fwd: "⏳ Wait", back: "❄️ Cool it", rev: false, why: "The air made new brown stuff on the apple. It can't turn white again.", hint: "Does a brown apple slice ever turn white again by itself?" },
+  salt: { b: "🧂", a: "💧", name: "Dissolving salt", fwd: "🥄 Stir it in", back: "☀️ Dry it up", rev: true, why: "Dry up the water and the salt comes back as crystals. It was there all along.", hint: "Remember the salt-water dish in the sun?" },
+  wood: { b: "🪵", a: "🔥", name: "Burning wood", fwd: "🔥 Burn it", back: "❄️ Cool it", rev: false, why: "Burning turns wood into ash, smoke and gas. You can never get the wood back.", hint: "Can ash and smoke ever turn back into a log?" },
+  crayon: { b: "🖍️", a: "🌈", name: "Melting crayons", fwd: "🔥 Warm it", back: "❄️ Cool it", rev: true, why: "Cool the melted wax and it goes hard again. It's still crayon wax.", hint: "What happens to warm wax when it cools?" },
+  milk: { b: "🥛", a: "🧀", name: "Milk going sour", fwd: "⏳ Wait a week", back: "❄️ Cool it", rev: false, why: "Tiny living things made new sour stuff in the milk. Cooling it won't make it fresh again.", hint: "Does sour milk turn fresh in the fridge?" },
+  wax: { b: "🕯️", a: "💧", name: "Candle wax melting", fwd: "🔥 Warm it", back: "❄️ Cool it", rev: true, why: "Melted wax cools back into solid wax. Nothing new is made.", hint: "Look at a candle: the drips go hard again. Why?" },
+  burn: { b: "🕯️", a: "💨", name: "Candle wax burning", fwd: "🔥 Burn it", back: "❄️ Cool it", rev: false, why: "Burning wax turns into gas and water vapour that float away. That wax is gone for good.", hint: "Melting wax and burning wax are different. Where does burnt wax go?" },
+  fizz: { b: "🧪", a: "🫧", name: "Baking soda + vinegar fizz", fwd: "🥄 Mix them", back: "❄️ Cool it", rev: false, why: "The fizz made a new gas and a new salt. You can't get the baking soda back.", hint: "When it fizzed, did something new get made?" },
+  clay: { b: "🟫", a: "🏺", name: "Firing a clay pot in a kiln", fwd: "🔥 Fire it", back: "💧 Add water", rev: false, why: "Very hot firing changes the clay into hard pottery. Water can't make it soft clay again.", hint: "Can water make a hard pot soft again, like fresh clay?" },
+  sand: { b: "🏖️", a: "🟤", name: "Mixing sand and water", fwd: "🥄 Mix it", back: "🧻 Filter it", rev: true, why: "A filter catches the sand and lets the water through. Mixing can be undone.", hint: "Remember the filter paper? What did it catch?" },
+  juice: { b: "🧃", a: "🧊", name: "Freezing juice into an ice lolly", fwd: "❄️ Freeze it", back: "🔥 Warm it", rev: true, why: "Warm it up and the lolly melts back into juice. Freezing can be undone.", hint: "What happens to an ice lolly on a hot day?" },
+};
+function changeRound(key) {
+  const c = CHG[key];
+  return {
+    q: `${c.name}. Can we undo it?`,
+    o: [["rev", "↩️ Can undo"], ["irr", "➡️ Can't undo"]],
+    a: c.rev ? "rev" : "irr",
+    keep: true,
+    tries: true,
+    hint: c.hint,
+    why: c.why,
+    draw(ctx) {
+      const v = view;
+      const bins = [["↩️ Can undo", 40, "#e6f4ff"], ["➡️ Can't undo", 700, "#fff1e6"]];
+      bins.forEach(([l, x, f]) => {
+        el("rect", { x, y: 330, width: 260, height: BENCH - 330 + 10, rx: 24, fill: f, stroke: "#d8c6ac", "stroke-width": 4 }, v);
+        text(v, x + 130, 312, l, { "font-size": 28, fill: INK });
+      });
+      el("rect", { x: 360, y: 110, width: 280, height: 300, rx: 32, fill: "#fff", stroke: "var(--accent)", "stroke-width": 5 }, v);
+      const pic = el("g", {}, v);
+      const glyph = emoji(pic, 500, 240, c.b, 140);
+      const lab = text(v, 500, 384, c.name, { "font-size": c.name.length > 18 ? 22 : 26, fill: INK });
+      const act = text(v, 500, 455, "", { "font-size": 30, fill: "#a8632d" });
+      return { pic, glyph, lab, act };
+    },
+    async test(ctx, sc) {
+      ctx.say(`🧪 Let's test it. Tap ${c.fwd}.`);
+      await ctx.press([["f", c.fwd, true]]);
+      sc.act.textContent = c.fwd;
+      await ctx.tween(500, (t) => sc.glyph.setAttribute("opacity", 1 - t));
+      sc.glyph.textContent = c.a;
+      MUSIC.play("harp", 67, { gain: 0.3 });
+      await ctx.tween(500, (t) => sc.glyph.setAttribute("opacity", t));
+      ctx.say(`Now let's try to undo it. Tap ${c.back}.`);
+      await ctx.press([["b", c.back, true]]);
+      sc.act.textContent = c.back;
+      if (c.rev) {
+        await ctx.tween(500, (t) => sc.glyph.setAttribute("opacity", 1 - t));
+        sc.glyph.textContent = c.b;
+        MUSIC.play("harp", 72, { gain: 0.3 });
+        await ctx.tween(500, (t) => sc.glyph.setAttribute("opacity", t));
+        sc.act.textContent = "↩️ It came back!";
+      } else {
+        await ctx.tween(900, (t) => sc.pic.setAttribute("transform", `translate(${Math.sin(t * Math.PI * 6) * 14} 0)`));
+        MUSIC.play("cello", 48, { gain: 0.3 });
+        sc.act.textContent = "➡️ It stays changed";
+      }
+      await ctx.wait(700);
+      const bx = c.rev ? 170 : 830;
+      await ctx.tween(900, (t) => {
+        const sc2 = 1 - 0.45 * t;
+        sc.pic.setAttribute("transform", `translate(${lerp(500, bx, t) - 500 * sc2} ${lerp(240, 400, t) - 240 * sc2}) scale(${sc2})`);
+      });
+      emoji(view, 500, 250, c.rev ? `${c.b}→${c.a}→${c.b}` : `${c.b}→${c.a}`, c.rev ? 56 : 70);
+      await ctx.wait(400);
+    },
+  };
+}
+const CHANGES = {
+  easy: () => ["ice", "egg", "choc", "toast", "freeze", "cake", "butter", "pop"].map(changeRound),
+  medium: () => ["sugar", "rust", "steam", "apple", "salt", "wood", "crayon", "milk"].map(changeRound),
+  hard: () => ["wax", "burn", "fizz", "salt", "clay", "sand", "egg", "juice"].map(changeRound),
+};
+
+// ================= SEE IT =================
+function seeIt() {
+  const my = token;
+  const water = (z, n = 26) => {
+    for (let i = 0; i < n; i++) z.add({ x: -110 + (i % 8) * 30, y: -120 + Math.floor(i / 8) * 50, r: 12, fill: "#4aa3df", mode: "wander" });
+  };
+  explain(
+    [
+      { say: "Why do we learn chemistry? Chemistry is about what things are made of, and how they change. It's all around you!", draw: everyday([["🍳", "Cooking food"], ["🧼", "Soap washing dirt away"], ["🔩", "Iron going rusty"], ["🥤", "Bubbles in fizzy drinks"]]) },
+      {
+        say: "Long ago in Greece, a thinker called Democritus asked: what if you cut a stone in half again and again? He said you'd reach tiny bits that can't be cut: atoms.",
+        async draw(v, api) {
+          text(v, 500, 62, "Cut it in half… again… and again…", { "font-size": 34, fill: INK });
+          const rows = [[1, 96, 140], [2, 70, 232], [4, 50, 302], [8, 36, 355], [16, 24, 396]];
+          for (let k = 0; k < rows.length; k++) {
+            const [n, sz, y] = rows[k];
+            const gap = sz * 0.35;
+            const x0 = 500 - (n * sz + (n - 1) * gap) / 2;
+            const g = el("g", { opacity: 0 }, v);
+            for (let i = 0; i < n; i++) el("rect", { x: x0 + i * (sz + gap), y: y - sz / 2, width: sz, height: sz, rx: sz * 0.28, fill: "#a3a3a3", stroke: "#6d6d6d", "stroke-width": Math.max(2, sz / 18) }, g);
+            if (k) emoji(g, x0 - 46, y, "✂️", 30);
+            await api.tween(600, (t) => g.setAttribute("opacity", t));
+            MUSIC.play("woodblock", 72 + k * 4, { gain: 0.35 });
+            await api.wait(700);
+          }
+          const box = el("g", { opacity: 0 }, v);
+          el("rect", { x: 250, y: 410, width: 500, height: 90, rx: 24, fill: "var(--accent-soft)", stroke: "var(--accent)", "stroke-width": 4 }, box);
+          text(box, 500, 466, "atomos = “can't be cut”", { "font-size": 36, fill: "var(--accent-dark)" });
+          await api.tween(900, (t) => box.setAttribute("opacity", t));
+        },
+      },
+      {
+        say: "Everything is made of tiny particles, much too small to see. One drop of water has more than a billion billion of them!",
+        async draw(v, api) {
+          el("rect", { x: -1500, y: BENCH, width: W + 3000, height: 600, fill: "#e3bf8f" }, v);
+          glass(v, 120, 210, 220, 260, { level: 0.7 });
+          el("circle", { cx: 230, cy: 380, r: 30, fill: "none", stroke: "#5a4130", "stroke-width": 6 }, v);
+          await api.wait(800);
+          const beam = el("path", { d: "M252 360L655 150M252 400L655 450", stroke: "#bcd", "stroke-width": 3, "stroke-dasharray": "8 8", opacity: 0 }, v);
+          await api.tween(700, (t) => beam.setAttribute("opacity", t));
+          const z = Zoom(v, 720, 300, 170, api.alive);
+          water(z, 36);
+          z.inner.setAttribute("opacity", 0);
+          await api.tween(1000, (t) => z.inner.setAttribute("opacity", t));
+          text(v, 720, 530, "tiny water particles", { "font-size": 26, fill: INK });
+        },
+      },
+      {
+        say: "In ice, the particles hold still and wiggle. In water, they slide past each other. In steam, they fly far apart!",
+        async draw(v, api) {
+          const names = [["🧊 ice: solid", "solid"], ["💧 water: liquid", "liquid"], ["☁️ steam: gas", "gas"]];
+          for (let i = 0; i < 3; i++) {
+            const z = Zoom(v, 180 + i * 320, 300, 125, api.alive, { label: "" });
+            z.heat = [0.6, 1, 1.5][i];
+            grid(5, 4, 32, 0, 20).forEach((h) => z.add({ x: h.x, y: h.y, hx: h.x, hy: h.y, r: 13, fill: "#4aa3df", mode: ["lattice", "wander", "fly"][i], top: -20, shake: 4 }));
+            text(v, 180 + i * 320, 480, names[i][0], { "font-size": 28, fill: INK });
+            z.g.setAttribute("opacity", 0);
+            await api.tween(700, (t) => z.g.setAttribute("opacity", t));
+            MUSIC.play("xylophone", [72, 76, 79][i], { gain: 0.35 });
+            await api.wait(900);
+          }
+        },
+      },
+      {
+        say: "When some things mix, they make something new. Baking soda and vinegar make a brand-new gas. That's chemistry!",
+        async draw(v, api) {
+          const gl = glass(v, 380, 230, 240, 240, { level: 0.45, color: "#f1e7c8" });
+          text(v, 360, 400, "vinegar", { "font-size": 28, fill: "#5a4130", "text-anchor": "end" });
+          const spoon = el("g", { transform: "translate(780 170)" }, v);
+          el("ellipse", { cx: 0, cy: 0, rx: 46, ry: 20, fill: "#cfd0d6", stroke: "#9a9ba3", "stroke-width": 3 }, spoon);
+          el("rect", { x: 40, y: -5, width: 110, height: 10, rx: 5, fill: "#b9b9c0" }, spoon);
+          const soda = el("ellipse", { cx: 0, cy: -8, rx: 30, ry: 11, fill: "#fff", stroke: "#ddd" }, spoon);
+          text(v, 800, 130, "baking soda", { "font-size": 28, fill: "#5a4130" });
+          await api.wait(900);
+          await api.tween(1100, (t) => spoon.setAttribute("transform", `translate(${lerp(780, 500, t)} ${lerp(170, 190, t)})`));
+          await api.tween(700, (t) => {
+            soda.setAttribute("cy", -8 + t * 150);
+            soda.setAttribute("opacity", 1 - t * 0.8);
+          });
+          soda.remove();
+          bubbles(gl.inner, 400, 600, 470, 26, { r: [5, 12] });
+          const foam = el("rect", { x: 380, y: gl.yAt(0.45), width: 240, height: 0, fill: "#fffaf0" }, gl.inner);
+          MUSIC.play("harp", 72, { gain: 0.3 });
+          await api.tween(1500, (t) => {
+            foam.setAttribute("y", gl.yAt(0.45) - 90 * t);
+            foam.setAttribute("height", 90 * t);
+          });
+          const tag = el("g", { opacity: 0 }, v);
+          el("rect", { x: 650, y: 300, width: 300, height: 80, rx: 22, fill: "var(--accent-soft)", stroke: "var(--accent)", "stroke-width": 4 }, tag);
+          text(tag, 800, 350, "NEW: carbon dioxide", { "font-size": 26, fill: "var(--accent-dark)" });
+          await api.tween(800, (t) => tag.setAttribute("opacity", t));
+        },
+      },
+      {
+        say: "In our lab, we predict first, then we test, then we find out why. Scientists predict, then test!",
+        async draw(v, api) {
+          const items = [["🤔", "Predict", "Make a guess"], ["🧪", "Test", "Try it and look"], ["💡", "Why", "Explain it"]];
+          for (let i = 0; i < 3; i++) {
+            const x = 110 + i * 300;
+            const g = el("g", { opacity: 0 }, v);
+            el("rect", { x, y: 130, width: 240, height: 290, rx: 30, fill: "#fff", stroke: "var(--accent)", "stroke-width": 5 }, g);
+            el("circle", { cx: x + 120, cy: 230, r: 70, fill: "var(--accent-soft)" }, g);
+            emoji(g, x + 120, 228, items[i][0], 84);
+            text(g, x + 120, 345, items[i][1], { "font-size": 36, fill: INK });
+            text(g, x + 120, 388, items[i][2], { "font-size": 24, fill: "#6b5a48" });
+            if (i < 2) text(v, x + 270, 290, "→", { "font-size": 50, fill: "var(--accent)" });
+            await api.tween(600, (t) => g.setAttribute("opacity", t));
+            MUSIC.play("xylophone", [72, 76, 79][i], { gain: 0.35 });
+            await api.wait(800);
+          }
+        },
+      },
+    ],
+    { alive: () => my === token, onDone: () => shell.go("c1"), title: "Chemistry" }
+  );
+}
+
+const units = {
+  c0: seeIt,
+  c1: () => labGame("c1", { make: slgMake, word: "heat experiments" }),
+  c2: () => labGame("c2", { make: (lv) => DIS[lv](), word: "dissolving tests" }),
+  c3: () => labGame("c3", { make: (lv) => DEN[lv](), word: "density tests" }),
+  c4: () => labGame("c4", { make: (lv) => ACID[lv](), word: "colour tests" }),
+  c5: () => labGame("c5", { make: (lv) => FIZZ[lv](), word: "fizz tests" }),
+  c6: () => labGame("c6", { make: (lv) => CRY[lv](), word: "crystal tests" }),
+  c7: () => labGame("c7", { make: (lv) => CHANGES[lv](), word: "changes sorted" }),
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    c0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    c1: { icon: "🧊", title: "Solid, liquid, gas", steps: ["Tap your guess first: what will happen?", "Tap 🔥 Hotter or ❄️ Cooler to test it.", "Watch the tiny particles in the zoom circle."] },
+    c2: { icon: "🥄", title: "Dissolve or not?", steps: ["Tap your guess: will it disappear in water?", "Pour it in and tap 🌀 Stir to test.", "Look closely: did it dissolve?"] },
+    c3: { icon: "🍯", title: "Density tower", steps: ["Guess where it will go: top or bottom?", "Tap 🫗 Pour or ✋ Drop to test.", "Heavy-for-its-size things sink lower."] },
+    c4: { icon: "🧪", title: "Acids & bases", steps: ["Guess what colour the purple juice will turn.", "Tap 🫗 Pour it in.", "Pink means acid. Green or blue means base."] },
+    c5: { icon: "🎈", title: "Fizz!", steps: ["Guess what the fizz will do.", "Tap 🎈 Tip it in to mix.", "Watch the balloon fill with gas."] },
+    c6: { icon: "💎", title: "Crystals", steps: ["Guess what will happen.", "Tap the button to test it.", "Look at the crystal shapes."] },
+    c7: { icon: "🍳", title: "Can we undo it?", steps: ["Look at the change in the picture.", "Tap ↩️ Can undo or ➡️ Can't undo.", "Then we try to undo it!"] },
+  },
+  start: "c0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+    document.querySelector(".ch-try")?.remove();
+  },
+  subject: "Science",
+  activity: "Chemistry Lab",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 77, 79, 81, 83, 84, 88, 91, 96]);
+MUSIC.preload("harp", [60, 64, 67, 72, 79]);
+MUSIC.preload("woodblock", [72, 76, 79]);
+MUSIC.preload("cello", [48]);
+</script>
+</body>
+</html>

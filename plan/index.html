@@ -9,44 +9,185 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
 <link rel="stylesheet" href="../assets/oc.css">
 <script src="../assets/oc.js"></script>
-<script src="../assets/plan.js"></script></head>
+<script src="../assets/firebase-config.js"></script>
+<script src="../assets/cloud.js"></script>
+<script src="../assets/plan.js"></script><script src="../assets/year-data.js"></script><script src="../assets/how-data.js"></script><script src="../assets/how-built.js"></script><script src="../assets/year.js"></script></head>
 <body>
 <div class="oc-wrap pl">
   <header class="oc-top"><a class="oc-brand" href="../"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 3 42 9v13c0 11.5-7.6 19.6-18 23C13.6 41.6 6 33.5 6 22V9Z" fill="#7a4520"/><path d="M24 6.4 39 11.4V22c0 9.7-6.3 16.6-15 19.7C15.3 38.6 9 31.7 9 22V11.4Z" fill="#fffcf6"/><path d="M24 14.5c-4.6 0-7.6 2.4-7.9 5.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z" fill="#7a4520"/><path d="M17 21.3h14c-.2 6.3-3.1 10.7-7 12.6-3.9-1.9-6.8-6.3-7-12.6Z" fill="#c98c58"/><path d="M24 14.5v-3.2" stroke="#7a4520" stroke-width="2" stroke-linecap="round"/><path d="M19.4 17.3c1.5-1 3-1.4 4.6-1.4M28.6 17.3c-1.5-1-3-1.4-4.6-1.4" stroke="#c98c58" stroke-width="1.2" stroke-linecap="round" fill="none"/></svg><span><b>OakCrest Academy</b><small>Learning at home</small></span></a><span data-chip data-home="../"></span></header>
   <a class="oc-back" href="../">← All subjects</a>
-  <h1 style="margin-top:8px">🗓️ Our month plan</h1>
-  <p class="oc-lead">Four weeks of short lessons on Tuesdays, Thursdays, Saturdays and Sundays. Tap ▶ to start a lesson and ✓ when it's done.</p>
-  <section class="pl-controls">
+  <div class="yr-head">
+    <h1 style="margin-top:8px">🗓️ <span data-title>Year plan</span></h1>
     <div class="pl-tracks" role="group" aria-label="Which plan">
-      <button type="button" data-track="big">🦁 Big learner <small>grades 3–4</small></button>
-      <button type="button" data-track="little">🐣 Little learner <small>ages 3–5</small></button>
+      <button type="button" data-view="year">🦁 Year plan <small>Level 2 and up</small></button>
+      <button type="button" data-view="little">🐣 Little learner <small>ages 3–5</small></button>
     </div>
-    <label class="oc-field pl-start">First Tuesday<input type="date" data-start></label>
-  </section>
-  <section class="pl-today" data-today></section>
-  <p class="pl-meter" data-meter></p>
-  <div data-weeks></div>
-  <p class="oc-foot">Ticks are saved on this device for each learner. Every lesson you open is also added to the learning log.</p>
+  </div>
+  <div data-year-view>
+    <p class="oc-lead" data-lead></p>
+    <section class="yr-week" data-week></section>
+    <section class="yr-days" data-days></section>
+    <details class="yr-glance"><summary>📋 This week at a glance, by subject</summary><div data-glance></div></details>
+    <h2 class="oc-strand">The whole year</h2>
+    <p class="oc-note">Each square is a week. Tap one to open it. Colours: learning, review, light, break, summer.</p>
+    <section class="yr-map" data-map></section>
+    <p class="pl-meter" data-days-count></p>
+    <details class="yr-settings"><summary>⚙️ Plan settings</summary><div data-settings></div></details>
+  </div>
+  <div data-little-view hidden>
+    <p class="oc-lead">Four weeks of short lessons. Tap ▶ to start a lesson and ✓ when it's done.</p>
+    <section class="pl-controls"><label class="oc-field pl-start">First Tuesday<input type="date" data-start></label></section>
+    <section class="pl-today" data-today></section>
+    <p class="pl-meter" data-meter></p>
+    <div data-weeks></div>
+  </div>
+  <p class="oc-foot">The plan follows your family's education plan: math first, a read-aloud every day, short screen tasks, and a review every fourth week. Ticks are saved for each learner (and in your family account when signed in).</p>
 </div>
 
 <script>const $ = (s) => document.querySelector(s);
+const esc = (t) => OC.escapeHtml(String(t ?? ""));
 const learner = () => OC.current() || "Learner";
 const fmt = (date, opts) => date.toLocaleDateString(undefined, opts);
+const DAYNAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const TYPE = { learn: ["Learning week", "learn"], review: ["Review week", "review"], light: ["Short week", "light"], break: ["Break", "break"], summer: ["Summer", "summer"] };
+let view = null;
+let shownWeek = null;
+let shownDay = null;
+let kid = false;
+
+// ───────────── Year plan ─────────────
+function weekTicks(w) {
+  const t = YEAR.ticks(learner());
+  const days = YEAR.daysOf(learner(), w);
+  let total = 0;
+  let done = 0;
+  for (const d of days)
+    for (const it of d.items) {
+      if (it.optional) continue;
+      total += 1;
+      if (t[YEAR.tickKey(w, d.iso, it)]?.done) done += 1;
+    }
+  return { total, done };
+}
+function renderYear() {
+  const who = learner();
+  const s = YEAR.settings(who);
+  const today = new Date();
+  const current = Math.max(0, Math.min(51, YEAR.weekIndexOf(who, today)));
+  if (shownWeek === null) shownWeek = current;
+  const w = shownWeek;
+  const week = YEAR.DATA.weeks[w];
+  const start = YEAR.weekStart(who, w);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const t = YEAR.ticks(who);
+  const days = YEAR.daysOf(who, w);
+  const todayIso = YEAR.iso(today);
+  if (!shownDay || !days.some((d) => d.iso === shownDay)) shownDay = (days.find((d) => d.iso >= todayIso) || days[0])?.iso;
+  $("[data-lead]").textContent = `52 weeks from ${fmt(YEAR.weekStart(who, 0), { month: "long", day: "numeric", year: "numeric" })}. School days: ${s.days.map((d) => DAYNAMES[d]).join(", ")}.`;
+
+  const check = t[YEAR.checkKey(w)] || {};
+  const { total, done } = weekTicks(w);
+  $("[data-week]").innerHTML = `
+    <div class="yr-nav">
+      <button type="button" class="yr-arrow" data-go="${w - 1}" ${w === 0 ? "disabled" : ""} aria-label="Previous week">◀</button>
+      <div class="yr-when"><b>Week ${w + 1} of 52</b><span>${fmt(start, { month: "short", day: "numeric" })} – ${fmt(end, { month: "short", day: "numeric", year: "numeric" })}</span></div>
+      <button type="button" class="yr-arrow" data-go="${w + 1}" ${w === 51 ? "disabled" : ""} aria-label="Next week">▶</button>
+      ${w !== current ? `<button type="button" class="oc-button ghost yr-now" data-go="${current}">This week</button>` : ""}
+    </div>
+    <div class="yr-card">
+      <span class="yr-type ${TYPE[week.type][1]}">${TYPE[week.type][0]}</span>
+      <h2>${esc(week.theme)}</h2>
+      <p class="yr-why"><b>Why this week:</b> ${esc(week.why)}</p>
+      <div class="yr-check">
+        <p><b>✅ Check by the end of the week:</b> ${esc(week.check)}</p>
+        <div class="yr-check-row" role="group" aria-label="How did it go?">
+          ${[["yes", "✅ Got it"], ["almost", "🟡 Almost"], ["notyet", "⏳ Not yet"]].map(([k, l]) => `<button type="button" data-check="${k}" aria-pressed="${check.status === k}">${l}</button>`).join("")}
+        </div>
+        <textarea class="oc-input yr-note" data-note rows="2" placeholder="Notes for this week: what went well, what to revisit…">${esc(check.note || "")}</textarea>
+        ${check.status === "notyet" ? `<p class="oc-note">Not yet is fine. The family plan says: slow down before moving on. Repeat the hardest part next week, or use the review week.</p>` : ""}
+      </div>
+      <p class="pl-meter"><span class="oc-meter"><span style="width:${total ? Math.round((done / total) * 100) : 0}%"></span></span>${done} of ${total} lessons ticked this week</p>
+    </div>`;
+
+  if (!days.length) {
+    $("[data-days]").innerHTML = `<p class="oc-note">No school days are chosen in settings.</p>`;
+  } else {
+    const day = days.find((d) => d.iso === shownDay) || days[0];
+    const tabs = days
+      .map((d) => {
+        const n = d.items.filter((i) => !i.optional).length;
+        const k = d.items.filter((i) => !i.optional && t[YEAR.tickKey(w, d.iso, i)]?.done).length;
+        return `<button type="button" class="yr-tab${d.iso === todayIso ? " today" : ""}" data-day="${d.iso}" aria-pressed="${d.iso === day.iso}"><b>${fmt(d.date, { weekday: "short" })}</b><span>${fmt(d.date, { month: "short", day: "numeric" })}</span><small>${k}/${n}${k === n && n ? " ⭐" : ""}</small></button>`;
+      })
+      .join("");
+    const hours = (m) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60 ? `${m % 60} min` : ""}` : `${m} min`);
+    const rows = day.items
+      .map((it) => {
+        const key = YEAR.tickKey(w, day.iso, it);
+        const on = !!t[key]?.done;
+        const go = it.path ? `<a class="pl-go" href="../${it.path}" aria-label="Open ${esc(it.label)}">▶</a>` : `<span class="yr-book" title="Book or offline">${it.screen ? "💻" : "📖"}</span>`;
+        return `<li class="pl-item yr-item${on ? " done" : ""}${it.optional ? " optional" : ""}${it.screen ? " screen" : ""}"><button type="button" class="pl-tick" data-key="${esc(key)}" aria-pressed="${on}" aria-label="${on ? "Done" : "Mark done"}: ${esc(it.label)}">${on ? "✓" : ""}</button><span class="pl-icon" aria-hidden="true">${it.icon}</span><span class="pl-what"><b>${esc(it.label)}</b>${esc(it.what)}<small>${it.minutes} min${it.screen ? " · on screen" : " · off screen"}${it.over ? " · optional today (screen time is used up)" : it.optional ? " · optional" : ""}</small></span>${go}</li>`;
+      })
+      .join("");
+    $("[data-days]").innerHTML = `<div class="yr-tabs" role="tablist">${tabs}</div>
+      <div class="yr-day${kid ? " kid" : ""}">
+        <button type="button" class="oc-button ghost yr-kid" data-kid aria-pressed="${kid}">${kid ? "👩 Parent view" : "👧 My checklist"}</button>
+        <h3>${fmt(day.date, { weekday: "long", month: "long", day: "numeric" })}${day.iso === todayIso ? " · Today" : ""}</h3>
+        <p class="oc-note">School lessons: about ${hours(day.minutes)} (with 5–10 minute breaks outside between blocks) · ${day.screen} min on screen · plus ${hours(day.afterMinutes)} of piano, chess, character and outdoor play later in the day.</p>
+        <ol class="pl-items big">${rows}</ol>
+      </div>`;
+  }
+
+  // At a glance: one line per subject for the week.
+  const lanes = [["math", "🔢 Math"], ["mental", "🧠 Mental math"], ["phonics", "🔤 Phonics"], ["readAloud", "📖 Read-aloud"], ["writing", "✍️ Writing"], ["words", "🏛️ Word Roots & Latin"], ["logic", "🧩 Logic"], ["science", "🔬 Science"], ["history", "🌍 History"], ["art", "🎨 Art"], ["music", "🎹 Music"], ["chess", "♟️ Chess"], ["virtue", "🌟 Character"], ["extra", "✨ Special"]];
+  $("[data-glance]").innerHTML = `<table class="yr-table"><tbody>${lanes
+    .filter(([k]) => week[k])
+    .map(([k, l]) => `<tr><th>${l}</th><td>${esc(week[k][0])}${week[k][1] ? ` <a href="../${week[k][1]}">Practice ▶</a>` : ""}</td></tr>`)
+    .join("")}<tr><th>💭 Big question</th><td>${esc(YEAR.QUESTIONS[w % YEAR.QUESTIONS.length])}</td></tr></tbody></table>`;
+
+  // The whole year map.
+  $("[data-map]").innerHTML = YEAR.DATA.weeks
+    .map((wk, i) => {
+      const p = weekTicks(i);
+      const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
+      const st = t[YEAR.checkKey(i)]?.status;
+      return `<button type="button" class="yr-cell ${wk.type}${i === w ? " on" : ""}${i === current ? " now" : ""}" data-go="${i}" title="Week ${i + 1}: ${esc(wk.theme)}"><b>${i + 1}</b><span>${esc(wk.theme)}</span><i style="width:${pct}%"></i>${st === "yes" ? "<em>✅</em>" : st === "almost" ? "<em>🟡</em>" : st === "notyet" ? "<em>⏳</em>" : ""}</button>`;
+    })
+    .join("");
+
+  // School days done (a day counts when most of its lessons are ticked), toward California's 175 days.
+  let schoolDays = 0;
+  for (let i = 0; i <= Math.min(51, current); i++)
+    for (const d of YEAR.daysOf(who, i)) {
+      const need = d.items.filter((it) => !it.optional);
+      const got = need.filter((it) => t[YEAR.tickKey(i, d.iso, it)]?.done).length;
+      if (need.length && got / need.length >= 0.5) schoolDays += 1;
+    }
+  $("[data-days-count]").innerHTML = `<span class="oc-meter"><span style="width:${Math.min(100, Math.round((schoolDays / 175) * 100))}%"></span></span>${schoolDays} school days done (California asks for 175 a year)`;
+
+  $("[data-settings]").innerHTML = `
+    <label class="oc-field">Week 1 starts on (a Monday)<input type="date" class="oc-input" data-set="start" value="${s.start}"></label>
+    <div class="oc-field">School days<div class="yr-daypick">${[1, 2, 3, 4, 5, 6, 0].map((d) => `<button type="button" data-dayset="${d}" aria-pressed="${s.days.includes(d)}">${DAYNAMES[d]}</button>`).join("")}</div></div>
+    <label class="oc-field">Screen time on lesson days (minutes)<input type="number" min="0" max="90" step="5" class="oc-input" data-set="screen" value="${s.screen}"></label>
+    <label class="oc-field yr-check-line"><input type="checkbox" data-set="soroban" ${s.soroban ? "checked" : ""}> Include soroban practice (3 times a week)</label>
+    <p class="oc-note">Tip: after the first month you can add Monday, Wednesday and Friday. Lessons spread out automatically.</p>`;
+}
+
+// ───────────── Little learner (the 4-week rotation) ─────────────
 const row = (day, item, i, done) => {
   const [path, what, minutes] = item;
   const key = `${day.key}-${i}`;
   const on = !!done[key];
   const icon = PLAN.SUBJECT_OF[path.split("/")[0]] || "⭐";
-  return `<li class="pl-item${on ? " done" : ""}"><button type="button" class="pl-tick" data-key="${key}" aria-pressed="${on}" aria-label="${on ? "Done" : "Mark done"}: ${OC.escapeHtml(what)}">${on ? "✓" : ""}</button><span class="pl-icon" aria-hidden="true">${icon}</span><span class="pl-what">${OC.escapeHtml(what)}<small>${minutes} min</small></span><a class="pl-go" href="../${path}" aria-label="Start ${OC.escapeHtml(what)}">▶</a></li>`;
+  return `<li class="pl-item${on ? " done" : ""}"><button type="button" class="pl-tick" data-lkey="${key}" aria-pressed="${on}" aria-label="${on ? "Done" : "Mark done"}: ${esc(what)}">${on ? "✓" : ""}</button><span class="pl-icon" aria-hidden="true">${icon}</span><span class="pl-what">${esc(what)}<small>${minutes} min</small></span><a class="pl-go" href="../${path}" aria-label="Start ${esc(what)}">▶</a></li>`;
 };
-function render() {
-  const track = PLAN.trackOf(learner());
-  document.querySelectorAll("[data-track]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.track === track)));
+function renderLittle() {
   $("[data-start]").value = OC.dayOf(PLAN.start());
   const done = PLAN.doneOf(learner());
-  const days = PLAN.days(track);
+  const days = PLAN.days("little");
   const today = OC.dayOf(new Date());
-  const next = PLAN.upcoming(track);
+  const next = PLAN.upcoming("little");
   const total = days.reduce((n, d) => n + d.items.length, 0);
   const ticked = days.reduce((n, d) => n + d.items.filter((_, i) => done[`${d.key}-${i}`]).length, 0);
   $("[data-meter]").innerHTML = `<span class="oc-meter"><span style="width:${Math.round((ticked / total) * 100)}%"></span></span>${ticked} of ${total} lessons done`;
@@ -57,32 +198,105 @@ function render() {
   for (let w = 1; w <= 4; w++) {
     const week = days.filter((d) => d.week === w);
     html += `<h2 class="oc-strand">Week ${w}: ${week[0].theme}</h2><section class="pl-week">${week
-      .map((d) => {
-        const all = d.items.every((_, i) => done[`${d.key}-${i}`]);
-        return `<article class="pl-day${d.iso === today ? " today" : ""}${all ? " complete" : ""}"><h3>${fmt(d.date, { weekday: "short" })} <span>${fmt(d.date, { month: "short", day: "numeric" })}</span>${all ? " ⭐" : ""}</h3><ol class="pl-items">${d.items.map((item, i) => row(d, item, i, done)).join("")}</ol></article>`;
-      })
+      .map((d) => `<article class="pl-day${d.iso === today ? " today" : ""}"><h3>${fmt(d.date, { weekday: "short" })} <span>${fmt(d.date, { month: "short", day: "numeric" })}</span></h3><ol class="pl-items">${d.items.map((item, i) => row(d, item, i, done)).join("")}</ol></article>`)
       .join("")}</section>`;
   }
   $("[data-weeks]").innerHTML = html;
 }
+
+// ───────────── Shell ─────────────
+function render() {
+  const level = OC.levelOf(learner());
+  const v = view || (level === "Foundations" ? "little" : "year");
+  document.querySelectorAll("[data-view]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === v)));
+  $("[data-year-view]").hidden = v !== "year";
+  $("[data-little-view]").hidden = v !== "little";
+  $("[data-title]").textContent = v === "year" ? "Year plan" : "Little learner plan";
+  if (v === "year") renderYear();
+  else renderLittle();
+}
 document.addEventListener("click", (event) => {
+  const who = learner();
+  const viewBtn = event.target.closest("[data-view]");
+  if (viewBtn) {
+    view = viewBtn.dataset.view;
+    return render();
+  }
+  const go = event.target.closest("[data-go]");
+  if (go && !go.disabled) {
+    shownWeek = Number(go.dataset.go);
+    shownDay = null;
+    render();
+    if (go.classList.contains("yr-cell")) $("[data-week]").scrollIntoView({ behavior: "smooth" });
+    return;
+  }
+  if (event.target.closest("[data-kid]")) {
+    kid = !kid;
+    return render();
+  }
+  const day = event.target.closest("[data-day]");
+  if (day) {
+    shownDay = day.dataset.day;
+    return render();
+  }
   const tick = event.target.closest("[data-key]");
   if (tick) {
-    PLAN.setDone(learner(), tick.dataset.key, tick.getAttribute("aria-pressed") !== "true");
-    render();
+    const on = tick.getAttribute("aria-pressed") !== "true";
+    YEAR.setTick(who, tick.dataset.key, on ? true : null);
+    return render();
   }
-  const track = event.target.closest("[data-track]");
-  if (track) {
-    PLAN.setTrack(learner(), track.dataset.track);
+  const check = event.target.closest("[data-check]");
+  if (check) {
+    const key = YEAR.checkKey(shownWeek);
+    const was = YEAR.ticks(who)[key] || {};
+    YEAR.setTick(who, key, { ...was, status: was.status === check.dataset.check ? "" : check.dataset.check });
+    return render();
+  }
+  const dayset = event.target.closest("[data-dayset]");
+  if (dayset) {
+    const d = Number(dayset.dataset.dayset);
+    const days = YEAR.settings(who).days;
+    YEAR.setSettings(who, { days: days.includes(d) ? days.filter((x) => x !== d) : [...days, d] });
+    return render();
+  }
+  const ltick = event.target.closest("[data-lkey]");
+  if (ltick) {
+    PLAN.setDone(who, ltick.dataset.lkey, ltick.getAttribute("aria-pressed") !== "true");
+    return render();
+  }
+});
+document.addEventListener("change", (event) => {
+  const who = learner();
+  const set = event.target.closest("[data-set]");
+  if (set) {
+    const k = set.dataset.set;
+    const value = k === "soroban" ? set.checked : k === "screen" ? Math.max(0, Number(set.value) || 0) : set.value;
+    if (k === "start" && value) {
+      const d = new Date(`${value}T00:00:00`);
+      d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // snap to Monday
+      YEAR.setSettings(who, { start: YEAR.iso(d) });
+    } else if (k !== "start") YEAR.setSettings(who, { [k]: value });
+    shownWeek = null;
+    return render();
+  }
+  if (event.target.matches("[data-start]") && event.target.value) {
+    PLAN.setStart(event.target.value);
     render();
   }
 });
-$("[data-start]").addEventListener("change", (event) => {
-  if (event.target.value) PLAN.setStart(event.target.value);
-  render();
+document.addEventListener("input", (event) => {
+  if (!event.target.matches("[data-note]")) return;
+  const key = YEAR.checkKey(shownWeek);
+  const was = YEAR.ticks(learner())[key] || {};
+  clearTimeout(event.target._t);
+  event.target._t = setTimeout(() => YEAR.setTick(learner(), key, { ...was, note: event.target.value }), 500);
 });
 OC.chip($("[data-chip]"));
-OC.onChange(render);
+OC.onChange(() => {
+  view = null;
+  shownWeek = null;
+  render();
+});
 render();
 </script>
 </body>

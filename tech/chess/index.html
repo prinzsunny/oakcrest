@@ -1,0 +1,1527 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chess School · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="tech">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Chess School</b><small>Chess · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>// ===== ENGINE START =====
+// A small but complete chess rules engine (no DOM): legal moves with check, castling, en passant, promotion.
+// The test file runs this part in Node (perft counts) and checks every puzzle below.
+const FILES = "abcdefgh";
+const sqName = (s) => FILES[s & 7] + ((s >> 3) + 1);
+const sqOf = (n) => FILES.indexOf(n[0]) + (Number(n[1]) - 1) * 8;
+const colorOf = (p) => (p ? (p === p.toUpperCase() ? "w" : "b") : null);
+const other = (c) => (c === "w" ? "b" : "w");
+const KNIGHT = [[1, 2], [2, 1], [2, -1], [1, -2], [-1, -2], [-2, -1], [-2, 1], [-1, 2]];
+const KING = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+const ORTH = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const DIAG = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+const on = (f, r) => f >= 0 && f < 8 && r >= 0 && r < 8;
+
+function parseFEN(fen) {
+  const [rows, turn = "w", castle = "-", ep = "-"] = fen.trim().split(/\s+/);
+  const board = Array(64).fill(null);
+  rows.split("/").forEach((row, i) => {
+    let f = 0;
+    for (const c of row) {
+      if (/\d/.test(c)) f += Number(c);
+      else board[(7 - i) * 8 + f++] = c;
+    }
+  });
+  return { board, turn, castle: castle === "-" ? "" : castle, ep: ep === "-" ? -1 : sqOf(ep) };
+}
+function toFEN(pos) {
+  const rows = [];
+  for (let r = 7; r >= 0; r--) {
+    let row = "";
+    let gap = 0;
+    for (let f = 0; f < 8; f++) {
+      const p = pos.board[r * 8 + f];
+      if (!p) gap++;
+      else {
+        if (gap) row += gap;
+        gap = 0;
+        row += p;
+      }
+    }
+    rows.push(row + (gap || ""));
+  }
+  return `${rows.join("/")} ${pos.turn} ${pos.castle || "-"} ${pos.ep >= 0 ? sqName(pos.ep) : "-"}`;
+}
+
+// Squares a piece on s attacks (for pawns: the two diagonals only).
+function attacksFrom(board, s) {
+  const p = board[s];
+  if (!p) return [];
+  const f = s & 7;
+  const r = s >> 3;
+  const out = [];
+  const t = p.toLowerCase();
+  const step = (list) => list.forEach(([df, dr]) => on(f + df, r + dr) && out.push((r + dr) * 8 + f + df));
+  const slide = (list) =>
+    list.forEach(([df, dr]) => {
+      let ff = f + df;
+      let rr = r + dr;
+      while (on(ff, rr)) {
+        out.push(rr * 8 + ff);
+        if (board[rr * 8 + ff]) break;
+        ff += df;
+        rr += dr;
+      }
+    });
+  if (t === "p") {
+    const dir = colorOf(p) === "w" ? 1 : -1;
+    step([[-1, dir], [1, dir]]);
+  } else if (t === "n") step(KNIGHT);
+  else if (t === "k") step(KING);
+  else if (t === "b") slide(DIAG);
+  else if (t === "r") slide(ORTH);
+  else if (t === "q") slide([...ORTH, ...DIAG]);
+  return out;
+}
+function attacked(board, sq, by) {
+  for (let s = 0; s < 64; s++) if (board[s] && colorOf(board[s]) === by && attacksFrom(board, s).includes(sq)) return true;
+  return false;
+}
+const kingSq = (board, c) => board.indexOf(c === "w" ? "K" : "k");
+const inCheck = (pos, c = pos.turn) => {
+  const k = kingSq(pos.board, c);
+  return k >= 0 && attacked(pos.board, k, other(c));
+};
+
+function pseudoMoves(pos) {
+  const { board, turn } = pos;
+  const moves = [];
+  for (let s = 0; s < 64; s++) {
+    const p = board[s];
+    if (!p || colorOf(p) !== turn) continue;
+    const t = p.toLowerCase();
+    const f = s & 7;
+    const r = s >> 3;
+    const add = (to, extra = {}) => {
+      const tr = to >> 3;
+      if (t === "p" && (tr === 7 || tr === 0)) for (const promo of ["q", "r", "b", "n"]) moves.push({ from: s, to, piece: p, capture: board[to], promo, ...extra });
+      else moves.push({ from: s, to, piece: p, capture: board[to], ...extra });
+    };
+    if (t === "p") {
+      const dir = turn === "w" ? 1 : -1;
+      const one = s + dir * 8;
+      if (on(f, r + dir) && !board[one]) {
+        add(one);
+        const startRank = turn === "w" ? 1 : 6;
+        const two = s + dir * 16;
+        if (r === startRank && !board[two]) add(two, { double: true });
+      }
+      for (const df of [-1, 1]) {
+        if (!on(f + df, r + dir)) continue;
+        const to = (r + dir) * 8 + f + df;
+        if (board[to] && colorOf(board[to]) !== turn) add(to);
+        else if (to === pos.ep) moves.push({ from: s, to, piece: p, capture: turn === "w" ? "p" : "P", ep: true });
+      }
+    } else {
+      for (const to of attacksFrom(board, s)) if (!board[to] || colorOf(board[to]) !== turn) add(to);
+      if (t === "k") {
+        const home = turn === "w" ? 4 : 60;
+        const enemy = other(turn);
+        const rook = turn === "w" ? "R" : "r";
+        const [kSide, qSide] = turn === "w" ? ["K", "Q"] : ["k", "q"];
+        if (s === home && !attacked(board, home, enemy)) {
+          if (pos.castle.includes(kSide) && board[home + 3] === rook && !board[home + 1] && !board[home + 2] && !attacked(board, home + 1, enemy) && !attacked(board, home + 2, enemy)) moves.push({ from: s, to: home + 2, piece: p, castle: "k" });
+          if (pos.castle.includes(qSide) && board[home - 4] === rook && !board[home - 1] && !board[home - 2] && !board[home - 3] && !attacked(board, home - 1, enemy) && !attacked(board, home - 2, enemy)) moves.push({ from: s, to: home - 2, piece: p, castle: "q" });
+        }
+      }
+    }
+  }
+  return moves;
+}
+
+function makeMove(pos, m) {
+  const board = pos.board.slice();
+  const p = board[m.from];
+  board[m.from] = null;
+  board[m.to] = m.promo ? (colorOf(p) === "w" ? m.promo.toUpperCase() : m.promo) : p;
+  if (m.ep) board[m.to + (colorOf(p) === "w" ? -8 : 8)] = null;
+  if (m.castle) {
+    const home = m.from;
+    if (m.castle === "k") {
+      board[home + 1] = board[home + 3];
+      board[home + 3] = null;
+    } else {
+      board[home - 1] = board[home - 4];
+      board[home - 4] = null;
+    }
+  }
+  let castle = pos.castle;
+  const drop = (chars) => (castle = [...castle].filter((c) => !chars.includes(c)).join(""));
+  if (p === "K") drop("KQ");
+  if (p === "k") drop("kq");
+  for (const [sq, c] of [[0, "Q"], [7, "K"], [56, "q"], [63, "k"]]) if (m.from === sq || m.to === sq) drop(c);
+  return { board, turn: other(pos.turn), castle, ep: m.double ? (m.from + m.to) / 2 : -1 };
+}
+function legalMoves(pos) {
+  return pseudoMoves(pos).filter((m) => !inCheck(makeMove(pos, m), pos.turn));
+}
+const isMate = (pos) => inCheck(pos) && legalMoves(pos).length === 0;
+function perft(pos, depth) {
+  if (!depth) return 1;
+  let n = 0;
+  for (const m of legalMoves(pos)) n += perft(makeMove(pos, m), depth - 1);
+  return n;
+}
+// A position is fair to show: both kings, no pawns on the end ranks, kings apart, the side NOT to move is not in check.
+function sane(pos) {
+  const { board } = pos;
+  if (board.filter((p) => p === "K").length !== 1 || board.filter((p) => p === "k").length !== 1) return false;
+  for (let f = 0; f < 8; f++) if (/[pP]/.test(board[f] || "") || /[pP]/.test(board[56 + f] || "")) return false;
+  const a = kingSq(board, "w");
+  const b = kingSq(board, "b");
+  if (Math.abs((a & 7) - (b & 7)) <= 1 && Math.abs((a >> 3) - (b >> 3)) <= 1) return false;
+  return !inCheck(pos, other(pos.turn));
+}
+const mates = (pos) => legalMoves(pos).filter((m) => isMate(makeMove(pos, m)));
+const moveName = (m) => sqName(m.from) + sqName(m.to) + (m.promo || "");
+
+// Star games: where one piece can go on an otherwise empty board (black pawns can block and be captured).
+function reach(board, s) {
+  const p = board[s];
+  const out = [];
+  if (p.toLowerCase() === "p") {
+    const r = s >> 3;
+    const f = s & 7;
+    if (r < 7 && !board[s + 8]) {
+      out.push(s + 8);
+      if (r === 1 && !board[s + 16]) out.push(s + 16);
+    }
+    for (const df of [-1, 1]) if (r < 7 && on(f + df, r + 1) && board[s + 8 + df] && colorOf(board[s + 8 + df]) === "b") out.push(s + 8 + df);
+    return out;
+  }
+  return attacksFrom(board, s).filter((t) => !board[t] || colorOf(board[t]) === "b");
+}
+// Fewest moves to visit every star (and take every black piece if takeAll). BFS over (square, stars left, pieces left).
+function fewest(piece, start, stars, enemies = [], takeAll = false) {
+  const key = (s, sm, em) => `${s}|${sm}|${em}`;
+  const fullS = (1 << stars.length) - 1;
+  const fullE = (1 << enemies.length) - 1;
+  const q = [[start, 0, 0, 0]];
+  const seen = new Set([key(start, 0, 0)]);
+  while (q.length) {
+    const [s, sm, em, d] = q.shift();
+    if (sm === fullS && (!takeAll || em === fullE)) return d;
+    const board = Array(64).fill(null);
+    board[s] = piece;
+    enemies.forEach((e, i) => !(em & (1 << i)) && (board[e] = "p"));
+    for (const t of reach(board, s)) {
+      let nsm = sm;
+      let nem = em;
+      const si = stars.indexOf(t);
+      if (si >= 0) nsm |= 1 << si;
+      const ei = enemies.indexOf(t);
+      if (ei >= 0) nem |= 1 << ei;
+      const k = key(t, nsm, nem);
+      if (!seen.has(k)) {
+        seen.add(k);
+        q.push([t, nsm, nem, d + 1]);
+      }
+    }
+  }
+  return Infinity;
+}
+
+// Mate in 1. White to move in every one. Checked by the engine on load and in the tests.
+const MATES = [
+  // 🐣 back rank and queen mates
+  { fen: "6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1", level: "easy", idea: "The black pawns trap their own king. A rook on the back row is checkmate." },
+  { fen: "6k1/5ppp/8/8/8/8/5PPP/3Q2K1 w - - 0 1", level: "easy", idea: "The queen goes to the back row. The pawns block the king's escape." },
+  { fen: "1k6/ppp5/8/8/8/8/5PPP/4R1K1 w - - 0 1", level: "easy", idea: "The rook slides up to the back row. The black pawns box in their king." },
+  { fen: "7k/6pp/8/8/8/8/6PP/1R5K w - - 0 1", level: "easy", idea: "A back-row mate: the king has no safe square." },
+  { fen: "6k1/5ppp/8/8/8/8/8/4R1K1 w - - 0 1", level: "easy", idea: "The rook checks along the back row, and the pawns block every escape." },
+  { fen: "2k5/8/2K5/8/8/8/8/R7 w - - 0 1", level: "easy", idea: "Your king guards the row in front. The rook checks along the back row." },
+  { fen: "4k3/8/4K3/8/8/8/8/7Q w - - 0 1", level: "easy", idea: "Your king covers the squares in front. The queen checks along the back row." },
+  { fen: "k7/8/1K6/8/8/8/7Q/8 w - - 0 1", level: "easy", idea: "Kings and queens are a team: your king guards the escape squares." },
+  { fen: "7k/5K2/8/8/8/8/8/6Q1 w - - 0 1", level: "easy", idea: "The king in the corner has only a few squares. Cover them all with check." },
+  // 🦊 two pieces working together
+  { fen: "7k/1R6/8/8/8/8/8/R5K1 w - - 0 1", level: "medium", idea: "The ladder mate: one rook holds a row, the other gives check on the next row." },
+  { fen: "5rk1/5pp1/8/6N1/8/8/8/6KQ w - - 0 1", level: "medium", idea: "The knight on g5 protects h7. The queen lands there, and the rook blocks the king's escape." },
+  { fen: "6k1/R7/8/8/8/8/8/1R4K1 w - - 0 1", level: "medium", idea: "The ladder mate: one rook guards the 7th row, the other checks on the 8th." },
+  { fen: "6k1/1Q6/8/8/8/8/8/R5K1 w - - 0 1", level: "medium", idea: "The queen guards the whole 7th row. The rook checks on the back row." },
+  { fen: "3k4/8/3K4/8/8/8/8/7R w - - 0 1", level: "medium", idea: "The kings face each other. Your rook checks along the back row." },
+  { fen: "7k/8/6K1/5Q2/8/8/8/8 w - - 0 1", level: "medium", idea: "Your king guards g7 and h7. The queen only needs to check on the back row." },
+  { fen: "r5k1/5p1p/6pQ/8/8/2B5/8/6K1 w - - 0 1", level: "medium", idea: "The bishop protects the queen from far away, along the long diagonal." },
+  { fen: "7k/R7/5N2/8/8/8/8/6K1 w - - 0 1", level: "medium", idea: "The rook and knight team up. The knight protects the rook and guards g8." },
+  // 🦁 knights, bishops and famous games
+  { fen: "6rk/6pp/8/4N3/8/8/8/6K1 w - - 0 1", level: "hard", idea: "Smothered mate! The king is boxed in by its own pieces. Only a knight can jump in." },
+  { fen: "5r2/4Nppk/8/8/8/3R4/8/6K1 w - - 0 1", level: "hard", idea: "Anastasia's mate: the knight guards g6 and g8, and the rook checks up the h-file." },
+  { fen: "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4", level: "hard", idea: "The queen takes on f7, and the bishop on c4 protects her. This trap is called Scholar's mate." },
+  { fen: "rnbqkbnr/ppppp2p/5p2/6p1/3PP3/8/PPP2PPP/RNBQKBNR w KQkq g6 0 3", level: "hard", idea: "Black opened the line to the king too early. The queen checks along the diagonal." },
+  { fen: "1n2kb1r/p4ppp/4q3/4p1B1/4P3/8/PPP2PPP/2KR4 w k - 0 17", level: "hard", idea: "Paul Morphy played this in 1858, in the famous Opera Game. The bishop protects the rook." },
+  { fen: "6rk/6pp/7N/8/8/8/8/1Q4K1 w - - 0 1", level: "hard", idea: "Smothered mate again! The black rook and pawns block their own king. The knight jumps in." },
+  { fen: "5rk1/5pp1/8/7Q/8/3B4/5PPP/6K1 w - - 0 1", level: "hard", idea: "The bishop on d3 looks all the way to h7. It protects the queen there." },
+  { fen: "5rk1/5p2/6P1/8/8/7Q/8/6K1 w - - 0 1", level: "hard", idea: "Your pawn on g6 protects h7. The queen lands there, safe, and the king is trapped." },
+];
+
+// Check & escape: White's king is in check. Ways are counted by the engine.
+const CHECKS = [
+  "4k3/8/8/8/8/8/8/r3K3 w - - 0 1",
+  "4k3/8/8/8/8/5n2/8/4K3 w - - 0 1",
+  "4k3/8/8/8/8/8/3q4/4K3 w - - 0 1",
+  "4k3/8/8/8/8/2N5/3PPP2/r3K3 w - - 0 1",
+  "6k1/8/8/8/4B3/8/5PPP/1r4K1 w - - 0 1",
+  "4k3/8/8/8/1b6/8/2P5/1N2K3 w - - 0 1",
+  "4k3/4r3/8/8/8/8/3N4/R3K3 w - - 0 1",
+  "6k1/8/8/8/8/2b5/4P3/R2QK3 w - - 0 1",
+  "3k4/8/8/8/8/6b1/3P4/4KN2 w - - 0 1",
+  "6k1/8/8/8/8/8/4nPPP/4R1K1 w - - 0 1",
+];
+
+// Special moves. pre + last: Black's move that is shown first (for en passant).
+const SPECIAL = [
+  { kind: "castle", fen: "4k3/8/8/8/8/8/5PPP/4K2R w K - 0 1", ask: "Castle on the king side! Tap your king, then the square two steps toward the rook." },
+  { kind: "castle", fen: "4k3/8/8/8/8/8/PPP5/R3K3 w Q - 0 1", ask: "Castle on the queen side! Tap your king, then the square two steps toward the rook." },
+  { kind: "can", fen: "4kr2/8/8/8/8/8/6PP/4K2R w K - 0 1", ask: "Can you castle on the king side right now?" },
+  { kind: "can", fen: "4k3/8/8/8/8/8/PPP5/R3K3 w Q - 0 1", ask: "Can you castle on the queen side right now?" },
+  { kind: "promote", fen: "4k3/1P6/8/8/8/8/8/4K3 w - - 0 1", ask: "Push your pawn to the last row and choose a new piece!" },
+  { kind: "promote", fen: "1r2k3/P7/8/8/8/8/8/4K3 w - - 0 1", ask: "Capture the rook with your pawn, and make a new piece!" },
+  { kind: "promote", fen: "7k/5P2/6K1/8/8/8/8/8 w - - 0 1", ask: "Push the pawn. Which new piece gives checkmate? Think before you pick!", mate: true },
+  { kind: "ep", pre: "4k3/3p4/8/4P3/8/8/8/4K3 b - - 0 1", last: "d7d5", ask: "Black's pawn jumped two squares, right past yours. Capture it en passant!" },
+  { kind: "ep", pre: "4k3/6p1/8/5P2/8/8/8/4K3 b - - 0 1", last: "g7g5", ask: "The black pawn jumped two squares. Take it en passant: move your pawn behind it." },
+  { kind: "can-ep", pre: "4k3/8/3p4/4P3/8/8/8/4K3 b - - 0 1", last: "d6d5", ask: "Black's pawn moved just ONE square this time. Can you take it en passant?" },
+];
+// ===== ENGINE END =====
+
+const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, pickInt, wait, confetti, PRAISE, choices, explain, everyday, emoji, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "cs0", label: "See it", icon: "👀" },
+  { id: "cs1", label: "1. Meet the pieces", icon: "♟️" },
+  { id: "cs2", label: "2. Capture & protect", icon: "⚔️" },
+  { id: "cs3", label: "3. Check & escape", icon: "🛡️" },
+  { id: "cs4", label: "4. Mate in 1", icon: "👑" },
+  { id: "cs5", label: "5. Special moves", icon: "✨" },
+  { id: "cs6", label: "6. Good sport", icon: "🤝" },
+];
+const NAME = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
+const nameOf = (p) => NAME[p.toLowerCase()];
+const RULE = {
+  r: "A rook moves only in straight lines: up, down, left or right.",
+  b: "A bishop moves only on diagonals.",
+  q: "A queen moves in straight lines and on diagonals, but she cannot jump.",
+  k: "A king moves just one square at a time.",
+  n: "A knight moves in an L: two squares, then one to the side.",
+  p: "A pawn moves straight forward, and captures one square diagonally forward.",
+};
+
+const csStyle = document.createElement("style");
+csStyle.textContent = `.cs-hit{cursor:pointer}
+.cs-real{position:absolute;inset:0;z-index:7;display:grid;place-items:center;padding:10px;background:rgba(245,239,228,.9)}
+.cs-real-card{max-width:600px;width:100%;max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:16px 20px;border-radius:26px;background:#fff;box-shadow:0 8px 0 #e2ecfb,0 18px 40px rgba(20,40,80,.18);color:#2b1d12;font:700 clamp(15px,2.1vw,19px)/1.35 var(--sans)}
+.cs-real-card h2{margin:0;font:900 clamp(20px,3vw,28px)/1.15 var(--sans);color:var(--accent-dark)}
+.cs-real-card ol{margin:0;padding-left:1.3em;display:grid;gap:4px}
+.cs-real-card .need{margin:0;padding:6px 10px;border-radius:12px;background:var(--accent-soft)}
+.cs-real-card .safe{margin:0;color:#8a4b12;font-size:.9em}
+.cs-real-card .ap-buttons{justify-content:center}
+@media (max-height:460px){.cs-real-card{padding:8px 12px;gap:4px;font-size:13.5px}.cs-real-card h2{font-size:18px}}
+.cs-pick .kt-choices button{min-height:56px;font-size:20px}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){.cs-pick .kt-choices button{min-height:42px;font-size:15px}}`;
+document.head.appendChild(csStyle);
+
+const tween = (ms, fn, alive) =>
+  new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(true);
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!alive()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+
+// ---------- piece drawings (100 x 100 box, Staunton-style silhouettes) ----------
+const BASE = "M22 90H78Q83 90 83 85V81Q83 76 78 76H22Q17 76 17 81V85Q17 90 22 90Z";
+const SHAPES = {
+  p: [["path", { d: "M33 77Q35 60 43 52H57Q65 60 67 77Z" }], ["ellipse", { cx: 50, cy: 52, rx: 15, ry: 4.5 }], ["circle", { cx: 50, cy: 36, r: 13 }]],
+  r: [["path", { d: "M31 77L34 42H66L69 77Z" }], ["path", { d: "M27 43V18H37V26H45V18H55V26H63V18H73V43Z" }], ["line", { x1: 34, x2: 66, y1: 43, y2: 43, d: 1 }]],
+  b: [["path", { d: "M33 77Q40 62 42 52H58Q60 62 67 77Z" }], ["ellipse", { cx: 50, cy: 52, rx: 15, ry: 4.5 }], ["path", { d: "M50 15C65 25 67 38 58 48H42C33 38 35 25 50 15Z" }], ["circle", { cx: 50, cy: 12, r: 5 }], ["line", { x1: 55, y1: 25, x2: 46, y2: 36, d: 1 }]],
+  q: [["path", { d: "M31 77Q38 58 40 48H60Q62 58 69 77Z" }], ["path", { d: "M30 49L23 22L37 36L43 15L50 33L57 15L63 36L77 22L70 49Z" }], ["circle", { cx: 23, cy: 20, r: 4.5 }], ["circle", { cx: 43, cy: 13, r: 4.5 }], ["circle", { cx: 57, cy: 13, r: 4.5 }], ["circle", { cx: 77, cy: 20, r: 4.5 }]],
+  k: [["path", { d: "M31 77Q38 58 40 48H60Q62 58 69 77Z" }], ["path", { d: "M31 49Q24 31 40 27H60Q76 31 69 49Z" }], ["path", { d: "M46 27V18H40V12H46V5H54V12H60V18H54V27Z" }]],
+  n: [["path", { d: "M30 77C29 63 39 56 46 49C40 49 33 53 27 55C21 53 19 46 23 40C29 30 37 24 41 16L45 9L50 17C65 20 75 34 73 52C72 63 68 70 70 77Z" }], ["circle", { cx: 44, cy: 28, r: 3.2, eye: 1 }], ["path", { d: "M52 20C62 26 66 38 64 52", d2: 1 }]],
+};
+function drawPiece(parent, p, x, y, size, extra = {}) {
+  const white = p === p.toUpperCase();
+  const fill = white ? "#fdf8ee" : "#3a3431";
+  const line = white ? "#2b1d12" : "#0f0c0a";
+  const g = el("g", { transform: `translate(${x} ${y}) scale(${size / 100})`, "pointer-events": "none", ...extra }, parent);
+  el("ellipse", { cx: 50, cy: 91, rx: 34, ry: 5, fill: "rgba(0,0,0,.18)" }, g);
+  for (const [tag, attrs] of SHAPES[p.toLowerCase()]) {
+    const a = { ...attrs };
+    if (a.d === 1 || a.d2 === 1) {
+      delete a.d2;
+      if (a.d === 1) delete a.d;
+      el(tag, { ...a, fill: "none", stroke: white ? "#2b1d12" : "#d9cfc2", "stroke-width": 3, "stroke-linecap": "round" }, g);
+    } else if (a.eye) el("circle", { cx: a.cx, cy: a.cy, r: a.r, fill: white ? "#2b1d12" : "#e9dfd2" }, g);
+    else el(tag, { ...a, fill, stroke: line, "stroke-width": 4, "stroke-linejoin": "round" }, g);
+  }
+  el("path", { d: BASE, fill, stroke: line, "stroke-width": 4 }, g);
+  return g;
+}
+function starShape(parent, cx, cy, r) {
+  const pts = [];
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const rr = i % 2 ? r * 0.45 : r;
+    pts.push(`${(cx + Math.cos(a) * rr).toFixed(1)},${(cy + Math.sin(a) * rr).toFixed(1)}`);
+  }
+  return el("polygon", { points: pts.join(" "), fill: "#ffcf3a", stroke: "#c98a00", "stroke-width": 3, "stroke-linejoin": "round", "pointer-events": "none" }, parent);
+}
+
+// ---------- the board ----------
+const BX = 260;
+const BY = 22;
+const SQ = 60;
+function fit() {
+  if (!view || !view.isConnected || view.classList.contains("kt-scene")) return;
+  const r = stage.clientWidth / Math.max(1, stage.clientHeight);
+  const crop = r < 1.6;
+  view.setAttribute("viewBox", crop ? `${BX - 34} ${BY - 8} ${SQ * 8 + 50} ${SQ * 8 + 46}` : `0 0 ${W} ${H}`);
+  // the side notes would be cut in half by the crop; Ollie's bubble says the same thing
+  view.querySelectorAll(".cs-side").forEach((g) => (g.style.display = crop ? "none" : ""));
+}
+addEventListener("resize", fit);
+function fresh() {
+  stage.querySelector(".cs-real")?.remove();
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  fit();
+  return view;
+}
+const xy = (s) => [BX + (s & 7) * SQ, BY + (7 - (s >> 3)) * SQ];
+const center = (s) => {
+  const [x, y] = xy(s);
+  return [x + SQ / 2, y + SQ / 2];
+};
+function makeBoard(v) {
+  const g = el("g", {}, v);
+  el("rect", { x: BX - 8, y: BY - 8, width: SQ * 8 + 16, height: SQ * 8 + 16, rx: 12, fill: "#6b4a2f" }, g);
+  for (let s = 0; s < 64; s++) {
+    const [x, y] = xy(s);
+    const light = ((s & 7) + (s >> 3)) % 2 === 1;
+    el("rect", { x, y, width: SQ, height: SQ, fill: light ? "#f3e2c2" : "#b98a5e" }, g);
+  }
+  for (let f = 0; f < 8; f++) text(g, BX + f * SQ + SQ / 2, BY + SQ * 8 + 30, FILES[f], { "font-size": 22, fill: "#6b4a2f" });
+  for (let r = 0; r < 8; r++) text(g, BX - 22, BY + (7 - r) * SQ + SQ / 2 + 8, r + 1, { "font-size": 22, fill: "#6b4a2f" });
+  const marks = el("g", {}, v);
+  const pieces = el("g", {}, v);
+  const top = el("g", { "pointer-events": "none" }, v);
+  const hit = el("g", {}, v);
+  for (let s = 0; s < 64; s++) {
+    const [x, y] = xy(s);
+    el("rect", { x, y, width: SQ, height: SQ, fill: "transparent", class: "cs-hit", "data-sq": s }, hit);
+  }
+  let tapFn = null;
+  hit.addEventListener("pointerdown", (event) => {
+    const r = event.target.closest("[data-sq]");
+    if (r && tapFn) {
+      window.OC?.touch();
+      tapFn(Number(r.dataset.sq));
+    }
+  });
+  const at = new Map();
+  const api = {
+    pos: null,
+    onTap(fn) {
+      tapFn = fn;
+    },
+    set(pos, extras = {}) {
+      api.pos = pos;
+      pieces.innerHTML = "";
+      at.clear();
+      pos.board.forEach((p, s) => {
+        if (!p) return;
+        const [x, y] = xy(s);
+        at.set(s, drawPiece(pieces, p, x + 3, y + 3, SQ - 6));
+      });
+      (extras.stars || []).forEach((s) => {
+        const [cx, cy] = center(s);
+        starShape(pieces, cx, cy, SQ * 0.36).setAttribute("data-star", s);
+      });
+    },
+    clear() {
+      marks.innerHTML = "";
+      top.innerHTML = "";
+    },
+    mark(s, color = "rgba(255,207,58,.65)") {
+      const [x, y] = xy(s);
+      el("rect", { x, y, width: SQ, height: SQ, fill: color }, marks);
+    },
+    ring(s, color = "#e0453a") {
+      const [cx, cy] = center(s);
+      el("circle", { cx, cy, r: SQ * 0.44, fill: "none", stroke: color, "stroke-width": 6 }, top);
+    },
+    dots(list) {
+      for (const s of list) {
+        const [cx, cy] = center(s);
+        if (api.pos.board[s]) el("circle", { cx, cy, r: SQ * 0.45, fill: "none", stroke: "rgba(37,99,235,.75)", "stroke-width": 6 }, marks);
+        else el("circle", { cx, cy, r: SQ * 0.16, fill: "rgba(37,99,235,.6)" }, marks);
+      }
+    },
+    arrow(from, to, color = "#2563eb") {
+      const [x1, y1] = center(from);
+      const [x2, y2] = center(to);
+      const a = Math.atan2(y2 - y1, x2 - x1);
+      const ex = x2 - Math.cos(a) * 18;
+      const ey = y2 - Math.sin(a) * 18;
+      el("line", { x1, y1, x2: ex, y2: ey, stroke: color, "stroke-width": 9, "stroke-linecap": "round", opacity: 0.85 }, top);
+      const h = 22;
+      const p1 = [x2 - Math.cos(a - 0.5) * h, y2 - Math.sin(a - 0.5) * h];
+      const p2 = [x2 - Math.cos(a + 0.5) * h, y2 - Math.sin(a + 0.5) * h];
+      el("path", { d: `M${x2} ${y2}L${p1}L${p2}Z`, fill: color, opacity: 0.9 }, top);
+    },
+    async slide(from, to, alive, ms = 650) {
+      const g = at.get(from);
+      if (!g) return;
+      pieces.appendChild(g);
+      const [x1, y1] = xy(from);
+      const [x2, y2] = xy(to);
+      MUSIC.play("woodblock", 79, { gain: 0.3 });
+      await tween(ms, (t) => g.setAttribute("transform", `translate(${x1 + 3 + (x2 - x1) * t} ${y1 + 3 + (y2 - y1) * t}) scale(${(SQ - 6) / 100})`), alive);
+      MUSIC.play("woodblock", 72, { gain: 0.35 });
+    },
+  };
+  return api;
+}
+// side text (hidden when the view is cropped to the board on tall screens)
+function side(v, lines) {
+  const g = el("g", { class: "cs-side" }, v);
+  lines.forEach(([str, size, color], i) => text(g, 128, 120 + i * 46, str, { "font-size": size || 24, fill: color || "#2b1d12" }));
+  fit();
+  return g;
+}
+function turnBadge(v, label = "White to move") {
+  const g = el("g", { class: "cs-side" }, v);
+  el("rect", { x: 786, y: 40, width: 200, height: 110, rx: 22, fill: "var(--accent-soft)" }, g);
+  drawPiece(g, "K", 792, 54, 78);
+  const words = label.split(" ");
+  const cut = words[0] === "You" ? 2 : 1;
+  text(g, 928, 90, words.slice(0, cut).join(" "), { "font-size": 23, fill: "var(--accent-dark)" });
+  text(g, 928, 120, words.slice(cut).join(" "), { "font-size": 23, fill: "var(--accent-dark)" });
+  fit();
+  return g;
+}
+
+// ---------- shared panel pieces ----------
+const LEVELS = [["easy", "🐣 Easy"], ["medium", "🦊 Medium"], ["hard", "🦁 Hard"]];
+const levelRow = (cur) => `<div class="ap-row"><div class="ap-chips" data-levels>${LEVELS.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div>`;
+const onLevels = (id, fn) =>
+  $("[data-levels]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    shell.mark(id, { level: b.dataset.lv });
+    window.OC?.touch();
+    fn(b.dataset.lv);
+  });
+const status = (str) => {
+  const s = $("[data-status]");
+  if (s) s.textContent = str;
+};
+const EFFORT = ["You kept thinking carefully.", "You looked at every piece. That is how chess players think.", "You took your time and checked. Well played!", "You tried, looked again, and found it."];
+
+// "🏠 Try it for real": an offline activity card shown when a game ends.
+function realCard({ title, need, steps, safe = "Do it with a grown-up. Keep small chess pieces away from little ones who put things in their mouths." }, again) {
+  stage.querySelector(".cs-real")?.remove();
+  const box = document.createElement("div");
+  box.className = "cs-real";
+  box.innerHTML = `<div class="cs-real-card" role="dialog" aria-label="Try it for real"><h2>🏠 Try it for real: ${title}</h2><p class="need"><b>You need:</b> ${need}</p><ol>${steps.map((s) => `<li>${s}</li>`).join("")}</ol><p class="safe">⚠️ ${safe}</p><div class="ap-buttons"><button type="button" class="primary" data-again>🔁 Play again</button><button type="button" data-close>✕ Close</button></div></div>`;
+  stage.appendChild(box);
+  box.querySelector("[data-again]").addEventListener("click", () => {
+    box.remove();
+    again?.();
+  });
+  box.querySelector("[data-close]").addEventListener("click", () => box.remove());
+}
+
+async function finish(my, id, count, more, real, again) {
+  confetti();
+  MUSIC.chime();
+  shell.mark(id, { done: true });
+  await sayAsync(`🎉 You finished all ${count}! ${pick(EFFORT)} ${more || ""}`);
+  if (my !== token) return;
+  realCard(real, again);
+  say("🏠 Now try it on a real chessboard!");
+}
+
+// Tap a white piece, then a dot. legal(from) returns the legal moves of that piece.
+function mover(board, { legal, onMove, onBad, canPick = (p) => p && p === p.toUpperCase() }) {
+  let sel = -1;
+  const show = () => {
+    board.clear();
+    if (sel < 0) return;
+    board.mark(sel);
+    board.dots([...new Set(legal(sel).map((m) => m.to))]);
+  };
+  board.onTap((s) => {
+    const p = board.pos.board[s];
+    if (sel >= 0) {
+      const ms = legal(sel).filter((m) => m.to === s);
+      if (ms.length) {
+        const from = sel;
+        sel = -1;
+        board.clear();
+        return onMove(ms, from);
+      }
+    }
+    if (canPick(p)) {
+      sel = s;
+      MUSIC.play("woodblock", 79, { gain: 0.2 });
+      show();
+      if (!legal(s).length) onBad?.(s, -1);
+    } else if (sel >= 0) onBad?.(sel, s);
+  });
+  return {
+    select(s) {
+      sel = s;
+      show();
+    },
+    drop() {
+      sel = -1;
+      board.clear();
+    },
+    get sel() {
+      return sel;
+    },
+  };
+}
+const promoPick = (host) =>
+  new Promise((resolve) => {
+    host.classList.add("cs-pick");
+    choices(host, [{ label: "♕ Queen", v: "q" }, { label: "♖ Rook", v: "r" }, { label: "♗ Bishop", v: "b" }, { label: "♘ Knight", v: "n" }], (c) => {
+      host.innerHTML = "";
+      resolve(c.v);
+    });
+  });
+
+const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+// A board drawn inside a See it scene (scene svg, no taps).
+function sceneBoard(v, { x0 = 290, y0 = 40, sq = 52, show = true } = {}) {
+  const sqs = [];
+  el("rect", { x: x0 - 7, y: y0 - 7, width: sq * 8 + 14, height: sq * 8 + 14, rx: 10, fill: "#6b4a2f", opacity: show ? 1 : 0, class: "cs-frame" }, v);
+  for (let s = 0; s < 64; s++) {
+    const x = x0 + (s & 7) * sq;
+    const y = y0 + (7 - (s >> 3)) * sq;
+    const light = ((s & 7) + (s >> 3)) % 2 === 1;
+    sqs[s] = el("rect", { x, y, width: sq, height: sq, fill: light ? "#f3e2c2" : "#b98a5e", opacity: show ? 1 : 0 }, v);
+  }
+  const at = (s) => [x0 + (s & 7) * sq, y0 + (7 - (s >> 3)) * sq];
+  const put = (p, s, op = 1) => {
+    const [x, y] = at(s);
+    const g = drawPiece(v, p, x + 2, y + 2, sq - 4);
+    g.setAttribute("opacity", op);
+    return g;
+  };
+  const labels = () => {
+    for (let f = 0; f < 8; f++) text(v, x0 + f * sq + sq / 2, y0 + sq * 8 + 30, FILES[f], { "font-size": 22, fill: "#6b4a2f" });
+    for (let r = 0; r < 8; r++) text(v, x0 - 22, y0 + (7 - r) * sq + sq / 2 + 8, r + 1, { "font-size": 22, fill: "#6b4a2f" });
+  };
+  return { sqs, at, put, labels, sq, x0, y0 };
+}
+
+const units = {
+  cs0() {
+    const my = token;
+    explain(
+      [
+        { say: "Why do we play chess? Chess teaches us to think ahead, to be patient, and to be a good sport. And it is fun!", draw: everyday([["🧠", "Thinking ahead"], ["⏳", "Being patient"], ["🧩", "Seeing patterns"], ["🤝", "Being a good sport"]]) },
+        {
+          say: "A chessboard has 64 squares, light and dark. Turn it so a light square is in your bottom right corner.",
+          async draw(v, api) {
+            const b = sceneBoard(v, { show: false });
+            v.querySelector(".cs-frame").setAttribute("opacity", 1);
+            for (let r = 0; r < 8; r++) {
+              await api.tween(220, (t) => {
+                for (let f = 0; f < 8; f++) b.sqs[r * 8 + f].setAttribute("opacity", t);
+              });
+            }
+            b.labels();
+            await api.wait(800);
+            const [x, y] = b.at(7);
+            const ring = el("rect", { x: x - 4, y: y - 4, width: b.sq + 8, height: b.sq + 8, rx: 8, fill: "none", stroke: "var(--accent)", "stroke-width": 7, opacity: 0 }, v);
+            await api.tween(600, (t) => ring.setAttribute("opacity", t));
+            text(v, 870, 470, "light on", { "font-size": 30, fill: "var(--accent-dark)" });
+            text(v, 870, 506, "the right!", { "font-size": 30, fill: "var(--accent-dark)" });
+            text(v, 150, 250, "64", { "font-size": 70, fill: "#2b1d12" });
+            text(v, 150, 290, "squares", { "font-size": 28, fill: "#6b4a2f" });
+          },
+        },
+        {
+          say: "Rooks go in the corners, then knights, then bishops. The queen stands on her own colour. Pawns stand in front.",
+          async draw(v, api) {
+            const b = sceneBoard(v);
+            b.labels();
+            const pos = parseFEN(START);
+            const order = [[0, 7, 56, 63], [1, 6, 57, 62], [2, 5, 58, 61], [3, 59], [4, 60], [8, 9, 10, 11, 12, 13, 14, 15, 48, 49, 50, 51, 52, 53, 54, 55]];
+            for (const group of order) {
+              const gs = group.map((s) => b.put(pos.board[s], s, 0));
+              MUSIC.play("woodblock", 79, { gain: 0.25 });
+              await api.tween(500, (t) => gs.forEach((g) => g.setAttribute("opacity", t)));
+              await api.wait(group.length === 2 && group[0] === 3 ? 1200 : 350);
+              if (group[0] === 3) {
+                for (const s of [3, 59]) {
+                  const [x, y] = b.at(s);
+                  el("rect", { x: x - 3, y: y - 3, width: b.sq + 6, height: b.sq + 6, rx: 6, fill: "none", stroke: "#e0453a", "stroke-width": 5 }, v);
+                }
+                text(v, 150, 470, "white queen:", { "font-size": 24, fill: "#2b1d12" });
+                text(v, 150, 500, "light square", { "font-size": 24, fill: "#2b1d12" });
+                text(v, 150, 90, "black queen:", { "font-size": 24, fill: "#2b1d12" });
+                text(v, 150, 120, "dark square", { "font-size": 24, fill: "#2b1d12" });
+                await api.wait(1500);
+              }
+            }
+          },
+        },
+        {
+          say: "Meet the pieces: rook, knight, bishop, queen, king and pawn. Each one moves in its own way.",
+          async draw(v, api) {
+            const list = [["R", "rook"], ["N", "knight"], ["B", "bishop"], ["Q", "queen"], ["K", "king"], ["P", "pawn"]];
+            for (let i = 0; i < list.length; i++) {
+              const x = 100 + i * 160;
+              const g = el("g", { opacity: 0 }, v);
+              el("circle", { cx: x, cy: 240, r: 76, fill: "var(--accent-soft)" }, g);
+              drawPiece(g, list[i][0], x - 62, 172, 124);
+              text(g, x, 370, list[i][1], { "font-size": 30, fill: "#2b1d12" });
+              await api.tween(450, (t) => g.setAttribute("opacity", t));
+              MUSIC.play("xylophone", 72 + [0, 2, 4, 5, 7, 9][i], { gain: 0.3 });
+              await api.wait(450);
+            }
+            text(v, 500, 470, "White always moves first.", { "font-size": 32, fill: "var(--accent-dark)" });
+          },
+        },
+        {
+          say: "Players take turns, one move each. White goes first. Here White moves a pawn, then Black answers.",
+          async draw(v, api) {
+            const b = sceneBoard(v);
+            b.labels();
+            const pos = parseFEN(START);
+            const gs = {};
+            pos.board.forEach((p, s) => p && (gs[s] = b.put(p, s)));
+            const move = async (from, to) => {
+              const [x1, y1] = b.at(from);
+              const [x2, y2] = b.at(to);
+              await api.tween(1100, (t) => gs[from].setAttribute("transform", `translate(${x1 + 2 + (x2 - x1) * t} ${y1 + 2 + (y2 - y1) * t}) scale(${(b.sq - 4) / 100})`));
+              MUSIC.play("woodblock", 72, { gain: 0.35 });
+            };
+            await api.wait(800);
+            text(v, 150, 470, "1. White", { "font-size": 30, fill: "#2b1d12" });
+            await move(12, 28);
+            await api.wait(900);
+            text(v, 150, 110, "2. Black", { "font-size": 30, fill: "#2b1d12" });
+            await move(52, 36);
+          },
+        },
+        {
+          say: "The goal is checkmate: the king is attacked and has no safe square. Then the game is over.",
+          async draw(v, api) {
+            const b = sceneBoard(v);
+            b.labels();
+            const pos = parseFEN("R5k1/5ppp/8/8/8/8/5PPP/6K1 w - - 0 1");
+            pos.board.forEach((p, s) => p && b.put(p, s));
+            await api.wait(900);
+            const [x1, y1] = b.at(56);
+            const [x2, y2] = b.at(62);
+            const line = el("line", { x1: x1 + 26, y1: y1 + 26, x2: x1 + 26, y2: y1 + 26, stroke: "#e0453a", "stroke-width": 8, "stroke-linecap": "round" }, v);
+            await api.tween(900, (t) => line.setAttribute("x2", x1 + 26 + (x2 - x1 - 26) * t));
+            for (const s of [61, 63]) {
+              const [x, y] = b.at(s);
+              el("rect", { x, y, width: b.sq, height: b.sq, fill: "rgba(224,69,58,.35)" }, v);
+            }
+            await api.wait(600);
+            text(v, 850, 250, "Check-", { "font-size": 40, fill: "#c0392b" });
+            text(v, 850, 300, "mate!", { "font-size": 40, fill: "#c0392b" });
+          },
+        },
+        {
+          say: "Win or lose, we shake hands and say: good game! Losing is how every chess player learns.",
+          async draw(v, api) {
+            const g = el("g", { opacity: 0 }, v);
+            el("circle", { cx: 500, cy: 230, r: 150, fill: "var(--accent-soft)" }, g);
+            emoji(g, 500, 230, "🤝", 170);
+            text(g, 500, 470, "“Good game!”", { "font-size": 54, fill: "var(--accent-dark)" });
+            await api.tween(900, (t) => g.setAttribute("opacity", t));
+          },
+        },
+      ],
+      { alive: () => my === token, onDone: () => shell.go("cs1"), title: "Chess" }
+    );
+  },
+
+  cs1() {
+    const my = token;
+    const LESSONS = [
+      { k: "R", intro: "This is the rook. It moves in straight lines: up, down, left or right, as far as it likes. Tap the rook to see where it can go." },
+      { k: "B", intro: "This is the bishop. It moves on diagonals, corner to corner, and stays on the same colour all game! Tap the bishop." },
+      { k: "Q", intro: "This is the queen, the strongest piece. She moves like a rook and a bishop together. Tap the queen." },
+      { k: "K", intro: "This is the king, the most important piece. He moves just one square, any way. Tap the king." },
+      { k: "N", intro: "This is the knight. It moves in an L: two squares, then one to the side. It is the only piece that can jump! Tap the knight." },
+      { k: "P", intro: "This is the pawn. It walks forward one square, or two on its very first move. It captures one square diagonally forward. Tap the pawn." },
+    ];
+    const done = shell.progress().cs1?.pieces || [];
+    let lesson = LESSONS.find((l) => !done.includes(l.k)) || LESSONS[0];
+    let round = 0;
+    let q = null;
+    let busy = false;
+    const STARS = [1, 1, 2, 2, 3, 3, 3, 4];
+    panel(`<div class="ap-chips" data-pieces>${LESSONS.map((l) => `<button type="button" data-pc="${l.k}" aria-pressed="${l === lesson}">${nameOf(l.k)[0].toUpperCase() + nameOf(l.k).slice(1)}${done.includes(l.k) ? " ✓" : ""}</button>`).join("")}</div><div class="ap-row"><p class="ap-status" data-status></p><div class="ap-buttons"><button type="button" data-again>🔁 Try again</button></div></div>`);
+    const make = () => {
+      const k = lesson.k;
+      const n = STARS[round];
+      const limit = { R: 5, B: 5, Q: 4, K: 6, N: 6 }[k];
+      for (let t = 0; t < 4000; t++) {
+        if (k === "P") {
+          const start = 8 + pickInt(1, 6);
+          const path = [];
+          const enemies = [];
+          let s = start;
+          const steps = Math.min(6, 2 + round);
+          for (let i = 0; i < steps && s >> 3 < 7; i++) {
+            const f = s & 7;
+            const opts = ["one"];
+            if (s >> 3 === 1) opts.push("two");
+            if (round >= 2 && f > 0) opts.push("capL");
+            if (round >= 2 && f < 7) opts.push("capR");
+            const o = pick(opts);
+            s = o === "one" ? s + 8 : o === "two" ? s + 16 : o === "capL" ? s + 7 : s + 9;
+            if (o.startsWith("cap")) enemies.push(s);
+            path.push(s);
+          }
+          const stars = shuffle(path.filter((x) => !enemies.includes(x))).slice(0, n);
+          if (!stars.length) continue;
+          const best = fewest("P", start, stars, enemies);
+          if (!Number.isFinite(best)) continue;
+          return { start, stars, enemies, best };
+        }
+        const start = pickInt(0, 63);
+        const pool = [...Array(64).keys()].filter((s) => s !== start && (k !== "B" || ((s & 7) + (s >> 3)) % 2 === ((start & 7) + (start >> 3)) % 2));
+        const stars = shuffle(pool).slice(0, n);
+        const best = fewest(k, start, stars);
+        if (!Number.isFinite(best) || best > limit) continue;
+        if (round >= 2 && best < 2) continue;
+        return { start, stars, enemies: [], best };
+      }
+    };
+    let board;
+    let at;
+    let left;
+    let foes;
+    let moves;
+    const draw = () => {
+      fresh();
+      board = makeBoard(view);
+      at = q.start;
+      left = [...q.stars];
+      foes = [...q.enemies];
+      moves = 0;
+      busy = false;
+      redraw();
+      side(view, [[`⭐ × ${q.stars.length}`, 34, "#a86b00"], ["Fewest", 24, "#6b4a2f"], [`moves: ${q.best}`, 24, "#6b4a2f"]]);
+      const cnt = el("g", { class: "cs-side" }, view);
+      text(cnt, 890, 120, "Moves", { "font-size": 26, fill: "var(--accent-dark)" });
+      text(cnt, 890, 185, "0", { "font-size": 60, fill: "#2b1d12", class: "cs-moves" });
+      mover(board, {
+        legal: (s) => (s === at ? reach(board.pos.board, at).map((to) => ({ to })) : []),
+        onMove: (ms) => step(ms[0].to),
+        onBad: () => {
+          MUSIC.oops();
+          say(`${RULE[lesson.k.toLowerCase()]} Tap one of the blue dots.`);
+        },
+      });
+      status(`${nameOf(lesson.k)} · board ${round + 1} of 8 · moves 0`);
+      fit();
+    };
+    const redraw = () => {
+      const b = Array(64).fill(null);
+      b[at] = lesson.k;
+      foes.forEach((e) => (b[e] = "p"));
+      board.set({ board: b, turn: "w", castle: "", ep: -1 }, { stars: left });
+    };
+    const step = async (to) => {
+      if (my !== token || busy) return;
+      busy = true;
+      await board.slide(at, to, () => my === token, 500);
+      if (my !== token) return;
+      at = to;
+      moves += 1;
+      foes = foes.filter((e) => e !== to);
+      if (left.includes(to)) {
+        left = left.filter((s) => s !== to);
+        MUSIC.play("xylophone", 84 + (q.stars.length - left.length) * 2, { gain: 0.4 });
+      }
+      redraw();
+      view.querySelector(".cs-moves").textContent = moves;
+      status(`${nameOf(lesson.k)} · board ${round + 1} of 8 · moves ${moves}`);
+      busy = false;
+      if (lesson.k === "P" && to >> 3 === 7) say("Your pawn reached the last row! In a real game it now becomes a new piece, often a queen. That is called promotion.");
+      if (left.length) {
+        board.clear();
+        board.mark(at);
+        board.dots(reach(board.pos.board, at));
+        return;
+      }
+      busy = true;
+      MUSIC.chime();
+      window.OC?.count("chess stars");
+      await sayAsync(moves <= q.best ? `${pick(PRAISE)} ${moves} ${moves === 1 ? "move" : "moves"}. That is the fewest possible. You planned ahead!` : `You got every star in ${moves} moves. It can be done in ${q.best}. Tap 🔁 Try again to look for a shorter way, or wait for the next board.`);
+      if (my !== token) return;
+      await wait(moves <= q.best ? 600 : 3500);
+      if (my !== token || left.length || busy !== true) return;
+      round += 1;
+      if (round >= STARS.length) {
+        const list = [...new Set([...(shell.progress().cs1?.pieces || []), lesson.k])];
+        shell.mark("cs1", { pieces: list });
+        const next = LESSONS.find((l) => !list.includes(l.k));
+        return finish(my, "cs1", "8 boards", next ? `Next, meet the ${nameOf(next.k)}!` : "You have met every piece!", { title: "star hunt", need: "a chessboard, one rook (or any piece), 4 coins or buttons", steps: ["Put the piece on the board and the coins on 4 squares.", "Move the piece the right way to collect every coin.", "Count your moves. Can a grown-up find a shorter way?"] }, () => units.cs1());
+      }
+      q = make();
+      draw();
+      say(`Collect ${q.stars.length === 1 ? "the star" : `all ${q.stars.length} stars`}. Plan first: can you use the fewest moves?`);
+    };
+    const start = () => {
+      round = 0;
+      q = make();
+      draw();
+      say(lesson.intro);
+    };
+    $("[data-pieces]").addEventListener("click", (event) => {
+      const b = event.target.closest("[data-pc]");
+      if (!b) return;
+      document.querySelectorAll("[data-pc]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      lesson = LESSONS.find((l) => l.k === b.dataset.pc);
+      window.OC?.touch();
+      start();
+    });
+    $("[data-again]").addEventListener("click", () => {
+      if (my !== token) return;
+      busy = false;
+      draw();
+      say("Same board again. Look at all the stars first. Which one should you get first?");
+    });
+    start();
+    window.__cs = { q: () => q, step: (to) => step(typeof to === "string" ? sqOf(to) : to), at: () => at, round: () => round, setRound: (r) => (round = r), go: (r) => ((round = r), (q = make()), draw()) };
+  },
+
+  cs2() {
+    const my = token;
+    let level = shell.progress().cs2?.level || "easy";
+    let round = 0;
+    let q = null;
+    let tries = 0;
+    let busy = false;
+    let board;
+    panel(`${levelRow(level)}<div data-choices class="cs-pick"></div>`);
+    const blank = () => {
+      const board = Array(64).fill(null);
+      board[pick([4, 6, 2])] = "K";
+      board[pick([60, 62, 58])] = "k";
+      return board;
+    };
+    const free = (b, lo = 0, hi = 63) => {
+      for (let i = 0; i < 200; i++) {
+        const s = pickInt(lo, hi);
+        if (!b[s]) return s;
+      }
+      return -1;
+    };
+    const gen = () => {
+      for (let t = 0; t < 5000; t++) {
+        const b = blank();
+        const ts = free(b, 16, 47);
+        b[ts] = pick(level === "hard" ? ["n", "b", "r", "p"] : ["n", "b", "r", "p", "q"]);
+        const types = level === "easy" ? ["R", "B", "Q"] : ["R", "B", "Q", "N", "P"];
+        const nW = level === "easy" ? 2 : level === "medium" ? 3 : pickInt(1, 2);
+        for (let i = 0; i < nW; i++) b[free(b, 8, 55)] = pick(types);
+        if (level === "medium") b[free(b, 16, 47)] = "p";
+        if (level === "hard") for (let i = 0, n = pickInt(1, 2); i < n; i++) b[free(b, 16, 55)] = pick(["n", "b", "r", "p"]);
+        const pos = { board: b, turn: "w", castle: "", ep: -1 };
+        if (!sane(pos) || inCheck(pos, "w")) continue;
+        const caps = legalMoves(pos).filter((m) => m.to === ts);
+        const from = [...new Set(caps.map((m) => m.from))];
+        if (from.length !== 1 || b[from[0]] === "K") continue;
+        if (level !== "hard") {
+          const others = b.map((p, s) => (p && p === p.toUpperCase() && p !== "K" && s !== from[0] ? s : -1)).filter((s) => s >= 0);
+          if (others.length < nW - 1 || !others.length) continue;
+          return { pos, ts, from: from[0] };
+        }
+        const after = makeMove(pos, caps[0]);
+        const defenders = [...new Set(legalMoves(after).filter((m) => m.to === ts).map((m) => m.from))];
+        const want = round % 2 === 0 ? Math.random() < 0.5 : Boolean(q?.safe);
+        if (defenders.length > 0 !== want) continue;
+        return { pos, ts, from: from[0], defenders, safe: !defenders.length };
+      }
+    };
+    const ask = () => {
+      q = gen();
+      tries = 0;
+      busy = false;
+      fresh();
+      board = makeBoard(view);
+      board.set(q.pos);
+      turnBadge(view, "You are White");
+      board.ring(q.ts);
+      status(`Puzzle ${round + 1} of 10`);
+      const tn = nameOf(q.pos.board[q.ts]);
+      $("[data-choices]").innerHTML = "";
+      if (level === "hard") {
+        board.arrow(q.from, q.ts);
+        say(`Your ${nameOf(q.pos.board[q.from])} can capture the black ${tn}. Is the ${tn} protected? Look at every black piece.`);
+        choices($("[data-choices]"), [{ label: "🛡️ Yes, protected", v: false }, { label: "🍰 No, it's free", v: true }], (c, btn) => answerSafe(c.v, btn));
+        board.onTap(() => {});
+      } else {
+        say(`Which of your pieces can capture the black ${tn}? Tap it.`);
+        board.onTap((s) => tapPiece(s));
+      }
+    };
+    const next = async () => {
+      round += 1;
+      window.OC?.count("chess captures");
+      await wait(2600);
+      if (my !== token) return;
+      if (round >= 10) return finish(my, "cs2", "10 puzzles", "", { title: "safe or not?", need: "a chessboard and a few pieces", steps: ["A grown-up sets up 4 or 5 pieces.", "Point to a black piece. Which white piece can capture it?", "Then ask: is it protected? Would it be safe to take?"] }, () => units.cs2());
+      ask();
+    };
+    const tapPiece = async (s) => {
+      if (my !== token || busy) return;
+      const p = q.pos.board[s];
+      if (!p || p !== p.toUpperCase()) return;
+      if (s === q.from) {
+        busy = true;
+        board.clear();
+        board.arrow(s, q.ts);
+        MUSIC.chime();
+        say(`${pick(PRAISE)} Your ${nameOf(p)} can take the ${nameOf(q.pos.board[q.ts])}. ${RULE[p.toLowerCase()]}`);
+        await wait(1200);
+        if (my !== token) return;
+        await board.slide(s, q.ts, () => my === token);
+        if (my !== token) return;
+        board.set(makeMove(q.pos, legalMoves(q.pos).find((m) => m.from === s && m.to === q.ts)));
+        return next();
+      }
+      tries += 1;
+      MUSIC.oops();
+      board.clear();
+      board.ring(q.ts);
+      board.mark(s, "rgba(224,69,58,.35)");
+      board.dots([...new Set(legalMoves(q.pos).filter((m) => m.from === s).map((m) => m.to))]);
+      if (p === "K") return say("The king is too far away. Look at your other pieces.");
+      if (tries < 2) return say(`Mistakes are how we learn. Let's look why. The blue dots show where your ${nameOf(p)} can go. Is the black piece on one? Try another piece.`);
+      busy = true;
+      board.arrow(q.from, q.ts, "#16a34a");
+      say(`It is the ${nameOf(q.pos.board[q.from])}! ${RULE[q.pos.board[q.from].toLowerCase()]} The green arrow shows the way.`);
+      await wait(2200);
+      if (my !== token) return;
+      next();
+    };
+    const answerSafe = async (v, btn) => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      const tn = nameOf(q.pos.board[q.ts]);
+      const why = () => {
+        if (q.safe) return `No black piece can capture on that square, so the ${tn} is free to take.`;
+        const d = q.defenders[0];
+        board.arrow(d, q.ts, "#e0453a");
+        return `The black ${nameOf(q.pos.board[d])} guards it. If you take, it takes back.`;
+      };
+      if (v === q.safe) {
+        busy = true;
+        btn.classList.add("right");
+        MUSIC.chime();
+        say(`${pick(PRAISE)} ${why()}`);
+        return next();
+      }
+      tries += 1;
+      btn.classList.add("wrong");
+      MUSIC.oops();
+      if (tries < 2) return say(`Let's look again. Pretend your piece is on that square. Could any black piece move there and capture it?`);
+      busy = true;
+      say(`${q.safe ? "It is free!" : "It is protected."} ${why()}`);
+      next();
+    };
+    onLevels("cs2", (lv) => {
+      level = lv;
+      round = 0;
+      ask();
+    });
+    ask();
+    window.__cs = { q: () => q, tap: (s) => tapPiece(s), safe: (v) => answerSafe(v, document.querySelector("[data-c]")), setRound: (r) => (round = r), go: (r) => ((round = r), ask()) };
+  },
+
+  cs3() {
+    const my = token;
+    let level = shell.progress().cs3?.level || "easy";
+    let round = 0;
+    let q = null;
+    let tries = 0;
+    let busy = false;
+    let board;
+    panel(levelRow(level));
+    const checkers = (pos) => {
+      const k = pos.board.indexOf("K");
+      return pos.board.map((p, s) => (p && p !== p.toUpperCase() && attacksFrom(pos.board, s).includes(k) ? s : -1)).filter((s) => s >= 0);
+    };
+    const wayOf = (pos, m) => (checkers(pos).includes(m.to) ? "capture" : m.piece === "K" ? "move" : "block");
+    const WAYS = { move: "moving your king to a safe square", block: "blocking: a piece stepped in the way", capture: "capturing the piece that gave check" };
+    const ask = () => {
+      const pos = parseFEN(CHECKS[round]);
+      const ms = legalMoves(pos);
+      const ways = [...new Set(ms.map((m) => wayOf(pos, m)))];
+      const goal = level === "hard" ? (ways.includes("block") ? "block" : ways.includes("capture") ? "capture" : "move") : null;
+      q = { pos, ms, ways, goal, chk: checkers(pos) };
+      tries = 0;
+      busy = false;
+      fresh();
+      board = makeBoard(view);
+      board.set(pos);
+      board.mark(pos.board.indexOf("K"), "rgba(224,69,58,.45)");
+      turnBadge(view, "You are White");
+      side(view, [["Check!", 40, "#c0392b"], ["Ways out:", 24, "#6b4a2f"], ["🏃 move", 24], ["🧱 block", 24], ["⚔️ capture", 24]]);
+      status(`Puzzle ${round + 1} of ${CHECKS.length}`);
+      if (level === "easy") {
+        say("Your king is in check! Which black piece is attacking it? Tap that piece.");
+        board.onTap((s) => tapChecker(s));
+      } else {
+        say(goal ? `Your king is in check! Escape by ${goal === "block" ? "BLOCKING" : goal === "capture" ? "CAPTURING" : "MOVING THE KING"}. Tap a piece, then a dot.` : "Your king is in check! Get out of check. Tap a piece, then a dot.");
+        mover(board, {
+          legal: (s) => q.ms.filter((m) => m.from === s),
+          onMove: (ms) => play(ms[0]),
+          onBad: (s) => {
+            MUSIC.oops();
+            say(`That ${nameOf(q.pos.board[s])} can't help: your king would still be in check. Where is the check coming from? What could stop it?`);
+          },
+        });
+      }
+    };
+    const next = async () => {
+      round += 1;
+      window.OC?.count("checks escaped");
+      await wait(2800);
+      if (my !== token) return;
+      if (round >= CHECKS.length) return finish(my, "cs3", `${CHECKS.length} puzzles`, "Remember: move, block or capture!", { title: "check, check, check", need: "a chessboard, your king, a black rook or queen, and one more piece", steps: ["A grown-up puts your king in check.", "Say out loud: can I move, block or capture?", "Find every way out. Then swap jobs!"] }, () => units.cs3());
+      ask();
+    };
+    const tapChecker = async (s) => {
+      if (my !== token || busy) return;
+      const p = q.pos.board[s];
+      if (!p) return;
+      if (q.chk.includes(s)) {
+        busy = true;
+        MUSIC.chime();
+        board.arrow(s, q.pos.board.indexOf("K"), "#e0453a");
+        say(`${pick(PRAISE)} The black ${nameOf(p)} gives check. ${RULE[p.toLowerCase()]} Ways out: move the king, block, or capture.`);
+        return next();
+      }
+      tries += 1;
+      MUSIC.oops();
+      if (tries < 2) return say("Let's look why. Follow the lines from your king, like a torch beam. Which black piece can reach it? Don't forget knights jump!");
+      busy = true;
+      board.arrow(q.chk[0], q.pos.board.indexOf("K"), "#e0453a");
+      say(`It is the black ${nameOf(q.pos.board[q.chk[0]])}. ${RULE[q.pos.board[q.chk[0]].toLowerCase()]} See the red arrow.`);
+      next();
+    };
+    const play = async (m) => {
+      if (my !== token || busy) return;
+      const way = wayOf(q.pos, m);
+      if (q.goal && way !== q.goal) {
+        tries += 1;
+        MUSIC.oops();
+        if (tries < 2) return say(`That works, it escapes by ${WAYS[way]}! But this time, can you escape by ${q.goal === "block" ? "blocking" : q.goal === "capture" ? "capturing" : "moving the king"}?`);
+        busy = true;
+        const good = q.ms.find((x) => wayOf(q.pos, x) === q.goal);
+        board.arrow(good.from, good.to, "#16a34a");
+        say(`Here is one: the ${nameOf(good.piece)} to ${sqName(good.to)}. That escapes by ${WAYS[q.goal]}.`);
+        return next();
+      }
+      busy = true;
+      await board.slide(m.from, m.to, () => my === token);
+      if (my !== token) return;
+      const after = makeMove(q.pos, m);
+      board.set(after);
+      MUSIC.chime();
+      const n = q.ways.length;
+      say(`${pick(PRAISE)} Safe! You escaped by ${WAYS[way]}.${n > 1 && !q.goal ? ` This king had ${n} kinds of escape.` : ""}`);
+      next();
+    };
+    onLevels("cs3", (lv) => {
+      level = lv;
+      round = 0;
+      ask();
+    });
+    ask();
+    window.__cs = { q: () => q, tap: (s) => tapChecker(s), play: (m) => play(m), setRound: (r) => (round = r), go: (r) => ((round = r), ask()) };
+  },
+
+  cs4() {
+    const my = token;
+    let level = shell.progress().cs4?.level || "easy";
+    let list = [];
+    let round = 0;
+    let q = null;
+    let tries = 0;
+    let busy = false;
+    let board;
+    panel(`${levelRow(level)}<div data-choices class="cs-pick"></div>`);
+    const ask = () => {
+      const p = list[round];
+      const pos = parseFEN(p.fen);
+      q = { ...p, pos, ms: legalMoves(pos), wins: mates(pos) };
+      tries = 0;
+      busy = false;
+      fresh();
+      board = makeBoard(view);
+      board.set(pos);
+      turnBadge(view, "White to move");
+      side(view, [["Mate", 34, "#c0392b"], ["in 1", 34, "#c0392b"], ["Find the", 22, "#6b4a2f"], ["one move!", 22, "#6b4a2f"]]);
+      status(`Puzzle ${round + 1} of ${list.length}`);
+      $("[data-choices]").innerHTML = "";
+      say(round === 0 ? "Find a move that gives checkmate! Look at the black king first. Where could it run?" : "Checkmate in one move. Look at the black king's squares first.");
+      mover(board, {
+        legal: (s) => q.ms.filter((m) => m.from === s),
+        onMove: (ms) => (ms.length > 1 ? pickPromo(ms) : play(ms[0])),
+        onBad: (s, to) => {
+          if (to < 0) return say(`That ${nameOf(q.pos.board[s])} has no moves here. Try another piece.`);
+          say(`${RULE[q.pos.board[s].toLowerCase()]} It can't go there. Tap a blue dot.`);
+        },
+      });
+    };
+    const pickPromo = async (ms) => {
+      say("Your pawn reached the end! Choose its new piece.");
+      const v = await promoPick($("[data-choices]"));
+      play(ms.find((m) => m.promo === v));
+    };
+    const next = async () => {
+      round += 1;
+      window.OC?.count("mate puzzles");
+      await wait(3200);
+      if (my !== token) return;
+      if (round >= list.length) return finish(my, "cs4", `${list.length} puzzles`, "Checkmate means the king is attacked and has no escape.", { title: "one puzzle a day", need: "a chessboard and a grown-up", steps: ["Set up one of today's puzzles on the real board.", "Look at the black king. Where can it run?", "Find the checkmate, then say why it works."] }, () => units.cs4());
+      ask();
+    };
+    const play = async (m) => {
+      if (my !== token || busy) return;
+      busy = true;
+      await board.slide(m.from, m.to, () => my === token);
+      if (my !== token) return;
+      const after = makeMove(q.pos, m);
+      board.set(after);
+      const bk = after.board.indexOf("k");
+      if (isMate(after)) {
+        board.mark(bk, "rgba(224,69,58,.5)");
+        MUSIC.chime();
+        say(`👑 Checkmate! ${tries ? "You kept trying!" : "You looked carefully!"} ${q.idea}`);
+        return next();
+      }
+      tries += 1;
+      MUSIC.oops();
+      let why;
+      if (!inCheck(after, "b")) why = "That move is not check, so the black king is not attacked. Checkmate needs check first.";
+      else {
+        const esc = legalMoves(after);
+        const run = esc.find((x) => x.piece === "k");
+        if (run) {
+          board.mark(run.to, "rgba(37,160,90,.5)");
+          why = `Check! But the king can escape to ${sqName(run.to)}, the green square.`;
+        } else {
+          board.arrow(esc[0].from, esc[0].to, "#16a34a");
+          why = `Check! But Black can ${esc[0].capture ? "capture your piece" : "block"}: see the green arrow.`;
+        }
+      }
+      await sayAsync(`Mistakes are how we learn. ${why}`);
+      if (my !== token) return;
+      await wait(900);
+      if (my !== token) return;
+      board.clear();
+      board.set(q.pos);
+      if (tries < 2) {
+        busy = false;
+        say("Which squares can the black king reach? Can one move give check AND cover them all?");
+        return;
+      }
+      const w = q.wins[0];
+      board.arrow(w.from, w.to, "#16a34a");
+      await sayAsync(`Here it is: the ${nameOf(w.piece)} to ${sqName(w.to)}. ${q.idea}`);
+      if (my !== token) return;
+      await board.slide(w.from, w.to, () => my === token);
+      if (my !== token) return;
+      const after2 = makeMove(q.pos, w);
+      board.clear();
+      board.set(after2);
+      board.mark(after2.board.indexOf("k"), "rgba(224,69,58,.5)");
+      next();
+    };
+    const start = () => {
+      list = MATES.filter((p) => p.level === level);
+      round = 0;
+      ask();
+    };
+    onLevels("cs4", (lv) => {
+      level = lv;
+      start();
+    });
+    start();
+    window.__cs = { q: () => q, play: (name) => play(q.ms.find((m) => moveName(m) === name)), setRound: (r) => (round = r), go: (r) => ((round = r), ask()) };
+  },
+
+  cs5() {
+    const my = token;
+    let round = 0;
+    let q = null;
+    let tries = 0;
+    let busy = false;
+    let board;
+    panel(`<p class="ap-status" data-status></p><div data-choices class="cs-pick"></div>`);
+    const TITLE = { castle: "Castling", can: "Castling", promote: "Promotion", ep: "En passant", "can-ep": "En passant" };
+    const ask = async () => {
+      const s = SPECIAL[round];
+      tries = 0;
+      busy = true;
+      fresh();
+      board = makeBoard(view);
+      let pos = parseFEN(s.pre || s.fen);
+      board.set(pos);
+      side(view, [[TITLE[s.kind], 30, "var(--accent-dark)"]]);
+      turnBadge(view, "You are White");
+      status(`Special move ${round + 1} of ${SPECIAL.length}`);
+      $("[data-choices]").innerHTML = "";
+      if (s.pre) {
+        say("Watch Black's last move…");
+        await wait(1000);
+        if (my !== token) return;
+        const m = legalMoves(pos).find((x) => moveName(x) === s.last);
+        await board.slide(m.from, m.to, () => my === token, 900);
+        if (my !== token) return;
+        pos = makeMove(pos, m);
+        board.set(pos);
+        board.mark(m.from, "rgba(255,207,58,.45)");
+        board.mark(m.to, "rgba(255,207,58,.45)");
+      }
+      q = { ...s, pos, ms: legalMoves(pos) };
+      busy = false;
+      say(s.ask);
+      if (s.kind === "can" || s.kind === "can-ep") {
+        const yes = s.kind === "can" ? q.ms.some((m) => m.castle) : q.ms.some((m) => m.ep);
+        q.yes = yes;
+        choices($("[data-choices]"), [{ label: "✅ Yes", v: true }, { label: "❌ No", v: false }], (c, btn) => answerYes(c.v, btn));
+        board.onTap(() => {});
+        return;
+      }
+      mover(board, {
+        legal: (from) => q.ms.filter((m) => m.from === from),
+        onMove: (ms, from) => tryMove(ms),
+        onBad: () => {
+          MUSIC.oops();
+          say(`Hmm, not that one. ${s.ask}`);
+        },
+      });
+    };
+    const explainOf = (s) =>
+      s.kind === "castle" || s.kind === "can"
+        ? "To castle, the king and rook must not have moved, the squares between must be empty, and the king can't be in check or cross an attacked square."
+        : s.kind === "promote"
+          ? "A pawn that reaches the last row becomes a queen, rook, bishop or knight. Most players pick a queen."
+          : "En passant works only right after the enemy pawn jumps two squares past yours. You capture it as if it moved one.";
+    const next = async () => {
+      round += 1;
+      window.OC?.count("special moves");
+      await wait(3600);
+      if (my !== token) return;
+      if (round >= SPECIAL.length) return finish(my, "cs5", `${SPECIAL.length} special moves`, "", { title: "special moves", need: "a chessboard and pieces", steps: ["Set up the king and rook. Castle both ways.", "Walk a pawn to the end and swap it for a queen.", "Ask a grown-up to show you en passant with two pawns."] }, () => units.cs5());
+      ask();
+    };
+    const answerYes = async (v, btn) => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      if (v === q.yes) {
+        busy = true;
+        btn.classList.add("right");
+        MUSIC.chime();
+        const why = q.kind === "can-ep" ? "That pawn only moved one square, so en passant is not allowed. A normal pawn capture is still fine if it is diagonal." : q.yes ? "The squares are empty, nothing is attacking them, and the king and rook are home." : "The black rook attacks f1. The king may not cross an attacked square.";
+        say(`${pick(PRAISE)} ${why}`);
+        if (q.kind === "can-ep") {
+          /* nothing to show */
+        } else if (q.yes) {
+          const m = q.ms.find((x) => x.castle);
+          await doCastle(m);
+        } else board.arrow(sqOf("f8"), sqOf("f1"), "#e0453a");
+        return next();
+      }
+      tries += 1;
+      btn.classList.add("wrong");
+      MUSIC.oops();
+      if (tries < 2) return say(q.kind === "can-ep" ? "Look at Black's last move. How many squares did that pawn move?" : "Check each square the king walks over. Is any black piece looking at it?");
+      busy = true;
+      say(`${q.yes ? "Yes, you can." : "No, not this time."} ${explainOf(q)}`);
+      if (q.kind === "can" && !q.yes) board.arrow(sqOf("f8"), sqOf("f1"), "#e0453a");
+      next();
+    };
+    const doCastle = async (m) => {
+      const home = m.from;
+      const [rf, rt] = m.castle === "k" ? [home + 3, home + 1] : [home - 4, home - 1];
+      await board.slide(m.from, m.to, () => my === token);
+      await board.slide(rf, rt, () => my === token);
+      if (my === token) board.set(makeMove(q.pos, m));
+    };
+    const tryMove = async (ms) => {
+      if (my !== token || busy) return;
+      let m = ms[0];
+      const wantKind = q.kind;
+      const isGoal = wantKind === "castle" ? m.castle : wantKind === "promote" ? m.promo : m.ep;
+      if (!isGoal) {
+        tries += 1;
+        MUSIC.oops();
+        if (tries < 2) return say(`That is a fair move, but not the special one. ${wantKind === "castle" ? "Tap the king, then the square two steps toward the rook." : wantKind === "promote" ? "Walk the pawn onto the last row." : "Move your pawn diagonally to the empty square right behind the black pawn."}`);
+        const g = q.ms.find((x) => (wantKind === "castle" ? x.castle : wantKind === "promote" ? x.promo : x.ep));
+        board.arrow(g.from, g.to, "#16a34a");
+        return say(`Follow the green arrow. ${explainOf(q)}`);
+      }
+      busy = true;
+      if (m.castle) await doCastle(m);
+      else if (m.promo) {
+        await board.slide(m.from, m.to, () => my === token);
+        if (my !== token) return;
+        say(q.mate ? "Which new piece gives checkmate? Think: where can the black king go?" : "Choose your new piece!");
+        let v = await promoPick($("[data-choices]"));
+        if (my !== token) return;
+        m = ms.find((x) => x.promo === v);
+        const after = makeMove(q.pos, m);
+        board.set(after);
+        if (q.mate && !isMate(after)) {
+          MUSIC.oops();
+          busy = false;
+          const stale = !legalMoves(after).length;
+          say(stale ? `Oh no, the black king can't move but is not in check. That is stalemate: a draw! Try a different piece.` : `A ${nameOf(v)} doesn't give checkmate here. Try again: which piece checks along the back row?`);
+          board.set(q.pos);
+          return;
+        }
+        MUSIC.chime();
+        say(`${pick(PRAISE)} Your pawn became a ${nameOf(v)}! ${q.mate ? "Checkmate! A queen or a rook both work here." : explainOf(q)}`);
+        return next();
+      } else {
+        await board.slide(m.from, m.to, () => my === token);
+        if (my !== token) return;
+        board.set(makeMove(q.pos, m));
+      }
+      if (my !== token) return;
+      MUSIC.chime();
+      say(`${pick(PRAISE)} ${m.castle ? "The king moved two squares and the rook jumped over it. That is castling!" : "En passant! The black pawn is gone even though you didn't land on it."} ${explainOf(q)}`);
+      next();
+    };
+    ask();
+    window.__cs = { q: () => q, move: (name, promo) => tryMove(q.ms.filter((m) => moveName(m).slice(0, 4) === name)), yes: (v) => answerYes(v, document.querySelector("[data-c]")), setRound: (r) => (round = r), go: (r) => ((round = r), ask()), promo: (v) => document.querySelector(`[data-c="${["q", "r", "b", "n"].indexOf(v)}"]`)?.click() };
+  },
+
+  cs6() {
+    const my = token;
+    const card = (glyphs, words) => async (v, api) => {
+      const g = el("g", { opacity: 0 }, v);
+      el("rect", { x: 140, y: 40, width: 720, height: 400, rx: 40, fill: "#fff", stroke: "var(--accent)", "stroke-width": 5 }, g);
+      glyphs.forEach((gl, i) => {
+        const x = 500 + (i - (glyphs.length - 1) / 2) * 190;
+        el("circle", { cx: x, cy: 200, r: 90, fill: "var(--accent-soft)" }, g);
+        emoji(g, x, 196, gl, 110);
+      });
+      text(g, 500, 380, words, { "font-size": 40, fill: "var(--accent-dark)" });
+      await api.tween(900, (t) => g.setAttribute("opacity", t));
+    };
+    explain(
+      [
+        { say: "Before the game, shake hands and say: good luck, have fun!", draw: card(["🤝", "🙂"], "“Good luck, have fun!”") },
+        { say: "Think, then move. Chess is not a race. Take your time and look at the whole board.", draw: card(["🤔", "♟️"], "Think first, then move") },
+        { say: "Touch a piece only when you mean to move it. In real games, if you touch it, you move it.", draw: card(["✋", "♞"], "Touch it, move it") },
+        { say: "If you lose, it is OK to feel sad. Take a big slow breath. Then shake hands and say: good game.", draw: card(["😢", "🌬️", "🤝"], "Breathe, then “Good game”") },
+        { say: "If you win, be kind. Say good game, and never tease. Your friend tried hard too.", draw: card(["🏆", "💛"], "Win kindly") },
+        { say: "After every game, ask: what did I learn? Even the best players in the world lose games. That is how they learn.", draw: card(["💡", "📓"], "What did I learn?") },
+      ],
+      {
+        alive: () => my === token,
+        title: "Good sport",
+        doneLabel: "🏠 Try it for real",
+        onDone: () => {
+          shell.mark("cs6", { done: true });
+          window.OC?.count("good sport cards");
+          realCard({ title: "a real game", need: "a chessboard and a grown-up to play with", steps: ["Shake hands and say “Good luck, have fun!”", "Play slowly. Think before every move.", "At the end say “Good game!” and tell one thing you learned."] }, () => units.cs6());
+          say("🏠 Play a real game with a grown-up. Win or lose, say “Good game!”");
+        },
+      }
+    );
+  },
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    cs0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    cs1: { icon: "♟️", title: "Meet the pieces", steps: ["Pick a piece with the buttons.", "Tap your piece, then tap a blue dot to move.", "Collect every star in the fewest moves."] },
+    cs2: { icon: "⚔️", title: "Capture & protect", steps: ["Look at the black piece in the red ring.", "Tap the white piece that can capture it.", "On Hard, say if it is protected."] },
+    cs3: { icon: "🛡️", title: "Check & escape", steps: ["Your king is in check!", "Tap a piece, then a blue dot.", "Escape by moving, blocking or capturing."] },
+    cs4: { icon: "👑", title: "Mate in 1", steps: ["Look where the black king can run.", "Tap your piece, then a blue dot.", "Find the one move that is checkmate."] },
+    cs5: { icon: "✨", title: "Special moves", steps: ["Listen to Ollie's question.", "Tap your piece, then a blue dot.", "Learn castling, promotion and en passant."] },
+    cs6: { icon: "🤝", title: "Good sport", steps: ["Read each card with a grown-up.", "Press Next ▶ to go on.", "Then play a real game!"] },
+  },
+  start: "cs0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+    stage.querySelector(".cs-real")?.remove();
+  },
+  subject: "Tech",
+  activity: "Chess School",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("woodblock", [72, 79]);
+MUSIC.preload("xylophone", [72, 74, 76, 77, 79, 81, 84, 86, 88, 90, 92]);
+</script>
+</body>
+</html>

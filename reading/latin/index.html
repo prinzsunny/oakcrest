@@ -1,0 +1,1046 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Latin Lab · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="reading">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Latin Lab</b><small>Latin · first year</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, wait, confetti, explain, everyday, emoji, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "l0", label: "See it", icon: "👀" },
+  { id: "l1", label: "1. Numbers 1 to 10", icon: "🔢" },
+  { id: "l2", label: "2. First words", icon: "🖼️" },
+  { id: "l3", label: "3. Word detective", icon: "🕵️" },
+  { id: "l4", label: "4. Hello in Latin", icon: "👋" },
+  { id: "l5", label: "5. Latin all around", icon: "🕰️" },
+  { id: "l6", label: "6. Big review", icon: "🏆" },
+];
+
+// ---------- Voice: never let text-to-speech read Latin spelling ----------
+// Latin is shown as <i class="la" data-v="...">word</i>. The voice says the English
+// "how to say it" letters instead, and skips the visible (PRON) guide.
+const speakAsyncRaw = VOICE.speakAsync;
+const ABBR = [["a.m.", "A M"], ["p.m.", "P M"], ["e.g.", "E G"], ["i.e.", "I E"], ["etc.", "et cetera"], ["vs.", "versus"], ["P.S.", "P S"], ["A.D.", "A D"]];
+const forVoice = (html) =>
+  ABBR.reduce((h, [a, b]) => h.split(a).join(b), String(html))
+    .replace(/<small class="pr">[\s\S]*?<\/small>/g, "")
+    .replace(/<i class="la" data-v="([^"]*)">[\s\S]*?<\/i>/g, "$1");
+VOICE.speakAsync = (html) => speakAsyncRaw(forVoice(html));
+VOICE.speak = (html) => void VOICE.speakAsync(html);
+const spoken = (pr) => pr.toLowerCase().replace(/-/g, " ");
+const la = (word, pr) => `<i class="la" data-v="${spoken(pr)}">${word}</i>`;
+const lap = (word, pr) => `${la(word, pr)}<small class="pr"> (${pr})</small>`;
+
+// ---------- Content (all checked: ecclesiastical pronunciation, as in Prima Latina) ----------
+const THEMES = {
+  family: {
+    label: "👪 Family",
+    words: [
+      { la: "mater", pr: "MAH-tair", en: "mother", pic: "👩", clue: "She is a mom." },
+      { la: "pater", pr: "PAH-tair", en: "father", pic: "👨", clue: "He is a dad." },
+      { la: "frater", pr: "FRAH-tair", en: "brother", noPic: true, clue: "A boy with the same mom and dad as you." },
+      { la: "soror", pr: "SOH-ror", en: "sister", noPic: true, clue: "A girl with the same mom and dad as you." },
+      { la: "puer", pr: "POO-air", en: "boy", pic: "👦", clue: "A young boy, not a grown-up." },
+      { la: "puella", pr: "poo-EL-lah", en: "girl", pic: "👧", clue: "A young girl, not a grown-up." },
+      { la: "rex", pr: "RECKS", en: "king", pic: "👨", crown: true, clue: "A man who wears a crown and rules.", note: "Like T. rex, the king of the dinosaurs!" },
+      { la: "regina", pr: "reh-JEE-nah", en: "queen", pic: "👩", crown: true, clue: "A woman who wears a crown and rules." },
+    ],
+  },
+  nature: {
+    label: "🌍 Nature",
+    words: [
+      { la: "aqua", pr: "AH-kwah", en: "water", pic: "💧", clue: "You drink it and swim in it." },
+      { la: "terra", pr: "TEHR-rah", en: "earth, land", pic: "🌍", clue: "We walk on it. It is our planet too." },
+      { la: "sol", pr: "SOLE", en: "sun", pic: "☀️", clue: "It shines in the day." },
+      { la: "luna", pr: "LOO-nah", en: "moon", pic: "🌙", clue: "It shines at night." },
+      { la: "stella", pr: "STEL-lah", en: "star", pic: "⭐", clue: "Tiny lights in the night sky." },
+      { la: "caelum", pr: "CHAY-loom", en: "sky", pic: "☁️", bg: "#bfe3ff", clue: "It is above you, where clouds float." },
+      { la: "ignis", pr: "EE-nyees", en: "fire", pic: "🔥", clue: "It is hot. Only grown-ups light it." },
+      { la: "arbor", pr: "AHR-bor", en: "tree", pic: "🌳", clue: "It has a trunk and leaves." },
+    ],
+  },
+  animals: {
+    label: "🐾 Animals",
+    words: [
+      { la: "canis", pr: "KAH-nees", en: "dog", pic: "🐕", clue: "It barks." },
+      { la: "felis", pr: "FAY-lees", en: "cat", pic: "🐈", clue: "It says meow." },
+      { la: "equus", pr: "EH-kwoos", en: "horse", pic: "🐎", clue: "You can ride it. It says neigh." },
+      { la: "avis", pr: "AH-vees", en: "bird", pic: "🐦", clue: "It has feathers and wings." },
+      { la: "piscis", pr: "PEE-shees", en: "fish", pic: "🐟", clue: "It swims and has fins." },
+      { la: "leo", pr: "LAY-oh", en: "lion", pic: "🦁", clue: "A big cat with a mane.", note: "Leo is also a star picture in the sky." },
+      { la: "lupus", pr: "LOO-poos", en: "wolf", pic: "🐺", clue: "It howls." },
+      { la: "ursa", pr: "OOR-sah", en: "bear (a mother bear)", pic: "🐻", clue: "A big furry animal that loves honey.", note: "The stars of Ursa Major are the Great Bear." },
+    ],
+  },
+  body: {
+    label: "✋ Body",
+    words: [
+      { la: "manus", pr: "MAH-noos", en: "hand", pic: "✋", clue: "You wave with it." },
+      { la: "pes", pr: "PACE", en: "foot", pic: "🦶", clue: "You stand on it." },
+      { la: "oculus", pr: "OH-koo-loos", en: "eye", pic: "👁️", clue: "You see with it." },
+      { la: "auris", pr: "OW-rees", en: "ear", pic: "👂", clue: "You hear with it." },
+      { la: "nasus", pr: "NAH-soos", en: "nose", pic: "👃", clue: "You smell with it." },
+      { la: "dens", pr: "DENS", en: "tooth", pic: "🦷", clue: "You brush it every day." },
+      { la: "cor", pr: "KOR", en: "heart", pic: "❤️", clue: "It beats inside your chest." },
+      { la: "caput", pr: "KAH-poot", en: "head", noPic: true, clue: "It sits on top of your neck." },
+    ],
+  },
+  actions: {
+    label: "🏃 Actions",
+    words: [
+      { la: "amo", pr: "AH-moh", en: "I love", pic: "🤗", clue: "A big hug shows it." },
+      { la: "laudo", pr: "LOU-doh", en: "I praise", pic: "👏", clue: "You clap and say: well done!" },
+      { la: "porto", pr: "POR-toh", en: "I carry", pic: "📦", clue: "You hold a box and walk with it." },
+      { la: "voco", pr: "VOH-koh", en: "I call", pic: "📣", clue: "You shout someone's name." },
+      { la: "specto", pr: "SPEK-toh", en: "I look at", pic: "👀", clue: "You use your eyes." },
+      { la: "ambulo", pr: "AHM-boo-loh", en: "I walk", pic: "🚶", clue: "Step, step, on your feet." },
+      { la: "canto", pr: "KAHN-toh", en: "I sing", pic: "🎤", clue: "You make music with your voice." },
+      { la: "navigo", pr: "NAH-vee-goh", en: "I sail", pic: "⛵", clue: "A boat on the sea." },
+    ],
+  },
+};
+for (const [key, theme] of Object.entries(THEMES)) theme.words.forEach((w) => (w.theme = key));
+const ALL_WORDS = Object.values(THEMES).flatMap((t) => t.words);
+const WORD = Object.fromEntries(ALL_WORDS.map((w) => [w.la, w]));
+
+const NUMS = [
+  { n: 1, la: "unus", pr: "OO-noos", clue: "A unicorn has how many horns?" },
+  { n: 2, la: "duo", pr: "DOO-oh", clue: "Duo sounds a bit like two. A duet is for how many singers?" },
+  { n: 3, la: "tres", pr: "TRACE", clue: "Tres sounds a bit like three. A triangle has how many corners?" },
+  { n: 4, la: "quattuor", pr: "KWAHT-too-or", clue: "Four quarters make one whole. Which number?" },
+  { n: 5, la: "quinque", pr: "KWEEN-kweh", clue: "A quintet is a band of this many players. Count your fingers on one hand!" },
+  { n: 6, la: "sex", pr: "SEKS", clue: "Sex sounds a bit like six." },
+  { n: 7, la: "septem", pr: "SEP-tem", clue: "Septem sounds a bit like seven." },
+  { n: 8, la: "octo", pr: "OCK-toh", clue: "Octo sounds a bit like eight. Think of October." },
+  { n: 9, la: "novem", pr: "NO-vem", clue: "Novem sounds a bit like nine. Think of November." },
+  { n: 10, la: "decem", pr: "DAY-chem", clue: "Think of December. Count all your fingers!" },
+];
+const numLa = (n) => la(NUMS[n - 1].la, NUMS[n - 1].pr);
+const NUM_WORDS = [
+  { eng: "unicorn", n: 1, pic: "🦄", why: "uni- comes from unus, one. A unicorn has one horn." },
+  { eng: "duet", n: 2, pic: "🎤🎤", why: "A duet is music for two singers or players." },
+  { eng: "triangle", n: 3, pic: "🔺", why: "tri- comes from tres, three. A triangle has three corners." },
+  { eng: "quarter", n: 4, pic: "🪙", why: "A quarter is one of four equal parts. Four quarters make a dollar." },
+  { eng: "quintet", n: 5, pic: "🎺", why: "A quintet is a group of five musicians." },
+  { eng: "sextet", n: 6, pic: "🎻", why: "A sextet is a group of six musicians." },
+  { eng: "September", n: 7, pic: "🍂", why: "Septem means seven. But September is our 9th month!", sept: true },
+  { eng: "October", n: 8, pic: "🎃", why: "Octo means eight. October was the 8th month of the old Roman year." },
+  { eng: "November", n: 9, pic: "🦃", why: "Novem means nine. November was the 9th month of the old Roman year." },
+  { eng: "December", n: 10, pic: "❄️", why: "Decem means ten. December was the 10th month of the old Roman year." },
+  { eng: "decimal", n: 10, pic: "🔟", why: "Decimal numbers are built from tens. Decem means ten." },
+];
+
+// English words that really grew from these Latin words.
+const DERIV = [
+  { la: "aqua", eng: "aquarium", pic: "🐠", why: "An aquarium is a water home for fish.", means: "a tank of water for fish" },
+  { la: "manus", eng: "manual", pic: "✋", why: "Manual means done by hand.", means: "done by hand" },
+  { la: "porto", eng: "transport", pic: "🚚", why: "Trans means across. To transport is to carry things across, like a truck.", means: "to carry from place to place" },
+  { la: "canis", eng: "canine", pic: "🐕", why: "Canine means about dogs. Your pointy canine teeth look like a dog's.", means: "about dogs" },
+  { la: "luna", eng: "lunar", pic: "🌙", why: "Lunar means about the Moon, like a lunar rocket.", means: "about the Moon" },
+  { la: "sol", eng: "solar", pic: "☀️", why: "Solar means about the Sun. Solar panels use sunlight.", means: "about the Sun" },
+  { la: "stella", eng: "constellation", pic: "✨", why: "Con means together. A constellation is a group of stars together.", means: "a group of stars" },
+  { la: "specto", eng: "spectator", pic: "🏟️", why: "A spectator is a person who watches a game or a show.", means: "a person who watches" },
+  { la: "pes", eng: "pedal", pic: "🚲", why: "Pes changes to ped- in longer words. You push a pedal with your foot.", means: "a lever you push with your foot", stem: "ped-" },
+  { la: "dens", eng: "dentist", pic: "🦷", why: "Dens changes to dent- in longer words. A dentist is a tooth doctor.", means: "a tooth doctor", stem: "dent-" },
+  { la: "mater", eng: "maternal", pic: "👩", why: "Maternal means like a mother, or from your mother's side.", means: "like a mother" },
+  { la: "terra", eng: "terrarium", pic: "🪴", why: "A terrarium is a glass box with earth and plants inside.", means: "a glass box with earth and plants" },
+  { la: "avis", eng: "aviary", pic: "🐦", why: "An aviary is a big home for birds.", means: "a big home for birds" },
+  { la: "navigo", eng: "navigate", pic: "🧭", why: "To navigate is to find the way, like a ship's captain.", means: "to find the way" },
+  { la: "equus", eng: "equestrian", pic: "🐎", why: "An equestrian is a person who rides horses.", means: "a horse rider" },
+  { la: "felis", eng: "feline", pic: "🐈", why: "Feline means about cats. Lions are felines too!", means: "about cats" },
+  { la: "caput", eng: "capital", pic: "🔠", why: "A capital letter stands at the head of a sentence.", means: "at the head, the most important" },
+  { la: "cor", eng: "courage", pic: "🦸", why: "Courage means a brave heart. It came to English through French.", means: "a brave heart" },
+  { la: "ambulo", eng: "ambulance", pic: "🚑", why: "Long ago, an ambulance was a walking hospital that moved along with the army.", means: "a car that takes sick people to hospital" },
+  { la: "voco", eng: "vocabulary", pic: "📖", why: "Vocabulary is all the words we use to call things.", means: "all the words you know" },
+  { la: "oculus", eng: "binoculars", pic: "👀", why: "Bi means two. Binoculars are for your two eyes.", means: "a tool to see far with two eyes" },
+  { la: "rex", eng: "regal", pic: "👑", why: "Regal means fit for a king or a queen.", means: "fit for a king or queen" },
+  { la: "ignis", eng: "ignite", pic: "🔥", why: "To ignite is to set something on fire.", means: "to set on fire" },
+  { la: "canto", eng: "chant", pic: "🎵", why: "Cantare came to English through French as chant: words sung or said together.", means: "words sung or said together" },
+  { la: "arbor", eng: "arboretum", pic: "🌳", why: "An arboretum is a garden of trees.", means: "a garden of trees" },
+  { la: "nasus", eng: "nasal", pic: "👃", why: "Nasal means about the nose, like a nasal spray.", means: "about the nose" },
+];
+DERIV.forEach((d) => (d.w = WORD[d.la]));
+
+const GREET = [
+  { la: "salve", pr: "SAHL-vay", en: "hello (to one person)", scene: ["🧒", "👋"], caption: "You meet one friend.", ask: "Say hello to your friend!" },
+  { la: "salvete", pr: "sahl-VAY-tay", en: "hello (to everyone)", scene: ["👋", "👩", "👨", "👧"], caption: "Your whole family comes in.", ask: "Say hello to everyone!" },
+  { la: "vale", pr: "VAH-lay", en: "goodbye (to one person)", scene: ["🧒", "🚪"], caption: "Your friend goes home.", ask: "Say goodbye to your friend!" },
+  { la: "valete", pr: "vah-LAY-tay", en: "goodbye (to everyone)", scene: ["🧒", "🧒", "🧒", "🚌"], caption: "The whole class goes home.", ask: "Say goodbye to everyone!" },
+  { la: "gratias tibi", pr: "GRAH-tsee-ahs TEE-bee", en: "thank you", scene: ["🎁", "😊"], caption: "Someone gives you a present.", ask: "What do you say?" },
+  { la: "quid agis?", pr: "KWEED AH-jees", en: "how are you?", scene: ["🧒", "❓"], caption: "You want to know how a friend feels.", ask: "Ask your friend!" },
+  { la: "bene", pr: "BEH-nay", en: "well, good", scene: ["😄", "👍"], caption: "A friend asks how you are. You feel great.", ask: "Tell them you are well!" },
+  { la: "ita", pr: "EE-tah", en: "yes", scene: ["🍰", "😋"], caption: "Would you like some cake?", ask: "Say yes!", note: "Ita really means so! Romans used it to say yes." },
+  { la: "minime", pr: "MEE-nee-may", en: "no (not at all)", scene: ["🐈", "🐟"], caption: "Is a cat a fish?", ask: "Say no!", note: "Minime means not at all: a strong, polite no." },
+];
+
+const EVERY = [
+  { ab: "a.m.", full: "ante meridiem", pr: "AHN-tay meh-REE-dee-em", en: "before midday", pic: "🌅", line: "School starts at 8 a.m.", why: "Ante means before and meridiem means midday. So 8 a.m. is in the morning." },
+  { ab: "p.m.", full: "post meridiem", pr: "POST meh-REE-dee-em", en: "after midday", pic: "🌇", line: "Dinner is at 6 p.m.", why: "Post means after. So 6 p.m. is in the evening." },
+  { ab: "etc.", full: "et cetera", pr: "et CHAY-teh-rah", en: "and the rest", pic: "🍎🍐🍇", line: "I like apples, pears, grapes, etc.", why: "Et means and. Et cetera means and the rest, so we do not have to list them all." },
+  { ab: "e.g.", full: "exempli gratia", pr: "ek-SEM-plee GRAH-tsee-ah", en: "for example", pic: "🦉🦆", line: "Birds, e.g. owls and ducks, have feathers.", why: "e.g. means for example: owls and ducks are examples of birds." },
+  { ab: "i.e.", full: "id est", pr: "EED EST", en: "that is", pic: "☀️", line: "Our nearest star, i.e. the Sun, is hot.", why: "Id est means that is. It tells you exactly which one." },
+  { ab: "vs.", full: "versus", pr: "VAIR-soos", en: "against", pic: "⚽", line: "Today it is the Lions vs. the Tigers.", why: "Versus means against: one team plays against the other." },
+  { ab: "P.S.", full: "post scriptum", pr: "POST SKREEP-toom", en: "written after", pic: "✉️", line: "P.S. Bring your boots!", why: "Post scriptum means written after. A P.S. is added after the end of a letter." },
+  { ab: "A.D.", full: "anno Domini", pr: "AHN-noh DOH-mee-nee", en: "in the year of the Lord", pic: "📅", line: "Rome grew big long before A.D. 100.", why: "Anno Domini means in the year of the Lord. It is an old way to count the years." },
+  { ab: "E pluribus unum", full: "E pluribus unum", pr: "ay PLOO-ree-boos OO-noom", en: "out of many, one", pic: "🪙", line: "It is on United States coins.", why: "Many states join together to make one country. Unum means one, like unus!", motto: true },
+  { ab: "carpe diem", full: "carpe diem", pr: "KAR-pay DEE-em", en: "seize the day", pic: "🌞", line: "A famous old Latin saying.", why: "Carpe diem means seize the day: make good use of today.", motto: true },
+  { ab: "tempus fugit", full: "tempus fugit", pr: "TEM-poos FOO-jeet", en: "time flies", pic: "⏳", line: "Often written on old clocks.", why: "Tempus fugit means time flies: time goes by fast.", motto: true },
+  { ab: "semper fidelis", full: "semper fidelis", pr: "SEM-pair fee-DAY-lees", en: "always faithful", pic: "🤝", line: "The motto of the US Marines.", why: "Semper means always, and fidelis means faithful: you can always trust them.", motto: true },
+];
+
+// ---------- Small helpers ----------
+const GOOD = ["You looked carefully!", "Nice thinking!", "You remembered!", "You used the clue well!", "You checked the word parts!", "Careful reading!"];
+const LEVELS = [["easy", "🐣 Easy"], ["medium", "🦊 Medium"], ["hard", "🦁 Hard"]];
+const sample = (list, n, not = []) => shuffle(list.filter((x) => !not.includes(x))).slice(0, n);
+const deal = (list, n) => {
+  const out = [];
+  while (out.length < n) out.push(...shuffle(list));
+  return out.slice(0, n);
+};
+const st = document.createElement("style");
+st.textContent = `
+.ap-say i.la{font-style:italic;font-weight:900;color:var(--accent-dark)}
+.ap-say small.pr{color:var(--muted);font-weight:800;font-style:normal}
+.la-pick .kt-choices button{min-height:58px;min-width:96px;font-size:21px;border-radius:20px;line-height:1.15;padding:6px 16px}
+.la-pick .kt-choices button i{font-weight:900}
+.la-pick .kt-choices button small{display:block;font-size:13px;font-weight:700;color:var(--muted)}
+.la-pick .kt-choices button:disabled{opacity:.45}
+.la-again{width:46px;height:44px;border:0;border-radius:22px;background:#fff;box-shadow:0 3px 0 #e2d6c4;font-size:20px;cursor:pointer}
+.la-themes button{padding:0 12px}
+.la-card{cursor:pointer}
+.la-real{position:fixed;z-index:50}
+.la-real .kt-how-icon{display:none}
+.la-real .kt-how-card{gap:8px;padding:16px 22px}
+.la-real h2{font-size:clamp(20px,2.8vw,27px)}
+.la-real li{font-size:clamp(15px,2vw,19px)}
+.la-real .kt-go{min-height:52px;margin-top:2px}
+.la-real p{margin:0;color:#2b1d12;font:700 clamp(15px,2vw,18px)/1.35 var(--sans);text-align:left;width:100%}
+.la-real p.safe{color:#8a4b14;background:#fff4e2;border-radius:14px;padding:8px 12px}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){
+ .la-pick .kt-choices button{min-height:46px;min-width:70px;font-size:17px;padding:4px 12px}
+ .la-pick .kt-choices button small{font-size:11px}
+ .la-again{height:36px;width:40px;font-size:17px}
+}
+@media (max-width:520px){.la-themes .tx{display:none}.la-themes button{font-size:20px;min-width:48px}}
+@media (max-height:460px){.la-themes .tx{display:none}.la-themes button{font-size:18px;min-width:44px}}
+`;
+document.head.appendChild(st);
+
+function fresh() {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+}
+
+// A picture for a word: an emoji, a crown on top, or a coloured sky behind.
+function pic(g, x, y, w, size) {
+  if (w.bg) el("rect", { x: x - size * 0.62, y: y - size * 0.55, width: size * 1.24, height: size * 1.1, rx: 24, fill: w.bg }, g);
+  if (w.crown) {
+    emoji(g, x, y - size * 0.4, "👑", size * 0.5);
+    emoji(g, x, y + size * 0.14, w.pic, size * 0.78);
+  } else emoji(g, x, y, w.pic, w.pic.length > 3 && !w.pic.includes("‍") ? size * 0.7 : size);
+}
+function card(g, x, y, w, h, fill = "#fffcf6") {
+  return el("rect", { x, y, width: w, height: h, rx: 26, fill, stroke: "#d9cdb5", "stroke-width": 4 }, g);
+}
+// Big Latin word with its "how to say it" guide underneath.
+function latinCard(v, word, pr, y = 30, extra = "") {
+  const width = Math.max(420, Math.min(900, word.length * 46 + 120));
+  card(v, 500 - width / 2, y, width, 170);
+  text(v, 500, y + 92, word, { "font-size": word.length > 14 ? 58 : 76, fill: "var(--accent-dark)", "font-style": "italic", "font-weight": 900 });
+  text(v, 500, y + 146, `say: ${pr}${extra}`, { "font-size": 30, fill: "#7a6552", "font-weight": 700 });
+}
+function englishCard(v, words, y = 30, size = 64) {
+  const width = Math.max(380, Math.min(920, words.length * 34 + 120));
+  card(v, 500 - width / 2, y, width, 130, "#fff");
+  text(v, 500, y + 86, words, { "font-size": words.length > 22 ? 44 : size, fill: "#2b1d12", "font-weight": 900 });
+}
+// Wrap a sentence onto lines of at most max characters; returns the y after the last line.
+function lines(v, str, y, size, max, attrs = {}) {
+  const out = [];
+  for (const word of str.split(" ")) {
+    const last = out[out.length - 1];
+    if (last && (last + " " + word).length <= max) out[out.length - 1] = last + " " + word;
+    else out.push(word);
+  }
+  out.forEach((line, i) => text(v, 500, y + i * size * 1.2, line, { "font-size": size, fill: "#2b1d12", "font-weight": 900, ...attrs }));
+  return y + out.length * size * 1.2;
+}
+function caption(v, str, y, size = 34) {
+  text(v, 500, y, str, { "font-size": size, fill: "#4d3c2e", "font-weight": 800 });
+}
+
+const levelRow = (cur) =>
+  `<div class="ap-row"><div class="ap-chips" data-levels>${LEVELS.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p><button type="button" class="la-again" data-again aria-label="Say it again">🔊</button></div>`;
+
+// ---------- The round engine shared by every game ----------
+// plan(level, extra) returns a list of questions:
+// { draw(view), say, opts:[{label, ok, w?}], pics?:bool, hint, answer, why, then?:question }
+function game(id, { plan, count, real, extra = "", extraKey, extraDefault }) {
+  const my = token;
+  const saved = shell.progress()[id] || {};
+  let level = saved.level || "easy";
+  let pickExtra = (extraKey && saved[extraKey]) || extraDefault;
+  let qs = [];
+  let round = 0;
+  let first = 0;
+  let clean = true;
+  let q = null;
+  let tries = 0;
+  let busy = false;
+  const root = panel(`${extra}${levelRow(level)}<div class="la-pick" data-choices></div>`);
+  const host = $("[data-choices]");
+  const status = (s) => ($("[data-status]").textContent = s || `Round ${round + 1} of ${qs.length}`);
+  if (extraKey) root.querySelectorAll("[data-x]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.x === pickExtra)));
+
+  const start = () => {
+    qs = plan(level, pickExtra);
+    round = 0;
+    first = 0;
+    ask(qs[0], true);
+  };
+  const ask = (next, newRound) => {
+    q = next;
+    tries = 0;
+    busy = false;
+    if (newRound) clean = true;
+    status();
+    if (!q.keep) {
+      fresh();
+      q.draw?.(view);
+    }
+    if (q.pics) {
+      drawCards();
+      host.innerHTML = "";
+      host.onclick = null;
+    } else {
+      KIT.choices(host, q.opts, (o, b) => answer(o, b));
+    }
+    say(q.say);
+  };
+  const drawCards = () => {
+    const n = q.opts.length;
+    const w = 250;
+    const gap = 40;
+    const x0 = 500 - (n * w + (n - 1) * gap) / 2;
+    q.opts.forEach((o, i) => {
+      const g = el("g", { class: "la-card", "data-i": i }, view);
+      o.node = g;
+      o.rect = card(g, x0 + i * (w + gap), 238, w, 290);
+      pic(g, x0 + i * (w + gap) + w / 2, 383, o.w, 150);
+    });
+    view.addEventListener("pointerdown", (event) => {
+      const g = event.target.closest(".la-card");
+      if (g && !g.dataset.off) answer(q.opts[Number(g.dataset.i)], g);
+    });
+  };
+  const paint = (node, ok) => {
+    if (node.tagName === "BUTTON") {
+      node.classList.add(ok ? "right" : "wrong");
+      if (!ok) node.disabled = true;
+    } else {
+      const rect = node.querySelector("rect");
+      rect.setAttribute("stroke", ok ? "#22a05a" : "#d9822b");
+      rect.setAttribute("fill", ok ? "#e6f6ea" : "#f6e6dc");
+      rect.setAttribute("stroke-width", 8);
+      if (!ok) {
+        node.dataset.off = "1";
+        node.setAttribute("opacity", 0.45);
+      }
+    }
+  };
+  const nodeOf = (o) => (q.pics ? o.node : host.querySelectorAll("[data-c]")[q.opts.indexOf(o)]);
+  const nextButton = () => {
+    const last = !q.then && round >= qs.length;
+    host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-go data-pulse>${q.then ? "Next step ▶" : last ? "Finish ▶" : "Next ▶"}</button></div>`;
+    host.onclick = (event) => {
+      if (!event.target.closest("[data-go]") || my !== token) return;
+      window.OC?.touch();
+      if (q.then) ask(q.then, false);
+      else if (round >= qs.length) finish();
+      else ask(qs[round], true);
+    };
+  };
+  const answer = (o, node) => {
+    if (my !== token || busy) return;
+    window.OC?.touch();
+    if (o.ok) {
+      busy = true;
+      paint(node, true);
+      MUSIC.chime();
+      if (!q.then) {
+        round += 1;
+        if (clean) first += 1;
+        window.OC?.count(count);
+      }
+      say(`${pick(GOOD)} ${q.why}`);
+      nextButton();
+    } else {
+      tries += 1;
+      clean = false;
+      paint(node, false);
+      MUSIC.oops();
+      if (tries < 2) say(`Mistakes are how we learn. ${q.hint}`);
+      else {
+        busy = true;
+        const right = q.opts.find((x) => x.ok);
+        paint(nodeOf(right), true);
+        if (!q.then) {
+          round += 1;
+          window.OC?.count(count);
+        }
+        say(`Let's look why. It is <b>${q.answer}</b>${/[.?!]$/.test(q.answer) ? "" : "."} ${q.why}`);
+        nextButton();
+      }
+    }
+  };
+  const finish = () => {
+    busy = true;
+    const total = qs.length;
+    fresh();
+    for (let i = 0; i < 7; i++) emoji(view, 200 + i * 100, 60 + (i % 2) * 30, "🌿", 50);
+    emoji(view, 500, 200, "🏛️", 150);
+    text(view, 500, 380, "Optime!", { "font-size": 84, fill: "var(--accent-dark)", "font-style": "italic", "font-weight": 900 });
+    text(view, 500, 432, "say: OP-tee-may = very well done", { "font-size": 30, fill: "#7a6552" });
+    text(view, 500, 500, `${first} of ${total} right on the first try`, { "font-size": 32, fill: "#2b1d12" });
+    confetti();
+    MUSIC.chime();
+    shell.mark(id, { done: true });
+    status("All done!");
+    const effort = first === total ? "You read every question carefully." : "You kept trying when it was tricky. That is how we learn.";
+    say(`🎉 ${la("Optime!", "OP-tee-may")} That means very well done. You finished all ${total} rounds. ${effort}`);
+    host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-real>🏠 Try it for real</button><button type="button" data-again2>🔁 Play again</button></div>`;
+    host.onclick = (event) => {
+      if (my !== token) return;
+      if (event.target.closest("[data-real]")) realCard(real);
+      else if (event.target.closest("[data-again2]")) start();
+    };
+  };
+  root.onclick = (event) => {
+    if (my !== token) return;
+    const lv = event.target.closest("[data-lv]");
+    const x = event.target.closest("[data-x]");
+    if (event.target.closest("[data-again]")) {
+      window.OC?.touch();
+      if (q && !busy) say(q.say);
+      else VOICE.speak($("[data-say]")?.innerHTML || "");
+      return;
+    }
+    if (lv) {
+      level = lv.dataset.lv;
+      root.querySelectorAll("[data-lv]").forEach((b) => b.setAttribute("aria-pressed", String(b === lv)));
+      shell.mark(id, { level });
+    } else if (x) {
+      pickExtra = x.dataset.x;
+      root.querySelectorAll("[data-x]").forEach((b) => b.setAttribute("aria-pressed", String(b === x)));
+      shell.mark(id, { [extraKey]: pickExtra });
+    } else return;
+    window.OC?.touch();
+    VOICE.hush();
+    start();
+  };
+  start();
+  // Test hooks (used by the automated checks only).
+  const tap = (ok) => {
+    if (!q) return "no question";
+    const o = q.opts.find((x) => x.ok === ok && !(nodeOf(x)?.disabled || nodeOf(x)?.dataset.off));
+    if (!o) return "none";
+    const node = nodeOf(o);
+    if (q.pics) node.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    else node.click();
+    return ok ? "right" : "wrong";
+  };
+  window.__lg = {
+    state: () => ({ round, first, total: qs.length, level, tries, step: !!q?.keep, say: $("[data-say]")?.innerText }),
+    right: () => tap(true),
+    wrong: () => tap(false),
+    next: () => (host.querySelector("[data-go]")?.click(), "next"),
+  };
+}
+
+function realCard(r) {
+  document.querySelector(".la-real")?.remove();
+  const box = document.createElement("div");
+  box.className = "kt-how la-real";
+  box.innerHTML = `<div class="kt-how-card" role="dialog" aria-label="Try it for real"><h2>🏠 Try it for real: ${r.title}</h2><p><b>You need:</b> ${r.need}</p><ol>${r.steps.map((s) => `<li>${s}</li>`).join("")}</ol><p class="safe">🧡 ${r.safe}</p><button type="button" class="kt-go">✓ OK!</button></div>`;
+  document.body.appendChild(box);
+  VOICE.speak(`Try it for real: ${r.title}. You need: ${r.need}. ${r.steps.join(" ")} ${r.safe}`);
+  box.querySelector(".kt-go").addEventListener("click", () => {
+    VOICE.hush();
+    box.remove();
+  });
+}
+
+// ---------- Question makers ----------
+function wordQ(level, w, pool = THEMES[w.theme].words) {
+  const name = lap(w.la, w.pr);
+  const isAct = w.theme === "actions";
+  const why = `${name} means <b>${w.en}</b>.${isAct ? " The -o at the end means I." : ""}${w.note ? ` ${w.note}` : ""}`;
+  const hint = `Clue: ${w.clue} Which one fits?`;
+  if (level === "easy") {
+    const others = sample(pool.filter((p) => !p.noPic), 2, [w]);
+    return {
+      pics: true,
+      draw: (v) => latinCard(v, w.la, w.pr),
+      opts: shuffle([w, ...others]).map((p) => ({ w: p, ok: p === w })),
+      say: `Which picture is ${name}? Tap it.`,
+      hint,
+      answer: `the ${w.en} picture`,
+      why,
+    };
+  }
+  if (level === "medium") {
+    const others = sample(pool, 2, [w]);
+    return {
+      draw(v) {
+        el("circle", { cx: 500, cy: 250, r: 190, fill: "var(--accent-soft)" }, v);
+        pic(v, 500, 250, w, 230);
+      },
+      opts: shuffle([w, ...others]).map((p) => ({ label: `<i>${p.la}</i>`, ok: p === w })),
+      say: `What is this in Latin? Tap the word.`,
+      hint,
+      answer: w.la,
+      why,
+    };
+  }
+  const others = sample(pool, 3, [w]);
+  return {
+    draw(v) {
+      englishCard(v, w.en, 60, 76);
+      if (!w.noPic) pic(v, 500, 360, w, 190);
+      else caption(v, w.clue, 330, 32);
+    },
+    opts: shuffle([w, ...others]).map((p) => ({ label: `<i>${p.la}</i>`, ok: p === w })),
+    say: `How do you say <b>${w.en}</b> in Latin?`,
+    hint: `${isAct ? "Action words end in -o, which means I. " : ""}Clue: ${w.clue} Think back to the pictures.`,
+    answer: w.la,
+    why,
+  };
+}
+
+function countQ(n) {
+  const num = NUMS[n - 1];
+  const glyph = pick(["🍎", "🐞", "⭐", "🐟", "🌼", "🎈"]);
+  const others = sample(NUMS, 2, [num]);
+  return {
+    draw(v) {
+      const rows = n > 5 ? 2 : 1;
+      for (let i = 0; i < n; i++) {
+        const r = Math.floor(i / 5);
+        const inRow = r === 0 ? Math.min(5, n) : n - 5;
+        const c = i % 5;
+        emoji(v, 500 + (c - (inRow - 1) / 2) * 170, rows === 1 ? 280 : 175 + r * 210, glyph, 120);
+      }
+    },
+    opts: shuffle([num, ...others]).map((p) => ({ label: `<i>${p.la}</i>`, ok: p === num })),
+    say: `How many? Tap the Latin number.`,
+    hint: `Did you count each one? Touch each picture and count. Then find the Latin word. ${num.clue}`,
+    answer: num.la,
+    why: `There are ${n}. ${n} is ${lap(num.la, num.pr)}.`,
+  };
+}
+function numWordQ(n) {
+  const num = NUMS[n - 1];
+  const others = sample(NUMS, 3, [num]).map((x) => x.n);
+  return {
+    draw: (v) => {
+      latinCard(v, num.la, num.pr, 150);
+      caption(v, "Which number is this?", 420, 36);
+    },
+    opts: [n, ...others].sort((a, b) => a - b).map((x) => ({ label: String(x), ok: x === n })),
+    say: `Which number is ${lap(num.la, num.pr)}?`,
+    hint: num.clue,
+    answer: String(n),
+    why: `${lap(num.la, num.pr)} is ${n}.`,
+  };
+}
+function numHardQ(item) {
+  const num = NUMS[item.n - 1];
+  const others = sample(NUMS, 3, [num]);
+  const q = {
+    draw(v) {
+      englishCard(v, item.eng, 50, 76);
+      emoji(v, 500, 330, item.pic, item.pic.length > 3 ? 120 : 170);
+    },
+    opts: shuffle([num, ...others]).map((p) => ({ label: `<i>${p.la}</i> <small>${p.n}</small>`, ok: p === num })),
+    say: `Which Latin number is hiding in <b>${item.eng}</b>?`,
+    hint: `Look at the start of ${item.eng}. Which Latin number begins the same way?`,
+    answer: num.la,
+    why: `${lap(num.la, num.pr)} is ${item.n}. ${item.why}`,
+  };
+  if (item.sept)
+    q.then = {
+      keep: true,
+      opts: shuffle([
+        { label: "The old Roman year began in March", ok: true },
+        { label: "The Romans could only count to 7", ok: false },
+        { label: "September is the coldest month", ok: false },
+      ]),
+      say: `Septem means 7, but September is month 9. Why?`,
+      hint: `Count the months from March: March, April, May… Which number is September?`,
+      answer: "The old Roman year began in March",
+      why: `March was month 1, so September was month 7. Later the year started in January, and September became month 9.`,
+    };
+  return q;
+}
+
+function derivQ(level, d, pool = DERIV) {
+  const w = d.w;
+  const name = lap(w.la, w.pr);
+  const stem = d.stem ? ` (in long words: ${d.stem})` : "";
+  if (level === "hard") {
+    const roots = sample(pool, 3, [d]);
+    const meanings = sample(pool, 2, [d]);
+    return {
+      draw(v) {
+        englishCard(v, d.eng, 60, 76);
+        emoji(v, 500, 340, d.pic, d.pic.length > 3 ? 120 : 170);
+      },
+      opts: shuffle([d, ...roots]).map((p) => ({ label: `<i>${p.la}</i>`, ok: p === d })),
+      say: `Which Latin word is hiding inside <b>${d.eng}</b>?`,
+      hint: `Say ${d.eng} slowly. Which Latin word's letters can you find inside it?`,
+      answer: w.la,
+      why: `${name} means <b>${w.en}</b>${stem}.`,
+      then: {
+        keep: true,
+        opts: shuffle([d, ...meanings]).map((p) => ({ label: p.means, ok: p === d })),
+        say: `${name} means ${w.en}. So what does <b>${d.eng}</b> mean?`,
+        hint: `${w.la} means ${w.en}. Which meaning has ${w.en} in it?`,
+        answer: d.means,
+        why: d.why,
+      },
+    };
+  }
+  const n = level === "easy" ? 2 : 3;
+  const others = sample(pool, n, [d]);
+  return {
+    draw(v) {
+      latinCard(v, w.la, w.pr, 40, `   ·   ${w.en}`);
+      if (level === "easy") emoji(v, 500, 360, w.noPic ? d.pic : w.pic, 170);
+      else caption(v, "Which English word grew from it?", 330, 36);
+    },
+    opts: shuffle([d, ...others]).map((p) => ({ label: p.eng, ok: p === d })),
+    say: `${name} means <b>${w.en}</b>. Which English word comes from it?`,
+    hint: d.eng.toLowerCase().startsWith((d.stem || w.la).replace("-", "").slice(0, 3)) ? `Look at the first letters of each word. Which one starts like ${d.stem || w.la}?` : `${w.la} means ${w.en}. Which English word is about ${w.en}?`,
+    answer: d.eng,
+    why: d.why,
+  };
+}
+
+function greetQ(level, g) {
+  const n = level === "hard" ? 3 : 2;
+  let others;
+  if (level === "hard") {
+    const twin = { salve: "salvete", salvete: "salve", vale: "valete", valete: "vale" }[g.la];
+    others = twin ? [GREET.find((x) => x.la === twin), ...sample(GREET, 2, [g, GREET.find((x) => x.la === twin)])] : sample(GREET, n, [g]);
+  } else others = sample(GREET, n, [g]);
+  return {
+    draw(v) {
+      card(v, 140, 20, 720, 270, "#fff");
+      const gap = g.scene.length > 3 ? 165 : 200;
+      g.scene.forEach((s, i) => emoji(v, 500 + (i - (g.scene.length - 1) / 2) * gap, 155, s, g.scene.length > 3 ? 130 : 150));
+      const y = lines(v, g.caption, 355, 46, 30, { fill: "#4d3c2e" });
+      lines(v, g.ask, y + 6, 40, 34, { fill: "var(--accent-dark)" });
+    },
+    opts: shuffle([g, ...others]).map((p) => ({ label: `<i>${p.la}</i>${level === "easy" ? `<small>${p.en}</small>` : ""}`, ok: p === g })),
+    say: `${g.caption} ${g.ask}`,
+    hint: level === "hard" && /^(salve|vale)/.test(g.la) ? `Is it one person or everyone? Words ending in -te are for everyone.` : `What do you want to say? Think: hello, goodbye, thank you, yes or no?`,
+    answer: g.la,
+    why: `${lap(g.la, g.pr)} means <b>${g.en}</b>${/[?]$/.test(g.en) ? "" : "."}${g.note ? ` ${g.note}` : ""}${/^(salvete|valete)/.test(g.la) ? " The -te ending is for more than one person." : ""}`,
+  };
+}
+
+function everyQ(level, e) {
+  const draw = (v) => {
+    card(v, 60, 30, 880, 230, "#fff");
+    const big = e.motto ? e.ab : e.line;
+    const two = big.length > 24;
+    lines(v, big, two ? 128 : 165, two ? 54 : 62, 26, { "font-style": e.motto ? "italic" : "normal" });
+    emoji(v, 500, 375, e.pic, e.pic.length > 3 ? 110 : 160);
+    if (e.motto) caption(v, e.line, 530, 38);
+  };
+  if (level === "hard") {
+    const others = sample(EVERY, 3, [e]);
+    const meanings = sample(EVERY, 2, [e]);
+    if (e.motto)
+      return {
+        draw,
+        opts: shuffle([e, ...others]).map((p) => ({ label: p.en, ok: p === e })),
+        say: `What does ${lap(e.ab, e.pr)} mean?`,
+        hint: `Look for a Latin word you know inside it. What could it mean?`,
+        answer: e.en,
+        why: e.why,
+      };
+    const abOthers = sample(EVERY.filter((x) => !x.motto), 3, [e]);
+    return {
+      draw,
+      opts: shuffle([e, ...abOthers]).map((p) => ({ label: `<i>${p.full}</i>`, ok: p === e })),
+      say: `<b>${e.ab}</b> is short for which Latin words?`,
+      hint: `Look at the letters in ${e.ab.replace(/\.$/, "")}. Which Latin words start with those letters?`,
+      answer: e.full,
+      why: `${e.ab} is short for ${lap(e.full, e.pr)}.`,
+      then: {
+        keep: true,
+        opts: shuffle([e, ...meanings]).map((p) => ({ label: p.en, ok: p === e })),
+        say: `So what does <b>${e.ab}</b> mean?`,
+        hint: `Read the sentence again. What makes sense there?`,
+        answer: e.en,
+        why: e.why,
+      },
+    };
+  }
+  const others = sample(EVERY, level === "easy" ? 2 : 3, [e]);
+  return {
+    draw,
+    opts: shuffle([e, ...others]).map((p) => ({ label: p.en, ok: p === e })),
+    say: e.motto ? `${lap(e.ab, e.pr)}. ${e.line} What does it mean?` : `${e.line} What does <b>${e.ab}</b> mean?`,
+    hint: e.motto ? `Is there a Latin word you know inside it?` : `Read the sentence again. Which meaning makes sense there?`,
+    answer: e.en,
+    why: e.why,
+  };
+}
+
+// ---------- Units ----------
+const units = {
+  l0() {
+    const my = token;
+    const pop = async (api, g, ms = 600) => api.tween(ms, (t) => g.setAttribute("opacity", t));
+    explain(
+      [
+        {
+          say: "Why learn Latin? Lots of English words come from it. Doctors and scientists use it, and it helps with Spanish, French and Italian too!",
+          draw: everyday([["📚", "Big English words"], ["🔬", "Science names"], ["🩺", "Doctor words"], ["🗣️", "Spanish, French, Italian"]]),
+        },
+        {
+          say: "About two thousand years ago, the people of Rome spoke Latin. Their words travelled all over the world.",
+          async draw(v, api) {
+            el("rect", { x: 0, y: 470, width: W, height: 90, fill: "#e3f0d6" }, v);
+            const base = el("g", { opacity: 0 }, v);
+            el("rect", { x: 220, y: 430, width: 560, height: 40, rx: 6, fill: "#e9dcc6", stroke: "#8a7764", "stroke-width": 3 }, base);
+            el("rect", { x: 250, y: 400, width: 500, height: 34, rx: 6, fill: "#f3e9d6", stroke: "#8a7764", "stroke-width": 3 }, base);
+            await pop(api, base);
+            for (let i = 0; i < 6; i++) {
+              const x = 285 + i * 86;
+              const col = el("rect", { x, y: 400, width: 44, height: 0, rx: 6, fill: "#fbf6ec", stroke: "#8a7764", "stroke-width": 3 }, v);
+              await api.tween(450, (t) => {
+                col.setAttribute("y", 400 - 210 * t);
+                col.setAttribute("height", 210 * t);
+              });
+              MUSIC.play("xylophone", 72 + [0, 2, 4, 5, 7, 9][i], { gain: 0.3 });
+            }
+            const top = el("g", { opacity: 0 }, v);
+            el("path", { d: "M235 190 L500 70 L765 190 Z", fill: "#f3e9d6", stroke: "#8a7764", "stroke-width": 4, "stroke-linejoin": "round" }, top);
+            text(top, 500, 168, "ROMA", { "font-size": 50, fill: "var(--accent-dark)", "letter-spacing": 8 });
+            await pop(api, top, 800);
+            await api.wait(300);
+            const tag = el("g", { opacity: 0 }, v);
+            text(tag, 500, 530, "Rome, about 2,000 years ago", { "font-size": 32, fill: "#2b1d12" });
+            await pop(api, tag);
+          },
+        },
+        {
+          say: `Latin is like a grandparent language. Spanish, Italian, French, Portuguese and Romanian grew from it. See how they all say water!`,
+          async draw(v, api) {
+            const trunk = el("g", { opacity: 0 }, v);
+            el("path", { d: "M470 540 L480 330 L520 330 L530 540 Z", fill: "#a8632d" }, trunk);
+            el("rect", { x: 380, y: 380, width: 240, height: 110, rx: 22, fill: "var(--accent)" }, trunk);
+            text(trunk, 500, 425, "Latin", { "font-size": 30, fill: "#fff" });
+            text(trunk, 500, 472, "aqua", { "font-size": 44, fill: "#fff", "font-style": "italic" });
+            await pop(api, trunk, 800);
+            const kids = [["Spanish", "agua", 140, 120], ["Italian", "acqua", 330, 50], ["Portuguese", "água", 670, 50], ["French", "eau", 860, 120], ["Romanian", "apă", 500, 200]];
+            for (const [lang, word, x, y] of kids) {
+              const g = el("g", { opacity: 0 }, v);
+              el("path", { d: `M500 380 Q${(500 + x) / 2} ${y + 160} ${x} ${y + 85}`, fill: "none", stroke: "#a8632d", "stroke-width": 10, "stroke-linecap": "round" }, g);
+              el("rect", { x: x - 95, y: y - 10, width: 190, height: 100, rx: 20, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, g);
+              text(g, x, y + 26, lang, { "font-size": 24, fill: "#7a6552" });
+              text(g, x, y + 70, word, { "font-size": 38, fill: "#2b1d12", "font-style": "italic" });
+              await pop(api, g, 700);
+              MUSIC.play("xylophone", 79, { gain: 0.3 });
+              await api.wait(500);
+            }
+          },
+        },
+        {
+          say: "About 6 out of every 10 words in a big English dictionary come from Latin, some straight from Latin and some through French.",
+          async draw(v, api) {
+            const latin = ["animal", "family", "color", "number", "picture", "circle"];
+            const old = ["mother", "water", "house", "sun"];
+            const all = [...latin.map((w) => [w, true]), ...old.map((w) => [w, false])];
+            const blocks = [];
+            all.forEach(([w, isLa], i) => {
+              const x = 60 + (i % 5) * 180;
+              const y = 70 + Math.floor(i / 5) * 130;
+              const g = el("g", { opacity: 0 }, v);
+              const r = el("rect", { x, y, width: 160, height: 100, rx: 18, fill: "#fff", stroke: "#d9cdb5", "stroke-width": 4 }, g);
+              text(g, x + 80, y + 62, w, { "font-size": 30, fill: "#2b1d12" });
+              blocks.push({ g, r, isLa });
+            });
+            for (const b of blocks) await pop(api, b.g, 260);
+            await api.wait(600);
+            for (const b of blocks.filter((b) => b.isLa)) {
+              b.r.setAttribute("fill", "var(--accent-soft)");
+              b.r.setAttribute("stroke", "var(--accent)");
+              MUSIC.play("xylophone", 76, { gain: 0.25 });
+              await api.wait(380);
+            }
+            const key = el("g", { opacity: 0 }, v);
+            el("rect", { x: 160, y: 380, width: 40, height: 40, rx: 8, fill: "var(--accent-soft)", stroke: "var(--accent)", "stroke-width": 4 }, key);
+            text(key, 220, 412, "6 come from Latin", { "font-size": 30, fill: "#2b1d12", "text-anchor": "start" });
+            el("rect", { x: 160, y: 450, width: 40, height: 40, rx: 8, fill: "#fff", stroke: "#d9cdb5", "stroke-width": 4 }, key);
+            text(key, 220, 482, "4 come from Old English", { "font-size": 30, fill: "#2b1d12", "text-anchor": "start" });
+            await pop(api, key, 800);
+          },
+        },
+        {
+          say: `${lap("Aqua", "AH-kwah")} means water. An aquarium is a water home for fish. Aquatic animals live in water. An aqueduct carries water.`,
+          async draw(v, api) {
+            const mid = el("g", { opacity: 0 }, v);
+            el("circle", { cx: 500, cy: 150, r: 105, fill: "var(--accent)" }, mid);
+            text(mid, 500, 150, "aqua", { "font-size": 54, fill: "#fff", "font-style": "italic" });
+            text(mid, 500, 196, "= water 💧", { "font-size": 26, fill: "#fff" });
+            await pop(api, mid, 800);
+            const kids = [["aquarium", "🐠", 170], ["aquatic", "🐬", 500], ["aqueduct", "arches", 830]];
+            for (const [w, g0, x] of kids) {
+              const g = el("g", { opacity: 0 }, v);
+              const line = el("path", { d: `M500 255 Q${(500 + x) / 2} 290 ${x} 330`, fill: "none", stroke: "var(--accent)", "stroke-width": 6, "stroke-linecap": "round" }, g);
+              el("rect", { x: x - 140, y: 330, width: 280, height: 200, rx: 24, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, g);
+              if (g0 === "arches") {
+                el("rect", { x: x - 90, y: 368, width: 180, height: 16, fill: "#5aa9e6" }, g);
+                el("path", { d: `M${x - 95} 384 H${x + 95} V462 H${x + 85} V432 a25 25 0 0 0 -50 0 V462 H${x + 25} V432 a25 25 0 0 0 -50 0 V462 H${x - 35} V432 a25 25 0 0 0 -50 0 V462 H${x - 95} Z`, fill: "#e9dcc6", stroke: "#8a7764", "stroke-width": 3, "stroke-linejoin": "round" }, g);
+              } else emoji(g, x, 400, g0, 84);
+              text(g, x, 500, "", { "font-size": 36, fill: "#2b1d12" }).innerHTML = `<tspan fill="var(--accent-dark)">aqu</tspan>${w.slice(3)}`;
+              await pop(api, g, 700);
+              MUSIC.play("xylophone", 76 + kids.findIndex((k) => k[0] === w) * 3, { gain: 0.3 });
+              await api.wait(900);
+              void line;
+            }
+          },
+        },
+        {
+          say: `Latin has its own sounds. Read the say-it letters, and say them with a grown-up. ${lap("caelum", "CHAY-loom")} means sky. A c before e or i sounds like ch.`,
+          async draw(v, api) {
+            const rows = [["caelum", "CHAY-loom", "sky", "☁️"], ["decem", "DAY-chem", "ten", "🔟"], ["regina", "reh-JEE-nah", "queen", "👑"]];
+            for (let i = 0; i < rows.length; i++) {
+              const [word, pr, en, glyph] = rows[i];
+              const y = 40 + i * 168;
+              const g = el("g", { opacity: 0 }, v);
+              el("rect", { x: 80, y, width: 840, height: 145, rx: 24, fill: "#fff", stroke: "#d9cdb5", "stroke-width": 4 }, g);
+              emoji(g, 160, y + 72, glyph, 78);
+              text(g, 340, y + 70, word, { "font-size": 52, fill: "var(--accent-dark)", "font-style": "italic" });
+              text(g, 340, y + 116, en, { "font-size": 26, fill: "#7a6552" });
+              text(g, 520, y + 86, "→", { "font-size": 44, fill: "#8a7764" });
+              text(g, 730, y + 88, pr, { "font-size": 46, fill: "#2b1d12" });
+              await pop(api, g, 700);
+              await api.wait(1000);
+            }
+          },
+        },
+        {
+          say: `We still use Latin every day! a.m. means before midday. United States coins say ${lap("E pluribus unum", "ay PLOO-ree-boos OO-noom")}: out of many, one.`,
+          async draw(v, api) {
+            const clock = el("g", { opacity: 0 }, v);
+            el("circle", { cx: 270, cy: 250, r: 150, fill: "#fff", stroke: "#5a4130", "stroke-width": 8 }, clock);
+            for (let h = 0; h < 12; h++) {
+              const a = (h / 12) * Math.PI * 2;
+              el("line", { x1: 270 + Math.sin(a) * 125, y1: 250 - Math.cos(a) * 125, x2: 270 + Math.sin(a) * 140, y2: 250 - Math.cos(a) * 140, stroke: "#5a4130", "stroke-width": 5 }, clock);
+            }
+            const hand = el("line", { x1: 270, y1: 250, x2: 270, y2: 170, stroke: "#5a4130", "stroke-width": 10, "stroke-linecap": "round" }, clock);
+            el("line", { x1: 270, y1: 250, x2: 270, y2: 135, stroke: "var(--accent)", "stroke-width": 6, "stroke-linecap": "round" }, clock);
+            text(clock, 270, 460, "8 a.m.", { "font-size": 48, fill: "#2b1d12" });
+            text(clock, 270, 510, "ante meridiem = before midday", { "font-size": 24, fill: "#7a6552" });
+            await pop(api, clock, 700);
+            await api.tween(1200, (t) => hand.setAttribute("transform", `rotate(${240 * t} 270 250)`));
+            const coin = el("g", { opacity: 0 }, v);
+            el("circle", { cx: 730, cy: 250, r: 150, fill: "#d9d9d9", stroke: "#9a9a9a", "stroke-width": 10 }, coin);
+            el("circle", { cx: 730, cy: 250, r: 122, fill: "none", stroke: "#b0b0b0", "stroke-width": 3 }, coin);
+            text(coin, 730, 235, "E PLURIBUS", { "font-size": 34, fill: "#555" });
+            text(coin, 730, 280, "UNUM", { "font-size": 34, fill: "#555" });
+            text(coin, 730, 460, "out of many, one", { "font-size": 34, fill: "#2b1d12" });
+            await pop(api, coin, 800);
+          },
+        },
+      ],
+      { alive: () => my === token, onDone: () => shell.go("l1"), title: "Latin" }
+    );
+  },
+
+  l1() {
+    game("l1", {
+      count: "Latin numbers",
+      plan(level) {
+        if (level === "easy") return deal([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 8).map(countQ);
+        if (level === "medium") return deal([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 10).map(numWordQ);
+        const items = shuffle(NUM_WORDS.filter((x) => !x.sept)).slice(0, 7);
+        items.splice(Math.floor(Math.random() * 7), 0, NUM_WORDS.find((x) => x.sept));
+        return items.map(numHardQ);
+      },
+      real: {
+        title: "Count in Latin",
+        need: "10 small things, like buttons, blocks or beans.",
+        steps: ["Line them up in a row.", `Touch each one and count in Latin: ${la("unus", "OO-noos")}, ${la("duo", "DOO-oh")}, ${la("tres", "TRACE")}…`, "Hide some. Ask a grown-up to count what is left in Latin."],
+        safe: "Small things stay in hands, never in mouths. Play with a grown-up.",
+      },
+    });
+  },
+
+  l2() {
+    const themes = Object.entries(THEMES);
+    game("l2", {
+      count: "Latin words",
+      extraKey: "theme",
+      extraDefault: "family",
+      extra: `<div class="ap-chips la-themes" data-themes>${themes.map(([k, t]) => `<button type="button" data-x="${k}" aria-label="${t.label.slice(t.label.indexOf(" ") + 1)}">${t.label.split(" ")[0]}<span class="tx">&nbsp;${t.label.slice(t.label.indexOf(" ") + 1)}</span></button>`).join("")}</div>`,
+      plan(level, theme) {
+        const words = THEMES[theme].words;
+        const pool = level === "hard" ? words : words.filter((w) => !w.noPic);
+        return deal(pool, 8).map((w) => wordQ(level, w, words));
+      },
+      real: {
+        title: "Latin labels",
+        need: "Paper cards, a pencil and some tape.",
+        steps: [`Write a Latin word on each card: ${la("aqua", "AH-kwah")}, ${la("arbor", "AHR-bor")}, ${la("canis", "KAH-nees")}…`, `Tape each card on the real thing. ${la("Aqua", "AH-kwah")} goes by the tap!`, "Say each word when you walk past it."],
+        safe: "Ask a grown-up where the tape can go.",
+      },
+    });
+  },
+
+  l3() {
+    game("l3", {
+      count: "word roots found",
+      plan(level) {
+        return sample(DERIV, 8).map((d) => derivQ(level, d));
+      },
+      real: {
+        title: "Word hunt",
+        need: "A book, a cereal box, or signs on a walk.",
+        steps: ["Look for long English words.", `Find a Latin word hiding inside, like ${la("sol", "SOLE")} in solar.`, "Tell a grown-up what the Latin word means."],
+        safe: "Go on the walk with a grown-up.",
+      },
+    });
+  },
+
+  l4() {
+    game("l4", {
+      count: "Latin greetings",
+      plan(level) {
+        return shuffle(GREET).slice(0, 8).map((g) => greetQ(level, g));
+      },
+      real: {
+        title: "Latin day",
+        need: "Just you and your family.",
+        steps: [`Say ${la("salvete", "sahl-VAY-tay")} to everyone at breakfast.`, `Say ${la("gratias tibi", "GRAH-tsee-ahs TEE-bee")} when someone helps you.`, `Say ${la("valete", "vah-LAY-tay")} to everyone at bedtime.`],
+        safe: "Teach your grown-ups the words, so they can answer you!",
+      },
+    });
+  },
+
+  l5() {
+    game("l5", {
+      count: "Latin phrases",
+      plan(level) {
+        const shorts = EVERY.filter((e) => !e.motto);
+        const mottos = EVERY.filter((e) => e.motto);
+        const list = level === "easy" ? sample(shorts, 6).concat(sample(mottos, 2)) : sample(shorts, 5).concat(sample(mottos, 3));
+        return shuffle(list).map((e) => everyQ(level, e));
+      },
+      real: {
+        title: "Latin detective at home",
+        need: "A clock, a US coin, and paper.",
+        steps: [`Find ${la("E PLURIBUS UNUM", "ay PLOO-ree-boos OO-noom")} on a coin.`, "Look at a clock. Is it a.m. or p.m. now?", "Write a note to someone and add a P.S. at the end."],
+        safe: "Coins are small: keep them out of mouths. Do it with a grown-up.",
+      },
+    });
+  },
+
+  l6() {
+    game("l6", {
+      count: "review questions",
+      plan(level) {
+        const words = (n, lv) => sample(ALL_WORDS.filter((w) => lv === "hard" || !w.noPic), n).map((w) => wordQ(lv, w, THEMES[w.theme].words));
+        const nums = (n) => deal([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], n);
+        let list;
+        if (level === "easy") list = [...words(4, "easy"), ...nums(3).map(countQ), ...sample(GREET, 3).map((g) => greetQ("easy", g))];
+        else if (level === "medium")
+          list = [...words(3, "medium"), ...nums(2).map(numWordQ), ...sample(DERIV, 2).map((d) => derivQ("medium", d)), ...sample(EVERY, 2).map((e) => everyQ("medium", e)), greetQ("medium", pick(GREET))];
+        else
+          list = [...sample(DERIV, 3).map((d) => derivQ("hard", d)), ...sample(NUM_WORDS, 2).map(numHardQ), ...sample(EVERY, 2).map((e) => everyQ("hard", e)), ...words(2, "hard"), greetQ("hard", pick(GREET))];
+        return shuffle(list);
+      },
+      real: {
+        title: "Be the teacher",
+        need: "Your Latin label cards, or paper and a pencil.",
+        steps: ["Pick 5 Latin words you know.", "Teach them to a grown-up with the say-it letters.", "Give your grown-up a little quiz!"],
+        safe: "Be a kind teacher: praise them for trying.",
+      },
+    });
+  },
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    l0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    l1: { icon: "🔢", title: "Latin numbers", steps: ["Look at the picture or the word.", "Tap the answer.", "Not sure? Read the clue and try again."] },
+    l2: { icon: "🖼️", title: "First words", steps: ["Pick a group, like Family or Animals.", "Read the Latin word and say it with a grown-up.", "Tap the picture that matches."] },
+    l3: { icon: "🕵️", title: "Word detective", steps: ["Read the Latin word and what it means.", "Find the English word that grew from it.", "Read why, then press Next."] },
+    l4: { icon: "👋", title: "Hello in Latin", steps: ["Look at the picture.", "What would you say?", "Tap the Latin words."] },
+    l5: { icon: "🕰️", title: "Latin all around", steps: ["Read the sentence.", "What do the short letters mean?", "Tap the answer."] },
+    l6: { icon: "🏆", title: "Big review", steps: ["Pick Easy, Medium or Hard.", "Answer the mixed questions.", "Take your time. There is no clock."] },
+  },
+  start: "l0",
+  onStop() {
+    token += 1;
+    document.querySelector(".la-real")?.remove();
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Languages",
+  activity: "Latin Lab",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 77, 79, 81, 82, 85]);
+window.__la = { THEMES, NUMS, NUM_WORDS, DERIV, GREET, EVERY, forVoice };
+</script>
+</body>
+</html>

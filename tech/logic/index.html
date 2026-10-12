@@ -1,0 +1,1352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logic Lab · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="tech">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Logic Lab</b><small>Logic · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>// ===== ENGINE START =====
+// Pure puzzle logic (no DOM). The test file runs this part in Node.
+const COLORS = { red: "#e5483b", blue: "#2f6fe0", yellow: "#f2b705", green: "#2e9e55", purple: "#8e44ad" };
+const SHAPES = ["circle", "square", "triangle", "star", "diamond", "hexagon"];
+// Two figures that LOOK the same have the same key (a square turned 90° looks unchanged).
+const SYM = { circle: 1, square: 90, hexagon: 60, diamond: 180, star: 72, triangle: 120, arrow: 360, flag: 360, moon: 360 };
+const keyOf = (f) => [f.shape, f.color, (f.count || 1) > 1 ? "-" : f.size || "b", f.fill || "solid", ((((f.rot || 0) % 360) + 360) % 360) % (SYM[f.shape] || 360), f.count || 1].join("|");
+
+// Detective grids: solutions as permutations, clues checked by brute force.
+function perms(n) {
+  if (n === 1) return [[0]];
+  const out = [];
+  for (const p of perms(n - 1)) for (let i = 0; i <= p.length; i++) out.push([...p.slice(0, i), n - 1, ...p.slice(i)]);
+  return out;
+}
+const holds = (c, s) => (c.t === "is" ? s[c.a] === c.x : c.t === "not" ? s[c.a] !== c.x : c.xs.includes(s[c.a]));
+const solutions = (n, clues) => perms(n).filter((s) => clues.every((c) => holds(c, s)));
+function makeGrid(n, kinds, maxClues, maxIs, rand = Math.random) {
+  const shuffle = (l) => {
+    const o = [...l];
+    for (let i = o.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [o[i], o[j]] = [o[j], o[i]];
+    }
+    return o;
+  };
+  for (let tries = 0; tries < 500; tries++) {
+    const sol = shuffle([...Array(n).keys()]);
+    const cand = [];
+    for (let a = 0; a < n; a++)
+      for (let x = 0; x < n; x++) {
+        if (x === sol[a]) {
+          if (kinds.includes("is")) cand.push({ t: "is", a, x });
+        } else {
+          if (kinds.includes("not")) cand.push({ t: "not", a, x });
+          if (kinds.includes("or")) cand.push({ t: "or", a, xs: shuffle([sol[a], x]) });
+        }
+      }
+    let clues = [];
+    for (const c of shuffle(cand)) {
+      if (clues.filter((k) => k.t === "is").length >= maxIs && c.t === "is") continue;
+      const before = solutions(n, clues).length;
+      if (before === 1) break;
+      if (solutions(n, [...clues, c]).length < before) clues.push(c);
+    }
+    if (solutions(n, clues).length !== 1) continue;
+    for (const c of [...clues]) {
+      const rest = clues.filter((k) => k !== c);
+      if (solutions(n, rest).length === 1) clues = rest;
+    }
+    if (clues.length <= maxClues && clues.length >= 2) return { n, sol, clues };
+  }
+  return null;
+}
+
+// Cube nets: roll a cube over the squares. A net folds into a cube when the 6 squares land on 6 different faces.
+function folds(cells) {
+  if (cells.length !== 6) return false;
+  const has = (x, y) => cells.some(([a, b]) => a === x && b === y);
+  const start = { d: 0, u: 1, n: 2, s: 3, e: 4, w: 5 };
+  const seen = new Map([[cells[0].join(","), start]]);
+  const q = [[...cells[0], start]];
+  while (q.length) {
+    const [x, y, o] = q.shift();
+    const moves = [
+      [1, 0, { d: o.e, e: o.u, u: o.w, w: o.d, n: o.n, s: o.s }],
+      [-1, 0, { d: o.w, w: o.u, u: o.e, e: o.d, n: o.n, s: o.s }],
+      [0, -1, { d: o.n, n: o.u, u: o.s, s: o.d, e: o.e, w: o.w }],
+      [0, 1, { d: o.s, s: o.u, u: o.n, n: o.d, e: o.e, w: o.w }],
+    ];
+    for (const [dx, dy, no] of moves) {
+      const k = `${x + dx},${y + dy}`;
+      if (has(x + dx, y + dy) && !seen.has(k)) {
+        seen.set(k, no);
+        q.push([x + dx, y + dy, no]);
+      }
+    }
+  }
+  if (seen.size !== 6) return false;
+  return new Set([...seen.values()].map((o) => o.d)).size === 6;
+}
+const faceOf = (cells) => {
+  const start = { d: 0, u: 1, n: 2, s: 3, e: 4, w: 5 };
+  const has = (x, y) => cells.some(([a, b]) => a === x && b === y);
+  const seen = new Map([[cells[0].join(","), start]]);
+  const q = [[...cells[0], start]];
+  while (q.length) {
+    const [x, y, o] = q.shift();
+    for (const [dx, dy, no] of [
+      [1, 0, { d: o.e, e: o.u, u: o.w, w: o.d, n: o.n, s: o.s }],
+      [-1, 0, { d: o.w, w: o.u, u: o.e, e: o.d, n: o.n, s: o.s }],
+      [0, -1, { d: o.n, n: o.u, u: o.s, s: o.d, e: o.e, w: o.w }],
+      [0, 1, { d: o.s, s: o.u, u: o.n, n: o.d, e: o.e, w: o.w }],
+    ]) {
+      const k = `${x + dx},${y + dy}`;
+      if (has(x + dx, y + dy) && !seen.has(k)) {
+        seen.set(k, no);
+        q.push([x + dx, y + dy, no]);
+      }
+    }
+  }
+  return cells.map((c) => seen.get(c.join(","))?.d ?? -1);
+};
+const parseNet = (rows) => rows.flatMap((r, y) => [...r].map((c, x) => (c === "#" ? [x, y] : null)).filter(Boolean));
+const NETS_OK = [
+  ["#...", "####", "#..."], [".#..", "####", "#..."], ["..#.", "####", "#..."], ["...#", "####", "#..."],
+  [".#..", "####", ".#.."], [".#..", "####", "..#."], ["##..", ".###", ".#.."], ["##..", ".###", "..#."],
+  ["##..", ".###", "...#"], ["##..", ".##.", "..##"], ["###..", "..###"],
+];
+const NETS_BAD = [
+  ["###", "###"], ["##..", "####"], ["#..#", "####"], ["##.", "##.", ".##"], ["####", ".##."],
+  ["#.#", "###", ".#."], ["###", "#..", "##."], ["##..", "##..", ".##."],
+];
+
+// Polyomino rotation and mirror (for "Rotate & fold").
+const norm = (cells) => {
+  const mx = Math.min(...cells.map((c) => c[0]));
+  const my = Math.min(...cells.map((c) => c[1]));
+  return cells.map(([x, y]) => [x - mx, y - my]).sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+};
+const rot90 = (cells) => norm(cells.map(([x, y]) => [-y, x]));
+const mirror = (cells) => norm(cells.map(([x, y]) => [-x, y]));
+const rotN = (cells, k) => {
+  let c = norm(cells);
+  for (let i = 0; i < k; i++) c = rot90(c);
+  return c;
+};
+const cellKey = (cells) => JSON.stringify(norm(cells));
+const chiral = (cells) => {
+  const rots = new Set([0, 1, 2, 3].map((k) => cellKey(rotN(cells, k))));
+  return [0, 1, 2, 3].every((k) => !rots.has(cellKey(rotN(mirror(cells), k))));
+};
+const POLY = [
+  { cells: [[0, 0], [0, 1], [0, 2], [1, 2]], name: "L" },
+  { cells: [[0, 0], [1, 0], [1, 1], [2, 1]], name: "S" },
+  { cells: [[0, 0], [1, 0], [2, 0], [0, 1]], name: "J" },
+  { cells: [[1, 0], [2, 0], [0, 1], [1, 1], [1, 2]], name: "F" },
+  { cells: [[0, 0], [1, 0], [0, 1], [1, 1], [0, 2]], name: "P" },
+  { cells: [[0, 0], [0, 1], [1, 1], [1, 2], [1, 3]], name: "N" },
+  { cells: [[0, 0], [1, 0], [2, 0], [3, 0], [1, 1]], name: "Y" },
+];
+// ===== ENGINE END =====
+
+const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, pickInt, wait, confetti, PRAISE, choices, explain, everyday, emoji, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "lg0", label: "See it", icon: "👀" },
+  { id: "lg1", label: "1. Same & different", icon: "🔍" },
+  { id: "lg2", label: "2. What comes next", icon: "➡️" },
+  { id: "lg3", label: "3. Sort into groups", icon: "🧺" },
+  { id: "lg4", label: "4. Analogies", icon: "🔗" },
+  { id: "lg5", label: "5. Detective grids", icon: "🕵️" },
+  { id: "lg6", label: "6. Rotate & fold", icon: "🧊" },
+];
+
+const lgStyle = document.createElement("style");
+lgStyle.textContent = `.lg-tap{cursor:pointer}
+.lg-real{position:absolute;inset:0;z-index:7;display:grid;place-items:center;padding:10px;background:rgba(245,239,228,.9)}
+.lg-real-card{max-width:600px;width:100%;max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:16px 20px;border-radius:26px;background:#fff;box-shadow:0 8px 0 #e2ecfb,0 18px 40px rgba(20,40,80,.18);color:#2b1d12;font:700 clamp(15px,2.1vw,19px)/1.35 var(--sans)}
+.lg-real-card h2{margin:0;font:900 clamp(20px,3vw,28px)/1.15 var(--sans);color:var(--accent-dark)}
+.lg-real-card ol{margin:0;padding-left:1.3em;display:grid;gap:4px}
+.lg-real-card .need{margin:0;padding:6px 10px;border-radius:12px;background:var(--accent-soft)}
+.lg-real-card .safe{margin:0;color:#8a4b12;font-size:.9em}
+.lg-real-card .ap-buttons{justify-content:center}
+@media (max-height:460px){.lg-real-card{padding:8px 12px;gap:4px;font-size:13.5px}.lg-real-card h2{font-size:18px}}
+.lg-pick .kt-choices button{min-height:52px;font-size:18px}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){.lg-pick .kt-choices button{min-height:40px;font-size:14.5px;padding:0 12px}}`;
+document.head.appendChild(lgStyle);
+
+function fresh() {
+  stage.querySelector(".lg-real")?.remove();
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+}
+const tween = (ms, fn, alive) =>
+  new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(true);
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!alive()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+const LEVELS = [["easy", "🐣 Easy"], ["medium", "🦊 Medium"], ["hard", "🦁 Hard"]];
+const levelRow = (cur) => `<div class="ap-row"><div class="ap-chips" data-levels>${LEVELS.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div>`;
+const onLevels = (id, fn) =>
+  $("[data-levels]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    shell.mark(id, { level: b.dataset.lv });
+    window.OC?.touch();
+    fn(b.dataset.lv);
+  });
+const status = (s) => {
+  const n = $("[data-status]");
+  if (n) n.textContent = s;
+};
+const EFFORT = ["You looked closely and kept thinking.", "You tried, checked, and tried again. That is how detectives work.", "You took your time. Careful thinking wins!", "You found the rule by looking at the clues."];
+const OOPS = "Mistakes are how we learn. Let's look why.";
+
+function realCard({ title, need, steps, safe = "Do it with a grown-up." }, again) {
+  stage.querySelector(".lg-real")?.remove();
+  const box = document.createElement("div");
+  box.className = "lg-real";
+  box.innerHTML = `<div class="lg-real-card" role="dialog" aria-label="Try it for real"><h2>🏠 Try it for real: ${title}</h2><p class="need"><b>You need:</b> ${need}</p><ol>${steps.map((s) => `<li>${s}</li>`).join("")}</ol><p class="safe">⚠️ ${safe}</p><div class="ap-buttons"><button type="button" class="primary" data-again>🔁 Play again</button><button type="button" data-close>✕ Close</button></div></div>`;
+  stage.appendChild(box);
+  box.querySelector("[data-again]").addEventListener("click", () => {
+    box.remove();
+    again?.();
+  });
+  box.querySelector("[data-close]").addEventListener("click", () => box.remove());
+}
+async function finish(my, id, count, real, again) {
+  confetti();
+  MUSIC.chime();
+  shell.mark(id, { done: true });
+  await sayAsync(`🎉 You finished all ${count}! ${pick(EFFORT)}`);
+  if (my !== token) return;
+  realCard(real, again);
+  say("🏠 Now try it for real, away from the screen!");
+}
+
+// ---------- figures ----------
+function shapePath(shape, r) {
+  const pts = (list) => list.map(([x, y]) => `${(x * r).toFixed(1)},${(y * r).toFixed(1)}`).join(" ");
+  if (shape === "square") return ["rect", { x: -r * 0.85, y: -r * 0.85, width: r * 1.7, height: r * 1.7, rx: r * 0.12 }];
+  if (shape === "triangle") return ["polygon", { points: pts([[0, -1], [0.98, 0.78], [-0.98, 0.78]]) }];
+  if (shape === "diamond") return ["polygon", { points: pts([[0, -1], [0.78, 0], [0, 1], [-0.78, 0]]) }];
+  if (shape === "hexagon") return ["polygon", { points: pts([0, 1, 2, 3, 4, 5].map((i) => [Math.cos((i * Math.PI) / 3), Math.sin((i * Math.PI) / 3)])) }];
+  if (shape === "star") return ["polygon", { points: pts([...Array(10).keys()].map((i) => [Math.cos(-Math.PI / 2 + (i * Math.PI) / 5) * (i % 2 ? 0.45 : 1), Math.sin(-Math.PI / 2 + (i * Math.PI) / 5) * (i % 2 ? 0.45 : 1)])) }];
+  if (shape === "arrow") return ["polygon", { points: pts([[0, -1], [0.75, -0.15], [0.3, -0.15], [0.3, 0.95], [-0.3, 0.95], [-0.3, -0.15], [-0.75, -0.15]]) }];
+  if (shape === "flag") return ["polygon", { points: pts([[-0.6, -1], [0.75, -1], [0.75, -0.3], [-0.05, -0.3], [-0.05, 1], [-0.6, 1]]) }];
+  if (shape === "moon") return ["path", { d: `M${0.2 * r} ${-r}A${r} ${r} 0 1 0 ${0.2 * r} ${r}A${0.75 * r} ${0.75 * r} 0 1 1 ${0.2 * r} ${-r}Z` }];
+  return ["circle", { cx: 0, cy: 0, r: r * 0.92 }];
+}
+// f: { shape, color, size: "s"|"m"|"b", fill: "solid"|"empty", rot, count }
+function fig(parent, cx, cy, f, scale = 1) {
+  const g = el("g", { transform: `translate(${cx} ${cy})` }, parent);
+  const R = (f.size === "s" ? 28 : f.size === "m" ? 42 : 56) * scale;
+  const n = f.count || 1;
+  const paint = (host, r) => {
+    const [tag, attrs] = shapePath(f.shape, r);
+    const c = COLORS[f.color] || f.color;
+    el(tag, { ...attrs, fill: f.fill === "empty" ? "#fff" : c, stroke: f.fill === "empty" ? c : "rgba(0,0,0,.25)", "stroke-width": f.fill === "empty" ? 7 * scale : 3 }, host);
+  };
+  if (n === 1) {
+    const inner = el("g", { transform: `rotate(${f.rot || 0})` }, g);
+    paint(inner, R);
+  } else {
+    const cols = n <= 4 ? 2 : 3;
+    const rows = Math.ceil(n / cols);
+    const r = 17 * scale;
+    for (let i = 0; i < n; i++) {
+      const row = Math.floor(i / cols);
+      const inRow = Math.min(cols, n - row * cols);
+      const x = ((i % cols) - (inRow - 1) / 2) * r * 2.4;
+      const y = (row - (rows - 1) / 2) * r * 2.4;
+      const inner = el("g", { transform: `translate(${x} ${y}) rotate(${f.rot || 0})` }, g);
+      paint(inner, r);
+    }
+  }
+  return g;
+}
+// a tappable card holding a figure or emoji
+function card(parent, x, y, w, h, i, { fill = "#fffdf8", stroke = "#d9cdb5", dash } = {}) {
+  const g = el("g", { class: "lg-tap", "data-i": i, transform: `translate(${x} ${y})` }, parent);
+  el("rect", { width: w, height: h, rx: 22, fill, stroke, "stroke-width": 4, "stroke-dasharray": dash, class: "lg-card" }, g);
+  return g;
+}
+const tint = (g, color, width = 7) => {
+  const r = g.querySelector(".lg-card");
+  r.setAttribute("stroke", color);
+  r.setAttribute("stroke-width", width);
+};
+const onCards = (fn) =>
+  view.addEventListener("pointerdown", (event) => {
+    const g = event.target.closest(".lg-tap");
+    if (g) {
+      window.OC?.touch();
+      fn(Number(g.dataset.i), g);
+    }
+  });
+const CNAME = { red: "red", blue: "blue", yellow: "yellow", green: "green", purple: "purple" };
+const SNAME = { circle: "circle", square: "square", triangle: "triangle", star: "star", diamond: "diamond", hexagon: "hexagon", arrow: "arrow", flag: "flag", moon: "moon" };
+const plural = (s) => SNAME[s] + "s";
+const randFig = (extra = {}) => ({ shape: pick(SHAPES), color: pick(Object.keys(COLORS)), size: "b", fill: "solid", rot: 0, ...extra });
+const same = (a, b) => keyOf(a) === keyOf(b);
+
+const units = {
+  lg0() {
+    const my = token;
+    const pop = async (api, g, ms = 500) => {
+      g.setAttribute("opacity", 0);
+      await api.tween(ms, (t) => g.setAttribute("opacity", t));
+    };
+    explain(
+      [
+        { say: "Why do we learn logic? Logic is careful thinking. Detectives use it to solve mysteries, and scientists use it to test ideas.", draw: everyday([["🕵️", "Detectives find clues"], ["🔬", "Scientists test ideas"], ["♟️", "Games and puzzles"], ["🤝", "Fair arguments"]]) },
+        {
+          say: "Look closely. Three are the same. One is different. Can you see it?",
+          async draw(v, api) {
+            const figs = [{ shape: "circle", color: "red" }, { shape: "circle", color: "red" }, { shape: "square", color: "red" }, { shape: "circle", color: "red" }];
+            const gs = [];
+            for (let i = 0; i < 4; i++) {
+              const g = el("g", {}, v);
+              el("rect", { x: 85 + i * 220, y: 140, width: 170, height: 170, rx: 24, fill: "#fffdf8", stroke: "#d9cdb5", "stroke-width": 4, class: "lg-card" }, g);
+              fig(g, 170 + i * 220, 225, figs[i]);
+              await pop(api, g, 400);
+              gs.push(g);
+            }
+            await api.wait(2200);
+            tint(gs[2], "var(--accent)", 9);
+            text(v, 610, 380, "different shape!", { "font-size": 34, fill: "var(--accent-dark)" });
+          },
+        },
+        {
+          say: "A pattern follows a rule. This arrow turns a quarter turn each time. So what comes next?",
+          async draw(v, api) {
+            const rots = [0, 90, 180, 270, 0];
+            for (let i = 0; i < 5; i++) {
+              const g = el("g", {}, v);
+              el("rect", { x: 70 + i * 180, y: 150, width: 150, height: 150, rx: 22, fill: i === 4 ? "#fff" : "#fffdf8", stroke: i === 4 ? "var(--accent)" : "#d9cdb5", "stroke-width": 4, "stroke-dasharray": i === 4 ? "12 8" : null }, g);
+              if (i < 4) fig(g, 145 + i * 180, 225, { shape: "arrow", color: "blue", rot: rots[i] });
+              else text(g, 145 + i * 180, 250, "?", { "font-size": 80, fill: "var(--accent)" });
+              await pop(api, g, 400);
+              await api.wait(300);
+            }
+            await api.wait(2400);
+            const ans = el("g", {}, v);
+            const arrow = fig(ans, 865, 225, { shape: "arrow", color: "blue", rot: 270 });
+            await api.tween(1200, (t) => arrow.setAttribute("transform", `translate(865 225) rotate(${90 * t})`));
+            text(v, 500, 400, "up, right, down, left, up!", { "font-size": 34, fill: "var(--accent-dark)" });
+          },
+        },
+        {
+          say: "Sorting means finding a rule. These things fly. These things swim. Where does the duck go? It can do both!",
+          async draw(v, api) {
+            el("ellipse", { cx: 270, cy: 300, rx: 210, ry: 160, fill: "#eaf2ff", stroke: "#2f6fe0", "stroke-width": 5 }, v);
+            el("ellipse", { cx: 730, cy: 300, rx: 210, ry: 160, fill: "#e6f7ef", stroke: "#2e9e55", "stroke-width": 5 }, v);
+            text(v, 270, 110, "flies", { "font-size": 34, fill: "#2f6fe0" });
+            text(v, 730, 110, "swims", { "font-size": 34, fill: "#2e9e55" });
+            const a = [["🦋", 200, 260], ["🐦", 330, 340], ["✈️", 230, 380]];
+            const b = [["🐟", 680, 260], ["🐙", 800, 340], ["🐬", 700, 390]];
+            for (const [g0, x, y] of [...a, ...b]) {
+              const g = el("g", {}, v);
+              emoji(g, x, y, g0, 76);
+              await pop(api, g, 350);
+              await api.wait(250);
+            }
+            await api.wait(1200);
+            const d = el("g", {}, v);
+            emoji(d, 500, 300, "🦆", 90);
+            await pop(api, d, 600);
+            text(v, 500, 520, "Rules help us sort and think.", { "font-size": 32, fill: "var(--accent-dark)" });
+          },
+        },
+        {
+          say: "An analogy is a pair that matches another pair. Small circle is to big circle, as small square is to big square.",
+          async draw(v, api) {
+            const items = [[{ shape: "circle", color: "red", size: "s" }, 110], [{ shape: "circle", color: "red", size: "b" }, 330], [{ shape: "square", color: "blue", size: "s" }, 640], [{ shape: "square", color: "blue", size: "b" }, 860]];
+            for (let i = 0; i < 4; i++) {
+              const [f, x] = items[i];
+              const g = el("g", {}, v);
+              el("rect", { x: x - 85, y: 150, width: 170, height: 170, rx: 24, fill: "#fffdf8", stroke: "#d9cdb5", "stroke-width": 4 }, g);
+              fig(g, x, 235, f);
+              await pop(api, g, 500);
+              if (i === 0 || i === 2) text(v, x + 110, 250, "→", { "font-size": 44, fill: "#6b4a2f" });
+              if (i === 1) text(v, 485, 252, "as", { "font-size": 40, fill: "var(--accent-dark)" });
+              await api.wait(900);
+            }
+            text(v, 500, 420, "small → big", { "font-size": 38, fill: "var(--accent-dark)" });
+          },
+        },
+        {
+          say: "Detectives use clues. Clue: the cat does not eat the fish. So we put an X there. One answer per row!",
+          async draw(v, api) {
+            const rows = ["🐱", "🐶", "🐰"];
+            const cols = ["🐟", "🦴", "🥕"];
+            const x0 = 470;
+            const y0 = 120;
+            const s = 110;
+            cols.forEach((c, i) => emoji(v, x0 + s * i + s / 2, y0 - 50, c, 60));
+            rows.forEach((r, i) => emoji(v, x0 - 55, y0 + s * i + s / 2, r, 60));
+            for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) el("rect", { x: x0 + c * s, y: y0 + r * s, width: s, height: s, fill: "#fffdf8", stroke: "#bfae94", "stroke-width": 3 }, v);
+            const note = el("g", {}, v);
+            el("rect", { x: 40, y: 150, width: 340, height: 150, rx: 18, fill: "#fff7d6", stroke: "#e0b84a", "stroke-width": 3 }, note);
+            text(note, 210, 205, "🐱 does not", { "font-size": 30, fill: "#2b1d12" });
+            text(note, 210, 255, "eat the 🐟", { "font-size": 30, fill: "#2b1d12" });
+            await pop(api, note, 600);
+            await api.wait(1800);
+            const mark = (r, c, ch, color) => text(v, x0 + c * s + s / 2, y0 + r * s + s / 2 + 26, ch, { "font-size": 70, fill: color });
+            mark(0, 0, "✗", "#c0392b");
+            MUSIC.play("woodblock", 79, { gain: 0.3 });
+            await api.wait(1800);
+            mark(1, 1, "✓", "#2e9e55");
+            mark(0, 1, "✗", "#c0392b");
+            mark(2, 1, "✗", "#c0392b");
+            MUSIC.play("woodblock", 72, { gain: 0.3 });
+            text(v, 210, 400, "✓ in a row →", { "font-size": 26, fill: "#6b4a2f" });
+            text(v, 210, 436, "✗ the rest!", { "font-size": 26, fill: "#6b4a2f" });
+          },
+        },
+        {
+          say: "A logic thinker looks closely, tries an idea, and checks it. Mistakes help us learn. Let's think!",
+          async draw(v, api) {
+            const steps = [["👀", "Look closely"], ["💡", "Try an idea"], ["✅", "Check it"]];
+            for (let i = 0; i < 3; i++) {
+              const g = el("g", {}, v);
+              el("circle", { cx: 200 + i * 300, cy: 230, r: 105, fill: "var(--accent-soft)" }, g);
+              emoji(g, 200 + i * 300, 226, steps[i][0], 110);
+              text(g, 200 + i * 300, 400, steps[i][1], { "font-size": 34, fill: "#2b1d12" });
+              if (i < 2) text(v, 350 + i * 300, 245, "→", { "font-size": 50, fill: "#6b4a2f" });
+              await pop(api, g, 600);
+              await api.wait(700);
+            }
+          },
+        },
+      ],
+      { alive: () => my === token, onDone: () => shell.go("lg1"), title: "Logic" }
+    );
+  },
+
+  lg1() {
+    const my = token;
+    let level = shell.progress().lg1?.level || "easy";
+    let round = 0;
+    let q = null;
+    let tries = 0;
+    let busy = false;
+    let picked = [];
+    panel(levelRow(level));
+    const ATTR = {
+      shape: (f) => ({ ...f, shape: pick(SHAPES.filter((s) => s !== f.shape)) }),
+      color: (f) => ({ ...f, color: pick(Object.keys(COLORS).filter((c) => c !== f.color)) }),
+      size: (f) => ({ ...f, size: f.size === "s" ? "b" : "s" }),
+      fill: (f) => ({ ...f, fill: f.fill === "empty" ? "solid" : "empty" }),
+      rot: (f) => ({ ...f, rot: (f.rot + pick([90, 180, 270])) % 360 }),
+    };
+    const describe = (attr, odd, base) =>
+      attr === "shape" ? `it is a ${SNAME[odd.shape]}, and the others are ${plural(base.shape)}` : attr === "color" ? `it is ${odd.color}, and the others are ${base.color}` : attr === "size" ? `it is ${odd.size === "s" ? "small" : "big"}, and the others are ${base.size === "s" ? "small" : "big"}` : attr === "fill" ? `it is ${odd.fill === "empty" ? "empty inside" : "filled in"}, and the others are ${base.fill === "empty" ? "empty" : "filled"}` : "it points a different way";
+    const make = () => {
+      if (level === "hard") {
+        const base = randFig({ shape: pick(["arrow", "flag", "triangle", "star"]), size: pick(["s", "b"]), fill: pick(["solid", "empty"]), rot: pick([0, 90, 180, 270]) });
+        const near = [];
+        const attrs = shuffle(["shape", "color", "size", "fill", "rot", "color", "rot"]);
+        for (const a of attrs) {
+          const f = ATTR[a](base);
+          if (!same(f, base) && !near.some((n) => same(n, f))) near.push({ ...f, attr: a });
+          if (near.length === 3) break;
+        }
+        const items = shuffle([base, base, ...near]);
+        const pair = items.map((f, i) => (same(f, base) ? i : -1)).filter((i) => i >= 0);
+        return { kind: "pair", items, pair, base };
+      }
+      const attr = level === "easy" ? pick(["shape", "color"]) : pick(["size", "fill", "rot", "rot"]);
+      const base = randFig(level === "medium" ? { shape: attr === "rot" ? pick(["arrow", "flag"]) : pick(SHAPES), size: attr === "size" ? pick(["s", "b"]) : "b", rot: attr === "rot" ? pick([0, 90, 180, 270]) : 0 } : {});
+      const odd = ATTR[attr](base);
+      const n = level === "easy" ? 4 : 5;
+      const at = pickInt(0, n - 1);
+      const items = [...Array(n)].map((_, i) => (i === at ? odd : base));
+      return { kind: "odd", items, at, attr, base, odd };
+    };
+    const ask = () => {
+      q = make();
+      tries = 0;
+      busy = false;
+      picked = [];
+      fresh();
+      const n = q.items.length;
+      const w = 170;
+      const gap = 18;
+      const x0 = (W - n * w - (n - 1) * gap) / 2;
+      q.cards = q.items.map((f, i) => {
+        const g = card(view, x0 + i * (w + gap), 160, w, 220, i);
+        fig(g, w / 2, 110, f, 1.25);
+        return g;
+      });
+      text(view, W / 2, 90, q.kind === "pair" ? "Find the two that match" : "Find the one that is different", { "font-size": 34, fill: "#2b1d12" });
+      onCards(tap);
+      status(`Round ${round + 1} of 10`);
+      say(q.kind === "pair" ? "Two of these are exactly the same. Tap the two that match." : "One of these is different. Tap it.");
+    };
+    const next = async () => {
+      round += 1;
+      window.OC?.count("logic puzzles");
+      await wait(2600);
+      if (my !== token) return;
+      if (round >= 10) return finish(my, "lg1", "10 puzzles", { title: "odd one out", need: "4 spoons and 1 fork (or any 5 things from the kitchen)", steps: ["A grown-up lines up 4 things that match and 1 that is different.", "Find the odd one and say WHY it is different.", "Swap jobs: you make one for the grown-up!"], safe: "Do it with a grown-up. No knives." }, () => units.lg1());
+      ask();
+    };
+    const tap = async (i, g) => {
+      if (my !== token || busy) return;
+      if (q.kind === "odd") {
+        if (i === q.at) {
+          busy = true;
+          tint(g, "#2e9e55", 9);
+          MUSIC.chime();
+          say(`${pick(PRAISE)} This one is different: ${describe(q.attr, q.odd, q.base)}.`);
+          return next();
+        }
+        tries += 1;
+        MUSIC.oops();
+        tint(g, "#d9822b");
+        if (tries < 2) return say(`${OOPS} That one matches another one. Look at shape, colour, size, and which way it points. What do you notice?`);
+        busy = true;
+        tint(q.cards[q.at], "#2e9e55", 9);
+        say(`Here it is: ${describe(q.attr, q.odd, q.base)}.`);
+        return next();
+      }
+      if (picked.includes(i)) return;
+      picked.push(i);
+      tint(g, "var(--accent)", 8);
+      MUSIC.play("xylophone", 76, { gain: 0.3 });
+      if (picked.length < 2) return say("Now tap its twin.");
+      if (q.pair.every((p) => picked.includes(p))) {
+        busy = true;
+        q.pair.forEach((p) => tint(q.cards[p], "#2e9e55", 9));
+        MUSIC.chime();
+        say(`${pick(PRAISE)} Those two match in every way: shape, colour, size, filling and turn.`);
+        return next();
+      }
+      tries += 1;
+      MUSIC.oops();
+      const wrong = picked.find((p) => !q.pair.includes(p)) ?? picked[1];
+      const why = q.items[wrong].attr;
+      picked.forEach((p) => tint(q.cards[p], "#d9cdb5", 4));
+      picked = [];
+      if (tries < 2) return say(`${OOPS} Those two are not twins: check the ${{ rot: "way they point", fill: "inside", color: "colour", size: "size", shape: "shape" }[why] || "details"}. Compare one thing at a time.`);
+      busy = true;
+      q.pair.forEach((p) => tint(q.cards[p], "#2e9e55", 9));
+      say("Here are the twins. Every other card changes one small thing: a colour, a size, a turn, or the inside.");
+      next();
+    };
+    onLevels("lg1", (lv) => {
+      level = lv;
+      round = 0;
+      ask();
+    });
+    ask();
+    window.__lg = { q: () => q, tap: (i) => tap(i, q.cards[i]), setRound: (r) => (round = r), go: (r) => ((round = r), ask()) };
+  },
+
+  lg2() {
+    const my = token;
+    let level = shell.progress().lg2?.level || "easy";
+    let round = 0;
+    let q = null;
+    let tries = 0;
+    let busy = false;
+    panel(levelRow(level));
+    const cyc = (list, i) => list[i % list.length];
+    const KINDS = {
+      easy: [
+        () => {
+          const [a, b] = shuffle(Object.keys(COLORS));
+          const s = pick(SHAPES);
+          return { seq: (i) => ({ shape: s, color: cyc([a, b], i) }), rule: `The colours take turns: ${a}, ${b}, ${a}, ${b}.` };
+        },
+        () => {
+          const [a, b] = shuffle(SHAPES);
+          const c = pick(Object.keys(COLORS));
+          return { seq: (i) => ({ shape: cyc([a, b], i), color: c }), rule: `The shapes take turns: ${SNAME[a]}, ${SNAME[b]}, ${SNAME[a]}, ${SNAME[b]}.` };
+        },
+        () => {
+          const s = pick(SHAPES);
+          const c = pick(Object.keys(COLORS));
+          return { seq: (i) => ({ shape: s, color: c, size: cyc(["s", "b"], i) }), rule: "Small, big, small, big. The sizes take turns." };
+        },
+        () => {
+          const cs = shuffle(Object.keys(COLORS)).slice(0, 3);
+          const s = pick(SHAPES);
+          return { seq: (i) => ({ shape: s, color: cyc(cs, i) }), rule: `Three colours repeat: ${cs.join(", ")}, then start again.` };
+        },
+      ],
+      medium: [
+        () => {
+          const c = pick(Object.keys(COLORS));
+          const r0 = pick([0, 90, 180, 270]);
+          return { seq: (i) => ({ shape: "arrow", color: c, rot: r0 + 90 * i }), rule: "The arrow turns a quarter turn, clockwise, every time." };
+        },
+        () => {
+          const c = pick(Object.keys(COLORS));
+          const s = pick(["circle", "square", "star"]);
+          return { seq: (i) => ({ shape: s, color: c, count: i + 1 }), rule: "One more each time: 1, 2, 3, 4, 5." };
+        },
+        () => {
+          const [a, b] = shuffle(SHAPES);
+          const c = pick(Object.keys(COLORS));
+          return { seq: (i) => ({ shape: cyc([a, a, b, b], i), color: c }), rule: `Two ${plural(a)}, two ${plural(b)}, and again.` };
+        },
+        () => {
+          const ss = shuffle(SHAPES).slice(0, 3);
+          const c = pick(Object.keys(COLORS));
+          return { seq: (i) => ({ shape: cyc(ss, i), color: c }), rule: `Three shapes repeat: ${ss.map((s) => SNAME[s]).join(", ")}.` };
+        },
+        () => {
+          const s = pick(SHAPES);
+          const c = pick(Object.keys(COLORS));
+          return { seq: (i) => ({ shape: s, color: c, fill: cyc(["solid", "empty"], i), size: cyc(["s", "s", "b", "b"], i) }), rule: "Filled, empty, filled, empty, and the size changes every two." };
+        },
+      ],
+      hard: [
+        () => {
+          const c = pick(Object.keys(COLORS));
+          return { seq: (i) => ({ shape: "arrow", color: c, rot: 45 * i }), rule: "The arrow turns an eighth of a turn each time: a smaller step!" };
+        },
+        () => {
+          const [a, b] = shuffle(SHAPES);
+          const cs = shuffle(Object.keys(COLORS)).slice(0, 3);
+          return { seq: (i) => ({ shape: cyc([a, b], i), color: cyc(cs, i) }), rule: `Two rules at once: the shapes take turns, and three colours repeat.` };
+        },
+        () => {
+          const s = pick(["circle", "square"]);
+          const c = pick(Object.keys(COLORS));
+          return { seq: (i) => ({ shape: s, color: c, count: 1 + 2 * i }), rule: "Two more each time: 1, 3, 5, 7, 9. The odd numbers!" };
+        },
+        () => {
+          const [a, b] = shuffle(Object.keys(COLORS));
+          return { seq: (i) => ({ shape: "flag", color: cyc([a, b], i), rot: 270 * i }), rule: "Two rules: the flag turns a quarter turn to the left each time, and the colours take turns." };
+        },
+        () => {
+          const c = pick(Object.keys(COLORS));
+          const ss = ["triangle", "square", "hexagon"];
+          return { seq: (i) => ({ shape: ss[i % 3], color: c, size: i < 3 ? "s" : "b" }), rule: "3 sides, 4 sides, 6 sides, again, and the second time they are big." };
+        },
+      ],
+    };
+    const VARY = [
+      (f) => ({ ...f, color: pick(Object.keys(COLORS).filter((c) => c !== f.color)) }),
+      (f) => ({ ...f, shape: pick(SHAPES.filter((s) => s !== f.shape)) }),
+      (f) => ({ ...f, rot: (f.rot || 0) + pick([90, 180, 45]) }),
+      (f) => ({ ...f, size: f.size === "s" ? "b" : "s" }),
+      (f) => ({ ...f, count: Math.max(1, (f.count || 1) + pick([-1, 1, 2])) }),
+      (f) => ({ ...f, fill: f.fill === "empty" ? "solid" : "empty" }),
+    ];
+    const make = () => {
+      const k = pick(KINDS[level])();
+      const len = k.len || 5;
+      const norm = (f) => ({ size: "b", fill: "solid", rot: 0, count: 1, ...f });
+      const shown = [...Array(len - 1)].map((_, i) => norm(k.seq(i)));
+      const ans = norm(k.seq(len - 1));
+      const opts = [ans];
+      // a near miss from the pattern itself first (the frame before), then single changes
+      const near = [shown[shown.length - 1], shown[shown.length - 2], ...shuffle(VARY).map((v) => norm(v(ans)))];
+      for (const f of near) {
+        if (opts.length >= (level === "easy" ? 3 : 4)) break;
+        if (f && !opts.some((o) => same(o, f))) opts.push(f);
+      }
+      return { shown, ans, opts: shuffle(opts), rule: k.rule };
+    };
+    const ask = () => {
+      q = make();
+      tries = 0;
+      busy = false;
+      fresh();
+      const n = q.shown.length + 1;
+      const w = 150;
+      const gap = 22;
+      const x0 = (W - n * w - (n - 1) * gap) / 2;
+      q.shown.forEach((f, i) => {
+        el("rect", { x: x0 + i * (w + gap), y: 40, width: w, height: w, rx: 22, fill: "#fffdf8", stroke: "#d9cdb5", "stroke-width": 4 }, view);
+        fig(view, x0 + i * (w + gap) + w / 2, 40 + w / 2, f, 0.95);
+      });
+      const qx = x0 + (n - 1) * (w + gap);
+      el("rect", { x: qx, y: 40, width: w, height: w, rx: 22, fill: "#fff", stroke: "var(--accent)", "stroke-width": 5, "stroke-dasharray": "12 8" }, view);
+      q.slot = text(view, qx + w / 2, 40 + w / 2 + 28, "?", { "font-size": 80, fill: "var(--accent)" });
+      q.qx = qx;
+      text(view, W / 2, 268, "Which one comes next?", { "font-size": 30, fill: "#6b4a2f" });
+      const m = q.opts.length;
+      const ow = 165;
+      const ox = (W - m * ow - (m - 1) * 30) / 2;
+      q.cards = q.opts.map((f, i) => {
+        const g = card(view, ox + i * (ow + 30), 300, ow, ow + 20, i);
+        fig(g, ow / 2, (ow + 20) / 2, f, 0.95);
+        return g;
+      });
+      onCards(tap);
+      status(`Pattern ${round + 1} of 10`);
+      say("What comes next? Find the rule, then tap the answer.");
+    };
+    const next = async () => {
+      round += 1;
+      window.OC?.count("patterns");
+      await wait(3000);
+      if (my !== token) return;
+      if (round >= 10) return finish(my, "lg2", "10 patterns", { title: "pattern train", need: "blocks, buttons, or socks in two or three colours", steps: ["Make a pattern in a long line: red, blue, red, blue…", "Ask a grown-up: what comes next?", "Now let the grown-up make one for you. Find the rule!"], safe: "Do it with a grown-up. Keep small buttons away from little ones." }, () => units.lg2());
+      ask();
+    };
+    const tap = async (i, g) => {
+      if (my !== token || busy) return;
+      if (same(q.opts[i], q.ans)) {
+        busy = true;
+        tint(g, "#2e9e55", 9);
+        q.slot.remove();
+        fig(view, q.qx + 75, 115, q.ans, 0.95);
+        MUSIC.chime();
+        say(`${pick(PRAISE)} ${q.rule}`);
+        return next();
+      }
+      tries += 1;
+      MUSIC.oops();
+      tint(g, "#d9822b");
+      if (tries < 2) return say(`${OOPS} Say the pattern out loud from the start. What changes each time? What stays the same?`);
+      busy = true;
+      const k = q.opts.findIndex((f) => same(f, q.ans));
+      tint(q.cards[k], "#2e9e55", 9);
+      q.slot.remove();
+      fig(view, q.qx + 75, 115, q.ans, 0.95);
+      say(`This one comes next. ${q.rule}`);
+      next();
+    };
+    onLevels("lg2", (lv) => {
+      level = lv;
+      round = 0;
+      ask();
+    });
+    ask();
+    window.__lg = { q: () => q, tap: (i) => tap(i, q.cards[i]), answer: () => q.opts.findIndex((f) => same(f, q.ans)), setRound: (r) => (round = r), go: (r) => ((round = r), ask()) };
+  },
+
+  lg3() {
+    const my = token;
+    let level = shell.progress().lg3?.level || "easy";
+    let round = 0;
+    let q = null;
+    let tries = 0;
+    let busy = false;
+    panel(`${levelRow(level)}<div data-choices class="lg-pick"></div>`);
+    const F = (shape, color, size = "b", count = 1) => ({ fig: { shape, color, size, fill: "solid", rot: 0, count } });
+    const E = (glyph, name) => ({ glyph, name });
+    const shapesOf = (list, color) => list.map((s) => F(s, color || pick(Object.keys(COLORS))));
+    const RULES = {
+      easy: [
+        () => ({ a: "red", b: "blue", A: shuffle(SHAPES).slice(0, 5).map((s) => F(s, "red")), B: shuffle(SHAPES).slice(0, 5).map((s) => F(s, "blue")), rule: "red things and blue things", wrong: ["big and small", "round and pointy"] }),
+        () => ({ a: "circles", b: "squares", A: shuffle(Object.keys(COLORS)).map((c) => F("circle", c)), B: shuffle(Object.keys(COLORS)).map((c) => F("square", c)), rule: "circles and squares", wrong: ["red and blue", "big and small"] }),
+        () => ({ a: "big", b: "small", A: shuffle(SHAPES).slice(0, 5).map((s) => F(s, pick(Object.keys(COLORS)), "b")), B: shuffle(SHAPES).slice(0, 5).map((s) => F(s, pick(Object.keys(COLORS)), "s")), rule: "big things and small things", wrong: ["red and blue", "circles and stars"] }),
+      ],
+      medium: [
+        () => ({ a: "fruits", b: "vegetables", A: [E("🍎", "an apple"), E("🍌", "a banana"), E("🍇", "grapes"), E("🍓", "a strawberry"), E("🍐", "a pear"), E("🍒", "cherries")], B: [E("🥕", "a carrot"), E("🥦", "broccoli"), E("🥬", "lettuce"), E("🧅", "an onion"), E("🥔", "a potato"), E("🧄", "garlic")], rule: "fruits and vegetables", wrong: ["red and green", "big and small"] }),
+        () => ({ a: "things that fly", b: "things that don't fly", A: [E("🐦", "a bird"), E("🦋", "a butterfly"), E("🐝", "a bee"), E("✈️", "a plane"), E("🚁", "a helicopter"), E("🦉", "an owl")], B: [E("🐶", "a dog"), E("🐢", "a turtle"), E("🚗", "a car"), E("🐘", "an elephant"), E("🐌", "a snail"), E("🐄", "a cow")], rule: "things that fly and things that don't", wrong: ["animals and machines", "big and small"] }),
+        () => ({ a: "lives in water", b: "lives on land", A: [E("🐟", "a fish"), E("🐙", "an octopus"), E("🐬", "a dolphin"), E("🐳", "a whale"), E("🦈", "a shark"), E("🪼", "a jellyfish")], B: [E("🐄", "a cow"), E("🐎", "a horse"), E("🐘", "an elephant"), E("🦒", "a giraffe"), E("🐇", "a rabbit"), E("🐿️", "a squirrel")], rule: "animals of the water and animals of the land", wrong: ["big and small", "pets and wild animals"] }),
+        () => ({ a: "hot", b: "cold", A: [E("🔥", "fire"), E("☀️", "the sun"), E("☕", "hot tea"), E("🍲", "hot soup"), E("🌋", "a volcano")], B: [E("❄️", "snow"), E("🧊", "ice"), E("🍦", "ice cream"), E("⛄", "a snowman"), E("🌨️", "a snowstorm")], rule: "hot things and cold things", wrong: ["food and not food", "day and night"] }),
+      ],
+      hard: [
+        () => ({ a: "living", b: "not living", A: [E("🌳", "a tree"), E("🐱", "a cat"), E("🌻", "a sunflower"), E("🐛", "a caterpillar"), E("🍄", "a mushroom"), E("🐠", "a fish")], B: [E("🪨", "a rock"), E("🧸", "a teddy bear"), E("⚽", "a ball"), E("🪑", "a chair"), E("🔑", "a key"), E("🚲", "a bike")], rule: "living things and things that are not alive", wrong: ["things that move and things that don't", "big and small"] }),
+        () => ({ a: "has wheels", b: "no wheels", A: [E("🚗", "a car"), E("🚲", "a bike"), E("🛴", "a scooter"), E("🚌", "a bus"), E("🛒", "a cart"), E("🚜", "a tractor")], B: [E("⛵", "a sailboat"), E("🛶", "a canoe"), E("🚀", "a rocket"), E("🛷", "a sled"), E("🪁", "a kite"), E("🎈", "a balloon")], rule: "things with wheels and things without wheels", wrong: ["fast and slow", "land and water"] }),
+        () => ({ a: "3 sides", b: "4 sides", A: [F("triangle", "red", "b"), F("triangle", "blue", "s"), F("triangle", "green", "b"), F("triangle", "purple", "s"), F("triangle", "yellow", "b")], B: [F("square", "blue", "s"), F("diamond", "red", "b"), F("square", "yellow", "b"), F("diamond", "green", "s"), F("square", "purple", "s")], rule: "shapes with 3 sides and shapes with 4 sides", wrong: ["red and blue", "big and small"] }),
+        () => ({ a: "even", b: "odd", A: [2, 4, 6, 8].map((n) => F("circle", pick(Object.keys(COLORS)), "b", n)), B: [1, 3, 5, 7, 9].map((n) => F("circle", pick(Object.keys(COLORS)), "b", n)), rule: "even numbers of dots (they make pairs) and odd numbers of dots (one is left over)", wrong: ["red dots and blue dots", "big and small"] }),
+      ],
+    };
+    const make = () => {
+      const r = pick(RULES[level])();
+      const A = shuffle(r.A);
+      const B = shuffle(r.B);
+      const ex = { A: A.slice(0, 2), B: B.slice(0, 2) };
+      const todo = shuffle([...A.slice(2, 4).map((x) => ({ ...x, side: "A" })), ...B.slice(2, 3).map((x) => ({ ...x, side: "B" }))]);
+      if (Math.random() < 0.5) todo[todo.length - 1] = { ...B[3], side: "B" };
+      return { ...r, ex, todo, k: 0 };
+    };
+    const drawItem = (parent, x, y, it, size = 1) => (it.fig ? fig(parent, x, y, it.fig, 0.95 * size) : emoji(parent, x, y, it.glyph, 70 * size));
+    const nice = (it) => (it.name ? it.name : it.fig.count > 1 ? `${it.fig.count} dots` : `a ${it.fig.size === "s" ? "small" : "big"} ${it.fig.color} ${SNAME[it.fig.shape]}`);
+    let hoopA;
+    let hoopB;
+    let cur;
+    const slots = { A: [], B: [] };
+    const ask = () => {
+      q = make();
+      busy = false;
+      fresh();
+      slots.A = [];
+      slots.B = [];
+      hoopA = card(view, 30, 40, 360, 430, 0, { fill: "#eaf2ff", stroke: "#2f6fe0" });
+      hoopB = card(view, 610, 40, 360, 430, 1, { fill: "#fff1e0", stroke: "#e07a1f" });
+      text(view, 210, 510, level === "easy" ? "" : "Group A", { "font-size": 26, fill: "#2f6fe0" });
+      text(view, 790, 510, level === "easy" ? "" : "Group B", { "font-size": 26, fill: "#e07a1f" });
+      if (level === "easy") {
+        text(view, 210, 510, q.a, { "font-size": 30, fill: "#2f6fe0" });
+        text(view, 790, 510, q.b, { "font-size": 30, fill: "#e07a1f" });
+      }
+      const spot = (side, i) => [side === "A" ? 120 + (i % 2) * 180 : 700 + (i % 2) * 180, 130 + Math.floor(i / 2) * 120];
+      q.place = (side, it) => {
+        const i = slots[side].length;
+        slots[side].push(it);
+        const [x, y] = spot(side, i);
+        const g = drawItem(view, x, y, it);
+        g.setAttribute("pointer-events", "none");
+        return g;
+      };
+      q.ex.A.forEach((it) => q.place("A", it));
+      q.ex.B.forEach((it) => q.place("B", it));
+      el("rect", { x: 420, y: 150, width: 160, height: 190, rx: 24, fill: "#fff", stroke: "var(--accent)", "stroke-width": 5, "stroke-dasharray": "12 8" }, view);
+      text(view, 500, 395, "Where does it go?", { "font-size": 22, fill: "#6b4a2f" });
+      onCards((i) => drop(i === 0 ? "A" : "B"));
+      $("[data-choices]").innerHTML = "";
+      status(`Round ${round + 1} of 8`);
+      say(level === "easy" ? `Look at the groups: ${q.a} and ${q.b}. Tap the group where this one belongs.` : "Each group has a secret rule. Look at the examples. Tap the group where this one belongs.");
+      show();
+    };
+    const show = () => {
+      tries = 0;
+      cur?.remove();
+      const it = q.todo[q.k];
+      cur = el("g", {}, view);
+      drawItem(cur, 500, 245, it, 1.1);
+      cur.setAttribute("pointer-events", "none");
+    };
+    const moveIn = async (side) => {
+      const it = q.todo[q.k];
+      cur.remove();
+      cur = null;
+      q.place(side, it);
+      MUSIC.play("xylophone", 76 + q.k * 3, { gain: 0.35 });
+      q.k += 1;
+      if (q.k < q.todo.length) return show();
+      busy = true;
+      await wait(900);
+      if (my !== token) return;
+      if (level === "easy") {
+        MUSIC.chime();
+        say(`${pick(PRAISE)} All sorted. The rule was: ${q.rule}.`);
+        return next();
+      }
+      say("All sorted! Now, what is the secret rule?");
+      busy = false;
+      tries = 0;
+      const opts = shuffle([{ label: q.rule[0].toUpperCase() + q.rule.slice(1), v: true }, ...q.wrong.map((w) => ({ label: w[0].toUpperCase() + w.slice(1), v: false }))]);
+      q.opts = opts;
+      choices($("[data-choices]"), opts, (c, btn) => ruleAnswer(c.v, btn));
+    };
+    const ruleAnswer = (v, btn) => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      if (v) {
+        busy = true;
+        btn.classList.add("right");
+        MUSIC.chime();
+        say(`${pick(PRAISE)} You found the rule: ${q.rule}.`);
+        return next();
+      }
+      tries += 1;
+      btn.classList.add("wrong");
+      MUSIC.oops();
+      if (tries < 2) return say(`${OOPS} Does that rule fit EVERY picture in both groups? Check each one.`);
+      busy = true;
+      say(`The rule is: ${q.rule}. It fits every picture.`);
+      next();
+    };
+    const drop = async (side) => {
+      if (my !== token || busy || !cur) return;
+      const it = q.todo[q.k];
+      if (side === it.side) {
+        MUSIC.chime();
+        say(`${pick(PRAISE)}`);
+        return moveIn(side);
+      }
+      tries += 1;
+      MUSIC.oops();
+      if (tries < 2) return say(`${OOPS} Look at the examples in each group. What do they have in common? Does this one have it too?`);
+      busy = true;
+      const label = it.side === "A" ? q.a : q.b;
+      await sayAsync(`This one goes in group ${it.side}: ${nice(it)}${level === "easy" ? "" : ` (${label})`}.`);
+      if (my !== token) return;
+      busy = false;
+      moveIn(it.side);
+    };
+    const next = async () => {
+      round += 1;
+      window.OC?.count("things sorted");
+      await wait(3000);
+      if (my !== token) return;
+      if (round >= 8) return finish(my, "lg3", "8 sorting rounds", { title: "secret sorting rule", need: "a box of toys, socks or kitchen things", steps: ["Make two piles using a secret rule (like 'soft and hard').", "Ask a grown-up to guess your rule.", "Now the grown-up sorts, and you guess!"] }, () => units.lg3());
+      ask();
+    };
+    onLevels("lg3", (lv) => {
+      level = lv;
+      round = 0;
+      ask();
+    });
+    ask();
+    window.__lg = { q: () => q, drop: (s) => drop(s), cur: () => q.todo[q.k], rule: (v) => document.querySelectorAll("[data-c]")[q.opts.findIndex((o) => o.v === v)].click(), setRound: (r) => (round = r), go: (r) => ((round = r), ask()) };
+  },
+
+  lg4() {
+    const my = token;
+    let level = shell.progress().lg4?.level || "easy";
+    let round = 0;
+    let q = null;
+    let tries = 0;
+    let busy = false;
+    panel(levelRow(level));
+    const VERBAL = [
+      { p: [["🐣", "chick"], ["🐔", "hen"], ["🐛", "caterpillar"], ["🦋", "butterfly"]], why: "A chick grows up into a hen. A caterpillar grows up into a butterfly.", wrong: [["🐜", "ant"], ["🍃", "leaf"]] },
+      { p: [["🧤", "glove"], ["✋", "hand"], ["🧦", "sock"], ["🦶", "foot"]], why: "A glove goes on your hand. A sock goes on your foot.", wrong: [["🎩", "hat"], ["🧺", "basket"]] },
+      { p: [["🐦", "bird"], ["🪺", "nest"], ["🐝", "bee"], ["HIVE", "hive"]], why: "A bird lives in a nest. A bee lives in a hive.", wrong: [["🌸", "flower"], ["🐞", "ladybug"]] },
+      { p: [["🥛", "milk"], ["🐄", "cow"], ["🥚", "egg"], ["🐔", "hen"]], why: "Milk comes from a cow. An egg comes from a hen.", wrong: [["🐷", "pig"], ["🍞", "bread"]] },
+      { p: [["🌧️", "rain"], ["☂️", "umbrella"], ["☀️", "sun"], ["🕶️", "sunglasses"]], why: "An umbrella helps in the rain. Sunglasses help in bright sun.", wrong: [["🧤", "gloves"], ["⛄", "snowman"]] },
+      { p: [["🚗", "car"], ["🛣️", "road"], ["🚂", "train"], ["🛤️", "railway track"]], why: "A car drives on a road. A train runs on a track.", wrong: [["🌊", "sea"], ["☁️", "cloud"]] },
+      { p: [["🐟", "fish"], ["🌊", "water"], ["🐦", "bird"], ["☁️", "sky"]], why: "A fish swims in water. A bird flies in the sky.", wrong: [["🪨", "rock"], ["🔥", "fire"]] },
+    ];
+    const T = {
+      size: { ok: (a) => a.size === "s", go: (f) => ({ ...f, size: "b" }), say: "small turns big" },
+      color: { go: (f, a, b) => (f.color === a.color ? { ...f, color: b.color } : f), say: "the colour changes" },
+      fill: { go: (f) => ({ ...f, fill: f.fill === "empty" ? "solid" : "empty" }), say: "filled turns empty" },
+      rot: { go: (f) => ({ ...f, rot: (f.rot || 0) + 90 }), say: "it turns a quarter turn" },
+      plus: { go: (f) => ({ ...f, count: (f.count || 1) + 1 }), say: "one more" },
+      double: { go: (f) => ({ ...f, count: (f.count || 1) * 2 }), say: "it doubles: twice as many" },
+    };
+    const SETS = { easy: [["size"], ["color"]], medium: [["fill"], ["rot"], ["plus"], "verbal", "verbal"], hard: [["size", "color"], ["rot", "color"], ["double"], ["fill", "rot"], "verbal"] };
+    const norm = (f) => ({ size: "b", fill: "solid", rot: 0, count: 1, ...f });
+    const make = () => {
+      const set = pick(SETS[level]);
+      if (set === "verbal") {
+        const v = pick(VERBAL);
+        const ans = v.p[3];
+        const opts = shuffle([ans, ...v.wrong, v.p[1]]);
+        return { verbal: true, items: v.p, opts, ans, why: v.why };
+      }
+      for (let t = 0; t < 200; t++) {
+        const counting = set.includes("plus") || set.includes("double");
+        const a = norm({ shape: counting ? pick(["circle", "square", "star"]) : pick(set.includes("rot") ? ["arrow", "flag", "moon"] : SHAPES), color: pick(Object.keys(COLORS)), size: set.includes("size") ? "s" : "b", count: counting ? pickInt(1, 2) : 1 });
+        const toColor = { ...a, color: pick(Object.keys(COLORS).filter((c) => c !== a.color)) };
+        const apply = (f, list) => list.reduce((acc, k) => norm(T[k].go(acc, a, toColor)), f);
+        const b = apply(a, set);
+        const c = norm({ ...a, shape: counting ? a.shape : pick((set.includes("rot") ? ["arrow", "flag", "moon"] : SHAPES).filter((s) => s !== a.shape)), count: counting ? a.count + pickInt(1, 2) : 1, color: counting ? pick(Object.keys(COLORS)) : a.color });
+        if (counting) c.shape = pick(["circle", "square", "star"].filter((s) => s !== a.shape));
+        const d = apply(c, set);
+        const opts = [d];
+        const cands = [c, b, ...Object.keys(T).filter((k) => !set.includes(k) && k !== "color" && !(counting && (k === "size" || k === "rot")) && !(k === "rot" && level === "easy")).map((k) => apply(c, [k])), ...set.map((k) => apply(c, [k]))];
+        for (const f of shuffle(cands)) if (opts.length < 4 && !opts.some((o) => same(o, f))) opts.push(f);
+        if (opts.length < 4) continue;
+        return { items: [a, b, c], ans: d, opts: shuffle(opts), why: `From the first to the second, ${set.map((k) => T[k].say).join(" and ")}. Do the same to the third one.` };
+      }
+    };
+    const glyph = (parent, x, y, g, size = 90) => {
+      if (g !== "HIVE") return emoji(parent, x, y, g, size);
+      const h = el("g", { transform: `translate(${x} ${y}) scale(${size / 90})` }, parent);
+      [[-30, 30, 60], [-36, 10, 72], [-32, -10, 64], [-24, -28, 48]].forEach(([x0, y0, w]) => el("rect", { x: x0, y: y0 - 2, width: w, height: 22, rx: 11, fill: "#f2b705", stroke: "#a0700a", "stroke-width": 3 }, h));
+      el("rect", { x: -16, y: -42, width: 32, height: 16, rx: 8, fill: "#f2b705", stroke: "#a0700a", "stroke-width": 3 }, h);
+      el("ellipse", { cx: 0, cy: 36, rx: 9, ry: 8, fill: "#5a3b12" }, h);
+      return h;
+    };
+    const ask = () => {
+      q = make();
+      tries = 0;
+      busy = false;
+      fresh();
+      const xs = [100, 330, 600, 830];
+      const draw = (parent, x, y, item, scale = 1) => (q.verbal ? (glyph(parent, x, y - 10, item[0], 86 * scale), text(parent, x, y + 62, item[1], { "font-size": 22, fill: "#6b4a2f" })) : fig(parent, x, y, item, 0.95 * scale));
+      xs.forEach((x, i) => {
+        el("rect", { x: x - 85, y: 30, width: 170, height: 170, rx: 24, fill: i === 3 ? "#fff" : "#fffdf8", stroke: i === 3 ? "var(--accent)" : "#d9cdb5", "stroke-width": i === 3 ? 5 : 4, "stroke-dasharray": i === 3 ? "12 8" : null }, view);
+        if (i < 3) draw(view, x, 115, q.verbal ? q.items[i] : q.items[i]);
+      });
+      q.slot = text(view, xs[3], 145, "?", { "font-size": 80, fill: "var(--accent)" });
+      text(view, 215, 128, "→", { "font-size": 44, fill: "#6b4a2f" });
+      text(view, 715, 128, "→", { "font-size": 44, fill: "#6b4a2f" });
+      text(view, 465, 128, "as", { "font-size": 36, fill: "var(--accent-dark)" });
+      const ow = 170;
+      const ox = (W - 4 * ow - 3 * 30) / 2;
+      q.cards = q.opts.map((f, i) => {
+        const g = card(view, ox + i * (ow + 30), 300, ow, 200, i);
+        if (q.verbal) {
+          glyph(g, ow / 2, 85, f[0], 80);
+          text(g, ow / 2, 170, f[1], { "font-size": 22, fill: "#6b4a2f" });
+        } else fig(g, ow / 2, 100, f, 0.95);
+        return g;
+      });
+      text(view, W / 2, 268, "Which one finishes the pair?", { "font-size": 26, fill: "#6b4a2f" });
+      onCards(tap);
+      status(`Analogy ${round + 1} of 10`);
+      say(q.verbal ? `${q.items[0][1]} goes with ${q.items[1][1]}, as ${q.items[2][1]} goes with… what? Tap it.` : "The first pair changes in a special way. Make the same change to the third one. Tap the answer.");
+    };
+    const reveal = () => {
+      q.slot.remove();
+      if (q.verbal) {
+        glyph(view, 830, 105, q.ans[0], 86);
+        text(view, 830, 177, q.ans[1], { "font-size": 22, fill: "#6b4a2f" });
+      } else fig(view, 830, 115, q.ans, 0.95);
+    };
+    const isAns = (i) => (q.verbal ? q.opts[i] === q.ans : same(q.opts[i], q.ans));
+    const tap = async (i, g) => {
+      if (my !== token || busy) return;
+      if (isAns(i)) {
+        busy = true;
+        tint(g, "#2e9e55", 9);
+        reveal();
+        MUSIC.chime();
+        say(`${pick(PRAISE)} ${q.why}`);
+        return next();
+      }
+      tries += 1;
+      MUSIC.oops();
+      tint(g, "#d9822b");
+      if (tries < 2) return say(q.verbal ? `${OOPS} How do the first two go together? Say it as a sentence. Now say the same sentence about the third.` : `${OOPS} What changed from the first picture to the second? What stayed the same?`);
+      busy = true;
+      tint(q.cards[q.opts.findIndex((_, k) => isAns(k))], "#2e9e55", 9);
+      reveal();
+      say(`Here it is. ${q.why}`);
+      next();
+    };
+    const next = async () => {
+      round += 1;
+      window.OC?.count("analogies");
+      await wait(3200);
+      if (my !== token) return;
+      if (round >= 10) return finish(my, "lg4", "10 analogies", { title: "pairs that match", need: "things from around the house: a sock, a shoe, a cup, a spoon, a toothbrush", steps: ["Make a pair: 'a sock goes on a foot'.", "Find another pair that works the same way: 'a glove goes on a hand'.", "Make a pair for a grown-up to finish!"] }, () => units.lg4());
+      ask();
+    };
+    onLevels("lg4", (lv) => {
+      level = lv;
+      round = 0;
+      ask();
+    });
+    ask();
+    window.__lg = { q: () => q, tap: (i) => tap(i, q.cards[i]), answer: () => q.opts.findIndex((_, k) => isAns(k)), setRound: (r) => (round = r), go: (r) => ((round = r), ask()) };
+  },
+
+  lg5() {
+    const my = token;
+    let level = shell.progress().lg5?.level || "easy";
+    let round = 0;
+    let q = null;
+    let tries = 0;
+    let busy = false;
+    panel(`${levelRow(level)}<div class="ap-buttons"><button type="button" class="primary" data-check>✅ Check my grid</button><button type="button" data-read>🔊 Read clues</button></div>`);
+    const CAST = [[["🐱", "cat"], ["🐶", "dog"], ["🐰", "rabbit"], ["🐻", "bear"]], [["🐸", "frog"], ["🐵", "monkey"], ["🐼", "panda"], ["🦊", "fox"]], [["🐷", "pig"], ["🐮", "cow"], ["🐔", "hen"], ["🐭", "mouse"]]];
+    const THEMES = [
+      { verb: "eats", base: "eat", things: [["🍎", "apple"], ["🍌", "banana"], ["🥕", "carrot"], ["🍪", "cookie"]] },
+      { verb: "lives in", base: "live in", things: [["🟥", "red house"], ["🟦", "blue house"], ["🟨", "yellow house"], ["🟩", "green house"]] },
+      { verb: "plays with", base: "play with", things: [["⚽", "ball"], ["🪁", "kite"], ["🧸", "teddy"], ["🚂", "train"]] },
+      { verb: "wears", base: "wear", things: [["🎩", "top hat"], ["🧢", "cap"], ["👑", "crown"], ["🎀", "bow"]] },
+    ];
+    const SET = { easy: [3, ["is", "not"], 3, 1], medium: [3, ["not"], 4, 0], hard: [4, ["not", "or", "is"], 5, 1] };
+    let grid = [];
+    let cells = [];
+    const clueText = (c) => {
+      const a = q.rows[c.a][1];
+      if (c.t === "is") return `The ${a} ${q.theme.verb} the ${q.cols[c.x][1]}.`;
+      if (c.t === "not") return `The ${a} does not ${q.theme.base} the ${q.cols[c.x][1]}.`;
+      return `The ${a} ${q.theme.verb} the ${q.cols[c.xs[0]][1]} or the ${q.cols[c.xs[1]][1]}.`;
+    };
+    const clueIcons = (c) => `${q.rows[c.a][0]} ${c.t === "is" ? "✓" : c.t === "not" ? "✗" : ""} ${c.t === "or" ? `${q.cols[c.xs[0]][0]} or ${q.cols[c.xs[1]][0]}` : q.cols[c.x][0]}`;
+    const ask = () => {
+      const [n, kinds, max, is] = SET[level];
+      const g = makeGrid(n, kinds, max, is);
+      const theme = pick(THEMES);
+      q = { ...g, theme, rows: shuffle(pick(CAST)).slice(0, n), cols: shuffle(theme.things).slice(0, n) };
+      tries = 0;
+      busy = false;
+      grid = [...Array(n)].map(() => Array(n).fill(0));
+      fresh();
+      // Tall phone screens: grid on top, clues underneath, in a narrower picture.
+      const tall = stage.clientWidth / Math.max(1, stage.clientHeight) < 1.2;
+      const cs = n === 3 ? 108 : 84;
+      const gx = tall ? (540 - n * cs) / 2 + 30 : n === 3 ? 640 : 630;
+      const gy = 100;
+      const ch = tall ? 86 : Math.min(92, 470 / q.clues.length - 8);
+      const cy0 = tall ? gy + n * cs + 24 : 24;
+      if (tall) view.setAttribute("viewBox", `0 0 532 ${cy0 + q.clues.length * (ch + 8) + 8}`);
+      q.cards = q.clues.map((c, i) => {
+        const y = cy0 + i * (ch + 8);
+        const gg = el("g", {}, view);
+        el("rect", { x: 16, y, width: 500, height: ch, rx: 16, fill: "#fff7d6", stroke: "#e0b84a", "stroke-width": 3, class: "lg-card" }, gg);
+        text(gg, 40, y + ch / 2 + 9, `${i + 1}`, { "font-size": 26, fill: "#a8632d" });
+        text(gg, 276, y + 34, clueIcons(c), { "font-size": 28, "font-family": "Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif", "font-weight": 400 });
+        text(gg, 276, y + ch - 14, clueText(c), { "font-size": clueText(c).length > 40 ? 20 : 22, fill: "#2b1d12" });
+        return gg;
+      });
+      q.cols.forEach((c, i) => {
+        emoji(view, gx + i * cs + cs / 2, gy - 52, c[0], 46);
+        text(view, gx + i * cs + cs / 2, gy - 10, c[1].split(" ")[0], { "font-size": 18, fill: "#6b4a2f" });
+      });
+      q.rows.forEach((r, i) => emoji(view, gx - 46, gy + i * cs + cs / 2, r[0], 52));
+      cells = [];
+      for (let r = 0; r < n; r++) {
+        cells.push([]);
+        for (let c = 0; c < n; c++) {
+          const gg = card(view, gx + c * cs, gy + r * cs, cs, cs, r * n + c, { fill: "#fffdf8", stroke: "#bfae94" });
+          gg.querySelector("rect").setAttribute("rx", 6);
+          const t = text(gg, cs / 2, cs / 2 + 22, "", { "font-size": 62 });
+          cells[r].push(t);
+        }
+      }
+      onCards((i) => tapCell(Math.floor(i / n), i % n));
+      status(`Case ${round + 1} of 8`);
+      readClues(true);
+    };
+    const paint = (r, c) => {
+      const v = grid[r][c];
+      cells[r][c].textContent = v === 1 ? "✗" : v === 2 ? "✓" : "";
+      cells[r][c].setAttribute("fill", v === 1 ? "#c0392b" : "#2e9e55");
+    };
+    const tapCell = (r, c) => {
+      if (my !== token || busy) return;
+      grid[r][c] = (grid[r][c] + 1) % 3;
+      paint(r, c);
+      MUSIC.play("woodblock", grid[r][c] === 2 ? 72 : 79, { gain: 0.25 });
+    };
+    const readClues = async (first) => {
+      if (my !== token) return;
+      const intro = first ? "Detective time! Read the clues. Tap a box once for ✗ (no), twice for ✓ (yes). " : "";
+      // The bubble stays short (the clue cards are on the picture); the voice reads every clue.
+      say(first ? "Detective time! Read the clues. Tap a box once for ✗ (no), twice for ✓ (yes)." : "Listen to the clues again.", { voice: false });
+      VOICE.speak(`${intro}${q.clues.map((c, i) => `Clue ${i + 1}: ${clueText(c)}`).join(" ")}`);
+    };
+    const check = async () => {
+      if (my !== token || busy) return;
+      window.OC?.touch();
+      const n = q.n;
+      q.cards.forEach((g) => tint(g, "#e0b84a", 3));
+      const ticks = [];
+      for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (grid[r][c] === 2) ticks.push([r, c]);
+      const crossesRight = [];
+      for (let r = 0; r < n; r++) if (grid[r][q.sol[r]] === 1) crossesRight.push(r);
+      const rowDup = q.rows.findIndex((_, r) => ticks.filter((t) => t[0] === r).length > 1);
+      const colDup = q.cols.findIndex((_, c) => ticks.filter((t) => t[1] === c).length > 1);
+      const wrongTick = ticks.find(([r, c]) => q.sol[r] !== c);
+      if (!wrongTick && !crossesRight.length && rowDup < 0 && colDup < 0 && ticks.length === n) {
+        busy = true;
+        MUSIC.chime();
+        for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (!grid[r][c]) (grid[r][c] = 1), paint(r, c);
+        say(`🕵️ Case solved! ${q.rows.map((r, i) => `The ${r[1]} ${q.theme.verb} the ${q.cols[q.sol[i]][1]}`).join(". ")}. ${tries ? "You kept trying!" : "You used every clue!"}`);
+        return next();
+      }
+      if (!wrongTick && !crossesRight.length && rowDup < 0 && colDup < 0) return say("So far, so good! Keep going: every animal needs one ✓. When a row has one ✓, the others in that row and column are ✗.");
+      tries += 1;
+      MUSIC.oops();
+      let msg;
+      if (rowDup >= 0) msg = `The ${q.rows[rowDup][1]} has two ✓ marks. Each animal gets just one!`;
+      else if (colDup >= 0) msg = `The ${q.cols[colDup][1]} has two ✓ marks. Each one goes with just one animal!`;
+      else {
+        const bad = wrongTick ? { r: wrongTick[0], x: wrongTick[1], tick: true } : { r: crossesRight[0], x: q.sol[crossesRight[0]], tick: false };
+        const k = q.clues.findIndex((c) => c.a === bad.r && (bad.tick ? (c.t === "is" && c.x !== bad.x) || (c.t === "not" && c.x === bad.x) || (c.t === "or" && !c.xs.includes(bad.x)) : c.t === "is" && c.x === bad.x));
+        if (k >= 0) {
+          tint(q.cards[k], "var(--accent)", 7);
+          msg = `Look at clue ${k + 1} again. Does your grid agree with it?`;
+        } else msg = bad.tick ? `Check your ✓ for the ${q.rows[bad.r][1]}. If that were true, could the other animals still fit every clue?` : `One of your ✗ marks for the ${q.rows[bad.r][1]} crosses out the real answer. Which clue made you put it there?`;
+      }
+      if (tries < 2) return say(`${OOPS} ${msg}`);
+      busy = true;
+      for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) (grid[r][c] = q.sol[r] === c ? 2 : 1), paint(r, c);
+      say(`${msg} Here is the answer. Read the clues again and see how each one fits.`);
+      next(5200);
+    };
+    const next = async (ms = 4200) => {
+      round += 1;
+      window.OC?.count("detective cases");
+      await wait(ms);
+      if (my !== token) return;
+      if (round >= 8) return finish(my, "lg5", "8 cases", { title: "toy detective", need: "3 toys, 3 cups, paper and a pencil", steps: ["A grown-up hides each toy under a cup in secret.", "The grown-up gives clues: 'The teddy is not under the red cup.'", "Draw a grid with ✗ and ✓ until you know where each toy is!"] }, () => units.lg5());
+      ask();
+    };
+    $("[data-check]").addEventListener("click", check);
+    $("[data-read]").addEventListener("click", () => readClues(false));
+    onLevels("lg5", (lv) => {
+      level = lv;
+      round = 0;
+      ask();
+    });
+    ask();
+    window.__lg = { q: () => q, solve: () => q.sol.forEach((c, r) => ((grid[r][c] = 2), paint(r, c))), tap: (r, c) => tapCell(r, c), check: () => check(), setRound: (rr) => (round = rr), go: (rr) => ((round = rr), ask()), grid: () => grid };
+  },
+
+  lg6() {
+    const my = token;
+    let round = 0;
+    let q = null;
+    let tries = 0;
+    let busy = false;
+    panel(`<p class="ap-status" data-status></p>`);
+    const FACE = ["#e5483b", "#2f6fe0", "#f2b705", "#2e9e55", "#8e44ad", "#f08a24"];
+    const drawCells = (parent, cx, cy, cells, size, color, faces) => {
+      const w = Math.max(...cells.map((c) => c[0])) + 1;
+      const h = Math.max(...cells.map((c) => c[1])) + 1;
+      const g = el("g", { transform: `translate(${cx - (w * size) / 2} ${cy - (h * size) / 2})` }, parent);
+      cells.forEach(([x, y], i) => el("rect", { x: x * size, y: y * size, width: size, height: size, rx: 4, fill: faces ? FACE[faces[i]] : color, stroke: "#2b1d12", "stroke-width": 3 }, g));
+      return g;
+    };
+    const make = () => {
+      if (round < 5) {
+        const poly = round < 2 ? pick(POLY.slice(0, 3)) : pick(POLY.slice(3));
+        const k = pickInt(1, 3);
+        const ans = rotN(poly.cells, k);
+        const m = mirror(poly.cells);
+        const opts = [ans];
+        for (const j of shuffle([0, 1, 2, 3])) {
+          const f = rotN(m, j);
+          if (opts.length < (round < 2 ? 3 : 4) && !opts.some((o) => cellKey(o) === cellKey(f))) opts.push(f);
+        }
+        return { kind: "rot", shape: rotN(poly.cells, 0), opts: shuffle(opts), ans: cellKey(ans), k };
+      }
+      const good = parseNet(pick(NETS_OK));
+      const bads = shuffle(NETS_BAD).slice(0, round < 7 ? 2 : 3).map(parseNet);
+      const opts = shuffle([good, ...bads]);
+      return { kind: "net", opts, ans: cellKey(good) };
+    };
+    const ask = () => {
+      q = make();
+      tries = 0;
+      busy = false;
+      fresh();
+      const m = q.opts.length;
+      const ow = m === 3 ? 260 : 215;
+      const gap = 20;
+      const ox = (W - m * ow - (m - 1) * gap) / 2;
+      if (q.kind === "rot") {
+        el("rect", { x: 380, y: 14, width: 240, height: 220, rx: 24, fill: "var(--accent-soft)" }, view);
+        drawCells(view, 500, 124, q.shape, 40, "#f2b705");
+        text(view, 500, 262, "Turn it in your head. Which one is the same shape?", { "font-size": 26, fill: "#6b4a2f" });
+      } else {
+        emoji(view, 140, 130, "🧊", 120);
+        text(view, 560, 120, "Which one folds into a cube?", { "font-size": 36, fill: "#2b1d12" });
+        text(view, 560, 170, "A cube has 6 faces. Each square must cover a different face.", { "font-size": 22, fill: "#6b4a2f" });
+      }
+      const top = q.kind === "rot" ? 290 : 240;
+      q.cards = q.opts.map((c, i) => {
+        const g = card(view, ox + i * (ow + gap), top, ow, H - top - 16, i);
+        const size = q.kind === "rot" ? 36 : Math.min(40, (ow - 30) / (Math.max(...c.map((p) => p[0])) + 1), (H - top - 46) / (Math.max(...c.map((p) => p[1])) + 1));
+        drawCells(g, ow / 2, (H - top - 16) / 2, c, size, q.kind === "rot" ? "#f2b705" : "#a9d4f5");
+        return g;
+      });
+      onCards(tap);
+      status(`🦁 Hard · puzzle ${round + 1} of 10`);
+      say(q.kind === "rot" ? "Only one of these is the same shape, just turned. The others are flipped, like in a mirror. Tap the turned one." : "Which flat shape folds up into a cube? Imagine folding the squares up. Tap it.");
+    };
+    const showFaces = () => {
+      if (q.kind !== "net") return;
+      q.opts.forEach((c, i) => {
+        const faces = faceOf(c);
+        const g = q.cards[i];
+        const ow = Number(g.querySelector("rect").getAttribute("width"));
+        const hh = Number(g.querySelector("rect").getAttribute("height"));
+        const size = Math.min(40, (ow - 30) / (Math.max(...c.map((p) => p[0])) + 1), (hh - 30) / (Math.max(...c.map((p) => p[1])) + 1));
+        drawCells(g, ow / 2, hh / 2, c, size, null, faces);
+      });
+    };
+    const why = () => (q.kind === "rot" ? "The others are mirror images: you would have to flip them over, not just turn them." : "The colours show which face each square lands on. The cube net uses all 6 colours. The others have two squares on the same face, so they can't close.");
+    const tap = async (i, g) => {
+      if (my !== token || busy) return;
+      if (cellKey(q.opts[i]) === q.ans) {
+        busy = true;
+        tint(g, "#2e9e55", 9);
+        MUSIC.chime();
+        showFaces();
+        say(`${pick(PRAISE)} ${why()}`);
+        return next();
+      }
+      tries += 1;
+      MUSIC.oops();
+      tint(g, "#d9822b");
+      if (tries < 2) return say(q.kind === "rot" ? `${OOPS} Try turning that one in your head. Does it match, or is it flipped over? Look at where the bump is.` : `${OOPS} Fold it in your head: pick one square as the bottom and fold the others up. Do any two squares end up on the same side?`);
+      busy = true;
+      tint(q.cards[q.opts.findIndex((c) => cellKey(c) === q.ans)], "#2e9e55", 9);
+      showFaces();
+      say(`Here it is. ${why()}`);
+      next(4600);
+    };
+    const next = async (ms = 3600) => {
+      round += 1;
+      window.OC?.count("shapes turned and folded");
+      await wait(ms);
+      if (my !== token) return;
+      if (round >= 10) return finish(my, "lg6", "10 puzzles", { title: "fold a real cube", need: "paper, a pencil, a ruler, scissors and tape", steps: ["Draw 6 squares in a cross shape (4 in a line, one above, one below).", "Cut it out and fold along the lines.", "Tape the edges. You made a cube! Try other shapes too."], safe: "Use scissors only with a grown-up." }, () => units.lg6());
+      ask();
+    };
+    ask();
+    window.__lg = { q: () => q, tap: (i) => tap(i, q.cards[i]), answer: () => q.opts.findIndex((c) => cellKey(c) === q.ans), setRound: (r) => (round = r), go: (r) => ((round = r), ask()) };
+  },
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    lg0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    lg1: { icon: "🔍", title: "Same & different", steps: ["Look closely at every card.", "Tap the one that is different.", "On Hard, tap the two that match."] },
+    lg2: { icon: "➡️", title: "What comes next", steps: ["Look at the pattern from the start.", "Find the rule: what changes?", "Tap the card that comes next."] },
+    lg3: { icon: "🧺", title: "Sort into groups", steps: ["Look at the two groups.", "Tap the group where the middle picture belongs.", "Then find the secret rule."] },
+    lg4: { icon: "🔗", title: "Analogies", steps: ["See how the first two go together.", "Do the same to the third one.", "Tap the answer at the bottom."] },
+    lg5: { icon: "🕵️", title: "Detective grids", steps: ["Listen to the clues.", "Tap a box once for ✗, twice for ✓.", "Press Check when you are done."] },
+    lg6: { icon: "🧊", title: "Rotate & fold", steps: ["Turn or fold the shapes in your head.", "Tap your answer.", "Colours show how the cube folds."] },
+  },
+  start: "lg0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+    stage.querySelector(".lg-real")?.remove();
+  },
+  subject: "Tech",
+  activity: "Logic Lab",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 76, 79, 82, 85, 88]);
+MUSIC.preload("woodblock", [72, 79]);
+</script>
+</body>
+</html>

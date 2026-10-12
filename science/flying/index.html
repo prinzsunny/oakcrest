@@ -1,0 +1,2133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flying Creatures · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="science">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Flying Creatures</b><small>Science · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, pickInt, wait, confetti, choices, explain, everyday, emoji, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+const INK = "#2b1d12";
+let token = 0;
+let view = null;
+let uid = 0;
+
+const UNITS = [
+  { id: "f0", label: "See it", icon: "👀" },
+  { id: "f1", label: "1. Bird or not?", icon: "🪶" },
+  { id: "f2", label: "2. How wings fly", icon: "🕊️" },
+  { id: "f3", label: "3. Beaks and feet", icon: "🦅" },
+  { id: "f4", label: "4. Nests and eggs", icon: "🪺" },
+  { id: "f5", label: "5. Bats and echoes", icon: "🦇" },
+  { id: "f6", label: "6. Build an insect", icon: "🐝" },
+  { id: "f7", label: "7. Life cycles", icon: "🦋" },
+  { id: "f8", label: "8. Honeybees", icon: "🍯" },
+];
+
+function fresh() {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+}
+const grp = (p, x, y, s = 1, attrs = {}) => el("g", { transform: `translate(${x} ${y}) scale(${s})`, ...attrs }, p);
+const place = (g, x, y, s = 1, r = 0) => g.setAttribute("transform", `translate(${x} ${y}) rotate(${r}) scale(${s})`);
+const toSvg = (v, event) => {
+  const p = v.createSVGPoint();
+  p.x = event.clientX;
+  p.y = event.clientY;
+  return p.matrixTransform(v.getScreenCTM().inverse());
+};
+// A calm repeating animation that stops when `alive()` turns false.
+function loop(alive, fn) {
+  if (KIT.still.matches) return fn(0.4);
+  const t0 = performance.now();
+  const frame = (now) => {
+    if (!alive()) return;
+    fn((now - t0) / 1000);
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+const tween = (ms, fn, alive) =>
+  new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(true);
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!alive()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+
+// ---------- sounds (real instrument samples) ----------
+// A flute trill that sounds a little like birdsong (it is a flute, not a bird recording).
+function trill(gain = 0.22) {
+  const t = MUSIC.now() + 0.03;
+  [84, 88, 86, 91, 88, 93].forEach((m, i) => MUSIC.play("flute", m, { gain, at: t + i * 0.09, length: 0.07 }));
+}
+const click = (gain = 0.5) => MUSIC.play("woodblock", 79, { gain });
+const buzz = () => MUSIC.play("cello", 48, { gain: 0.18, length: 0.5 });
+const note = (i, gain = 0.4) => MUSIC.play("xylophone", 72 + [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19][Math.min(11, i)], { gain });
+
+// ---------- backgrounds ----------
+function sky(v, { night = false, ground = true, sea = false } = {}) {
+  const id = `flSky${++uid}`;
+  const defs = el("defs", {}, v);
+  const lg = el("linearGradient", { id, x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  el("stop", { offset: 0, "stop-color": night ? "#16203d" : "#cfe9f8" }, lg);
+  el("stop", { offset: 1, "stop-color": night ? "#39406e" : "#fbf4e2" }, lg);
+  el("rect", { x: -1000, y: -600, width: 3000, height: 1760, fill: `url(#${id})` }, v);
+  if (night) {
+    for (let i = 0; i < 26; i++) el("circle", { cx: (i * 397) % 1000, cy: 20 + ((i * 131) % 300), r: i % 3 ? 2 : 3, fill: "#fff8d6", opacity: 0.8 }, v);
+    el("circle", { cx: 880, cy: 80, r: 40, fill: "#fff3c4" }, v);
+    el("circle", { cx: 896, cy: 70, r: 36, fill: "#16203d", opacity: 0.85 }, v);
+  } else {
+    el("circle", { cx: 900, cy: 70, r: 42, fill: "#ffd54f", opacity: 0.9 }, v);
+    for (const [cx, cy] of [[160, 70], [560, 50]]) {
+      const c = el("g", { opacity: 0.9 }, v);
+      for (const [dx, r] of [[-30, 22], [0, 30], [30, 22]]) el("circle", { cx: cx + dx, cy, r, fill: "#fff" }, c);
+    }
+  }
+  if (sea) el("path", { d: `M-1000 470 H0 Q250 450 500 470 T1000 470 H2000 V1200 H-1000 Z`, fill: "#7fb8d8" }, v);
+  else if (ground) el("path", { d: `M-1000 480 H0 Q250 440 520 476 T1000 470 H2000 V1200 H-1000 Z`, fill: night ? "#2c3b2f" : "#cfe8b5" }, v);
+}
+
+// ---------- creature drawings (all hand-made SVG, facing right) ----------
+// Songbird (a robin), side view. Returns the wing so it can flap: rotate around (10,-12).
+function bird(p, x, y, s = 1, o = {}) {
+  const c = { body: "#7a5a43", belly: "#e8743b", wing: "#5b4130", beak: "#f2b134", ...o };
+  const g = grp(p, x, y, s);
+  if (!o.noLegs) for (const lx of [-4, 16]) el("path", { d: `M${lx} 36 L${lx - 4} 70 l-13 5 M${lx - 4} 70 l12 4 M${lx - 4} 70 l-1 10`, stroke: "#c9822e", "stroke-width": 4, fill: "none", "stroke-linecap": "round" }, g);
+  el("path", { d: "M-52 -4 L-120 -26 L-124 -8 L-114 12 Z", fill: c.wing }, g);
+  el("ellipse", { cx: -5, cy: 4, rx: 62, ry: 40, fill: c.body }, g);
+  el("ellipse", { cx: 20, cy: 15, rx: 40, ry: 27, fill: c.belly }, g);
+  el("circle", { cx: 46, cy: -30, r: 30, fill: c.body }, g);
+  el("path", { d: "M30 -10 Q48 2 70 -14 Q66 6 40 8 Z", fill: c.belly }, g);
+  el("circle", { cx: 58, cy: -37, r: 7, fill: "#fff" }, g);
+  el("circle", { cx: 60, cy: -37, r: 4, fill: INK }, g);
+  el("path", { d: "M72 -40 L104 -30 L72 -22 Z", fill: c.beak }, g);
+  const wing = el("g", {}, g);
+  el("path", { d: "M10 -12 C-20 -32 -72 -18 -90 12 C-56 26 -14 24 10 -12 Z", fill: c.wing }, wing);
+  el("path", { d: "M-30 2 L-72 14 M-20 8 L-56 20 M-42 -6 L-82 6", stroke: c.body, "stroke-width": 3, opacity: 0.7, fill: "none" }, wing);
+  return { g, wing, flap: (a) => wing.setAttribute("transform", `rotate(${a} 10 -12)`) };
+}
+function hummer(p, x, y, s = 1) {
+  const g = grp(p, x, y, s);
+  el("path", { d: "M-34 14 L-82 36 L-76 18 L-84 8 Z", fill: "#2e7d32" }, g);
+  el("ellipse", { cx: -4, cy: 8, rx: 42, ry: 22, fill: "#43a047", transform: "rotate(18 -4 8)" }, g);
+  el("ellipse", { cx: 4, cy: 18, rx: 24, ry: 12, fill: "#f1f8e9", transform: "rotate(18 4 18)" }, g);
+  el("circle", { cx: 32, cy: -14, r: 18, fill: "#388e3c" }, g);
+  el("path", { d: "M30 0 Q28 10 42 8 Q50 0 44 -6 Z", fill: "#d81b60" }, g);
+  el("circle", { cx: 39, cy: -18, r: 4.5, fill: INK }, g);
+  el("circle", { cx: 40, cy: -19.5, r: 1.5, fill: "#fff" }, g);
+  el("path", { d: "M48 -16 L122 -8 L48 -9 Z", fill: INK }, g);
+  const wing = el("g", {}, g);
+  el("ellipse", { cx: -14, cy: -38, rx: 13, ry: 48, fill: "#b3e5fc", opacity: 0.75, stroke: "#4fa3c7", "stroke-width": 2, transform: "rotate(-28 -14 -38)" }, wing);
+  return { g, wing, flap: (a) => wing.setAttribute("transform", `rotate(${a} 0 -4)`) };
+}
+function bat(p, x, y, s = 1, o = {}) {
+  const g = grp(p, x, y, s);
+  const wingC = o.wing || "#7b5a4c";
+  const halves = [-1, 1].map((sx) => {
+    const w = el("g", { transform: `scale(${sx} 1)` }, g);
+    el("path", { d: "M8 -16 C40 -48 104 -56 154 -32 L142 -14 Q126 -20 120 8 Q104 -6 92 20 Q76 4 62 24 Q46 8 30 22 Q18 12 8 16 Z", fill: wingC, stroke: "#3e2723", "stroke-width": 3, "stroke-linejoin": "round" }, w);
+    el("path", { d: "M10 -14 L120 8 M10 -14 L92 20 M10 -14 L62 24 M10 -14 L150 -30", stroke: "#3e2723", "stroke-width": 2.5, opacity: 0.6, fill: "none" }, w);
+    return w;
+  });
+  el("ellipse", { cx: 0, cy: 6, rx: 21, ry: 31, fill: "#5d4037" }, g);
+  el("path", { d: "M-15 -40 L-24 -70 L-3 -48 Z M15 -40 L24 -70 L3 -48 Z", fill: "#5d4037" }, g);
+  el("path", { d: "M-13 -44 L-18 -62 L-6 -48 Z M13 -44 L18 -62 L6 -48 Z", fill: "#d7a59a" }, g);
+  el("circle", { cx: 0, cy: -32, r: 20, fill: "#6d4c41" }, g);
+  for (const ex of [-8, 8]) {
+    el("circle", { cx: ex, cy: -36, r: 5, fill: "#fff" }, g);
+    el("circle", { cx: ex, cy: -36, r: 3, fill: INK }, g);
+  }
+  el("ellipse", { cx: 0, cy: -26, rx: 5, ry: 3.5, fill: "#3e2723" }, g);
+  el("path", { d: "M-6 -20 Q0 -15 6 -20", stroke: "#3e2723", "stroke-width": 2, fill: "none" }, g);
+  const flap = (k) => halves.forEach((w, i) => w.setAttribute("transform", `scale(${i ? 1 : -1} ${k})`));
+  return { g, flap, fold: () => halves.forEach((w, i) => w.setAttribute("transform", `scale(${i ? 0.22 : -0.22} 1.05)`)) };
+}
+function butterfly(p, x, y, s = 1, o = {}) {
+  const c = o.color || "#f28c28";
+  const g = grp(p, x, y, s);
+  const wings = [-1, 1].map((sx) => {
+    const w = el("g", { transform: `scale(${sx} 1)` }, g);
+    el("path", { d: "M4 -6 C28 -84 112 -90 106 -36 C102 -6 60 6 4 4 Z", fill: c, stroke: INK, "stroke-width": 6, "stroke-linejoin": "round" }, w);
+    el("path", { d: "M4 8 C50 6 94 26 76 64 C60 90 20 72 4 18 Z", fill: c, stroke: INK, "stroke-width": 6, "stroke-linejoin": "round" }, w);
+    el("path", { d: "M8 -2 L70 -60 M8 0 L96 -30 M8 10 L60 60 M8 12 L80 34", stroke: INK, "stroke-width": 3, opacity: 0.7 }, w);
+    for (const [cx, cy] of [[92, -56], [100, -40], [80, -70], [68, 66], [80, 52]]) el("circle", { cx, cy, r: 4.5, fill: "#fff" }, w);
+    return w;
+  });
+  el("ellipse", { cx: 0, cy: 8, rx: 7, ry: 42, fill: INK }, g);
+  el("circle", { cx: 0, cy: -38, r: 9, fill: INK }, g);
+  el("path", { d: "M-3 -44 Q-12 -74 -24 -84 M3 -44 Q12 -74 24 -84", stroke: INK, "stroke-width": 3, fill: "none" }, g);
+  el("circle", { cx: -24, cy: -84, r: 5, fill: INK }, g);
+  el("circle", { cx: 24, cy: -84, r: 5, fill: INK }, g);
+  const flap = (k) => wings.forEach((w, i) => w.setAttribute("transform", `scale(${(i ? 1 : -1) * k} 1)`));
+  return { g, flap };
+}
+// Honeybee, seen from above, facing right. kind: worker | queen | drone.
+function bee(p, x, y, s = 1, o = {}) {
+  const kind = o.kind || "worker";
+  const g = grp(p, x, y, s);
+  const abL = kind === "queen" ? 82 : kind === "drone" ? 58 : 54;
+  const abR = kind === "drone" ? 38 : kind === "queen" ? 30 : 32;
+  const legs = el("g", { class: "fl-legs" }, g);
+  if (!o.noLegs)
+    for (const sy of [-1, 1])
+      for (const [x0, x1, x2] of [[22, 38, 46], [8, 6, 0], [-6, -28, -44]]) el("path", { d: `M${x0} ${sy * 10} L${x1} ${sy * 40} L${x2} ${sy * 58}`, stroke: INK, "stroke-width": 5, fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round" }, legs);
+  const cid = `flAb${++uid}`;
+  const clip = el("clipPath", { id: cid }, g);
+  el("ellipse", { cx: -20 - abL, cy: 0, rx: abL, ry: abR }, clip);
+  el("ellipse", { cx: -20 - abL, cy: 0, rx: abL, ry: abR, fill: "#f9c22e", stroke: INK, "stroke-width": 4 }, g);
+  const bands = el("g", { "clip-path": `url(#${cid})` }, g);
+  for (let i = 1; i < 4; i++) el("rect", { x: -20 - i * abL * 0.5 - 6, y: -60, width: abL * 0.22, height: 120, fill: "#3e2a1a" }, bands);
+  if (kind !== "drone") el("path", { d: `M${-20 - 2 * abL + 2} 0 l-14 0`, stroke: INK, "stroke-width": 4, "stroke-linecap": "round" }, g);
+  el("circle", { cx: 6, cy: 0, r: 27, fill: "#6d4c41", stroke: INK, "stroke-width": 4 }, g);
+  for (let i = 0; i < 10; i++) el("circle", { cx: 6 + Math.cos(i * 0.63) * 18, cy: Math.sin(i * 0.63) * 18, r: 3, fill: "#a1887f" }, g);
+  const head = el("g", {}, g);
+  el("circle", { cx: 46, cy: 0, r: kind === "drone" ? 24 : 20, fill: "#3e2a1a", stroke: INK, "stroke-width": 4 }, head);
+  const eye = kind === "drone" ? 14 : 9;
+  for (const sy of [-1, 1]) el("ellipse", { cx: 50, cy: sy * (kind === "drone" ? 11 : 12), rx: eye, ry: eye * 0.75, fill: "#1a1a1a", stroke: "#795548", "stroke-width": 2 }, head);
+  const ant = el("g", {}, g);
+  if (!o.noAntennae) for (const sy of [-1, 1]) el("path", { d: `M60 ${sy * 8} L76 ${sy * 22} L94 ${sy * 24}`, stroke: INK, "stroke-width": 4, fill: "none", "stroke-linecap": "round" }, ant);
+  const wings = el("g", { opacity: o.noWings ? 0 : 1 }, g);
+  for (const sy of [-1, 1]) {
+    el("ellipse", { cx: -26, cy: sy * 34, rx: 46, ry: 18, fill: "#e3f2fd", opacity: 0.8, stroke: "#90a4ae", "stroke-width": 2.5, transform: `rotate(${sy * -22} -26 ${sy * 34})` }, wings);
+    el("ellipse", { cx: -30, cy: sy * 24, rx: 30, ry: 12, fill: "#e3f2fd", opacity: 0.8, stroke: "#90a4ae", "stroke-width": 2, transform: `rotate(${sy * -12} -30 ${sy * 24})` }, wings);
+  }
+  if (kind === "queen") el("path", { d: "M44 -26 l-6 -16 l8 8 l4 -12 l4 12 l8 -8 l-6 16 Z", fill: "#fdd835", stroke: "#a67c00", "stroke-width": 2 }, g);
+  return { g, wings };
+}
+function ladybird(p, x, y, s = 1) {
+  const g = grp(p, x, y, s);
+  for (const sy of [-1, 1]) for (const lx of [-20, 0, 20]) el("path", { d: `M${lx} ${sy * 30} l${lx / 3} ${sy * 30} l${lx / 2} ${sy * 10}`, stroke: INK, "stroke-width": 5, fill: "none", "stroke-linecap": "round" }, g);
+  el("circle", { cx: 52, cy: 0, r: 22, fill: INK }, g);
+  el("circle", { cx: 58, cy: -9, r: 5, fill: "#fff" }, g);
+  el("circle", { cx: 58, cy: 9, r: 5, fill: "#fff" }, g);
+  el("path", { d: "M68 -8 l18 -14 M68 8 l18 14", stroke: INK, "stroke-width": 4, "stroke-linecap": "round" }, g);
+  el("ellipse", { cx: -4, cy: 0, rx: 56, ry: 50, fill: "#e53935", stroke: INK, "stroke-width": 4 }, g);
+  el("path", { d: "M50 0 L-58 0", stroke: INK, "stroke-width": 4 }, g);
+  for (const [cx, cy, r] of [[20, -24, 10], [20, 24, 10], [-22, -28, 9], [-22, 28, 9], [-38, -8, 7], [-38, 8, 7], [36, 0, 8]]) el("circle", { cx, cy, r, fill: INK }, g);
+  el("ellipse", { cx: 10, cy: -24, rx: 14, ry: 6, fill: "#fff", opacity: 0.35 }, g);
+  return { g };
+}
+function dragonfly(p, x, y, s = 1) {
+  const g = grp(p, x, y, s);
+  const wings = el("g", {}, g);
+  for (const sy of [-1, 1]) {
+    el("ellipse", { cx: 18, cy: sy * 66, rx: 15, ry: 62, fill: "#e1f5fe", opacity: 0.85, stroke: "#78909c", "stroke-width": 2.5, transform: `rotate(${sy * 12} 18 ${sy * 66})` }, wings);
+    el("ellipse", { cx: -8, cy: sy * 64, rx: 17, ry: 60, fill: "#e1f5fe", opacity: 0.85, stroke: "#78909c", "stroke-width": 2.5, transform: `rotate(${sy * -12} -8 ${sy * 64})` }, wings);
+    el("path", { d: `M18 ${sy * 10} L26 ${sy * 120} M-8 ${sy * 10} L-20 ${sy * 118}`, stroke: "#90a4ae", "stroke-width": 1.5 }, wings);
+  }
+  el("rect", { x: -190, y: -7, width: 180, height: 14, rx: 7, fill: "#1e88e5", stroke: "#0d47a1", "stroke-width": 2 }, g);
+  for (let i = 1; i < 9; i++) el("line", { x1: -10 - i * 20, x2: -10 - i * 20, y1: -7, y2: 7, stroke: "#0d47a1", "stroke-width": 2 }, g);
+  el("ellipse", { cx: 8, cy: 0, rx: 26, ry: 16, fill: "#26a69a", stroke: "#00695c", "stroke-width": 3 }, g);
+  el("circle", { cx: 42, cy: 0, r: 15, fill: "#00897b" }, g);
+  el("circle", { cx: 48, cy: -12, r: 13, fill: "#4dd0e1", stroke: "#006064", "stroke-width": 2 }, g);
+  el("circle", { cx: 48, cy: 12, r: 13, fill: "#4dd0e1", stroke: "#006064", "stroke-width": 2 }, g);
+  return { g, wings };
+}
+function pterosaur(p, x, y, s = 1) {
+  const g = grp(p, x, y, s);
+  el("path", { d: "M10 -6 L-40 -150 Q-30 -60 -60 6 Z", fill: "#9c7d63", stroke: "#4e3b2c", "stroke-width": 4, "stroke-linejoin": "round", opacity: 0.85 }, g);
+  el("ellipse", { cx: -10, cy: 0, rx: 46, ry: 20, fill: "#a1887f", stroke: "#4e3b2c", "stroke-width": 4 }, g);
+  el("path", { d: "M-40 14 l-14 26 l-8 2 M-24 16 l-8 26 l-8 2", stroke: "#4e3b2c", "stroke-width": 4, fill: "none", "stroke-linecap": "round" }, g);
+  el("path", { d: "M24 -8 Q50 -24 62 -34", stroke: "#a1887f", "stroke-width": 16, fill: "none", "stroke-linecap": "round" }, g);
+  el("path", { d: "M60 -40 L-4 -82 L52 -28 Z", fill: "#c0715a", stroke: "#4e3b2c", "stroke-width": 3, "stroke-linejoin": "round" }, g);
+  el("ellipse", { cx: 68, cy: -36, rx: 18, ry: 13, fill: "#a1887f", stroke: "#4e3b2c", "stroke-width": 3 }, g);
+  el("path", { d: "M80 -44 L176 -30 L80 -26 Z", fill: "#d7b98c", stroke: "#4e3b2c", "stroke-width": 3, "stroke-linejoin": "round" }, g);
+  el("circle", { cx: 70, cy: -40, r: 4, fill: INK }, g);
+  el("path", { d: "M14 -10 L90 -170 Q40 -80 -30 10 Z", fill: "#b08f73", stroke: "#4e3b2c", "stroke-width": 4, "stroke-linejoin": "round" }, g);
+  el("path", { d: "M14 -10 L90 -170", stroke: "#4e3b2c", "stroke-width": 6 }, g);
+  return { g };
+}
+function spider(p, x, y, s = 1) {
+  const g = grp(p, x, y, s);
+  for (const sy of [-1, 1])
+    for (let i = 0; i < 4; i++) {
+      const a = (-55 + i * 36) * (Math.PI / 180);
+      const kx = 22 + Math.cos(a) * 52;
+      const ky = sy * (Math.sin(Math.abs(a)) * 20 + 46);
+      el("path", { d: `M22 ${sy * 8} L${kx} ${ky} L${kx + Math.cos(a) * 36} ${sy * (Math.abs(ky) + 30)}`, stroke: "#3e2723", "stroke-width": 6, fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round" }, g);
+    }
+  el("ellipse", { cx: -40, cy: 0, rx: 46, ry: 38, fill: "#6d4c41", stroke: "#3e2723", "stroke-width": 4 }, g);
+  el("path", { d: "M-60 -14 L-20 0 L-60 14 M-40 -24 L-40 24", stroke: "#bcaaa4", "stroke-width": 4, fill: "none" }, g);
+  el("circle", { cx: 26, cy: 0, r: 26, fill: "#5d4037", stroke: "#3e2723", "stroke-width": 4 }, g);
+  for (const [cx, cy] of [[42, -8], [42, 8], [36, -14], [36, 14]]) el("circle", { cx, cy, r: 4, fill: INK }, g);
+  return { g };
+}
+function ostrich(p, x, y, s = 1) {
+  const g = grp(p, x, y, s);
+  for (const lx of [-14, 18]) el("path", { d: `M${lx} 30 L${lx + 10} 100 L${lx - 2} 170 l18 4`, stroke: "#e8a5a0", "stroke-width": 9, fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round" }, g);
+  el("path", { d: "M-70 -10 Q-110 -40 -100 0 Q-120 20 -80 20 Z", fill: "#fafafa", stroke: "#bdbdbd", "stroke-width": 2 }, g);
+  el("ellipse", { cx: 0, cy: 0, rx: 76, ry: 46, fill: "#3b3030" }, g);
+  el("path", { d: "M-40 -10 Q0 -30 30 -6 Q0 10 -40 -10 Z", fill: "#efefef" }, g);
+  el("path", { d: "M50 -20 Q66 -90 74 -150", stroke: "#e8a5a0", "stroke-width": 16, fill: "none", "stroke-linecap": "round" }, g);
+  el("ellipse", { cx: 80, cy: -160, rx: 20, ry: 15, fill: "#d9a3a0" }, g);
+  el("path", { d: "M96 -164 L122 -158 L96 -152 Z", fill: "#c97b6a" }, g);
+  el("circle", { cx: 84, cy: -164, r: 4.5, fill: INK }, g);
+  return { g };
+}
+function moth(p, x, y, s = 1) {
+  const b = butterfly(p, x, y, s, { color: "#d7ccc8" });
+  return b;
+}
+function egg(p, x, y, s = 1, color = "#a7d8e8") {
+  const g = grp(p, x, y, s);
+  el("ellipse", { cx: 0, cy: 0, rx: 22, ry: 28, fill: color, stroke: "#6b8f9b", "stroke-width": 3 }, g);
+  el("ellipse", { cx: -7, cy: -10, rx: 6, ry: 9, fill: "#fff", opacity: 0.6 }, g);
+  return g;
+}
+function nest(p, x, y, s = 1) {
+  const g = grp(p, x, y, s);
+  el("path", { d: "M-110 -10 Q-100 60 0 64 Q100 60 110 -10 Q0 18 -110 -10 Z", fill: "#a1754c", stroke: "#6b4a2b", "stroke-width": 4 }, g);
+  for (let i = 0; i < 12; i++) el("path", { d: `M${-100 + i * 17} ${-4 + (i % 3) * 14} q30 ${i % 2 ? 18 : -10} 60 ${i % 2 ? 4 : 10}`, stroke: "#7a5232", "stroke-width": 4, fill: "none", "stroke-linecap": "round" }, g);
+  return g;
+}
+
+// Wing silhouettes from above (head up): glide (albatross), dart (sparrow), soar (eagle), dive (falcon).
+const WING_PATHS = {
+  glide: "M10 -8 L196 0 Q204 6 194 10 L10 16 Z",
+  dart: "M10 -16 C60 -30 104 -12 98 18 C72 34 30 30 10 18 Z",
+  soar: "M10 -20 L118 -26 L130 -36 L134 -24 L144 -30 L146 -18 L156 -22 L154 -8 L162 -4 L150 8 Q90 34 10 26 Z",
+  dive: "M10 -14 C60 -14 112 2 154 38 C100 26 50 20 10 16 Z",
+};
+function silhouette(p, x, y, s, type, fill = "#4e342e") {
+  const g = grp(p, x, y, s);
+  for (const sx of [-1, 1]) el("path", { d: WING_PATHS[type], fill, transform: `scale(${sx} 1)` }, g);
+  el("ellipse", { cx: 0, cy: 6, rx: 15, ry: 42, fill }, g);
+  el("circle", { cx: 0, cy: -40, r: 13, fill }, g);
+  el("path", { d: "M-5 -50 L0 -62 L5 -50 Z", fill }, g);
+  el("path", { d: "M-14 40 L0 70 L14 40 Z", fill }, g);
+  return g;
+}
+// The side view of a curved wing (an airfoil).
+const AIRFOIL = "M0 0 C40 -70 240 -80 520 -6 C300 0 90 22 0 0 Z";
+
+// ---------- beaks, feet and life-stage drawings ----------
+const BEAKS = {
+  seed: { head: "#c0504d", cap: "#8d2f2c", beak: "M24 -14 L66 0 L24 16 Z", color: "#e9c46a" },
+  hook: { head: "#fafafa", cap: "#e0e0e0", body: "#5d4037", beak: "M22 -16 C54 -22 78 -8 74 18 C68 10 60 8 52 10 L22 12 Z", color: "#f4b400" },
+  needle: { head: "#388e3c", cap: "#2e7d32", beak: "M24 -5 L150 -1 L24 5 Z", color: "#2b1d12" },
+  flat: { head: "#2e7d32", cap: "#1b5e20", beak: "M22 -12 C50 -16 86 -12 92 0 C88 12 50 14 22 12 Z", color: "#f2c94c" },
+  chisel: { head: "#424242", cap: "#d32f2f", beak: "M24 -11 L96 0 L24 11 Z", color: "#5d5d5d" },
+};
+function beakHead(p, x, y, s, type) {
+  const b = BEAKS[type];
+  const g = grp(p, x, y, s);
+  el("path", { d: "M-70 90 Q-80 20 -30 -10 L10 30 Q0 80 -10 100 Z", fill: b.body || b.head, opacity: 0.9 }, g);
+  el("circle", { cx: 0, cy: 0, r: 46, fill: b.head, stroke: "#00000033", "stroke-width": 3 }, g);
+  el("path", { d: "M-40 -22 Q-6 -60 34 -26 Q0 -40 -40 -22 Z", fill: b.cap }, g);
+  el("path", { d: b.beak, fill: b.color, stroke: "#00000055", "stroke-width": 3, "stroke-linejoin": "round", transform: "translate(18 4)" }, g);
+  el("circle", { cx: 16, cy: -10, r: 9, fill: "#fff" }, g);
+  el("circle", { cx: 18, cy: -10, r: 5.5, fill: INK }, g);
+  return g;
+}
+function foot(p, x, y, s, type) {
+  const g = grp(p, x, y, s);
+  const leg = "#e0a64a";
+  if (type === "perch") {
+    el("rect", { x: -110, y: 30, width: 220, height: 30, rx: 15, fill: "#8d6e63" }, g);
+    el("path", { d: "M0 -90 L0 22", stroke: leg, "stroke-width": 12, "stroke-linecap": "round" }, g);
+    for (const dx of [-30, 0, 30]) el("path", { d: `M0 22 Q${dx} 18 ${dx + 8} 34 Q${dx + 14} 54 ${dx} 64`, stroke: leg, "stroke-width": 9, fill: "none", "stroke-linecap": "round" }, g);
+    el("path", { d: "M0 22 Q-20 30 -22 50", stroke: leg, "stroke-width": 9, fill: "none", "stroke-linecap": "round" }, g);
+  } else if (type === "talon") {
+    el("path", { d: "M0 -90 L0 10", stroke: "#f4b400", "stroke-width": 18, "stroke-linecap": "round" }, g);
+    for (const [dx, dy] of [[-60, 30], [-10, 50], [40, 46], [56, -6]]) {
+      el("path", { d: `M0 10 L${dx} ${dy}`, stroke: "#f4b400", "stroke-width": 14, "stroke-linecap": "round" }, g);
+      el("path", { d: `M${dx} ${dy} q${Math.sign(dx || 1) * 14} 6 ${Math.sign(dx || 1) * 8} 30`, stroke: INK, "stroke-width": 8, fill: "none", "stroke-linecap": "round" }, g);
+    }
+  } else if (type === "web") {
+    el("path", { d: "M0 -90 L0 0", stroke: "#fb8c00", "stroke-width": 12, "stroke-linecap": "round" }, g);
+    el("path", { d: "M0 0 L-70 60 Q-40 50 -20 72 Q0 58 20 72 Q40 50 70 60 Z", fill: "#ffa726", stroke: "#e65100", "stroke-width": 4, "stroke-linejoin": "round" }, g);
+    for (const dx of [-70, 0, 70]) el("path", { d: `M0 0 L${dx} ${dx ? 60 : 72}`, stroke: "#e65100", "stroke-width": 5 }, g);
+  } else {
+    el("rect", { x: 40, y: -120, width: 70, height: 240, rx: 12, fill: "#8d6e63" }, g);
+    el("path", { d: "M-60 -60 L20 0", stroke: "#9e9e9e", "stroke-width": 12, "stroke-linecap": "round" }, g);
+    for (const [dx, dy] of [[44, -30], [44, -10], [44, 24], [40, 44]]) el("path", { d: `M20 0 L${dx} ${dy}`, stroke: "#9e9e9e", "stroke-width": 9, "stroke-linecap": "round" }, g);
+  }
+  return g;
+}
+function leaf(p, x, y, s = 1, r = 0) {
+  const g = grp(p, x, y, s);
+  g.setAttribute("transform", `translate(${x} ${y}) rotate(${r}) scale(${s})`);
+  el("path", { d: "M-70 0 Q0 -46 70 0 Q0 46 -70 0 Z", fill: "#7cb342", stroke: "#33691e", "stroke-width": 3 }, g);
+  el("path", { d: "M-66 0 L66 0", stroke: "#33691e", "stroke-width": 2.5 }, g);
+  return g;
+}
+function cell(p, x, y, r = 46, fill = "#ffe08a") {
+  const pts = Array.from({ length: 6 }, (_, i) => `${x + r * Math.cos((Math.PI / 3) * i)},${y + r * Math.sin((Math.PI / 3) * i)}`).join(" ");
+  return el("polygon", { points: pts, fill, stroke: "#c98c1a", "stroke-width": 5 }, p);
+}
+// stage pictures for life cycles; each draws centred at 0,0 inside about 160 x 130
+const STAGES = {
+  bEgg(g) {
+    leaf(g, 0, 10, 0.95);
+    el("ellipse", { cx: 0, cy: 4, rx: 10, ry: 14, fill: "#fff8e1", stroke: "#bfa76f", "stroke-width": 2.5 }, g);
+    for (let i = -1; i <= 1; i++) el("line", { x1: i * 4, x2: i * 4, y1: -8, y2: 16, stroke: "#d9c58f", "stroke-width": 1.5 }, g);
+  },
+  cater(g) {
+    leaf(g, 0, 26, 0.95);
+    for (let i = 0; i < 8; i++) {
+      const cx = -56 + i * 15;
+      el("circle", { cx, cy: 4 - Math.sin(i * 0.8) * 4, r: 12, fill: ["#fafafa", "#212121", "#fdd835"][i % 3], stroke: INK, "stroke-width": 2 }, g);
+    }
+    el("circle", { cx: 66, cy: 0, r: 13, fill: INK }, g);
+    el("path", { d: "M68 -10 q4 -16 14 -20 M-58 -6 q-6 -14 -16 -16", stroke: INK, "stroke-width": 3, fill: "none" }, g);
+  },
+  chrys(g) {
+    el("rect", { x: -60, y: -62, width: 120, height: 10, rx: 5, fill: "#8d6e63" }, g);
+    el("path", { d: "M0 -52 L0 -40", stroke: INK, "stroke-width": 3 }, g);
+    el("path", { d: "M0 -40 C30 -40 34 20 0 50 C-34 20 -30 -40 0 -40 Z", fill: "#66bb6a", stroke: "#2e7d32", "stroke-width": 3 }, g);
+    for (const [cx, cy] of [[-12, -18], [0, -22], [12, -18], [-8, 22]]) el("circle", { cx, cy, r: 3, fill: "#ffd54f" }, g);
+  },
+  bfly(g) {
+    butterfly(g, 0, 4, 0.55);
+  },
+  lEgg(g) {
+    leaf(g, 0, 10, 0.95);
+    for (const [cx, cy] of [[-10, 0], [0, -2], [10, 0], [-5, 10], [5, 10]]) el("ellipse", { cx, cy, rx: 5, ry: 8, fill: "#ffcc80", stroke: "#e65100", "stroke-width": 1.5 }, g);
+  },
+  lLarva(g) {
+    leaf(g, 0, 22, 0.95);
+    el("ellipse", { cx: 0, cy: 0, rx: 58, ry: 16, fill: "#37474f", stroke: INK, "stroke-width": 3 }, g);
+    for (let i = 0; i < 6; i++) el("circle", { cx: -40 + i * 15, cy: -4, r: 4, fill: "#ff8a65" }, g);
+    el("circle", { cx: 60, cy: 0, r: 11, fill: INK }, g);
+    for (const lx of [36, 46, 56]) el("path", { d: `M${lx} 12 l4 14`, stroke: INK, "stroke-width": 3 }, g);
+  },
+  lPupa(g) {
+    leaf(g, 0, 22, 0.95);
+    el("path", { d: "M-30 18 C-34 -30 30 -34 34 6 C30 24 -20 26 -30 18 Z", fill: "#ff9800", stroke: "#bf360c", "stroke-width": 3 }, g);
+    for (const [cx, cy] of [[-10, -6], [8, -10], [14, 6], [-14, 8]]) el("circle", { cx, cy, r: 4, fill: INK }, g);
+  },
+  lAdult(g) {
+    ladybird(g, 0, 0, 0.75);
+  },
+  beeEgg(g) {
+    cell(g, 0, 0, 56, "#fff3d1");
+    el("ellipse", { cx: 0, cy: 0, rx: 4, ry: 12, fill: "#fffde7", stroke: "#bfa76f", "stroke-width": 2 }, g);
+  },
+  beeLarva(g) {
+    cell(g, 0, 0, 56, "#fff3d1");
+    el("path", { d: "M-22 10 C-30 -24 20 -30 24 0 C26 18 8 26 0 14 C10 10 10 -6 -2 -8 C-14 -8 -14 10 -22 10 Z", fill: "#fffaf0", stroke: "#bcaaa4", "stroke-width": 3 }, g);
+  },
+  beePupa(g) {
+    cell(g, 0, 0, 56, "#fff3d1");
+    bee(g, 18, 0, 0.42, { noWings: true });
+    g.lastChild.setAttribute("opacity", 0.55);
+  },
+  beeAdult(g) {
+    bee(g, 24, 0, 0.55);
+  },
+  dEgg(g) {
+    el("rect", { x: -80, y: 10, width: 160, height: 50, rx: 10, fill: "#90caf9", opacity: 0.6 }, g);
+    el("path", { d: "M-30 60 Q-26 0 -10 -50 M10 60 Q18 0 30 -40", stroke: "#558b2f", "stroke-width": 8, fill: "none", "stroke-linecap": "round" }, g);
+    for (let i = 0; i < 6; i++) el("circle", { cx: -14 + (i % 2) * 6, cy: -20 + i * 9, r: 4, fill: "#fff59d", stroke: "#a68b00", "stroke-width": 1.5 }, g);
+  },
+  nymph(g) {
+    el("rect", { x: -82, y: -50, width: 164, height: 110, rx: 14, fill: "#90caf9", opacity: 0.55 }, g);
+    for (const sy of [-1, 1]) for (const lx of [6, 16, 26]) el("path", { d: `M${lx} ${sy * 8} l${lx - 30} ${sy * 22} l-10 ${sy * 10}`, stroke: "#5d4037", "stroke-width": 4, fill: "none" }, g);
+    el("ellipse", { cx: -24, cy: 0, rx: 44, ry: 16, fill: "#795548", stroke: "#3e2723", "stroke-width": 3 }, g);
+    el("ellipse", { cx: 20, cy: 0, rx: 16, ry: 13, fill: "#6d4c41" }, g);
+    el("path", { d: "M10 -8 L-16 -14 L10 -2 Z M10 8 L-16 14 L10 2 Z", fill: "#a1887f" }, g);
+    el("circle", { cx: 40, cy: 0, r: 12, fill: "#5d4037" }, g);
+    el("circle", { cx: 44, cy: -8, r: 6, fill: "#a5d6a7" }, g);
+    el("circle", { cx: 44, cy: 8, r: 6, fill: "#a5d6a7" }, g);
+  },
+  dAdult(g) {
+    dragonfly(g, 30, 0, 0.42);
+  },
+};
+const CYCLES = [
+  { k: "butterfly", name: "butterfly", full: true, stages: [["bEgg", "egg"], ["cater", "caterpillar"], ["chrys", "chrysalis"], ["bfly", "butterfly"]] },
+  { k: "dragonfly", name: "dragonfly", full: false, stages: [["dEgg", "egg"], ["nymph", "nymph"], ["dAdult", "dragonfly"]] },
+  { k: "ladybird", name: "ladybird", full: true, stages: [["lEgg", "egg"], ["lLarva", "larva"], ["lPupa", "pupa"], ["lAdult", "ladybird"]] },
+  { k: "bee", name: "honeybee", full: true, stages: [["beeEgg", "egg"], ["beeLarva", "larva"], ["beePupa", "pupa"], ["beeAdult", "bee"]] },
+];
+const STAGE_WHY = {
+  egg: "Every life starts as a tiny egg.",
+  caterpillar: "A caterpillar hatches from the egg and eats and eats.",
+  chrysalis: "The caterpillar makes a chrysalis. Inside, it changes.",
+  butterfly: "The butterfly comes out of the chrysalis at the end.",
+  nymph: "A nymph hatches and lives in the water. It looks a bit like the adult, but has no wings yet.",
+  dragonfly: "The nymph climbs out of the water and becomes a dragonfly.",
+  larva: "A larva hatches from the egg. It is a hungry baby that looks nothing like its parents.",
+  pupa: "The larva rests in a pupa while its body changes.",
+  ladybird: "The ladybird comes out of the pupa at the end.",
+  bee: "The adult bee comes out of the cell at the end.",
+};
+
+// ---------- the game frame (8 rounds, struggle first, calm finish) ----------
+const LEVELS = [["easy", "🐣 Easy"], ["medium", "🦊 Medium"], ["hard", "🦁 Hard"]];
+const GOOD = ["Yes! You looked closely.", "Right! Good noticing.", "Yes! You used the clues.", "That's it! Careful thinking.", "Yes! You checked the clues.", "Right! You thought it through."];
+const NOTYET = ["Not yet.", "Hmm, not quite.", "Mistakes help us learn.", "Good try."];
+
+function frame(id, { rounds = 8, noun = "Round", countKey, ask }) {
+  const my = token;
+  const saved = shell.progress()[id]?.level;
+  const g = { id, level: LEVELS.some(([k]) => k === saved) ? saved : "easy", round: 0, score: 0, qt: 0, busy: false, gen: 0, q: {} };
+  g.live = () => my === token;
+  g.cur = () => {
+    const gen = g.gen;
+    return () => g.live() && gen === g.gen;
+  };
+  panel(`<div class="ap-row"><div class="ap-chips" data-levels>${LEVELS.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === g.level}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div><div class="fl-ans" data-ans></div>`);
+  g.ans = $("[data-ans]");
+  g.ok = () => g.live() && !g.busy;
+  g.next = () => {
+    if (!g.live()) return;
+    g.gen += 1;
+    g.busy = false;
+    g.q = {};
+    g.qt = 0;
+    g.st = 0;
+    g.missed = false;
+    $("[data-status]").textContent = `${noun} ${g.round + 1} of ${rounds}`;
+    g.ans.innerHTML = "";
+    g.ans.onclick = null;
+    ask(g);
+  };
+  // A question: { hint, reveal, why, show(), then() }. then() runs instead of finishing the round (multi-step rounds).
+  g.set = (q) => {
+    g.q = q;
+    g.qt = 0;
+  };
+  g.answer = (ok, btn) => {
+    if (!g.ok() || btn?.classList.contains("wrong")) return;
+    window.OC?.touch();
+    if (ok) {
+      btn?.classList.add("right");
+      if (g.q.then) {
+        MUSIC.chime();
+        return g.q.then();
+      }
+      return g.win(g.q.why || "");
+    }
+    btn?.classList.add("wrong");
+    g.miss();
+  };
+  g.miss = async () => {
+    if (!g.ok()) return;
+    MUSIC.oops();
+    g.qt += 1;
+    g.missed = true;
+    if (g.qt < 2) return say(`${pick(NOTYET)} ${g.q.hint || "Look again. What do you notice?"}`);
+    g.busy = true;
+    const alive = g.cur();
+    g.q.show?.();
+    await Promise.all([sayAsync(`Let's look why. ${g.q.reveal || g.q.why || ""}`), wait(2000)]);
+    if (!alive()) return;
+    await wait(900);
+    if (!alive()) return;
+    if (g.q.then) {
+      g.busy = false;
+      g.q.then();
+    } else g.advance();
+  };
+  g.win = async (msg, ms = 1500) => {
+    if (!g.live()) return;
+    g.busy = true;
+    const alive = g.cur();
+    MUSIC.chime();
+    if (!g.missed) g.score += 1;
+    window.OC?.count(countKey);
+    await Promise.all([sayAsync(`${pick(GOOD)} ${msg}`), wait(ms)]);
+    if (alive()) g.advance();
+  };
+  g.advance = () => {
+    g.round += 1;
+    if (g.round >= rounds) g.finish();
+    else g.next();
+  };
+  g.finish = async () => {
+    g.gen += 1;
+    const alive = g.cur();
+    g.busy = true;
+    confetti();
+    shell.mark(id, { done: true });
+    $("[data-status]").textContent = `All ${rounds} done ✓`;
+    g.ans.innerHTML = `<div class="ap-buttons"><button type="button" data-again>🔁 Play again</button>${TRY[id] ? `<button type="button" class="primary" data-try>🏠 Try it for real</button>` : ""}</div>`;
+    g.ans.onclick = (event) => {
+      if (event.target.closest("[data-again]")) {
+        g.round = 0;
+        g.score = 0;
+        g.next();
+      } else if (event.target.closest("[data-try]")) tryCard(id);
+    };
+    await sayAsync(`🎉 You finished all ${rounds}! You kept trying and looked closely at the clues. Now try it for real, away from the screen.`);
+    if (alive() && TRY[id]) tryCard(id);
+  };
+  // A step inside a round: 1st miss gives a hint, 2nd miss explains (caller then does the right move).
+  g.st = 0;
+  g.step = (ok, { hint, reveal }) => {
+    window.OC?.touch();
+    if (ok) {
+      g.st = 0;
+      return true;
+    }
+    MUSIC.oops();
+    g.missed = true;
+    g.st += 1;
+    if (g.st < 2) {
+      say(`${pick(NOTYET)} ${hint}`);
+      return false;
+    }
+    g.st = 0;
+    say(`Let's look why. ${reveal}`);
+    return true;
+  };
+  g.choose = (opts, q) => {
+    g.set({ show: () => g.ans.querySelectorAll("[data-c]").forEach((b, i) => opts[i].ok && b.classList.add("right")), ...q });
+    choices(g.ans, opts, (o, b) => g.answer(o.ok, b));
+  };
+  $("[data-levels]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b || !g.live()) return;
+    g.level = b.dataset.lv;
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    shell.mark(id, { level: g.level });
+    window.OC?.touch();
+    VOICE.hush();
+    g.round = 0;
+    g.score = 0;
+    g.next();
+  });
+  g.next();
+  return g;
+}
+
+// ---------- "Try it for real" cards ----------
+const TRY = {
+  f1: {
+    icon: "📋",
+    title: "Bird-watching tally",
+    need: ["Paper and a pencil", "A window, garden or park", "Binoculars (if you have them)"],
+    steps: ["Draw a table: one row for each bird you know, like pigeon, robin or crow.", "Sit still and watch quietly for 10 minutes.", "Each time you see a bird, make a tally mark. The 5th mark crosses the other 4.", "Count up the tallies. Which bird came the most?"],
+    safe: "Stay where a grown-up can see you. Watch birds from far away and never touch a nest.",
+  },
+  f2: {
+    icon: "✈️",
+    title: "Paper wings test",
+    need: ["Two sheets of paper", "A strip of paper", "Open space"],
+    steps: ["Hold a paper strip under your bottom lip and blow over the top. Watch it lift up!", "Fold two paper planes: one with long thin wings, one with short wide wings.", "Throw each one gently from the same spot.", "Count your footsteps to where each one landed. Which glided farther? Why do you think so?"],
+    safe: "Throw planes away from faces and people.",
+  },
+  f3: {
+    icon: "🪶",
+    title: "Look closely at a feather",
+    need: ["A feather (a clean craft feather is best)", "A magnifying glass", "Paper and pencils"],
+    steps: ["Find the stiff middle stick, called the shaft.", "Look at the thin barbs along each side with the magnifier.", "Gently pull two barbs apart, then stroke them back together. They zip up again!", "Draw your feather and its shaft and barbs."],
+    safe: "If you find a feather outside, show a grown-up first and wash your hands after touching it.",
+  },
+  f4: {
+    icon: "🌲",
+    title: "Make a pine-cone bird feeder",
+    need: ["A pine cone", "String", "Vegetable shortening", "Birdseed on a plate"],
+    steps: ["Tie a string around the top of the pine cone.", "With a grown-up, spread shortening into the gaps of the cone.", "Roll the cone in birdseed until it is covered.", "Hang it on a branch you can see from a window. Tally the birds that visit!"],
+    safe: "Do this with a grown-up. Wash your hands afterwards.",
+  },
+  f5: {
+    icon: "👏",
+    title: "Echo hunt",
+    need: ["A big flat wall outside, or a large empty hall", "A grown-up"],
+    steps: ["Stand about 20 big steps away from the wall.", "Clap once, loudly, and listen. Can you hear the clap bounce back?", "Walk closer and clap again. Does the echo come back sooner?", "Play bat and moth: the bat closes their eyes and calls 'Bat!', the moth answers 'Moth!', and the bat follows the sound."],
+    safe: "Play in an open space with a grown-up, away from roads and steps.",
+  },
+  f6: {
+    icon: "📓",
+    title: "Nature journal: an insect",
+    need: ["A notebook", "Pencils or crayons", "A magnifying glass"],
+    steps: ["Look for an insect in a garden or park: an ant, a beetle or a ladybird.", "Watch it without touching it.", "Draw its 3 body parts: head, thorax and abdomen.", "Count and draw its legs. Write where you found it and the date."],
+    safe: "Never touch bees or wasps: they can sting. Do this with a grown-up nearby.",
+  },
+  f7: {
+    icon: "🍽️",
+    title: "Life-cycle wheel",
+    need: ["A paper plate", "Crayons", "A ruler"],
+    steps: ["Draw two lines to cut the plate into 4 parts.", "Draw an egg, a caterpillar, a chrysalis and a butterfly, going around in order.", "Draw arrows from each picture to the next.", "Turn the wheel and tell the story to someone."],
+    safe: "Ask a grown-up if you want to look for real eggs or caterpillars under leaves. Look, but don't touch.",
+  },
+  f8: {
+    icon: "⬡",
+    title: "Hexagons and a bee dance",
+    need: ["Paper and scissors", "A coin and a hexagon to trace", "A small toy to hide"],
+    steps: ["Trace and cut out 7 circles and 7 hexagons the same size.", "Push the circles together. See the gaps? Now push the hexagons together: no gaps!", "Hide a toy. Do a waggle dance to show which way it is: waggle longer if it is far away.", "Can your family find the toy from your dance?"],
+    safe: "Use scissors with a grown-up.",
+  },
+};
+function tryCard(id) {
+  const t = TRY[id];
+  if (!t) return;
+  document.querySelector(".fl-try")?.remove();
+  const box = document.createElement("div");
+  box.className = "fl-try";
+  box.innerHTML = `<div class="fl-try-card" role="dialog" aria-label="Try it for real"><div class="fl-try-head"><span class="fl-try-icon" aria-hidden="true">${t.icon}</span><div><small>🏠 Try it for real</small><h2>${t.title}</h2></div></div><div class="fl-try-body"><div><h3>You need</h3><ul>${t.need.map((n) => `<li>${n}</li>`).join("")}</ul></div><div><h3>Steps</h3><ol>${t.steps.map((n) => `<li>${n}</li>`).join("")}</ol></div></div><p class="fl-safe">⚠️ ${t.safe}</p><button type="button" class="kt-go" data-close>👍 I'll try it!</button></div>`;
+  document.body.appendChild(box);
+  VOICE.speak(`Try it for real: ${t.title}. You need: ${t.need.join(", ")}. ${t.steps.join(" ")} ${t.safe}`);
+  box.addEventListener("click", (event) => {
+    if (event.target.closest("[data-close]") || event.target === box) {
+      VOICE.hush();
+      box.remove();
+    }
+  });
+}
+
+const flStyle = document.createElement("style");
+flStyle.textContent = `
+.ap-stage > svg{overflow:visible;position:absolute;inset:0;width:100%;height:100%}
+.fl-ans{display:flex;justify-content:center;width:100%}
+.fl-ans .kt-choices button{min-height:56px;font-size:19px;border-radius:20px}
+.fl-tap{cursor:pointer}
+.fl-pulse{animation:fl-pulse 1.3s ease-in-out infinite}
+@keyframes fl-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.fl-try{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:10px;background:rgba(245,239,228,.95)}
+.fl-try-card{width:min(780px,100%);max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:10px;padding:16px 20px;border-radius:26px;background:#fff;box-shadow:0 8px 0 #ece3d6,0 18px 40px rgba(70,40,15,.18);color:#2b1d12;font:700 17px/1.35 var(--sans)}
+.fl-try-head{display:flex;align-items:center;gap:14px}
+.fl-try-icon{display:grid;place-items:center;flex:none;width:64px;height:64px;border-radius:50%;background:var(--accent-soft);font-size:34px}
+.fl-try-head small{color:var(--accent-dark);font-weight:900;text-transform:uppercase;letter-spacing:.06em;font-size:13px}
+.fl-try-head h2{margin:0;font:900 clamp(21px,3vw,28px)/1.15 var(--sans)}
+.fl-try-body{display:grid;grid-template-columns:1fr 1.7fr;gap:16px}
+.fl-try-body h3{margin:0 0 4px;font:900 16px var(--sans);color:var(--accent-dark)}
+.fl-try-body ul,.fl-try-body ol{margin:0;padding-left:22px;display:grid;gap:4px}
+.fl-safe{margin:0;padding:8px 12px;border-radius:14px;background:#fff4e0;color:#7a4a0c}
+.fl-try .kt-go{align-self:center;margin-top:2px}
+@media (max-width:620px){.fl-try-body{grid-template-columns:1fr}}
+@media (max-height:460px){.fl-try-card{padding:10px 14px;gap:6px;font-size:14.5px}.fl-try-icon{width:46px;height:46px;font-size:24px}.fl-try .kt-go{min-height:44px;font-size:18px}.fl-ans .kt-choices button{min-height:40px;font-size:15px}}
+@media (max-width:420px) and (max-height:720px){.fl-try-card{font-size:14.5px}.fl-ans .kt-choices button{min-height:44px;font-size:15px;padding:0 12px}}
+`;
+document.head.appendChild(flStyle);
+
+// A label with a pointer line that fades in.
+async function label(v, api, [x1, y1], [x2, y2], word, color = "var(--accent-dark)") {
+  const g = el("g", { opacity: 0 }, v);
+  el("line", { x1, y1, x2, y2, stroke: color, "stroke-width": 4, "stroke-linecap": "round" }, g);
+  el("circle", { cx: x1, cy: y1, r: 7, fill: color }, g);
+  const t = text(g, x2, y2 + (y2 < y1 ? -12 : 32), word, { "font-size": 30, fill: INK });
+  await api.tween(600, (k) => g.setAttribute("opacity", k));
+  return t;
+}
+
+const units = {
+  f0() {
+    const my = token;
+    explain(
+      [
+        {
+          say: "Why do we learn about flying creatures? Birds sing in our gardens, bees make honey and help our fruit grow, and bats eat mosquitoes!",
+          draw: everyday([["🐦", "Birds in the garden"], ["🍯", "Bees make honey and help food grow"], ["🦋", "Butterflies on flowers"], ["🦇", "Bats eat mosquitoes"]]),
+        },
+        {
+          say: "Zoology means the study of animals. Scientists sort flying animals into groups: birds, bats, insects, and flying reptiles from long ago.",
+          async draw(v, api) {
+            const boxes = [["Birds", "#e8f4fb"], ["Bats", "#efe7f6"], ["Insects", "#fff4d6"], ["Flying reptiles", "#e9f3e1"]];
+            const pics = [(p) => bird(p, 0, 10, 0.9), (p) => bat(p, 0, 10, 0.6), (p) => bee(p, 20, 0, 0.8), (p) => pterosaur(p, -30, 60, 0.72)];
+            for (let i = 0; i < 4; i++) {
+              const x = 30 + i * 240;
+              const g = el("g", { opacity: 0 }, v);
+              el("rect", { x, y: 70, width: 220, height: 400, rx: 28, fill: boxes[i][1], stroke: "var(--accent)", "stroke-width": 4 }, g);
+              text(g, x + 110, 130, boxes[i][0], { "font-size": i === 3 ? 25 : 32, fill: INK });
+              pics[i](grp(g, x + 110, 290, 1));
+              await api.tween(600, (t) => g.setAttribute("opacity", t));
+              if (i === 0) trill();
+              await api.wait(500);
+            }
+          },
+        },
+        {
+          say: "What makes a bird a bird? Feathers! Only birds have feathers. Birds also have a beak and wings, and they lay eggs.",
+          async draw(v, api) {
+            sky(v);
+            const b = bird(v, 430, 280, 2.2);
+            trill();
+            await api.wait(500);
+            await label(v, api, [300, 270], [190, 150], "feathers");
+            await label(v, api, [640, 210], [760, 120], "beak");
+            await label(v, api, [400, 250], [440, 90], "wings");
+            const eg = el("g", { opacity: 0 }, v);
+            nest(eg, 820, 470, 0.8);
+            egg(eg, 800, 455, 0.9);
+            egg(eg, 840, 458, 0.9);
+            text(eg, 820, 400, "eggs", { "font-size": 30, fill: INK });
+            await api.tween(700, (t) => eg.setAttribute("opacity", t));
+            await api.tween(1400, (t) => b.flap(Math.sin(t * Math.PI * 4) * 30));
+          },
+        },
+        {
+          say: "Many birds have hollow bones. They are light, like a straw, which helps birds fly. Inside, thin struts keep them strong.",
+          async draw(v, api) {
+            const g = el("g", { opacity: 0 }, v);
+            el("rect", { x: 120, y: 230, width: 760, height: 100, rx: 50, fill: "#f5ecd9", stroke: "#b49a74", "stroke-width": 6 }, g);
+            el("rect", { x: 140, y: 248, width: 720, height: 64, rx: 32, fill: "#fffaf0" }, g);
+            for (let i = 0; i < 9; i++) el("path", { d: `M${180 + i * 75} 250 L${215 + i * 75} 310`, stroke: "#c9b08a", "stroke-width": 7, "stroke-linecap": "round" }, g);
+            text(g, 500, 190, "a bird bone, cut open", { "font-size": 32, fill: INK });
+            text(g, 500, 400, "hollow inside, with struts", { "font-size": 30, fill: "var(--accent-dark)" });
+            await api.tween(1000, (t) => g.setAttribute("opacity", t));
+            await api.wait(1200);
+            const s = el("g", { opacity: 0 }, v);
+            text(s, 500, 480, "light, like a drinking straw", { "font-size": 30, fill: INK });
+            await api.tween(800, (t) => s.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "How do wings lift? Air rushes over the curved wing and is turned downward. The air pushes back up on the wing. That push is called lift.",
+          async draw(v, api) {
+            const wing = el("path", { d: AIRFOIL, fill: "#8d6e63", stroke: "#4e342e", "stroke-width": 5, transform: "translate(240 330) rotate(6)" }, v);
+            const lines = [];
+            for (let i = 0; i < 4; i++) {
+              const y = 180 + i * 34;
+              const d = i < 3 ? `M40 ${y} C240 ${y} 300 ${y - 50 + i * 10} 520 ${y - 30 + i * 8} S760 ${y + 70} 960 ${y + 150}` : `M40 380 C300 380 600 390 960 470`;
+              lines.push(el("path", { d, fill: "none", stroke: "#90caf9", "stroke-width": 4, "stroke-dasharray": "14 12" }, v));
+            }
+            text(v, 110, 150, "air", { "font-size": 30, fill: "#1e88e5" });
+            const dots = lines.map(() => el("circle", { r: 9, fill: "#1e88e5" }, v));
+            const up = el("g", { opacity: 0 }, v);
+            el("path", { d: "M500 280 L500 120", stroke: "#43a047", "stroke-width": 16, "stroke-linecap": "round" }, up);
+            el("path", { d: "M470 140 L500 92 L530 140 Z", fill: "#43a047" }, up);
+            text(up, 590, 120, "LIFT", { "font-size": 40, fill: "#2e7d32" });
+            const down = el("g", { opacity: 0 }, v);
+            el("path", { d: "M860 360 L900 440", stroke: "#1e88e5", "stroke-width": 10, "stroke-linecap": "round" }, down);
+            el("path", { d: "M880 446 L908 470 L918 430 Z", fill: "#1e88e5" }, down);
+            text(down, 860, 520, "air goes down", { "font-size": 26, fill: "#1e88e5" });
+            void wing;
+            await api.tween(3000, (t) => {
+              lines.forEach((path, i) => {
+                const L = path.getTotalLength();
+                const p = path.getPointAtLength(((t * 2 + i * 0.13) % 1) * L);
+                dots[i].setAttribute("cx", p.x);
+                dots[i].setAttribute("cy", p.y);
+              });
+              down.setAttribute("opacity", Math.min(1, t * 2));
+            }, (t) => t);
+            await api.tween(900, (t) => up.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "Birds fly in different ways. They flap their wings, they glide with wings held still, and a hummingbird can hover in one spot!",
+          async draw(v, api) {
+            sky(v, { ground: false });
+            text(v, 170, 470, "flapping", { "font-size": 32, fill: INK });
+            text(v, 500, 470, "gliding", { "font-size": 32, fill: INK });
+            text(v, 830, 470, "hovering", { "font-size": 32, fill: INK });
+            const a = bird(v, 170, 260, 0.9, { noLegs: true });
+            const glide = silhouette(v, 500, 260, 0.9, "glide");
+            const fl = el("g", {}, v);
+            el("path", { d: "M920 420 Q900 330 920 270", stroke: "#558b2f", "stroke-width": 6, fill: "none" }, fl);
+            el("path", { d: "M920 270 l-30 -40 l30 10 l30 -10 Z", fill: "#e91e63" }, fl);
+            const h = hummer(v, 790, 250, 0.9);
+            trill(0.15);
+            await api.tween(7000, (t) => {
+              const s = t * 7;
+              a.flap(Math.sin(s * Math.PI * 4) * 32);
+              place(a.g, 170, 260 - Math.sin(s * Math.PI * 4) * 8, 0.9);
+              place(glide, 440 + t * 120, 240 + t * 40, 0.9);
+              h.flap(Math.sin(s * Math.PI * 40) * 30);
+            }, (t) => t);
+          },
+        },
+        {
+          say: "Bats are mammals with fur, and they are the only mammals that truly fly. At night a bat clicks and listens for the echo to find a moth. This is called echolocation.",
+          async draw(v, api) {
+            sky(v, { night: true });
+            const b = bat(v, 150, 280, 0.7, { wing: "#8d6e63" });
+            const m = moth(v, 760, 250, 0.4);
+            m.g.setAttribute("opacity", 0.15);
+            for (let k = 0; k < 2; k++) {
+              click(0.55);
+              const ring = el("circle", { cx: 150, cy: 280, r: 10, fill: "none", stroke: "#ffe082", "stroke-width": 6 }, v);
+              await api.tween(1400, (t) => {
+                ring.setAttribute("r", 10 + t * 610);
+                ring.setAttribute("opacity", 1 - t * 0.5);
+                b.flap(0.7 + Math.sin(t * 20) * 0.3);
+              }, (t) => t);
+              ring.remove();
+              m.g.setAttribute("opacity", 1);
+              const echo = el("circle", { cx: 760, cy: 250, r: 10, fill: "none", stroke: "#80deea", "stroke-width": 5 }, v);
+              await api.tween(1400, (t) => {
+                echo.setAttribute("r", 10 + t * 610);
+                echo.setAttribute("opacity", 1 - t * 0.6);
+              }, (t) => t);
+              echo.remove();
+              click(0.2);
+              text(v, 150, 420 + k * 40, k ? "" : "echo!", { "font-size": 34, fill: "#80deea" });
+              await api.wait(700);
+            }
+          },
+        },
+        {
+          say: "An insect has 6 legs, 3 body parts and 2 antennae. The body parts are the head, the thorax and the abdomen.",
+          async draw(v, api) {
+            const b = bee(v, 560, 240, 2.3);
+            buzz();
+            await api.wait(600);
+            await label(v, api, [670, 250], [800, 470], "head");
+            await label(v, api, [575, 240], [560, 470], "thorax");
+            await label(v, api, [380, 240], [260, 470], "abdomen");
+            const legs = [...b.g.querySelectorAll(".fl-legs path")];
+            for (let i = 0; i < legs.length; i++) {
+              legs[i].setAttribute("stroke", "#e53935");
+              note(i);
+              await api.wait(450);
+            }
+            text(v, 860, 120, "6 legs", { "font-size": 34, fill: "#e53935" });
+            await api.wait(400);
+            text(v, 860, 170, "2 antennae", { "font-size": 30, fill: INK });
+          },
+        },
+        {
+          say: "A butterfly changes as it grows: egg, caterpillar, chrysalis, butterfly. This big change is called metamorphosis.",
+          async draw(v, api) {
+            const spots = [[500, 110, "egg"], [800, 280, "caterpillar"], [500, 440, "chrysalis"], [200, 280, "butterfly"]];
+            const keys = ["bEgg", "cater", "chrys", "bfly"];
+            text(v, 500, 290, "metamorphosis", { "font-size": 34, fill: "var(--accent-dark)" });
+            for (let i = 0; i < 4; i++) {
+              const [x, y, word] = spots[i];
+              const g = el("g", { opacity: 0, transform: `translate(${x} ${y})` }, v);
+              STAGES[keys[i]](g);
+              text(g, 0, 92, word, { "font-size": 26, fill: INK });
+              await api.tween(700, (t) => g.setAttribute("opacity", t));
+              note(i * 2);
+              const [nx, ny] = spots[(i + 1) % 4];
+              const arrow = el("path", { d: `M${x + (nx - x) * 0.32} ${y + (ny - y) * 0.32} Q${(x + nx) / 2 + (ny - y) * 0.25} ${(y + ny) / 2 - (nx - x) * 0.25} ${x + (nx - x) * 0.68} ${y + (ny - y) * 0.68}`, fill: "none", stroke: "var(--accent)", "stroke-width": 6, "stroke-linecap": "round", opacity: 0 }, v);
+              await api.wait(500);
+              await api.tween(500, (t) => arrow.setAttribute("opacity", t));
+            }
+          },
+        },
+      ],
+      { alive: () => my === token, onDone: () => shell.go("f1"), title: "Flying Creatures" }
+    );
+  },
+
+  // ---------- 1. Bird or not? ----------
+  f1() {
+    const A = [
+      { n: "robin", bird: true, lv: 0, d: (p) => bird(p, 0, 0, 1.5), why: "A robin has feathers, a beak and wings, and lays eggs. It is a bird!" },
+      { n: "chicken", bird: true, lv: 0, e: "🐔", why: "A chicken has feathers and a beak, and lays eggs. It is a bird!" },
+      { n: "owl", bird: true, lv: 0, e: "🦉", why: "An owl is covered in soft feathers. It is a bird!" },
+      { n: "duck", bird: true, lv: 0, e: "🦆", why: "A duck has feathers and a flat bill. It is a bird!" },
+      { n: "parrot", bird: true, lv: 0, e: "🦜", why: "A parrot has bright feathers and a hooked beak. It is a bird!" },
+      { n: "cat", bird: false, lv: 0, e: "🐈", why: "A cat has fur, not feathers. It is a mammal, not a bird." },
+      { n: "dog", bird: false, lv: 0, e: "🐕", why: "A dog has fur, not feathers. It is a mammal, not a bird." },
+      { n: "fish", bird: false, lv: 0, e: "🐟", why: "A fish has scales and fins, not feathers. It is not a bird." },
+      { n: "frog", bird: false, lv: 0, e: "🐸", why: "A frog has smooth, wet skin and no feathers. It is not a bird." },
+      { n: "penguin", bird: true, lv: 1, e: "🐧", why: "A penguin can't fly, it swims! But it has feathers, so it is a bird." },
+      { n: "ostrich", bird: true, lv: 1, d: (p) => ostrich(p, 0, -10, 1.15), why: "An ostrich can't fly, it runs fast. But it has feathers and a beak and lays eggs. It is a bird!" },
+      { n: "hummingbird", bird: true, lv: 1, d: (p) => hummer(p, -10, 0, 1.8), why: "A tiny hummingbird has feathers. It is a bird!" },
+      { n: "flamingo", bird: true, lv: 1, e: "🦩", why: "A flamingo has pink feathers. It is a bird!" },
+      { n: "bat", bird: false, lv: 1, d: (p) => bat(p, 0, 0, 1.3), why: "A bat can fly, but it has fur, not feathers. It is a mammal and feeds its babies milk." },
+      { n: "butterfly", bird: false, lv: 1, d: (p) => butterfly(p, 0, 0, 1.4), why: "A butterfly can fly, but it has no feathers. It is an insect with 6 legs." },
+      { n: "bee", bird: false, lv: 1, d: (p) => bee(p, 30, 0, 1.4), why: "A bee can fly, but it has no feathers. It is an insect." },
+      { n: "pterosaur", bird: false, lv: 1, d: (p) => pterosaur(p, -30, 70, 1.05), why: "A pterosaur was a flying reptile that lived long ago. Its wings were made of skin, not feathers." },
+      { n: "turtle", bird: false, lv: 1, e: "🐢", why: "A turtle lays eggs, but it has no feathers. It is a reptile." },
+    ];
+    let bag = [];
+    frame("f1", {
+      noun: "Animal",
+      countKey: "animals sorted",
+      ask(g) {
+        if (!bag.length || g.round === 0) {
+          const easy = A.filter((a) => a.lv === 0);
+          const tricky = A.filter((a) => a.lv === 1);
+          bag = g.level === "easy" ? shuffle(easy).slice(0, 8) : g.level === "medium" ? shuffle([...shuffle(tricky).slice(0, 6), ...shuffle(easy).slice(0, 2)]) : shuffle(tricky).slice(0, 8);
+        }
+        const a = bag[g.round % bag.length];
+        fresh();
+        sky(view);
+        const baskets = [[20, "🪶 Bird", true], [760, "Not a bird", false]].map(([x, word, isBird]) => {
+          const b = el("g", { class: "fl-tap", "data-b": isBird ? 1 : 0 }, view);
+          el("rect", { x, y: 400, width: 220, height: 140, rx: 26, fill: isBird ? "#e3f2fd" : "#fdecea", stroke: isBird ? "#1e88e5" : "#e57373", "stroke-width": 5 }, b);
+          text(b, x + 110, 490, word, { "font-size": 32, fill: INK });
+          return b;
+        });
+        const holder = el("g", { transform: "translate(500 250)" }, view);
+        if (a.e) emoji(holder, 0, 0, a.e, 240);
+        else a.d(holder);
+        if (a.n === "robin" || a.n === "hummingbird") trill(0.15);
+        const step2 = () => {
+          const opts = a.bird
+            ? shuffle([{ label: "🪶 It has feathers", ok: true }, { label: "✈️ It can fly" }, { label: "🥚 It lays eggs" }])
+            : shuffle([{ label: "🪶 It has no feathers", ok: true }, { label: "🦵 It has legs" }, { label: "🌳 It lives outside" }]);
+          say(`Yes! Now, how can you be sure? Which clue tells you?`);
+          g.choose(opts, { hint: "Bats can fly and turtles lay eggs. So what clue belongs only to birds?", reveal: `Only birds have feathers. ${a.why}`, why: `Only birds have feathers. ${a.why}` });
+        };
+        const q = {
+          hint: a.bird ? "Look at its body. What is it covered with?" : "Look at its body. Can you see any feathers?",
+          reveal: a.why,
+          why: a.why,
+          show: () => {},
+          then: g.level === "hard" ? step2 : null,
+        };
+        const pickIt = (isBird, btn) => {
+          if (!g.ok()) return;
+          const ok = isBird === a.bird;
+          if (ok && !q.then) {
+            const target = a.bird ? 130 : 870;
+            tween(800, (t) => place(holder, 500 + (target - 500) * t, 250 + 150 * t, 1 - 0.75 * t), g.cur());
+          }
+          g.answer(ok, btn);
+        };
+        g.set(q);
+        g.ans.innerHTML = `<div class="ap-chips kt-choices"><button type="button" data-yes>🪶 Bird</button><button type="button" data-no>🚫 Not a bird</button></div>`;
+        g.ans.onclick = (event) => {
+          const b = event.target.closest("button");
+          if (b?.matches("[data-yes]")) pickIt(true, b);
+          else if (b?.matches("[data-no]")) pickIt(false, b);
+        };
+        baskets.forEach((b) => b.addEventListener("pointerdown", () => g.q === q && pickIt(b.dataset.b === "1", null)));
+        say(`Is this ${/^[aeiou]/.test(a.n) ? "an" : "a"} ${a.n} a bird? Tap Bird or Not a bird.`);
+      },
+    });
+  },
+
+  // ---------- 2. How wings fly ----------
+  f2() {
+    const SHAPES = {
+      glide: { q: "Which wings are best for gliding over the sea for hours, like an albatross?", why: "Long, thin wings glide far with hardly any flapping." },
+      dart: { q: "Which wings help a little sparrow turn quickly between bushes?", why: "Short, round wings help a bird take off fast and turn quickly." },
+      soar: { q: "Which wings help an eagle soar in circles on warm, rising air?", why: "Broad wings with spread-out finger feathers soar on rising warm air." },
+      dive: { q: "Which wings help a falcon dive super fast?", why: "Pointed wings that sweep back help a falcon dive very fast." },
+    };
+    const LIFT = [
+      { q: "Air rushes over the curved wing. Which way does lift push the wing?", opts: [["⬆️ Up", true], ["⬇️ Down"], ["⬅️ Backwards"]], hint: "Watch the green arrow. Which way does it point?", why: "The wing turns the air down, so the air pushes the wing up. That's lift." },
+      { q: "Which gives a wing more lift?", opts: [["💨 Faster air", true], ["🍃 Slower air"], ["🌧️ Wet air"]], hint: "Think of a kite. Does it fly better on a windy day or a still day?", why: "Faster air over the wing makes more lift." },
+      { q: "Why do many birds take off facing into the wind?", opts: [["💨 More air over the wings", true], ["👀 To see better"], ["🧣 To stay warm"]], hint: "What does a wing need to make lift?", why: "Facing the wind sends more air over the wings, so they get more lift." },
+    ];
+    let plan = [];
+    frame("f2", {
+      noun: "Question",
+      countKey: "wing questions",
+      ask(g) {
+        if (g.round === 0 || !plan.length) {
+          plan = g.level === "easy" ? shuffle(["flap", "glide", "flap", "glide", "hover", "hover", "flap", "glide"]) : g.level === "medium" ? shuffle(["flap", "glide", "hover", "s", "s", "s", "s", "s"]) : shuffle(["hover", "glide", "s", "s", "s", "l", "l", "l"]);
+          plan.shapes = shuffle(g.level === "medium" ? ["glide", "dart", "soar", "glide", "dart"] : ["glide", "dart", "soar", "dive"]);
+          plan.lifts = shuffle(LIFT);
+        }
+        const kind = plan[g.round];
+        const alive = g.cur();
+        fresh();
+        if (kind === "flap" || kind === "glide" || kind === "hover") {
+          sky(view, { ground: false });
+          let anim;
+          if (kind === "hover") {
+            el("path", { d: "M640 560 Q620 420 650 300", stroke: "#558b2f", "stroke-width": 10, fill: "none" }, view);
+            el("path", { d: "M650 300 l-50 -70 l50 20 l50 -20 Z", fill: "#e91e63", stroke: "#ad1457", "stroke-width": 3 }, view);
+            const h = hummer(view, 430, 270, 1.6);
+            anim = (s) => {
+              h.flap(Math.sin(s * Math.PI * 30) * 34);
+              place(h.g, 430, 270 + Math.sin(s * 2) * 4, 1.6);
+            };
+          } else if (kind === "flap") {
+            const b = bird(view, 0, 280, 1.4, { noLegs: true });
+            anim = (s) => {
+              b.flap(Math.sin(s * Math.PI * 4) * 34);
+              place(b.g, 150 + ((s * 120) % 800), 280 - Math.sin(s * Math.PI * 4) * 12, 1.4);
+            };
+          } else {
+            const b = bird(view, 0, 280, 1.4, { noLegs: true });
+            b.flap(-6);
+            anim = (s) => place(b.g, 150 + ((s * 110) % 800), 200 + ((s * 26) % 180), 1.4);
+          }
+          loop(alive, anim);
+          const opts = [{ label: "🪽 Flapping", ok: kind === "flap" }, { label: "🕊️ Gliding", ok: kind === "glide" }];
+          if (g.level !== "easy" || kind === "hover") opts.push({ label: "🌸 Hovering", ok: kind === "hover" });
+          const why = { flap: "Its wings beat up and down. That's flapping.", glide: "Its wings are held out still while it slides through the air. That's gliding.", hover: "A hummingbird beats its wings so fast it can stay in one spot. That's hovering." }[kind];
+          g.choose(opts, { hint: kind === "hover" ? "Is the bird moving along, or staying in one spot?" : "Watch the wings. Are they moving up and down, or held still?", reveal: why, why });
+          say("Watch the bird. Is it flapping, gliding or hovering?");
+        } else if (kind === "s") {
+          const want = plan.shapes.pop() || "glide";
+          const types = shuffle(g.level === "medium" ? ["glide", "dart", "soar"] : ["glide", "dart", "soar", "dive"]);
+          sky(view, { ground: false });
+          const n = types.length;
+          types.forEach((t, i) => {
+            const x = (W / n) * (i + 0.5);
+            const tile = el("g", { class: "fl-tap", "data-t": t }, view);
+            el("rect", { x: x - W / n / 2 + 10, y: 40, width: W / n - 20, height: 480, rx: 26, fill: "#ffffffcc", stroke: "#d9cdb5", "stroke-width": 4 }, tile);
+            silhouette(tile, x, 280, Math.min(1.2, (W / n - 50) / 420), t);
+          });
+          const why = SHAPES[want].why;
+          g.set({
+            hint: "Look at each wing. Is it long and thin, short and round, broad, or pointed? Which fits the job?",
+            reveal: why,
+            why,
+            show: () => view.querySelector(`[data-t="${want}"] rect`)?.setAttribute("stroke", "#22a05a"),
+          });
+          view.addEventListener("pointerdown", (event) => {
+            const tile = event.target.closest("[data-t]");
+            if (!tile || !g.ok() || tile.dataset.wrong) return;
+            const ok = tile.dataset.t === want;
+            tile.querySelector("rect").setAttribute("stroke", ok ? "#22a05a" : "#e57373");
+            tile.querySelector("rect").setAttribute("stroke-width", 8);
+            if (!ok) tile.dataset.wrong = 1;
+            g.answer(ok, null);
+          });
+          say(`${SHAPES[want].q} Tap it.`);
+        } else {
+          const L = plan.lifts.pop() || LIFT[0];
+          el("rect", { x: -1000, y: -600, width: 3000, height: 1760, fill: "#eef6fb" }, view);
+          el("path", { d: AIRFOIL, fill: "#8d6e63", stroke: "#4e342e", "stroke-width": 5, transform: "translate(240 360) rotate(6)" }, view);
+          const lines = [0, 1, 2].map((i) => el("path", { d: `M40 ${200 + i * 36} C240 ${200 + i * 36} 300 ${150 + i * 46} 520 ${170 + i * 44} S760 ${280 + i * 36} 960 ${360 + i * 36}`, fill: "none", stroke: "#90caf9", "stroke-width": 4, "stroke-dasharray": "14 12" }, view));
+          const dots = lines.map(() => el("circle", { r: 9, fill: "#1e88e5" }, view));
+          const up = el("g", {}, view);
+          el("path", { d: "M500 300 L500 120", stroke: "#43a047", "stroke-width": 16, "stroke-linecap": "round" }, up);
+          el("path", { d: "M470 140 L500 92 L530 140 Z", fill: "#43a047" }, up);
+          text(up, 590, 120, "LIFT", { "font-size": 40, fill: "#2e7d32" });
+          loop(alive, (s) =>
+            lines.forEach((path, i) => {
+              const len = path.getTotalLength();
+              const p = path.getPointAtLength((((s * 0.4) + i * 0.15) % 1) * len);
+              dots[i].setAttribute("cx", p.x);
+              dots[i].setAttribute("cy", p.y);
+            })
+          );
+          g.choose(L.opts.map(([label, ok]) => ({ label, ok: !!ok })), { hint: L.hint, reveal: L.why, why: L.why });
+          say(L.q);
+        }
+      },
+    });
+  },
+
+  // ---------- 3. Beaks and feet ----------
+  f3() {
+    const FOOD = {
+      seed: { label: "🌻 Seeds", bird: "finch", why: "A finch's short, thick beak cracks hard seeds, like a nutcracker." },
+      hook: { label: "🐭 Small animals", bird: "eagle", why: "An eagle's sharp, hooked beak tears meat." },
+      needle: { label: "🌺 Nectar", bird: "hummingbird", why: "A hummingbird's long, thin beak reaches deep into flowers for sweet nectar." },
+      flat: { label: "💧 Food in water", bird: "duck", why: "A duck's wide, flat bill scoops up water and strains out food." },
+      chisel: { label: "🐛 Bugs in wood", bird: "woodpecker", why: "A woodpecker's strong, pointed beak chips into wood to find bugs." },
+    };
+    const FEET = {
+      perch: { label: "🌳 Holds a branch", bird: "robin", why: "Perching feet curl around a branch and hold on tight, even when the bird sleeps." },
+      talon: { label: "🦅 Grabs prey", bird: "eagle", why: "Talons are sharp, curved claws for grabbing prey." },
+      web: { label: "💧 Paddles in water", bird: "duck", why: "Webbed feet push water like paddles, so a duck can swim." },
+      climb: { label: "🪵 Climbs tree trunks", bird: "woodpecker", why: "Two toes point forward and two point back, so a woodpecker can climb up a tree trunk." },
+    };
+    let plan = [];
+    frame("f3", {
+      noun: "Bird",
+      countKey: "beaks and feet matched",
+      ask(g) {
+        if (g.round === 0 || !plan.length) {
+          const beaks = shuffle(Object.keys(FOOD));
+          const feet = shuffle(Object.keys(FEET));
+          if (g.level === "easy") plan = shuffle([...beaks, ...shuffle(["seed", "hook", "needle"])]).map((k) => ["beak", k]);
+          else if (g.level === "medium") plan = shuffle([...beaks.map((k) => ["beak", k]), ...feet.slice(0, 3).map((k) => ["foot", k])]).concat([["foot", feet[3]]]);
+          else plan = shuffle([...beaks.slice(0, 4).map((k) => ["pickBeak", k]), ...feet.slice(0, 2).map((k) => ["foot", k]), ["combo", "hook"], ["combo", "flat"]]);
+        }
+        const [kind, k] = plan[g.round];
+        fresh();
+        el("rect", { x: -1000, y: -600, width: 3000, height: 1760, fill: "#f3f8ec" }, view);
+        if (kind === "beak") {
+          beakHead(view, k === "needle" ? 330 : 400, 270, 2.1, k);
+          const n = g.level === "easy" ? 2 : 3;
+          const others = shuffle(Object.keys(FOOD).filter((x) => x !== k)).slice(0, n - 1);
+          const opts = shuffle([k, ...others]).map((x) => ({ label: FOOD[x].label, ok: x === k }));
+          g.choose(opts, { hint: "Look at the beak's shape. Is it thick, hooked, long, flat or pointed? What could that shape do?", reveal: FOOD[k].why, why: FOOD[k].why });
+          say("Look at this beak. What food does it eat?");
+        } else if (kind === "foot") {
+          foot(view, 500, 270, 1.7, k);
+          const n = g.level === "medium" ? 3 : 4;
+          const opts = shuffle([k, ...shuffle(Object.keys(FEET).filter((x) => x !== k)).slice(0, n - 1)]).map((x) => ({ label: FEET[x].label, ok: x === k }));
+          g.choose(opts, { hint: "Look at the toes. Are they curled, sharp, joined by skin, or pointing two ways?", reveal: FEET[k].why, why: FEET[k].why });
+          say("Look at this bird's foot. What job is it made for?");
+        } else if (kind === "pickBeak") {
+          const types = shuffle([k, ...shuffle(Object.keys(FOOD).filter((x) => x !== k)).slice(0, 3)]);
+          types.forEach((t, i) => {
+            const x = 125 + i * 250;
+            const tile = el("g", { class: "fl-tap", "data-t": t }, view);
+            el("rect", { x: x - 115, y: 60, width: 230, height: 440, rx: 26, fill: "#fff", stroke: "#d9cdb5", "stroke-width": 4 }, tile);
+            beakHead(tile, x - 35, 280, t === "needle" ? 0.6 : 0.8, t);
+          });
+          g.set({ hint: "Think about the food. Do you need to crack it, tear it, sip it, scoop it or chip it out?", reveal: FOOD[k].why, why: FOOD[k].why, show: () => view.querySelector(`[data-t="${k}"] rect`)?.setAttribute("stroke", "#22a05a") });
+          view.addEventListener("pointerdown", (event) => {
+            const tile = event.target.closest("[data-t]");
+            if (!tile || !g.ok() || tile.dataset.wrong) return;
+            const ok = tile.dataset.t === k;
+            tile.querySelector("rect").setAttribute("stroke", ok ? "#22a05a" : "#e57373");
+            tile.querySelector("rect").setAttribute("stroke-width", 8);
+            if (!ok) tile.dataset.wrong = 1;
+            g.answer(ok, null);
+          });
+          say(`Which beak is best for ${{ seed: "cracking hard seeds", hook: "tearing meat", needle: "sipping nectar deep in a flower", flat: "scooping food from water", chisel: "chipping bugs out of wood" }[k]}? Tap it.`);
+        } else {
+          beakHead(view, 330, 270, 1.7, k);
+          foot(view, 760, 300, 1.2, k === "hook" ? "talon" : "web");
+          const opts = shuffle(["seed", "hook", "needle", "flat"]).slice(0, 4).map((x) => ({ label: FOOD[x].label, ok: x === k }));
+          const why = k === "hook" ? "A hooked beak tears meat and talons grab prey. This bird hunts small animals, like an eagle." : "A flat bill and webbed feet: this bird swims and scoops food from water, like a duck.";
+          g.choose(opts, { hint: "Use both clues: the beak and the foot. Where does this bird find its food?", reveal: why, why });
+          say("Look at the beak and the foot together. What does this bird eat?");
+        }
+      },
+    });
+  },
+
+  // ---------- 4. Nests and eggs ----------
+  f4() {
+    const MATS = [
+      ["twig", (p) => el("path", { d: "M-40 10 L40 -10 M0 0 L14 -20 M-20 5 L-30 -12", stroke: "#795548", "stroke-width": 7, "stroke-linecap": "round", fill: "none" }, p)],
+      ["grass", (p) => el("path", { d: "M-30 20 Q-20 -10 -34 -30 M-10 20 Q0 -20 -6 -36 M10 20 Q14 -14 26 -30 M24 20 Q30 0 40 -16", stroke: "#7cb342", "stroke-width": 6, "stroke-linecap": "round", fill: "none" }, p)],
+      ["moss", (p) => [[-14, 4, 16], [8, -4, 18], [20, 10, 13], [-2, 14, 14]].forEach(([cx, cy, r]) => el("circle", { cx, cy, r, fill: "#558b2f" }, p))],
+      ["mud", (p) => el("path", { d: "M-34 10 Q-30 -20 0 -18 Q34 -22 34 8 Q20 24 0 20 Q-24 26 -34 10 Z", fill: "#6d4c41" }, p)],
+      ["feather", (p) => {
+        el("path", { d: "M-36 24 C-20 -10 10 -30 38 -32 C26 -6 0 18 -36 24 Z", fill: "#eceff1", stroke: "#90a4ae", "stroke-width": 3 }, p);
+        el("path", { d: "M-44 30 L32 -28", stroke: "#78909c", "stroke-width": 3 }, p);
+      }],
+    ];
+    const NEST = [480, 400];
+    const scenery = () => {
+      sky(view);
+      el("path", { d: "M0 470 Q200 440 360 450 L620 440 Q700 430 760 380", stroke: "#6d4c41", "stroke-width": 34, fill: "none", "stroke-linecap": "round" }, view);
+      for (const [x, y, r] of [[120, 420, 0], [700, 400, -30]]) leaf(view, x, y, 0.7, r);
+    };
+    const STAGEN = {
+      nEgg(p) {
+        nest(p, 0, 30, 0.62);
+        egg(p, -16, 20, 0.7);
+        egg(p, 16, 22, 0.7);
+      },
+      nHatch(p) {
+        nest(p, 0, 34, 0.62);
+        el("path", { d: "M-24 24 Q-24 50 0 50 Q24 50 24 24 L16 16 L8 26 L0 14 L-8 26 L-16 16 Z", fill: "#a7d8e8", stroke: "#6b8f9b", "stroke-width": 3 }, p);
+        el("circle", { cx: 0, cy: 0, r: 20, fill: "#ffe082", stroke: "#e0a800", "stroke-width": 2 }, p);
+        el("circle", { cx: 6, cy: -4, r: 3.5, fill: INK }, p);
+        el("path", { d: "M16 0 L30 4 L16 8 Z", fill: "#fb8c00" }, p);
+      },
+      nNest(p) {
+        nest(p, 0, 40, 0.62);
+        el("circle", { cx: 0, cy: 10, r: 26, fill: "#ffcc80", stroke: "#e0a060", "stroke-width": 2 }, p);
+        el("path", { d: "M-12 -10 L0 -48 L12 -10 Z", fill: "#ff7043" }, p);
+        el("path", { d: "M-6 -60 q8 -8 14 0 q6 8 14 0", stroke: "#e57373", "stroke-width": 5, fill: "none", "stroke-linecap": "round" }, p);
+        el("circle", { cx: -12, cy: 4, r: 3.5, fill: INK }, p);
+      },
+      nFledge(p) {
+        nest(p, -30, 50, 0.5);
+        const b = bird(p, 30, -10, 0.45, { noLegs: true });
+        b.flap(30);
+      },
+    };
+    let plan = [];
+    frame("f4", {
+      noun: "Step",
+      countKey: "nest steps",
+      ask(g) {
+        if (g.round === 0 || !plan.length) plan = ["build", "warm", "order", "build", "warm", "order", "warm", "build"];
+        const kind = plan[g.round];
+        const alive = g.cur();
+        fresh();
+        if (kind === "build") {
+          scenery();
+          const pile = el("g", {}, view);
+          nest(view, NEST[0], NEST[1], 1.25);
+          const hard = g.level === "hard";
+          g.lock = false;
+          const need = g.level === "easy" ? 3 : g.level === "medium" ? 6 : 10;
+          let have = 0;
+          const tally = text(view, NEST[0], 300, "", { "font-size": 34, fill: INK });
+          const showTally = () => (tally.textContent = `${have} of ${need}`);
+          const tray = el("g", {}, view);
+          el("rect", { x: 790, y: 30, width: 190, height: 400, rx: 24, fill: "#fffaf0", stroke: "#d9cdb5", "stroke-width": 4 }, tray);
+          MATS.forEach(([name, draw], i) => {
+            const m = el("g", { class: "fl-tap fl-mat", "data-m": i, transform: `translate(885 ${78 + i * 76})` }, tray);
+            el("rect", { x: -80, y: -34, width: 160, height: 68, rx: 18, fill: "transparent" }, m);
+            draw(m);
+          });
+          const add = (i) => {
+            if (!alive() || have >= need) return;
+            have += 1;
+            const p = el("g", { transform: `translate(${NEST[0] + pickInt(-100, 100)} ${NEST[1] - 6 + pickInt(-14, 10)}) rotate(${pickInt(-40, 40)}) scale(0.8)` }, view);
+            MATS[i][1](p);
+            showTally();
+            note(have - 1);
+            window.OC?.touch();
+            if (have >= need) {
+              const b = bird(view, NEST[0] + 10, NEST[1] - 70, 0.8);
+              b.flap(10);
+              trill();
+              g.win(`${need} pieces! Birds build nests with twigs, grass, moss, mud and soft feathers.`);
+            } else VOICE.speak(String(have));
+          };
+          if (hard) {
+            for (let k = 0; k < 4; k++) {
+              const p = el("g", { transform: `translate(${NEST[0] - 80 + k * 52} ${NEST[1] - 8}) rotate(${k * 20 - 30}) scale(0.8)` }, pile);
+              MATS[0][1](p);
+            }
+            pile.remove();
+            view.appendChild(pile);
+            have = 4;
+          }
+          showTally();
+          // drag a material into the nest, or just tap it
+          let drag = null;
+          view.addEventListener("pointerdown", (event) => {
+            const m = event.target.closest(".fl-mat");
+            if (!m || !g.live() || g.lock) return;
+            const p = toSvg(view, event);
+            const ghost = el("g", { transform: `translate(${p.x} ${p.y})`, "pointer-events": "none" }, view);
+            MATS[Number(m.dataset.m)][1](ghost);
+            drag = { i: Number(m.dataset.m), x: p.x, y: p.y, moved: false, ghost };
+            try {
+              view.setPointerCapture(event.pointerId);
+            } catch {}
+          });
+          view.addEventListener("pointermove", (event) => {
+            if (!drag) return;
+            const p = toSvg(view, event);
+            if (Math.hypot(p.x - drag.x, p.y - drag.y) > 10) drag.moved = true;
+            drag.ghost.setAttribute("transform", `translate(${p.x} ${p.y})`);
+            drag.px = p.x;
+            drag.py = p.y;
+          });
+          const up = () => {
+            if (!drag) return;
+            const d = drag;
+            drag = null;
+            d.ghost.remove();
+            if (!d.moved || (Math.abs(d.px - NEST[0]) < 170 && Math.abs(d.py - NEST[1]) < 110)) add(d.i);
+            else say("Drop it on the nest.");
+          };
+          view.addEventListener("pointerup", up);
+          view.addEventListener("pointercancel", up);
+          if (hard) {
+            g.lock = true;
+            say("This nest has 4 twigs. A strong nest needs 10 pieces. How many more do we need?");
+            g.choose(shuffle([5, 6, 7]).map((n) => ({ label: String(n), ok: n === 6 })), {
+              hint: "Start at 4 and count up to 10 on your fingers. How many fingers did you put up?",
+              reveal: "4 and 6 make 10. So we need 6 more.",
+              then: () => {
+                g.lock = false;
+                g.ans.innerHTML = "";
+                say("Yes! 4 and 6 make 10. Now add 6 more pieces. Drag them to the nest.");
+              },
+            });
+          } else say(`Help the bird build its nest. Drag ${need} pieces into the nest. You can tap them too.`);
+        } else if (kind === "warm") {
+          scenery();
+          const n = g.level === "easy" ? pickInt(2, 4) : 3;
+          const glow = el("ellipse", { cx: NEST[0], cy: NEST[1] - 20, rx: 160, ry: 70, fill: "#ffb74d", opacity: 0 }, view);
+          nest(view, NEST[0], NEST[1], 1.25);
+          const eggs = [];
+          for (let i = 0; i < n; i++) eggs.push(egg(view, NEST[0] - (n - 1) * 30 + i * 60, NEST[1] - 10, 1));
+          const b = bird(view, NEST[0], 150, 1.1);
+          b.g.classList.add("fl-tap");
+          let flapping = true;
+          loop(() => alive() && flapping, (s) => b.flap(Math.sin(s * 12) * 30));
+          let tapped = false;
+          b.g.addEventListener("pointerdown", async () => {
+            if (tapped || !alive()) return;
+            tapped = true;
+            window.OC?.touch();
+            flapping = false;
+            b.flap(-4);
+            await tween(1200, (t) => place(b.g, NEST[0], 150 + (NEST[1] - 70 - 150) * t, 1.1), alive);
+            say("The parent bird sits on the eggs to keep them warm. This is called incubation.");
+            await tween(2400, (t) => glow.setAttribute("opacity", 0.5 * Math.sin(t * Math.PI)), alive);
+            if (!alive()) return;
+            await tween(900, (t) => place(b.g, NEST[0] + 260 * t, NEST[1] - 70 - 120 * t, 1.1), alive);
+            eggs.forEach((e, i) => {
+              const box = e.getBBox();
+              e.remove();
+              const c = el("g", { transform: `translate(${NEST[0] - (n - 1) * 30 + i * 60} ${NEST[1] - 20})` }, view);
+              el("circle", { cx: 0, cy: 0, r: 24, fill: "#ffe082", stroke: "#e0a800", "stroke-width": 2 }, c);
+              el("circle", { cx: 6, cy: -6, r: 4, fill: INK }, c);
+              el("path", { d: "M18 -2 L34 4 L18 10 Z", fill: "#fb8c00" }, c);
+              void box;
+            });
+            trill();
+            if (!alive()) return;
+            if (g.level === "easy") {
+              g.choose([n - 1, n, n + 1].map((x) => ({ label: String(x), ok: x === n })), { hint: "Touch each chick and count: 1, 2…", reveal: `Let's count: ${Array.from({ length: n }, (_, i) => i + 1).join(", ")}. ${n} chicks hatched.`, why: `${n} chicks hatched because their eggs were kept warm.` });
+              say("The eggs hatched! How many chicks?");
+            } else if (g.level === "medium") {
+              g.choose(shuffle([{ label: "🔥 To keep them warm", ok: true }, { label: "💧 To wash them" }, { label: "😴 To take a nap" }]), { hint: "What did the eggs need so the chicks could grow inside?", reveal: "Eggs need warmth so the chick inside can grow. The parent's body keeps them warm.", why: "Eggs need warmth so the chick inside can grow." });
+              say("The eggs hatched! Why did the bird sit on the eggs?");
+            } else {
+              const [who, days] = pick([["A hen", 21], ["A duck", 28], ["A robin", 14]]);
+              const weeks = days / 7;
+              g.choose([weeks - 1, weeks, weeks + 1].map((x) => ({ label: `${x} weeks`, ok: x === weeks })), { hint: "A week has 7 days. Count by 7s: 7, 14, 21… When do you reach the days?", reveal: `${Array.from({ length: weeks }, (_, i) => (i + 1) * 7).join(", ")}: that is ${weeks} weeks.`, why: `${days} days is ${weeks} weeks, because ${weeks} sevens make ${days}.` });
+              say(`${who} sits on her eggs for about ${days} days. How many weeks is that?`);
+            }
+          });
+          say("The eggs need to stay warm. Tap the parent bird so it sits on them.");
+        } else {
+          sky(view, { ground: false });
+          const items = [["nEgg", "egg"], ["nHatch", "hatching"], ["nNest", "chick"], ["nFledge", "flying"]].filter((x, i) => g.level !== "easy" || i !== 2);
+          orderGame(g, items.map(([k, word]) => ({ draw: STAGEN[k], word })), {
+            pre: g.level === "easy" ? 1 : 0,
+            hint: (i) => ["What comes first, before anything hatches?", "What happens to the egg next?", "What does a new chick do in the nest?", "What happens when the chick has grown its feathers?"][i + (g.level === "easy" && i >= 2 ? 1 : 0)],
+            why: { egg: "First comes the egg.", hatching: "The chick breaks out of the egg: it hatches.", chick: "The chick stays in the nest and its parents feed it.", flying: "When its feathers grow, the young bird leaves the nest and flies." },
+            done: () => g.win("Egg, hatching, chick in the nest, then flying. That is how a bird grows."),
+          });
+          say("Put the pictures in order. Tap what happens first.");
+        }
+      },
+    });
+  },
+
+  // ---------- 5. Bats and echoes ----------
+  f5() {
+    const BAT = [130, 290];
+    frame("f5", {
+      noun: "Moth",
+      countKey: "moths found",
+      ask(g) {
+        const alive = g.cur();
+        fresh();
+        sky(view, { night: true });
+        el("path", { d: "M0 40 L230 50", stroke: "#4e342e", "stroke-width": 14, "stroke-linecap": "round" }, view);
+        const b = bat(view, BAT[0], BAT[1], 0.6, { wing: "#8d6e63" });
+        loop(alive, (s) => b.flap(0.75 + Math.sin(s * 9) * 0.25));
+        const level = g.level;
+        let moths;
+        if (level === "hard") {
+          const d = pickInt(2, 6);
+          moths = [{ x: BAT[0] + d * 120, y: BAT[1], d }];
+        } else if (level === "medium") {
+          const near = pickInt(250, 380);
+          const far = near + pickInt(240, 330);
+          const ang = [pickInt(-25, 25), pickInt(-25, 25)];
+          moths = shuffle([near, far]).map((r, i) => ({ x: BAT[0] + r * Math.cos((ang[i] * Math.PI) / 180), y: Math.max(90, Math.min(500, BAT[1] + r * Math.sin((ang[i] * Math.PI) / 180) + (i ? 90 : -90))), r }));
+        } else moths = [{ x: pickInt(500, 880), y: pickInt(110, 460) }];
+        moths.forEach((m) => {
+          m.dist = Math.hypot(m.x - BAT[0], m.y - BAT[1]);
+          m.g = el("g", { class: "fl-tap", opacity: 0, "data-moth": 1 }, view);
+          el("circle", { cx: m.x, cy: m.y, r: 60, fill: "#fff59d", opacity: 0.18 }, m.g);
+          moth(m.g, m.x, m.y, 0.42);
+        });
+        const closer = moths.reduce((a, c) => (c.dist < a.dist ? c : a));
+        const counter = text(view, 500, 70, "", { "font-size": 44, fill: "#fff3c4" });
+        let pinged = false;
+        let busy = false;
+        const ping = async () => {
+          if (busy || !alive()) return;
+          busy = true;
+          window.OC?.touch();
+          const speed = level === "hard" ? 120 / 600 : 0.5;
+          const maxD = Math.max(...moths.map((m) => m.dist));
+          const T = (2 * maxD) / speed + 200;
+          click(0.55);
+          const ring = el("circle", { cx: BAT[0], cy: BAT[1], r: 0, fill: "none", stroke: "#ffe082", "stroke-width": 6 }, view);
+          const echoes = moths.map((m) => ({ m, ring: el("circle", { cx: m.x, cy: m.y, r: 0, fill: "none", stroke: "#80deea", "stroke-width": 5, opacity: 0 }, view), hit: false, back: false }));
+          let ticks = 0;
+          if (level === "hard") counter.textContent = "0";
+          const t0 = performance.now();
+          await new Promise((resolve) => {
+            const f = (now) => {
+              if (!alive()) return resolve();
+              const ms = Math.min(T, now - t0);
+              const r = ms * speed;
+              ring.setAttribute("r", r);
+              ring.setAttribute("opacity", Math.max(0, 1 - r / (maxD + 120)));
+              if (level === "hard") {
+                const k = Math.floor(ms / 600);
+                if (k > ticks && k <= 2 * moths[0].d) {
+                  ticks = k;
+                  counter.textContent = String(k);
+                  if (k < 2 * moths[0].d) MUSIC.play("woodblock", 72, { gain: 0.25 });
+                }
+              }
+              for (const e of echoes) {
+                if (!e.hit && r >= e.m.dist) {
+                  e.hit = true;
+                  e.m.g.setAttribute("opacity", 1);
+                  e.ring.setAttribute("opacity", 1);
+                }
+                if (e.hit) {
+                  const er = r - e.m.dist;
+                  e.ring.setAttribute("r", Math.max(0, er));
+                  if (!e.back && er >= e.m.dist) {
+                    e.back = true;
+                    e.ring.setAttribute("opacity", 0);
+                    click(0.22);
+                    if (level === "medium") e.m.g.setAttribute("opacity", 0.35);
+                  }
+                }
+              }
+              if (ms < T) requestAnimationFrame(f);
+              else resolve();
+            };
+            requestAnimationFrame(f);
+          });
+          ring.remove();
+          echoes.forEach((e) => e.ring.remove());
+          busy = false;
+          if (!alive()) return;
+          if (!pinged) {
+            pinged = true;
+            if (level === "easy") say("The echo found it! Tap the moth.");
+            else if (level === "medium") say("Two echoes came back. Which moth is closer? Tap it.");
+            else {
+              const d = moths[0].d;
+              say(`The echo came back after ${2 * d} ticks. How many ticks away is the moth?`);
+              g.choose(shuffle([d, 2 * d, d + 1]).map((x) => ({ label: `${x} ticks`, ok: x === d })), {
+                hint: "The sound went to the moth and then came all the way back. What part of the trip was the way there?",
+                reveal: `There and back took ${2 * d} ticks. Half of ${2 * d} is ${d}, so the moth is ${d} ticks away.`,
+                why: `There and back took ${2 * d} ticks, and half of ${2 * d} is ${d}.`,
+                show: marks,
+              });
+            }
+          } else if (level === "medium") say("Listen again: which echo came back first? Tap the closer moth.");
+        };
+        const marks = () => {
+          for (let k = 1; k <= moths[0].d; k++) {
+            el("line", { x1: BAT[0] + k * 120, x2: BAT[0] + k * 120, y1: BAT[1] + 70, y2: BAT[1] + 100, stroke: "#fff3c4", "stroke-width": 4 }, view);
+            text(view, BAT[0] + k * 120, BAT[1] + 136, k, { "font-size": 28, fill: "#fff3c4" });
+          }
+        };
+        if (level === "hard") {
+          const win0 = g.win;
+          g.win = (msg) => {
+            marks();
+            g.win = win0;
+            return win0(msg);
+          };
+        }
+        if (level === "medium")
+          g.set({ hint: "Which echo came back first? Press Click and listen again.", reveal: "The closer moth's echo came back first, because the sound had less far to go.", why: "Its echo came back first, because the sound had less far to go.", show: () => closer.g.setAttribute("opacity", 1) });
+        view.addEventListener("pointerdown", async (event) => {
+          const mg = event.target.closest("[data-moth]");
+          if (!mg || !pinged || !g.ok() || level === "hard") return;
+          const m = moths.find((x) => x.g === mg);
+          if (level === "easy") {
+            g.busy = true;
+            await tween(900, (t) => place(b.g, BAT[0] + (m.x - BAT[0]) * t, BAT[1] + (m.y - BAT[1]) * t, 0.6), alive);
+            m.g.remove();
+            g.busy = false;
+            g.set({});
+            g.win("The echo told the bat where the moth was. Many bats eat insects like moths and mosquitoes.");
+          } else {
+            mg.setAttribute("opacity", 1);
+            g.answer(m === closer, null);
+          }
+        });
+        g.ans.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-ping>🦇 Click!</button></div>`;
+        g.ans.onclick = (event) => event.target.closest("[data-ping]") && ping();
+        say(level === "hard" ? "Press Click. Count the ticks until the echo comes back." : level === "medium" ? "Two moths are hiding in the dark. Press Click and listen for the echoes." : "A moth is hiding in the dark. Press Click to send out a sound!");
+      },
+    });
+  },
+
+  // ---------- 6. Build an insect ----------
+  f6() {
+    const P = { abdomen: [250, 290], thorax: [410, 290], head: [520, 290] };
+    const drawPart = (p, k, x, y, s = 1) => {
+      const g = grp(p, x, y, s);
+      if (k === "head") {
+        el("circle", { r: 42, fill: "#3e2a1a", stroke: INK, "stroke-width": 4 }, g);
+        for (const sy of [-1, 1]) el("ellipse", { cx: 12, cy: sy * 20, rx: 16, ry: 12, fill: "#1a1a1a", stroke: "#795548", "stroke-width": 2 }, g);
+      } else if (k === "thorax") {
+        el("circle", { r: 52, fill: "#6d4c41", stroke: INK, "stroke-width": 4 }, g);
+        for (let i = 0; i < 12; i++) el("circle", { cx: Math.cos(i * 0.52) * 34, cy: Math.sin(i * 0.52) * 34, r: 4, fill: "#a1887f" }, g);
+      } else {
+        const id = `flIn${++uid}`;
+        const c = el("clipPath", { id }, g);
+        el("ellipse", { rx: 110, ry: 66 }, c);
+        el("ellipse", { rx: 110, ry: 66, fill: "#f9c22e", stroke: INK, "stroke-width": 4 }, g);
+        const b = el("g", { "clip-path": `url(#${id})` }, g);
+        for (const x of [-60, -10, 40]) el("rect", { x, y: -80, width: 24, height: 160, fill: "#3e2a1a" }, b);
+        el("ellipse", { rx: 110, ry: 66, fill: "none", stroke: INK, "stroke-width": 4 }, g);
+      }
+      return g;
+    };
+    const LEGS = [];
+    for (const sy of [-1, 1]) for (const [x0, dx1, dx2] of [[440, 40, 70], [410, 0, -6], [380, -50, -100]]) LEGS.push(`M${x0} ${290 + sy * 40} L${x0 + dx1} ${290 + sy * 110} L${x0 + dx2} ${290 + sy * 160}`);
+    const ANT = [-1, 1].map((sy) => `M548 ${290 + sy * 26} L590 ${290 + sy * 80} L640 ${290 + sy * 96}`);
+    const WINGS = [];
+    for (const sy of [-1, 1]) WINGS.push([330, 290 + sy * 96, 110, 36, sy * -18], [310, 290 + sy * 70, 80, 26, sy * -8]);
+    const CRITTERS = [
+      { n: "bee", ins: true, d: (p) => bee(p, 560, 270, 2), why: "A bee has 6 legs, 3 body parts and 2 antennae. It is an insect!" },
+      { n: "ladybird", ins: true, d: (p) => ladybird(p, 500, 270, 2.4), why: "A ladybird has 6 legs and 3 body parts. Its hard red wing cases hide its wings. It is an insect!" },
+      { n: "butterfly", ins: true, d: (p) => butterfly(p, 500, 290, 1.9), why: "A butterfly has 6 legs, 3 body parts and 2 antennae. It is an insect!" },
+      { n: "dragonfly", ins: true, d: (p) => dragonfly(p, 600, 280, 1.8), why: "A dragonfly has 6 legs and 3 body parts. It is an insect!" },
+      { n: "ant", ins: true, e: "🐜", why: "An ant has 6 legs and 3 body parts. It is an insect, even without wings!" },
+      { n: "spider", ins: false, d: (p) => spider(p, 520, 280, 2.3), why: "A spider has 8 legs and only 2 body parts. It is not an insect. It is an arachnid." },
+      { n: "snail", ins: false, e: "🐌", why: "A snail has no legs at all. It is not an insect." },
+      { n: "worm", ins: false, e: "🪱", why: "A worm has no legs. It is not an insect." },
+      { n: "scorpion", ins: false, e: "🦂", why: "A scorpion has 8 legs, like a spider. It is not an insect." },
+      { n: "robin", ins: false, d: (p) => bird(p, 480, 270, 2), why: "A robin has 2 legs and feathers. It is a bird, not an insect." },
+    ];
+    let plan = [];
+    let bag = [];
+    frame("f6", {
+      noun: "Round",
+      countKey: "insects built",
+      ask(g) {
+        if (g.round === 0 || !plan.length) {
+          plan = g.level === "hard" ? ["build", "isit", "math", "build", "isit", "math", "isit", "math"] : ["build", "isit", "isit", "build", "isit", "isit", "build", "isit"];
+          bag = shuffle(g.level === "easy" ? CRITTERS.filter((c) => c.n !== "scorpion") : CRITTERS);
+        }
+        const kind = plan[g.round];
+        const alive = g.cur();
+        fresh();
+        el("rect", { x: -1000, y: -600, width: 3000, height: 1760, fill: "#f3f8ec" }, view);
+        if (kind === "build") {
+          const base = el("g", {}, view);
+          const legLayer = el("g", {}, view);
+          const body = el("g", {}, view);
+          const top = el("g", {}, view);
+          const slots = {};
+          for (const k of ["abdomen", "thorax", "head"]) {
+            const [x, y] = P[k];
+            slots[k] = el("g", { class: "fl-tap", "data-slot": k }, base);
+            if (k === "abdomen") el("ellipse", { cx: x, cy: y, rx: 110, ry: 66, fill: "#fff", stroke: "#bfae95", "stroke-width": 4, "stroke-dasharray": "12 10" }, slots[k]);
+            else el("circle", { cx: x, cy: y, r: k === "head" ? 42 : 52, fill: "#fff", stroke: "#bfae95", "stroke-width": 4, "stroke-dasharray": "12 10" }, slots[k]);
+          }
+          const placed = {};
+          const put = (k) => {
+            placed[k] = drawPart(body, k, ...P[k]);
+            placed[k].classList.add("fl-tap");
+            placed[k].dataset.slot = k;
+            note(Object.keys(placed).length + 1);
+          };
+          const tray = el("g", {}, view);
+          el("rect", { x: 720, y: 30, width: 260, height: 500, rx: 26, fill: "#fffaf0", stroke: "#d9cdb5", "stroke-width": 4 }, tray);
+          const items = el("g", {}, tray);
+          const show = (list) => {
+            items.innerHTML = "";
+            list.forEach(([key, word, draw], i) => {
+              const y = list.length === 1 ? 280 : 120 + i * 155;
+              const it = el("g", { class: "fl-tap", "data-item": key }, items);
+              el("rect", { x: 735, y: y - 70, width: 230, height: 140, rx: 20, fill: "transparent" }, it);
+              draw(it, 850, y - 12);
+              if (word) text(it, 850, y + 62, word, { "font-size": 24, fill: INK });
+            });
+          };
+          const steps = [];
+          const level = g.level;
+          if (level === "easy") ["abdomen", "thorax", "head"].forEach(put);
+          else {
+            const order = level === "medium" ? ["head", "thorax", "abdomen"] : shuffle(["head", "thorax", "abdomen"]);
+            const say1 = { head: "the head, at the front", thorax: "the thorax, in the middle", abdomen: "the abdomen, at the back" };
+            for (const k of order) steps.push({ kind: "part", k, prompt: `Which part is ${say1[k]}? Tap it.` });
+          }
+          if (level === "hard") steps.push({ kind: "where", k: "thorax", prompt: "Where do an insect's legs go? Tap that body part.", hint: "Legs hold up the middle of the body. Which part is in the middle?", reveal: "Legs grow from the thorax, the middle part." });
+          steps.push({ kind: "add", what: "leg", n: 6, prompt: "Tap the leg to add legs. An insect needs 6!" });
+          if (level === "hard") {
+            steps.push({ kind: "where", k: "thorax", prompt: "Where do the wings go? Tap that body part.", hint: "Wings and legs grow from the same part. Which one?", reveal: "Wings grow from the thorax too." });
+            steps.push({ kind: "add", what: "wing", n: 4, prompt: "A bee has 4 wings. Tap the wing to add them." });
+            steps.push({ kind: "where", k: "head", prompt: "Where do the antennae go? Tap that body part.", hint: "Antennae feel and smell the way ahead. Which part leads the way?", reveal: "Antennae grow from the head." });
+          }
+          steps.push({ kind: "add", what: "antenna", n: 2, prompt: "Now tap the antenna to add 2 antennae." });
+          let si = 0;
+          let added = 0;
+          const run = () => {
+            if (!alive()) return;
+            const st = steps[si];
+            if (!st) {
+              buzz();
+              return g.win("Head, thorax, abdomen, 6 legs and 2 antennae. You built an insect!");
+            }
+            added = 0;
+            Object.values(slots).forEach((s) => s.firstChild.setAttribute("stroke", "#bfae95"));
+            if (st.kind === "part") {
+              slots[st.k].firstChild.setAttribute("stroke", "var(--accent)");
+              slots[st.k].firstChild.classList.add("fl-pulse");
+              const list = shuffle(["head", "thorax", "abdomen"].filter((k) => !placed[k])).map((k) => [k, level === "medium" ? k : "", (p, x, y) => drawPart(p, k, x, y, k === "abdomen" ? 0.55 : 0.85)]);
+              show(list);
+            } else if (st.kind === "where") show([]);
+            else
+              show([[st.what, st.what, (p, x, y) => {
+                const gg = grp(p, x, y, 1);
+                if (st.what === "leg") el("path", { d: "M-40 -30 L0 10 L30 -10", stroke: INK, "stroke-width": 10, fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round" }, gg);
+                else if (st.what === "antenna") el("path", { d: "M-40 30 L0 -10 L40 -20", stroke: INK, "stroke-width": 8, fill: "none", "stroke-linecap": "round" }, gg);
+                else el("ellipse", { rx: 60, ry: 22, fill: "#e3f2fd", stroke: "#90a4ae", "stroke-width": 3 }, gg);
+              }]]);
+            say(st.prompt);
+          };
+          const doAdd = () => {
+            const st = steps[si];
+            const i = added;
+            if (st.what === "leg") el("path", { d: LEGS[i], stroke: INK, "stroke-width": 9, fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round" }, legLayer);
+            else if (st.what === "antenna") el("path", { d: ANT[i], stroke: INK, "stroke-width": 7, fill: "none", "stroke-linecap": "round" }, top);
+            else {
+              const [cx, cy, rx, ry, r] = WINGS[i];
+              el("ellipse", { cx, cy, rx, ry, fill: "#e3f2fd", opacity: 0.8, stroke: "#90a4ae", "stroke-width": 3, transform: `rotate(${r} ${cx} ${cy})` }, top);
+            }
+            added += 1;
+            note(added - 1);
+            VOICE.speak(String(added));
+            if (added >= st.n) {
+              si += 1;
+              setTimeout(run, 900);
+            }
+          };
+          let drag = null;
+          view.addEventListener("pointerdown", (event) => {
+            if (!g.ok() || !steps[si]) return;
+            const st = steps[si];
+            const it = event.target.closest("[data-item]");
+            const slot = event.target.closest("[data-slot]");
+            if (it && st.kind !== "where") {
+              const p = toSvg(view, event);
+              drag = { key: it.dataset.item, x: p.x, y: p.y, moved: false, it };
+              try {
+                view.setPointerCapture(event.pointerId);
+              } catch {}
+            } else if (slot && st.kind === "where") {
+              if (g.step(slot.dataset.slot === st.k, st)) {
+                const k = st.k;
+                placed[k]?.querySelector("circle,ellipse")?.setAttribute("stroke", "#22a05a");
+                si += 1;
+                const wasOk = slot.dataset.slot === k;
+                if (wasOk) MUSIC.chime();
+                setTimeout(run, wasOk ? 700 : 2600);
+              }
+            }
+          });
+          view.addEventListener("pointermove", (event) => {
+            if (!drag) return;
+            const p = toSvg(view, event);
+            if (Math.hypot(p.x - drag.x, p.y - drag.y) > 10) drag.moved = true;
+            drag.it.setAttribute("transform", `translate(${p.x - drag.x} ${p.y - drag.y})`);
+          });
+          const up = () => {
+            if (!drag) return;
+            const d = drag;
+            drag = null;
+            d.it.removeAttribute("transform");
+            const st = steps[si];
+            if (!st || !g.ok()) return;
+            if (st.kind === "add") return added < st.n && doAdd();
+            const ok = d.key === st.k;
+            if (g.step(ok, { hint: "Look at the sizes. The head is small and round, the thorax is in the middle, and the abdomen is the big back part.", reveal: `This one is the ${st.k}.` })) {
+              slots[st.k].firstChild.classList.remove("fl-pulse");
+              put(st.k);
+              si += 1;
+              setTimeout(run, ok ? 600 : 2400);
+            }
+          };
+          view.addEventListener("pointerup", up);
+          view.addEventListener("pointercancel", up);
+          run();
+        } else if (kind === "isit") {
+          const c = bag[g.round % bag.length];
+          const holder = el("g", {}, view);
+          if (c.e) emoji(holder, 500, 270, c.e, 260);
+          else c.d(holder);
+          if (c.n === "bee") buzz();
+          const opts = [{ label: "✅ Insect", ok: c.ins }, { label: "🚫 Not an insect", ok: !c.ins }];
+          const twoStep = g.level !== "easy" && !c.ins && (c.n === "spider" || c.n === "scorpion");
+          g.choose(opts, {
+            hint: "Count the legs. An insect has 6 legs and 3 body parts.",
+            reveal: c.why,
+            why: c.why,
+            then: twoStep
+              ? () => {
+                  say(`Yes! How can you tell a ${c.n} is not an insect?`);
+                  g.choose(shuffle([{ label: "🦵 It has 8 legs", ok: true }, { label: "🪽 It has no wings" }, { label: "🔍 It is small" }]), { hint: "Ants have no wings, and lots of insects are small. So what is the real clue? Count!", reveal: c.why, why: c.why });
+                }
+              : null,
+          });
+          say(`Is ${/^[aeiou]/.test(c.n) ? "an" : "a"} ${c.n} an insect?`);
+        } else {
+          const [who, legs, k, d] = pick([["ladybirds", 6, pickInt(2, 4), (p, x) => ladybird(p, x, 270, 1.1)], ["bees", 6, pickInt(2, 4), (p, x) => bee(p, x + 30, 270, 0.8)], ["spiders", 8, 2, (p, x) => spider(p, x, 270, 1.1)]]);
+          const gap = W / (k + 1);
+          for (let i = 1; i <= k; i++) d(view, gap * i);
+          const ans = legs * k;
+          g.choose(shuffle([ans, ans - legs, ans + legs]).map((x) => ({ label: String(x), ok: x === ans })), {
+            hint: `Each one has ${legs} legs. Count by ${legs}s, once for each.`,
+            reveal: `${Array.from({ length: k }, (_, i) => (i + 1) * legs).join(", ")}. ${k} ${who} have ${ans} legs.`,
+            why: `${k} groups of ${legs} make ${ans}.`,
+          });
+          say(`How many legs do ${k} ${who} have altogether?`);
+        }
+      },
+    });
+  },
+
+  // ---------- 7. Life cycles ----------
+  f7() {
+    let bag = [];
+    frame("f7", {
+      noun: "Life cycle",
+      countKey: "life cycles ordered",
+      ask(g) {
+        if (g.round === 0 || !bag.length) {
+          const pool = g.level === "easy" ? [CYCLES[0], CYCLES[1]] : CYCLES;
+          bag = [];
+          while (bag.length < 8) bag.push(...shuffle(pool));
+        }
+        const c = bag[g.round];
+        fresh();
+        el("rect", { x: -1000, y: -600, width: 3000, height: 1760, fill: "#f6faef" }, view);
+        orderGame(g, c.stages.map(([k, word]) => ({ draw: STAGES[k], word })), {
+          pre: g.level === "easy" ? 1 : 0,
+          hint: (i) => (i === 0 ? "What does every life start as?" : `What comes after the ${c.stages[i - 1][1]}? Look for the next change.`),
+          why: STAGE_WHY,
+          done: () => {
+            if (g.level !== "hard") return g.win(`${c.stages.map((s) => s[1]).join(", ")}. That is the life cycle of a ${c.name}.`);
+            say(`Yes! Now: does the ${c.name} have a pupa stage?`);
+            const why = c.full ? `The ${c.name} has 4 stages with a pupa. That is complete metamorphosis.` : `The ${c.name} has 3 stages and no pupa. The nymph slowly grows into the adult. That is incomplete metamorphosis.`;
+            g.choose(
+              [
+                { label: "4 stages, with a pupa", ok: c.full },
+                { label: "3 stages, no pupa", ok: !c.full },
+              ],
+              { hint: "Count the pictures in the top row. Is one of them a resting stage, a pupa or chrysalis?", reveal: why, why }
+            );
+          },
+        });
+        say(`Put the ${c.name}'s life in order. Tap what comes ${g.level === "easy" ? "next" : "first"}.`);
+      },
+    });
+  },
+
+  // ---------- 8. Honeybees ----------
+  f8() {
+    const ROLES = [
+      { k: "queen", q: "Who lays all the eggs in the hive?", why: "The queen lays all the eggs. There is only one queen in a hive." },
+      { k: "worker", q: "Who flies out to collect nectar and pollen from flowers?", why: "Worker bees collect nectar and pollen. The workers are all girls!" },
+      { k: "worker", q: "Who makes the wax to build the honeycomb?", why: "Worker bees make wax in their bodies and build the comb with it." },
+      { k: "drone", q: "Which bee is a boy bee, with no sting?", why: "Drones are the boy bees. They have big eyes and no sting." },
+      { k: "queen", q: "There is only one of this bee in each hive. Which one?", why: "Each hive has just one queen." },
+    ];
+    const EASYROLE = { queen: ["Tap the queen. She has the longest body.", "The queen has the longest body."], worker: ["Tap the worker. She is the smallest bee.", "The worker is the smallest bee."], drone: ["Tap the drone. He has the biggest eyes.", "The drone has the biggest eyes and a round body."] };
+    const HEXR = 40;
+    const hexAt = (p, x, y, r, fill) => cell(p, x, y, r, fill);
+    let plan = [];
+    let roleBag = [];
+    frame("f8", {
+      noun: "Round",
+      countKey: "bee rounds",
+      ask(g) {
+        if (g.round === 0 || !plan.length) {
+          plan = ["comb", "roles", "dance", "comb", "roles", "dance", "roles", "dance"];
+          roleBag = shuffle(ROLES);
+        }
+        const kind = plan[g.round];
+        const alive = g.cur();
+        fresh();
+        el("rect", { x: -1000, y: -600, width: 3000, height: 1760, fill: "#fff8e6" }, view);
+        if (kind === "comb") {
+          const combN = plan.slice(0, g.round).filter((x) => x === "comb").length;
+          if (g.level === "easy") {
+            const pts = [[500, 280]];
+            for (let i = 0; i < 6; i++) pts.push([500 + Math.cos(Math.PI / 6 + (i * Math.PI) / 3) * HEXR * 3.46, 280 + Math.sin(Math.PI / 6 + (i * Math.PI) / 3) * HEXR * 3.46]);
+            let filled = 0;
+            pts.forEach(([x, y]) => {
+              const h = hexAt(view, x, y, HEXR * 2, "#fffdf5");
+              h.classList.add("fl-tap");
+              h.addEventListener("pointerdown", () => {
+                if (h.dataset.full || !alive()) return;
+                h.dataset.full = 1;
+                h.setAttribute("fill", "#f6b40e");
+                filled += 1;
+                note(filled - 1);
+                VOICE.speak(String(filled));
+                window.OC?.touch();
+                if (filled === 7) g.win("7 cells full of honey! Bees keep honey in wax cells shaped like hexagons.");
+              });
+            });
+            say("Bees store honey in wax cells. Tap each empty cell to fill it with honey. Count with me!");
+          } else if (g.level === "medium") {
+            const rows = pickInt(2, 4);
+            const cols = pickInt(3, 5);
+            const r = 44;
+            const x0 = 500 - ((cols - 1) * r * 1.5) / 2;
+            const y0 = 280 - ((rows - 0.5) * r * 1.732) / 2;
+            for (let c2 = 0; c2 < cols; c2++) for (let r2 = 0; r2 < rows; r2++) hexAt(view, x0 + c2 * r * 1.5, y0 + r2 * r * 1.732 + (c2 % 2) * r * 0.866, r, (c2 + r2) % 3 ? "#f6b40e" : "#ffd75e");
+            const ans = rows * cols;
+            g.choose(shuffle([ans, ans - 1 > 0 ? ans + 2 : ans + 1, ans + cols]).filter((v, i, a) => a.indexOf(v) === i).map((x) => ({ label: String(x), ok: x === ans })), {
+              hint: "Count the cells in one up-and-down line. How many lines are there?",
+              reveal: `There are ${cols} lines of ${rows} cells. ${cols} times ${rows} is ${ans}.`,
+              why: `${cols} lines of ${rows} cells make ${ans}.`,
+            });
+            say("How many cells are in this piece of honeycomb?");
+          } else if (combN % 2 === 0) {
+            const shapes = shuffle(["circle", "square", "hex"]);
+            shapes.forEach((s, i) => {
+              const x0 = 30 + i * 320;
+              const tile = el("g", { class: "fl-tap", "data-s": s }, view);
+              el("rect", { x: x0, y: 40, width: 300, height: 480, rx: 24, fill: "#fff", stroke: "#d9cdb5", "stroke-width": 4 }, tile);
+              const clipId = `flT${++uid}`;
+              const cp = el("clipPath", { id: clipId }, tile);
+              el("rect", { x: x0 + 20, y: 60, width: 260, height: 440, rx: 16 }, cp);
+              const inner = el("g", { "clip-path": `url(#${clipId})` }, tile);
+              el("rect", { x: x0 + 20, y: 60, width: 260, height: 440, fill: "#5d4037" }, inner);
+              if (s === "circle") for (let a = 0; a < 6; a++) for (let b2 = 0; b2 < 10; b2++) el("circle", { cx: x0 + 20 + 25 + a * 50, cy: 60 + 25 + b2 * 50, r: 25, fill: "#f6b40e", stroke: "#c98c1a", "stroke-width": 2 }, inner);
+              else if (s === "square") for (let a = 0; a < 6; a++) for (let b2 = 0; b2 < 10; b2++) el("rect", { x: x0 + 20 + a * 48, y: 60 + b2 * 48, width: 48, height: 48, fill: "#f6b40e", stroke: "#c98c1a", "stroke-width": 2 }, inner);
+              else for (let a = 0; a < 9; a++) for (let b2 = 0; b2 < 10; b2++) hexAt(inner, x0 + 20 + a * 42, 60 + b2 * 48.5 + (a % 2) * 24.25, 28, "#f6b40e");
+            });
+            g.set({ hint: "Look between the shapes. Where can you see dark gaps?", reveal: "Circles leave gaps between them. Squares and hexagons fit together with no gaps.", why: "Circles leave gaps. Hexagons fit together with no gaps, so no space is wasted." , show: () => view.querySelector('[data-s="circle"] rect').setAttribute("stroke", "#22a05a") });
+            view.addEventListener("pointerdown", (event) => {
+              const t = event.target.closest("[data-s]");
+              if (!t || !g.ok() || t.dataset.wrong) return;
+              const ok = t.dataset.s === "circle";
+              t.querySelector("rect").setAttribute("stroke", ok ? "#22a05a" : "#e57373");
+              t.querySelector("rect").setAttribute("stroke-width", 8);
+              if (!ok) t.dataset.wrong = 1;
+              g.answer(ok, null);
+            });
+            say("Which shape leaves gaps when you push them together? Tap it.");
+          } else {
+            for (let a = 0; a < 7; a++) for (let b2 = 0; b2 < 4; b2++) hexAt(view, 250 + a * 84, 140 + b2 * 97 + (a % 2) * 48.5, 56, (a + b2) % 3 ? "#f6b40e" : "#ffd75e");
+            const why = "Hexagons fit with no gaps and use the least wax to hold the most honey. Wax is hard work for bees to make!";
+            g.choose(shuffle([{ label: "🐝 Least wax, most room", ok: true }, { label: "🎨 They look pretty" }, { label: "📐 Bees can't make squares" }]), { hint: "Bees make wax from their own bodies, and that takes lots of work. What would a careful builder want?", reveal: why, why });
+            say("Squares and hexagons both fit with no gaps. Why do bees build hexagons?");
+          }
+        } else if (kind === "roles") {
+          const ks = shuffle(["queen", "worker", "drone"]);
+          const role = g.level === "easy" ? { k: ks[pickInt(0, 2)] } : roleBag.pop() || ROLES[0];
+          ks.forEach((k, i) => {
+            const x = 190 + i * 310;
+            const t = el("g", { class: "fl-tap", "data-k": k }, view);
+            el("rect", { x: x - 145, y: 60, width: 290, height: 440, rx: 26, fill: "#fff", stroke: "#e2cfa6", "stroke-width": 4 }, t);
+            const s = k === "queen" ? 1.05 : k === "drone" ? 1.15 : 1.0;
+            const bg = el("g", { transform: `translate(${x} 215) rotate(-90) scale(${s})` }, t);
+            bee(bg, 0, 0, 1, { kind: k });
+            if (g.level !== "hard") text(t, x, 470, k, { "font-size": 32, fill: INK });
+          });
+          buzz();
+          const why = g.level === "easy" ? EASYROLE[role.k][1] : role.why;
+          g.set({ hint: g.level === "easy" ? "Look at the body and the eyes of each bee." : "Think about who does each job. Who stays in the hive? Who flies out?", reveal: why, why, show: () => view.querySelector(`[data-k="${role.k}"] rect`).setAttribute("stroke", "#22a05a") });
+          view.addEventListener("pointerdown", (event) => {
+            const t = event.target.closest("[data-k]");
+            if (!t || !g.ok() || t.dataset.wrong) return;
+            const ok = t.dataset.k === role.k;
+            t.querySelector("rect").setAttribute("stroke", ok ? "#22a05a" : "#e57373");
+            t.querySelector("rect").setAttribute("stroke-width", 8);
+            if (!ok) t.dataset.wrong = 1;
+            g.answer(ok, null);
+          });
+          say(g.level === "easy" ? EASYROLE[role.k][0] : `${role.q} Tap the bee.`);
+        } else {
+          // comb with the dancer
+          el("rect", { x: 30, y: 30, width: 420, height: 500, rx: 24, fill: "#f2c14e", stroke: "#a8741a", "stroke-width": 5 }, view);
+          const combClip = `flC${++uid}`;
+          el("rect", { x: 30, y: 30, width: 420, height: 500, rx: 24 }, el("clipPath", { id: combClip }, view));
+          const combCells = el("g", { "clip-path": `url(#${combClip})` }, view);
+          for (let a = 0; a < 7; a++) for (let b2 = 0; b2 < 8; b2++) hexAt(combCells, 60 + a * 60, 60 + b2 * 66 + (a % 2) * 33, 38, "#f6c85f").setAttribute("opacity", 0.55);
+          el("path", { d: "M405 150 L405 70", stroke: "#5d4037", "stroke-width": 6, "stroke-linecap": "round" }, view);
+          el("path", { d: "M392 84 L405 60 L418 84 Z", fill: "#5d4037" }, view);
+          text(view, 405, 180, "up", { "font-size": 26, fill: "#5d4037" });
+          // the map outside
+          const HV = [720, 300];
+          el("rect", { x: 470, y: 30, width: 500, height: 500, rx: 24, fill: "#e3f2d5", stroke: "#9ccc65", "stroke-width": 4 }, view);
+          el("circle", { cx: 720, cy: 48, r: 20, fill: "#ffd54f", stroke: "#f9a825", "stroke-width": 4 }, view);
+          text(view, 780, 58, "sun", { "font-size": 26, fill: "#a67c00" });
+          if (g.level === "easy") el("path", { d: `M720 ${HV[1] - 40} L720 72`, stroke: "#f9a825", "stroke-width": 4, "stroke-dasharray": "10 10" }, view);
+          el("path", { d: `M${HV[0] - 34} ${HV[1] + 30} L${HV[0] - 34} ${HV[1] - 10} Q${HV[0]} ${HV[1] - 50} ${HV[0] + 34} ${HV[1] - 10} L${HV[0] + 34} ${HV[1] + 30} Z`, fill: "#d7a54a", stroke: "#8d5f1a", "stroke-width": 4 }, view);
+          el("circle", { cx: HV[0], cy: HV[1] + 10, r: 9, fill: "#5d4037" }, view);
+          const NEAR = 110;
+          const FAR = 188;
+          let spots;
+          if (g.level === "easy") spots = [[0, FAR], [180, FAR]];
+          else if (g.level === "medium") spots = shuffle([[0, FAR], [60, FAR], [-60, FAR], [180, FAR]]).slice(0, 3);
+          else {
+            const a = pick([0, 60, -60]);
+            spots = [[a, NEAR], [a, FAR], [pick([0, 60, -60, 180].filter((x) => x !== a)), FAR]];
+          }
+          const want = pick(spots);
+          spots.forEach(([a, d]) => {
+            const rad = (a * Math.PI) / 180;
+            const x = HV[0] + Math.sin(rad) * d;
+            const y = HV[1] - Math.cos(rad) * d;
+            const f = el("g", { class: "fl-tap", "data-f": `${a},${d}` }, view);
+            el("circle", { cx: x, cy: y, r: 40, fill: "#fff", opacity: 0.7, stroke: "#9ccc65", "stroke-width": 4 }, f);
+            for (const [dx, dy, c] of [[-16, -8, "#e91e63"], [14, -12, "#ab47bc"], [0, 14, "#ff7043"]]) {
+              for (let p = 0; p < 5; p++) el("circle", { cx: x + dx + Math.cos(p * 1.26) * 9, cy: y + dy + Math.sin(p * 1.26) * 9, r: 7, fill: c }, f);
+              el("circle", { cx: x + dx, cy: y + dy, r: 5, fill: "#fdd835" }, f);
+            }
+          });
+          // the dancer: a straight waggle run, then a loop back round, alternating sides
+          const dancer = el("g", {}, view);
+          const bg = bee(dancer, 0, 0, 0.42);
+          void bg;
+          const C = [240, 300];
+          const rad = (want[0] * Math.PI) / 180;
+          const u = [Math.sin(rad), -Math.cos(rad)];
+          const L = want[1] === NEAR ? 60 : 150;
+          const run = L / 50;
+          const back = 1.6;
+          let last = [C[0], C[1]];
+          const trail = el("path", { d: `M${C[0] - (u[0] * L) / 2} ${C[1] - (u[1] * L) / 2} L${C[0] + (u[0] * L) / 2} ${C[1] + (u[1] * L) / 2}`, stroke: "#8d5f1a", "stroke-width": 4, "stroke-dasharray": "8 8", opacity: 0 }, view);
+          view.insertBefore(trail, dancer);
+          buzz();
+          loop(alive, (s) => {
+            const per = run + back;
+            const n = Math.floor(s / per);
+            const tt = s - n * per;
+            let x;
+            let y;
+            if (tt < run) {
+              const f = tt / run;
+              const wig = Math.sin(f * run * 40) * 7;
+              x = C[0] + u[0] * L * (f - 0.5) - u[1] * wig;
+              y = C[1] + u[1] * L * (f - 0.5) + u[0] * wig;
+            } else {
+              const f = (tt - run) / back;
+              const side = n % 2 ? 1 : -1;
+              const ang = side * Math.PI * f;
+              const vx = (u[0] * L) / 2;
+              const vy = (u[1] * L) / 2;
+              const R = 1 + 0.25 * Math.sin(Math.PI * f);
+              x = C[0] + (vx * Math.cos(ang) - vy * Math.sin(ang)) * R * 1.3;
+              y = C[1] + (vx * Math.sin(ang) + vy * Math.cos(ang)) * R * 1.3;
+            }
+            const head = tt < run ? (Math.atan2(u[1], u[0]) * 180) / Math.PI : (Math.atan2(y - last[1], x - last[0]) * 180) / Math.PI;
+            if (Math.hypot(x - last[0], y - last[1]) > 0.01) dancer.setAttribute("transform", `translate(${x} ${y}) rotate(${head})`);
+            last = [x, y];
+          });
+          const dirWord = want[0] === 0 ? "straight up, so the flowers are toward the sun" : want[0] === 180 ? "straight down, so the flowers are away from the sun" : want[0] > 0 ? "up and to the right, so the flowers are to the right of the sun" : "up and to the left, so the flowers are to the left of the sun";
+          const why = `Her waggle points ${dirWord}.${g.level === "hard" ? ` Her waggle is ${want[1] === NEAR ? "short, so they are close" : "long, so they are far away"}.` : ""}`;
+          g.set({
+            hint: g.level === "hard" ? "Which way does the waggle point? And is it short or long? Long means far away." : "Which way does the wiggly straight part point? Up on the comb means toward the sun.",
+            reveal: why,
+            why,
+            show: () => {
+              trail.setAttribute("opacity", 1);
+              view.querySelector(`[data-f="${want[0]},${want[1]}"] circle`).setAttribute("stroke", "#22a05a");
+            },
+          });
+          view.addEventListener("pointerdown", (event) => {
+            const t = event.target.closest("[data-f]");
+            if (!t || !g.ok() || t.dataset.wrong) return;
+            const ok = t.dataset.f === `${want[0]},${want[1]}`;
+            t.querySelector("circle").setAttribute("stroke", ok ? "#22a05a" : "#e57373");
+            t.querySelector("circle").setAttribute("stroke-width", 8);
+            if (!ok) t.dataset.wrong = 1;
+            else trail.setAttribute("opacity", 1);
+            g.answer(ok, null);
+          });
+          say(g.level === "easy" ? "This bee is dancing to tell the others where flowers are! Up means toward the sun. Tap the flowers she means." : "Watch the waggle dance. Which flowers does she mean? Tap them.");
+        }
+      },
+    });
+  },
+};
+
+// Order the pictures: tap the cards in the right order. 1st miss: hint. 2nd miss: the card is placed for you, with the why.
+function orderGame(g, items, { pre = 0, hint, why, done }) {
+  const alive = g.cur();
+  const n = items.length;
+  const sw = 210;
+  const gap = 26;
+  const x0 = (W - (n * sw + (n - 1) * gap)) / 2;
+  const slotX = (i) => x0 + i * (sw + gap);
+  for (let i = 0; i < n; i++) {
+    el("rect", { x: slotX(i), y: 24, width: sw, height: 220, rx: 22, fill: "#fff", stroke: "#cdbb9c", "stroke-width": 4, "stroke-dasharray": "12 10" }, view);
+    text(view, slotX(i) + sw / 2, 145, i + 1, { "font-size": 54, fill: "#e6dccd" });
+    if (i < n - 1) el("path", { d: `M${slotX(i) + sw + 4} 134 l${gap - 8} 0 m-10 -10 l10 10 l-10 10`, stroke: "var(--accent)", "stroke-width": 5, fill: "none", "stroke-linecap": "round" }, view);
+  }
+  const cards = items.map((it, i) => {
+    const c = el("g", { class: "fl-tap", "data-card": i }, view);
+    el("rect", { x: -sw / 2, y: -100, width: sw, height: 210, rx: 22, fill: "#fffaf0", stroke: "#a8632d", "stroke-width": 4 }, c);
+    const pic = el("g", { transform: "translate(0 -18)" }, c);
+    it.draw(pic);
+    text(c, 0, 90, it.word, { "font-size": 26, fill: INK });
+    return c;
+  });
+  let next = 0;
+  const putAt = (ci, si) => place(cards[ci], slotX(si) + sw / 2, 134, 1);
+  for (; next < pre; next++) {
+    putAt(next, next);
+    cards[next].dataset.done = 1;
+  }
+  // put the not-yet-placed cards in a shuffled bottom row (pre-placed ones are above)
+  const rest = shuffle(cards.map((_, i) => i).filter((i) => i >= pre));
+  rest.forEach((ci, k) => place(cards[ci], x0 + sw / 2 + k * (sw + gap) + ((n - rest.length) * (sw + gap)) / 2, 412, 1));
+  const move = async (ci) => {
+    cards[ci].dataset.done = 1;
+    const m = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(cards[ci].getAttribute("transform"));
+    const [fx, fy] = [Number(m[1]), Number(m[2])];
+    const si = next;
+    next += 1;
+    note(si * 2);
+    await tween(600, (t) => place(cards[ci], fx + (slotX(si) + sw / 2 - fx) * t, fy + (134 - fy) * t, 1), alive);
+  };
+  view.addEventListener("pointerdown", async (event) => {
+    const c = event.target.closest("[data-card]");
+    if (!c || c.dataset.done || !g.ok() || next >= n) return;
+    const ci = Number(c.dataset.card);
+    const ok = ci === next;
+    const reason = why[items[next].word] || "";
+    if (!g.step(ok, { hint: hint(next), reveal: `Next comes the ${items[next].word}. ${reason}` })) {
+      c.querySelector("rect").setAttribute("stroke", "#e57373");
+      setTimeout(() => c.querySelector("rect")?.setAttribute("stroke", "#a8632d"), 700);
+      return;
+    }
+    g.busy = true;
+    if (ok) say(`${items[next].word[0].toUpperCase()}${items[next].word.slice(1)}! ${reason}`);
+    await move(next);
+    if (!alive()) return;
+    if (!ok) await wait(1800);
+    if (!alive()) return;
+    g.busy = false;
+    if (next >= n) done();
+  });
+}
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    f0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    f1: { icon: "🪶", title: "Bird or not?", steps: ["Look at the animal.", "Does it have feathers?", "Tap Bird or Not a bird."] },
+    f2: { icon: "🕊️", title: "How wings fly", steps: ["Watch the bird or the wing.", "Listen to the question.", "Tap your answer."] },
+    f3: { icon: "🦅", title: "Beaks and feet", steps: ["Look at the beak or the foot.", "Think: what is that shape good for?", "Tap the food or the job."] },
+    f4: { icon: "🪺", title: "Nests and eggs", steps: ["Drag pieces to build a nest.", "Tap the bird to keep the eggs warm.", "Put the pictures in order."] },
+    f5: { icon: "🦇", title: "Bats and echoes", steps: ["Press Click to send a sound.", "Listen for the echo.", "Tap the moth, or answer the question."] },
+    f6: { icon: "🐝", title: "Build an insect", steps: ["Tap or drag parts onto the insect.", "Give it 6 legs and 2 antennae.", "Then say if an animal is an insect."] },
+    f7: { icon: "🦋", title: "Life cycles", steps: ["Look at the pictures at the bottom.", "Tap the one that comes first.", "Keep going until they are in order."] },
+    f8: { icon: "🍯", title: "Honeybees", steps: ["Fill honeycomb and count cells.", "Find the queen, worker and drone.", "Watch the dance and tap the flowers."] },
+  },
+  start: "f0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+    document.querySelector(".fl-try")?.remove();
+  },
+  subject: "Science",
+  activity: "Flying Creatures",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 77, 79, 81, 83, 84, 86, 88, 91, 96]);
+MUSIC.preload("woodblock", [72, 79]);
+MUSIC.preload("flute", [79]);
+MUSIC.preload("cello", [48]);
+MUSIC.preload("piano", [64, 67]);
+</script>
+</body>
+</html>

@@ -43,6 +43,45 @@
       listeners.add(fn);
     },
     learners: () => read(KEY_LEARNERS, []),
+    // Child profiles: birth month ("2020-07") and the level the child works at ("auto" follows age).
+    LEVELS: ["Foundations", "Level 2", "Level 3", "Level 4", "Level 5"],
+    profiles: () => read("oc-profiles", {}),
+    profile: (name = OC.current()) => OC.profiles()[name] || {},
+    saveProfile(name, data) {
+      const all = OC.profiles();
+      all[name] = { ...(all[name] || {}), ...data, at: Date.now() };
+      write("oc-profiles", all);
+      listeners.forEach((fn) => fn());
+    },
+    // Renaming moves the child's profile, progress, plans and log entries to the new name.
+    renameLearner(from, to) {
+      if (!from || !to || from === to) return;
+      for (const key of ["oc-profiles", "oc-music", "oc-plan-done", "oc-plan-track", "oc-year"]) {
+        const all = read(key, {});
+        if (all && all[from] !== undefined) {
+          all[to] = all[from];
+          delete all[from];
+          write(key, all);
+        }
+      }
+      const entries = OC.log();
+      if (entries.some((e) => e.learner === from)) OC.saveLog(entries.map((e) => (e.learner === from ? { ...e, learner: to } : e)));
+      if (read(KEY_CURRENT, "") === from) write(KEY_CURRENT, to);
+    },
+    ageOf(name = OC.current()) {
+      const birth = OC.profile(name).birth;
+      if (!birth) return null;
+      const [y, m] = birth.split("-").map(Number);
+      const now = new Date();
+      return now.getFullYear() - y - (now.getMonth() + 1 < m ? 1 : 0);
+    },
+    levelOf(name = OC.current()) {
+      const p = OC.profile(name);
+      if (p.level && p.level !== "auto") return p.level;
+      const age = OC.ageOf(name);
+      if (age === null) return "";
+      return age <= 5 ? "Foundations" : age <= 7 ? "Level 2" : age <= 9 ? "Level 3" : age <= 10 ? "Level 4" : "Level 5";
+    },
     saveLearners(list) {
       write(KEY_LEARNERS, list);
       if (!list.includes(OC.current())) OC.setCurrent(list[0] || "");
@@ -64,6 +103,8 @@
       OC.saveLog(entries);
     },
     remove(id) {
+      // Remember removals so cloud sync does not bring the entry back from another device.
+      write("oc-log-removed", [...read("oc-log-removed", []), id].slice(-2000));
       OC.saveLog(OC.log().filter((entry) => entry.id !== id));
     },
     begin(subject, activity, part = "") {

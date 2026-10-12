@@ -1,0 +1,2303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Physics Lab · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="science">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Physics Lab</b><small>Science · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, pickInt, wait, confetti, choices, explain, everyday, emoji, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "p0", label: "See it", icon: "👀" },
+  { id: "p1", label: "1. Ramps & rolling", icon: "🚗" },
+  { id: "p2", label: "2. Levers & seesaws", icon: "⚖️" },
+  { id: "p3", label: "3. Float or sink", icon: "🛟" },
+  { id: "p4", label: "4. Magnets", icon: "🧲" },
+  { id: "p5", label: "5. Light & shadows", icon: "🔦" },
+  { id: "p6", label: "6. Sound & vibration", icon: "🎸" },
+  { id: "p7", label: "7. Circuits", icon: "💡" },
+];
+
+function fresh() {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+}
+
+// ---------- shared helpers ----------
+const LEVELS = [["easy", "🐣 Easy"], ["medium", "🦊 Medium"], ["hard", "🦁 Hard"]];
+const levelRow = (cur) =>
+  `<div class="ap-row"><div class="ap-chips" data-levels>${LEVELS.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div><button type="button" class="ph-trybtn" data-try>🏠 Try it</button><p class="ap-status" data-status></p></div>`;
+const onLevels = (id, fn) =>
+  $("[data-levels]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    shell.mark(id, { level: b.dataset.lv });
+    window.OC?.touch();
+    fn(b.dataset.lv);
+  });
+const smooth = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+const lin = (t) => t;
+const tw = (ms, fn, live, ease = smooth) =>
+  new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(live());
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!live()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(ease(t));
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+const nap = (ms, live) => wait(KIT.still.matches ? Math.min(ms, 150) : ms).then(() => live());
+const pl = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+const move = (node, x, y, r = 0) => node.setAttribute("transform", `translate(${x} ${y})${r ? ` rotate(${r})` : ""}`);
+const label = (parent, x, y, str, size = 24, fill = "#2b1d12", extra = {}) => text(parent, x, y, str, { "font-size": size, fill, ...extra });
+const halo = { stroke: "#fffaf0", "stroke-width": 5, "paint-order": "stroke", "stroke-linejoin": "round" };
+const wrap = (str, max = 12) => {
+  const lines = [];
+  for (const word of String(str).split(" ")) {
+    const last = lines[lines.length - 1];
+    if (last && (last + " " + word).length <= max) lines[lines.length - 1] = last + " " + word;
+    else lines.push(word);
+  }
+  return lines;
+};
+const lines = (parent, x, y, str, size = 26, max = 12, fill = "#2b1d12") => wrap(str, max).forEach((ln, i) => label(parent, x, y + i * (size + 6), ln, size, fill));
+const bg = (fill = "#f7f1e6") => el("rect", { x: 0, y: 0, width: W, height: H, fill }, view);
+
+const phStyle = document.createElement("style");
+phStyle.textContent = `
+.ph-pick .kt-choices button{min-height:58px;min-width:96px;font-size:20px;border-radius:20px}
+.ph-pick .kt-choices button.ph-picked{background:#fff3c4;box-shadow:0 0 0 4px #ffcf5c,0 3px 0 #e2d6c4}
+.ph-pick .kt-choices button:disabled:not(.ph-picked){opacity:.4}
+.ph-trybtn{min-height:44px;padding:0 14px;border:0;border-radius:22px;background:var(--accent-soft);color:var(--accent-dark);box-shadow:0 3px 0 #d7e6d3;font:900 15px/1 var(--sans);cursor:pointer}
+.ph-try{position:fixed;inset:0;z-index:45;display:grid;place-items:center;padding:12px;background:rgba(43,29,18,.38);backdrop-filter:blur(3px)}
+.ph-try-card{width:min(820px,100%);max-height:100%;overflow:auto;padding:16px 22px;border-radius:26px;background:#fffdf8;box-shadow:0 20px 50px rgba(0,0,0,.25);color:#2b1d12;text-align:left}
+.ph-try-card h2{margin:0 0 6px;font:900 clamp(20px,3vw,28px)/1.15 var(--sans);text-align:center}
+.ph-safe{margin:0 auto 8px;width:fit-content;max-width:100%;padding:5px 12px;border-radius:12px;background:#fff1d6;color:#7a4208;font:800 clamp(14px,1.9vw,17px)/1.3 var(--sans);text-align:center}
+.ph-cols{display:grid;grid-template-columns:1fr 1.5fr;gap:6px 22px}
+.ph-try-card h3{margin:0 0 2px;font:900 16px var(--sans);color:var(--accent-dark)}
+.ph-try-card ul,.ph-try-card ol{margin:0;padding-left:1.25em;font:700 clamp(14px,1.9vw,18px)/1.35 var(--sans)}
+.ph-notice{margin:10px 0 6px;padding:7px 12px;border-radius:12px;background:var(--accent-soft);font:700 clamp(14px,1.9vw,17px)/1.35 var(--sans)}
+.ph-try .kt-go{display:block;margin:6px auto 0}
+@media (max-width:600px){.ph-cols{grid-template-columns:1fr}}
+@media (max-height:460px){.ph-try-card{padding:8px 14px}.ph-try-card h2{font-size:18px;margin-bottom:3px}.ph-safe{margin-bottom:4px;font-size:13px}.ph-try-card ul,.ph-try-card ol{font-size:13.5px;line-height:1.25}.ph-notice{margin:5px 0 3px;font-size:13.5px}.ph-try .kt-go{min-height:40px;font-size:17px;margin-top:2px}.ph-trybtn{min-height:32px;font-size:13px;padding:0 10px}}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){.ph-pick .kt-choices button{min-height:46px;min-width:70px;font-size:16px;padding:0 12px}}
+`;
+document.head.appendChild(phStyle);
+
+// ---------- "Try it for real" cards ----------
+const TRY = {
+  p1: {
+    title: "Ramp races",
+    safe: "Do this with a grown-up. Keep the ramp out of the way of feet.",
+    need: ["A toy car", "A flat board or big hardback book", "2–4 books", "A tape measure or ruler", "Sticky notes or tape"],
+    steps: ["Lean the board on 1 book to make a ramp.", "Let the car go from the top. Don't push!", "Mark where it stops and measure.", "Add a book, then try again. Then try on a rug."],
+    notice: "Higher ramp, farther roll. Rug or carpet, shorter roll (more friction). Change just one thing each time: that's a fair test!",
+  },
+  p2: {
+    title: "Coin seesaw",
+    safe: "Do this with a grown-up. Coins are not for mouths.",
+    need: ["A 30 cm ruler", "A round pencil", "About 6 coins that are all the same"],
+    steps: ["Lay the pencil under the middle of the ruler.", "Put 2 coins near one end.", "Where must 1 coin go to balance them? Try!", "Now slide the pencil and try again."],
+    notice: "1 coin far out can balance 2 coins close in. Weight × distance must match on both sides.",
+  },
+  p3: {
+    title: "Foil boats",
+    safe: "Always with a grown-up near water. Coins are not for mouths.",
+    need: ["A tub or sink of water", "2 squares of kitchen foil, the same size", "Coins that are all the same", "A towel"],
+    steps: ["Squeeze one foil square into a tight ball. Does it float?", "Fold the other square into a boat.", "Add coins one at a time.", "Count how many it holds before it sinks!"],
+    notice: "Same foil, different shape! A wide boat pushes aside lots of water, so it can float.",
+  },
+  p4: {
+    title: "Fridge magnet hunt",
+    safe: "With a grown-up. Keep magnets away from phones and cards. Never put small magnets in your mouth.",
+    need: ["A fridge magnet", "Things to test: paper clip, spoon, foil, coin, toy, keys, tin can"],
+    steps: ["Predict first: will it stick? Say yes or no.", "Touch the magnet to it.", "Make a 'sticks' pile and a 'no' pile.", "Try doors, the fridge, a radiator and a tin can."],
+    notice: "Only some metals stick: iron and steel. Aluminium foil, copper, gold, plastic and wood do not.",
+  },
+  p5: {
+    title: "Shadow puppets & a water rainbow",
+    safe: "With a grown-up. Never look at the sun, and don't shine the torch into eyes.",
+    need: ["A torch", "A plain wall in a dark room", "Your hands or a paper shape", "A glass of water and sunshine"],
+    steps: ["Shine the torch at the wall.", "Make a shape with your hands in the light.", "Move your hands near the torch, then near the wall.", "Rainbow: stand the glass in sunshine and look on the floor."],
+    notice: "Near the torch, the shadow is big. The rainbow colours are always in order: red, orange, yellow, green, blue, indigo, violet.",
+  },
+  p6: {
+    title: "Rubber-band guitar & string telephone",
+    safe: "A grown-up makes holes in the cups. Don't snap bands at faces.",
+    need: ["An open box or tub", "Rubber bands, thick and thin", "2 paper cups", "A long piece of string"],
+    steps: ["Stretch the bands around the box and pluck them.", "Which sounds high? Which sounds low?", "Telephone: tie the string through the bottoms of 2 cups.", "Pull it tight, then talk into one cup!"],
+    notice: "Thin or tight bands sound higher. The telephone works only when the string is tight: the sound travels along it.",
+  },
+  p7: {
+    title: "Light an LED",
+    safe: "A grown-up holds the coin battery. Coin batteries are very dangerous if swallowed. Never use wall sockets!",
+    need: ["1 coin battery (CR2032)", "1 small LED", "Kitchen foil strips", "Tape, a paper clip, a plastic toy"],
+    steps: ["Touch the LED's long leg to + and its short leg to −.", "Turn the LED round. Does it still light?", "Use foil strips as wires to make a bigger loop.", "Put a paper clip, then a plastic toy, in a gap."],
+    notice: "It lights only with a complete loop, and an LED only one way round. Metal lets electricity through; plastic and paper don't.",
+  },
+};
+function closeTry() {
+  const box = document.querySelector(".ph-try");
+  if (!box) return;
+  box.remove();
+  VOICE.hush();
+}
+function tryCard(id) {
+  const t = TRY[id];
+  if (!t) return;
+  closeTry();
+  const box = document.createElement("div");
+  box.className = "ph-try";
+  box.setAttribute("role", "dialog");
+  box.setAttribute("aria-label", "Try it for real");
+  box.innerHTML = `<div class="ph-try-card"><h2>🏠 Try it for real: ${t.title}</h2><p class="ph-safe">🤝 ${t.safe}</p><div class="ph-cols"><div><h3>You need</h3><ul>${t.need.map((x) => `<li>${x}</li>`).join("")}</ul></div><div><h3>Do this</h3><ol>${t.steps.map((x) => `<li>${x}</li>`).join("")}</ol></div></div><p class="ph-notice">👀 <b>Notice:</b> ${t.notice}</p><button type="button" class="kt-go" data-close>✓ Got it</button></div>`;
+  document.body.appendChild(box);
+  box.addEventListener("click", (event) => {
+    if (event.target === box || event.target.closest("[data-close]")) closeTry();
+  });
+  VOICE.speak(`Try it for real: ${t.title}. ${t.safe} You need: ${t.need.join(", ")}. ${t.steps.join(" ")} Notice: ${t.notice}`);
+}
+
+// ---------- the experiment engine: predict, test, explain ----------
+// cfg: make(level, round, ctx) -> q {ask, opts:[{label,v,say}], fix?, ans?}; draw(q); run(q, live, v) -> outcome; why(q, outcome); hint(q, v) for fix rounds.
+function lab(id, cfg) {
+  const my = token;
+  const alive = () => my === token;
+  const R = 8;
+  let level = shell.progress()[id]?.level || "easy";
+  let round = 0;
+  let q = null;
+  let gen = 0;
+  let tries = 0;
+  let busy = false;
+  const bags = {};
+  const ctx = {
+    next(key, list) {
+      if (!bags[key]?.length) bags[key] = shuffle(list);
+      return bags[key].pop();
+    },
+  };
+  panel(`${levelRow(level)}<div class="ph-pick" data-choices></div>`);
+  const host = $("[data-choices]");
+  $("[data-try]").addEventListener("click", () => {
+    window.OC?.touch();
+    tryCard(id);
+  });
+  const status = (s) => {
+    const b = $("[data-status]");
+    if (b) b.textContent = s || `Experiment ${Math.min(round + 1, R)} of ${R}`;
+  };
+  const setup = (qq) => {
+    const g = ++gen;
+    qq.live = () => alive() && g === gen;
+    fresh();
+    cfg.draw(qq);
+  };
+  const buttons = () => [...host.querySelectorAll("[data-c]")];
+  const ask = () => {
+    if (!alive()) return;
+    q = cfg.make(level, round, ctx);
+    q.level = level;
+    tries = 0;
+    busy = false;
+    setup(q);
+    status();
+    choices(host, q.opts, (c, b) => choose(c, b));
+    const intro = round === 0 && cfg.intro ? `${cfg.intro} ` : "";
+    say(`${intro}${q.fix ? "🧩" : "🤔 Predict:"} ${q.ask}`);
+  };
+  const done = (msg) => {
+    round += 1;
+    window.OC?.count(cfg.count || "experiments");
+    say(msg);
+    const last = round >= R;
+    status(`Experiment ${round} of ${R}`);
+    host.innerHTML = `<div class="ap-buttons"><button type="button" data-again>🔁 Watch again</button><button type="button" class="primary" data-next>${last ? "🎉 Finish" : "Next ▶"}</button></div>`;
+    host.onclick = (event) => {
+      if (event.target.closest("[data-next]")) {
+        VOICE.hush();
+        if (last) finish();
+        else ask();
+      } else if (event.target.closest("[data-again]")) {
+        window.OC?.touch();
+        setup(q);
+        cfg.run(q, q.live, q.fix ? q.ans : q.picked);
+      }
+    };
+  };
+  const choose = async (c, button) => {
+    if (!alive() || busy) return;
+    busy = true;
+    window.OC?.touch();
+    q.picked = c.v;
+    buttons().forEach((b) => (b.disabled = b !== button));
+    button.classList.add("ph-picked");
+    const live = q.live;
+    if (q.fix) {
+      VOICE.hush();
+      await cfg.run(q, live, c.v);
+      if (!live()) return;
+      if (c.v === q.ans) {
+        MUSIC.chime();
+        done(`${tries ? "You kept trying, and you found it! " : "It balances! "}${cfg.why(q, q.ans)}`);
+        return;
+      }
+      tries += 1;
+      MUSIC.oops();
+      button.classList.remove("ph-picked");
+      button.classList.add("wrong");
+      if (tries < 2) {
+        say(cfg.hint(q, c.v));
+        buttons().forEach((b) => (b.disabled = b.classList.contains("wrong")));
+        busy = false;
+        return;
+      }
+      await sayAsync("Mistakes are how we learn. Let's look why.");
+      if (!live()) return;
+      await cfg.run(q, live, q.ans);
+      if (!live()) return;
+      done(cfg.why(q, q.ans));
+      return;
+    }
+    await sayAsync(`You predict: <b>${c.say || c.label}</b>. Let's test it!`);
+    if (!live()) return;
+    const truth = await cfg.run(q, live, c.v);
+    if (!live()) return;
+    const match = c.v === truth;
+    if (match) MUSIC.chime();
+    else MUSIC.play("harp", 67, { gain: 0.3 });
+    const lead = match
+      ? pick(["Your prediction matched the test!", "The test agreed with your prediction!", "Just as you predicted!"])
+      : pick(["Scientists predict, then test! Now we know.", "A surprise! That's why scientists test."]);
+    done(`${lead} ${cfg.why(q, truth)}`);
+  };
+  const finish = () => {
+    if (!alive()) return;
+    gen += 1;
+    confetti();
+    MUSIC.chime();
+    shell.mark(id, { done: true });
+    window.OC?.count("labs finished");
+    status(`${R} experiments done`);
+    say(`🎉 You ran ${R} experiments! You predicted, tested and found out why. That is real science. Now try it for real!`);
+    host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-trynow>🏠 Try it for real</button><button type="button" data-more>🔁 Play again</button></div>`;
+    host.onclick = (event) => {
+      if (event.target.closest("[data-trynow]")) tryCard(id);
+      else if (event.target.closest("[data-more]")) {
+        round = 0;
+        ask();
+      }
+    };
+  };
+  onLevels(id, (lv) => {
+    level = lv;
+    round = 0;
+    ask();
+  });
+  ask();
+}
+
+// ---------- drawing helpers ----------
+function drawCar(parent, color) {
+  const g = el("g", {}, parent);
+  el("path", { d: "M-34 -12 V-30 Q-34 -36 -28 -36 H-14 L-4 -52 H14 L24 -36 H28 Q34 -36 34 -30 V-12 Z", fill: color, stroke: "#2b1d12", "stroke-width": 3, "stroke-linejoin": "round" }, g);
+  el("path", { d: "M-1 -48 H12 L19 -38 H-6 Z", fill: "#d6ecf7" }, g);
+  for (const x of [-19, 20]) {
+    el("circle", { cx: x, cy: -10, r: 10, fill: "#2b1d12" }, g);
+    el("circle", { cx: x, cy: -10, r: 4, fill: "#cfd8dc" }, g);
+  }
+  return g;
+}
+function horseshoe(parent) {
+  const g = el("g", {}, parent);
+  el("path", { d: "M-55 0 V-70 A55 55 0 0 1 55 -70 V0", fill: "none", stroke: "#d84336", "stroke-width": 34 }, g);
+  for (const x of [-55, 55]) el("rect", { x: x - 17, y: -28, width: 34, height: 30, fill: "#cfd8dc", stroke: "#78909c", "stroke-width": 2 }, g);
+  label(g, -55, -44, "N", 22, "#fff");
+  label(g, 55, -44, "S", 22, "#fff");
+  return g;
+}
+const POLE = { N: "#e05a47", S: "#3f7fd6" };
+function barMagnet(parent, x, y, leftPole, half = 100) {
+  const g = el("g", { transform: `translate(${x} ${y})` }, parent);
+  const other = leftPole === "N" ? "S" : "N";
+  el("rect", { x: -half, y: -28, width: half, height: 56, fill: POLE[leftPole] }, g);
+  el("rect", { x: 0, y: -28, width: half, height: 56, fill: POLE[other] }, g);
+  el("rect", { x: -half, y: -28, width: half * 2, height: 56, rx: 6, fill: "none", stroke: "#2b1d12", "stroke-width": 3 }, g);
+  label(g, -half / 2, 11, leftPole, 30, "#fff");
+  label(g, half / 2, 11, other, 30, "#fff");
+  return g;
+}
+function torchShape(parent) {
+  // a torch pointing right; the lens is at (0, 0)
+  const g = el("g", {}, parent);
+  el("rect", { x: -78, y: -15, width: 58, height: 30, rx: 8, fill: "#3f7fd6", stroke: "#2b1d12", "stroke-width": 3 }, g);
+  el("path", { d: "M-22 -15 L0 -26 V26 L-22 15 Z", fill: "#5c93e0", stroke: "#2b1d12", "stroke-width": 3, "stroke-linejoin": "round" }, g);
+  el("rect", { x: -2, y: -26, width: 6, height: 52, rx: 2, fill: "#fff59d", stroke: "#2b1d12", "stroke-width": 2 }, g);
+  el("rect", { x: -62, y: -21, width: 14, height: 7, rx: 2, fill: "#f2c94c" }, g);
+  return g;
+}
+
+// ---------- See it ----------
+function seeIt() {
+  const my = token;
+  explain(
+    [
+      {
+        say: "Why do we learn physics? Physics explains how things move, light up and make sounds: on slides, bikes, rainbows and music!",
+        draw: everyday([["🛝", "Playground slides"], ["🚲", "Riding a bike"], ["🌈", "Rainbows"], ["🎸", "Making music"]]),
+      },
+      {
+        say: "A force is a push or a pull. A push moves the ball away. A pull brings the wagon closer.",
+        async draw(v, api) {
+          el("rect", { x: 0, y: 400, width: W, height: 160, fill: "#e6d3b3" }, v);
+          el("line", { x1: 500, x2: 500, y1: 60, y2: 520, stroke: "#e2d6c4", "stroke-width": 4, "stroke-dasharray": "10 10" }, v);
+          const ball = el("g", { transform: "translate(170 362)" }, v);
+          emoji(ball, 0, 0, "⚽", 76);
+          const push = el("g", { opacity: 0 }, v);
+          el("path", { d: "M40 362 H110", stroke: "#e05a47", "stroke-width": 12, "stroke-linecap": "round" }, push);
+          el("path", { d: "M104 340 L132 362 L104 384 Z", fill: "#e05a47" }, push);
+          label(push, 250, 120, "PUSH", 44, "#e05a47");
+          await api.tween(500, (t) => push.setAttribute("opacity", t));
+          MUSIC.play("woodblock", 79, { gain: 0.5 });
+          await api.tween(1400, (t) => ball.setAttribute("transform", `translate(${170 + 260 * (1 - (1 - t) ** 2)} 362) rotate(${360 * t})`), lin);
+          await api.wait(400);
+          const wagon = el("g", { transform: "translate(620 0)" }, v);
+          el("rect", { x: -60, y: 320, width: 120, height: 56, rx: 10, fill: "#3f7fd6", stroke: "#2b1d12", "stroke-width": 3 }, wagon);
+          emoji(wagon, 0, 300, "🧸", 64);
+          for (const x of [-34, 34]) el("circle", { cx: x, cy: 384, r: 16, fill: "#2b1d12" }, wagon);
+          const rope = el("line", { x1: 680, y1: 340, x2: 900, y2: 300, stroke: "#8a5a33", "stroke-width": 5 }, v);
+          const hand = el("g", {}, v);
+          emoji(hand, 920, 300, "✊", 50);
+          const pull = el("g", { opacity: 0 }, v);
+          el("path", { d: "M760 230 H880", stroke: "#3f7fd6", "stroke-width": 12, "stroke-linecap": "round" }, pull);
+          el("path", { d: "M874 208 L902 230 L874 252 Z", fill: "#3f7fd6" }, pull);
+          label(pull, 760, 120, "PULL", 44, "#3f7fd6");
+          await api.tween(500, (t) => pull.setAttribute("opacity", t));
+          await api.tween(1400, (t) => {
+            const dx = 140 * t;
+            wagon.setAttribute("transform", `translate(${620 + dx} 0)`);
+            rope.setAttribute("x1", 680 + dx);
+          });
+        },
+      },
+      {
+        say: "Gravity is the Earth's pull. Let go of an apple and gravity pulls it down, faster and faster!",
+        async draw(v, api) {
+          el("rect", { x: 0, y: 470, width: W, height: 90, fill: "#b7d99a" }, v);
+          el("path", { d: "M0 70 Q160 40 330 92", stroke: "#8a5a33", "stroke-width": 22, fill: "none", "stroke-linecap": "round" }, v);
+          for (const [x, y] of [[90, 52], [200, 50], [280, 72]]) emoji(v, x, y, "🍃", 50);
+          const apple = el("g", {}, v);
+          emoji(apple, 0, 0, "🍎", 60);
+          const y0 = 128;
+          const y1 = 440;
+          move(apple, 300, y0);
+          await api.wait(900);
+          await api.tween(1100, (t) => move(apple, 300, y0 + (y1 - y0) * t * t), lin);
+          MUSIC.play("timpani", 48, { gain: 0.4 });
+          label(v, 620, 76, "Snapshots, same time apart:", 26, "#5a4130");
+          for (let k = 0; k <= 5; k++) {
+            const y = y0 + (y1 - y0) * (k / 5) ** 2;
+            const g = el("g", { opacity: 0 }, v);
+            emoji(g, 620, y, "🍎", 46);
+            await api.tween(300, (t) => g.setAttribute("opacity", t));
+          }
+          const note = el("g", { opacity: 0 }, v);
+          el("path", { d: "M850 140 V420", stroke: "#e05a47", "stroke-width": 10, "stroke-linecap": "round" }, note);
+          el("path", { d: "M828 410 L850 446 L872 410 Z", fill: "#e05a47" }, note);
+          label(note, 850, 120, "gravity", 28, "#e05a47");
+          label(note, 620, 520, "The gaps get bigger: faster and faster!", 26, "#2b1d12");
+          await api.tween(600, (t) => note.setAttribute("opacity", t));
+        },
+      },
+      {
+        say: "Friction is rubbing that slows things down. The same push slides a puck far on ice, but only a little on carpet.",
+        async draw(v, api) {
+          const lanes = [
+            { y: 200, fill: "#d3f1fb", name: "ice: smooth", d: 680, ms: 2600 },
+            { y: 430, fill: "#c4553c", name: "carpet: rough", d: 170, ms: 1200 },
+          ];
+          const pucks = lanes.map((ln) => {
+            el("rect", { x: 40, y: ln.y, width: 920, height: 40, rx: 10, fill: ln.fill, stroke: "#5a4130", "stroke-width": 2 }, v);
+            label(v, 500, ln.y + 82, ln.name, 28, "#2b1d12");
+            const p = el("g", {}, v);
+            el("ellipse", { cx: 0, cy: 0, rx: 34, ry: 12, fill: "#2b1d12" }, p);
+            el("rect", { x: -34, y: -14, width: 68, height: 14, fill: "#2b1d12" }, p);
+            el("ellipse", { cx: 0, cy: -14, rx: 34, ry: 12, fill: "#4a4a4a" }, p);
+            move(p, 110, ln.y + 6);
+            return p;
+          });
+          await api.wait(1200);
+          MUSIC.play("woodblock", 79, { gain: 0.5 });
+          await Promise.all(lanes.map((ln, i) => api.tween(ln.ms, (t) => move(pucks[i], 110 + ln.d * (1 - (1 - t) ** 2), ln.y + 6), lin)));
+        },
+      },
+      {
+        say: "Energy makes things happen. High up, a swing has stored energy. Swinging down, it turns into moving energy, then back again!",
+        async draw(v, api) {
+          const px = 560;
+          const py = 70;
+          const len = 300;
+          el("path", { d: `M${px - 150} 500 L${px} ${py} L${px + 150} 500`, fill: "none", stroke: "#8a5a33", "stroke-width": 14, "stroke-linejoin": "round" }, v);
+          el("rect", { x: 0, y: 500, width: W, height: 60, fill: "#b7d99a" }, v);
+          const rope = el("line", { x1: px, y1: py, x2: px, y2: py + len, stroke: "#5a4130", "stroke-width": 5 }, v);
+          const kid = el("g", {}, v);
+          el("rect", { x: -34, y: -6, width: 68, height: 12, rx: 5, fill: "#e05a47" }, kid);
+          emoji(kid, 0, -30, "🧒", 60);
+          const bars = [
+            { x: 80, name: "high-up", fill: "#f2c94c" },
+            { x: 210, name: "moving", fill: "#e05a47" },
+          ].map((b) => {
+            el("rect", { x: b.x, y: 160, width: 80, height: 260, rx: 10, fill: "#fff", stroke: "#c9b8a1", "stroke-width": 3 }, v);
+            const fill = el("rect", { x: b.x + 6, y: 414, width: 68, height: 0, rx: 6, fill: b.fill }, v);
+            label(v, b.x + 40, 452, b.name, 22, "#2b1d12");
+            label(v, b.x + 40, 478, "energy", 22, "#2b1d12");
+            return fill;
+          });
+          const A = (50 * Math.PI) / 180;
+          const T = 2600;
+          await api.tween(
+            T * 3,
+            (t) => {
+              const th = A * Math.cos((2 * Math.PI * t * T * 3) / T);
+              const x = px + len * Math.sin(th);
+              const y = py + len * Math.cos(th);
+              rope.setAttribute("x2", x);
+              rope.setAttribute("y2", y);
+              kid.setAttribute("transform", `translate(${x} ${y}) rotate(${(-th * 180) / Math.PI})`);
+              const high = (1 - Math.cos(th)) / (1 - Math.cos(A));
+              [high, 1 - high].forEach((f, i) => {
+                bars[i].setAttribute("height", 248 * f);
+                bars[i].setAttribute("y", 414 - 248 * f);
+              });
+            },
+            lin
+          );
+        },
+      },
+      {
+        say: "Light travels in straight lines. Sound is made by things wiggling. We call the wiggles vibrations.",
+        async draw(v, api) {
+          el("rect", { x: 0, y: 0, width: W, height: 260, fill: "#34384f" }, v);
+          const torch = torchShape(v);
+          move(torch, 150, 130);
+          const beam = el("path", { d: "M150 130 L150 130 L150 130 Z", fill: "rgba(255,236,150,.55)" }, v);
+          el("rect", { x: 900, y: 30, width: 30, height: 200, fill: "#efe6d6" }, v);
+          label(v, 520, 238, "Light: straight lines", 28, "#fff59d");
+          await api.tween(1200, (t) => beam.setAttribute("d", `M150 130 L${150 + 750 * t} ${130 - 70 * t} L${150 + 750 * t} ${130 + 70 * t} Z`));
+          await api.wait(500);
+          el("rect", { x: 120, y: 340, width: 520, height: 70, rx: 18, fill: "#d9a066", stroke: "#8a5a33", "stroke-width": 4 }, v);
+          const str = el("path", { d: "M160 375 L600 375", stroke: "#5a4130", "stroke-width": 5, fill: "none" }, v);
+          emoji(v, 860, 375, "👂", 80);
+          label(v, 380, 470, "Sound: vibrations", 28, "#2b1d12");
+          const waves = [0, 1, 2].map(() => el("path", { d: "", fill: "none", stroke: "#3f7fd6", "stroke-width": 5, "stroke-linecap": "round", opacity: 0 }, v));
+          MUSIC.play("harp", 64, { gain: 0.6 });
+          await api.tween(
+            2600,
+            (t) => {
+              const A = 22 * Math.exp(-2 * t) * Math.sin(t * 80);
+              str.setAttribute("d", `M160 375 Q380 ${375 + 2 * A} 600 375`);
+              waves.forEach((w, i) => {
+                const r = ((t * 2.2 + i / 3) % 1) * 150 + 30;
+                w.setAttribute("d", `M${640 + r * 0.5} ${375 - r * 0.6} Q${660 + r} 375 ${640 + r * 0.5} ${375 + r * 0.6}`);
+                w.setAttribute("opacity", 1 - ((t * 2.2 + i / 3) % 1));
+              });
+            },
+            lin
+          );
+        },
+      },
+      {
+        say: "Scientists ask a question, predict, test, then explain. A surprise is great: the test teaches us! Let's be scientists.",
+        async draw(v, api) {
+          const steps = [["❓", "Ask"], ["🤔", "Predict"], ["🧪", "Test"], ["💡", "Explain"]];
+          for (let i = 0; i < steps.length; i++) {
+            const x = 70 + i * 225;
+            const g = el("g", { opacity: 0 }, v);
+            el("rect", { x, y: 150, width: 180, height: 230, rx: 26, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, g);
+            el("circle", { cx: x + 90, cy: 240, r: 62, fill: "var(--accent-soft)" }, g);
+            emoji(g, x + 90, 238, steps[i][0], 72);
+            label(g, x + 90, 350, steps[i][1], 32, "#2b1d12");
+            if (i < 3) el("path", { d: `M${x + 186} 265 l26 0 m-10 -12 l12 12 l-12 12`, fill: "none", stroke: "var(--accent-dark)", "stroke-width": 6, "stroke-linecap": "round" }, g);
+            await api.tween(500, (t) => g.setAttribute("opacity", t));
+            MUSIC.play("xylophone", [72, 76, 79, 84][i], { gain: 0.35 });
+            await api.wait(600);
+          }
+        },
+      },
+    ],
+    { alive: () => my === token, onDone: () => shell.go("p1"), title: "Physics Lab" }
+  );
+}
+
+// ---------- 1. Ramps & rolling ----------
+// Energy model: the car's height energy is used up by rolling friction on the floor, so distance = height ÷ friction.
+// Squares rolled per book of height: carpet 1, wood 2, ice 4.
+const SURF = {
+  carpet: { name: "carpet", per: 1, fill: "#c4553c", dot: "#e48a6f" },
+  wood: { name: "wood", per: 2, fill: "#d9a066", dot: "#a87038" },
+  ice: { name: "ice", per: 4, fill: "#d3f1fb", dot: "#ffffff" },
+};
+const ROUGH = ["carpet", "wood", "ice"];
+const RAMP = { x0: 40, bx: 150, foot: 330, tile: 46, tiles: 14, book: 30 };
+function drawLane(L, color, nums) {
+  const { x0, bx, foot, tile, tiles, book } = RAMP;
+  const y = L.floorY;
+  const s = SURF[L.surf];
+  el("rect", { x: 16, y, width: foot - 16, height: 16, rx: 4, fill: "#b98a5e" }, view);
+  el("rect", { x: foot, y, width: tile * tiles, height: 16, fill: s.fill, stroke: "#5a4130", "stroke-width": 2 }, view);
+  for (let x = foot + 8; x < foot + tile * tiles; x += 16) {
+    if (L.surf === "carpet") el("circle", { cx: x, cy: y + 8, r: 3, fill: s.dot }, view);
+    else if (L.surf === "wood" && (x - foot) % 64 < 16) el("line", { x1: x, x2: x, y1: y + 2, y2: y + 14, stroke: s.dot, "stroke-width": 2 }, view);
+    else if (L.surf === "ice" && (x - foot) % 48 < 16) el("line", { x1: x, x2: x + 14, y1: y + 12, y2: y + 4, stroke: s.dot, "stroke-width": 3 }, view);
+  }
+  for (let i = 1; i <= tiles; i++) {
+    const x = foot + i * tile;
+    el("line", { x1: x, x2: x, y1: y + 16, y2: y + 24, stroke: "#5a4130", "stroke-width": 2 }, view);
+    if (nums) label(view, x, y + 46, i, 22, "#5a4130");
+  }
+  const cols = ["#3f7fd6", "#e0a96d", "#43a047", "#8e5bd0"];
+  for (let k = 0; k < L.books; k++) {
+    el("rect", { x: x0, y: y - (k + 1) * book, width: bx - x0, height: book - 2, rx: 4, fill: cols[k % 4], stroke: "#2b1d12", "stroke-width": 2 }, view);
+    el("line", { x1: x0 + 8, x2: bx - 6, y1: y - (k + 1) * book + 20, y2: y - (k + 1) * book + 20, stroke: "#fffaf0", "stroke-width": 3 }, view);
+  }
+  const topY = y - L.books * book;
+  el("line", { x1: bx - 14, y1: topY - 4, x2: foot + 4, y2: y - 4, stroke: "#a8632d", "stroke-width": 10, "stroke-linecap": "round" }, view);
+  label(view, (x0 + bx) / 2, y + 44, s.name, 24, "#2b1d12");
+  L.p0 = { x: bx - 10, y: topY - 9 };
+  L.p1 = { x: foot, y: y - 9 };
+  L.ang = (Math.atan2(L.p1.y - L.p0.y, L.p1.x - L.p0.x) * 180) / Math.PI;
+  L.car = drawCar(view, color);
+  const s0 = 0.14;
+  move(L.car, L.p0.x + (L.p1.x - L.p0.x) * s0, L.p0.y + (L.p1.y - L.p0.y) * s0, L.ang);
+}
+function markLane(L) {
+  const x = RAMP.foot + L.d * RAMP.tile;
+  if (L.d > RAMP.tiles) label(view, 860, L.floorY - 66, "off the end! →", 26, "var(--accent-dark)", halo);
+  else label(view, Math.min(920, Math.max(400, x)), L.floorY - 66, pl(L.d, "square"), 26, "var(--accent-dark)", halo);
+}
+async function rollCar(L, live) {
+  const { p0, p1 } = L;
+  const s0 = 0.14;
+  let ok = await tw(
+    650 + L.books * 90,
+    (t) => {
+      const s = s0 + (1 - s0) * t * t;
+      move(L.car, p0.x + (p1.x - p0.x) * s, p0.y + (p1.y - p0.y) * s, L.ang);
+    },
+    live,
+    lin
+  );
+  if (!ok) return false;
+  const y = L.floorY;
+  const dist = L.d * RAMP.tile;
+  const dur = 900 + Math.min(dist, 700) * 2.4;
+  const at = (u) => RAMP.foot + dist * (1 - (1 - u) ** 2);
+  if (L.d <= RAMP.tiles) ok = await tw(dur, (t) => move(L.car, at(t), y), live, lin);
+  else {
+    const f = (1070 - RAMP.foot) / dist;
+    const te = 1 - Math.sqrt(1 - f);
+    ok = await tw(dur * te, (t) => move(L.car, at(t * te), y), live, lin);
+  }
+  return ok;
+}
+
+const ramps = {
+  make(level, round, ctx) {
+    let top;
+    let bot;
+    let kind;
+    const two = (max) => {
+      const a = pickInt(1, max);
+      let b;
+      do b = pickInt(1, max);
+      while (b === a);
+      return [a, b];
+    };
+    if (level === "easy") {
+      kind = ctx.next("e", ["height", "surface", "height", "surface"]);
+      if (kind === "height") {
+        const s = pick(["wood", "carpet"]);
+        const [a, b] = shuffle([1, 3]);
+        top = { surf: s, books: a };
+        bot = { surf: s, books: b };
+      } else {
+        const [a, b] = shuffle(["carpet", "ice"]);
+        top = { surf: a, books: 2 };
+        bot = { surf: b, books: 2 };
+      }
+    } else if (level === "medium") {
+      kind = ctx.next("m", ["height", "surface", "height", "surface", "same"]);
+      if (kind === "height") {
+        const s = pick(ROUGH);
+        const [a, b] = two(4);
+        top = { surf: s, books: a };
+        bot = { surf: s, books: b };
+      } else if (kind === "surface") {
+        const n = pickInt(1, 3);
+        const [a, b] = shuffle(ROUGH);
+        top = { surf: a, books: n };
+        bot = { surf: b, books: n };
+      } else {
+        const s = pick(ROUGH);
+        const n = pickInt(1, 3);
+        top = { surf: s, books: n };
+        bot = { surf: s, books: n };
+      }
+    } else {
+      kind = "hard";
+      const s = pick(ROUGH);
+      const maxB = s === "ice" ? 3 : 4;
+      const a = pick([1, 2]);
+      let b;
+      do b = pickInt(1, maxB);
+      while (b === a);
+      top = { surf: s, books: a };
+      bot = { surf: s, books: b };
+    }
+    for (const L of [top, bot]) L.d = L.books * SURF[L.surf].per;
+    const q = { kind, top, bot };
+    if (kind === "hard") {
+      const per = SURF[top.surf].per;
+      const ans = bot.d;
+      q.ans = ans;
+      const set = new Set([ans]);
+      for (const x of shuffle([ans + per, ans - per, top.d, ans + 2 * per, ans + 1])) if (set.size < 4 && x > 0) set.add(x);
+      q.opts = [...set].sort((x, y) => x - y).map((x) => ({ label: String(x), v: x, say: pl(x, "square") }));
+      q.ask = `On ${top.surf}, ${pl(top.books, "book")} rolled the red car ${pl(top.d, "square")}. How far will the blue car roll with ${pl(bot.books, "book")}?`;
+    } else {
+      q.opts = [
+        { label: "🔴 Red car", v: "top", say: "the red car" },
+        { label: "🔵 Blue car", v: "bot", say: "the blue car" },
+      ];
+      if (level === "medium") q.opts.push({ label: "🟰 Same", v: "same", say: "they roll the same" });
+      q.ask = "Which car will roll farther?";
+    }
+    return q;
+  },
+  draw(q) {
+    bg("#f7f1e6");
+    q.top.floorY = 226;
+    q.bot.floorY = 494;
+    const nums = q.level !== "easy";
+    drawLane(q.top, "#e05a47", nums);
+    drawLane(q.bot, "#3f7fd6", nums);
+    if (q.kind === "hard") {
+      move(q.top.car, RAMP.foot + q.top.d * RAMP.tile, q.top.floorY);
+      markLane(q.top);
+    }
+  },
+  async run(q, live) {
+    MUSIC.play("woodblock", 79, { gain: 0.4 });
+    if (q.kind === "hard") {
+      await rollCar(q.bot, live);
+      if (!live()) return;
+      markLane(q.bot);
+      MUSIC.play("xylophone", 84, { gain: 0.3 });
+      return q.bot.d;
+    }
+    await Promise.all([rollCar(q.top, live), rollCar(q.bot, live)]);
+    if (!live()) return;
+    markLane(q.top);
+    markLane(q.bot);
+    MUSIC.play("xylophone", 84, { gain: 0.3 });
+    return q.top.d === q.bot.d ? "same" : q.top.d > q.bot.d ? "top" : "bot";
+  },
+  why(q) {
+    const { top, bot } = q;
+    if (q.kind === "hard") {
+      const per = SURF[top.surf].per;
+      const each = top.books === 1 ? `1 book gave ${pl(per, "square")}.` : `${top.books} books gave ${top.d} squares, so each book gives ${per}.`;
+      return `${each} ${bot.books} × ${per} = ${bot.d}. Height and distance grow together!`;
+    }
+    if (top.surf === bot.surf && top.books === bot.books) return "Same height and same floor, so they roll the same. A fair test changes only one thing!";
+    if (top.surf === bot.surf) return `The ${top.books > bot.books ? "red" : "blue"} car starts higher, so it has more energy. Higher ramp, farther roll!`;
+    const [rough, smooth] = ROUGH.indexOf(top.surf) < ROUGH.indexOf(bot.surf) ? [top.surf, bot.surf] : [bot.surf, top.surf];
+    return `${cap(rough)} is rougher than ${smooth}. Rubbing slows the wheels: that's called friction. Less friction, farther roll!`;
+  },
+};
+
+// ---------- 2. Levers & seesaws ----------
+// A light plank on a pivot. Turning push = weight × distance from the pivot. Unequal turning pushes tip it all the way.
+const LV = { y: 352, ground: 470, px: (p) => 140 + p * 90 };
+const ANIMALS = [
+  [["🐘", 10, 112, "elephant"], ["🐭", 1, 58, "mouse"]],
+  [["🐻", 6, 98, "bear"], ["🐦", 1, 56, "bird"]],
+  [["🦛", 8, 106, "hippo"], ["🐰", 2, 66, "rabbit"]],
+  [["🐄", 9, 106, "cow"], ["🐥", 1, 54, "chick"]],
+  [["🐱", 3, 80, "cat"], ["🐱", 3, 80, "cat"]],
+  [["🐶", 4, 84, "dog"], ["🐶", 4, 84, "dog"]],
+];
+const TIP = [
+  { label: "⬅️ Left down", v: "L", say: "the left side goes down" },
+  { label: "⚖️ Balance", v: "B", say: "it balances" },
+  { label: "➡️ Right down", v: "R", say: "the right side goes down" },
+];
+const BLOCK = ["", "#9fd3a8", "#f2c94c", "#e0a96d", "#ef8a80", "#b39ddb", "#4fc3f7"];
+const torque = (items, f) => items.reduce((s, it) => s + it.w * (it.p - f), 0);
+const LAW = [
+  { L: [[3, 2]], w: 2, ans: 3 },
+  { L: [[2, 3]], w: 3, ans: 2 },
+  { L: [[4, 1]], w: 2, ans: 2 },
+  { L: [[2, 2]], w: 4, ans: 1 },
+  { L: [[4, 2]], w: 2, ans: 4 },
+  { L: [[3, 4]], w: 4, ans: 3 },
+  { L: [[4, 3]], w: 3, ans: 4 },
+  { L: [[6, 2]], w: 3, ans: 4 },
+  { L: [[2, 1], [1, 4]], w: 3, ans: 2 },
+  { L: [[1, 1], [1, 3]], w: 2, ans: 2 },
+  { L: [[2, 1], [2, 2]], w: 3, ans: 2 },
+  { L: [[1, 2], [2, 3]], w: 2, ans: 4 },
+];
+function drawItem(parent, it) {
+  const x = LV.px(it.p);
+  const base = LV.y - 16;
+  const g = el("g", {}, parent);
+  if (it.glyph) emoji(g, x, base - it.size * 0.45, it.glyph, it.size);
+  else {
+    const h = 30 + it.w * 9;
+    const w = 62 + it.w * 3;
+    el("rect", { x: x - w / 2, y: base - h, width: w, height: h, rx: 8, fill: BLOCK[it.w] || "#cfd8dc", stroke: "#2b1d12", "stroke-width": 3 }, g);
+    label(g, x, base - h / 2 + 8, `${it.w} kg`, 22, "#2b1d12");
+  }
+  it.g = g;
+  return g;
+}
+function setTilt(q, a) {
+  q.angle = a;
+  q.plank.setAttribute("transform", `rotate(${a} ${q.fx} ${LV.y})`);
+}
+function tipAngle(q, dir) {
+  const arm = dir > 0 ? 905 - q.fx : q.fx - 95;
+  return (dir * Math.asin(Math.min(1, (LV.ground - LV.y - 2) / arm)) * 180) / Math.PI;
+}
+const lever = {
+  intro: "Archimedes said: “Give me a place to stand, and I will move the Earth!” Levers make pushes strong.",
+  make(level, round, ctx) {
+    const blk = (p, w) => ({ p, w });
+    const nums = (list, word) => list.map((p) => ({ label: String(p), v: p, say: `${p} ${word}` }));
+    if (level === "easy") {
+      let [A, B] = pick(ANIMALS);
+      if (Math.random() < 0.5) [A, B] = [B, A];
+      const items = [
+        { p: 0, glyph: A[0], w: A[1], size: A[2], name: A[3] },
+        { p: 8, glyph: B[0], w: B[1], size: B[2], name: B[3] },
+      ];
+      return { kind: "animals", f0: 4, items, opts: TIP, ask: "Which way will the seesaw go when we let go?" };
+    }
+    const fix = round % 2 === 1;
+    if (fix && level === "medium" && ctx.next("mf", ["fulcrum", "place"]) === "fulcrum") {
+      const [a, b] = pick([[1, 3], [3, 1], [3, 5], [5, 3]]);
+      const ans = (8 * b) / (a + b);
+      const list = [...new Set([ans, 4, ans - 1, ans + 1, ans + 2, ans - 2].filter((p) => p >= 1 && p <= 7))].slice(0, 4).sort((x, y) => x - y);
+      return { fix: "fulcrum", abs: true, f0: 4, items: [blk(0, a), blk(8, b)], ans, opts: nums(list, ""), ask: "Where should the triangle go so the seesaw balances? Tap a number." };
+    }
+    if (fix && level === "medium") {
+      const w = pickInt(1, 3);
+      const d = pickInt(1, 4);
+      return { fix: "place", side: 1, w, f0: 4, items: [blk(4 - d, w)], ans: d, opts: nums([1, 2, 3, 4], "spaces"), ask: `Where should the other ${w} kg block go so it balances? Tap a number.` };
+    }
+    if (fix) {
+      const law = ctx.next("law", LAW);
+      const items = law.L.map(([w, d]) => blk(4 - d, w));
+      const left = law.L.map(([w, d]) => `${w} kg at ${d}`).join(" and ");
+      return { fix: "place", side: 1, w: law.w, f0: 4, items, ans: law.ans, opts: nums([1, 2, 3, 4], "spaces"), ask: `Left side: ${left}. Where must the ${law.w} kg block go to balance? Tap a number.` };
+    }
+    let wl;
+    let dl;
+    let wr;
+    let dr;
+    let kind;
+    if (level === "medium") {
+      kind = ctx.next("mp", ["dist", "wt", "bal"]);
+      if (kind === "dist") {
+        wl = wr = pickInt(1, 3);
+        dl = pickInt(1, 4);
+        do dr = pickInt(1, 4);
+        while (dr === dl);
+      } else if (kind === "wt") {
+        dl = dr = pickInt(1, 4);
+        wl = pickInt(1, 4);
+        do wr = pickInt(1, 4);
+        while (wr === wl);
+      } else {
+        [wl, dl, wr, dr] = pick([[2, 2, 1, 4], [3, 1, 1, 3], [2, 1, 1, 2], [4, 1, 2, 2], [1, 2, 2, 1], [1, 4, 4, 1], [2, 4, 4, 2]]);
+        if (Math.random() < 0.5) [wl, dl, wr, dr] = [wr, dr, wl, dl];
+      }
+    } else {
+      kind = ctx.next("hp", ["trick", "bal", "plain", "trick"]);
+      for (let k = 0; k < 800; k++) {
+        wl = pickInt(1, 5);
+        wr = pickInt(1, 5);
+        dl = pickInt(1, 4);
+        dr = pickInt(1, 4);
+        const tl = wl * dl;
+        const tr = wr * dr;
+        if (kind === "trick" && ((wl > wr && tl < tr) || (wr > wl && tr < tl))) break;
+        if (kind === "bal" && tl === tr && wl !== wr) break;
+        if (kind === "plain" && tl !== tr) break;
+      }
+    }
+    return { kind, f0: 4, items: [blk(4 - dl, wl), blk(4 + dr, wr)], opts: TIP, ask: "Which way will the seesaw go when we let go?" };
+  },
+  draw(q) {
+    bg("#eef5fb");
+    el("rect", { x: 0, y: LV.ground, width: W, height: H - LV.ground, fill: "#b7d99a" }, view);
+    q.f = q.f0;
+    q.fx = LV.px(q.f);
+    q.angle = 0;
+    q.test = null;
+    q.ful = el("g", { transform: `translate(${q.fx} 0)` }, view);
+    el("path", { d: `M0 ${LV.y + 2} L-50 ${LV.ground + 4} H50 Z`, fill: "#8a5a33", stroke: "#2b1d12", "stroke-width": 3, "stroke-linejoin": "round" }, q.ful);
+    q.props = el("g", {}, view);
+    for (const x of [97, 879]) el("rect", { x, y: LV.y + 4, width: 24, height: LV.ground - LV.y - 2, rx: 4, fill: "#e0a96d", stroke: "#8a5a33", "stroke-width": 2 }, q.props);
+    q.plank = el("g", {}, view);
+    el("rect", { x: 95, y: LV.y - 16, width: 810, height: 18, rx: 8, fill: "#c98c58", stroke: "#5a4130", "stroke-width": 3 }, q.plank);
+    for (let p = 0; p <= 8; p++) {
+      el("circle", { cx: LV.px(p), cy: LV.y - 7, r: 4, fill: "#5a4130" }, q.plank);
+      if (q.kind === "animals") continue;
+      if (q.abs) label(q.plank, LV.px(p), LV.y + 34, p, 24, "#2b1d12", halo);
+      else if (p !== q.f) label(q.plank, LV.px(p), LV.y + 34, Math.abs(p - q.f), 24, "#2b1d12", halo);
+    }
+    q.items.forEach((it) => drawItem(q.plank, it));
+    q.hover = null;
+    if (q.fix === "place") {
+      q.hover = el("g", {}, view);
+      const h = 30 + q.w * 9;
+      const w = 62 + q.w * 3;
+      el("rect", { x: 760 - w / 2, y: 150 - h, width: w, height: h, rx: 8, fill: BLOCK[q.w], stroke: "#2b1d12", "stroke-width": 3, "stroke-dasharray": "8 6" }, q.hover);
+      label(q.hover, 760, 150 - h / 2 + 8, `${q.w} kg`, 22);
+      label(q.hover, 760, 186, "Where does it go?", 24, "var(--accent-dark)");
+    }
+    if (q.fix === "fulcrum") label(view, 500, 60, "Slide the triangle!", 28, "var(--accent-dark)");
+  },
+  async run(q, live, v) {
+    const items = [...q.items];
+    if (q.angle) {
+      const a0 = q.angle;
+      await tw(500, (t) => setTilt(q, a0 * (1 - t)), live);
+      q.props.setAttribute("opacity", 1);
+      q.props.setAttribute("transform", "");
+    }
+    if (q.fix === "place") {
+      if (q.test) q.test.g.remove();
+      const it = { p: q.f0 + v * q.side, w: q.w };
+      q.test = it;
+      drawItem(q.plank, it);
+      q.hover?.setAttribute("opacity", 0.2);
+      await tw(600, (t) => it.g.setAttribute("transform", `translate(0 ${-220 * (1 - t)})`), live, (t) => t * t);
+      MUSIC.play("woodblock", 72, { gain: 0.4 });
+      items.push(it);
+    }
+    if (q.fix === "fulcrum") {
+      const x0 = q.fx;
+      const x1 = LV.px(v);
+      await tw(800, (t) => {
+        q.fx = x0 + (x1 - x0) * t;
+        q.ful.setAttribute("transform", `translate(${q.fx} 0)`);
+        setTilt(q, 0);
+      }, live);
+      q.f = v;
+    }
+    if (!(await nap(450, live))) return;
+    await tw(500, (t) => {
+      q.props.setAttribute("opacity", 1 - t);
+      q.props.setAttribute("transform", `translate(0 ${t * 40})`);
+    }, live);
+    const tq = torque(items, q.f);
+    if (tq === 0) {
+      MUSIC.play("xylophone", 84, { gain: 0.35 });
+      await tw(1600, (t) => setTilt(q, 5 * Math.sin(t * Math.PI * 4) * (1 - t)), live, lin);
+      setTilt(q, 0);
+    } else {
+      const a = tipAngle(q, Math.sign(tq));
+      await tw(800, (t) => setTilt(q, a * t * t), live, lin);
+      MUSIC.play("woodblock", 72, { gain: 0.7 });
+      await tw(260, (t) => setTilt(q, a * (1 - 0.06 * Math.sin(t * Math.PI))), live, lin);
+    }
+    return tq === 0 ? "B" : tq > 0 ? "R" : "L";
+  },
+  why(q) {
+    if (q.kind === "animals") {
+      const [A, B] = q.items;
+      if (A.w === B.w) return `Two ${A.name}s weigh the same and sit the same distance from the middle, so it balances!`;
+      const h = A.w > B.w ? A : B;
+      const l = h === A ? B : A;
+      return `The ${h.name} is much heavier than the ${l.name}, so the ${h === A ? "left" : "right"} side goes down.`;
+    }
+    if (q.fix === "fulcrum") {
+      const [a, b] = q.items;
+      const f = q.ans;
+      return `${a.w} kg × ${f} = ${a.w * f}, and ${b.w} kg × ${8 - f} = ${b.w * (8 - f)}. Put the triangle nearer the heavy block, and both sides match!`;
+    }
+    const f = q.f0;
+    const all = q.fix ? [...q.items, { p: f + q.ans * q.side, w: q.w }] : q.items;
+    const side = (s) => all.filter((i) => Math.sign(i.p - f) === s);
+    const ex = (arr) => arr.map((i) => `${i.w} × ${Math.abs(i.p - f)}`).join(" + ");
+    const sum = (arr) => arr.reduce((s, i) => s + i.w * Math.abs(i.p - f), 0);
+    const tl = sum(side(-1));
+    const tr = sum(side(1));
+    const sums = `Left: ${ex(side(-1))} = ${tl}. Right: ${ex(side(1))} = ${tr}.`;
+    if (q.fix) return `${sums} Same turning push on both sides, so it balances!`;
+    const lead = q.kind === "dist" ? "Same weight, but farther out pushes harder. " : q.kind === "trick" ? "The heavier block doesn't always win! " : "";
+    return `${lead}${sums} ${tl === tr ? "Same turning push, so it balances!" : `The ${tl > tr ? "left" : "right"} side turns harder, so it goes down.`}`;
+  },
+  hint(q, v) {
+    if (q.fix === "fulcrum") return "Not balanced yet. Which side went down? What if the triangle moves toward the heavy block?";
+    const tq = torque([...q.items, { p: q.f0 + v * q.side, w: q.w }], q.f0);
+    return tq * q.side > 0 ? "Not balanced yet. Your block's side went down. Should it go closer to the middle, or farther out?" : "Not balanced yet. The other side went down. Should your block go farther out, or closer in?";
+  },
+};
+
+// ---------- 3. Float or sink ----------
+// rho = how heavy it is compared with the same amount of water. Under 1 floats, with that fraction under water.
+const TK = { x0: 280, x1: 720, top: 150, bot: 520, wy: 262 };
+const FLOAT = [
+  { label: "🛟 Floats", v: "float", say: "it floats" },
+  { label: "⚓ Sinks", v: "sink", say: "it sinks" },
+];
+const EASY_OBJ = [
+  ["🦆", "rubber duck", 0.15, "The duck is hollow and full of air, so it is lighter than the water it pushes aside. It floats!"],
+  ["🪨", "rock", 2.6, "A rock is heavier than the same amount of water, so it sinks."],
+  ["🔑", "key", 8, "A key is metal. Metal is heavier than the same amount of water, so it sinks."],
+  ["🍃", "leaf", 0.3, "A leaf is very light for its size, so it floats."],
+  ["🪙", "coin", 8, "A coin is small, but very heavy for its size, so it sinks."],
+  ["⚽", "ball", 0.1, "The ball is full of air. Air is very light, so the ball floats high."],
+  ["🪵", "log", 0.6, "Wood is lighter than the same amount of water, so it floats."],
+  ["⚓", "anchor", 7.8, "An anchor is heavy metal, so it sinks. That's its job: holding a boat still!"],
+  ["🧽", "dry sponge", 0.3, "A dry sponge is full of tiny air holes, so it floats."],
+  ["🔩", "bolt", 7.8, "A steel bolt is heavy for its size, so it sinks."],
+];
+const MED_OBJ = [
+  ["🍎", "apple", 0.8, "An apple floats! About a quarter of an apple is air."],
+  ["🍇", "grape", 1.1, "A grape is a little heavier than the same amount of water, so it sinks."],
+  ["🍊", "orange", 0.85, "The peel is full of tiny air pockets, like a life jacket. It floats!"],
+  ["peeled", "peeled orange", 1.05, "Without its air-filled peel, the orange is heavier than the same amount of water. It sinks!"],
+  ["🧊", "ice cube", 0.92, "Ice is a little lighter than the same amount of water, so it floats, mostly under water."],
+  ["🥔", "potato", 1.08, "A potato is a little heavier than the same amount of water, so it sinks."],
+  ["🥚", "egg", 1.03, "A fresh egg is a little heavier than tap water, so it sinks."],
+  ["🥚", "egg in very salty water", 0.86, "Salt makes the water heavier. Now the egg is lighter than the salty water, so it floats!"],
+  ["🥥", "coconut", 0.6, "A coconut's thick husk is full of air, so it floats. Coconuts can drift across the sea!"],
+  ["🎃", "pumpkin", 0.7, "A pumpkin is hollow inside, so even a giant pumpkin floats!"],
+  ["🕯️", "candle", 0.9, "Candle wax is a little lighter than water, so the candle floats."],
+  ["🪨", "tiny pebble", 2.6, "Even a tiny pebble sinks! Size doesn't decide. It's how heavy it is for its size.", 40],
+  ["🪵", "giant log", 0.6, "Even a giant log floats! Size doesn't decide. It's how heavy it is for its size.", 130],
+];
+// Cubes the size of 1 litre of water (1000 g). Real weights for that size.
+const CUBES = [
+  ["cork", 240, "#d9b48a"],
+  ["pine wood", 500, "#efcf98"],
+  ["oak wood", 750, "#b8865a"],
+  ["candle wax", 900, "#fff3c4"],
+  ["ice", 920, "#e1f5fe"],
+  ["glass", 2500, "#b2ebf2"],
+  ["aluminium", 2700, "#cfd8dc"],
+  ["steel", 7850, "#90a4ae"],
+  ["copper", 8960, "#d98a4e"],
+  ["gold", 19300, "#f2c94c"],
+];
+const UNDER = { 240: "about a quarter", 500: "half", 750: "three quarters", 900: "about nine tenths", 920: "about nine tenths" };
+function drawTank(q) {
+  bg("#eef6f6");
+  el("rect", { x: 0, y: 520, width: W, height: 40, fill: "#c98c58" }, view);
+  el("rect", { x: TK.x0, y: TK.top, width: TK.x1 - TK.x0, height: TK.bot - TK.top, fill: "#fbfeff" }, view);
+  el("rect", { x: TK.x0, y: TK.wy, width: TK.x1 - TK.x0, height: TK.bot - TK.wy, fill: q.salty ? "#a7dbe0" : "#9fd6ef" }, view);
+  q.layer = el("g", {}, view);
+  el("rect", { x: TK.x0, y: TK.wy, width: TK.x1 - TK.x0, height: TK.bot - TK.wy, fill: "rgba(50,140,205,.32)" }, view);
+  el("line", { x1: TK.x0, x2: TK.x1, y1: TK.wy, y2: TK.wy, stroke: "#4aa3d6", "stroke-width": 4 }, view);
+  el("rect", { x: TK.x0 - 6, y: TK.top, width: TK.x1 - TK.x0 + 12, height: TK.bot - TK.top + 6, rx: 10, fill: "none", stroke: "#7fa7b8", "stroke-width": 8 }, view);
+  el("line", { x1: TK.x0 + 18, x2: TK.x0 + 18, y1: TK.top + 20, y2: TK.bot - 30, stroke: "#fff", "stroke-width": 6, opacity: 0.7, "stroke-linecap": "round" }, view);
+  q.fx = el("g", {}, view);
+}
+function objShape(g, o) {
+  if (o.cube) {
+    el("rect", { x: -50, y: -50, width: 100, height: 100, rx: 6, fill: o.color, stroke: "#2b1d12", "stroke-width": 3 }, g);
+    label(g, 0, -12, `${o.grams.toLocaleString("en-US")} g`, 22, "#2b1d12", { stroke: "#fff", "stroke-width": 4, "paint-order": "stroke" });
+  } else if (o.glyph === "peeled") {
+    el("circle", { cx: 0, cy: 0, r: 34, fill: "#ffcc80", stroke: "#f57c00", "stroke-width": 3 }, g);
+    for (let k = 0; k < 6; k++) {
+      const a = (k * Math.PI) / 3;
+      el("line", { x1: 0, y1: 0, x2: 34 * Math.cos(a), y2: 34 * Math.sin(a), stroke: "#f6a04d", "stroke-width": 2 }, g);
+    }
+  } else emoji(g, 0, 0, o.glyph, o.size);
+}
+const setY = (g, y) => g.setAttribute("transform", `translate(500 ${y})`);
+function splash(q, live) {
+  const ripples = [0, 1].map(() => el("ellipse", { cx: 500, cy: TK.wy, rx: 10, ry: 4, fill: "none", stroke: "#fff", "stroke-width": 4 }, q.fx));
+  const drops = [-3, -2, -1, 1, 2, 3].map((k) => ({ k, n: el("circle", { cx: 500, cy: TK.wy, r: 6, fill: "#7cc6e8" }, q.fx) }));
+  MUSIC.play("harp", 72, { gain: 0.25 });
+  tw(800, (t) => {
+    ripples.forEach((r, i) => {
+      const s = Math.max(0, t - i * 0.25) / (1 - i * 0.25);
+      r.setAttribute("rx", 10 + 150 * s);
+      r.setAttribute("ry", 4 + 10 * s);
+      r.setAttribute("opacity", 1 - s);
+    });
+    drops.forEach(({ k, n }) => {
+      n.setAttribute("cx", 500 + k * 26 * t);
+      n.setAttribute("cy", TK.wy - 90 * t * (1 - t) * 4 * (0.6 + Math.abs(k) * 0.15) + 20 * t);
+      n.setAttribute("opacity", 1 - t);
+    });
+  }, live, lin).then(() => (q.fx.innerHTML = ""));
+}
+const float = {
+  make(level, round, ctx) {
+    const mk = ([glyph, name, rho, why, size = 84]) => ({ glyph, name, rho, why, size, h: glyph === "peeled" ? 68 : size * 0.86 });
+    if (level === "easy") {
+      const o = mk(ctx.next("e", EASY_OBJ));
+      return { obj: o, opts: FLOAT, ask: `Will the ${o.name} float or sink?` };
+    }
+    if (level === "medium") {
+      const o = mk(ctx.next("m", MED_OBJ));
+      const salty = o.name.includes("salty");
+      return { obj: o, salty, opts: FLOAT, ask: salty ? "Will the egg float or sink in very salty water?" : `Will the ${o.name} float or sink?` };
+    }
+    if ([2, 5, 7].includes(round)) {
+      const ans = ctx.next("boat", [4, 5, 6, 7]);
+      const capG = ans * 5 + 2;
+      const opts = [ans - 1, ans, ans + 1, ans + 2].map((x) => ({ label: String(x), v: x, say: pl(x, "coin") }));
+      return { boat: true, capG, ans, opts, ask: `This foil boat can push aside ${capG} g of water. Each coin weighs 5 g. How many coins can it carry and still float?` };
+    }
+    const [name, grams, color] = ctx.next("cube", CUBES);
+    const o = { cube: true, name, grams, color, rho: grams / 1000, h: 100 };
+    return { obj: o, cube: true, opts: FLOAT, ask: `This ${name} cube is the size of 1 litre of water, which weighs 1000 g. It weighs ${grams.toLocaleString("en-US")} g. Float or sink?` };
+  },
+  draw(q) {
+    drawTank(q);
+    if (q.boat) {
+      q.g = el("g", {}, q.layer);
+      q.water = el("path", { d: "M-112 -50 L112 -50 L84 -2 L-84 -2 Z", fill: "#7cc6e8", opacity: 0 }, q.g);
+      el("path", { d: "M-122 -56 L122 -56 L86 0 L-86 0 Z", fill: "#dfe6ea", stroke: "#78909c", "stroke-width": 3, "stroke-linejoin": "round" }, q.g);
+      q.coins = el("g", {}, q.g);
+      q.n = 0;
+      setY(q.g, TK.wy + 3);
+      q.read = label(view, 500, 118, "0 coins = 0 g", 26, "#2b1d12");
+      lines(view, 860, 250, `can push aside ${q.capG} g of water`, 24, 14);
+      label(view, 860, 420, "each coin = 5 g", 24, "#5a4130");
+      return;
+    }
+    q.g = el("g", {}, q.layer);
+    objShape(q.g, q.obj);
+    setY(q.g, 72);
+    lines(view, 860, 250, q.obj.name, 28, 12);
+    if (q.salty) label(view, 860, 400, "🧂 salty water", 24, "#5a4130");
+    if (q.cube) {
+      label(view, 140, 236, "1 litre of water", 22, "#2b5f8a");
+      el("rect", { x: 90, y: 260, width: 100, height: 100, rx: 6, fill: "rgba(143,208,238,.6)", stroke: "#3f7fd6", "stroke-width": 3, "stroke-dasharray": "8 6" }, view);
+      label(view, 140, 318, "1000 g", 24, "#2b5f8a");
+      label(view, 140, 400, "same size", 22, "#5a4130");
+    }
+  },
+  async run(q, live) {
+    if (q.boat) return boatRun(q, live);
+    const o = q.obj;
+    const h = o.h;
+    const yStart = 72;
+    const yTouch = TK.wy - h / 2;
+    if (!(await tw(550, (t) => setY(q.g, yStart + (yTouch - yStart) * t * t), live, lin))) return;
+    splash(q, live);
+    if (o.rho < 1) {
+      const yEq = TK.wy + o.rho * h - h / 2;
+      if (!(await tw(1800, (t) => setY(q.g, yEq + (yTouch - yEq) * Math.cos(t * Math.PI * 3) * Math.exp(-3.4 * t)), live, lin))) return;
+      setY(q.g, yEq);
+      MUSIC.play("xylophone", 88, { gain: 0.25 });
+      return "float";
+    }
+    const yEnd = TK.bot - 6 - h / 2;
+    const bubbles = [0, 1, 2, 3].map((i) => el("circle", { cx: 490 + i * 8, cy: 0, r: 5 + (i % 2) * 3, fill: "none", stroke: "#fff", "stroke-width": 2 }, q.fx));
+    const ok = await tw(1900, (t) => {
+      const y = yTouch + (yEnd - yTouch) * (1 - (1 - t) ** 1.6);
+      setY(q.g, y);
+      bubbles.forEach((b, i) => {
+        const k = (t * 3 + i / 4) % 1;
+        b.setAttribute("cy", y - k * (y - TK.wy));
+        b.setAttribute("cx", 480 + i * 12 + Math.sin(k * 9) * 6);
+        b.setAttribute("opacity", 1 - k);
+      });
+    }, live, lin);
+    bubbles.forEach((b) => b.remove());
+    if (!ok) return;
+    MUSIC.play("timpani", 48, { gain: 0.3 });
+    return "sink";
+  },
+  why(q) {
+    if (q.boat) {
+      const n = q.ans;
+      return `${pl(n, "coin")} = ${n * 5} g, less than ${q.capG} g, so it floats. One more makes ${(n + 1) * 5} g: too heavy, so water rushes in! The same foil squeezed into a ball would sink.`;
+    }
+    const o = q.obj;
+    if (q.cube) {
+      if (o.rho < 1) return `${o.grams} g is less than 1000 g. It's lighter than the same amount of water, so it floats with ${UNDER[o.grams]} under water.`;
+      return `${o.grams.toLocaleString("en-US")} g is more than 1000 g. It's heavier than the same amount of water, so it sinks.${o.name === "aluminium" || o.name === "steel" ? ` But a ${o.name} boat floats: shape matters!` : ""}`;
+    }
+    return o.why;
+  },
+};
+async function boatRun(q, live) {
+  const wy = TK.wy;
+  for (let n = 1; n <= q.ans + 1; n++) {
+    const pile = n % 2 ? -36 : 30;
+    const row = Math.floor((n - 1) / 2);
+    const coin = el("rect", { x: pile - 20, y: -10 - row * 9, width: 40, height: 9, rx: 4, fill: "#c9ced6", stroke: "#6b7682", "stroke-width": 2 }, q.coins);
+    if (!(await tw(320, (t) => coin.setAttribute("transform", `translate(0 ${-160 * (1 - t)})`), live, (t) => t * t))) return;
+    MUSIC.play("xylophone", 86 + (n % 4) * 2, { gain: 0.3 });
+    const grams = n * 5;
+    q.read.textContent = `${pl(n, "coin")} = ${grams} g`;
+    if (grams <= q.capG) {
+      const from = q.draft ?? 3;
+      const to = 3 + (grams / q.capG) * 48;
+      q.draft = to;
+      if (!(await tw(380, (t) => setY(q.g, wy + from + (to - from) * t), live))) return;
+      if (!(await nap(380, live))) return;
+    } else {
+      q.read.textContent = `${pl(n, "coin")} = ${grams} g: too heavy!`;
+      q.read.setAttribute("fill", "#c0392b");
+      if (!(await tw(500, (t) => {
+        q.water.setAttribute("opacity", t);
+        setY(q.g, wy + q.draft + (56 - q.draft) * t);
+      }, live))) return;
+      const y0 = wy + 56;
+      if (!(await tw(1600, (t) => q.g.setAttribute("transform", `translate(500 ${y0 + (TK.bot - 6 - y0) * (1 - (1 - t) ** 2)}) rotate(${8 * t})`), live, lin))) return;
+      MUSIC.play("timpani", 48, { gain: 0.3 });
+    }
+  }
+  q.draft = undefined;
+  return q.ans;
+}
+
+// ---------- 4. Magnets ----------
+const STICK = [
+  { label: "🧲 Sticks", v: "yes", say: "it sticks" },
+  { label: "🚫 Won't stick", v: "no", say: "it won't stick" },
+];
+const EASY_MAG = [
+  { e: "📎", name: "paper clip", yes: 1, why: "A paper clip is made of steel. Steel has iron in it, and magnets pull iron." },
+  { e: "🧷", name: "safety pin", yes: 1, why: "A safety pin is steel, so the magnet pulls it." },
+  { e: "🔩", name: "nut and bolt", yes: 1, why: "Nuts and bolts are steel, so the magnet pulls them." },
+  { e: "🥫", name: "food tin", yes: 1, why: "Food tins are made of steel, so magnets stick to them." },
+  { e: "✏️", name: "pencil", yes: 0, why: "A pencil is wood and paint. Magnets don't pull those." },
+  { e: "🧸", name: "teddy", yes: 0, why: "A teddy is cloth and stuffing. Magnets don't pull those." },
+  { e: "🍌", name: "banana", yes: 0, why: "A banana has no iron metal in it, so the magnet can't pull it." },
+  { e: "🧦", name: "sock", yes: 0, why: "A sock is cloth. Magnets don't pull cloth." },
+  { e: "🎈", name: "balloon", yes: 0, why: "A balloon is rubber. Magnets don't pull rubber." },
+];
+const MED_MAG = [
+  { d: "can", name: "drink can", yes: 0, why: "Drink cans are aluminium. It's a metal, but magnets don't pull aluminium!" },
+  { d: "foil", name: "kitchen foil", yes: 0, why: "Kitchen foil is aluminium. Not every metal is magnetic!" },
+  { d: "wire", name: "copper wire", yes: 0, why: "Copper is a metal, but magnets don't pull copper." },
+  { e: "💍", name: "gold ring", yes: 0, why: "Gold is a metal, but magnets don't pull gold." },
+  { d: "nail", name: "iron nail", yes: 1, why: "Iron! Magnets pull iron, and steel, which is mostly iron." },
+  { e: "🥫", name: "food tin", yes: 1, why: "Food tins are steel, so magnets stick. Drink cans are aluminium, and they don't!" },
+  { d: "marble", name: "glass marble", yes: 0, why: "Glass is not magnetic, so the magnet can't pull it." },
+];
+function magObj(g, o) {
+  if (o.e) return emoji(g, 0, 0, o.e, 78);
+  if (o.d === "can") {
+    el("rect", { x: -26, y: -40, width: 52, height: 80, rx: 8, fill: "#cfd8dc", stroke: "#78909c", "stroke-width": 3 }, g);
+    el("rect", { x: -26, y: -12, width: 52, height: 26, fill: "#e05a47" }, g);
+    el("ellipse", { cx: 0, cy: -40, rx: 26, ry: 6, fill: "#eceff1", stroke: "#78909c", "stroke-width": 2 }, g);
+  } else if (o.d === "foil") {
+    el("path", { d: "M-40 10 L-30 -22 L-8 -30 L10 -18 L34 -26 L42 4 L28 30 L-6 26 L-28 32 Z", fill: "#dfe6ea", stroke: "#90a4ae", "stroke-width": 3, "stroke-linejoin": "round" }, g);
+    el("path", { d: "M-20 -10 L0 0 L22 -8 M-12 16 L8 8", stroke: "#b0bec5", "stroke-width": 2, fill: "none" }, g);
+  } else if (o.d === "wire") {
+    for (let k = 0; k < 6; k++) el("ellipse", { cx: -30 + k * 12, cy: 0, rx: 10, ry: 30, fill: "none", stroke: "#c87533", "stroke-width": 5 }, g);
+  } else if (o.d === "nail") {
+    el("rect", { x: -42, y: -10, width: 10, height: 20, rx: 2, fill: "#78909c" }, g);
+    el("path", { d: "M-32 -4 H34 L46 0 L34 4 H-32 Z", fill: "#90a4ae", stroke: "#546e7a", "stroke-width": 2 }, g);
+  } else if (o.d === "marble") {
+    el("circle", { cx: 0, cy: 0, r: 30, fill: "#7fb6e6", stroke: "#3f7fd6", "stroke-width": 3, opacity: 0.85 }, g);
+    el("path", { d: "M-14 8 Q0 -16 14 6", stroke: "#e05a47", "stroke-width": 5, fill: "none" }, g);
+    el("circle", { cx: -10, cy: -12, r: 6, fill: "#fff", opacity: 0.8 }, g);
+  }
+}
+const magnets = {
+  make(level, round, ctx) {
+    const poles = () => {
+      const a = pick(["N", "S"]);
+      const b = pick(["N", "S"]);
+      return { kind: "poles", a, b, opts: [{ label: "🤝 Pull together", v: "pull", say: "they pull together" }, { label: "↔️ Push apart", v: "push", say: "they push apart" }], ask: `The ${a} end faces the ${b} end. Will the magnets pull together or push apart?` };
+    };
+    if (level === "easy") {
+      const o = ctx.next("e", EASY_MAG);
+      return { kind: "mat", o, opts: STICK, ask: `Will the magnet pick up the ${o.name}?` };
+    }
+    if (level === "medium") {
+      if (round % 2) return poles();
+      const o = ctx.next("m", MED_MAG);
+      return { kind: "mat", o, opts: STICK, ask: `Will the magnet pick up the ${o.name}?` };
+    }
+    const k = ctx.next("h", ["filings", "break", "through", "poles", "filings", "through", "break", "poles"]);
+    if (k === "poles") return poles();
+    if (k === "filings")
+      return { kind: k, opts: [{ label: "🧲 At the ends", v: "ends", say: "at the two ends" }, { label: "⏺️ In the middle", v: "middle", say: "in the middle" }, { label: "🟰 All the same", v: "even", say: "the same everywhere" }], ask: "We sprinkle tiny bits of iron around a magnet. Where will most bits gather?" };
+    if (k === "break")
+      return { kind: k, opts: [{ label: "🧲🧲 Two magnets", v: "two", say: "two smaller magnets" }, { label: "One N, one S", v: "split", say: "one N piece and one S piece" }, { label: "🚫 No magnet", v: "none", say: "no magnet at all" }], ask: "We snap a magnet in half. What do we get?" };
+    const what = ctx.next("thru", ["card", "board", "water"]);
+    const name = { card: "a piece of card", board: "a thin wooden board", water: "glass and water" }[what];
+    return { kind: k, what, opts: [{ label: "🧲 Yes, it pulls", v: "yes", say: "yes, it pulls" }, { label: "🚫 No, blocked", v: "no", say: "no, it's blocked" }], ask: `Can the magnet pull the paper clip through ${name}?` };
+  },
+  draw(q) {
+    bg("#f4efe6");
+    if (q.kind === "mat") {
+      el("rect", { x: 0, y: 440, width: W, height: 120, fill: "#e2c08f" }, view);
+      el("rect", { x: 0, y: 440, width: W, height: 8, fill: "#b97f45" }, view);
+      q.oh = 80;
+      q.obj = el("g", {}, view);
+      magObj(q.obj, q.o);
+      move(q.obj, 500, 440 - q.oh / 2);
+      label(view, 500, 508, q.o.name, 30);
+      q.mag = horseshoe(view);
+      move(q.mag, 500, 150);
+    } else if (q.kind === "poles") {
+      el("rect", { x: 0, y: 360, width: W, height: 200, fill: "#e2c08f" }, view);
+      const other = (p) => (p === "N" ? "S" : "N");
+      q.left = barMagnet(view, 260, 318, other(q.a));
+      q.right = barMagnet(view, 740, 318, q.b);
+      label(view, 500, 130, `${q.a} faces ${q.b}`, 40, "#2b1d12");
+      el("path", { d: "M380 200 H620", stroke: "#c9b8a1", "stroke-width": 4, "stroke-dasharray": "10 8" }, view);
+    } else if (q.kind === "filings") {
+      el("rect", { x: 50, y: 30, width: 900, height: 500, rx: 14, fill: "#fffdf7", stroke: "#e2d6c4", "stroke-width": 3 }, view);
+      q.dust = el("g", {}, view);
+      barMagnet(view, 500, 280, "N", 120);
+    } else if (q.kind === "break") {
+      q.parts = [];
+      const g = el("g", {}, view);
+      const cols = ["N", "N", "S", "S"];
+      for (let i = 0; i < 4; i++) {
+        const piece = el("g", {}, g);
+        const r = el("rect", { x: 340 + i * 80, y: 252, width: 80, height: 60, fill: POLE[cols[i]] }, piece);
+        q.parts.push({ piece, r });
+      }
+      q.outline = el("rect", { x: 340, y: 252, width: 320, height: 60, rx: 6, fill: "none", stroke: "#2b1d12", "stroke-width": 3 }, g);
+      q.tags = [label(g, 420, 294, "N", 32, "#fff"), label(g, 580, 294, "S", 32, "#fff")];
+      q.crack = el("path", { d: "M500 246 L490 262 L508 276 L492 292 L506 306 L498 318", fill: "none", stroke: "#2b1d12", "stroke-width": 4, opacity: 0 }, view);
+    } else {
+      el("rect", { x: 0, y: 440, width: W, height: 120, fill: "#e2c08f" }, view);
+      if (q.what === "water") {
+        el("rect", { x: 400, y: 200, width: 200, height: 240, fill: "#fbfeff", stroke: "#7fa7b8", "stroke-width": 6 }, view);
+        el("rect", { x: 403, y: 240, width: 194, height: 197, fill: "rgba(80,160,215,.35)" }, view);
+        label(view, 500, 180, "glass of water", 26, "#5a4130");
+        q.clip = el("g", {}, view);
+        emoji(q.clip, 0, 0, "📎", 56);
+        move(q.clip, 500, 412);
+        q.mag = horseshoe(view);
+        q.mag.setAttribute("transform", "translate(800 412) rotate(90)");
+      } else {
+        const board = q.what === "board";
+        el("rect", { x: 330, y: 300, width: 14, height: 140, fill: "#8a5a33" }, view);
+        el("rect", { x: 656, y: 300, width: 14, height: 140, fill: "#8a5a33" }, view);
+        el("rect", { x: 320, y: 292, width: 360, height: board ? 22 : 10, rx: 3, fill: board ? "#c98c58" : "#fff3c4", stroke: "#5a4130", "stroke-width": 2 }, view);
+        label(view, 800, 306, board ? "wooden board" : "card", 26, "#5a4130");
+        q.under = board ? 314 : 302;
+        q.clip = el("g", {}, view);
+        emoji(q.clip, 0, 0, "📎", 56);
+        move(q.clip, 500, 412);
+        q.mag = horseshoe(view);
+        move(q.mag, 500, 140);
+      }
+    }
+  },
+  async run(q, live) {
+    if (q.kind === "mat") {
+      const objTop = 440 - q.oh;
+      const hover = objTop - 70;
+      const base = 440 - q.oh / 2;
+      if (!(await tw(900, (t) => move(q.mag, 500, 150 + (hover - 150) * t), live))) return;
+      if (q.o.yes) {
+        const end = hover + 2 + q.oh / 2;
+        if (!(await tw(240, (t) => move(q.obj, 500, base + (end - base) * t * t), live, lin))) return;
+        MUSIC.play("xylophone", 96, { gain: 0.35 });
+        if (!(await nap(400, live))) return;
+        if (!(await tw(900, (t) => {
+          const y = hover + (150 - hover) * t;
+          move(q.mag, 500, y);
+          move(q.obj, 500, y + 2 + q.oh / 2);
+        }, live))) return;
+        return "yes";
+      }
+      if (!(await tw(500, (t) => move(q.mag, 500, hover + 68 * t), live))) return;
+      if (!(await nap(500, live))) return;
+      if (!(await tw(900, (t) => move(q.mag, 500, hover + 68 + (150 - hover - 68) * t), live))) return;
+      return "no";
+    }
+    if (q.kind === "poles") {
+      const pull = q.a !== q.b;
+      if (pull) {
+        if (!(await tw(900, (t) => {
+          q.left.setAttribute("transform", `translate(${260 + 140 * t * t} 318)`);
+          q.right.setAttribute("transform", `translate(${740 - 140 * t * t} 318)`);
+        }, live, lin))) return;
+        MUSIC.play("woodblock", 79, { gain: 0.7 });
+        return "pull";
+      }
+      if (!(await tw(900, (t) => {
+        const e = 1 - (1 - t) ** 3;
+        q.left.setAttribute("transform", `translate(${260 - 90 * e} 318)`);
+        q.right.setAttribute("transform", `translate(${740 + 90 * e} 318)`);
+      }, live, lin))) return;
+      return "push";
+    }
+    if (q.kind === "filings") {
+      q.dust.innerHTML = "";
+      const poles = [[392, 280, 1], [608, 280, -1]];
+      const field = (x, y) => {
+        let bx = 0;
+        let by = 0;
+        for (const [px, py, s] of poles) {
+          const dx = x - px;
+          const dy = y - py;
+          const r2 = dx * dx + dy * dy;
+          const r3 = r2 * Math.sqrt(r2);
+          bx += (s * dx) / r3;
+          by += (s * dy) / r3;
+        }
+        return [bx, by];
+      };
+      const segs = [];
+      for (let k = 0; k < 40000 && segs.length < 900; k++) {
+        const x = 70 + Math.random() * 860;
+        const y = 50 + Math.random() * 460;
+        if (x > 362 && x < 638 && y > 236 && y < 324) continue;
+        const [bx, by] = field(x, y);
+        const m = Math.hypot(bx, by);
+        if (Math.random() > Math.min(1, (m / 9e-5) ** 0.75)) continue;
+        const ux = (bx / m) * 7;
+        const uy = (by / m) * 7;
+        segs.push(`M${(x - ux).toFixed(1)} ${(y - uy).toFixed(1)}L${(x + ux).toFixed(1)} ${(y + uy).toFixed(1)}`);
+      }
+      const batches = 10;
+      for (let b = 0; b < batches; b++) {
+        el("path", { d: segs.filter((_, i) => i % batches === b).join(""), stroke: "#4a4a4a", "stroke-width": 2.6, "stroke-linecap": "round", fill: "none" }, q.dust);
+        MUSIC.play("woodblock", 79, { gain: 0.12 });
+        if (!(await nap(170, live))) return;
+      }
+      return "ends";
+    }
+    if (q.kind === "break") {
+      if (!(await tw(500, (t) => q.crack.setAttribute("opacity", t), live))) return;
+      MUSIC.play("woodblock", 72, { gain: 0.7 });
+      q.outline.remove();
+      q.crack.remove();
+      q.tags.forEach((t) => t.remove());
+      if (!(await tw(700, (t) => q.parts.forEach((p, i) => p.piece.setAttribute("transform", `translate(${(i < 2 ? -70 : 70) * t} 0)`)), live))) return;
+      const g = q.parts[0].piece.parentNode;
+      const now = ["N", "S", "N", "S"];
+      for (const [i, s] of [[1, "S"], [2, "N"]]) q.parts[i].r.setAttribute("fill", POLE[s]);
+      q.parts.forEach((p, i) => {
+        const x = 380 + i * 80 + (i < 2 ? -70 : 70);
+        label(g, x, 294, now[i], 30, "#fff");
+      });
+      for (const x of [270, 570]) el("rect", { x, y: 252, width: 160, height: 60, rx: 6, fill: "none", stroke: "#2b1d12", "stroke-width": 3 }, g);
+      label(g, 350, 380, "a magnet", 26, "#2b1d12");
+      label(g, 650, 380, "a magnet", 26, "#2b1d12");
+      MUSIC.play("xylophone", 84, { gain: 0.3 });
+      return "two";
+    }
+    if (q.what === "water") {
+      if (!(await tw(900, (t) => q.mag.setAttribute("transform", `translate(${800 - 196 * t} 412) rotate(90)`), live))) return;
+      if (!(await tw(260, (t) => move(q.clip, 500 + 76 * t * t, 412), live, lin))) return;
+      MUSIC.play("xylophone", 96, { gain: 0.3 });
+      if (!(await tw(1300, (t) => {
+        const y = 412 - 140 * t;
+        q.mag.setAttribute("transform", `translate(604 ${y}) rotate(90)`);
+        move(q.clip, 576, y);
+      }, live))) return;
+      return "yes";
+    }
+    const tipY = 290;
+    if (!(await tw(900, (t) => move(q.mag, 500, 140 + (tipY - 140) * t), live))) return;
+    const end = q.under + 30;
+    if (!(await tw(260, (t) => move(q.clip, 500, 412 + (end - 412) * t * t), live, lin))) return;
+    MUSIC.play("xylophone", 96, { gain: 0.3 });
+    return "yes";
+  },
+  why(q) {
+    if (q.kind === "mat") return q.o.why;
+    if (q.kind === "poles") return q.a === q.b ? `${q.a} and ${q.b} are the same kind of pole. Same poles push apart!` : `${q.a} and ${q.b} are different poles. Different poles pull together!`;
+    if (q.kind === "filings") return "The pull is strongest at the two ends, called the poles. The iron bits even make curved lines: the magnet's invisible field!";
+    if (q.kind === "break") return "Each piece becomes a whole new magnet, with its own N and S. You can never get just one pole!";
+    return "Yes! A magnet's pull goes right through paper, wood, glass and water, as long as they are not too thick.";
+  },
+};
+
+// ---------- 5. Light & shadows ----------
+// Light goes in straight lines from a small torch, so a shadow is the object's shape scaled by (torch→wall) ÷ (torch→object).
+const SH = { y: 290, floor: 505 };
+const starPts = (cx, cy, r) => Array.from({ length: 10 }, (_, i) => {
+  const a = ((-90 + i * 36) * Math.PI) / 180;
+  const rr = i % 2 ? r * 0.45 : r;
+  return [cx + rr * Math.cos(a), cy + rr * Math.sin(a)];
+});
+const ptsPath = (pts) => `M${pts.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join("L")}Z`;
+const RAINBOW = [["red", "#e53935"], ["orange", "#fb8c00"], ["yellow", "#fdd835"], ["green", "#43a047"], ["blue", "#1e88e5"], ["indigo", "#3949ab"], ["violet", "#8e24aa"]];
+const SHADOW_NUM = [[1, 1, 3], [1, 1, 4], [1, 2, 4], [2, 2, 4], [2, 2, 6], [1, 2, 6], [2, 1, 3], [1, 1, 6], [3, 3, 6], [2, 3, 6], [1, 3, 6], [1, 1, 7]];
+function shadeUpdate(q) {
+  const { xs, xo, xw } = q;
+  const y = SH.y;
+  const r = q.starH / 1.809;
+  const cy = y + 0.0955 * r;
+  const pts = starPts(xo, cy, r);
+  const k = (xw - xs) / (xo - xs);
+  const top = cy - r;
+  const bottom = cy + 0.809 * r;
+  q.hs = (bottom - top) * k;
+  q.starEl.setAttribute("d", ptsPath(pts));
+  q.stick.setAttribute("x1", xo);
+  q.stick.setAttribute("x2", xo);
+  q.stick.setAttribute("y1", bottom - 4);
+  const yT = y + (top - y) * k;
+  const yB = y + (bottom - y) * k;
+  q.dark.setAttribute("points", `${xo},${top} ${xw},${yT} ${xw},${yB} ${xo},${bottom}`);
+  const sx = Math.min(56, q.hs * 0.5) / (1.9 * r);
+  q.shadow.setAttribute("d", ptsPath(pts.map(([px, py]) => [xw + 35 + (px - xo) * sx, y + (py - y) * k])));
+  q.rayT.setAttribute("x1", xs);
+  q.rayT.setAttribute("y2", yT);
+  q.rayB.setAttribute("x1", xs);
+  q.rayB.setAttribute("y2", yB);
+  q.cone.setAttribute("points", `${xs},${y} ${xw},44 ${xw},${SH.floor}`);
+  move(q.torch, xs, y);
+  q.yT = yT;
+  q.yB = yB;
+}
+function drawShadowScene(q) {
+  bg("#34384f");
+  el("rect", { x: 0, y: SH.floor, width: W, height: H - SH.floor, fill: "#4a4f69" }, view);
+  el("rect", { x: q.xw, y: 44, width: 70, height: SH.floor - 44, fill: "#efe6d6" }, view);
+  label(view, q.xw + 35, 34, "wall", 22, "#efe6d6");
+  q.cone = el("polygon", { fill: "rgba(255,236,150,.32)" }, view);
+  q.dark = el("polygon", { fill: "rgba(20,20,35,.55)" }, view);
+  q.shadow = el("path", { fill: "#2b2b3a" }, view);
+  q.rayT = el("line", { x1: 0, y1: SH.y, x2: q.xw, y2: 0, stroke: "#ffe082", "stroke-width": 3, "stroke-dasharray": "10 8" }, view);
+  q.rayB = el("line", { x1: 0, y1: SH.y, x2: q.xw, y2: 0, stroke: "#ffe082", "stroke-width": 3, "stroke-dasharray": "10 8" }, view);
+  q.stick = el("line", { x1: 0, x2: 0, y1: 0, y2: SH.floor, stroke: "#c98c58", "stroke-width": 6 }, view);
+  q.starEl = el("path", { fill: "#f2c94c", stroke: "#a8632d", "stroke-width": 3, "stroke-linejoin": "round" }, view);
+  q.torch = torchShape(view);
+  shadeUpdate(q);
+}
+function drawSunScene(q) {
+  bg("#cfe9f7");
+  el("rect", { x: 0, y: 430, width: W, height: 130, fill: "#a5d6a7" }, view);
+  q.shadow = el("g", { opacity: 0.75 }, view);
+  q.rays = el("g", {}, view);
+  el("rect", { x: 488, y: 300, width: 24, height: 130, fill: "#8a5a33" }, view);
+  for (const [x, y, r] of [[500, 250, 60], [458, 276, 42], [542, 276, 42]]) el("circle", { cx: x, cy: y, r, fill: "#43a047" }, view);
+  q.sun = el("g", { opacity: 0 }, view);
+  el("circle", { cx: 0, cy: 0, r: 36, fill: "#ffd54f", stroke: "#f9a825", "stroke-width": 4 }, q.sun);
+  for (let k = 0; k < 8; k++) {
+    const a = (k * Math.PI) / 4;
+    el("line", { x1: 46 * Math.cos(a), y1: 46 * Math.sin(a), x2: 60 * Math.cos(a), y2: 60 * Math.sin(a), stroke: "#f9a825", "stroke-width": 5, "stroke-linecap": "round" }, q.sun);
+  }
+  const e = (q.elev * Math.PI) / 180;
+  const dir = q.side === "L" ? -1 : 1;
+  q.sx = 500 + dir * 175 * Math.cos(e);
+  q.sy = 190 - 175 * Math.sin(e);
+  q.len = 240 / Math.tan(e);
+  move(q.sun, q.sx, q.sy);
+  if (q.show) q.sun.setAttribute("opacity", 1);
+}
+function drawHoles(q) {
+  bg("#34384f");
+  el("rect", { x: 0, y: 470, width: W, height: 90, fill: "#4a4f69" }, view);
+  const torch = torchShape(view);
+  move(torch, 120, 280);
+  q.cards = [330, 500, 670];
+  q.cards.forEach((x, i) => {
+    const hy = q.holes[i];
+    el("rect", { x: x - 9, y: 110, width: 18, height: hy - 24 - 110, fill: "#e9dcc6" }, view);
+    el("rect", { x: x - 9, y: hy + 24, width: 18, height: 470 - hy - 24, fill: "#e9dcc6" }, view);
+  });
+  emoji(view, 900, 280, "👁️", 76);
+  q.beam = el("line", { x1: 124, y1: 280, x2: 124, y2: 280, stroke: "#fff59d", "stroke-width": 16, "stroke-linecap": "round", opacity: 0.9 }, view);
+}
+function drawMirror(q) {
+  bg("#34384f");
+  el("rect", { x: 0, y: 486, width: W, height: 74, fill: "#4a4f69" }, view);
+  el("rect", { x: 300, y: 470, width: 400, height: 14, rx: 4, fill: "#cfe8f7", stroke: "#90a4ae", "stroke-width": 3 }, view);
+  label(view, 500, 524, "mirror", 24, "#cfe8f7");
+  const M = [500, 470];
+  q.M = M;
+  if (q.kind === "mirror") {
+    q.src = [110, q.ys[q.ans]];
+    q.friends.forEach((f, i) => emoji(view, 890, q.ys[i], f[0], 64));
+  } else {
+    const th = (q.theta * Math.PI) / 180;
+    q.src = [M[0] - 380 * Math.cos(th), M[1] - 380 * Math.sin(th)];
+    q.out = [M[0] + 380 * Math.cos(th), M[1] - 380 * Math.sin(th)];
+    el("path", { d: `M${M[0] - 90} ${M[1]} A90 90 0 0 1 ${M[0] - 90 * Math.cos(th)} ${M[1] - 90 * Math.sin(th)}`, fill: "none", stroke: "#ffe082", "stroke-width": 4 }, view);
+    label(view, M[0] - 140, M[1] - 30, `${q.theta}°`, 28, "#ffe082");
+    q.outArc = el("g", { opacity: 0 }, view);
+    el("path", { d: `M${M[0] + 90} ${M[1]} A90 90 0 0 0 ${M[0] + 90 * Math.cos(th)} ${M[1] - 90 * Math.sin(th)}`, fill: "none", stroke: "#ffe082", "stroke-width": 4 }, q.outArc);
+    label(q.outArc, M[0] + 140, M[1] - 30, `${q.theta}°`, 28, "#ffe082");
+    q.qmark = label(view, M[0] + 140, M[1] - 30, "?", 30, "#ffe082");
+  }
+  const torch = torchShape(view);
+  const ang = (Math.atan2(M[1] - q.src[1], M[0] - q.src[0]) * 180) / Math.PI;
+  torch.setAttribute("transform", `translate(${q.src[0]} ${q.src[1]}) rotate(${ang})`);
+  q.ray1 = el("line", { x1: q.src[0], y1: q.src[1], x2: q.src[0], y2: q.src[1], stroke: "#ff5252", "stroke-width": 6, "stroke-linecap": "round" }, view);
+  q.ray2 = el("line", { x1: M[0], y1: M[1], x2: M[0], y2: M[1], stroke: "#ff5252", "stroke-width": 6, "stroke-linecap": "round" }, view);
+}
+function drawPrism(q) {
+  bg("#2f3346");
+  el("rect", { x: 880, y: 140, width: 22, height: 320, fill: "#f5f5f5" }, view);
+  q.beam = el("line", { x1: 40, y1: 318, x2: 40, y2: 318, stroke: "#fff", "stroke-width": 10, "stroke-linecap": "round" }, view);
+  el("path", { d: "M450 150 L340 400 L560 400 Z", fill: "rgba(200,230,255,.28)", stroke: "#cfe8f7", "stroke-width": 4, "stroke-linejoin": "round" }, view);
+  q.fan = el("g", {}, view);
+  q.tags = el("g", {}, view);
+}
+const light = {
+  make(level, round, ctx) {
+    const BS = [
+      { label: "🔼 Bigger", v: "big", say: "bigger" },
+      { label: "🔽 Smaller", v: "small", say: "smaller" },
+    ];
+    if (level === "easy") {
+      const k = ctx.next("e", ["size", "dir", "size", "dir", "size"]);
+      if (k === "dir") {
+        const side = pick(["L", "R"]);
+        return { kind: "sun", side, elev: 40, opts: [{ label: "⬅️ Left side", v: "L", say: "the left side" }, { label: "➡️ Right side", v: "R", say: "the right side" }], ask: `The sun is on the ${side === "L" ? "left" : "right"}. Which side will the tree's shadow be on?` };
+      }
+      const m = ctx.next("moves", [
+        { a: [120, 470], b: [270, 470], what: "We move the torch closer to the star." },
+        { a: [270, 470], b: [120, 470], what: "We move the torch away from the star." },
+        { a: [120, 420], b: [120, 700], what: "We move the star closer to the wall." },
+        { a: [120, 700], b: [120, 420], what: "We move the star closer to the torch." },
+      ]);
+      return { kind: "size", m, xw: 880, starH: 110, opts: BS, ask: `${m.what} Will the shadow get bigger or smaller?` };
+    }
+    if (level === "medium") {
+      const k = ctx.next("m", ["holes", "mirror", "length", "holes", "mirror", "length", "size"]);
+      if (k === "holes") {
+        const ok = Math.random() < 0.5;
+        const holes = [280, 280, 280];
+        if (!ok) holes[pickInt(0, 2)] = pick([190, 370]);
+        return { kind: "holes", holes, opts: [{ label: "👁️ Yes, it reaches", v: "yes", say: "yes, it reaches the eye" }, { label: "🚫 No, blocked", v: "no", say: "no, it's blocked" }], ask: "Will the torch light reach the eye through the holes?" };
+      }
+      if (k === "mirror") {
+        const friends = [["🐱", "cat"], ["🐶", "dog"], ["🐰", "bunny"]];
+        return { kind: "mirror", friends, ys: [130, 250, 370], ans: pickInt(0, 2), opts: friends.map((f, i) => ({ label: `${f[0]} ${cap(f[1])}`, v: i, say: `the ${f[1]}` })), ask: "The light bounces off the mirror. Which friend will it shine on?" };
+      }
+      if (k === "length") {
+        const high = Math.random() < 0.5;
+        return { kind: "sun", length: true, side: pick(["L", "R"]), elev: high ? 72 : 28, show: true, opts: [{ label: "📏 Long shadow", v: "long", say: "a long shadow" }, { label: "🤏 Short shadow", v: "short", say: "a short shadow" }], ask: `The sun is ${high ? "high up, like at lunchtime" : "low, like in the evening"}. Will the tree's shadow be long or short?` };
+      }
+      const m = pick([
+        { a: [120, 470], b: [270, 470], what: "We move the torch closer to the star." },
+        { a: [120, 420], b: [120, 700], what: "We move the star closer to the wall." },
+      ]);
+      return { kind: "size", m, xw: 880, starH: 110, opts: BS, ask: `${m.what} Will the shadow get bigger or smaller?` };
+    }
+    const k = ctx.next("h", ["num", "num", "num", "angle", "angle", "prism", "prism", "angle"]);
+    if (k === "num") {
+      const [ho, a, b] = ctx.next("hn", SHADOW_NUM);
+      const ans = (ho * b) / a;
+      const set = new Set([ans]);
+      for (const x of shuffle([ans + 1, ans - 1, ho * b, ho + b - a, ans + 2, ho])) if (set.size < 4 && x > 0) set.add(x);
+      return { kind: "num", ho, a, b, ans, xs: 110, xo: 110 + a * 110, xw: 110 + b * 110, starH: ho * 55, opts: [...set].sort((x, y) => x - y).map((x) => ({ label: String(x), v: x, say: pl(x, "square") })), ask: `The star is ${pl(ho, "square")} tall, ${pl(a, "square")} from the torch. The wall is ${b} squares from the torch. How tall is the shadow?` };
+    }
+    if (k === "angle") {
+      const theta = ctx.next("th", [30, 40, 50, 60, 35, 55]);
+      const list = [...new Set([theta, 90 - theta, theta + 10, theta - 10])].sort((x, y) => x - y);
+      return { kind: "angle", theta, opts: list.map((x) => ({ label: `${x}°`, v: x, say: `${x} degrees` })), ask: `The light hits the mirror at ${theta}°. At what angle will it bounce off?` };
+    }
+    const P = ctx.next("pq", [
+      { ask: "A prism splits white light into colours. Which colour bends the most?", list: [0, 3, 6], ans: 6, why: "Violet bends the most and red bends the least, so the colours fan out in order: red, orange, yellow, green, blue, indigo, violet." },
+      { ask: "A prism splits white light. Which colour will be at the top?", list: [0, 2, 6], ans: 0, why: "Red bends the least, so it stays highest. The order is always red, orange, yellow, green, blue, indigo, violet." },
+      { ask: "Rainbow colours go in order. Which colour comes right after yellow?", list: [1, 3, 4], ans: 3, why: "Red, orange, yellow, then green! Remember ROYGBIV: red, orange, yellow, green, blue, indigo, violet." },
+      { ask: "Rainbow colours go in order. Which colour comes right after blue?", list: [3, 5, 6], ans: 5, why: "Blue, then indigo, then violet. ROYGBIV: red, orange, yellow, green, blue, indigo, violet." },
+    ]);
+    const dot = ["🔴", "🟠", "🟡", "🟢", "🔵", "🟦", "🟣"];
+    return { kind: "prism", P, ans: P.ans, opts: P.list.map((i) => ({ label: `${dot[i]} ${cap(RAINBOW[i][0])}`, v: i, say: RAINBOW[i][0] })), ask: P.ask };
+  },
+  draw(q) {
+    if (q.kind === "size") {
+      q.xs = q.m.a[0];
+      q.xo = q.m.a[1];
+      drawShadowScene(q);
+    } else if (q.kind === "num") {
+      drawShadowScene(q);
+      for (let i = 0; i <= q.b; i++) {
+        const x = 110 + i * 110;
+        el("line", { x1: x, x2: x, y1: SH.floor, y2: SH.floor + 12, stroke: "#efe6d6", "stroke-width": 3 }, view);
+        label(view, x, SH.floor + 38, i, 22, "#efe6d6");
+      }
+      const r = q.starH / 1.809;
+      const cy = SH.y + 0.0955 * r;
+      el("path", { d: `M${q.xo - 54} ${cy - r} h12 V${cy + 0.809 * r} h-12`, fill: "none", stroke: "#fff59d", "stroke-width": 3 }, view);
+      label(view, q.xo - 70, SH.y + 8, q.ho, 26, "#fff59d");
+    } else if (q.kind === "sun") drawSunScene(q);
+    else if (q.kind === "holes") drawHoles(q);
+    else if (q.kind === "mirror" || q.kind === "angle") drawMirror(q);
+    else drawPrism(q);
+  },
+  async run(q, live) {
+    if (q.kind === "size") {
+      const h0 = q.hs;
+      const [a0, b0] = q.m.a;
+      const [a1, b1] = q.m.b;
+      if (!(await tw(1800, (t) => {
+        q.xs = a0 + (a1 - a0) * t;
+        q.xo = b0 + (b1 - b0) * t;
+        shadeUpdate(q);
+      }, live))) return;
+      return q.hs > h0 ? "big" : "small";
+    }
+    if (q.kind === "num") {
+      q.shadow.setAttribute("fill", "#2b2b3a");
+      const g = el("g", {}, view);
+      const x = q.xw - 18;
+      for (let i = 0; i <= q.ans; i++) {
+        const y = q.yT + i * 55;
+        el("line", { x1: x - 10, x2: x + 4, y1: y, y2: y, stroke: "#fff59d", "stroke-width": 3 }, g);
+        if (i > 0) {
+          label(g, x - 26, y - 18, i, 22, "#fff59d");
+          MUSIC.play("xylophone", 72 + i * 2, { gain: 0.3 });
+          if (!(await nap(420, live))) return;
+        }
+      }
+      return q.ans;
+    }
+    if (q.kind === "sun") {
+      const dir = q.side === "L" ? 1 : -1;
+      if (!q.show) await tw(700, (t) => q.sun.setAttribute("opacity", t), live);
+      const e = (q.elev * Math.PI) / 180;
+      const tip = 500 + dir * q.len;
+      el("line", { x1: q.sx, y1: q.sy, x2: tip, y2: 430, stroke: "#f9a825", "stroke-width": 3, "stroke-dasharray": "10 8" }, q.rays);
+      const trunk = el("rect", { x: 0, y: 430, width: 0, height: 14, fill: "#2e5a30" }, q.shadow);
+      const crown = el("ellipse", { cx: 500, cy: 440, rx: 0, ry: 16, fill: "#2e5a30" }, q.shadow);
+      if (!(await tw(1500, (t) => {
+        const L = q.len * t;
+        trunk.setAttribute("x", dir > 0 ? 500 : 500 - L * 0.62);
+        trunk.setAttribute("width", L * 0.62);
+        crown.setAttribute("cx", 500 + dir * L * 0.8);
+        crown.setAttribute("rx", L * 0.22 + 6);
+      }, live))) return;
+      if (q.length) return q.elev > 45 ? "short" : "long";
+      return dir > 0 ? "R" : "L";
+    }
+    if (q.kind === "holes") {
+      const block = q.holes.findIndex((h) => h !== 280);
+      const stop = block < 0 ? 860 : q.cards[block] - 10;
+      MUSIC.play("woodblock", 79, { gain: 0.3 });
+      if (!(await tw(1400, (t) => q.beam.setAttribute("x2", 124 + (stop - 124) * t), live, lin))) return;
+      if (block < 0) {
+        emoji(view, 900, 200, "✨", 60);
+        MUSIC.play("xylophone", 91, { gain: 0.3 });
+        return "yes";
+      }
+      el("circle", { cx: q.cards[block] - 12, cy: 280, r: 26, fill: "rgba(255,245,157,.5)" }, view);
+      return "no";
+    }
+    if (q.kind === "mirror" || q.kind === "angle") {
+      const [mx, my] = q.M;
+      const end = q.kind === "mirror" ? [850, q.ys[q.ans]] : q.out;
+      if (!(await tw(900, (t) => {
+        q.ray1.setAttribute("x2", q.src[0] + (mx - q.src[0]) * t);
+        q.ray1.setAttribute("y2", q.src[1] + (my - q.src[1]) * t);
+      }, live, lin))) return;
+      MUSIC.play("xylophone", 88, { gain: 0.3 });
+      if (!(await tw(900, (t) => {
+        q.ray2.setAttribute("x2", mx + (end[0] - mx) * t);
+        q.ray2.setAttribute("y2", my + (end[1] - my) * t);
+      }, live, lin))) return;
+      if (q.kind === "mirror") {
+        emoji(view, 940, q.ys[q.ans] - 40, "✨", 44);
+        return q.ans;
+      }
+      q.qmark.remove();
+      q.outArc.setAttribute("opacity", 1);
+      return q.theta;
+    }
+    if (!(await tw(700, (t) => {
+      q.beam.setAttribute("x2", 40 + (395 - 40) * t);
+      q.beam.setAttribute("y2", 318 - 43 * t);
+    }, live, lin))) return;
+    for (let i = 0; i < 7; i++) {
+      const y = 180 + i * 42;
+      el("path", { d: `M395 275 L505 ${290 + i * 4} L880 ${y}`, fill: "none", stroke: RAINBOW[i][1], "stroke-width": 7, opacity: 0.9 }, q.fan);
+      label(q.tags, 946, y + 8, RAINBOW[i][0], 22, RAINBOW[i][1]);
+      MUSIC.play("harp", [60, 62, 64, 65, 67, 69, 71][i], { gain: 0.3 });
+      if (!(await nap(320, live))) return;
+    }
+    return q.ans;
+  },
+  why(q, truth) {
+    if (q.kind === "size") return truth === "big" ? "Nearer the light, the star blocks more of the light, so the shadow grows bigger!" : "Farther from the light, the star blocks less light, so the shadow shrinks.";
+    if (q.kind === "num") return `The wall is ${q.b / q.a} times as far from the torch as the star, so the shadow is ${q.b / q.a} times as tall: ${q.ho} × ${q.b / q.a} = ${q.ans}.`;
+    if (q.kind === "sun" && q.length) return q.elev > 45 ? "When the sun is high, light comes down steeply, so the shadow is short." : "A low sun shines from the side, so the shadow stretches out long, like evening shadows!";
+    if (q.kind === "sun") return "Light travels in straight lines. The tree blocks it, so the shadow falls on the other side, away from the sun.";
+    if (q.kind === "holes") return q.holes.every((h) => h === 280) ? "All the holes are in a straight line, so the light goes straight through to the eye!" : "One hole is out of line. Light only goes in straight lines, so it can't bend around the card.";
+    if (q.kind === "mirror") return "The light bounces off the mirror at the same slant it came in, like a ball bouncing. In low, out low. In high, out high!";
+    if (q.kind === "angle") return `It hits at ${q.theta}° and bounces off at ${q.theta}°. A mirror always bounces light at the same angle!`;
+    return q.P.why;
+  },
+};
+
+// ---------- 6. Sound & vibration ----------
+// A plucked string: half the length = twice as fast = one octave higher. 4× the pull = twice as fast. Twice as thick = half as fast.
+const RB = [
+  { label: "🔴 Red", v: "top", say: "the red one" },
+  { label: "🔵 Blue", v: "bot", say: "the blue one" },
+];
+const midiOfLen = (L) => 60 + 12 * Math.log2(720 / L);
+function drawString(s) {
+  const y = s.y;
+  el("rect", { x: 70, y: y - 40, width: 860, height: 80, rx: 20, fill: "#d9a066", stroke: "#8a5a33", "stroke-width": 4 }, view);
+  for (const x of [s.xa, s.xb]) el("path", { d: `M${x - 12} ${y + 24} L${x} ${y - 2} L${x + 12} ${y + 24} Z`, fill: "#5a4130" }, view);
+  if (s.xb < 860) el("line", { x1: s.xb, x2: 860, y1: y, y2: y, stroke: "#9e9e9e", "stroke-width": s.thick ? 9 : 4, opacity: 0.5 }, view);
+  el("circle", { cx: 38, cy: y, r: 18, fill: s.color, stroke: "#2b1d12", "stroke-width": 2 }, view);
+  const bend = s.pull || 0;
+  s.path = el("path", { d: `M${s.xa} ${y}Q${(s.xa + s.xb) / 2} ${y + bend * 2} ${s.xb} ${y}`, stroke: s.color, "stroke-width": s.thick ? 10 : 4, "stroke-linecap": "round", fill: "none" }, view);
+  if (s.pull) {
+    s.finger = el("g", {}, view);
+    emoji(s.finger, (s.xa + s.xb) / 2, y + bend + 28, "👆", 40);
+  }
+  if (s.weight) {
+    el("line", { x1: 860, x2: 952, y1: y, y2: y, stroke: s.color, "stroke-width": 4 }, view);
+    el("circle", { cx: 952, cy: y + 12, r: 14, fill: "#cfd8dc", stroke: "#5a4130", "stroke-width": 3 }, view);
+    el("line", { x1: 966, x2: 966, y1: y + 12, y2: y + 56, stroke: s.color, "stroke-width": 4 }, view);
+    const h = 26 + s.weight * 8;
+    el("rect", { x: 940, y: y + 56, width: 52, height: h, rx: 6, fill: "#78909c", stroke: "#2b1d12", "stroke-width": 2 }, view);
+    label(view, 966, y + 56 + h / 2 + 8, `${s.weight}kg`, 22, "#fff");
+  }
+}
+function pluck(s, live) {
+  const mid = (s.xa + s.xb) / 2;
+  const amp = s.pull || 18;
+  const hz = 5 * 2 ** ((s.midi - 60) / 12);
+  s.finger?.remove();
+  MUSIC.play("harp", Math.round(s.midi), { gain: s.gain ?? 0.7 });
+  return tw(1800, (t) => {
+    const A = amp * Math.exp(-2.4 * t) * Math.cos(2 * Math.PI * hz * t * 1.8);
+    s.path.setAttribute("d", `M${s.xa} ${s.y}Q${mid} ${s.y + 2 * A} ${s.xb} ${s.y}`);
+  }, live, lin);
+}
+function drawGlass(gl) {
+  const { x, fill, color } = gl;
+  const wy = 440 - fill * 220;
+  el("rect", { x: x - 70, y: 200, width: 140, height: 240, rx: 10, fill: "#fbfeff", stroke: "#90a4ae", "stroke-width": 5 }, view);
+  gl.water = el("rect", { x: x - 66, y: wy, width: 132, height: 440 - wy - 4, rx: 6, fill: "rgba(80,160,215,.55)" }, view);
+  gl.wy = wy;
+  el("circle", { cx: x, cy: 490, r: 20, fill: color, stroke: "#2b1d12", "stroke-width": 2 }, view);
+}
+const sound = {
+  make(level, round, ctx) {
+    const two = (a, b) => (Math.random() < 0.5 ? [a, b, "top"] : [b, a, "bot"]);
+    const str = (i, o) => ({ y: i ? 390 : 170, xa: 140, color: i ? "#3f7fd6" : "#e05a47", ...o });
+    const lenQ = (shortL) => {
+      const [A, B] = two({ xb: 140 + shortL }, { xb: 860 });
+      return { kind: "length", ss: [str(0, A), str(1, B)], opts: RB, ask: "Which string will sound higher, like a little bird?" };
+    };
+    let k;
+    if (level === "easy") k = ctx.next("e", ["length", "loud", "length", "loud"]);
+    else if (level === "medium") k = ctx.next("m", ["tension", "thick", "glass", "length"]);
+    else k = ctx.next("h", ["vacuum", "octave", "phone", "moon", "tension", "thick", "glass", "octave"]);
+    if (k === "length") return lenQ(level === "easy" ? 360 : 480);
+    if (k === "loud") {
+      const [A, B] = two({ xb: 860, pull: 34, gain: 0.95, big: 1 }, { xb: 860, pull: 9, gain: 0.18 });
+      return { kind: "loud", ss: [str(0, A), str(1, B)], opts: RB, ask: "One pluck is big, one is small. Which will be louder?" };
+    }
+    if (k === "tension") {
+      const [A, B] = two({ xb: 860, weight: 4, up: 12 }, { xb: 860, weight: 1, up: 0 });
+      return { kind: "tension", ss: [str(0, A), str(1, B)], opts: RB, ask: "Each string is pulled by a weight. Which will sound higher?" };
+    }
+    if (k === "thick") {
+      const [A, B] = two({ xb: 860, thick: 0, up: 12 }, { xb: 860, thick: 1, up: 0 });
+      return { kind: "thick", ss: [str(0, A), str(1, B)], opts: RB, ask: "One string is thin, one is thick. Which will sound higher?" };
+    }
+    if (k === "glass") {
+      const [A, B, ans] = two({ fill: 0.25 }, { fill: 0.8 });
+      return { kind: "glass", gs: [{ x: 330, color: "#e05a47", ...A }, { x: 670, color: "#3f7fd6", ...B }], ans, opts: [{ label: "🔴 Red glass", v: "top", say: "the red glass" }, { label: "🔵 Blue glass", v: "bot", say: "the blue glass" }], ask: "We tap each glass with a spoon. Which will sound higher?" };
+    }
+    if (k === "vacuum") return { kind: k, opts: [{ label: "🔉 Quieter", v: "quiet", say: "it gets quieter" }, { label: "🔊 Louder", v: "loud", say: "it gets louder" }, { label: "🟰 Same", v: "same", say: "it stays the same" }], ask: "A bell rings inside a jar. We pump the air out. What happens to the sound?" };
+    if (k === "octave") return { kind: k, ss: [{ y: 280, xa: 140, xb: 860, color: "#e05a47" }], opts: [{ label: "⬆️ Same note, higher", v: "oct", say: "the same note, but higher" }, { label: "⬇️ Lower", v: "low", say: "a lower note" }, { label: "🟰 No change", v: "same", say: "no change" }], ask: "We press the string exactly in the middle and pluck. What will the note be?" };
+    if (k === "phone") {
+      const tightTop = Math.random() < 0.5;
+      return { kind: k, tightTop, opts: [{ label: "🔴 Red", v: "top", say: "the red telephone" }, { label: "🔵 Blue", v: "bot", say: "the blue telephone" }], ask: "Two string telephones: one tight, one floppy. Which carries your voice?" };
+    }
+    return { kind: "moon", opts: [{ label: "👂 Yes", v: "yes", say: "yes" }, { label: "📻 No, radios", v: "no", say: "no, they use radios" }], ask: "There is no air on the Moon. Can an astronaut hear a friend shout?" };
+  },
+  draw(q) {
+    bg("#f6efe3");
+    if (q.ss) {
+      for (const s of q.ss) {
+        s.midi = q.kind === "tension" || q.kind === "thick" ? 55 + (s.up || 0) : midiOfLen(s.xb - s.xa);
+        if (q.kind === "loud") s.midi = 64;
+        drawString(s);
+      }
+      if (q.kind === "thick") q.ss.forEach((s) => label(view, 500, s.y - 52, s.thick ? "thick" : "thin", 24, "#5a4130"));
+      if (q.kind === "length" || q.kind === "loud") q.ss.forEach((s) => label(view, 500, s.y - 52, q.kind === "loud" ? (s.big ? "big pluck" : "small pluck") : s.xb < 860 ? "short" : "long", 24, "#5a4130"));
+    } else if (q.kind === "glass") {
+      q.gs.forEach(drawGlass);
+      q.spoon = el("g", {}, view);
+      emoji(q.spoon, 0, 0, "🥄", 60);
+      move(q.spoon, 500, 120);
+    } else if (q.kind === "vacuum") {
+      el("rect", { x: 320, y: 440, width: 360, height: 22, rx: 6, fill: "#78909c" }, view);
+      q.air = el("g", {}, view);
+      for (let i = 0; i < 46; i++) {
+        const a = Math.random() * Math.PI;
+        const r = 30 + Math.random() * 110;
+        el("circle", { cx: 500 + r * Math.cos(a) * (Math.random() < 0.5 ? 1 : -1), cy: 430 - Math.random() * 160 - (r > 100 ? 0 : 20), r: 5, fill: "#90caf9" }, q.air);
+      }
+      q.bell = el("g", {}, view);
+      emoji(q.bell, 0, 0, "🔔", 96);
+      move(q.bell, 500, 340);
+      el("path", { d: "M350 440 V280 A150 150 0 0 1 650 280 V440", fill: "rgba(200,230,255,.25)", stroke: "#90a4ae", "stroke-width": 6 }, view);
+      el("path", { d: "M680 452 H800", stroke: "#5a4130", "stroke-width": 10 }, view);
+      el("rect", { x: 800, y: 380, width: 120, height: 90, rx: 12, fill: "#3f7fd6", stroke: "#2b1d12", "stroke-width": 3 }, view);
+      label(view, 860, 434, "pump", 26, "#fff");
+      q.waves = el("g", {}, view);
+    } else if (q.kind === "phone") {
+      q.lines = [];
+      [170, 390].forEach((y, i) => {
+        const tight = (i === 0) === q.tightTop;
+        const color = i ? "#3f7fd6" : "#e05a47";
+        const d = tight ? `M170 ${y}L830 ${y}` : `M170 ${y}Q500 ${y + 120} 830 ${y}`;
+        const p = el("path", { d, fill: "none", stroke: color, "stroke-width": 4 }, view);
+        q.lines.push({ p, tight, y });
+        for (const x of [140, 860]) el("path", { d: `M${x - 30} ${y - 34} H${x + 30} L${x + 20} ${y + 34} H${x - 20} Z`, fill: "#fff", stroke: "#2b1d12", "stroke-width": 3, transform: `rotate(${x < 500 ? 90 : -90} ${x} ${y})` }, view);
+        emoji(view, 70, y, "🗣️", 54);
+        emoji(view, 935, y, "👂", 54);
+        label(view, 500, y - 30, tight ? "tight" : "floppy", 24, "#5a4130");
+      });
+      q.pulse = el("g", {}, view);
+    } else {
+      bg("#14182b");
+      for (let i = 0; i < 40; i++) el("circle", { cx: (i * 137) % 1000, cy: (i * 71) % 300, r: 2, fill: "#fff" }, view);
+      el("path", { d: "M0 430 Q250 400 500 425 T1000 420 V560 H0 Z", fill: "#9e9e9e" }, view);
+      emoji(view, 880, 90, "🌍", 70);
+      emoji(view, 240, 350, "🧑‍🚀", 120);
+      emoji(view, 760, 350, "🧑‍🚀", 120);
+      q.waves = el("g", {}, view);
+    }
+  },
+  async run(q, live) {
+    if (q.ss && q.kind !== "octave") {
+      for (const s of q.ss) {
+        if (!(await pluck(s, live))) return;
+        if (!(await nap(300, live))) return;
+      }
+      const [a, b] = q.ss;
+      if (q.kind === "loud") return a.big ? "top" : "bot";
+      return a.midi > b.midi ? "top" : "bot";
+    }
+    if (q.kind === "octave") {
+      const s = q.ss[0];
+      s.midi = 60;
+      if (!(await pluck(s, live))) return;
+      const hand = el("g", {}, view);
+      emoji(hand, 500, 230, "👇", 54);
+      el("path", { d: "M488 304 L500 278 L512 304 Z", fill: "#5a4130" }, view);
+      label(view, 320, 350, "half", 26, "#5a4130");
+      s.xb = 500;
+      s.midi = 72;
+      el("line", { x1: 500, x2: 860, y1: 280, y2: 280, stroke: "#9e9e9e", "stroke-width": 4 }, view);
+      if (!(await nap(400, live))) return;
+      if (!(await pluck(s, live))) return;
+      return "oct";
+    }
+    if (q.kind === "glass") {
+      const notes = q.gs.map((g) => Math.round(91 - g.fill * 14));
+      for (let i = 0; i < 2; i++) {
+        const g = q.gs[i];
+        if (!(await tw(500, (t) => move(q.spoon, 500 + (g.x + 90 - 500) * t, 120 + (g.wy - 30 - 120) * t), live))) return;
+        MUSIC.play("xylophone", notes[i], { gain: 0.5 });
+        if (!(await tw(700, (t) => g.water.setAttribute("y", g.wy + 4 * Math.sin(t * 30) * (1 - t)), live, lin))) return;
+      }
+      return notes[0] > notes[1] ? "top" : "bot";
+    }
+    if (q.kind === "vacuum") {
+      const dots = [...q.air.children];
+      for (let k = 0; k < 6; k++) {
+        const gain = 0.6 * (1 - k / 5.4);
+        MUSIC.play("xylophone", 91, { gain: Math.max(0.03, gain) });
+        q.waves.innerHTML = "";
+        for (let j = 1; j <= 3; j++) el("path", { d: `M${660 + j * 26} ${300 - j * 22} Q${690 + j * 34} 330 ${660 + j * 26} ${360 + j * 22}`, fill: "none", stroke: "#3f7fd6", "stroke-width": 5, opacity: Math.max(0, gain / 0.6), "stroke-linecap": "round" }, q.waves);
+        dots.slice(Math.floor((k * dots.length) / 6), Math.floor(((k + 1) * dots.length) / 6)).forEach((d) => d.remove());
+        if (!(await tw(700, (t) => q.bell.setAttribute("transform", `translate(500 340) rotate(${12 * Math.sin(t * 25) * (1 - t)})`), live, lin))) return;
+      }
+      label(view, 500, 230, "no air left", 26, "#2b1d12");
+      return "quiet";
+    }
+    if (q.kind === "phone") {
+      const runs = q.lines.map(async (ln) => {
+        const len = ln.p.getTotalLength();
+        const dot = el("circle", { r: 12, fill: "#f2c94c", stroke: "#2b1d12", "stroke-width": 2 }, q.pulse);
+        const ok = await tw(1800, (t) => {
+          const pt = ln.p.getPointAtLength(len * Math.min(1, t));
+          dot.setAttribute("cx", pt.x);
+          dot.setAttribute("cy", pt.y);
+          dot.setAttribute("opacity", ln.tight ? 1 : Math.max(0, 1 - t * 2.4));
+        }, live, lin);
+        if (ok && ln.tight) {
+          MUSIC.play("flute", 72, { gain: 0.4 });
+          emoji(view, 935, ln.y - 52, "✨", 40);
+        }
+      });
+      await Promise.all(runs);
+      if (!live()) return;
+      return q.tightTop ? "top" : "bot";
+    }
+    // the Moon
+    for (let j = 0; j < 3; j++) el("path", { d: `M${310 + j * 22} ${300 - j * 16} Q${330 + j * 30} 330 ${310 + j * 22} ${360 + j * 16}`, fill: "none", stroke: "#fff", "stroke-width": 5, "stroke-linecap": "round" }, q.waves);
+    if (!(await tw(1000, (t) => q.waves.setAttribute("opacity", 1 - t), live))) return;
+    q.waves.innerHTML = "";
+    q.waves.setAttribute("opacity", 1);
+    label(view, 500, 250, "silence: no air", 28, "#fff");
+    if (!(await nap(700, live))) return;
+    const radio = el("g", {}, view);
+    for (let j = 0; j < 5; j++) el("path", { d: `M${330 + j * 80} 290 q40 -30 80 0`, fill: "none", stroke: "#f2c94c", "stroke-width": 4, "stroke-dasharray": "8 6", opacity: 0 }, radio);
+    for (const p of radio.children) {
+      p.setAttribute("opacity", 1);
+      if (!(await nap(220, live))) return;
+    }
+    label(view, 500, 200, "📻 radio waves", 28, "#f2c94c");
+    MUSIC.play("flute", 76, { gain: 0.35 });
+    return "no";
+  },
+  why(q) {
+    const k = q.kind;
+    if (k === "length") return "The shorter string wiggles faster, and faster wiggles make a higher sound.";
+    if (k === "loud") return "A bigger pluck makes bigger wiggles. Bigger wiggles push the air harder, so it's louder, but it's the same note!";
+    if (k === "tension") return "The heavier weight pulls the string tighter. Tighter strings wiggle faster, so they sound higher.";
+    if (k === "thick") return "The thin string is lighter, so it wiggles faster and sounds higher.";
+    if (k === "glass") return "More water makes the glass wiggle more slowly, so it sounds lower. Less water, higher sound!";
+    if (k === "vacuum") return "The bell still shakes, but sound needs air (or something) to travel through. No air, no sound gets out!";
+    if (k === "octave") return "Half the string wiggles twice as fast. That's the same note, one octave higher: C, then high C!";
+    if (k === "phone") return "Your voice makes the cup shake. A tight string carries the shaking to the other cup. A floppy string can't.";
+    return "No air means nothing carries the sound. Astronauts talk by radio: radio waves can travel without air!";
+  },
+};
+
+// ---------- 7. Circuits ----------
+// A bulb lights only when there is a complete loop from one end of the battery, through the bulb, back to the other end.
+const CK = { L: 200, R: 800, T: 130, B: 430 };
+const LIGHT = [
+  { label: "💡 Lights up", v: "yes", say: "it lights up" },
+  { label: "🌑 Stays dark", v: "no", say: "it stays dark" },
+];
+const MATS = [
+  { d: "foil", name: "kitchen foil", yes: 1, why: "Kitchen foil is metal. Metals let electricity through: they're conductors!" },
+  { e: "📎", name: "paper clip", yes: 1, why: "A paper clip is metal, so electricity flows through it. It's a conductor!" },
+  { e: "🪙", name: "coin", yes: 1, why: "A coin is metal, so electricity flows through it. It's a conductor!" },
+  { e: "🔑", name: "key", yes: 1, why: "A key is metal, so electricity flows through it. It's a conductor!" },
+  { e: "📄", name: "paper", yes: 0, why: "Paper doesn't let electricity through. It's an insulator." },
+  { e: "🪵", name: "wooden stick", yes: 0, why: "Dry wood doesn't let electricity through. It's an insulator." },
+  { e: "🎈", name: "balloon", yes: 0, why: "Rubber doesn't let electricity through. That's why wires are covered in rubber or plastic!" },
+  { e: "🧦", name: "sock", yes: 0, why: "Cloth doesn't let electricity through. It's an insulator." },
+];
+function wire(d, parent = view) {
+  el("path", { d, fill: "none", stroke: "#7a3e14", "stroke-width": 12, "stroke-linecap": "round", "stroke-linejoin": "round" }, parent);
+  el("path", { d, fill: "none", stroke: "#e08a4a", "stroke-width": 6, "stroke-linecap": "round", "stroke-linejoin": "round" }, parent);
+}
+function bulb(x, y, broken) {
+  const g = el("g", {}, view);
+  const glow = el("circle", { cx: x, cy: y - 44, r: 74, fill: "url(#phGlow)", opacity: 0 }, g);
+  el("rect", { x: x - 24, y: y - 14, width: 48, height: 26, rx: 5, fill: "#9e9e9e", stroke: "#5a5a5a", "stroke-width": 2 }, g);
+  const glass = el("circle", { cx: x, cy: y - 46, r: 32, fill: "#f4f6f8", stroke: "#90a4ae", "stroke-width": 3 }, g);
+  el("path", { d: broken ? `M${x - 12} ${y - 14} V${y - 44} L${x - 4} ${y - 50} M${x + 4} ${y - 44} L${x + 12} ${y - 50} V${y - 14}` : `M${x - 12} ${y - 14} V${y - 46} L${x - 6} ${y - 54} L${x} ${y - 46} L${x + 6} ${y - 54} L${x + 12} ${y - 46} V${y - 14}`, fill: "none", stroke: "#5a4130", "stroke-width": 3 }, g);
+  return { glow, glass };
+}
+function led(x, y, rev, parent = view) {
+  const g = el("g", {}, parent);
+  const glow = el("circle", { cx: x, cy: y - 52, r: 60, fill: "url(#phRed)", opacity: 0 }, g);
+  el("line", { x1: x - 10, x2: x - 30, y1: y - 30, y2: y, stroke: "#9e9e9e", "stroke-width": 5 }, g);
+  el("line", { x1: x + 10, x2: x + 30, y1: y - 30, y2: y, stroke: "#9e9e9e", "stroke-width": 5 }, g);
+  el("path", { d: `M${x - 18} ${y - 30} V${y - 56} A18 18 0 0 1 ${x + 18} ${y - 56} V${y - 30} Z`, fill: "#ef9a9a", stroke: "#c62828", "stroke-width": 3 }, g);
+  label(g, rev ? x + 44 : x - 44, y - 26, "+", 30, "#c62828");
+  label(g, rev ? x - 44 : x + 44, y - 26, "−", 30, "#2b1d12");
+  return { glow, glass: null };
+}
+function switchAt(x, y, on, above = false) {
+  wire(`M${x - 40} ${y}`);
+  el("circle", { cx: x - 40, cy: y, r: 10, fill: "#5a5a5a" }, view);
+  el("circle", { cx: x + 40, cy: y, r: 10, fill: "#5a5a5a" }, view);
+  el("line", { x1: x - 40, y1: y, x2: on ? x + 40 : x + 28, y2: on ? y : y - 52, stroke: "#5a5a5a", "stroke-width": 8, "stroke-linecap": "round" }, view);
+  label(view, x, above ? y - 62 : y + 44, on ? "on" : "off", 24, "#2b1d12");
+}
+function analyse(c) {
+  const b = c.broken || [];
+  const battOK = c.batt === "ok";
+  let top = true;
+  let topRoute = "main";
+  if (c.top === "bulb") top = !b[0];
+  else if (c.top === "bulbs") top = !b[0] && !b[1];
+  else if (c.top === "par") {
+    top = !b[0] || !b[1];
+    topRoute = b[0] ? "branch" : "main";
+  } else if (c.top === "ledrev") top = false;
+  let bot = true;
+  let botRoute = "main";
+  const on = c.on || [];
+  if (c.bot === "gap") bot = false;
+  else if (c.bot === "sw") bot = !!on[0];
+  else if (c.bot === "sw2") bot = !!on[0] && !!on[1];
+  else if (c.bot === "swp") {
+    bot = !!on[0] || !!on[1];
+    botRoute = on[0] ? "main" : "branch";
+  } else if (c.bot === "mat") bot = !!c.mat.yes;
+  const ok = battOK && top && bot;
+  const lit = c.top === "bulbs" ? [ok, ok] : c.top === "par" ? [ok && !b[0], ok && !b[1]] : [ok];
+  return { ok, lit, topRoute, botRoute };
+}
+function drawCircuit(q) {
+  const c = q.c;
+  const { L, R, T, B } = CK;
+  bg("#f4efe6");
+  const defs = el("defs", {}, view);
+  const grad = (id, col) => {
+    const r = el("radialGradient", { id }, defs);
+    el("stop", { offset: "0", "stop-color": col, "stop-opacity": 0.9 }, r);
+    el("stop", { offset: "1", "stop-color": col, "stop-opacity": 0 }, r);
+  };
+  grad("phGlow", "#ffe066");
+  grad("phRed", "#ff5252");
+  q.res = analyse(c);
+  q.lamps = [];
+  // battery
+  if (c.batt === "none") {
+    el("rect", { x: 160, y: 215, width: 80, height: 130, rx: 10, fill: "none", stroke: "#8a7764", "stroke-width": 3, "stroke-dasharray": "10 8" }, view);
+    label(view, 200, 272, "no", 22, "#8a7764");
+    label(view, 200, 298, "battery", 22, "#8a7764");
+  } else {
+    el("rect", { x: 188, y: 203, width: 24, height: 12, rx: 3, fill: "#bdbdbd", stroke: "#5a5a5a", "stroke-width": 2 }, view);
+    el("rect", { x: 165, y: 215, width: 70, height: 130, rx: 10, fill: "#2b2b2b" }, view);
+    el("rect", { x: 165, y: 215, width: 70, height: 40, rx: 10, fill: "#e0a96d" }, view);
+    label(view, 200, 246, "+", 30, "#2b1d12");
+    label(view, 200, 330, "−", 32, "#fff");
+  }
+  // left side wires
+  wire(`M${L} 203 V${T} H${L + 10}`);
+  if (c.batt === "same") {
+    wire(`M${L + 10} ${B} H120 V190 H${L - 2} V203`);
+    el("circle", { cx: L, cy: 345, r: 7, fill: "#bdbdbd" }, view);
+  } else wire(`M${L} ${c.batt === "none" ? 345 : 345} V${B} H${L + 10}`);
+  // right side
+  wire(`M${R} ${T} V${B}`);
+  // top
+  if (c.top === "bulb") {
+    wire(`M${L} ${T} H476 M524 ${T} H${R}`);
+    q.lamps.push(bulb(500, T, c.broken?.[0]));
+  } else if (c.top === "bulbs") {
+    wire(`M${L} ${T} H356 M404 ${T} H596 M644 ${T} H${R}`);
+    q.lamps.push(bulb(380, T, c.broken?.[0]), bulb(620, T, c.broken?.[1]));
+  } else if (c.top === "par") {
+    wire(`M${L} ${T} H476 M524 ${T} H${R}`);
+    wire(`M330 ${T} V250 H476 M524 250 H670 V${T}`);
+    q.lamps.push(bulb(500, T, c.broken?.[0]), bulb(500, 250, c.broken?.[1]));
+  } else {
+    wire(`M${L} ${T} H470 M530 ${T} H${R}`);
+    q.lamps.push(led(500, T, c.top === "ledrev"));
+  }
+  // bottom
+  if (c.bot === "wire") wire(`M${R} ${B} H${L}`);
+  else if (c.bot === "gap" || c.bot === "mat") {
+    wire(`M${R} ${B} H548 M452 ${B} H${L}`);
+    for (const x of [548, 452]) el("circle", { cx: x, cy: B, r: 10, fill: "#5a5a5a" }, view);
+    if (c.bot === "mat") {
+      const g = el("g", {}, view);
+      if (c.mat.d === "foil") el("path", { d: `M440 ${B - 12} L470 ${B - 18} L500 ${B - 8} L530 ${B - 16} L560 ${B - 10} L558 ${B + 12} L520 ${B + 16} L486 ${B + 8} L442 ${B + 14} Z`, fill: "#dfe6ea", stroke: "#90a4ae", "stroke-width": 3 }, g);
+      else emoji(g, 500, B, c.mat.e, 64);
+      label(view, 500, B + 70, c.mat.name, 26, "#2b1d12");
+    } else label(view, 500, B + 50, "gap", 24, "#8a7764");
+  } else if (c.bot === "sw") {
+    wire(`M${R} ${B} H540 M460 ${B} H${L}`);
+    switchAt(500, B, c.on[0]);
+  } else if (c.bot === "sw2") {
+    wire(`M${R} ${B} H660 M580 ${B} H420 M340 ${B} H${L}`);
+    switchAt(620, B, c.on[0]);
+    switchAt(380, B, c.on[1]);
+  } else if (c.bot === "swp") {
+    wire(`M${R} ${B} H540 M460 ${B} H${L}`);
+    wire(`M640 ${B} V330 H540 M460 330 H360 V${B}`);
+    switchAt(500, B, c.on[0]);
+    switchAt(500, 330, c.on[1], true);
+  }
+  // break marker spot
+  q.brk = c.batt === "none" ? [200, 280] : c.batt === "same" ? [200, 345] : c.top === "ledrev" ? [500, T - 40] : c.top === "bulbs" && !q.res.ok && c.bot === "wire" ? [c.broken[0] ? 380 : 620, T - 46] : c.bot === "sw2" ? [c.on[0] ? 380 : 620, B] : [500, B];
+}
+const circuits = {
+  make(level, round, ctx) {
+    const base = { batt: "ok", top: "bulb", bot: "wire" };
+    const E = {
+      closed: { ...base },
+      gap: { ...base, bot: "gap" },
+      swon: { ...base, bot: "sw", on: [1] },
+      swoff: { ...base, bot: "sw", on: [0] },
+      none: { ...base, batt: "none" },
+    };
+    const ask = "Will the bulb light up?";
+    if (level === "easy") {
+      const k = ctx.next("e", ["closed", "gap", "swon", "swoff", "none", "closed", "swoff", "swon"]);
+      return { k, c: E[k], opts: LIGHT, ask };
+    }
+    if (level === "medium") {
+      if (round % 3 === 2) {
+        const k = ctx.next("ms", ["gap", "swon", "swoff", "closed"]);
+        return { k, c: E[k], opts: LIGHT, ask };
+      }
+      const mat = ctx.next("mm", MATS);
+      return { k: "mat", c: { ...base, bot: "mat", mat }, opts: LIGHT, ask: `We put the ${mat.name} in the gap. Will the bulb light up?` };
+    }
+    const H_ = {
+      sw2on: [{ ...base, bot: "sw2", on: [1, 1] }, ask],
+      sw2off: [{ ...base, bot: "sw2", on: pick([[1, 0], [0, 1]]) }, ask],
+      swpon: [{ ...base, bot: "swp", on: pick([[1, 0], [0, 1]]) }, ask],
+      swpoff: [{ ...base, bot: "swp", on: [0, 0] }, ask],
+      ser: [{ ...base, top: "bulbs", broken: pick([[1, 0], [0, 1]]) }, "One bulb is broken. Will the other bulb light up?"],
+      par: [{ ...base, top: "par", broken: pick([[1, 0], [0, 1]]) }, "One bulb is broken. Will the other bulb light up?"],
+      led: [{ ...base, top: "led" }, "Will the LED light up?"],
+      ledrev: [{ ...base, top: "ledrev" }, "Will the LED light up?"],
+      same: [{ ...base, batt: "same" }, ask],
+    };
+    const k = ctx.next("h", Object.keys(H_));
+    return { k, c: H_[k][0], opts: LIGHT, ask: H_[k][1] };
+  },
+  draw(q) {
+    drawCircuit(q);
+  },
+  async run(q, live) {
+    MUSIC.play("woodblock", 79, { gain: 0.4 });
+    const { L, R, T, B } = CK;
+    if (!q.res.ok) {
+      if (!(await nap(500, live))) return;
+      const ring = el("circle", { cx: q.brk[0], cy: q.brk[1], r: 34, fill: "none", stroke: "#e05a47", "stroke-width": 6, "stroke-dasharray": "10 7", opacity: 0 }, view);
+      if (!(await tw(900, (t) => ring.setAttribute("opacity", Math.min(1, t * 2)), live))) return;
+      return "no";
+    }
+    const top = q.res.topRoute === "branch" ? `H330 V250 H670 V${T}` : "";
+    const bot = q.res.botRoute === "branch" ? `H640 V330 H360 V${B}` : "";
+    const d = `M${L} 210 V${T} ${top} H${R} V${B} ${bot} H${L} V340`;
+    const path = el("path", { d, fill: "none", stroke: "none" }, view);
+    const len = path.getTotalLength();
+    const dots = Array.from({ length: 18 }, () => el("circle", { r: 6, fill: "#ffd54f", stroke: "#a8632d", "stroke-width": 1.5 }, view));
+    MUSIC.play("harp", 72, { gain: 0.3 });
+    const ok = await tw(3000, (t) => {
+      dots.forEach((dot, i) => {
+        const p = path.getPointAtLength((i * len) / dots.length + ((t * 900) % (len / dots.length)));
+        dot.setAttribute("cx", p.x);
+        dot.setAttribute("cy", p.y);
+      });
+      q.lamps.forEach((lp, i) => {
+        if (!q.res.lit[i]) return;
+        lp.glow.setAttribute("opacity", Math.min(1, t * 3));
+        lp.glass?.setAttribute("fill", t > 0.15 ? "#fff59d" : "#f4f6f8");
+      });
+    }, live, lin);
+    if (!ok) return;
+    return "yes";
+  },
+  why(q) {
+    const k = q.k;
+    const W_ = {
+      closed: "The wires make a complete loop: from the battery, through the bulb and back. Electricity flows round, so it lights!",
+      gap: "There's a gap in the loop. Electricity can't jump across air, so the bulb stays dark.",
+      swon: "The switch is closed, so the loop is complete. Light on!",
+      swoff: "An open switch makes a gap. No complete loop, no light.",
+      none: "No battery means nothing pushes the electricity round. No light.",
+      sw2on: "Both switches are closed, so the loop is complete.",
+      sw2off: "These switches are in a row. One open switch breaks the whole loop.",
+      swpon: "The switches are side by side. Electricity goes round through the closed one!",
+      swpoff: "Both paths are open, so there is no loop.",
+      ser: "In a row, electricity must go through both bulbs. The broken one makes a gap, so both stay dark.",
+      par: "Side by side, each bulb has its own path. The good bulb still lights!",
+      led: "The LED's + leg faces the battery's + end, so electricity can flow. It lights!",
+      ledrev: "An LED lets electricity go only one way. It's in backwards, so it stays dark.",
+      same: "Both wires go to the + end. Electricity must go out of one end and back into the other, so there's no loop.",
+    };
+    return k === "mat" ? q.c.mat.why : W_[k];
+  },
+};
+
+// ---------- units & shell ----------
+const units = {
+  p0: seeIt,
+  p1: () => lab("p1", ramps),
+  p2: () => lab("p2", lever),
+  p3: () => lab("p3", float),
+  p4: () => lab("p4", magnets),
+  p5: () => lab("p5", light),
+  p6: () => lab("p6", sound),
+  p7: () => lab("p7", circuits),
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    p0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    p1: { icon: "🚗", title: "Ramps & rolling", steps: ["Look at the two ramps.", "Guess which car rolls farther. Tap it.", "Watch the test, then hear why."] },
+    p2: { icon: "⚖️", title: "Levers & seesaws", steps: ["Look at the seesaw.", "Guess which way it tips, or where a block goes.", "Watch it move, then hear why."] },
+    p3: { icon: "🛟", title: "Float or sink", steps: ["Look at the thing above the water.", "Guess: will it float or sink? Tap it.", "Watch the splash, then hear why."] },
+    p4: { icon: "🧲", title: "Magnets", steps: ["Look at the magnet.", "Guess what will happen. Tap it.", "Watch the test, then hear why."] },
+    p5: { icon: "🔦", title: "Light & shadows", steps: ["Look at the light.", "Guess what will happen. Tap it.", "Watch the light move, then hear why."] },
+    p6: { icon: "🎸", title: "Sound & vibration", steps: ["Look at the strings or glasses.", "Guess which sound is higher or louder.", "Listen to the test, then hear why."] },
+    p7: { icon: "💡", title: "Circuits", steps: ["Look at the battery, wires and bulb.", "Guess: will it light up? Tap it.", "Watch the test, then hear why."] },
+  },
+  start: "p0",
+  onStop() {
+    token += 1;
+    closeTry();
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Science",
+  activity: "Physics Lab",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("harp", [60, 64, 67, 72, 76, 79]);
+MUSIC.preload("xylophone", [72, 76, 79, 84, 86, 88, 91, 96]);
+MUSIC.preload("woodblock", [72, 79]);
+MUSIC.preload("timpani", [48]);
+MUSIC.preload("flute", [72, 76]);
+</script>
+</body>
+</html>

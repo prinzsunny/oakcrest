@@ -1,0 +1,1485 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Big Questions · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="character">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Big Questions</b><small>Character · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, wait, confetti, choices, explain, everyday, emoji, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+const INK = "#2b1d12";
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "t0", label: "See it", icon: "👀" },
+  { id: "t1", label: "1. Name the virtue", icon: "🏷️" },
+  { id: "t6", label: "2. Feelings words", icon: "😊" },
+  { id: "t2", label: "3. What would you do?", icon: "🤔" },
+  { id: "t3", label: "4. Fables and morals", icon: "📖" },
+  { id: "t4", label: "5. Fair or not fair?", icon: "⚖️" },
+  { id: "t5", label: "6. Big Question of the week", icon: "💭" },
+];
+
+// ---------- the five virtues (the family's own words) ----------
+const V = {
+  honesty: { name: "Honesty", icon: "🗣️", color: "#2f6fd6", soft: "#e3edfc", def: "telling the truth, even when it is uncomfortable; not pretending", short: "tell the truth" },
+  kindness: { name: "Kindness", icon: "💛", color: "#c98a00", soft: "#fff3d1", def: "choosing to do something good for another person, especially when you don't have to", short: "do good for others" },
+  courage: { name: "Courage", icon: "🦁", color: "#d4552c", soft: "#fde5dc", def: "doing the right thing even when it is scary or hard", short: "do right when it's hard" },
+  selfcontrol: { name: "Self-control", icon: "✋", color: "#8a44b8", soft: "#f1e5fa", def: "choosing to wait, to stop, to hold back, even when you want to go ahead", short: "wait, stop, hold back" },
+  gratitude: { name: "Gratitude", icon: "🌻", color: "#2e8f55", soft: "#e2f4e8", def: "noticing and naming the good things you have been given", short: "notice the good" },
+};
+const VKEYS = Object.keys(V);
+const vLabel = (k) => `${V[k].icon} ${V[k].name}`;
+
+// ---------- speech without reading emoji names aloud ----------
+const clean = (html) => html.replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu, "");
+const talk = (html, spoken) => {
+  say(html, { voice: false });
+  VOICE.speak(clean(spoken ?? html));
+};
+const EFFORT = ["You thought it through!", "You listened closely!", "You looked carefully!", "Good reasoning!", "You kept at it!", "You took your time. Good thinking!"];
+const LEARN = ["Mistakes are how we learn.", "That's OK, let's think again.", "Good try. Let's look again."];
+
+// ---------- small helpers ----------
+function fresh() {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+}
+const tween = (ms, fn, alive) =>
+  new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(true);
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!alive()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+function wrap(str, max) {
+  const out = [];
+  for (const w of String(str).split(" ")) {
+    const last = out[out.length - 1];
+    if (last && (last + " " + w).length <= max) out[out.length - 1] = last + " " + w;
+    else out.push(w);
+  }
+  return out;
+}
+function para(parent, x, y, str, { size = 28, max = 28, lh = 1.22, fill = INK, anchor = "middle", weight = 800 } = {}) {
+  const ls = wrap(str, max);
+  ls.forEach((l, i) => text(parent, x, y + i * size * lh, l, { "font-size": size, fill, "text-anchor": anchor, "font-weight": weight }));
+  return ls.length * size * lh;
+}
+function bubble(parent, cx, top, str, w = 300, size = 26) {
+  const g = el("g", {}, parent);
+  const ls = wrap(str, Math.max(6, Math.floor((w - 28) / (size * 0.56))));
+  const h = ls.length * size * 1.2 + 26;
+  el("rect", { x: cx - w / 2, y: top, width: w, height: h, rx: 22, fill: "#fff", stroke: "#5a4130", "stroke-width": 3 }, g);
+  el("path", { d: `M${cx - 16} ${top + h - 2}L${cx} ${top + h + 22}L${cx + 16} ${top + h - 2}Z`, fill: "#fff", stroke: "#5a4130", "stroke-width": 3, "stroke-linejoin": "round" }, g);
+  el("rect", { x: cx - 18, y: top + h - 6, width: 36, height: 6, fill: "#fff" }, g);
+  ls.forEach((l, i) => text(g, cx, top + 13 + size * 0.95 + i * size * 1.2, l, { "font-size": size, fill: INK }));
+  return g;
+}
+const status = (s) => {
+  const b = $("[data-status]");
+  if (b) b.textContent = s;
+};
+
+// Warm backgrounds for the story pictures.
+function backdrop(v, kind = "plain") {
+  const g = el("g", {}, v);
+  const R = (a) => el("rect", a, g);
+  const C = (a) => el("circle", a, g);
+  const sky = (fill) => R({ x: 0, y: 0, width: W, height: H, fill });
+  if (kind === "home") {
+    sky("#fbf1e1");
+    R({ x: 0, y: 410, width: W, height: 150, fill: "#e6cfa8" });
+    R({ x: 0, y: 404, width: W, height: 8, fill: "#c9a77c" });
+    R({ x: 790, y: 60, width: 150, height: 120, rx: 10, fill: "#cfe9f7", stroke: "#c9a77c", "stroke-width": 8 });
+    el("line", { x1: 865, x2: 865, y1: 60, y2: 180, stroke: "#c9a77c", "stroke-width": 6 }, g);
+  } else if (kind === "park" || kind === "field") {
+    sky(kind === "park" ? "#dff1fb" : "#e8f5fb");
+    C({ cx: 900, cy: 80, r: 44, fill: "#ffd34d" });
+    if (kind === "field") el("ellipse", { cx: 260, cy: 420, rx: 420, ry: 120, fill: "#cde8b3" }, g);
+    R({ x: 0, y: 410, width: W, height: 150, fill: "#bfe0a0" });
+    if (kind === "park") {
+      R({ x: 98, y: 250, width: 26, height: 170, rx: 6, fill: "#8a6a4f" });
+      C({ cx: 111, cy: 230, r: 76, fill: "#8cc56f" });
+    }
+    for (const x of [260, 620, 940]) el("ellipse", { cx: x, cy: 420, rx: 46, ry: 18, fill: "#a6d38a" }, g);
+  } else if (kind === "school") {
+    sky("#f4efe6");
+    R({ x: 300, y: 40, width: 400, height: 140, rx: 12, fill: "#2f5d50", stroke: "#8a6a4f", "stroke-width": 8 });
+    text(g, 500, 125, "A B C  1 2 3", { "font-size": 40, fill: "#e8f2ee", opacity: 0.8 });
+    R({ x: 0, y: 420, width: W, height: 140, fill: "#dcc6a3" });
+    R({ x: 0, y: 414, width: W, height: 8, fill: "#b99a72" });
+  } else if (kind === "night") {
+    sky("#2c3e6b");
+    C({ cx: 860, cy: 90, r: 46, fill: "#fff3c4" });
+    C({ cx: 880, cy: 76, r: 42, fill: "#2c3e6b" });
+    for (let i = 0; i < 26; i++) C({ cx: (i * 397) % 1000, cy: 30 + ((i * 131) % 300), r: 2 + (i % 3), fill: "#fff", opacity: 0.8 });
+    R({ x: 0, y: 440, width: W, height: 120, fill: "#3b4f7a" });
+  } else if (kind === "winter") {
+    sky("#e3edf6");
+    R({ x: 0, y: 400, width: W, height: 160, fill: "#fbfdff" });
+    for (let i = 0; i < 30; i++) C({ cx: (i * 337) % 1000, cy: 20 + ((i * 97) % 360), r: 4, fill: "#fff", stroke: "#cfdbe8" });
+  } else if (kind === "river") {
+    sky("#e3f2fb");
+    R({ x: 0, y: 380, width: W, height: 180, fill: "#8fc9e6" });
+    for (const x of [120, 420, 760]) el("path", { d: `M${x} 470q20 -10 40 0t40 0`, stroke: "#fff", "stroke-width": 4, fill: "none", opacity: 0.7 }, g);
+    R({ x: 0, y: 350, width: 150, height: 40, fill: "#a6d38a" });
+    R({ x: 850, y: 350, width: 150, height: 40, fill: "#a6d38a" });
+    R({ x: 120, y: 340, width: 760, height: 22, rx: 6, fill: "#a8743f", stroke: "#7a4f26", "stroke-width": 3 });
+  } else if (kind === "pool") {
+    sky("#eef7fb");
+    R({ x: 0, y: 330, width: W, height: 230, fill: "#7cc3e8" });
+    for (const y of [380, 440, 500]) el("path", { d: `M0 ${y}q50 -14 100 0t100 0t100 0t100 0t100 0t100 0t100 0t100 0t100 0t100 0`, stroke: "#bfe3f5", "stroke-width": 4, fill: "none" }, g);
+  } else if (kind === "town") {
+    sky("#e9eef5");
+    const cols = ["#e8b4a0", "#c9d6e8", "#f2d59b", "#b9d8c2", "#e0c1e3"];
+    for (let i = 0; i < 6; i++) {
+      const h = 160 + ((i * 53) % 120);
+      R({ x: 20 + i * 165, y: 420 - h, width: 140, height: h, rx: 6, fill: cols[i % 5] });
+      for (let r = 0; r < 3; r++) R({ x: 46 + i * 165, y: 440 - h + r * 48, width: 26, height: 26, fill: "#fff", opacity: 0.8 });
+    }
+    R({ x: 0, y: 420, width: W, height: 140, fill: "#cfc7b9" });
+  } else if (kind === "farm") {
+    sky("#eaf5fb");
+    R({ x: 0, y: 400, width: W, height: 160, fill: "#c8e3a2" });
+    R({ x: 760, y: 220, width: 180, height: 180, fill: "#c0452f" });
+    el("path", { d: "M740 230L850 150L960 230Z", fill: "#8f2f20" }, g);
+    R({ x: 820, y: 300, width: 60, height: 100, fill: "#f4e3c4" });
+  } else sky("#fbf6ee");
+  return g;
+}
+// A story picture: [background, [[glyph, x, y, size, flip?]], [[cx, top, "bubble text", width]]]
+function picture(v, spec, alive) {
+  const [bg, items = [], bubbles = []] = spec;
+  backdrop(v, bg);
+  items.forEach(([glyph, x, y, size, flip], i) => {
+    const g = el("g", { opacity: 0 }, v);
+    const inner = el("g", { transform: `translate(${x} ${y})${flip ? " scale(-1 1)" : ""}` }, g);
+    emoji(inner, 0, 0, glyph, size);
+    setTimeout(() => alive() && tween(500, (t) => {
+      g.setAttribute("opacity", t);
+      g.setAttribute("transform", `translate(0 ${(1 - t) * 24})`);
+    }, alive), i * 160);
+  });
+  bubbles.forEach(([cx, top, str, w], i) => {
+    const b = bubble(v, cx, top, str, w);
+    b.setAttribute("opacity", 0);
+    setTimeout(() => alive() && tween(500, (t) => b.setAttribute("opacity", t), alive), 500 + i * 300 + items.length * 160);
+  });
+}
+function virtueBadge(v, k, y = 20) {
+  const vv = V[k];
+  const g = el("g", { opacity: 0 }, v);
+  el("rect", { x: 40, y, width: 920, height: 130, rx: 26, fill: "#fff", stroke: vv.color, "stroke-width": 5 }, g);
+  el("circle", { cx: 112, cy: y + 65, r: 50, fill: vv.soft }, g);
+  emoji(g, 112, y + 65, vv.icon, 62);
+  text(g, 185, y + 50, vv.name, { "font-size": 38, fill: vv.color, "text-anchor": "start" });
+  para(g, 185, y + 86, vv.def, { size: 24, max: 58, anchor: "start", weight: 700, fill: "#4d3c2e" });
+  tween(600, (t) => g.setAttribute("opacity", t), () => g.isConnected);
+  return g;
+}
+
+// Difficulty chips (same pattern as the other apps).
+const LEVELS = [["easy", "🐣 Easy"], ["medium", "🦊 Medium"], ["hard", "🦁 Hard"]];
+const levelRow = (cur) => `<div class="ap-row"><div class="ap-chips" data-levels>${LEVELS.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div>`;
+const onLevels = (id, fn) =>
+  $("[data-levels]").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-lv]");
+    if (!b) return;
+    document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    shell.mark(id, { level: b.dataset.lv });
+    window.OC?.touch();
+    fn(b.dataset.lv);
+  });
+
+// A question with one best answer: Socratic hint after the first miss, the answer and WHY after the second.
+function quiz(my, host, options, { right, also = [], onAlso, hint, onDone }) {
+  let tries = 0;
+  let over = false;
+  choices(host, options, (o, button) => {
+    if (my !== token || over || button.disabled) return;
+    window.OC?.touch();
+    if (o.v === right) {
+      over = true;
+      button.classList.add("right");
+      MUSIC.chime();
+      onDone(tries === 0);
+    } else if (also.includes(o.v)) {
+      button.disabled = true;
+      button.classList.add("wrong");
+      MUSIC.play("xylophone", 79, { gain: 0.3 });
+      onAlso?.(o);
+    } else {
+      tries += 1;
+      button.classList.add("wrong");
+      button.disabled = true;
+      MUSIC.oops();
+      if (tries >= 2) {
+        over = true;
+        const i = options.findIndex((x) => x.v === right);
+        host.querySelector(`[data-c="${i}"]`)?.classList.add("right");
+        onDone(false);
+      } else talk(`${pick(LEARN)} ${hint}`);
+    }
+  });
+}
+function nextButton(host, label, fn) {
+  host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-go>${label}</button></div>`;
+  host.onclick = (event) => {
+    if (event.target.closest("[data-go]")) {
+      window.OC?.touch();
+      fn();
+    }
+  };
+}
+// Calm finish: confetti once, a "Try it for real" card, and Play again. No endless "next".
+function finish(my, id, host, msg, real, again) {
+  if (my !== token) return;
+  confetti();
+  MUSIC.chime();
+  shell.mark(id, { done: true });
+  status("All done");
+  talk(`🎉 ${msg}`);
+  host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-real>🏠 Try it for real</button><button type="button" data-again>🔁 Play again</button></div>`;
+  host.onclick = (event) => {
+    if (event.target.closest("[data-real]")) realCard(real);
+    else if (event.target.closest("[data-again]")) again();
+  };
+}
+function realCard({ title, need, steps, safe = "Do this with a grown-up." }) {
+  document.querySelector(".bq-real")?.remove();
+  VOICE.hush();
+  const box = document.createElement("div");
+  box.className = "bq-real";
+  box.innerHTML = `<div class="bq-real-card" role="dialog" aria-label="Try it for real"><h2>🏠 Try it for real</h2><h3>${title}</h3><p><b>You need:</b> ${need}</p><ol>${steps.map((s) => `<li>${s}</li>`).join("")}</ol><p class="bq-safe">👪 ${safe}</p><button type="button" class="kt-go" data-close-real>✓ OK</button></div>`;
+  document.body.appendChild(box);
+  VOICE.speak(clean(`Try it for real. ${title}. You need: ${need}. ${steps.join(" ")} ${safe}`));
+  box.addEventListener("click", (event) => {
+    if (event.target === box || event.target.closest("[data-close-real]")) {
+      VOICE.hush();
+      box.remove();
+    }
+  });
+}
+
+const bqStyle = document.createElement("style");
+bqStyle.textContent = `
+.ap-panel>*{flex-shrink:0}
+.bq-pick .kt-choices button{min-height:56px;font-size:19px;white-space:normal;line-height:1.2;padding:6px 16px}
+.bq-col .kt-choices{flex-direction:column;align-items:stretch;width:min(560px,100%)}
+.bq-col .kt-choices button{text-align:left;min-height:50px;font-size:17px}
+.bq-nav .ap-chips[hidden]{display:none}.bq-nav{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.bq-real{position:fixed;inset:0;z-index:45;display:grid;place-items:center;padding:12px;background:rgba(43,29,18,.4)}
+.bq-real-card{width:min(560px,100%);max-height:100%;overflow:auto;padding:18px 22px;border-radius:26px;background:#fff;box-shadow:0 18px 40px rgba(0,0,0,.25);color:${INK};font:700 17px/1.35 var(--sans);text-align:left}
+.bq-real-card h2{margin:0;color:var(--accent-dark);font:900 22px/1.2 var(--sans)}
+.bq-real-card h3{margin:4px 0 6px;font:900 20px/1.2 var(--sans)}
+.bq-real-card p{margin:4px 0}
+.bq-real-card ol{margin:6px 0;padding-left:22px}
+.bq-real-card li{margin:3px 0}
+.bq-real-card .bq-safe{padding:6px 10px;border-radius:12px;background:var(--accent-soft);color:var(--accent-dark)}
+.bq-real-card .kt-go{display:block;margin:10px auto 0}
+@media (max-height:460px),(max-width:420px) and (max-height:720px){.bq-pick .kt-choices button{min-height:44px;font-size:15.5px;padding:4px 12px}.bq-col .kt-choices button{min-height:40px;font-size:14.5px}.bq-real-card{font-size:15px;padding:12px 16px}.bq-real-card .kt-go{min-height:46px}}
+`;
+document.head.appendChild(bqStyle);
+
+// ---------- content ----------
+const SCEN = [
+  { v: "honesty", text: "You knock over a cup of juice. Dad asks, “What happened?” You say, “I did it. I'm sorry.”", why: "You told the truth, even though it felt uncomfortable.", pic: ["home", [["🧒", 300, 330, 140], ["🧃", 470, 385, 60], ["💦", 540, 400, 50], ["👨", 720, 320, 150]], [[300, 70, "I did it. I'm sorry.", 300]]] },
+  { v: "honesty", also: ["courage"], text: "A friend loves your drawing and asks, “Did you draw it all by yourself?” Your big sister helped a lot. You say, “My sister helped me.”", why: "You did not pretend. You told the truth about who helped.", pic: ["school", [["👧", 230, 340, 140], ["🖼️", 500, 340, 110], ["🧒", 770, 340, 140]], [[770, 200, "My sister helped me.", 300]]] },
+  { v: "honesty", text: "You tell Mom you brushed your teeth, but you didn't. A minute later, you go back and say, “Actually, I didn't. I'll do it now.”", why: "You fixed a fib and told the truth, even though it was uncomfortable.", pic: ["home", [["🧒", 300, 330, 140], ["🪥", 470, 300, 70], ["👩", 720, 320, 150]], [[300, 70, "Actually, I didn't.", 300]]] },
+  { v: "kindness", text: "A new girl sits all alone at lunch. You walk over and say, “Do you want to sit with us?”", why: "You chose to do something good for her, and you didn't have to.", pic: ["school", [["👧", 250, 340, 130], ["🍱", 370, 400, 60], ["🧒", 700, 340, 140]], [[700, 200, "Sit with us?", 240]]] },
+  { v: "kindness", text: "Your little brother can't reach his boots. Nobody asks you to help. You get them down and help him put them on.", why: "Nobody asked you. You chose to help anyway.", pic: ["home", [["🧒", 300, 330, 150], ["👢", 500, 390, 70], ["👶", 700, 350, 110]]] },
+  { v: "kindness", also: ["gratitude"], text: "Grandma looks tired. Without being asked, you quietly set the table and bring her a cup of water.", why: "You chose to do something good for Grandma when you didn't have to.", pic: ["home", [["🧒", 270, 330, 140], ["🍽️", 490, 390, 70], ["🥛", 580, 385, 54], ["👵", 760, 330, 150]]] },
+  { v: "courage", also: ["kindness"], text: "Some children laugh at a boy's new glasses. Your tummy feels jumpy, but you say, “Stop. That's not kind.”", why: "Speaking up was scary, and you did the right thing anyway.", pic: ["park", [["🧒", 250, 340, 140], ["🤓", 510, 345, 110], ["😆", 760, 345, 100], ["😆", 880, 355, 90]], [[250, 70, "Stop. That's not kind.", 300]]] },
+  { v: "courage", also: ["honesty"], text: "Your ball breaks the neighbour's flower pot. You feel scared. You still knock on her door and tell her what happened.", why: "It was scary, and you did the right thing anyway. That took honesty too!", pic: ["park", [["🧒", 300, 340, 140], ["⚽", 470, 400, 54], ["🪴", 570, 380, 74], ["🚪", 790, 300, 180]]] },
+  { v: "courage", text: "It's your first swimming lesson. The water looks deep, and you feel scared. You hold the teacher's hand and try anyway.", why: "It was scary and hard, and you tried anyway.", pic: ["pool", [["🧒", 380, 330, 130], ["🧑‍🏫", 620, 320, 140], ["🛟", 820, 400, 80]]] },
+  { v: "selfcontrol", text: "There is cake on the table for after dinner. You really want some now! You wait until after dinner.", why: "You wanted to go ahead, and you chose to wait.", pic: ["home", [["🧒", 260, 330, 140], ["🎂", 500, 350, 120], ["⏳", 740, 320, 90]]] },
+  { v: "selfcontrol", text: "A friend knocks down your block tower by accident. You feel cross and want to shout. You stop, take three deep breaths, and use calm words.", why: "You wanted to shout, and you held back.", pic: ["home", [["🧒", 270, 330, 140], ["🧱", 490, 390, 80], ["👦", 720, 330, 140]], [[270, 70, "Breathe in… and out…", 320]]] },
+  { v: "selfcontrol", also: ["kindness"], text: "Your friend is telling a story about her trip. You really want to talk too. You wait until she is finished.", why: "You wanted to jump in, and you chose to wait.", pic: ["park", [["👧", 330, 340, 140], ["🧒", 680, 340, 140], ["✈️", 330, 140, 80]]] },
+  { v: "gratitude", also: ["kindness"], text: "After your birthday, you make a card for your aunt. It says, “Thank you for the book! I love the pictures.”", why: "You noticed a good thing you were given, and you named it.", pic: ["home", [["🧒", 290, 330, 140], ["💌", 510, 340, 90], ["📖", 660, 380, 74]]] },
+  { v: "gratitude", text: "At bedtime, you think of three good things from today: the sunshine, your friend, and warm soup.", why: "You noticed the good things from today and named them.", pic: ["night", [["🛏️", 500, 400, 170], ["☀️", 250, 170, 80], ["🧑‍🤝‍🧑", 500, 170, 80], ["🍲", 750, 170, 80]]] },
+  { v: "gratitude", also: ["kindness"], text: "Your teacher helps you tie your shoes. You look at her and say, “Thank you for helping me.”", why: "You noticed her help and said thank you for it.", pic: ["school", [["🧒", 320, 340, 140], ["👟", 470, 400, 60], ["🧑‍🏫", 700, 330, 150]], [[320, 200, "Thank you!", 220]]] },
+];
+
+const DILEMMAS = [
+  {
+    v: "honesty",
+    story: "You find some money on the playground. Nobody saw you pick it up.",
+    pic: ["park", [["🧒", 330, 340, 140], ["💵", 560, 400, 74]]],
+    options: [
+      { label: "💵 Keep it", feels: [["😟", "the owner"], ["😕", "you, inside"]], next: "The person who lost it feels sad and worried. You might get an uneasy feeling inside." },
+      { label: "🧑‍🏫 Give it to a teacher", best: true, feels: [["😊", "the owner"], ["😌", "you"]], next: "The teacher finds who lost it. They feel relieved and thankful. You feel calm inside." },
+      { label: "📣 Ask, “Who lost this?”", best: true, feels: [["😊", "the owner"], ["😌", "you"]], next: "Someone says, “It's mine!” They feel happy and thankful, and you feel good inside." },
+    ],
+    best: "Helping the money get back to its owner is the honest choice. It's what you would want if you lost something.",
+    repair: ["“I kept money that wasn't mine.”", "Someone was worried and sad.", "Give it to a grown-up to return.", "Say sorry. Everyone forgives."],
+  },
+  {
+    v: "honesty",
+    always: true,
+    story: "Your friend breaks your brother's toy car by accident. She whispers, “Please don't tell anyone!”",
+    pic: ["home", [["👧", 300, 330, 140], ["🚗", 500, 395, 70], ["💥", 560, 360, 50], ["👦", 760, 330, 140]], [[300, 70, "Please don't tell!", 280]]],
+    options: [
+      { label: "🤐 Keep the secret", feels: [["😢", "your brother"], ["😟", "your friend"]], next: "Your brother finds his broken car and doesn't know why. Your friend still feels bad inside." },
+      { label: "🤝 Help her tell the truth", best: true, feels: [["😕", "your brother"], ["😌", "your friend"]], next: "Your brother is sad about the car, but glad you told him. Your friend feels lighter." },
+      { label: "🗣️ Tell a grown-up", best: true, feels: [["😕", "your brother"], ["😳", "your friend"]], next: "A grown-up helps sort it out. Your friend may feel embarrassed at first, then better." },
+    ],
+    best: "You can be kind AND honest: help your friend tell what happened. Accidents can be fixed together.",
+    repair: ["“I broke the car. It was an accident.”", "My friend is sad. It was his favourite.", "Say sorry and help fix it, or share a toy.", "“I forgive you.” Now we play again."],
+  },
+  {
+    v: "kindness",
+    story: "There is one cookie left. You want it, and so does your brother.",
+    pic: ["home", [["🧒", 280, 330, 140], ["🍪", 500, 360, 90], ["👦", 720, 330, 140]]],
+    options: [
+      { label: "🏃 Grab it fast", feels: [["😢", "your brother"], ["😋", "you, for a minute"]], next: "You get the cookie, but your brother feels sad and left out. The yummy feeling doesn't last long." },
+      { label: "✂️ Split it in half", best: true, feels: [["🙂", "your brother"], ["🙂", "you"]], next: "You both get some. You both feel it was fair." },
+      { label: "🎁 Let him have it", best: true, feels: [["😊", "your brother"], ["💛", "you"]], next: "Your brother feels happy and cared for. You feel warm inside, even without the cookie." },
+    ],
+    best: "Splitting is fair, and giving it away is kind. Both take self-control, because you hold back.",
+  },
+  {
+    v: "kindness",
+    story: "Your friends are playing tag. A boy stands alone, watching. A friend says, “Don't ask him. He's slow.”",
+    pic: ["park", [["🏃", 300, 340, 120], ["🏃‍♀️", 470, 345, 120], ["🧒", 640, 340, 130], ["🧍", 860, 330, 130]]],
+    options: [
+      { label: "🏃 Just keep playing", feels: [["😔", "the boy"], ["😕", "you, inside"]], next: "The boy feels lonely and left out. You might feel uneasy inside." },
+      { label: "👋 Ask him to play", best: true, feels: [["😊", "the boy"], ["😌", "you"]], next: "The boy's face lights up. He feels welcome. Your other friend might learn something too." },
+      { label: "🤷 Say nothing and wait", feels: [["😔", "the boy"], ["😐", "you"]], next: "Nothing changes. The boy still feels left out." },
+    ],
+    best: "Inviting him is kind. Saying, “Everyone can play,” to your friend takes courage too.",
+  },
+  {
+    v: "courage",
+    always: true,
+    story: "In a team race, you drop the baton, and your team comes last. Everyone looks sad.",
+    pic: ["park", [["🧒", 330, 340, 140], ["🥢", 500, 405, 60], ["🧑‍🤝‍🧑", 750, 340, 140]]],
+    options: [
+      { label: "🌬️ Say the wind did it", feels: [["😠", "your team"], ["😟", "you, inside"]], next: "Your team doesn't believe the wind story. They feel cross, and you feel worried inside." },
+      { label: "🙋 Say, “I dropped it. I'm sorry.”", best: true, feels: [["🙂", "your team"], ["😌", "you"]], next: "Your team is still a bit sad, but they trust you more. You feel lighter." },
+      { label: "🙈 Walk away and hide", feels: [["😕", "your team"], ["😢", "you"]], next: "Your team wonders where you went. You feel alone with your sad feeling." },
+    ],
+    best: "Saying, “I made a mistake,” takes courage and honesty. Teams can forgive and try again.",
+    repair: ["“I dropped the baton.”", "My team is disappointed. I feel bad too.", "Say sorry, practise, and cheer them on.", "My team forgives me, and I forgive myself."],
+  },
+  {
+    v: "honesty",
+    always: true,
+    story: "You draw on the wall with a crayon. Nobody saw you do it.",
+    pic: ["home", [["🧒", 300, 330, 140], ["🖍️", 470, 260, 60], ["🌈", 600, 230, 120]]],
+    options: [
+      { label: "🤫 Say nothing", feels: [["😕", "your grown-up"], ["😟", "you, inside"]], next: "Your grown-up finds it and wonders who did it. You keep a worried feeling inside." },
+      { label: "🐶 Say the dog did it", feels: [["😠", "your grown-up"], ["😟", "you, inside"]], next: "The dog gets the blame for nothing! Your grown-up finds out later and is upset about the fib." },
+      { label: "🙋 Tell a grown-up and help clean", best: true, feels: [["🙂", "your grown-up"], ["😌", "you"]], next: "Your grown-up is glad you told the truth. You clean it together and feel better." },
+    ],
+    best: "Telling the truth, even when no one saw, is honesty. Helping clean it up is the repair.",
+    repair: ["“I drew on the wall.”", "Walls aren't for drawing. Someone must clean it.", "Help scrub it off. Use paper next time.", "“I forgive you.” Everyone makes mistakes."],
+  },
+  {
+    v: "selfcontrol",
+    story: "You really want a turn on the swing, but another child is on it.",
+    pic: ["park", [["🧒", 280, 340, 140], ["👧", 640, 300, 120]]],
+    options: [
+      { label: "😤 Shout, “Get off!”", feels: [["😢", "the other child"], ["😠", "you"]], next: "The other child feels upset and doesn't want to share. You still have no turn." },
+      { label: "🙂 Ask, “Can I go next?” and wait", best: true, feels: [["🙂", "the other child"], ["😌", "you"]], next: "The other child says, “Sure, in a minute!” Soon it's your turn." },
+      { label: "🛝 Play on the slide while you wait", best: true, feels: [["🙂", "the other child"], ["😄", "you"]], next: "You have fun on the slide, and the swing is free soon." },
+    ],
+    best: "Waiting when you really want something is self-control. Asking kindly helps everyone.",
+  },
+  {
+    v: "gratitude",
+    story: "Your aunt gives you socks for your birthday. You were hoping for a toy.",
+    pic: ["home", [["🧒", 300, 330, 140], ["🧦", 500, 360, 90], ["👩", 720, 320, 150]]],
+    options: [
+      { label: "😕 Say, “I don't like socks.”", feels: [["😢", "your aunt"], ["😕", "you"]], next: "Your aunt feels sad. She chose them for you with love." },
+      { label: "🙂 Say, “Thank you for thinking of me!”", best: true, feels: [["😊", "your aunt"], ["🙂", "you"]], next: "Your aunt feels happy that you noticed her kindness. And it's true!" },
+      { label: "🤩 Pretend they're your best present ever", feels: [["🙂", "your aunt"], ["😬", "you, inside"]], next: "Your aunt is happy, but you know you were pretending." },
+    ],
+    best: "You can thank someone for their kindness and still be honest. You don't need to pretend.",
+  },
+];
+
+const FABLES = [
+  {
+    title: "The Tortoise and the Hare",
+    cover: ["🐢", "#9fd3a8"],
+    pages: [
+      { t: "A fast hare laughed at a slow tortoise. “You are so slow!” The tortoise said, “Let's have a race.”", pic: ["field", [["🐇", 330, 350, 120], ["🐢", 650, 370, 110]], [[330, 90, "You are so slow!", 280]]] },
+      { t: "The hare zoomed far ahead. He was so sure he would win that he lay down for a nap.", pic: ["field", [["🐢", 180, 380, 100], ["🐇", 760, 380, 110], ["💤", 840, 280, 70]]] },
+      { t: "The tortoise kept going, slow and steady. When the hare woke up, the tortoise was crossing the finish line!", pic: ["field", [["🐇", 300, 370, 110], ["🐢", 760, 380, 110], ["🏁", 880, 300, 100]]] },
+    ],
+    morals: ["Slow and steady wins the race.", "The fastest one always wins.", "Naps are the most important thing."],
+    v: "selfcontrol",
+    vwhy: "The tortoise kept going and did not stop. The hare did not hold back from showing off.",
+  },
+  {
+    title: "The Boy Who Cried Wolf",
+    cover: ["🐺", "#c9d6e8"],
+    pages: [
+      { t: "A boy looked after the village sheep. He was bored, so he shouted, “Wolf! Wolf!” just for fun.", pic: ["field", [["👦", 300, 340, 140], ["🐑", 580, 390, 90], ["🐑", 720, 380, 90]], [[300, 70, "Wolf! Wolf!", 240]]] },
+      { t: "The villagers ran to help, but there was no wolf. The boy laughed. He did it again, and again they came for nothing.", pic: ["field", [["👦", 220, 340, 130], ["👩", 520, 340, 120], ["👨", 680, 340, 120], ["😠", 840, 330, 90]]] },
+      { t: "Then a real wolf came! The boy shouted, “Wolf!” But nobody believed him, and the wolf chased the sheep away.", pic: ["field", [["👦", 220, 340, 130], ["🐺", 560, 360, 120], ["🐑", 780, 390, 80], ["🐑", 900, 380, 80]]] },
+    ],
+    morals: ["If you tell fibs, people may not believe you, even when you tell the truth.", "Shouting is a good game to play.", "Sheep can run faster than wolves."],
+    v: "honesty",
+    vwhy: "When we always tell the truth, people can trust us when it really matters.",
+  },
+  {
+    title: "The Ant and the Grasshopper",
+    cover: ["🐜", "#f2d59b"],
+    pages: [
+      { t: "All summer long, the ant worked hard, carrying food to store for the winter.", pic: ["field", [["🐜", 380, 380, 100], ["🌾", 600, 360, 120], ["🌽", 760, 380, 90]]] },
+      { t: "The grasshopper sang and played all day. “Come and play!” he said. “There is lots of food now.”", pic: ["field", [["🦗", 380, 360, 110], ["🎶", 520, 260, 70], ["🐜", 760, 390, 80]], [[380, 70, "Come and play!", 260]]] },
+      { t: "When winter came, snow covered the ground. The ant had plenty to eat, but the grasshopper was cold and hungry.", pic: ["winter", [["🏠", 300, 330, 150], ["🐜", 300, 450, 60], ["🦗", 700, 380, 100], ["🥶", 820, 300, 70]]] },
+    ],
+    morals: ["Get ready today for what you will need tomorrow.", "Singing is always bad.", "Ants don't like music."],
+    v: "selfcontrol",
+    vwhy: "The ant chose to wait to play until the work was done.",
+  },
+  {
+    title: "The Lion and the Mouse",
+    cover: ["🦁", "#f6c89a"],
+    pages: [
+      { t: "A lion caught a tiny mouse under his big paw. “Please let me go,” squeaked the mouse. “One day I will help you.”", pic: ["field", [["🦁", 380, 330, 180], ["🐭", 640, 400, 70]], [[640, 160, "Please let me go!", 280]]] },
+      { t: "The lion laughed. “How could a little mouse help me?” But he was kind, and he let the mouse go.", pic: ["field", [["🦁", 380, 330, 180], ["🐭", 820, 400, 70]]] },
+      { t: "Later, the lion got stuck in a hunter's net. The mouse heard him roar, ran over, and nibbled the ropes until the lion was free!", pic: ["field", [["🦁", 420, 330, 170], ["🕸️", 420, 330, 210], ["🐭", 640, 420, 70]]] },
+    ],
+    morals: ["Kindness is never wasted, and even small friends can help in a big way.", "Big animals are always the best.", "Never trust a mouse."],
+    v: "kindness",
+    also: ["gratitude"],
+    vwhy: "The lion chose to be kind when he didn't have to. The mouse remembered and helped him back.",
+  },
+  {
+    title: "The Fox and the Grapes",
+    cover: ["🍇", "#e0c1e3"],
+    pages: [
+      { t: "A hungry fox saw juicy grapes hanging high up on a vine.", pic: ["field", [["🦊", 400, 380, 130], ["🍇", 620, 120, 90]]] },
+      { t: "He jumped, and jumped, and jumped again. But he could not reach them.", pic: ["field", [["🦊", 560, 270, 130], ["🍇", 620, 100, 90]]] },
+      { t: "At last he walked away and said, “Those grapes are probably sour anyway.”", pic: ["field", [["🦊", 300, 380, 130, true], ["🍇", 760, 120, 90]], [[300, 140, "They're probably sour.", 320]]] },
+    ],
+    morals: ["Sometimes people pretend they didn't want what they couldn't get.", "Grapes are always sour.", "Foxes are good at jumping."],
+    v: "honesty",
+    vwhy: "The fox pretended. Honesty means not pretending, even to yourself.",
+  },
+  {
+    title: "The Crow and the Pitcher",
+    cover: ["🏺", "#d6e7c2"],
+    pages: [
+      { t: "A thirsty crow found a jug with a little water at the bottom. Her beak could not reach it.", pic: ["field", [["🐦‍⬛", 350, 300, 110], ["🏺", 560, 340, 160]]] },
+      { t: "She had an idea! She dropped in a pebble, then another, and another.", pic: ["field", [["🐦‍⬛", 420, 230, 100], ["🪨", 470, 300, 40], ["🏺", 560, 340, 160], ["🪨", 360, 410, 40], ["🪨", 300, 420, 40]]] },
+      { t: "Little by little, the water rose up, until the crow could drink.", pic: ["field", [["🐦‍⬛", 500, 210, 100], ["💧", 600, 250, 50], ["🏺", 560, 340, 160]]] },
+    ],
+    morals: ["When something is hard, think and keep trying, little by little.", "Crows don't like water.", "If it's hard, give up."],
+    v: "courage",
+    vwhy: "The crow kept trying when it was hard and did not give up.",
+  },
+  {
+    title: "The North Wind and the Sun",
+    cover: ["☀️", "#fde2a6"],
+    pages: [
+      { t: "The North Wind and the Sun argued about who was stronger. “Let's see who can get that man to take off his coat,” said the Sun.", pic: ["field", [["🌬️", 220, 140, 110], ["☀️", 780, 130, 110], ["🚶", 500, 370, 130]]] },
+      { t: "The Wind blew and blew. But the harder it blew, the tighter the man held on to his coat.", pic: ["field", [["🌬️", 220, 160, 130], ["💨", 400, 300, 80], ["🧥", 620, 360, 120]]] },
+      { t: "Then the Sun shone gently and warmly. The man got so warm that he took off his coat!", pic: ["field", [["☀️", 780, 130, 140], ["🚶", 480, 370, 130], ["🧥", 640, 420, 70]]] },
+    ],
+    morals: ["Being gentle and kind works better than being rough.", "The wind is stronger than the sun.", "Coats are always too hot."],
+    v: "kindness",
+    vwhy: "The Sun was warm and gentle, and that worked better than pushing hard.",
+  },
+  {
+    title: "The Dog and His Reflection",
+    cover: ["🐕", "#bfe3f5"],
+    pages: [
+      { t: "A dog was carrying a bone across a bridge over a river.", pic: ["river", [["🐕", 420, 290, 110], ["🦴", 490, 300, 50]]] },
+      { t: "He looked down into the water and saw another dog with a bone that looked bigger!", pic: ["river", [["🐕", 500, 290, 110], ["🦴", 570, 300, 50], ["❓", 650, 200, 60]]] },
+      { t: "He snapped to grab it, and his own bone fell into the water. The other dog was only his reflection!", pic: ["river", [["🐕", 500, 290, 110], ["💦", 560, 400, 70], ["🦴", 600, 460, 50]]] },
+    ],
+    morals: ["Be thankful for what you have. Being greedy can make you lose it.", "Water is dangerous for bones.", "Dogs shouldn't cross bridges."],
+    v: "gratitude",
+    also: ["selfcontrol"],
+    vwhy: "If the dog had noticed the good bone he already had, he would still have it.",
+  },
+  {
+    title: "The Goose That Laid the Golden Eggs",
+    cover: ["🥚", "#f9e08b"],
+    pages: [
+      { t: "A farmer had a goose that laid one golden egg every day.", pic: ["farm", [["👨‍🌾", 280, 330, 140], ["🪿", 520, 360, 120], ["🥚", 620, 420, 50]]] },
+      { t: "The farmer grew rich, but he grew greedy too. “Why wait for one egg a day? I want all the gold right now!”", pic: ["farm", [["👨‍🌾", 280, 330, 140], ["💰", 470, 400, 80], ["🪿", 640, 360, 110]], [[280, 70, "I want it all NOW!", 290]]] },
+      { t: "So he did a foolish thing, and he lost his goose. There was no gold inside her, and there were never any golden eggs again.", pic: ["farm", [["👨‍🌾", 380, 330, 140], ["😢", 520, 230, 70], ["🪶", 640, 410, 60]]] },
+    ],
+    morals: ["Being patient is better than wanting everything right now.", "Geese are made of gold.", "Eggs are better than gold."],
+    v: "selfcontrol",
+    also: ["gratitude"],
+    vwhy: "The farmer could not wait. Self-control means choosing to wait, even when you want to go ahead.",
+  },
+  {
+    title: "The Town Mouse and the Country Mouse",
+    cover: ["🐭", "#e8d4b8"],
+    pages: [
+      { t: "A country mouse invited his cousin from the town to dinner. They ate simple seeds and corn.", pic: ["field", [["🐭", 360, 390, 90], ["🐭", 600, 390, 90, true], ["🌽", 480, 410, 60]]] },
+      { t: "The town mouse said, “Come to town! We have cake and cheese!” So off they went.", pic: ["town", [["🐭", 360, 450, 80], ["🐭", 520, 450, 80, true], ["🧀", 660, 450, 60], ["🍰", 760, 445, 60]]] },
+      { t: "But just as they began to eat, a cat jumped out! The country mouse ran home and said, “I'd rather eat simple food in peace.”", pic: ["town", [["🐈", 760, 400, 130], ["🐭", 330, 450, 80], ["💨", 230, 440, 60]]] },
+    ],
+    morals: ["A simple life in peace is better than fancy things with fear.", "Cats love cheese.", "Town food is always the best."],
+    v: "gratitude",
+    vwhy: "The country mouse noticed that the simple, peaceful home he had was a good gift.",
+  },
+];
+
+const FAIR = [
+  { fair: true, text: "One child falls and scrapes a knee. Only that child gets a bandage.", pic: ["🧒", "🩹", "🤕"], reasons: ["The child who is hurt needs it.", "Everyone must always get the same thing.", "Bandages are fun to have."], why: "Fair doesn't always mean the same. Fair means everyone gets what they need." },
+  { fair: false, text: "The teacher has one bandage. She gives it to a child who isn't hurt, because he asked first.", pic: ["🙋", "🩹", "🤕"], reasons: ["The hurt child needed it more.", "He asked first, so it's his.", "Bandages are for everyone."], why: "Asking first isn't the most important thing here. The child who is hurt needs it." },
+  { fair: true, text: "One boy can't see the board well. Only he gets glasses.", pic: ["👦", "👓", "📋"], reasons: ["He needs glasses to see.", "If one gets glasses, all must.", "Glasses look cool."], why: "Fair means getting what you need. The others can already see." },
+  { fair: true, text: "Two children both want the slide. They take turns: one goes, then the other.", pic: ["👧", "🛝", "🧒"], reasons: ["Taking turns gives everyone a go.", "The fastest one should always go first.", "Slides are only for one child."], why: "Taking turns is a fair way to share something only one person can use at a time." },
+  { fair: false, text: "One child takes all the crayons and won't let anyone else use them.", pic: ["🖍️", "😤", "😢"], reasons: ["Everyone should get a chance to use them.", "Whoever grabs first keeps them all.", "Crayons don't matter."], why: "The crayons are for everyone, so one person keeping them all isn't fair." },
+  { fair: true, text: "Two children share a piece of cake. One cuts it, and the other picks a piece first.", pic: ["🧒", "🍰", "👧"], reasons: ["The cutter will try to make the pieces equal.", "The cutter gets the biggest piece.", "Cake should never be shared."], why: "If you cut and the other person picks first, you'll try hard to cut it equally. Clever and fair!" },
+  { fair: false, text: "The tallest child can reach the cookie jar, so he keeps all the cookies.", pic: ["🧍", "🍪", "🧒"], reasons: ["Being tall doesn't mean you get more.", "Tall people need more cookies.", "Short people don't like cookies."], why: "Being able to reach isn't a reason to keep everything. The cookies are for everyone." },
+  { fair: true, text: "A little brother goes to bed earlier than his big sister.", pic: ["👶", "🛏️", "👧"], reasons: ["Younger children need more sleep.", "Little brothers aren't allowed fun.", "Big sisters are always the boss."], why: "Little bodies need more sleep, so different bedtimes can be fair." },
+  { fair: false, text: "In a game, the rules change for only one player, so that player always wins.", pic: ["🎲", "🏆", "😕"], reasons: ["Rules should be the same for every player.", "Winning is all that matters.", "Games don't need rules."], why: "In a game, everyone should play by the same rules. Here, the same IS fair!" },
+  { fair: false, text: "Everyone in class must wear the same size shoes.", pic: ["👟", "👟", "🦶"], reasons: ["Feet are different sizes, so each person needs their own size.", "The same is always fair.", "Shoes don't matter."], why: "Same isn't always fair! Everyone needs shoes that fit their own feet." },
+  { fair: true, text: "In the circle, everyone gets one turn to talk.", pic: ["🧒", "🗣️", "👧"], reasons: ["Everyone gets a chance to be heard.", "The loudest one should talk the most.", "Talking isn't allowed."], why: "Everyone gets a turn, so everyone's ideas are heard." },
+  { fair: true, text: "The teacher helps the child who is stuck, not the one who has already finished.", pic: ["🧑‍🏫", "🤔", "✅"], reasons: ["The stuck child needs help more.", "The teacher must help everyone exactly the same.", "Finished children don't count."], why: "Fair means giving help to the one who needs it." },
+];
+
+const BIGQ = [
+  { q: "What makes someone a good friend?", pic: "🤝", a: [["Being kind", "because a good friend is kind to you, even on bad days."], ["Having fun", "because friends like doing things together."], ["Being honest", "because you can trust a friend who tells the truth."]], tip: "Ask: Can someone be a good friend if you don't have fun together every day?" },
+  { q: "Is it ever OK to break a promise?", pic: "🤞", a: [["Yes", "because if keeping it would hurt someone, it's better not to."], ["No", "because people trust you to do what you said."], ["Sometimes", "because things can change, and then you can say sorry and explain."]], tip: "Ask: What if you promised to play, but your friend got sick?" },
+  { q: "Can animals be brave?", pic: "🐕", a: [["Yes", "because a dog can protect its family even when it's scared."], ["No", "because animals don't think about right and wrong like people do."], ["Maybe", "because we can't really know what animals are thinking."]], tip: "Ask: Is being brave the same as not being scared?" },
+  { q: "What is a mind?", pic: "🧠", a: [["The part that thinks", "because my mind is where my thoughts are."], ["My brain", "because my brain is in my head and helps me think."], ["Thoughts and feelings", "because my mind is all my ideas, wishes, and feelings."]], tip: "Ask: Is your mind the same thing as your brain? Can you see a mind?" },
+  { q: "If you were invisible, would you still be honest?", pic: "👻", a: [["Yes", "because being honest is about who I am, not who is watching."], ["No", "because nobody would ever find out."], ["I hope so", "because it might be hard, but I'd want to do the right thing."]], tip: "Ask: Why do some people do good things even when nobody sees?" },
+  { q: "Is a robot alive?", pic: "🤖", a: [["Yes", "because it can move and talk."], ["No", "because it doesn't eat, grow, or have babies."], ["Maybe one day", "because people keep making robots that can do more."]], tip: "Ask: What do all living things do? Does a robot do those things?" },
+  { q: "What is fair?", pic: "⚖️", a: [["Everyone gets the same", "because then nobody gets more than anyone else."], ["Everyone gets what they need", "because people need different things."], ["Everyone gets a turn", "because then everyone has a chance."]], tip: "Ask: Is it fair if everyone gets the same size shoes?" },
+  { q: "Why do we keep promises?", pic: "🫱", a: [["So people trust us", "because if I keep my word, people can believe me."], ["Because we said so", "because a promise is a special kind of yes."], ["So nobody is let down", "because a broken promise can make someone sad."]], tip: "Ask: How does it feel when someone keeps a promise to you?" },
+  { q: "What makes something beautiful?", pic: "🌸", a: [["How it looks", "because beautiful things are lovely to look at."], ["How it makes you feel", "because beauty makes you feel happy or calm inside."], ["What's inside", "because a kind person is beautiful inside."]], tip: "Ask: Can a sound be beautiful? Can a kind act be beautiful?" },
+  { q: "Is it OK to keep a secret?", pic: "🤫", a: [["Yes", "because a surprise, like a birthday present, is a happy secret."], ["No", "because secrets can make people feel left out."], ["It depends", "because happy surprises are OK, but a secret that makes you feel bad or unsafe should always be told to a grown-up you trust."]], tip: "Talk about the difference: a surprise is happy and gets told soon. A secret that feels bad or unsafe is always told to a trusted grown-up." },
+  { q: "Can you be brave and scared at the same time?", pic: "🦁", a: [["Yes", "because brave means doing the right thing even when you feel scared."], ["No", "because if you're scared, you're not being brave."], ["Maybe", "because sometimes you feel a bit of both."]], tip: "Ask: Tell me about a time you felt scared but did it anyway." },
+  { q: "Is it OK to tell a fib to make someone feel better?", pic: "🎁", a: [["Yes", "because you don't want to hurt their feelings."], ["No", "because the truth matters, and you can say it kindly."], ["Sometimes", "because some tiny things matter less than feelings."]], tip: "Ask: How could you be honest AND kind at the same time?" },
+  { q: "Are you the same person you were as a baby?", pic: "👶", a: [["Yes", "because I have the same name and the same family."], ["No", "because I've changed so much: I can walk, talk, and read now."], ["Partly", "because some things change and some things stay the same."]], tip: "Ask: What is one thing that has changed about you, and one thing that hasn't?" },
+  { q: "Can you be friends with someone very different from you?", pic: "🧑‍🤝‍🧑", a: [["Yes", "because friends can learn new things from each other."], ["No", "because it's easier to play with someone who likes the same things."], ["Yes, if…", "because you both need to be kind, even if you're different."]], tip: "Ask: Is there something you like that a friend doesn't? Are you still friends?" },
+  { q: "Do animals have feelings?", pic: "🐱", a: [["Yes", "because a dog wags its tail when it's happy."], ["No", "because animals can't tell us how they feel."], ["Some do", "because some animals seem to show more feelings than others."]], tip: "Ask: How can you tell how an animal feels if it can't talk?" },
+  { q: "What makes a person good?", pic: "💛", a: [["Doing kind things", "because what you do shows who you are."], ["Trying to be good", "because good people keep trying, even when they make mistakes."], ["Telling the truth", "because good people are honest."]], tip: "Ask: Can a good person make a mistake? What do they do next?" },
+  { q: "What would happen if there were no rules?", pic: "🚦", a: [["It would be fun", "because you could do whatever you want."], ["It would be a mess", "because people might get hurt or be unfair."], ["We'd make new rules", "because people need ways to get along."]], tip: "Ask: What is one rule at home, and why do we have it?" },
+  { q: "Is it OK to feel angry?", pic: "😠", a: [["Yes", "because all feelings are OK; it's what we do next that matters."], ["No", "because angry feelings can make us do unkind things."], ["Yes, but…", "because we can feel angry and still choose calm words."]], tip: "Ask: What helps you when you feel angry?" },
+  { q: "Where do ideas come from?", pic: "💡", a: [["My brain", "because ideas pop up when I think."], ["Other people", "because we get ideas from books, friends, and family."], ["Everywhere", "because I get ideas from things I see, hear, and do."]], tip: "Ask: Where were you when you had your best idea?" },
+  { q: "Can a toy be your friend?", pic: "🧸", a: [["Yes", "because I love it and it makes me feel safe."], ["No", "because a toy can't think or care about me back."], ["A pretend friend", "because pretending is special in a different way."]], tip: "Ask: What can a real friend do that a toy can't?" },
+  { q: "Should you always share everything?", pic: "🍎", a: [["Yes", "because sharing is kind."], ["No", "because some things are just for you, like a toothbrush!"], ["Most things", "because sharing is kind, but some things are for one person."]], tip: "Ask: What is something you should NOT share? Why?" },
+  { q: "Is it wrong to take something if nobody will notice?", pic: "🍬", a: [["Yes", "because it still belongs to someone else."], ["No", "because nobody gets upset if they don't know."], ["Yes, I'd know", "because I would know, and I'd feel uneasy inside."]], tip: "Ask: Does something stop being wrong if nobody sees it?" },
+  { q: "What makes a home a home?", pic: "🏠", a: [["The people", "because home is where my family is."], ["The house", "because a home has walls, a roof, and a bed."], ["The feeling", "because home is where I feel safe and loved."]], tip: "Ask: Could a tent be a home? Could a boat?" },
+  { q: "Is it OK to change your mind?", pic: "🔄", a: [["Yes", "because when we learn something new, our ideas can grow."], ["No", "because then people don't know what you think."], ["With a reason", "because a good reason is a good reason to change."]], tip: "Ask: Tell me about a time you changed your mind. What changed it?" },
+  { q: "Do you have to like everyone?", pic: "🙂", a: [["Yes", "because everyone deserves to be liked."], ["No", "because we can't always choose our feelings."], ["No, but…", "because you can be kind to everyone, even people you don't like much."]], tip: "Ask: What is the difference between liking someone and being kind to them?" },
+  { q: "Is it ever kind to say no?", pic: "✋", a: [["Yes", "because saying no to something unsafe can protect someone."], ["No", "because saying no makes people sad."], ["Sometimes", "because a kind no can be better than an unkind yes."]], tip: "Ask: What if a friend wanted to do something dangerous?" },
+  { q: "Are dreams real?", pic: "🌙", a: [["Yes", "because I really see and feel them while I sleep."], ["No", "because when I wake up, the dream is gone."], ["Kind of", "because the dream is real, but what happens in it isn't."]], tip: "Ask: How do you know you are awake right now?" },
+  { q: "Who should make the rules?", pic: "📋", a: [["Grown-ups", "because they know more about keeping us safe."], ["Everyone together", "because rules work best when everyone helps make them."], ["Whoever the rule is for", "because they know what they need."]], tip: "Ask: Is there a family rule you would like to talk about together?" },
+  { q: "Can you be thankful for something hard?", pic: "🌱", a: [["Yes", "because hard things can help us grow and learn."], ["No", "because hard things don't feel good."], ["Later on", "because sometimes you only see the good part afterwards."]], tip: "Ask: Was there something hard that taught you something good?" },
+  { q: "Is it better to win, or to play fair?", pic: "🏆", a: [["To win", "because winning feels great."], ["To play fair", "because winning by cheating isn't really winning."], ["Both!", "because the best is winning fairly."]], tip: "Ask: How would it feel to win if you had cheated?" },
+];
+
+const CORE = {
+  happy: { face: "😀", color: "#ffd34d", soft: "#fff4cc" },
+  sad: { face: "😢", color: "#8ec0ee", soft: "#e2effb" },
+  mad: { face: "😠", color: "#f08a7a", soft: "#fde3de" },
+  scared: { face: "😨", color: "#c3a8e6", soft: "#efe6fa" },
+};
+const CKEYS = Object.keys(CORE);
+const BASIC = [
+  { f: "sad", text: "Your ice cream falls on the ground.", pic: ["park", [["🍦", 560, 410, 80], ["🧒", 340, 340, 140]]] },
+  { f: "happy", text: "Grandma gives you a big warm hug.", pic: ["home", [["👵", 600, 320, 150], ["🧒", 380, 340, 130], ["💛", 490, 200, 60]]] },
+  { f: "mad", text: "Someone knocks down your tower on purpose.", pic: ["home", [["🧱", 500, 390, 90], ["👦", 720, 330, 140], ["🧒", 280, 330, 140]]] },
+  { f: "scared", text: "A big dog barks very loudly at you.", pic: ["park", [["🐕", 600, 360, 150], ["🗯️", 720, 220, 80], ["🧒", 300, 340, 140]]] },
+  { f: "happy", text: "It's your birthday, and your friends are here!", pic: ["home", [["🎂", 500, 360, 120], ["🎈", 260, 180, 90], ["🎈", 760, 170, 90], ["🧒", 300, 340, 120]]] },
+  { f: "sad", text: "Your balloon floats away into the sky.", pic: ["park", [["🎈", 640, 120, 80], ["🧒", 380, 340, 140]]] },
+  { f: "mad", text: "Someone grabs your toy without asking.", pic: ["park", [["🧸", 600, 360, 80], ["👦", 720, 340, 130], ["🧒", 300, 340, 140]]] },
+  { f: "scared", text: "There is a loud thunderstorm in the night.", pic: ["night", [["⛈️", 500, 140, 140], ["🛏️", 500, 420, 160]]] },
+  { f: "happy", text: "You find a beautiful shell at the beach.", pic: ["pool", [["🐚", 560, 300, 90], ["🧒", 340, 300, 140]]] },
+  { f: "sad", text: "Your best friend has to move far away.", pic: ["town", [["🚚", 640, 380, 140], ["👋", 400, 260, 70], ["🧒", 340, 380, 120]]] },
+];
+const WORDS = [
+  { w: "disappointed", face: "😞", fam: "sad", mean: "when something you hoped for doesn't happen", text: "You were going to the park, but it started to rain.", pic: "🌧️" },
+  { w: "frustrated", face: "😤", fam: "mad", mean: "when you keep trying and it doesn't work yet", text: "You try to build a tower, but it keeps falling down.", pic: "🧱" },
+  { w: "grateful", face: "🥰", fam: "happy", mean: "thankful for something good you were given", text: "Your friend gives you a picture she made just for you.", pic: "🖼️" },
+  { w: "worried", face: "😟", fam: "scared", mean: "thinking something bad might happen", text: "Your cat hasn't come home yet, and it's getting dark.", pic: "🐈" },
+  { w: "proud", face: "😊", fam: "happy", mean: "glad about something you worked hard for", text: "You ride your bike by yourself after lots of tries.", pic: "🚲" },
+  { w: "lonely", face: "😔", fam: "sad", mean: "sad because you feel alone", text: "Everyone is playing, and nobody asks you to join.", pic: "🪁" },
+  { w: "excited", face: "🤩", fam: "happy", mean: "happy and bouncy about something coming soon", text: "Tomorrow is your birthday party!", pic: "🎈" },
+  { w: "jealous", face: "😒", fam: "mad", mean: "wanting what someone else has", text: "Your cousin gets a new bike, and you don't.", pic: "🎁" },
+  { w: "nervous", face: "😬", fam: "scared", mean: "jittery inside before something new or big", text: "You have to sing a song in front of the whole class.", pic: "🎤" },
+  { w: "calm", face: "😌", fam: "happy", mean: "peaceful and still inside", text: "You sit by a quiet lake and listen to the birds.", pic: "🏞️" },
+  { w: "hurt", face: "🥺", fam: "sad", mean: "sad inside when someone is unkind to you", text: "A friend says, “You can't play with us.”", pic: "💔" },
+  { w: "annoyed", face: "😑", fam: "mad", mean: "a little bit mad, again and again", text: "Your little brother keeps poking you while you read.", pic: "📚" },
+  { w: "shy", face: "🫣", fam: "scared", mean: "a bit scared to talk to new people", text: "You meet a group of children, and you don't know anyone.", pic: "👋" },
+];
+const helpFor = { sad: "A hug or talking about it can help.", mad: "We can stop, breathe, and use words.", scared: "Holding a grown-up's hand can help.", happy: "Share it with someone!" };
+
+const weekIndex = () => {
+  const d = new Date();
+  const start = new Date(d.getFullYear(), 0, 1);
+  return Math.floor((d - start) / (7 * 864e5)) % BIGQ.length;
+};
+
+// ---------- units ----------
+const units = {
+  t0() {
+    const my = token;
+    const kid = (v, x, y, glyph = "🧒", size = 140) => {
+      const g = el("g", { transform: `translate(${x} ${y})` }, v);
+      emoji(g, 0, 0, glyph, size);
+      return g;
+    };
+    explain(
+      [
+        { say: "Why do we learn about character? Good character means doing the right thing, even when no one is watching.", draw: everyday([["🤝", "Being a good friend"], ["🗣️", "Telling the truth"], ["🍪", "Sharing fairly"], ["🤔", "Thinking before acting"]]) },
+        {
+          say: "You find a lost coin. No one is looking. You take it to the lost-and-found box anyway.",
+          async draw(v, api) {
+            backdrop(v, "park");
+            const sign = text(v, 560, 80, "No one is looking…", { "font-size": 36, fill: "#5a4130", opacity: 0 });
+            const box = el("g", {}, v);
+            el("rect", { x: 740, y: 300, width: 200, height: 130, rx: 14, fill: "#e0a96d", stroke: "#8a5a2b", "stroke-width": 5 }, box);
+            text(box, 840, 356, "Lost and", { "font-size": 28, fill: "#fff" });
+            text(box, 840, 390, "Found", { "font-size": 28, fill: "#fff" });
+            const coin = el("g", { transform: "translate(470 415)" }, v);
+            emoji(coin, 0, 0, "🪙", 54);
+            const k = kid(v, 200, 340);
+            await api.tween(700, (t) => sign.setAttribute("opacity", t));
+            await api.tween(1400, (t) => k.setAttribute("transform", `translate(${200 + t * 200} 340)`));
+            await api.wait(500);
+            MUSIC.play("xylophone", 84, { gain: 0.35 });
+            await api.tween(1800, (t) => {
+              const x = 400 + t * 260;
+              k.setAttribute("transform", `translate(${x} 340)`);
+              coin.setAttribute("transform", `translate(${x + 60} ${330 - Math.sin(t * Math.PI) * 16})`);
+            });
+            await api.tween(700, (t) => coin.setAttribute("transform", `translate(${720 + t * 120} ${330 - Math.sin(t * Math.PI) * 50 - t * 20})`));
+            coin.setAttribute("opacity", 0);
+            MUSIC.play("xylophone", 88, { gain: 0.35 });
+            const heart = el("g", { opacity: 0 }, v);
+            emoji(heart, 660, 200, "💛", 70);
+            text(heart, 500, 520, "Doing right, even when no one sees", { "font-size": 32, fill: INK });
+            await api.tween(800, (t) => heart.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "This year we learn five virtues: honesty, kindness, courage, self-control, and gratitude.",
+          async draw(v, api) {
+            const w = 176;
+            for (let i = 0; i < 5; i++) {
+              const k = VKEYS[i];
+              const x = 36 + i * (w + 12);
+              const g = el("g", { opacity: 0 }, v);
+              el("rect", { x, y: 90, width: w, height: 360, rx: 26, fill: "#fff", stroke: V[k].color, "stroke-width": 5 }, g);
+              el("circle", { cx: x + w / 2, cy: 190, r: 64, fill: V[k].soft }, g);
+              emoji(g, x + w / 2, 190, V[k].icon, 76);
+              text(g, x + w / 2, 308, V[k].name, { "font-size": k === "selfcontrol" ? 24 : 28, fill: V[k].color });
+              para(g, x + w / 2, 358, V[k].short, { size: 22, max: 12, weight: 700, fill: "#4d3c2e" });
+              await api.tween(500, (t) => {
+                g.setAttribute("opacity", t);
+                g.setAttribute("transform", `translate(0 ${(1 - t) * 30})`);
+              });
+              MUSIC.play("xylophone", [72, 76, 79, 84, 88][i], { gain: 0.35 });
+              await api.wait(450);
+            }
+          },
+        },
+        {
+          say: "Long ago, in Athens in Greece, a man called Socrates walked in the marketplace and asked people big questions, like “What is courage?”",
+          async draw(v, api) {
+            el("rect", { x: 0, y: 0, width: W, height: H, fill: "#fdebc8" }, v);
+            el("rect", { x: 0, y: 400, width: W, height: 160, fill: "#e9d3a6" }, v);
+            // temple on the hill
+            el("ellipse", { cx: 500, cy: 210, rx: 330, ry: 60, fill: "#e8cf9e" }, v);
+            el("path", { d: "M330 110L500 60L670 110Z", fill: "#f4ecdc", stroke: "#b9a27a", "stroke-width": 3 }, v);
+            el("rect", { x: 330, y: 110, width: 340, height: 14, fill: "#f4ecdc", stroke: "#b9a27a", "stroke-width": 3 }, v);
+            for (let i = 0; i < 7; i++) el("rect", { x: 346 + i * 48, y: 124, width: 18, height: 66, fill: "#f8f2e6", stroke: "#b9a27a", "stroke-width": 2 }, v);
+            el("rect", { x: 330, y: 188, width: 340, height: 12, fill: "#f4ecdc", stroke: "#b9a27a", "stroke-width": 3 }, v);
+            // market stalls
+            for (const [x, c] of [[40, "#d4552c"], [820, "#2f6fd6"]]) {
+              el("rect", { x, y: 300, width: 140, height: 100, fill: "#c9a77c" }, v);
+              el("path", { d: `M${x - 10} 300L${x + 150} 300L${x + 130} 260L${x + 10} 260Z`, fill: c }, v);
+              emoji(v, x + 70, 350, x < 500 ? "🫒" : "🍇", 50);
+            }
+            const s = kid(v, 380, 340, "🧔", 150);
+            s.setAttribute("opacity", 0);
+            const p1 = kid(v, 620, 345, "👩", 120);
+            const p2 = kid(v, 740, 350, "👨‍🦱", 115);
+            p1.setAttribute("opacity", 0);
+            p2.setAttribute("opacity", 0);
+            const cap = text(v, 500, 520, "Athens, Greece · about 2,400 years ago", { "font-size": 28, fill: "#5a4130", opacity: 0 });
+            await api.tween(800, (t) => {
+              s.setAttribute("opacity", t);
+              cap.setAttribute("opacity", t);
+            });
+            await api.tween(700, (t) => {
+              p1.setAttribute("opacity", t);
+              p2.setAttribute("opacity", t);
+            });
+            await api.wait(400);
+            const b = bubble(v, 300, 210, "What is courage?", 270);
+            b.setAttribute("opacity", 0);
+            await api.tween(600, (t) => b.setAttribute("opacity", t));
+            MUSIC.play("harp", 67, { gain: 0.35 });
+            for (let i = 0; i < 3; i++) {
+              const q = el("g", {}, v);
+              emoji(q, 0, 0, "❓", 44);
+              await api.tween(900, (t) => {
+                q.setAttribute("transform", `translate(${720 + i * 70} ${300 - t * 90})`);
+                q.setAttribute("opacity", 1 - t * 0.4);
+              });
+            }
+          },
+        },
+        {
+          say: "Big questions often have no single right answer. We think, give a reason, listen, and maybe change our mind.",
+          async draw(v, api) {
+            const steps = [["❓", "Question"], ["🤔", "Think"], ["💬", "Reason"], ["👂", "Listen"], ["🔄", "Change your mind?"]];
+            const xs = [110, 300, 500, 700, 890];
+            const ys = [330, 250, 330, 250, 330];
+            el("path", { d: `M${xs[0]} ${ys[0]}` + xs.slice(1).map((x, i) => `L${x} ${ys[i + 1]}`).join(""), stroke: "#d9cdb5", "stroke-width": 10, "stroke-dasharray": "4 18", "stroke-linecap": "round", fill: "none" }, v);
+            const owl = el("g", { opacity: 0 }, v);
+            emoji(owl, 0, 0, "🦉", 70);
+            for (let i = 0; i < 5; i++) {
+              const g = el("g", { opacity: 0 }, v);
+              el("circle", { cx: xs[i], cy: ys[i], r: 66, fill: "var(--accent-soft)", stroke: "var(--accent)", "stroke-width": 5 }, g);
+              emoji(g, xs[i], ys[i], steps[i][0], 64);
+              para(g, xs[i], ys[i] + 110, steps[i][1], { size: 26, max: 12, fill: "var(--accent-dark)" });
+              await api.tween(500, (t) => g.setAttribute("opacity", t));
+              const from = i ? [xs[i - 1], ys[i - 1]] : [xs[0], ys[0]];
+              owl.setAttribute("opacity", 1);
+              await api.tween(800, (t) => owl.setAttribute("transform", `translate(${from[0] + (xs[i] - from[0]) * t} ${from[1] + (ys[i] - from[1]) * t - 90 - Math.sin(t * Math.PI) * 50})`));
+              MUSIC.play("xylophone", [72, 74, 76, 79, 84][i], { gain: 0.35 });
+              await api.wait(400);
+            }
+            const tag = text(v, 500, 70, "I think…  because…", { "font-size": 40, fill: INK, opacity: 0 });
+            await api.tween(700, (t) => tag.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "Changing your mind because you heard a good reason is a strong and wise thing to do!",
+          async draw(v, api) {
+            backdrop(v, "park");
+            kid(v, 250, 380, "👧", 140);
+            kid(v, 750, 380, "🧒", 140);
+            const b1 = bubble(v, 260, 40, "I think dogs are best, because they play fetch.", 360, 26);
+            const b2 = bubble(v, 740, 40, "I think cats are best, because they're cosy.", 360, 26);
+            b1.setAttribute("opacity", 0);
+            b2.setAttribute("opacity", 0);
+            await api.tween(600, (t) => b1.setAttribute("opacity", t));
+            await api.wait(1800);
+            await api.tween(600, (t) => b2.setAttribute("opacity", t));
+            await api.wait(1800);
+            await api.tween(500, (t) => b1.setAttribute("opacity", 1 - t));
+            const b3 = bubble(v, 260, 40, "Good reason! Now I think both are great.", 360, 26);
+            b3.setAttribute("opacity", 0);
+            await api.tween(600, (t) => b3.setAttribute("opacity", t));
+            MUSIC.play("xylophone", 84, { gain: 0.35 });
+            const star = el("g", { opacity: 0 }, v);
+            emoji(star, 250, 260, "🔄", 60);
+            await api.tween(500, (t) => star.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "Everyone makes mistakes. Then we name it, understand it, repair it, and forgive.",
+          async draw(v, api) {
+            const cards = [["🏷️", "Name it", "“I spilled the paint.”"], ["💭", "Understand", "Her picture got wet. She feels sad."], ["🧽", "Repair", "Say sorry and help clean up."], ["🤗", "Forgive", "“I forgive you.” We play again."]];
+            for (let i = 0; i < 4; i++) {
+              const x = 40 + i * 235;
+              const g = el("g", { opacity: 0 }, v);
+              el("rect", { x, y: 60, width: 215, height: 430, rx: 26, fill: "#fff", stroke: "var(--accent)", "stroke-width": 5 }, g);
+              el("circle", { cx: x + 107, cy: 150, r: 60, fill: "var(--accent-soft)" }, g);
+              emoji(g, x + 107, 150, cards[i][0], 70);
+              text(g, x + 107, 260, cards[i][1], { "font-size": 30, fill: "var(--accent-dark)" });
+              para(g, x + 107, 310, cards[i][2], { size: 23, max: 15, weight: 700, fill: "#4d3c2e" });
+              text(g, x + 107, 470, String(i + 1), { "font-size": 30, fill: "#b8aa95" });
+              await api.tween(600, (t) => {
+                g.setAttribute("opacity", t);
+                g.setAttribute("transform", `translate(0 ${(1 - t) * 30})`);
+              });
+              MUSIC.play("xylophone", [72, 76, 79, 84][i], { gain: 0.35 });
+              await api.wait(1100);
+            }
+          },
+        },
+      ],
+      { alive: () => my === token, onDone: () => shell.go("t1"), title: "Big Questions" }
+    );
+  },
+
+  // Name the virtue
+  t1() {
+    const my = token;
+    let level = shell.progress().t1?.level || "medium";
+    let round = 0;
+    let list = [];
+    const ROUNDS = 8;
+    panel(`${levelRow(level)}<div class="bq-pick" data-choices></div>`);
+    const host = $("[data-choices]");
+    const alive = () => my === token;
+    const ask = () => {
+      if (!alive()) return;
+      if (round >= ROUNDS) {
+        return finish(my, "t1", host, "You thought about 8 stories and named the virtue in each one. You looked closely and gave reasons!", { title: "Virtue spotting", need: "your eyes and ears, and a paper and pencil", steps: ["Today, watch for someone showing a virtue: honesty, kindness, courage, self-control, or gratitude.", "Draw a little picture of what they did.", "At dinner, tell them: “I saw you show kindness when you…”"] }, start);
+      }
+      const q = list[round];
+      status(`Story ${round + 1} of ${ROUNDS}`);
+      fresh();
+      picture(view, q.pic, alive);
+      let opts = level === "hard" ? VKEYS : [q.v, ...shuffle(VKEYS.filter((k) => k !== q.v && !(q.also || []).includes(k))).slice(0, level === "easy" ? 1 : 2)];
+      opts = VKEYS.filter((k) => opts.includes(k));
+      talk(`${q.text} <b>Which virtue is it?</b>`);
+      quiz(my, host, opts.map((k) => ({ label: vLabel(k), v: k })), {
+        right: q.v,
+        also: q.also || [],
+        onAlso: (o) => talk(`Yes, there is ${V[o.v].name.toLowerCase()} in this story too! What else did they choose to do? Try one more.`),
+        hint: "Listen again: what did they choose to do? Was it about the truth, helping, being brave, waiting, or saying thank you?",
+        onDone(first) {
+          round += 1;
+          window.OC?.count("virtues named");
+          fresh();
+          picture(view, q.pic, alive);
+          virtueBadge(view, q.v, 400);
+          talk(`${first ? pick(EFFORT) : "Let's look why."} It's <b>${V[q.v].name}</b>: ${q.why} Can you say why? “I think it's ${V[q.v].name.toLowerCase()} because…”`);
+          setTimeout(() => alive() && nextButton(host, round >= ROUNDS ? "Finish ▶" : "Next story ▶", ask), 600);
+        },
+      });
+    };
+    const start = () => {
+      round = 0;
+      list = shuffle(SCEN).slice(0, ROUNDS);
+      ask();
+    };
+    onLevels("t1", (lv) => {
+      level = lv;
+      start();
+    });
+    start();
+  },
+
+  // What would you do?
+  t2() {
+    const my = token;
+    let round = 0;
+    let list = [];
+    const ROUNDS = 8;
+    panel(`<p class="ap-status" data-status></p><div class="bq-pick bq-col" data-choices></div>`);
+    const host = $("[data-choices]");
+    const alive = () => my === token;
+    const feelCards = (d, o, reveal) => {
+      fresh();
+      backdrop(view, "plain");
+      text(view, 500, 70, "What might happen next?", { "font-size": 40, fill: INK });
+      const n = o.feels.length;
+      o.feels.forEach(([face, who], i) => {
+        const x = 500 + (i - (n - 1) / 2) * 340;
+        el("circle", { cx: x, cy: 250, r: 110, fill: "var(--accent-soft)", stroke: "var(--accent)", "stroke-width": 5 }, view);
+        if (reveal) emoji(view, x, 250, face, 140);
+        else text(view, x, 290, "?", { "font-size": 120, fill: "var(--accent)" });
+        text(view, x, 420, who, { "font-size": 30, fill: INK });
+      });
+      text(view, 500, 500, "How would each person feel?", { "font-size": 28, fill: "#8a7764", "font-weight": 700 });
+    };
+    const ask = () => {
+      if (!alive()) return;
+      if (round >= ROUNDS) {
+        return finish(my, "t2", host, "You thought about 8 tricky choices and how each person would feel. That is deep thinking!", { title: "Act it out", need: "two or three toys or puppets, and a grown-up", steps: ["Pick one story from today, like the last cookie.", "Act it out with the toys. Try the kind choice and another choice.", "Ask: How does each toy feel? What could they do to fix it?"] }, start);
+      }
+      const d = list[round];
+      status(`Story ${round + 1} of ${ROUNDS}`);
+      fresh();
+      picture(view, d.pic, alive);
+      talk(`${d.story} <b>What would you do?</b>`);
+      choices(host, d.options.map((o, i) => ({ label: o.label, v: i })), (c) => {
+        if (!alive()) return;
+        window.OC?.touch();
+        MUSIC.play("woodblock", 79, { gain: 0.4 });
+        think(d, d.options[c.v]);
+      });
+    };
+    const think = (d, o) => {
+      feelCards(d, o, false);
+      talk("Let's think. What might happen next? How would each person feel? Think first, then tap Show me.");
+      host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-show>👀 Show me</button></div>`;
+      host.onclick = (event) => {
+        if (!event.target.closest("[data-show]") || !alive()) return;
+        window.OC?.touch();
+        feelCards(d, o, true);
+        MUSIC.play("harp", 72, { gain: 0.35 });
+        talk(o.next);
+        nextButton(host, "Next ▶", () => wrapUp(d, o));
+      };
+    };
+    const wrapUp = (d, o) => {
+      if (!alive()) return;
+      round += 1;
+      window.OC?.count("choices thought through");
+      fresh();
+      backdrop(view, "plain");
+      const showRepair = d.repair && (d.always || !o.best);
+      const lead = o.best ? "That's a choice that takes good character." : "Thanks for saying what you might really do. Let's think about it together.";
+      if (showRepair) {
+        virtueBadge(view, d.v, 14);
+        const heads = [["🏷️", "Name it"], ["💭", "Understand"], ["🧽", "Repair"], ["🤗", "Forgive"]];
+        d.repair.forEach((line, i) => {
+          const x = 40 + i * 235;
+          const g = el("g", { opacity: 0 }, view);
+          el("rect", { x, y: 168, width: 215, height: 376, rx: 24, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, g);
+          emoji(g, x + 107, 225, heads[i][0], 56);
+          text(g, x + 107, 300, heads[i][1], { "font-size": 28, fill: "var(--accent-dark)" });
+          para(g, x + 107, 345, line, { size: 23, max: 15, weight: 700, fill: "#4d3c2e" });
+          setTimeout(() => alive() && tween(500, (t) => g.setAttribute("opacity", t), alive), 400 + i * 700);
+        });
+        talk(`${lead} ${d.best} <b>To fix a mistake: name it, understand it, repair it, forgive.</b>`, `${lead} ${d.best} To fix a mistake: Name it: ${d.repair[0]} Understand: ${d.repair[1]} Repair: ${d.repair[2]} Forgive: ${d.repair[3]}`);
+      } else {
+        virtueBadge(view, d.v, 30);
+        const good = d.options.filter((x) => x.best);
+        good.forEach((g, i) => {
+          const x = 500 + (i - (good.length - 1) / 2) * 420;
+          el("rect", { x: x - 190, y: 210, width: 380, height: 260, rx: 26, fill: "#fff", stroke: "#22a05a", "stroke-width": 5 }, view);
+          const glyph = g.label.split(" ")[0];
+          emoji(view, x, 300, glyph, 110);
+          para(view, x, 410, g.label.replace(/^\S+\s/, ""), { size: 26, max: 24 });
+        });
+        talk(`${lead} ${d.best}`);
+      }
+      setTimeout(() => alive() && nextButton(host, round >= ROUNDS ? "Finish ▶" : "Next story ▶", ask), 600);
+    };
+    const start = () => {
+      round = 0;
+      list = shuffle(DILEMMAS).slice(0, ROUNDS);
+      ask();
+    };
+    start();
+  },
+
+  // Fables and morals
+  t3() {
+    const my = token;
+    let level = shell.progress().t3?.level || "medium";
+    let readNow = 0;
+    const GOAL = 4;
+    panel(`${levelRow(level)}<div class="bq-pick bq-col" data-choices></div>`);
+    const host = $("[data-choices]");
+    const alive = () => my === token;
+    const readList = () => shell.progress().t3?.read || [];
+    const shelf = () => {
+      if (!alive()) return;
+      fresh();
+      backdrop(view, "plain");
+      const read = readList();
+      el("rect", { x: 30, y: 262, width: 940, height: 14, rx: 6, fill: "#a8743f" }, view);
+      el("rect", { x: 30, y: 532, width: 940, height: 14, rx: 6, fill: "#a8743f" }, view);
+      FABLES.forEach((f, i) => {
+        const x = 40 + (i % 5) * 186;
+        const y = i < 5 ? 14 : 284;
+        const g = el("g", { class: "bq-book", "data-i": i, style: "cursor:pointer" }, view);
+        el("rect", { x, y, width: 172, height: 246, rx: 16, fill: f.cover[1], stroke: "#5a4130", "stroke-width": 3 }, g);
+        el("rect", { x: x + 10, y: y + 8, width: 10, height: 230, rx: 4, fill: "#fff", opacity: 0.5 }, g);
+        emoji(g, x + 90, y + 66, f.cover[0], 74);
+        para(g, x + 90, y + 142, f.title.replace(/^The /, ""), { size: 22, max: 13, fill: INK });
+        if (read.includes(i)) {
+          el("circle", { cx: x + 150, cy: y + 22, r: 20, fill: "#22a05a" }, g);
+          text(g, x + 150, y + 31, "✓", { "font-size": 26, fill: "#fff" });
+        }
+      });
+      view.addEventListener("pointerdown", (event) => {
+        const b = event.target.closest(".bq-book");
+        if (b && alive()) {
+          window.OC?.touch();
+          MUSIC.play("harp", 72, { gain: 0.3 });
+          tell(Number(b.dataset.i), 0);
+        }
+      });
+      status(`Fables read today: ${readNow} of ${GOAL}`);
+      talk(readNow ? "Pick another fable to read." : "These are fables by Aesop, from ancient Greece. Each one has a lesson. <b>Tap a book to read it.</b>");
+      host.innerHTML = "";
+    };
+    const tell = (fi, p) => {
+      if (!alive()) return;
+      const f = FABLES[fi];
+      const page = f.pages[p];
+      fresh();
+      picture(view, page.pic, alive);
+      text(view, 500, 545, `${f.title} · page ${p + 1} of 3`, { "font-size": 22, fill: "#5a4130", opacity: 0.8 });
+      talk(page.t);
+      host.innerHTML = `<div class="ap-buttons"><button type="button" data-shelf>📚 Books</button><button type="button" class="primary" data-go>${p < 2 ? "Next page ▶" : "What's the lesson? ▶"}</button></div>`;
+      host.onclick = (event) => {
+        if (!alive()) return;
+        if (event.target.closest("[data-shelf]")) shelf();
+        else if (event.target.closest("[data-go]")) {
+          window.OC?.touch();
+          MUSIC.play("harp", 67 + p * 2, { gain: 0.3 });
+          if (p < 2) tell(fi, p + 1);
+          else moral(fi);
+        }
+      };
+    };
+    const moral = (fi) => {
+      const f = FABLES[fi];
+      const opts = shuffle(f.morals.slice(0, level === "easy" ? 2 : 3).map((m, i) => ({ label: m, v: i })));
+      fresh();
+      picture(view, f.pages[2].pic, alive);
+      talk(`<b>What is the lesson of this story?</b> Tap the best one.`, `What is the lesson of this story? ${opts.map((o) => o.label).join(" Or: ")}`);
+      host.onclick = null;
+      quiz(my, host, opts, {
+        right: 0,
+        hint: "What happened at the end of the story? Why did it happen?",
+        onDone(first) {
+          window.OC?.count("fables read");
+          const msg = `${first ? pick(EFFORT) : "Let's look why."} The lesson is: <b>${f.morals[0]}</b>`;
+          if (level === "easy") return link(fi, msg);
+          talk(`${msg} <b>Which virtue does this story teach?</b>`);
+          const vopts = [f.v, ...shuffle(VKEYS.filter((k) => k !== f.v && !(f.also || []).includes(k))).slice(0, 2)];
+          setTimeout(() => {
+            if (!alive()) return;
+            quiz(my, host, VKEYS.filter((k) => vopts.includes(k)).map((k) => ({ label: vLabel(k), v: k })), {
+              right: f.v,
+              also: f.also || [],
+              onAlso: (o) => talk(`Yes, there's ${V[o.v].name.toLowerCase()} in it too! Is there another one even bigger?`),
+              hint: "Think about what the story wants you to do. Tell the truth? Be kind? Be brave? Wait? Say thank you?",
+              onDone: (ok) => link(fi, ok ? pick(EFFORT) : "Let's look why."),
+            });
+          }, 900);
+        },
+      });
+    };
+    const link = (fi, lead) => {
+      if (!alive()) return;
+      const f = FABLES[fi];
+      fresh();
+      backdrop(view, "plain");
+      el("rect", { x: 40, y: 40, width: 920, height: 260, rx: 26, fill: "#fff", stroke: "var(--accent)", "stroke-width": 5 }, view);
+      emoji(view, 150, 170, f.cover[0], 120);
+      para(view, 600, 110, f.morals[0], { size: 34, max: 30 });
+      virtueBadge(view, f.v, 330);
+      talk(`${lead} This story is about <b>${V[f.v].name}</b>. ${f.vwhy} Do you agree? Tell a grown-up why.`);
+      const read = readList();
+      if (!read.includes(fi)) shell.mark("t3", { read: [...read, fi] });
+      readNow += 1;
+      setTimeout(() => {
+        if (!alive()) return;
+        if (readNow >= GOAL) nextButton(host, "Finish ▶", () => finish(my, "t3", host, `You read ${GOAL} fables and found the lesson in each one. You listened so well!`, { title: "Tell a fable", need: "a few toys, and someone to listen", steps: ["Choose your favourite fable from today.", "Tell it in your own words, using toys as the animals.", "At the end, ask your listener: “What is the lesson?”"] }, () => ((readNow = 0), shelf())));
+        else nextButton(host, "📚 Pick another book", shelf);
+      }, 600);
+    };
+    onLevels("t3", (lv) => {
+      level = lv;
+      shelf();
+    });
+    shelf();
+  },
+
+  // Fair or not fair?
+  t4() {
+    const my = token;
+    let level = shell.progress().t4?.level || "medium";
+    let round = 0;
+    let list = [];
+    const ROUNDS = 8;
+    panel(`${levelRow(level)}<div class="bq-pick" data-choices></div>`);
+    const host = $("[data-choices]");
+    const alive = () => my === token;
+    let card;
+    const draw = (q) => {
+      fresh();
+      backdrop(view, "plain");
+      const bin = (x, label, color, glyph) => {
+        el("rect", { x, y: 300, width: 230, height: 230, rx: 26, fill: "#fff", stroke: color, "stroke-width": 6, "stroke-dasharray": "14 10" }, view);
+        emoji(view, x + 115, 380, glyph, 70);
+        text(view, x + 115, 490, label, { "font-size": 34, fill: color });
+      };
+      bin(30, "Fair", "#22a05a", "👍");
+      bin(740, "Not fair", "#d4552c", "👎");
+      emoji(view, 500, 470, "⚖️", 90);
+      card = el("g", {}, view);
+      el("rect", { x: 230, y: 30, width: 540, height: 240, rx: 28, fill: "#fff", stroke: "var(--accent)", "stroke-width": 5 }, card);
+      q.pic.forEach((g, i) => emoji(card, 340 + i * 160, 150, g, 110));
+    };
+    const ask = () => {
+      if (!alive()) return;
+      if (round >= ROUNDS) {
+        return finish(my, "t4", host, "You sorted 8 puzzles and gave your reasons. Fair doesn't always mean the same: it means everyone gets what they need!", { title: "One cuts, one chooses", need: "a snack to share (like a cracker or a sandwich), a plate, and a butter knife", steps: ["You cut the snack into two pieces.", "Your partner picks first.", "Talk about it: why does this make you cut so carefully?"], safe: "A grown-up helps with the knife. Use a butter knife only." }, start);
+      }
+      const q = list[round];
+      status(`Puzzle ${round + 1} of ${ROUNDS}`);
+      draw(q);
+      talk(`${q.text} <b>Is it fair?</b>`);
+      quiz(my, host, [{ label: "👍 Fair", v: true }, { label: "👎 Not fair", v: false }], {
+        right: q.fair,
+        hint: "Think: does everyone get what they need? Would you feel OK if you were each person?",
+        onDone(first) {
+          if (level === "easy") return explainIt(q, first ? pick(EFFORT) : "Let's look why.");
+          talk(`${first ? "Yes!" : "Let's see."} It's ${q.fair ? "fair" : "not fair"}. <b>Now give a reason. Why?</b>`);
+          const reasons = q.reasons.slice(0, level === "medium" ? 2 : 3).map((r, i) => ({ label: r, v: i }));
+          setTimeout(() => {
+            if (!alive()) return;
+            host.classList.add("bq-col");
+            quiz(my, host, shuffle(reasons), {
+              right: 0,
+              hint: "Think about what each person needs. Which reason helps everyone?",
+              onDone: (ok) => {
+                host.classList.remove("bq-col");
+                explainIt(q, ok ? "Good reason!" : "Let's look why.");
+              },
+            });
+          }, 900);
+        },
+      });
+    };
+    const explainIt = (q, lead) => {
+      const goal = q.fair ? 30 : 740;
+      tween(900, (t) => card.setAttribute("transform", `translate(${500 + (goal + 115 - 500) * t} ${150 + 230 * t}) scale(${1 - t * 0.6}) translate(-500 -150)`), alive);
+      round += 1;
+      window.OC?.count("fairness puzzles");
+      talk(`${lead} ${q.why}`);
+      setTimeout(() => alive() && nextButton(host, round >= ROUNDS ? "Finish ▶" : "Next ▶", ask), 600);
+    };
+    const start = () => {
+      round = 0;
+      host.classList.remove("bq-col");
+      list = shuffle(FAIR).slice(0, ROUNDS);
+      ask();
+    };
+    onLevels("t4", (lv) => {
+      level = lv;
+      start();
+    });
+    start();
+  },
+
+  // Big Question of the week
+  t5() {
+    const my = token;
+    let idx = weekIndex();
+    let step = 0;
+    let pos = -1;
+    let reason = "";
+    let other = -1;
+    let ending = "";
+    panel(`<div class="bq-nav"><div class="ap-chips" data-deck><button type="button" data-d="prev" aria-label="Previous question">◀</button><button type="button" data-d="week">⭐ This week</button><button type="button" data-d="next" aria-label="Next question">▶</button><button type="button" data-d="tip">👪 Grown-up tip</button></div></div><div class="bq-pick" data-choices></div>`);
+    const host = $("[data-choices]");
+    const alive = () => my === token;
+    const q = () => BIGQ[idx];
+    const draw = () => {
+      fresh();
+      backdrop(view, "plain");
+      el("rect", { x: 40, y: 20, width: 920, height: 270, rx: 30, fill: "#fff", stroke: "var(--accent)", "stroke-width": 5 }, view);
+      el("circle", { cx: 160, cy: 155, r: 92, fill: "var(--accent-soft)" }, view);
+      emoji(view, 160, 155, q().pic, 110);
+      text(view, 600, 64, idx === weekIndex() ? "⭐ Big Question of the week" : `Big Question ${idx + 1} of ${BIGQ.length}`, { "font-size": 24, fill: "var(--accent-dark)" });
+      const lines = wrap(q().q, 24);
+      const y0 = 160 - ((lines.length - 1) * 48) / 2;
+      lines.forEach((l, i) => text(view, 600, y0 + i * 48 + 14, l, { "font-size": 42, fill: INK }));
+      const stones = [["💭", "I think…", pos >= 0 ? q().a[pos][0] : ""], ["💬", "because…", reason ? "✓" : ""], ["👂", "but…", step >= 3 ? "✓" : ""], ["🔄", "so now…", ending]];
+      stones.forEach(([g, label, ans], i) => {
+        const x = 140 + i * 240;
+        const done = step > i;
+        el("circle", { cx: x, cy: 375, r: 52, fill: done ? "var(--accent)" : "#fff", stroke: "var(--accent)", "stroke-width": 5, opacity: step >= i ? 1 : 0.45 }, view);
+        emoji(view, x, 375, g, 54);
+        text(view, x, 465, label, { "font-size": 28, fill: step >= i ? INK : "#b8aa95" });
+        if (ans) text(view, x, 510, ans.length > 18 ? ans.slice(0, 17) + "…" : ans, { "font-size": 24, fill: "var(--accent-dark)" });
+        if (i < 3) el("path", { d: `M${x + 62} 375H${x + 178}`, stroke: "#d9cdb5", "stroke-width": 6, "stroke-dasharray": "4 12", "stroke-linecap": "round" }, view);
+      });
+      if (step < 4) {
+        const owl = el("g", {}, view);
+        emoji(owl, 140 + step * 240 + 52, 318, "🦉", 46);
+      }
+    };
+    const begin = () => {
+      step = 0;
+      pos = -1;
+      reason = "";
+      other = -1;
+      ending = "";
+      draw();
+      $("[data-deck]").hidden = false;
+      const opts = q().a.map((a, i) => ({ label: a[0], v: i })).concat([{ label: "🤷 Not sure yet", v: -1 }]);
+      talk(`<b>${q().q}</b> There's no single right answer. What do you think? Tap: <b>I think…</b>`, `${q().q} There's no single right answer. What do you think? ${q().a.map((a) => a[0]).join(", or ")}, or not sure yet?`);
+      choices(host, opts, (o) => {
+        if (!alive()) return;
+        window.OC?.touch();
+        MUSIC.play("xylophone", 72, { gain: 0.35 });
+        because(o.v);
+      });
+    };
+    const because = (p) => {
+      $("[data-deck]").hidden = true;
+      step = 1;
+      pos = p;
+      draw();
+      const mine = p >= 0 ? [{ label: `“${q().a[p][1]}”`, v: p }] : q().a.map((a, i) => ({ label: `“${a[1]}”`, v: i }));
+      talk(p >= 0 ? `You think: <b>${q().a[p][0]}</b>. Now give a reason. <b>Because…</b> Tap a reason, or say your own out loud.` : "Not sure yet is a fine place to start! Listen to these reasons. Tap the one you like best, or say your own.");
+      host.classList.add("bq-col");
+      choices(host, mine.concat([{ label: "🗣️ My own reason (say it out loud!)", v: "own" }]), (o) => {
+        if (!alive()) return;
+        window.OC?.touch();
+        MUSIC.play("xylophone", 76, { gain: 0.35 });
+        if (o.v === "own") reason = "my own";
+        else {
+          pos = o.v;
+          reason = q().a[o.v][1];
+        }
+        if (pos < 0) pos = 0;
+        but();
+      });
+    };
+    const but = () => {
+      step = 2;
+      other = pos === 0 ? 1 : 0;
+      draw();
+      const o = q().a[other];
+      talk(`${reason === "my own" ? "Giving your own reason is great thinking!" : "That's a reason!"} <b>But someone might say:</b> “I think ${o[0].toLowerCase().replace(/…$/, "")}, ${o[1]}” Is that a good reason too?`);
+      host.classList.remove("bq-col");
+      choices(host, [{ label: "👍 Good point", v: 1 }, { label: "🤔 Hmm, not sure", v: 0 }], () => {
+        if (!alive()) return;
+        window.OC?.touch();
+        MUSIC.play("xylophone", 79, { gain: 0.35 });
+        soNow();
+      });
+    };
+    const soNow = () => {
+      step = 3;
+      draw();
+      talk("Listening to the other side takes real thinking. <b>So now I think…</b>");
+      choices(host, [{ label: `💭 Still: ${q().a[pos][0]}`, v: "same" }, { label: `🔄 I changed my mind`, v: "changed" }, { label: "🤔 Still thinking", v: "thinking" }], (o) => {
+        if (!alive()) return;
+        window.OC?.touch();
+        ending = o.v === "same" ? q().a[pos][0] : o.v === "changed" ? "changed!" : "still thinking";
+        step = 4;
+        draw();
+        $("[data-deck]").hidden = false;
+        MUSIC.chime();
+        confetti();
+        shell.mark("t5", { done: true });
+        window.OC?.count("big questions");
+        const msg = o.v === "same" ? "You listened, and you kept your idea because your reason is strong. That's fine!" : o.v === "changed" ? "Changing your mind for a good reason is brave and wise!" : "Still thinking is great. Big questions can take a long time.";
+        talk(`🎉 ${msg} Now ask a grown-up what <b>they</b> think, and why.`);
+        host.innerHTML = `<div class="ap-buttons"><button type="button" class="primary" data-real>🏠 Try it for real</button><button type="button" data-again>🔁 Think again</button></div>`;
+        host.onclick = (event) => {
+          if (event.target.closest("[data-real]")) realCard({ title: "Dinner-table question", need: "your family around the table", steps: [`Ask everyone: “${q().q}”`, "Each person says: “I think… because…”", "Listen to everyone. Did anyone change their mind?"], safe: "Grown-ups: listen more than you talk. There are no wrong answers." });
+          else if (event.target.closest("[data-again]")) {
+            host.onclick = null;
+            begin();
+          }
+        };
+      });
+    };
+    $("[data-deck]").addEventListener("click", (event) => {
+      const b = event.target.closest("[data-d]");
+      if (!b || !alive()) return;
+      window.OC?.touch();
+      const d = b.dataset.d;
+      if (d === "tip") {
+        talk(`👪 <b>For grown-ups:</b> ${q().tip} Say “What makes you think that?” and “Can you think of a time when…?” Let quiet thinking happen.`);
+        return;
+      }
+      idx = d === "week" ? weekIndex() : (idx + (d === "next" ? 1 : BIGQ.length - 1)) % BIGQ.length;
+      host.onclick = null;
+      host.classList.remove("bq-col");
+      begin();
+    });
+    begin();
+  },
+
+  // Feelings words
+  t6() {
+    const my = token;
+    let level = shell.progress().t6?.level || "easy";
+    let round = 0;
+    let list = [];
+    const ROUNDS = 8;
+    panel(`${levelRow(level)}<div class="bq-pick" data-choices></div>`);
+    const host = $("[data-choices]");
+    const alive = () => my === token;
+    const coreOpts = () => CKEYS.map((k) => ({ label: `${CORE[k].face} ${k}`, v: k }));
+    const faceSpot = (x, y, r = 110) => {
+      el("circle", { cx: x, cy: y, r, fill: "#fff", stroke: "var(--accent)", "stroke-width": 6, "stroke-dasharray": "14 10" }, view);
+      return text(view, x, y + 42, "?", { "font-size": 120, fill: "var(--accent)" });
+    };
+    const wheel = (hi) => {
+      const cx = 620;
+      const cy = 280;
+      const R = 250;
+      const r0 = 108;
+      CKEYS.forEach((k, i) => {
+        const a0 = -Math.PI / 2 + (i * Math.PI) / 2;
+        const a1 = a0 + Math.PI / 2;
+        const P = (r, a) => `${cx + r * Math.cos(a)} ${cy + r * Math.sin(a)}`;
+        const g = el("g", { class: "bq-slice", "data-k": k, style: "cursor:pointer" }, view);
+        el("path", { d: `M${P(r0, a0)}L${P(R, a0)}A${R} ${R} 0 0 1 ${P(R, a1)}L${P(r0, a1)}A${r0} ${r0} 0 0 0 ${P(r0, a0)}Z`, fill: CORE[k].soft, stroke: "#fff", "stroke-width": 6, opacity: hi && hi !== k ? 0.5 : 1 }, g);
+        el("path", { d: `M${cx} ${cy}L${P(r0, a0)}A${r0} ${r0} 0 0 1 ${P(r0, a1)}Z`, fill: CORE[k].color, stroke: "#fff", "stroke-width": 6 }, g);
+        const am = (a0 + a1) / 2;
+        const [ix, iy] = [cx + 62 * Math.cos(am), cy + 62 * Math.sin(am)];
+        emoji(g, ix, iy - 8, CORE[k].face, 40);
+        const [ox, oy] = [cx + 180 * Math.cos(am), cy + 180 * Math.sin(am)];
+        text(g, ox, oy + 10, k, { "font-size": 32, fill: INK });
+      });
+      return { cx, cy };
+    };
+    const ask = () => {
+      if (!alive()) return;
+      if (round >= ROUNDS) {
+        return finish(my, "t6", host, "You matched 8 feelings. All feelings are OK, and now you have more words to name them!", { title: "Feelings faces", need: "a mirror, paper, and crayons", steps: ["Look in the mirror and make a happy, sad, mad, and scared face.", "Now try a frustrated face, and a proud face!", "Draw one feeling you had today and tell a grown-up about it."] }, start);
+      }
+      const q = list[round];
+      status(`Feeling ${round + 1} of ${ROUNDS}`);
+      fresh();
+      if (level === "easy") {
+        picture(view, q.pic, alive);
+        const spot = el("g", {}, view);
+        el("circle", { cx: 880, cy: 110, r: 80, fill: "#fff", stroke: "var(--accent)", "stroke-width": 5, "stroke-dasharray": "12 8" }, spot);
+        const mark = text(spot, 880, 146, "?", { "font-size": 96, fill: "var(--accent)" });
+        talk(`${q.text} <b>How would you feel?</b> Tap a face.`);
+        quiz(my, host, coreOpts(), {
+          right: q.f,
+          hint: "Imagine it is happening to you. What would your face look like?",
+          onDone(first) {
+            mark.remove();
+            emoji(spot, 880, 110, CORE[q.f].face, 110);
+            done(`${first ? pick(EFFORT) : "Let's look why."} Most people would feel <b>${q.f}</b>. It's OK to feel ${q.f}. ${helpFor[q.f]}`);
+          },
+        });
+      } else if (level === "medium") {
+        backdrop(view, "plain");
+        el("circle", { cx: 280, cy: 260, r: 170, fill: "var(--accent-soft)" }, view);
+        emoji(view, 280, 260, q.pic, 190);
+        const mark = faceSpot(720, 260, 150);
+        const others = shuffle(WORDS.filter((x) => x.fam !== q.fam));
+        const picked = [q];
+        for (const o of others) if (picked.length < 3 && !picked.some((p) => p.fam === o.fam)) picked.push(o);
+        talk(`${q.text} <b>Which feeling word fits?</b>`);
+        quiz(my, host, shuffle(picked).map((x) => ({ label: `${x.face} ${x.w}`, v: x.w })), {
+          right: q.w,
+          hint: "How would your body feel? Think about each word. Which one fits this moment best?",
+          onDone(first) {
+            mark.remove();
+            emoji(view, 720, 250, q.face, 170);
+            text(view, 720, 500, q.w, { "font-size": 44, fill: INK });
+            done(`${first ? pick(EFFORT) : "Let's look why."} <b>${q.w[0].toUpperCase() + q.w.slice(1)}</b> means ${q.mean}. All feelings are OK.`);
+          },
+        });
+      } else {
+        backdrop(view, "plain");
+        wheel();
+        const card = el("g", {}, view);
+        el("rect", { x: 20, y: 150, width: 300, height: 240, rx: 26, fill: "#fff", stroke: "var(--accent)", "stroke-width": 5 }, card);
+        emoji(card, 170, 230, q.face, 100);
+        text(card, 170, 350, q.w, { "font-size": q.w.length > 10 ? 32 : 40, fill: INK });
+        talk(`${q.text} You might feel <b>${q.w}</b>. Which family on the wheel does ${q.w} belong to?`);
+        quiz(my, host, coreOpts(), {
+          right: q.fam,
+          hint: `Is ${q.w} a nice feeling or a hard one? Is it more like sad, mad, or scared?`,
+          onDone(first) {
+            fresh();
+            backdrop(view, "plain");
+            wheel(q.fam);
+            const i = CKEYS.indexOf(q.fam);
+            const am = -Math.PI / 2 + (i * Math.PI) / 2 + Math.PI / 4;
+            const g = el("g", {}, view);
+            el("rect", { x: -100, y: -30, width: 200, height: 60, rx: 18, fill: "#fff", stroke: CORE[q.fam].color, "stroke-width": 4 }, g);
+            text(g, 0, 11, q.w, { "font-size": q.w.length > 10 ? 26 : 30, fill: INK });
+            const tx = 620 + 180 * Math.cos(am);
+            const ty = 280 + 180 * Math.sin(am) + (am > 0 ? -50 : 50);
+            tween(900, (t) => g.setAttribute("transform", `translate(${170 + (tx - 170) * t} ${270 + (ty - 270) * t})`), alive);
+            done(`${first ? pick(EFFORT) : "Let's look why."} <b>${q.w[0].toUpperCase() + q.w.slice(1)}</b> is in the <b>${q.fam}</b> family. It means ${q.mean}.`);
+          },
+        });
+        view.addEventListener("pointerdown", (event) => {
+          const s = event.target.closest(".bq-slice");
+          if (!s || !alive()) return;
+          const i = CKEYS.indexOf(s.dataset.k);
+          host.querySelector(`[data-c="${i}"]`)?.click();
+        });
+      }
+    };
+    const done = (msg) => {
+      round += 1;
+      window.OC?.count("feelings named");
+      talk(msg);
+      setTimeout(() => alive() && nextButton(host, round >= ROUNDS ? "Finish ▶" : "Next ▶", ask), 600);
+    };
+    const start = () => {
+      round = 0;
+      list = shuffle(level === "easy" ? BASIC : WORDS).slice(0, ROUNDS);
+      ask();
+    };
+    onLevels("t6", (lv) => {
+      level = lv;
+      start();
+    });
+    start();
+  },
+};
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    t0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on.", "Press Let's play when you are ready."] },
+    t1: { icon: "🏷️", title: "Name the virtue", steps: ["Listen to the little story.", "Tap the virtue it shows.", "Say why: “I think… because…”"] },
+    t6: { icon: "😊", title: "Feelings words", steps: ["Look at the picture and listen.", "Think: how would you feel?", "Tap the feeling that fits."] },
+    t2: { icon: "🤔", title: "What would you do?", steps: ["Listen to the story.", "Tap what you would really do.", "Then think: how would each person feel?"] },
+    t3: { icon: "📖", title: "Fables and morals", steps: ["Tap a book to read a fable.", "Press Next page to hear more.", "Tap the lesson of the story."] },
+    t4: { icon: "⚖️", title: "Fair or not fair?", steps: ["Listen to the puzzle.", "Tap Fair or Not fair.", "Then tap the best reason why."] },
+    t5: { icon: "💭", title: "Big Question", steps: ["Listen to the big question.", "Tap what you think, then a reason.", "Listen to the other side. Did you change your mind?"] },
+  },
+  start: "t0",
+  onStop() {
+    token += 1;
+    $("[data-panel]").onclick = null;
+    document.querySelector(".bq-real")?.remove();
+  },
+  subject: "Character",
+  activity: "Big Questions",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 79, 84, 88]);
+MUSIC.preload("woodblock", [79]);
+MUSIC.preload("harp", [67, 69, 71, 72]);
+</script>
+</body>
+</html>

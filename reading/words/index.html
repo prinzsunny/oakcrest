@@ -1,0 +1,1197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Words & Sentences · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="reading">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Words & Sentences</b><small>Writing · all levels</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, pick, wait, confetti, explain, everyday, emoji, shuffle } = KIT;
+const stage = $("[data-stage]");
+const W = 1000;
+const H = 560;
+let token = 0;
+let view = null;
+
+const UNITS = [
+  { id: "w0", label: "See it", icon: "👀" },
+  { id: "w1", label: "1. Word roots", icon: "🌱" },
+  { id: "w2", label: "2. Complete sentence?", icon: "🧩" },
+  { id: "w3", label: "3. Capitals & full stops", icon: "🔠" },
+  { id: "w4", label: "4. Sentence imitation", icon: "🪞" },
+  { id: "w5", label: "5. Nouns, verbs & adjectives", icon: "🏷️" },
+  { id: "w6", label: "6. Narration helper", icon: "🗣️" },
+];
+
+function fresh() {
+  stage.innerHTML = "";
+  view = makeSvg(`0 0 ${W} ${H}`, stage);
+  return view;
+}
+
+// ---------- shared helpers (same style as Phonics Lab) ----------
+const EMO = /[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{1F3FB}-\u{1F3FF}️‍⃣]/gu;
+const clean = (s) => String(s).replace(EMO, "").replace(/\s+/g, " ").trim();
+function talk(html, speech) {
+  say(html, { voice: false });
+  VOICE.speak(clean(speech ?? html));
+}
+function talkAsync(html, speech) {
+  say(html, { voice: false });
+  return VOICE.speakAsync(clean(speech ?? html));
+}
+const EFFORT = ["You kept trying!", "You looked carefully.", "You took your time. That helps!", "You thought it through.", "Careful reading!", "You kept going!"];
+const GOOD = ["You looked carefully!", "Careful reading!", "Good thinking!", "You checked it!", "You took your time!"];
+const LEARN = "Mistakes are how we learn.";
+const tween = (ms, fn, alive) =>
+  new Promise((resolve) => {
+    if (KIT.still.matches) {
+      fn(1);
+      return resolve(true);
+    }
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!alive()) return resolve(false);
+      const t = Math.min(1, (now - t0) / ms);
+      fn(t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve(true);
+    };
+    requestAnimationFrame(frame);
+  });
+function card(parent, x, y, w, h, { fill = "#fffaf0", stroke = "#d9cdb5", cls = "ws-card" } = {}) {
+  const g = el("g", { class: cls, transform: `translate(${x} ${y})` }, parent);
+  el("rect", { class: "ws-face", x: -w / 2, y: 0, width: w, height: h, rx: 22, fill, stroke, "stroke-width": 4 }, g);
+  g.pos = { x, y };
+  g.w = w;
+  return g;
+}
+const paint = (g, fill, stroke) => {
+  const r = g.querySelector(".ws-face");
+  if (fill) r.setAttribute("fill", fill);
+  if (stroke) r.setAttribute("stroke", stroke);
+};
+const RIGHT = ["#d8f3e0", "#22a05a"];
+const WRONG = ["#fbe3dc", "#d9822b"];
+// Shrink an SVG text until it fits a width.
+function fit(t, maxW) {
+  let size = Number(t.getAttribute("font-size"));
+  try {
+    while (size > 20 && t.getComputedTextLength() > maxW) {
+      size -= 2;
+      t.setAttribute("font-size", size);
+    }
+  } catch {}
+  return t;
+}
+const glowOk = () => [...view.querySelectorAll("[data-ok='1']")].forEach((g) => g.classList.add("ws-glow", "ws-blink"));
+
+function realCard({ icon, title, need, steps, safe = "Do this with a grown-up." }) {
+  fresh();
+  el("rect", { x: 30, y: 18, width: 940, height: 524, rx: 32, fill: "#fffaf0", stroke: "var(--accent)", "stroke-width": 5 }, view);
+  el("circle", { cx: 110, cy: 100, r: 58, fill: "var(--accent-soft)" }, view);
+  emoji(view, 110, 98, icon, 64);
+  text(view, 190, 78, "🏠 Try it for real", { "font-size": 26, fill: "var(--accent-dark)", "text-anchor": "start" });
+  text(view, 190, 124, title, { "font-size": 40, fill: "#2b1d12", "text-anchor": "start" });
+  fit(text(view, 70, 210, `You need: ${need.join(" · ")}`, { "font-size": 27, fill: "#5a4130", "text-anchor": "start", "font-weight": 800 }), 860);
+  steps.forEach((s, i) => {
+    const y = 278 + i * 72;
+    el("circle", { cx: 92, cy: y - 9, r: 22, fill: "var(--accent)" }, view);
+    text(view, 92, y, i + 1, { "font-size": 24, fill: "#fff" });
+    fit(text(view, 130, y, s, { "font-size": 27, fill: "#2b1d12", "text-anchor": "start", "font-weight": 700 }), 810);
+  });
+  text(view, 70, 508, `👋 ${safe}`, { "font-size": 25, fill: "#8a6a4f", "text-anchor": "start", "font-weight": 700 });
+}
+
+const LEVELS = [["easy", "🐣 Easy"], ["medium", "🦊 Medium"], ["hard", "🦁 Hard"]];
+const levelRow = (cur, list) => `<div class="ap-row"><div class="ap-chips" data-levels>${list.map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div><p class="ap-status" data-status></p></div>`;
+const again = (id) => {
+  token += 1;
+  VOICE.hush();
+  units[id]();
+};
+
+function runGame(id, cfg) {
+  const my = token;
+  const levels = cfg.levels || LEVELS;
+  const saved = shell.progress()[id]?.level;
+  const st = { id, my, level: levels.some(([k]) => k === saved) ? saved : levels[0][0], round: 0, first: 0, tries: 0, busy: false };
+  st.alive = () => st.my === token;
+  const bindLevels = () =>
+    $("[data-levels]").addEventListener("click", (event) => {
+      const b = event.target.closest("[data-lv]");
+      if (!b || !st.alive()) return;
+      token += 1;
+      st.my = token;
+      VOICE.hush();
+      st.level = b.dataset.lv;
+      document.querySelectorAll("[data-lv]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      shell.mark(id, { level: st.level });
+      window.OC?.touch();
+      restart();
+    });
+  const build = () => {
+    panel(`${levelRow(st.level, levels)}<div class="ap-buttons" data-acts></div>`);
+    bindLevels();
+  };
+  build();
+  st.acts = (html, handlers = {}) => {
+    const box = $("[data-acts]");
+    box.innerHTML = html;
+    box.onclick = (e) => {
+      const b = e.target.closest("[data-a]");
+      if (b && !b.disabled && st.alive()) {
+        window.OC?.touch();
+        handlers[b.dataset.a]?.(b);
+      }
+    };
+  };
+  st.status = (s) => {
+    const b = $("[data-status]");
+    if (b) b.textContent = s ?? `${cfg.label || "Round"} ${st.round + 1} of ${cfg.rounds}`;
+  };
+  st.take = (list) => {
+    if (!st.deck || st.deckKey !== st.level || !st.deck.length) {
+      st.deck = shuffle(list);
+      st.deckKey = st.level;
+    }
+    return st.deck.pop();
+  };
+  st.next = () => {
+    if (!st.alive()) return;
+    st.tries = 0;
+    st.busy = false;
+    st.status();
+    cfg.ask(st);
+  };
+  st.win = async (html, speech, { chime = true, ms = 900 } = {}) => {
+    st.busy = true;
+    if (chime) MUSIC.chime();
+    if (st.tries === 0) st.first += 1;
+    st.round += 1;
+    window.OC?.count(cfg.count);
+    await talkAsync(html, speech);
+    if (!st.alive()) return;
+    await wait(ms);
+    if (!st.alive()) return;
+    if (st.round >= cfg.rounds) finish();
+    else st.next();
+  };
+  st.oops = () => {
+    MUSIC.oops();
+    st.tries += 1;
+    return st.tries;
+  };
+  const finish = () => {
+    confetti();
+    shell.mark(id, { done: true });
+    realCard(typeof cfg.real === "function" ? cfg.real(st) : cfg.real);
+    st.done = true;
+    panel(`${levelRow(st.level, levels)}<div class="ap-buttons"><button type="button" class="primary" data-again>🔁 Play again</button></div>`);
+    bindLevels();
+    $("[data-status]").textContent = "Finished ✓";
+    $("[data-again]").addEventListener("click", () => again(id));
+    talk(`🎉 You finished ${cfg.rounds} ${cfg.noun}. ${st.first} on the first try. ${pick(EFFORT)} Now try it for real, away from the screen.`);
+  };
+  const restart = () => {
+    if (st.done) {
+      st.done = false;
+      build();
+    }
+    st.round = 0;
+    st.first = 0;
+    st.deck = null;
+    st.next();
+  };
+  restart();
+  return st;
+}
+
+const REAL = {
+  w1: { icon: "🔎", title: "Root hunt", need: ["a book or a box of food", "paper", "a pencil"], steps: ["Look for long words on boxes, signs or in books.", "Find a root you know: tri, bi, tele, port, aqua...", "Tell a grown-up what the word might mean."], safe: "Look things up together with a grown-up." },
+  w2: { icon: "🧩", title: "Sentence or not?", need: ["a grown-up", "your voice"], steps: ["A grown-up says some words, like: the big red bus.", "You say: complete, or not complete?", "If not, add a who or a what happened."], safe: "Play it on a walk or in the car." },
+  w3: { icon: "✏️", title: "Copywork", need: ["paper with lines", "a pencil"], steps: ["Copy one sentence from a good book.", "Start with a capital. End with . ? or !", "Read it back and check every capital."], safe: "Sit with a grown-up and take your time." },
+  w4: { icon: "📝", title: "Copy and imitate", need: ["paper with lines", "a pencil"], steps: ["Copy your favourite sentence from today.", "Write a new one with the same pattern.", "Read both out loud to someone."], safe: "Ask a grown-up to help with spelling." },
+  w5: { icon: "🏷️", title: "Word labels", need: ["sticky notes", "a pencil"], steps: ["A grown-up writes some nouns on sticky notes.", "Stick each note on that thing: door, chair, cup.", "Do an action for verbs: jump, clap, hop!"], safe: "Do this with a grown-up." },
+  w6: { icon: "🖍️", title: "Draw the story", need: ["paper", "crayons"], steps: ["Fold a paper into three boxes.", "Draw the beginning, the middle and the end.", "Tell the story from your pictures at dinner."], safe: "Share it with your family." },
+};
+
+const wsStyle = document.createElement("style");
+wsStyle.textContent = `.ws-card,.ws-word,.ws-hit{cursor:pointer;touch-action:manipulation}
+.ws-glow .ws-face{stroke:#ffb300;stroke-width:9}
+@keyframes ws-blink{50%{opacity:.5}}.ws-blink{animation:ws-blink 1.1s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.ws-blink{animation:none}}
+.ws-rec{background:#c62828 !important;color:#fff !important;box-shadow:0 4px 0 #8e1b1b !important}`;
+document.head.appendChild(wsStyle);
+
+// ---------- data ----------
+// Every root and meaning is a true etymology (Latin or Greek).
+const ROOTS = [
+  { r: "tri", m: "three", pic: "3️⃣", ex: ["tricycle", "triangle"], why: "A tricycle has three wheels. A triangle has three corners." },
+  { r: "bi", m: "two", pic: "2️⃣", ex: ["bicycle", "binoculars"], why: "A bicycle has two wheels. Binoculars are for two eyes." },
+  { r: "uni", m: "one", pic: "1️⃣", ex: ["unicorn", "unicycle"], why: "A unicorn has one horn. A unicycle has one wheel." },
+  { r: "octo", m: "eight", pic: "8️⃣", ex: ["octopus", "octagon"], why: "An octopus has eight arms. An octagon has eight sides." },
+  { r: "cent", m: "hundred", pic: "💯", ex: ["century", "centipede"], why: "A century is one hundred years." },
+  { r: "aqua", m: "water", pic: "💧", ex: ["aquarium"], why: "An aquarium is a tank of water for fish." },
+  { r: "photo", m: "light", pic: "💡", ex: ["photograph"], why: "A camera makes a photograph with light." },
+  { r: "tele", m: "far away", pic: "🏔️", ex: ["telescope", "telephone"], why: "A telescope shows things that are far away." },
+  { r: "micro", m: "very small", pic: "🐜", ex: ["microscope"], why: "A microscope shows very small things." },
+  { r: "scope", m: "look", pic: "👀", ex: ["telescope", "microscope"], why: "A telescope and a microscope are tools for looking." },
+  { r: "dent", m: "tooth", pic: "🦷", ex: ["dentist"], why: "A dentist takes care of your teeth." },
+  { r: "ped", m: "foot", pic: "🦶", ex: ["pedal"], why: "You push a bike's pedals with your feet." },
+  { r: "graph", m: "write", pic: "✍️", ex: ["autograph"], why: "An autograph is your name, written by you." },
+  { r: "port", m: "carry", pic: "📦", ex: ["transport", "portable"], why: "Trucks transport things: they carry them from place to place." },
+  { r: "phone", m: "sound", pic: "🔊", ex: ["telephone", "microphone"], why: "A telephone carries the sound of your voice far away." },
+  { r: "aud", m: "hear", pic: "👂", ex: ["audio", "audience"], why: "Audio is sound that you hear." },
+  { r: "vis", m: "see", pic: "👁️", ex: ["vision", "visible"], why: "Vision is how we see." },
+  { r: "auto", m: "self", pic: "🙋", ex: ["autograph"], why: "An autograph is written by your own self." },
+];
+const BUILDS = [
+  { w: "microscope", parts: ["micro", "scope"], pic: "🔬", m: "A tool to look at very small things" },
+  { w: "telescope", parts: ["tele", "scope"], pic: "🔭", m: "A tool to look at things far away" },
+  { w: "telephone", parts: ["tele", "phone"], pic: "☎️", m: "It carries a sound far away" },
+  { w: "microphone", parts: ["micro", "phone"], pic: "🎤", m: "It picks up small sounds" },
+  { w: "bicycle", parts: ["bi", "cycle"], pic: "🚲", m: "Two wheels" },
+  { w: "tricycle", parts: ["tri", "cycle"], pic: "3️⃣", m: "Three wheels" },
+  { w: "unicycle", parts: ["uni", "cycle"], pic: "1️⃣", m: "One wheel" },
+  { w: "autograph", parts: ["auto", "graph"], pic: "✍️", m: "Your name, written by your own self" },
+  { w: "photograph", parts: ["photo", "graph"], pic: "📷", m: "A picture made with light" },
+];
+const PIECES = ["micro", "tele", "scope", "phone", "bi", "tri", "uni", "cycle", "auto", "photo", "graph"];
+const GUESS = [
+  { w: "tripod", parts: ["tri", "pod"], key: "tri = three · pod = foot", m: "A stand with three feet" },
+  { w: "biped", parts: ["bi", "ped"], key: "bi = two · ped = foot", m: "An animal that walks on two feet" },
+  { w: "centipede", parts: ["centi", "pede"], key: "cent = hundred · ped = foot", m: "A bug whose name means a hundred feet" },
+  { w: "octagon", parts: ["octa", "gon"], key: "octa = eight · gon = corner", m: "A shape with eight corners" },
+  { w: "audience", parts: ["audi", "ence"], key: "aud = hear", m: "The people who listen to a show" },
+  { w: "pedestrian", parts: ["ped", "estrian"], key: "ped = foot", m: "A person walking on foot" },
+  { w: "portable", parts: ["port", "able"], key: "port = carry", m: "Easy to carry" },
+  { w: "aquatic", parts: ["aqua", "tic"], key: "aqua = water", m: "Living in water" },
+  { w: "microbe", parts: ["micro", "be"], key: "micro = small · bio = life", m: "A tiny living thing" },
+  { w: "trio", parts: ["tri", "o"], key: "tri = three", m: "A group of three" },
+  { w: "phonics", parts: ["phon", "ics"], key: "phon = sound", m: "Learning the sounds that letters make" },
+  { w: "visible", parts: ["vis", "ible"], key: "vis = see", m: "Able to be seen" },
+  { w: "unicorn", parts: ["uni", "corn"], key: "uni = one · corn = horn", m: "An animal with one horn" },
+  { w: "dental", parts: ["dent", "al"], key: "dent = tooth", m: "About your teeth" },
+];
+
+const units = {
+  // ---------------- See it ----------------
+  w0() {
+    const my = token;
+    const chip = (v, x, y, s, fill, ink, size = 56) => {
+      const g = el("g", { transform: `translate(${x} ${y})` }, v);
+      const w = Math.max(90, s.length * size * 0.56 + 40);
+      el("rect", { x: -w / 2, y: -size * 0.75, width: w, height: size * 1.5, rx: 20, fill, stroke: ink, "stroke-width": 4 }, g);
+      text(g, 0, size * 0.36, s, { "font-size": size, fill: ink });
+      return g;
+    };
+    explain(
+      [
+        { say: "Why do we learn about words and sentences? Words and sentences let us share our ideas with anyone, near or far.", draw: everyday([["✉️", "Writing a letter"], ["🛒", "A shopping list"], ["📖", "Telling a story"], ["🪧", "Making a sign"]]) },
+        {
+          say: "Words have families. Helper, helpful, helping and helped all grow from one word: help.",
+          async draw(v, api) {
+            const root = chip(v, 500, 300, "help", "#dff4f0", "#0f766e", 70);
+            root.setAttribute("opacity", 0);
+            await api.tween(600, (t) => root.setAttribute("opacity", t));
+            const kids = [["helper", 190, 110], ["helpful", 810, 110], ["helping", 190, 480], ["helped", 810, 480]];
+            for (const [w, x, y] of kids) {
+              const line = el("line", { x1: 500, y1: 300, x2: 500, y2: 300, stroke: "#8fcfc4", "stroke-width": 8, "stroke-linecap": "round" }, v);
+              v.insertBefore(line, v.firstChild);
+              await api.tween(600, (t) => {
+                line.setAttribute("x2", 500 + (x - 500) * t);
+                line.setAttribute("y2", 300 + (y - 300) * t);
+              });
+              const c = chip(v, x, y, w, "#fff", "#2b1d12", 48);
+              const tail = c.querySelector("text");
+              tail.textContent = "";
+              const a = document.createElementNS(KIT.NS, "tspan");
+              a.textContent = "help";
+              a.setAttribute("fill", "#0f766e");
+              const b = document.createElementNS(KIT.NS, "tspan");
+              b.textContent = w.slice(4);
+              b.setAttribute("fill", "#c0392b");
+              tail.append(a, b);
+              MUSIC.play("xylophone", 76 + kids.findIndex((k) => k[0] === w) * 3, { gain: 0.3 });
+              await api.wait(700);
+            }
+          },
+        },
+        {
+          say: "Many English words have old roots from Latin and Greek. Tri means three. A tricycle has three wheels. A triangle has three corners.",
+          async draw(v, api) {
+            chip(v, 500, 70, "tri = three", "#dff4f0", "#0f766e", 54);
+            await api.wait(900);
+            const tri = el("path", { d: "M170 470 L330 190 L490 470 Z", fill: "#ffe9e4", stroke: "#c0392b", "stroke-width": 8, "stroke-linejoin": "round" }, v);
+            const len = tri.getTotalLength();
+            tri.setAttribute("stroke-dasharray", len);
+            await api.tween(1400, (t) => tri.setAttribute("stroke-dashoffset", len * (1 - t)));
+            for (const [x, y] of [[170, 470], [330, 190], [490, 470]]) {
+              el("circle", { cx: x, cy: y, r: 16, fill: "var(--accent)" }, v);
+              MUSIC.play("xylophone", 79, { gain: 0.3 });
+              await api.wait(350);
+            }
+            text(v, 330, 530, "triangle", { "font-size": 40, fill: "#2b1d12" });
+            const wheels = [[620, 440], [760, 440], [690, 340]];
+            for (const [x, y] of wheels) {
+              const g = el("g", { opacity: 0 }, v);
+              el("circle", { cx: x, cy: y, r: 46, fill: "#fff", stroke: "#2b1d12", "stroke-width": 10 }, g);
+              el("circle", { cx: x, cy: y, r: 8, fill: "#2b1d12" }, g);
+              await api.tween(500, (t) => g.setAttribute("opacity", t));
+            }
+            text(v, 690, 530, "tricycle wheels", { "font-size": 40, fill: "#2b1d12" });
+          },
+        },
+        {
+          say: "A sentence is a complete thought. It tells who, and what happened. The dog, ran.",
+          async draw(v, api) {
+            const who = chip(v, 260, 230, "The dog", "#e6effc", "#1f4e8c", 64);
+            const did = chip(v, 760, 230, "ran.", "#fff1dc", "#b45f06", 64);
+            text(v, 260, 130, "who?", { "font-size": 36, fill: "#1f4e8c" });
+            text(v, 760, 130, "what happened?", { "font-size": 36, fill: "#b45f06" });
+            await api.wait(1500);
+            await api.tween(1200, (t) => {
+              who.setAttribute("transform", `translate(${260 + 120 * t} 230)`);
+              did.setAttribute("transform", `translate(${760 - 160 * t} 230)`);
+            });
+            const ok = text(v, 500, 430, "✅ a complete sentence", { "font-size": 44, fill: "#22a05a", opacity: 0 });
+            await api.tween(700, (t) => ok.setAttribute("opacity", t));
+          },
+        },
+        {
+          say: "A sentence starts with a capital letter. It ends with a full stop, a question mark, or an exclamation mark.",
+          async draw(v, api) {
+            const line = text(v, 470, 230, "", { "font-size": 96, fill: "#2b1d12" });
+            const first = document.createElementNS(KIT.NS, "tspan");
+            first.textContent = "t";
+            const rest = document.createElementNS(KIT.NS, "tspan");
+            rest.textContent = "he cat sat";
+            line.append(first, rest);
+            await api.wait(1300);
+            first.textContent = "T";
+            first.setAttribute("fill", "#c0392b");
+            MUSIC.play("harp", 79, { gain: 0.35 });
+            await api.wait(900);
+            let dx = 800;
+            try {
+              const bb = line.getBBox();
+              dx = bb.x + bb.width + 22;
+            } catch {}
+            const dot = text(v, dx, 120, ".", { "font-size": 140, fill: "#c0392b" });
+            await api.tween(900, (t) => dot.setAttribute("y", 120 + 110 * t));
+            MUSIC.play("woodblock", 79, { gain: 0.5 });
+            await api.wait(800);
+            const marks = [[". telling", 190], ["? asking", 480], ["! big feeling", 790]];
+            for (const [s, x] of marks) {
+              const g = chip(v, x, 420, s, "#fffaf0", "#5a4130", 36);
+              g.setAttribute("opacity", 0);
+              await api.tween(500, (t) => g.setAttribute("opacity", t));
+            }
+          },
+        },
+        {
+          say: "Words have jobs. A noun is the name of a person, place, thing, or idea. A verb is an action word. An adjective describes a noun.",
+          async draw(v, api) {
+            const words = [["The", "#fff", "#5a4130", ""], ["big", "#fde7f3", "#a3246b", "adjective"], ["dog", "#e6effc", "#1f4e8c", "noun"], ["runs.", "#fff1dc", "#b45f06", "verb"]];
+            const xs = [190, 370, 570, 790];
+            for (let i = 0; i < words.length; i++) {
+              const [w, fill, ink, job] = words[i];
+              const g = chip(v, xs[i], 220, w, fill, ink, 70);
+              g.setAttribute("opacity", 0);
+              await api.tween(500, (t) => g.setAttribute("opacity", t));
+              if (job) {
+                const j = text(v, xs[i], 360, job, { "font-size": 36, fill: ink, opacity: 0 });
+                await api.tween(500, (t) => j.setAttribute("opacity", t));
+              }
+              await api.wait(500);
+            }
+            emoji(v, 570, 470, "🐕", 90);
+          },
+        },
+      ],
+      { alive: () => my === token, onDone: () => shell.go("w1"), title: "Words and sentences" }
+    );
+  },
+
+  // ---------------- 1. Word roots ----------------
+  w1() {
+    const LV = [["easy", "🐣 Match"], ["medium", "🦊 Build"], ["hard", "🦁 Guess"]];
+    runGame("w1", {
+      rounds: 8,
+      levels: LV,
+      noun: "root puzzles",
+      label: "Puzzle",
+      count: "word roots",
+      real: REAL.w1,
+      ask(st) {
+        const my = st.my;
+        fresh();
+        if (st.level === "easy") {
+          const R = st.take(ROOTS);
+          const top = card(view, 500, 20, 560, 200, { fill: "#dff4f0", stroke: "#0f766e" });
+          text(top, 0, 110, R.r, { "font-size": 100, fill: "#0f766e" });
+          fit(text(top, 0, 172, R.ex.join(" · "), { "font-size": 36, fill: "#2b1d12" }), 520);
+          const NEAR = ["scope vis", "phone aud", "graph auto"];
+          const others = shuffle(ROOTS.filter((x) => x !== R && !NEAR.some((p) => p.split(" ").includes(x.r) && p.split(" ").includes(R.r)))).slice(0, 2);
+          shuffle([R, ...others]).forEach((o, i) => {
+            const g = card(view, 200 + i * 300, 280, 270, 240);
+            emoji(g, 0, 95, o.pic, 100);
+            fit(text(g, 0, 205, o.m, { "font-size": 40, fill: "#2b1d12" }), 250);
+            g.dataset.ok = o === R ? "1" : "";
+            g.addEventListener("pointerdown", () => {
+              if (my !== token || st.busy) return;
+              window.OC?.touch();
+              if (o === R) {
+                paint(g, ...RIGHT);
+                return st.win(`${pick(GOOD)} <b>${R.r}</b> means <b>${R.m}</b>. ${R.why}`, `${R.r} means ${R.m}. ${R.why}`);
+              }
+              paint(g, ...WRONG);
+              const tries = st.oops();
+              if (tries === 1) talk(`${LEARN} Look at the words that use <b>${R.r}</b>. What is the same about them?`, `${LEARN} Look at the words that use ${R.r}. What is the same about them?`);
+              else {
+                glowOk();
+                talk(`${R.why} So <b>${R.r}</b> means <b>${R.m}</b>. Tap it.`, `${R.why} So ${R.r} means ${R.m}. Tap it.`);
+              }
+            });
+          });
+          st.acts(`<button type="button" data-a="hear">🔊 Hear the words</button>`, { hear: () => VOICE.speak(`${R.r}. ${R.ex.join(", ")}.`) });
+          talk(`What does the root <b>${R.r}</b> mean? Tap the picture.`, `What does the root ${R.r} mean? Tap the picture.`);
+        } else if (st.level === "medium") {
+          const B = st.take(BUILDS);
+          emoji(view, 110, 110, B.pic, 110);
+          fit(text(view, 560, 90, B.m, { "font-size": 44, fill: "#2b1d12" }), 760);
+          const slots = [0, 1].map((i) => {
+            const g = card(view, 410 + i * 300, 140, 270, 110, { fill: "#fbf6ec", stroke: "#c9b8a1" });
+            g.label = text(g, 0, 75, "?", { "font-size": 56, fill: "#c9b8a1" });
+            return g;
+          });
+          const pieces = shuffle([...B.parts, ...shuffle(PIECES.filter((p) => !B.parts.includes(p))).slice(0, 4)]);
+          const picked = [];
+          const tiles = pieces.map((p, i) => {
+            const g = card(view, 175 + (i % 3) * 325, 300 + Math.floor(i / 3) * 125, 290, 105, { fill: "#dff4f0", stroke: "#0f766e" });
+            text(g, 0, 72, p, { "font-size": 54, fill: "#0f766e" });
+            g.dataset.ok = B.parts.includes(p) ? "1" : "";
+            g.addEventListener("pointerdown", () => tap(p, g));
+            return g;
+          });
+          const reset = () => {
+            picked.length = 0;
+            slots.forEach((s) => {
+              s.label.textContent = "?";
+              s.label.setAttribute("fill", "#c9b8a1");
+            });
+            tiles.forEach((t) => t.setAttribute("opacity", 1));
+          };
+          const tap = async (p, g) => {
+            if (my !== token || st.busy || picked.length >= 2 || g.getAttribute("opacity") === "0.35") return;
+            window.OC?.touch();
+            MUSIC.play("woodblock", 79, { gain: 0.3 });
+            picked.push(p);
+            g.setAttribute("opacity", 0.35);
+            const s = slots[picked.length - 1];
+            s.label.textContent = p;
+            s.label.setAttribute("fill", "#0f766e");
+            if (picked.length < 2) return;
+            if (picked.join("") === B.w) {
+              slots.forEach((x) => paint(x, ...RIGHT));
+              return st.win(`${pick(GOOD)} ${B.parts.join(" + ")} = <b>${B.w}</b>.`, `${B.parts.join(", and ")}, make ${B.w}.`);
+            }
+            const tries = st.oops();
+            st.busy = true;
+            await wait(900);
+            if (my !== token) return;
+            st.busy = false;
+            reset();
+            if (tries === 1) talk(`${LEARN} What does each piece mean? Which two pieces together mean: ${B.m.toLowerCase()}?`);
+            else {
+              glowOk();
+              const meanOf = (r) => ROOTS.find((x) => x.r === r)?.m || (r === "cycle" ? "circle, wheel" : r);
+              talk(`<b>${B.parts[0]}</b> means ${meanOf(B.parts[0])}, <b>${B.parts[1]}</b> means ${meanOf(B.parts[1])}. Tap them in that order.`, `${B.parts[0]} means ${meanOf(B.parts[0])}. ${B.parts[1]} means ${meanOf(B.parts[1])}. Tap them in that order.`);
+            }
+          };
+          st.acts(`<button type="button" data-a="clear">↩️ Start again</button>`, { clear: () => !st.busy && reset() });
+          talk("Build a word that means this. Tap two root pieces, in order.");
+        } else {
+          const G = st.take(GUESS);
+          const t = text(view, 500, 100, "", { "font-size": 88, fill: "#2b1d12" });
+          G.parts.forEach((p, i) => {
+            const s = document.createElementNS(KIT.NS, "tspan");
+            s.textContent = p;
+            s.setAttribute("fill", i === 0 ? "#0f766e" : "#c0392b");
+            t.appendChild(s);
+          });
+          const keyT = text(view, 500, 160, "💡 Think: what does each part mean?", { "font-size": 34, fill: "#8a6a4f" });
+          const others = shuffle(GUESS.filter((x) => x !== G)).slice(0, 2);
+          shuffle([G, ...others]).forEach((o, i) => {
+            const g = card(view, 500, 205 + i * 115, 900, 100);
+            fit(text(g, 0, 64, o.m, { "font-size": 40, fill: "#2b1d12" }), 860);
+            g.dataset.ok = o === G ? "1" : "";
+            g.addEventListener("pointerdown", () => {
+              if (my !== token || st.busy) return;
+              window.OC?.touch();
+              if (o === G) {
+                paint(g, ...RIGHT);
+                return st.win(`${pick(GOOD)} <b>${G.w}</b>: ${G.m.toLowerCase()}. The roots told you!`, `${G.w}. ${G.m}. You used the roots.`);
+              }
+              paint(g, ...WRONG);
+              const tries = st.oops();
+              keyT.textContent = G.key;
+              keyT.setAttribute("fill", "#5a4130");
+              if (tries === 1) talk(`${LEARN} Here are the roots: <b>${G.key}</b>. Which meaning uses them?`, `${LEARN} Here are the roots. ${G.key.replace(/=/g, "means").replace(/·/g, ",")}. Which meaning uses them?`);
+              else {
+                glowOk();
+                talk(`<b>${G.key}</b>, so a ${G.w} is: ${G.m.toLowerCase()}. Tap it.`, `${G.key.replace(/=/g, "means").replace(/·/g, ",")}. So, ${G.m}. Tap it.`);
+              }
+            });
+          });
+          st.acts(`<button type="button" data-a="hear">🔊 Say the word</button>`, { hear: () => VOICE.speak(G.w) });
+          talk("A new word! Use its roots to guess what it means.");
+        }
+      },
+    });
+  },
+
+  // ---------------- 2. Complete sentence? ----------------
+  w2() {
+    // [text, who part ("" if missing), what-happened part ("" if missing), missing: "", "who", "what", "both"]
+    const L = {
+      easy: [
+        ["The dog ran.", "The dog", "ran."], ["A cat naps.", "A cat", "naps."], ["Birds sing.", "Birds", "sing."], ["The baby smiled.", "The baby", "smiled."], ["We swim.", "We", "swim."], ["The sun came up.", "The sun", "came up."],
+        ["The big red.", "", "", "what"], ["A little cat.", "", "", "what"], ["Ran fast.", "", "", "who"], ["The tall tree.", "", "", "what"], ["Jumped up high.", "", "", "who"], ["My best friend.", "", "", "what"],
+      ],
+      medium: [
+        ["The bus stopped.", "The bus", "stopped."], ["Ducks swim in the pond.", "Ducks", "swim in the pond."], ["The wind blew hard.", "The wind", "blew hard."], ["My sister reads to me.", "My sister", "reads to me."], ["The cook made soup.", "The cook", "made soup."],
+        ["The little brown dog.", "", "", "what"], ["Ran to the park.", "", "", "who"], ["Ate all the grapes.", "", "", "who"], ["The fluffy white cloud.", "", "", "what"], ["Sleeps all day.", "", "", "who"], ["Under the bed.", "", "", "both"],
+      ],
+      hard: [
+        ["The cat slept under the bed.", "The cat", "slept under the bed."], ["After lunch, we played chess.", "we", "played chess."], ["The old ship sailed far away.", "The old ship", "sailed far away."], ["A bee buzzed past my ear.", "A bee", "buzzed past my ear."], ["Snow fell all night.", "Snow", "fell all night."],
+        ["The girl with the red kite.", "", "", "what"], ["Ran up the hill and down again.", "", "", "who"], ["In the morning.", "", "", "both"], ["Because it was raining.", "", "", "what"], ["Across the field and over the gate.", "", "", "both"], ["Swam to the other side.", "", "", "who"],
+      ],
+    };
+    const WHO = "👤 Who";
+    const WHAT = "⚡ What happened";
+    runGame("w2", {
+      rounds: 8,
+      noun: "sentences",
+      label: "Sentence",
+      count: "sentences sorted",
+      real: REAL.w2,
+      ask(st) {
+        const my = st.my;
+        const [s, who, did, missing = ""] = st.take(L[st.level]);
+        const whole = !missing;
+        fresh();
+        el("rect", { x: 30, y: 110, width: 940, height: 150, rx: 28, fill: "#fffaf0", stroke: "#d9cdb5", "stroke-width": 4 }, view);
+        const line = fit(text(view, 500, 208, s, { "font-size": 64, fill: "#2b1d12" }), 900);
+        text(view, 500, 70, "Who? + What happened?", { "font-size": 34, fill: "#5a4130" });
+        const showParts = () => {
+          line.textContent = "";
+          const pre = s.slice(0, s.indexOf(who));
+          const parts = [[pre, "#2b1d12"], [who, "#1f4e8c"], [" " + did, "#b45f06"]];
+          parts.forEach(([p, c]) => {
+            if (!p.trim()) return;
+            const t = document.createElementNS(KIT.NS, "tspan");
+            t.textContent = p;
+            t.setAttribute("fill", c);
+            line.appendChild(t);
+          });
+          text(view, 330, 330, "blue = who", { "font-size": 34, fill: "#1f4e8c" });
+          text(view, 680, 330, "orange = what happened", { "font-size": 34, fill: "#b45f06" });
+        };
+        let step = 1;
+        const answer = async (v) => {
+          if (my !== token || st.busy) return;
+          if (step === 1) {
+            const right = v === (whole ? "yes" : "no");
+            if (right && whole) {
+              showParts();
+              return st.win(`${pick(GOOD)} It has a <b>who</b> and a <b>what happened</b>. It is complete.`, `${pick(GOOD)} It has a who, and a what happened. It is complete.`);
+            }
+            if (right && !whole) {
+              if (st.level === "easy") return st.win(`${pick(GOOD)} It is not complete. It is missing ${missing === "who" ? "a <b>who</b>" : "<b>what happened</b>"}.`, `${pick(GOOD)} It is not complete. It is missing ${missing === "who" ? "a who" : "what happened"}.`);
+              step = 2;
+              MUSIC.play("xylophone", 84, { gain: 0.3 });
+              st.acts(`<button type="button" data-a="who">${WHO}</button><button type="button" data-a="what">${WHAT}</button><button type="button" data-a="both">Both</button>`, { who: () => answer("who"), what: () => answer("what"), both: () => answer("both") });
+              return talk("Yes, not complete. What is missing?");
+            }
+            const tries = st.oops();
+            if (tries === 1) talk(`${LEARN} Ask: who is it about? And what happened? Can you find both?`);
+            else {
+              if (whole) showParts();
+              await talkAsync(whole ? "It has a who and a what happened, so it is complete." : "It leaves us waiting. Something is missing, so it is not complete.");
+              if (my !== token) return;
+              st.win(whole ? "Complete! 👍" : "Not complete yet.", "", { chime: false, ms: 600 });
+            }
+          } else {
+            const why = { who: "We do not know who did it.", what: "We do not know what happened.", both: "There is no who, and nothing happened." }[missing];
+            if (v === missing) return st.win(`${pick(GOOD)} ${why}`, `${pick(GOOD)} ${why}`);
+            const tries = st.oops();
+            if (tries === 1) talk(`${LEARN} Read it again. Is there a person, animal or thing? Is there something they did?`);
+            else {
+              await talkAsync(`${why} So it is missing ${missing === "both" ? "both" : missing === "who" ? "a who" : "what happened"}.`);
+              if (my !== token) return;
+              st.win("Now you know what to add.", "", { chime: false, ms: 600 });
+            }
+          }
+        };
+        st.acts(`<button type="button" class="primary" data-a="yes">✅ Complete</button><button type="button" data-a="no">🧩 Not complete</button>`, { yes: () => answer("yes"), no: () => answer("no") });
+        talk("Read it. Is it a complete sentence, with a who and a what happened?");
+      },
+    });
+  },
+
+  // ---------------- 3. Capitals & full stops ----------------
+  w3() {
+    // [lower-case words, indexes that need a capital, end mark]
+    const L = {
+      easy: [["the cat sat on the mat", [0], "."], ["we like to swim", [0], "."], ["my dog can run fast", [0], "."], ["the sun is hot", [0], "."], ["a big bus went by", [0], "."], ["the frog sat on a log", [0], "."], ["ducks swim in the pond", [0], "."], ["the cake is pink", [0], "."]],
+      medium: [["on monday i go to the park", [0, 1, 2], "."], ["my friend and i like cake", [0, 4], "."], ["we went to london in june", [0, 3, 5], "."], ["in april it rained a lot", [0, 1], "."], ["on friday we read a book", [0, 1], "."], ["i can see the moon", [0], "."], ["my birthday is in may", [0, 4], "."], ["my cat was born in july", [0, 5], "."]],
+      hard: [["where is my hat", [0], "?"], ["can you help me", [0], "?"], ["what a big dog", [0], "!"], ["watch out", [0], "!"], ["do you like apples", [0], "?"], ["did you go to spain in may", [0, 4, 6], "?"], ["is it hot in egypt", [0, 4], "?"], ["hooray, we won", [0], "!"]],
+    };
+    runGame("w3", {
+      rounds: 8,
+      noun: "sentences",
+      label: "Sentence",
+      count: "sentences fixed",
+      real: REAL.w3,
+      ask(st) {
+        const my = st.my;
+        const [s, caps, end] = st.take(L[st.level]);
+        const words = s.split(" ");
+        const up = new Set();
+        let mark = "";
+        fresh();
+        const size = words.length > 6 ? 56 : words.length > 4 ? 64 : 76;
+        const groups = [];
+        let x = 60;
+        let y = 150;
+        const endW = 70;
+        words.forEach((w, i) => {
+          const g = el("g", { class: "ws-word" }, view);
+          const t = text(g, 0, 0, w, { "font-size": size, fill: "#2b1d12", "text-anchor": "start" });
+          const wd = t.getComputedTextLength ? t.getComputedTextLength() || w.length * size * 0.55 : w.length * size * 0.55;
+          if (x + wd > 940 - (i === words.length - 1 ? endW : 0)) {
+            x = 60;
+            y += 120;
+          }
+          el("rect", { class: "ws-face", x: -10, y: -size * 0.95, width: wd + 20, height: size * 1.35, rx: 14, fill: "#fffaf0", stroke: "#e2d6c4", "stroke-width": 3 }, g);
+          g.appendChild(t);
+          g.setAttribute("transform", `translate(${x} ${y})`);
+          g.t = t;
+          g.addEventListener("pointerdown", () => toggle(i));
+          groups.push(g);
+          x += wd + 34;
+        });
+        const endBox = el("g", { class: "ws-hit", transform: `translate(${x - 14} ${y})` }, view);
+        el("rect", { x: 0, y: -size * 0.95, width: 56, height: size * 1.35, rx: 14, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4, "stroke-dasharray": "10 8" }, endBox);
+        const endT = text(endBox, 28, 0, "", { "font-size": size, fill: "#c0392b" });
+        const toggle = (i) => {
+          if (my !== token || st.busy) return;
+          window.OC?.touch();
+          if (up.has(i)) up.delete(i);
+          else up.add(i);
+          const w = words[i];
+          groups[i].t.textContent = up.has(i) ? w[0].toUpperCase() + w.slice(1) : w;
+          groups[i].t.setAttribute("fill", up.has(i) ? "#c0392b" : "#2b1d12");
+          MUSIC.play("woodblock", up.has(i) ? 84 : 77, { gain: 0.3 });
+        };
+        const marks = [".", "?", "!"];
+        marks.forEach((m, i) => {
+          const g = el("g", { class: "ws-hit", transform: `translate(${330 + i * 170} 470)` }, view);
+          el("circle", { class: "ws-face", r: 58, fill: "#fffaf0", stroke: "#5a4130", "stroke-width": 4 }, g);
+          text(g, 0, 30, m, { "font-size": 84, fill: "#2b1d12" });
+          g.addEventListener("pointerdown", () => {
+            if (my !== token || st.busy) return;
+            window.OC?.touch();
+            mark = m;
+            endT.textContent = m;
+            MUSIC.play("woodblock", 79, { gain: 0.3 });
+          });
+        });
+        text(view, 160, 478, "Ends with:", { "font-size": 30, fill: "#5a4130" });
+        const check = async () => {
+          if (my !== token || st.busy) return;
+          const missingCap = caps.filter((i) => !up.has(i));
+          const extraCap = [...up].filter((i) => !caps.includes(i));
+          const okEnd = mark === end;
+          if (!missingCap.length && !extraCap.length && okEnd) {
+            groups.forEach((g) => paint(g, ...RIGHT));
+            const full = words.map((w, i) => (caps.includes(i) ? w[0].toUpperCase() + w.slice(1) : w)).join(" ") + end;
+            const why = st.level === "medium" ? " Names of days, months and places, and the word I, always get capitals." : end === "?" ? " It asks something, so it ends with a question mark." : end === "!" ? " It shows a big feeling, so it ends with an exclamation mark." : "";
+            return st.win(`${pick(GOOD)} <b>${full}</b>${why}`, `${full}${why}`);
+          }
+          const tries = st.oops();
+          if (tries === 1) {
+            const hints = [];
+            if (missingCap.length) hints.push(st.level === "medium" ? "Which words always need a capital? Think of the first word, I, and names." : "How does a sentence start?");
+            if (extraCap.length) hints.push("Some words have a capital they do not need.");
+            if (!okEnd) hints.push(mark ? "Is it telling, asking, or a big feeling?" : "How does a sentence end?");
+            talk(`${LEARN} ${hints.join(" ")}`);
+          } else {
+            st.busy = true;
+            words.forEach((w, i) => {
+              const need = caps.includes(i);
+              groups[i].t.textContent = need ? w[0].toUpperCase() + w.slice(1) : w;
+              groups[i].t.setAttribute("fill", need ? "#c0392b" : "#2b1d12");
+              if (need) groups[i].classList.add("ws-glow");
+            });
+            endT.textContent = end;
+            const why = st.level === "medium" ? "The first word, the word I, and names of days, months and places get capitals." : end === "?" ? "It starts with a capital. It asks, so it ends with a question mark." : end === "!" ? "It starts with a capital. It is a big feeling, so it ends with an exclamation mark." : "It starts with a capital letter and ends with a full stop.";
+            st.win(`Here it is fixed. ${why}`, `Here it is fixed. ${why}`, { chime: false, ms: 1500 });
+          }
+        };
+        st.acts(`<button type="button" class="primary" data-a="check">✓ Check</button><button type="button" data-a="hear">🔊 Read it</button>`, { check, hear: () => VOICE.speak(s) });
+        talk(st.level === "easy" ? "Tap a word to give it a capital. Tap the mark for the end. Then Check." : st.level === "medium" ? "Fix the capitals. Watch for I, days, months and places! Add the end mark, then Check." : "Fix the capital. Is it asking, or a big feeling? Pick the end mark, then Check.");
+      },
+    });
+  },
+
+  // ---------------- 4. Sentence imitation ----------------
+  w4() {
+    const ROLE = { who: ["who", "#e6effc", "#1f4e8c"], did: ["what happened", "#fff1dc", "#b45f06"], where: ["where", "#e3f4e7", "#2e7d46"], when: ["when", "#f3e8fd", "#6a3fa0"], how: ["describing", "#fde7f3", "#a3246b"] };
+    const POOL = {
+      who: ["The big dog", "A tiny bird", "The happy frog", "An old owl", "The brave knight", "A yellow duck", "The little mouse", "A busy bee", "The sleepy cat", "The baby goat"],
+      didEnd: ["barked.", "sang.", "hopped.", "hooted.", "waved.", "quacked.", "yawned.", "giggled."],
+      did: ["ran", "hopped", "flew", "crept", "raced", "swam", "danced", "rolled"],
+      where: ["into the pond.", "up the tree.", "across the field.", "under the bridge.", "over the wall.", "behind the shed.", "along the path.", "through the gate."],
+      when: ["At night,", "After lunch,", "In the spring,", "Before bed,", "On a rainy day,", "In the morning,"],
+      how: ["Wet and cold,", "Tall and proud,", "Slow and steady,", "Quick and quiet,", "Small but brave,", "Happy and warm,"],
+    };
+    const MODELS = {
+      easy: [[["The small cat", "who"], ["slept.", "didEnd"]], [["A red kite", "who"], ["flew.", "didEnd"]], [["The baby", "who"], ["laughed.", "didEnd"]]],
+      medium: [[["The little mouse", "who"], ["ran", "did"], ["under the gate.", "where"]], [["A busy bee", "who"], ["buzzed", "did"], ["over the flowers.", "where"]], [["The old horse", "who"], ["trotted", "did"], ["down the lane.", "where"]]],
+      hard: [
+        [["In the morning,", "when"], ["the sleepy cat", "who"], ["stretched", "did"], ["on the warm rug.", "where"]],
+        [["Wet and cold,", "how"], ["the little puppy", "who"], ["shivered", "did"], ["by the door.", "where"]],
+        [["At sunset,", "when"], ["the tired farmer", "who"], ["walked", "did"], ["across the hill.", "where"]],
+        [["Tall and proud,", "how"], ["the oak tree", "who"], ["stood", "did"], ["on the hill.", "where"]],
+      ],
+    };
+    const roleOf = (k) => (k === "didEnd" ? "did" : k);
+    const ASKQ = { who: (x) => `Is ${x} a who?`, did: (x) => `Does ${x} tell what happened?`, where: (x) => `Does ${x} tell where?`, when: (x) => `Does ${x} tell when?`, how: (x) => `Does ${x} describe?` };
+    const lower = (s) => s[0].toLowerCase() + s.slice(1);
+    runGame("w4", {
+      rounds: 6,
+      noun: "sentences",
+      label: "Sentence",
+      count: "sentences imitated",
+      real: REAL.w4,
+      ask(st) {
+        const my = st.my;
+        const model = pick(MODELS[st.level]);
+        fresh();
+        // Lay chunks out as coloured boxes that wrap across the width.
+        const flow = (chunks, y0, size, dashed) => {
+          let x = 40;
+          let y = y0;
+          return chunks.map(([s, k], i) => {
+            const [, fill, ink] = ROLE[roleOf(k)];
+            const g = el("g", {}, view);
+            const t = text(g, 0, 0, s || "?", { "font-size": size, fill: s ? ink : "#c9b8a1", "text-anchor": "start" });
+            const wd = Math.max(s ? t.getComputedTextLength() || s.length * size * 0.5 : 120, 120);
+            if (x + wd + 24 > 960) {
+              x = 40;
+              y += size * (dashed ? 1.7 : 2.25);
+            }
+            el("rect", { class: "ws-face", x: -12, y: -size * 0.95, width: wd + 24, height: size * 1.4, rx: 14, fill: dashed && !s ? "#fff" : fill, stroke: ink, "stroke-width": 3, "stroke-dasharray": dashed && !s ? "10 7" : null }, g);
+            g.appendChild(t);
+            g.setAttribute("transform", `translate(${x + 12} ${y})`);
+            if (!dashed) text(view, x + 12 + wd / 2, y - size * 1.05, ROLE[roleOf(k)][0], { "font-size": 22, fill: ink });
+            x += wd + 40;
+            return g;
+          });
+        };
+        text(view, 40, 30, "Model:", { "font-size": 26, fill: "#5a4130", "text-anchor": "start" });
+        const fs = { easy: 56, medium: 44, hard: 34 }[st.level];
+        flow(model, 104, fs, false);
+        const mine = model.map(([, k]) => ["", k]);
+        let slot = 0;
+        const drawMine = () => {
+          view.querySelectorAll(".ws-mine").forEach((n) => n.remove());
+          const before = view.childNodes.length;
+          text(view, 40, 230, "Your sentence:", { "font-size": 26, fill: "#5a4130", "text-anchor": "start", class: "ws-mine" });
+          flow(mine.map(([s, k], i) => [s ? (i === 0 ? s[0].toUpperCase() + s.slice(1) : s) : "", k]), 290, fs, true);
+          [...view.childNodes].slice(before).forEach((n) => n.classList.add("ws-mine"));
+        };
+        const ask = () => {
+          view.querySelectorAll(".ws-opt").forEach((n) => n.remove());
+          const k = model[slot][1];
+          const role = roleOf(k);
+          const goods = shuffle(POOL[k].filter((x) => x.toLowerCase() !== model[slot][0].toLowerCase())).slice(0, 2);
+          const otherKeys = Object.keys(POOL).filter((x) => roleOf(x) !== role);
+          const bad = pick(POOL[pick(otherKeys)]);
+          let tries = 0;
+          shuffle([...goods.map((g) => [g, true]), [bad, false]]).forEach(([s, ok], i) => {
+            const g = card(view, 175 + i * 325, 420, 305, 110, { cls: "ws-card ws-opt" });
+            const shown = slot === 0 ? s : lower(s);
+            fit(text(g, 0, 68, shown, { "font-size": 38, fill: "#2b1d12" }), 280);
+            g.dataset.ok = ok ? "1" : "";
+            g.addEventListener("pointerdown", async () => {
+              if (my !== token || st.busy) return;
+              window.OC?.touch();
+              if (ok) {
+                MUSIC.play("xylophone", 76 + slot * 3, { gain: 0.35 });
+                mine[slot][0] = slot === 0 ? s : lower(s);
+                slot += 1;
+                drawMine();
+                if (slot < model.length) return ask();
+                view.querySelectorAll(".ws-opt").forEach((n) => n.remove());
+                const out = mine.map(([x], i) => (i === 0 ? x[0].toUpperCase() + x.slice(1) : x)).join(" ");
+                text(view, 500, 470, "Say it out loud. Then copy it on paper!", { "font-size": 32, fill: "var(--accent-dark)" });
+                return st.win(`${pick(GOOD)} <b>${out}</b> Same pattern, new sentence!`, `${out} Same pattern, new sentence!`, { ms: 1800 });
+              }
+              paint(g, ...WRONG);
+              tries += 1;
+              st.oops();
+              if (tries === 1) talk(`${LEARN} This box needs a <b>${ROLE[role][0]}</b> part, like <b>${model[slot][0]}</b> in the model. ${ASKQ[role](`"${shown}"`)}`, `${LEARN} This box needs a ${ROLE[role][0]} part, like ${model[slot][0]} in the model. ${ASKQ[role](shown)}`);
+              else {
+                glowOk();
+                talk(`Both glowing ones tell <b>${ROLE[role][0]}</b>. Pick the one you like.`, `Both glowing ones tell ${ROLE[role][0]}. Pick the one you like.`);
+              }
+            });
+          });
+          talk(`Pick a <b>${ROLE[role][0]}</b> part for your sentence.`, `Pick a ${ROLE[role][0]} part for your sentence.`);
+        };
+        drawMine();
+        st.acts(`<button type="button" data-a="hear">🔊 Hear the model</button>`, { hear: () => VOICE.speak(model.map(([s]) => s).join(" ")) });
+        VOICE.speakAsync(`Here is a model sentence. ${model.map(([s]) => s).join(" ")}`).then(() => my === token && !st.busy && ask());
+        say("Read the model sentence. Then build your own with the same pattern.", { voice: false });
+      },
+    });
+  },
+
+  // ---------------- 5. Nouns, verbs & adjectives ----------------
+  w5() {
+    const NOUN = [["dog", "🐶"], ["cake", "🎂"], ["tree", "🌳"], ["ball", "⚽"], ["apple", "🍎"], ["bird", "🐦"], ["house", "🏠"], ["book", "📖"], ["park", "🏞️"], ["teacher", "🧑‍🏫"]];
+    const VERB = [["swim", "🏊"], ["sleep", "😴"], ["climb", "🧗"], ["clap", "👏"], ["sing", "🎤"], ["hop", "🐇"], ["jump", "🦘"], ["eat", "🍽️"], ["write", "✍️"], ["laugh", "😂"]];
+    const ADJ = [["big"], ["soft"], ["happy"], ["red"], ["tall"], ["cold"], ["tiny"], ["loud"], ["sweet"], ["shiny"]];
+    const BINS = { noun: ["noun", "naming word", "🏷️", "#e6effc", "#1f4e8c"], verb: ["verb", "action word", "🏃", "#fff1dc", "#b45f06"], adj: ["adjective", "describing word", "🎨", "#fde7f3", "#a3246b"] };
+    const DEF = { noun: "A noun is the name of a person, place, thing, or idea.", verb: "A verb is an action word: something you can do.", adj: "An adjective describes a noun: what kind, or how many." };
+    const SENT = [
+      ["The happy dog dug a hole.", { adj: ["happy"], noun: ["dog", "hole"], verb: ["dug"] }],
+      ["A tiny bird sang a sweet song.", { adj: ["tiny", "sweet"], noun: ["bird", "song"], verb: ["sang"] }],
+      ["The tall farmer painted the red door.", { adj: ["tall", "red"], noun: ["farmer", "door"], verb: ["painted"] }],
+      ["Big waves hit the sandy beach.", { adj: ["big", "sandy"], noun: ["waves", "beach"], verb: ["hit"] }],
+      ["The fluffy cat chased a ball.", { adj: ["fluffy"], noun: ["cat", "ball"], verb: ["chased"] }],
+      ["Hungry bears catch fish.", { adj: ["hungry"], noun: ["bears", "fish"], verb: ["catch"] }],
+      ["The brave girl climbed a tall tree.", { adj: ["brave", "tall"], noun: ["girl", "tree"], verb: ["climbed"] }],
+      ["A green frog jumped into the cold pond.", { adj: ["green", "cold"], noun: ["frog", "pond"], verb: ["jumped"] }],
+    ];
+    runGame("w5", {
+      rounds: 10,
+      noun: "words",
+      label: "Word",
+      count: "words sorted",
+      real: REAL.w5,
+      ask(st) {
+        const my = st.my;
+        fresh();
+        if (st.level !== "hard") {
+          const kinds = st.level === "easy" ? ["noun", "verb"] : ["noun", "verb", "adj"];
+          const all = kinds.flatMap((k) => ({ noun: NOUN, verb: VERB, adj: ADJ })[k].map(([w, p]) => ({ w, p, k })));
+          const item = st.take(all);
+          const c = card(view, 500, 30, 460, 180, { fill: "#fff", stroke: "#c9b8a1" });
+          if (st.level === "easy" && item.p) emoji(c, -130, 92, item.p, 100);
+          fit(text(c, st.level === "easy" ? 60 : 0, 118, item.w, { "font-size": 88, fill: "#2b1d12" }), st.level === "easy" ? 280 : 420);
+          const n = kinds.length;
+          const bw = n === 2 ? 340 : 290;
+          kinds.forEach((k, i) => {
+            const [name, job, glyph, fill, ink] = BINS[k];
+            const x = n === 2 ? [290, 710][i] : [175, 500, 825][i];
+            const g = card(view, x, 290, bw, 220, { fill, stroke: ink });
+            emoji(g, 0, 58, glyph, 60);
+            text(g, 0, 150, name, { "font-size": 48, fill: ink });
+            text(g, 0, 196, job, { "font-size": 28, fill: "#5a4130" });
+            g.dataset.ok = k === item.k ? "1" : "";
+            g.addEventListener("pointerdown", () => {
+              if (my !== token || st.busy) return;
+              window.OC?.touch();
+              if (k === item.k) {
+                paint(g, ...RIGHT);
+                return st.win(`${pick(GOOD)} <b>${item.w}</b> is ${k === "adj" ? "an adjective" : `a ${name}`}.`, `${item.w} is ${k === "adj" ? "an adjective" : `a ${name}`}. ${DEF[k]}`);
+              }
+              paint(g, ...WRONG);
+              const tries = st.oops();
+              if (tries === 1) talk(`${LEARN} Try it in a sentence. Can you say "the ${item.w}"? Can you ${item.w}? Is it "${/^[aeiou]/.test(item.w) ? "an" : "a"} ${item.w} thing"?`, `${LEARN} Try it in a sentence. Can you say: the ${item.w}? Can you ${item.w}? Is it ${/^[aeiou]/.test(item.w) ? "an" : "a"} ${item.w} thing?`);
+              else {
+                glowOk();
+                talk(`${DEF[item.k]} So <b>${item.w}</b> goes here.`, `${DEF[item.k]} So ${item.w} goes here.`);
+              }
+            });
+          });
+          st.acts(`<button type="button" data-a="hear">🔊 Hear it</button>`, { hear: () => VOICE.speak(item.w) });
+          if (st.level === "easy") talk(`<b>${item.w}</b>. Is it a naming word or an action word?`, `${item.w}. Is it a naming word, or an action word?`);
+          else talk("Read the word. Is it a noun, a verb, or an adjective?");
+          return;
+        }
+        // Hard: find the word with a job inside a real sentence.
+        const [s, jobs] = st.take(SENT);
+        const want = pick(["noun", "verb", "adj"]);
+        const [name, , , , ink] = BINS[want];
+        text(view, 500, 70, `Tap ${want === "adj" ? "an adjective" : `a ${name}`}`, { "font-size": 44, fill: ink });
+        const words = s.split(" ");
+        let x = 60;
+        let y = 230;
+        const size = 60;
+        words.forEach((w) => {
+          const bare = w.replace(/[.,!?]/g, "").toLowerCase();
+          const g = el("g", { class: "ws-word" }, view);
+          const t = text(g, 0, 0, w, { "font-size": size, fill: "#2b1d12", "text-anchor": "start" });
+          const wd = t.getComputedTextLength() || w.length * size * 0.5;
+          if (x + wd > 950) {
+            x = 60;
+            y += 130;
+          }
+          el("rect", { class: "ws-face", x: -10, y: -size * 0.95, width: wd + 20, height: size * 1.4, rx: 14, fill: "#fffaf0", stroke: "#e2d6c4", "stroke-width": 3 }, g);
+          g.appendChild(t);
+          g.setAttribute("transform", `translate(${x} ${y})`);
+          g.dataset.ok = jobs[want].includes(bare) ? "1" : "";
+          g.addEventListener("pointerdown", () => {
+            if (my !== token || st.busy) return;
+            window.OC?.touch();
+            if (jobs[want].includes(bare)) {
+              paint(g, ...RIGHT);
+              return st.win(`${pick(GOOD)} <b>${bare}</b> is ${want === "adj" ? "an adjective" : `a ${name}`}.`, `${bare} is ${want === "adj" ? "an adjective" : `a ${name}`}. ${DEF[want]}`);
+            }
+            paint(g, ...WRONG);
+            const tries = st.oops();
+            const kind = Object.keys(jobs).find((k) => jobs[k].includes(bare));
+            if (tries === 1) talk(`${LEARN} ${kind ? `<b>${bare}</b> is ${kind === "adj" ? "an adjective" : `a ${BINS[kind][0]}`}.` : `<b>${bare}</b> is a little helper word.`} ${DEF[want]} Which word does that job?`, `${LEARN} ${kind ? `${bare} is ${kind === "adj" ? "an adjective" : `a ${BINS[kind][0]}`}.` : `${bare} is a little helper word.`} ${DEF[want]} Which word does that job?`);
+            else {
+              glowOk();
+              const many = jobs[want].length > 1;
+              talk(`The glowing word${many ? "s are" : " is"} ${want === "adj" ? (many ? "adjectives" : "an adjective") : many ? `${name}s` : `a ${name}`}. Tap ${many ? "one" : "it"}.`);
+            }
+          });
+          x += wd + 34;
+        });
+        st.acts(`<button type="button" data-a="hear">🔊 Read it</button>`, { hear: () => VOICE.speak(s) });
+        talk(`Read the sentence. ${DEF[want]} Tap ${want === "adj" ? "an adjective" : `a ${name}`}.`);
+      },
+    });
+  },
+
+  // ---------------- 6. Narration helper ----------------
+  w6() {
+    const my = token;
+    const STORIES = [
+      { t: "The Fox and the Kite", pic: "🦊", pic2: "🪁", text: "A little fox found a red kite in the grass. She tried to fly it, but there was no wind. She waited and waited on the hill. At last, a strong wind came, and the kite rose up high. The fox laughed and ran with it all the way home." },
+      { t: "The Lost Boot", pic: "🦆", pic2: "🥾", text: "A duck lost one yellow boot in the mud. He looked by the pond and under the bridge. A friendly frog came to help him look. Together they found the boot, stuck in the tall reeds. The duck pulled it out, and the two friends jumped in the puddles." },
+      { t: "The Tiny Seed", pic: "🌱", pic2: "🌻", text: "A girl planted a tiny seed in a pot. Every day she gave it water and sunshine. For a long time, nothing happened. Then one morning, a green shoot poked out of the soil. By summer, a tall sunflower was smiling down at her." },
+    ];
+    const STEPS = [["👤", "Who", "Who was in the story?"], ["1️⃣", "First", "What happened first?"], ["➡️", "Then", "What happened next?"], ["🏁", "End", "How did it end?"]];
+    const canRecord = !!(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
+    let step = -1;
+    let story = null;
+    const drawSteps = () => {
+      fresh();
+      if (story) {
+        emoji(view, 90, 80, story.pic, 70);
+        text(view, 160, 95, story.t, { "font-size": 34, fill: "#2b1d12", "text-anchor": "start" });
+      } else text(view, 500, 95, "Tell the story back", { "font-size": 40, fill: "#2b1d12" });
+      STEPS.forEach(([glyph, label], i) => {
+        const x = 140 + i * 240;
+        const on = i === step;
+        const done = i < step;
+        const g = card(view, x, 170, 210, 300, { fill: on ? "var(--accent-soft)" : done ? "#e3f4e7" : "#fffaf0", stroke: on ? "var(--accent)" : done ? "#2e7d46" : "#d9cdb5" });
+        if (on) g.classList.add("ws-glow");
+        emoji(g, 0, 105, glyph, 90);
+        text(g, 0, 230, label, { "font-size": 44, fill: "#2b1d12" });
+        if (done) text(g, 0, 280, "✓ told", { "font-size": 28, fill: "#2e7d46" });
+        if (i < 3) el("path", { d: `M${x + 112} 320 l18 0`, stroke: "#c9b8a1", "stroke-width": 8, "stroke-linecap": "round" }, view);
+      });
+    };
+    const micRow = () => {
+      if (!canRecord) return "";
+      if (rec?.recorder?.state === "recording") return `<button type="button" class="ws-rec" data-a="stop">⏹ Stop recording</button>`;
+      return `<button type="button" data-a="rec">🎙️ ${rec?.url ? "Record again" : "Record me"}</button>${rec?.url ? `<button type="button" data-a="play">▶️ Play it back</button>` : ""}`;
+    };
+    const host = panel(`<div class="ap-buttons" data-acts></div>`);
+    const setActs = (html) => {
+      $("[data-acts]", host).innerHTML = html;
+    };
+    const start = () => {
+      step = -1;
+      story = null;
+      fresh();
+      text(view, 500, 80, "Narration: tell it back!", { "font-size": 44, fill: "#2b1d12" });
+      STORIES.forEach((s, i) => {
+        const g = card(view, 190 + i * 310, 140, 280, 250);
+        emoji(g, -45, 85, s.pic, 80);
+        emoji(g, 50, 85, s.pic2, 80);
+        fit(text(g, 0, 205, s.t, { "font-size": 30, fill: "#2b1d12" }), 260);
+        g.addEventListener("pointerdown", () => my === token && listen(s));
+      });
+      text(view, 500, 470, "Tap a story to hear it, or use one you just read.", { "font-size": 30, fill: "#5a4130" });
+      setActs(`<button type="button" class="primary" data-a="heard">📚 I just heard a story</button>`);
+      talk("Pick a short story to listen to. Or, if a grown-up just read to you, press I just heard a story.");
+    };
+    const listen = async (s) => {
+      window.OC?.touch();
+      story = s;
+      fresh();
+      emoji(view, 380, 220, s.pic, 170);
+      emoji(view, 620, 220, s.pic2, 170);
+      text(view, 500, 440, s.t, { "font-size": 52, fill: "#2b1d12" });
+      text(view, 500, 500, "Listen carefully. Picture it in your mind.", { "font-size": 30, fill: "#5a4130" });
+      setActs(`<button type="button" data-a="skip">▶ I'm ready to tell it</button>`);
+      say(`📖 <b>${s.t}</b>. Listen carefully…`, { voice: false });
+      const done = await VOICE.speakAsync(`${s.t}. ${s.text}`);
+      if (my !== token || story !== s || step >= 0) return;
+      if (done) prompts();
+    };
+    const prompts = () => {
+      step = 0;
+      ask();
+    };
+    const ask = () => {
+      drawSteps();
+      setActs(`<button type="button" class="primary" data-a="told">✓ I told it</button><button type="button" data-a="again">🔁 Ask again</button>${micRow()}`);
+      talk(`${STEPS[step][2]} Say it out loud, in your own words.`);
+    };
+    const finish = () => {
+      confetti();
+      MUSIC.chime();
+      shell.mark("w6", { done: true });
+      window.OC?.count("retellings");
+      step = 4;
+      realCard(REAL.w6);
+      setActs(`<button type="button" class="primary" data-a="restart">🔁 Tell another story</button>${micRow()}`);
+      talk("🎉 You told the whole story: who, first, then, and the end. You remembered so much! Now try it for real, away from the screen.");
+    };
+    // The recording stays in this page's memory only. It is never saved or sent, and it is gone when you leave.
+    const startRec = async () => {
+      dropRecording();
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (my !== token) return stream.getTracks().forEach((t) => t.stop());
+        const recorder = new MediaRecorder(stream);
+        const chunks = [];
+        rec = { stream, recorder, url: null, audio: null };
+        recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+        recorder.onstop = () => {
+          stream.getTracks().forEach((t) => t.stop());
+          if (!rec || rec.recorder !== recorder) return;
+          rec.url = URL.createObjectURL(new Blob(chunks, { type: recorder.mimeType || "audio/webm" }));
+          refresh();
+        };
+        recorder.start();
+        VOICE.hush();
+        refresh();
+      } catch {
+        say("The microphone is not available. That is okay: just tell it out loud!", { voice: false });
+        VOICE.speak("The microphone is not available. That is okay. Just tell it out loud!");
+      }
+    };
+    const refresh = () => {
+      if (my !== token) return;
+      if (step >= 0 && step < 4) setActs(`<button type="button" class="primary" data-a="told">✓ I told it</button><button type="button" data-a="again">🔁 Ask again</button>${micRow()}`);
+      else if (step === 4) setActs(`<button type="button" class="primary" data-a="restart">🔁 Tell another story</button>${micRow()}`);
+    };
+    host.onclick = (e) => {
+      const b = e.target.closest("[data-a]");
+      if (!b || my !== token) return;
+      window.OC?.touch();
+      const a = b.dataset.a;
+      if (a === "heard" || a === "skip") {
+        VOICE.hush();
+        prompts();
+      } else if (a === "told") {
+        MUSIC.play("xylophone", 76 + step * 3, { gain: 0.4 });
+        step += 1;
+        if (step >= 4) finish();
+        else ask();
+      } else if (a === "again") talk(`${STEPS[step][2]} Take your time.`);
+      else if (a === "restart") {
+        dropRecording();
+        start();
+      } else if (a === "rec") startRec();
+      else if (a === "stop") rec?.recorder?.state === "recording" && rec.recorder.stop();
+      else if (a === "play" && rec?.url) {
+        VOICE.hush();
+        rec.audio?.pause();
+        rec.audio = new Audio(rec.url);
+        rec.audio.play().catch(() => {});
+      }
+    };
+    start();
+  },
+};
+
+let rec = null;
+function dropRecording() {
+  if (!rec) return;
+  try {
+    if (rec.recorder?.state === "recording") rec.recorder.stop();
+  } catch {}
+  rec.stream?.getTracks().forEach((t) => t.stop());
+  rec.audio?.pause();
+  if (rec.url) URL.revokeObjectURL(rec.url);
+  rec = null;
+}
+addEventListener("pagehide", dropRecording);
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    w0: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next to go on.", "Press Let's play when you are ready."] },
+    w1: { icon: "🌱", title: "Word roots", steps: ["Look at the root, the old word part.", "Match it, build with it, or guess with it.", "Easy is on the left, hard is on the right."] },
+    w2: { icon: "🧩", title: "Complete sentence?", steps: ["Read the words.", "Look for a who and a what happened.", "Tap Complete or Not complete."] },
+    w3: { icon: "🔠", title: "Capitals and full stops", steps: ["Tap a word to give it a capital.", "Tap a full stop, question mark or exclamation mark.", "Press Check."] },
+    w4: { icon: "🪞", title: "Sentence imitation", steps: ["Read the model sentence.", "Pick parts with the same colours.", "Say your new sentence, then copy it."] },
+    w5: { icon: "🏷️", title: "Nouns, verbs and adjectives", steps: ["A noun names a thing.", "A verb is an action. An adjective describes.", "Tap the right box or word."] },
+    w6: { icon: "🗣️", title: "Narration helper", steps: ["Listen to a story.", "Answer: who, first, then, the end.", "Tell it in your own words."] },
+  },
+  start: "w0",
+  onStop() {
+    token += 1;
+    dropRecording();
+    const p = $("[data-panel]");
+    if (p) p.onclick = null;
+  },
+  subject: "Reading",
+  activity: "Words & Sentences",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [76, 79, 82, 84, 85, 88, 91, 96]);
+MUSIC.preload("woodblock", [77, 79, 84]);
+MUSIC.preload("harp", [79]);
+</script>
+</body>
+</html>
