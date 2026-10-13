@@ -125,7 +125,9 @@
 
   const settings = (learner) => {
     const s = read("oc-year", {})[learner]?.settings || {};
-    return { start: s.start || DATA.start, days: s.days || [2, 4, 6, 0], screen: s.screen ?? 30, soroban: s.soroban ?? true };
+    // Screen time is 60 minutes on lesson days unless the parent has chosen another figure in settings
+    // (an older saved default of 30 does not count as a choice).
+    return { start: s.start || DATA.start, days: s.days || [2, 4, 6, 0], screen: s.screenSet ? s.screen ?? 60 : 60, screenSet: !!s.screenSet, soroban: s.soroban ?? true };
   };
   const setSettings = (learner, patch) => {
     const all = read("oc-year", {});
@@ -177,6 +179,9 @@
       if (path && !quiet) push({ key: `${field}-site`, lane: field, icon: "💻", label: `Practice: ${APPS[path] || label.split(" (")[0]}`, what: `On OakCrest, about 10 minutes. This week: ${topicOf(what, path)}.`, minutes: 10, times: field === "math" || field === "phonics" ? 2 : 1, group, path, screen: true });
       else if (path && quiet && field === "mental") push({ key: `${field}-site`, lane: field, icon: "💻", label: "Practice: math games", what: "Math games on OakCrest (about 10 minutes).", minutes: 10, times: 1, group, path, screen: true });
     }
+    // Memory work: this month's poem or passage, a few lines a day, recited at poetry teatime.
+    const memory = (window.MEMORY || []).find((m) => w >= m.from && w <= m.to);
+    if (memory && !quiet) push({ key: "memory", lane: "readAloud", icon: "🧠", label: `Memory work: ${memory.title}`, what: `${memory.title} (${memory.author}). Say the lines learned so far, then add one or two more. ${w === memory.to ? "Recite the whole piece this week." : ""}`.trim(), minutes: 5, times: 0, group: "Reading & Writing", memory });
     if (!quiet) {
       if (w >= 4) push({ key: "zaccaro", lane: "math", icon: "🏔️", label: "Challenge problems", what: "Primary Grade Challenge Math (Zaccaro): 2–3 challenge problems on this week's topic. Struggle first; write the best one in the Solution Notebook.", minutes: 20, times: 1, group: "Math" });
       if (settings(learner).soroban) push({ key: "soroban", lane: "math", icon: "🧮", label: "Soroban", what: "Soroban practice for her class: the next level (10 minutes).", minutes: 10, times: 3, group: "Math", path: "math/soroban/", screen: true });
@@ -224,7 +229,7 @@
   }
 
   // Order in the day: family time, math first, then language, then knowledge, read-aloud, afternoon practice, screens last.
-  const ORDER = ["devotion", "math", "zaccaro", "mental", "phonics", "writing", "freewrite", "words", "science", "storysci", "how", "history", "logic", "readAloud", "think", "art", "music", "chess", "heritage", "nature", "virtue", "extra", "pe", "poetry", "money", "fred", "review", "soroban", "scratch"];
+  const ORDER = ["devotion", "math", "zaccaro", "mental", "phonics", "writing", "freewrite", "words", "science", "storysci", "how", "history", "logic", "readAloud", "memory", "think", "art", "music", "chess", "heritage", "nature", "virtue", "extra", "pe", "poetry", "money", "fred", "review", "soroban", "scratch"];
   const SCREEN_FIRST = ["how", "soroban"];
   // Screens last in the day: the machine, soroban, course lessons (in priority order), app practice, catch-up, optional advanced.
   const rank = (it) => {
@@ -288,5 +293,7 @@
   const tickKey = (w, dayIso, item) => `${w}:${dayIso}:${item.key}`;
   const checkKey = (w) => `check:${w}`;
 
-  window.YEAR = { DATA, QUESTIONS, LANES, COURSES, SCHEDULE, SCHOOL, lessonsOf, weekOfLesson, settings, setSettings, ticks, setTick, weekStart, weekIndexOf, itemsOf, daysOf, tickKey, checkKey, iso };
+  const memoryOf = (w) => (window.MEMORY || []).find((m) => w >= m.from && w <= m.to) || null;
+
+  window.YEAR = { memoryOf, DATA, QUESTIONS, LANES, COURSES, SCHEDULE, SCHOOL, lessonsOf, weekOfLesson, settings, setSettings, ticks, setTick, weekStart, weekIndexOf, itemsOf, daysOf, tickKey, checkKey, iso };
 })();

@@ -4,7 +4,7 @@
 // Skills and Mind Benders, Story of the World Vol. 1, Zoology 1 plus physics and chemistry labs,
 // drawing, piano, chess, and the year's virtues. No child names live here.
 //
-// Each week: { type, theme, why, math, mental, phonics, readAloud, writing, words, logic, science, history,
+// Each week: { type, theme, why, thread, math, mental, phonics, readAloud, writing, words, logic, science, history,
 //              art, music, chess, virtue, extra, check }
 // type: "learn" | "review" | "light" | "break" | "summer"
 // Subject fields are [what to do, site practice path or "" for book/offline only].
@@ -15,6 +15,7 @@
   // ───────────── TERM 1 · Oct–Dec 2026 · "Strong roots" ─────────────
   add({
     type: "learn", theme: "A gentle start", why: "Build the daily rhythm first: math first thing, a read-aloud every day, short phonics. Find the right Beast Academy starting point so work is hard but not impossible.",
+    thread: "Evidence runs through the week: history asks how we know the past from its sources, and science asks how we know nature through evidence and fair tests.",
     math: ["Placement first (days 1–3): 10 problems from Primary Grade Challenge Math and a few middle pages of Building Thinking Skills, to see what is easy, what takes effort and what frustrates. Then Beast Academy 2A, Place Value: read the first guide chapter together and try the practice pages. 85% without help means move faster.", "math/place/"],
     mental: ["Count by 2s, 5s and 10s aloud to 100; doubles to 10 + 10.", "math/games/"],
     phonics: ["Explode the Code Book 1: short a and i. 1–2 pages a day. Quick placement: if it is easy, jump ahead.", "reading/phonics/"],
@@ -28,6 +29,7 @@
   });
   add({
     type: "learn", theme: "Tens and ones", why: "Place value is the foundation of all arithmetic: a digit's place gives its value. Depth now saves years of confusion later.",
+    thread: "Sorting by what things share is the habit of the week: the ranks of taxonomy classify living things in science, and the logic lesson on similarity asks what figures have in common.",
     math: ["Beast Academy 2A, Place Value: ones, tens and hundreds, and regrouping 10 ones into a ten. Do the starred problems too.", "math/place/"],
     mental: ["Make 10 pairs (7 + 3, 6 + 4…) and 10 more / 10 less than any number.", "math/games/"],
     phonics: ["Explode the Code Book 1: short o, u, e.", "reading/phonics/"],
@@ -41,6 +43,7 @@
   });
   add({
     type: "learn", theme: "Hundreds and building numbers", why: "Seeing 100 as ten tens and 1,000 as ten hundreds turns big numbers into something she can picture.",
+    thread: "Place is the common ground: maps, latitude and longitude in history show where things are, and the reading lesson on setting and mood in The Wind in the Willows asks how a place shapes a story.",
     math: ["Beast Academy 2A, Place Value: hundreds, expanded form, breaking numbers apart in different ways (e.g. 352 = 3 hundreds + 15 tens + 2).", "math/place/"],
     mental: ["Add 10 and 100 to any number; doubles to 20 + 20.", "math/games/"],
     phonics: ["Explode the Code Book 1: mixed short vowels, CVC words.", "reading/phonics/"],
@@ -55,6 +58,7 @@
   });
   add({
     type: "review", theme: "Review and portfolio", why: "Every fourth week is lighter. Look back, fix gaps, and keep the best work. Mastery before moving on.",
+    thread: "Careful looking before concluding: archaeology reads evidence from the ground, observation drawing records what is really there, and the character lesson asks how to weigh evidence.",
     math: ["Beast Academy 2A: redo any starred problems she missed. Timed challenge set (Beast Academy challenge problems, 20 minutes, together): practice working on a clock, no pressure.", "math/games/"],
     mental: ["Facts to 10: plus and minus, any order.", "math/games/"],
     phonics: ["Explode the Code: review pages, then read a Magic Tree House chapter aloud to you.", "reading/phonics/"],
@@ -67,6 +71,7 @@
   });
   add({
     type: "learn", theme: "Comparing numbers; science begins", why: "Comparing teaches number sense: which is bigger and by how much. Science starts now with one wonder lab and one zoology lesson a week.",
+    thread: "Comparison is the idea of the week: inequalities in math, the Latin words for great, small and equal, and the float-or-sink lesson, which compares densities.",
     math: ["Beast Academy 2A, Comparing: greater than, less than, and ordering numbers; the < and > symbols.", "math/place/"],
     mental: ["Facts to 10: fact families (3 + 4 = 7, 7 − 4 = 3…).", "math/games/"],
     phonics: ["Explode the Code Book 1: finish, or Book 1½ for extra practice if needed.", "reading/phonics/"],
@@ -74,6 +79,7 @@
     writing: ["Copywork daily; Sentence Composing 2×; a one-sentence journal she dictates to you each day.", "reading/words/"],
     logic: ["Building Thinking Skills: sequences (what comes next).", "tech/logic/"],
     science: ["Zoology: what is zoology, and how scientists group animals. Lab: Solid, liquid, gas (melt an ice cube race).", "science/chemistry/"],
+    history: ["Story of the World Vol. 1, ch. 1, 'The Earliest People'. Read it and narrate who the earliest people were.", "history/world/"],
     music: ["Piano daily. Rhythm Studio: steady beat and note values.", "music/rhythm/"],
     chess: ["Chess puzzles: the knight's L-shaped move.", "tech/chess/"],
     virtue: ["Kindness this month: do something good for someone, especially when you don't have to.", ""],
@@ -81,6 +87,7 @@
   });
   add({
     type: "learn", theme: "The first people and the Nile", why: "History starts as a story: how people moved from wandering to farming, and why rivers mattered. Maps make it real.",
+    thread: "Farming links the week: history follows people from wandering to farming, and Charlotte's Web, chapters 1 to 4, is set on a farm.",
     math: ["Beast Academy 2A, Comparing: number lines and comparing by place value; the harder starred problems.", "math/numbers/"],
     mental: ["Facts to 20: adding 9 (add 10, take 1).", "math/games/"],
     phonics: ["Explode the Code Book 2: initial blends (bl, cl, fl, gl, pl, sl).", "reading/phonics/"],
@@ -89,7 +96,7 @@
     words: ["Word Roots Beginning: 1–2 pages this week. Latin begins: what Latin is, and numbers 1–5.", "reading/latin/"],
     logic: ["Building Thinking Skills: sequences.", "tech/logic/"],
     science: ["Zoology: what makes a bird a bird (feathers!). Lab: Float or sink: predict, then test.", "science/flying/"],
-    history: ["Story of the World Vol. 1: the earliest people, from wanderers to farmers; Egypt and the Nile. Find Africa and the Nile on the map.", "history/world/"],
+    history: ["Story of the World Vol. 1, ch. 1, 'The Earliest People', read again for the change from wandering to farming (the course lesson this week).", "history/world/"],
     music: ["Piano daily.", "music/theory/"],
     chess: ["Chess puzzles: pawns and captures.", "tech/chess/"],
     virtue: ["Kindness: one act of service this week, like a card or a note to a grandparent.", ""],
@@ -97,11 +104,13 @@
   });
   add({
     type: "light", theme: "Thanksgiving week: gratitude", why: "A short week. Keep math, reading and piano going, and practise gratitude with family.",
+    thread: "Gratitude runs through the week: the Latin gratias in words, a reading lesson on giving thanks through primary sources, and a letter of thanks in writing.",
     math: ["Beast Academy 2A: 2–3 days of Comparing practice.", "math/place/"],
     mental: ["Facts to 20 using doubles and near doubles.", "math/games/"],
     phonics: ["Explode the Code Book 2: final blends (-nd, -st, -mp).", "reading/phonics/"],
     readAloud: ["Charlotte's Web, chapters 5–8.", ""],
     writing: ["Write a thank-you card together: she copies 2 sentences.", ""],
+    history: ["Story of the World Vol. 1, ch. 2, 'Egyptians Lived on the Nile River'. Find Africa and the Nile on the map.", "history/world/"],
     music: ["Piano daily.", ""],
     chess: ["Family chess game.", ""],
     virtue: ["Gratitude: a dinner round where each person names something specific they are thankful for.", ""],
@@ -109,12 +118,13 @@
   });
   add({
     type: "review", theme: "Review and portfolio", why: "Consolidate place value and comparing before addition.",
+    thread: "Egypt runs through the week: hieroglyphs as the first writing in history, and the art lesson on the first artists in caves and ancient Egypt. Birds link the reading lesson, poems of feathers, with the science lesson on how wings lift.",
     math: ["Beast Academy 2A: finish Comparing; redo missed problems. Monthly timed challenge set (together, 20 minutes).", "math/games/"],
     mental: ["Facts to 20 review: say how she worked out each one.", "math/games/"],
     phonics: ["Review blends; read aloud to you for 10 minutes.", "reading/phonics/"],
     readAloud: ["Charlotte's Web, chapters 9–12.", ""],
     writing: ["Portfolio: a dated narration and a Sentence Composing page.", ""],
-    history: ["Story of the World: hieroglyphs and the first writing; Egypt's Old Kingdom and the pyramids.", "history/world/"],
+    history: ["Story of the World Vol. 1, ch. 3, 'The First Writing'.", "history/world/"],
     science: ["Zoology: birds of a feather (feathers and flight). Lab: magnets.", "science/physics/"],
     chess: ["Play a full game; talk about one good move and one mistake.", "tech/chess/"],
     extra: ["Monthly portfolio review and an outing (a science museum or a bird walk). Monthly new math game: Tangrams.", "arts/tangram/"],
@@ -122,6 +132,7 @@
   });
   add({
     type: "learn", theme: "Adding with understanding", why: "Addition is about combining and regrouping. Understanding why we carry matters more than speed.",
+    thread: "The pyramids raise the question of moving heavy stone, and the science lesson on forces, ramps and friction gives the tools for thinking about it.",
     math: ["Beast Academy 2A, Addition: adding tens and ones, regrouping, and the 'make a ten' strategy.", "math/addsub/"],
     mental: ["Facts to 20: making 10 (8 + 5 = 8 + 2 + 3).", "math/games/"],
     phonics: ["Explode the Code Book 2: more blends (cr, dr, tr, st, sp, sn).", "reading/phonics/"],
@@ -130,7 +141,7 @@
     words: ["Word Roots Beginning. Latin: numbers 6–10 and words that come from them (September, October, December, decimal).", "reading/latin/"],
     logic: ["Building Thinking Skills: classifications (sorting by a rule).", "tech/logic/"],
     science: ["Zoology: how wings lift. Lab: ramps and friction (how far a toy car rolls).", "science/flying/"],
-    history: ["Story of the World: Sumer and the first cities; cuneiform on clay tablets.", "history/world/"],
+    history: ["Story of the World Vol. 1, ch. 4, 'The Old Kingdom of Egypt'.", "history/world/"],
     art: ["Drawing with Children: the five elements of shape (dot, circle, straight line, curved line, angle line). Warm-up drawing.", "arts/drawing/"],
     music: ["Piano daily. Ear Training: higher or lower.", "music/ear/"],
     chess: ["Chess puzzles: check, and how to escape it.", "tech/chess/"],
@@ -139,6 +150,7 @@
   });
   add({
     type: "learn", theme: "Adding bigger numbers", why: "Stretch addition to 3 digits and many addends, and look for clever shortcuts. Elegance is a math value.",
+    thread: "The rhetoric lesson on testing maxims and the character lesson on appetite and resolve meet in Benjamin Franklin, whose Poor Richard's Almanack is a famous collection of maxims.",
     math: ["Beast Academy 2A, Addition: 3-digit addition, adding many numbers, and clever ordering (add pairs that make 10s first).", "math/addsub/"],
     mental: ["Add a 1-digit number to a 2-digit number crossing a ten (47 + 8).", "math/games/"],
     phonics: ["Explode the Code Book 2: finish blends; Book 2½ if extra practice is needed.", "reading/phonics/"],
@@ -147,7 +159,7 @@
     words: ["Word Roots Beginning. Latin: greetings (salve, vale, gratias).", "reading/latin/"],
     logic: ["Building Thinking Skills: classifications. Begin Mind Benders Level 1: 3 puzzles a week.", "tech/logic/"],
     science: ["Zoology: nests, eggs and hatching. Lab: dissolving: sugar, salt and sand in water.", "science/chemistry/"],
-    history: ["Story of the World: Abraham's journey; Hammurabi's fair laws in Babylon.", "history/world/"],
+    history: ["Story of the World Vol. 1, ch. 5, 'The First Sumerian Dictator', for Sumer and its cities.", "history/world/"],
     art: ["Drawing with Children: draw a still life from simple shapes.", "arts/drawing/"],
     music: ["Piano daily; prepare a holiday piece to play for family.", "music/theory/"],
     chess: ["Chess puzzles: mate in one with the queen.", "tech/chess/"],
@@ -173,6 +185,7 @@
   // ───────────── TERM 2 · Jan–Mar 2027 · "Taking apart and putting together" ─────────────
   add({
     type: "learn", theme: "Back to rhythm: addition strategies", why: "After a break, restart with something she can do, then stretch. Mental strategies make arithmetic flexible.",
+    thread: "Persuasion links reading and rhetoric: the reading lesson studies irony and persuasion in Tom Sawyer, and the rhetoric lesson builds an argument from claim, reason and evidence.",
     math: ["Beast Academy 2A, Addition: finish the chapter, including the hardest starred problems. Write one in the Solution Notebook.", "math/addsub/"],
     mental: ["Facts to 20: near doubles (7 + 8 = 7 + 7 + 1).", "math/games/"],
     phonics: ["Explode the Code Book 3: long vowels with silent e (cap → cape).", "reading/phonics/"],
@@ -181,7 +194,7 @@
     words: ["Word Roots Beginning. Latin: family words (mater, pater, frater, soror) and English words from them.", "reading/latin/"],
     logic: ["Building Thinking Skills: analogies (A is to B as C is to ?). Mind Benders: 3 puzzles.", "tech/logic/"],
     science: ["Zoology: bats, the only mammals that truly fly; echolocation. Lab: sound and vibration (rubber-band guitar).", "science/flying/"],
-    history: ["Story of the World: the Assyrians; the first cities of India (Indus valley).", "history/world/"],
+    history: ["Story of the World Vol. 1, ch. 5, 'The First Sumerian Dictator', read again for Sargon and the Akkadians (the course gives Sumer and Akkad a lesson each, and the book covers both in one chapter).", "history/world/"],
     art: ["Drawing with Children: draw an animal from a photo, looking for the shapes.", "arts/drawing/"],
     music: ["Piano daily. Music Theory: note names on the staff.", "music/theory/"],
     chess: ["Chess: castling and why we protect the king.", "tech/chess/"],
@@ -190,6 +203,7 @@
   });
   add({
     type: "learn", theme: "Subtraction: taking apart", why: "Subtraction is the inverse of addition: finding a missing part. Seeing both ways deepens both.",
+    thread: "Distance appears twice: subtraction as distance on a number line in math, and echolocation in science, where a bat judges distance from the time an echo takes to return.",
     math: ["Beast Academy 2B, Subtraction: subtraction as 'how many more' and as distance on a number line.", "math/addsub/"],
     mental: ["Subtraction facts to 20 by thinking addition (13 − 5: 5 + ? = 13).", "math/games/"],
     phonics: ["Explode the Code Book 3: silent e with i, o, u (kite, hope, cube).", "reading/phonics/"],
@@ -198,8 +212,8 @@
     words: ["Word Roots Beginning. Latin: nature words (aqua, terra, sol, luna, stella).", "reading/latin/"],
     logic: ["Building Thinking Skills: analogies. Mind Benders: 3 puzzles.", "tech/logic/"],
     science: ["Zoology: flying reptiles (pterosaurs: not dinosaurs!). Lab: levers and seesaws (Archimedes).", "science/physics/"],
-    history: ["Story of the World: ancient China; writing with characters; silk.", "history/world/"],
-    art: ["Famous Artists: Mondrian, with lines and primary colours.", "arts/artists/"],
+    history: ["Story of the World Vol. 1, ch. 6, 'The Jewish People', for the story of Abraham.", "history/world/"],
+    art: ["Drawing with Children: draw a bee or butterfly from a picture, using shapes.", "arts/drawing/"],
     music: ["Piano daily.", "music/theory/"],
     chess: ["Chess puzzles: forks with the knight.", "tech/chess/"],
     virtue: ["Courage: read a story of someone brave (a biography this month).", ""],
@@ -207,6 +221,7 @@
   });
   add({
     type: "learn", theme: "Subtraction with regrouping", why: "Breaking a ten into ten ones is the twin of carrying. Understanding it removes 'borrowing' mistakes for life.",
+    thread: "Shadows connect the poem and the lab: the reading lesson on the speaker of 'My Shadow', and this week's light-and-shadows lab.",
     math: ["Beast Academy 2B, Subtraction: regrouping (breaking a ten), 2- and 3-digit subtraction, and checking by adding.", "math/addsub/"],
     mental: ["Subtract 9 (take 10, add 1); subtract from 100.", "math/games/"],
     phonics: ["Explode the Code Book 3: digraphs sh, ch, th, wh.", "reading/phonics/"],
@@ -215,7 +230,7 @@
     words: ["Word Roots Beginning. Latin: animal words (canis, felis, equus, avis).", "reading/latin/"],
     logic: ["Mind Benders: 3 puzzles. Logic Lab detective grids.", "tech/logic/"],
     science: ["Zoology: a first look at insects (6 legs, 3 body parts). Lab: light and shadows.", "science/flying/"],
-    history: ["Story of the World: ancient Africa (Kush); Egypt's Middle and New Kingdoms.", "history/world/"],
+    history: ["Story of the World Vol. 1, ch. 7, 'Hammurabi and the Babylonians'.", "history/world/"],
     art: ["Drawing with Children: observation drawing of a plant.", "arts/drawing/"],
     music: ["Piano daily. Rhythm Studio: copy my rhythm.", "music/rhythm/"],
     chess: ["Chess puzzles: mate in one.", "tech/chess/"],
@@ -224,17 +239,19 @@
   });
   add({
     type: "review", theme: "Review and portfolio", why: "Make sure subtraction is solid before expressions. Look back at a month of growth.",
+    thread: "Nested loops in coding and the distributive law in math both rest on repeated groups: a loop inside a loop counts rows of columns, as multiplication does.",
     math: ["Beast Academy 2B: redo missed subtraction problems. Monthly timed challenge set.", "math/games/"],
     mental: ["All facts to 20 by strategy: which facts still need thinking?", "math/games/"],
     phonics: ["Explode the Code review; she reads to you for 15 minutes.", "reading/phonics/"],
     readAloud: ["Little House in the Big Woods, chapters 7–9.", ""],
     writing: ["Portfolio: a dated narration, copywork and a Sentence Composing page.", ""],
-    history: ["Make a timeline strip of what we have learned so far.", "history/world/"],
+    history: ["Story of the World Vol. 1, ch. 9, 'The First Cities of India' (read out of book order to match the course lesson on the Indus cities). Then make a timeline strip of what we have learned so far.", "history/world/"],
     extra: ["Portfolio review; outing; monthly math story: Sophie Germain, who taught herself math. New game: Set.", "math/games/"],
     check: "Month 4 check: subtraction with regrouping, digraphs read smoothly, a timeline she can explain.",
   });
   add({
     type: "learn", theme: "Expressions and parentheses", why: "Writing math as expressions is the first step toward algebra: math as a language with grammar.",
+    thread: "Precision of meaning is the common thread: parentheses and the order of operations fix what an expression says, and the logic lesson on necessary and sufficient conditions fixes what a statement claims.",
     math: ["Beast Academy 2B, Expressions: evaluating expressions, parentheses (do the inside first), and symbols for unknowns.", "math/patterns/"],
     mental: ["Fact families and missing numbers (8 + ? = 15).", "math/patterns/"],
     phonics: ["Explode the Code Book 3: digraphs ng, ck, tch.", "reading/phonics/"],
@@ -243,8 +260,8 @@
     words: ["Word Roots Beginning. Latin: derivative detective (aqua → aquarium, porto → transport).", "reading/latin/"],
     logic: ["Building Thinking Skills: verbal similarities and differences. Mind Benders: 3 puzzles.", "tech/logic/"],
     science: ["Zoology: insect life cycles (egg, larva, pupa, adult). Lab: acids and bases with red cabbage.", "science/chemistry/"],
-    history: ["Story of the World: Moses and the Israelites leave Egypt; the Phoenicians and their alphabet.", "history/world/"],
-    art: ["Famous Artists: Kandinsky, circles and colour as music.", "arts/artists/"],
+    history: ["Story of the World Vol. 1, ch. 10, 'The Far East: Ancient China' (the Shang and the Zhou in the course).", "history/world/"],
+    art: ["Famous Artists: Mondrian, with lines and primary colours.", "arts/artists/"],
     music: ["Piano daily.", "music/theory/"],
     chess: ["Chess puzzles: protect your pieces.", "tech/chess/"],
     virtue: ["Self-control: work before play.", ""],
@@ -252,6 +269,7 @@
   });
   add({
     type: "learn", theme: "Balance and equations", why: "An equation is a balance: both sides equal. Solving for the unknown is reasoning, not guessing.",
+    thread: "Art and music meet in the Kandinsky and Mondrian lesson on abstraction and music, with Kandinsky's circles and colour as music in the studio. Confucius, remembered above all as a teacher, meets the character lesson on gratitude to those who teach us.",
     math: ["Beast Academy 2B, Expressions: simplifying and solving simple equations; balance puzzles.", "math/patterns/"],
     mental: ["Doubles to 50 + 50; halves of even numbers to 100.", "math/games/"],
     phonics: ["Explode the Code Book 3: vowel teams ee/ea and ai/ay.", "reading/phonics/"],
@@ -260,8 +278,8 @@
     words: ["Word Roots Beginning. Latin: action words (amo, porto, specto, ambulo).", "reading/latin/"],
     logic: ["Mind Benders: 3 puzzles. Building Thinking Skills: verbal sequences.", "tech/logic/"],
     science: ["Zoology: social insects (bees and ants). Lab: fizz: baking soda and vinegar.", "science/flying/"],
-    history: ["Story of the World: Assyria returns; Babylon and its hanging gardens; Crete and the Minoans.", "history/world/"],
-    art: ["Drawing with Children: draw a bee or butterfly from a picture, using shapes.", "arts/drawing/"],
+    history: ["Story of the World Vol. 1, ch. 32, 'China: Writing and the Qin', and ch. 33, 'Confucius' (read out of book order to match the course lesson on Confucius and the first emperor).", "history/world/"],
+    art: ["Famous Artists: Kandinsky, circles and colour as music.", "arts/artists/"],
     music: ["Piano daily. Ear Training: steps or skips.", "music/ear/"],
     chess: ["Chess puzzles: the back-rank mate.", "tech/chess/"],
     virtue: ["Gratitude: say thank you to a teacher or coach.", ""],
@@ -269,6 +287,7 @@
   });
   add({
     type: "learn", theme: "Problem solving: drawing and guessing smartly", why: "Real problems need strategies: draw a picture, make a table, guess and check, work backward. Struggle is how we grow.",
+    thread: "Light is the link: the science lesson on light and shadows, and Seurat's dots, which mix in the eye.",
     math: ["Beast Academy 2B, Problem Solving: draw a picture, guess and check, work backward. One hard problem a day; Solution Notebook.", "math/games/"],
     mental: ["Mixed facts to 20 and adding 2-digit numbers mentally (35 + 27).", "math/games/"],
     phonics: ["Explode the Code Book 3: vowel teams oa/ow; finish Book 3.", "reading/phonics/"],
@@ -277,7 +296,7 @@
     words: ["Word Roots Beginning. Latin review game.", "reading/latin/"],
     logic: ["Mind Benders: 3 puzzles.", "tech/logic/"],
     science: ["Zoology: beetles, flies and true bugs. Lab: density tower.", "science/chemistry/"],
-    history: ["Story of the World: the early Greeks; the first Olympic Games (776 BC).", "history/world/"],
+    history: ["Story of the World Vol. 1, ch. 11, 'Ancient Africa', and ch. 12, 'The Middle Kingdom of Egypt' (the course lesson on Kush and Egypt's later kingdoms).", "history/world/"],
     art: ["Famous Artists: Seurat, with dots that mix in your eyes.", "arts/artists/"],
     music: ["Piano daily.", "music/theory/"],
     chess: ["Chess puzzles: mate in one review.", "tech/chess/"],
@@ -287,16 +306,19 @@
   });
   add({
     type: "review", theme: "Review and portfolio", why: "A lighter week: look back at a month of expressions and problem solving, and fix any gaps.",
+    thread: "Conditionals appear in code this week as decisions, the same if-then form the logic course studied last week.",
     math: ["Beast Academy 2B: redo missed problems; monthly timed challenge set.", "math/games/"],
     mental: ["Facts to 20: which still need a strategy? Practise just those.", "math/games/"],
     phonics: ["Explode the Code review; read a Magic Tree House book alone.", "reading/phonics/"],
     readAloud: ["The Secret Garden (continue).", ""],
     writing: ["Portfolio: a dated narration written down by you and read back by her.", ""],
+    history: ["Story of the World Vol. 1, ch. 13, 'The New Kingdom of Egypt', and ch. 14, 'The Israelites Leave Egypt' (the course lesson on Moses and the Exodus).", "history/world/"],
     extra: ["Monthly portfolio review; outing; monthly math story: Ramanujan, who filled notebooks with discoveries.", ""],
     check: "Month 5 check: balance equations, 2-step problems drawn in the Solution Notebook, vowel teams read well.",
   });
   add({
     type: "learn", theme: "Problem solving: working backward", why: "Some problems are easiest from the end: undo each step. This teaches that operations can be reversed.",
+    thread: "The alphabet connects history and words: the Phoenician letters passed through Greek and Roman writing into the alphabet in which the Latin derivatives are written. Truth tables in coding and the rhetoric lesson on faulty logic both test whether reasoning holds.",
     math: ["Beast Academy 2B, Problem Solving: working backward and guess-and-check, done neatly. Zaccaro: 2 challenge problems.", "math/games/"],
     mental: ["Undo it: I added 7 and got 15. What did I start with?", "math/patterns/"],
     phonics: ["Explode the Code Book 3 review: mixed long vowels and digraphs.", "reading/phonics/"],
@@ -305,7 +327,7 @@
     words: ["Word Roots Beginning. Latin: derivative detective, round 2.", "reading/latin/"],
     logic: ["Mind Benders: 3 puzzles. Logic Lab detective grids (harder).", "tech/logic/"],
     science: ["Zoology: butterflies and moths, and their life cycle. Lab: magnets, round 2: make a compass with a needle and a cork (with a grown-up).", "science/physics/"],
-    history: ["Story of the World: Greece gets civilised; Athens and Sparta.", "history/world/"],
+    history: ["Story of the World Vol. 1, ch. 15, 'The Phoenicians'.", "history/world/"],
     art: ["Drawing with Children: draw a still life of 3 objects, looking for the five elements.", "arts/drawing/"],
     music: ["Piano daily. Rhythm Studio: fill the bar.", "music/rhythm/"],
     chess: ["Chess puzzles: two-move combinations.", "tech/chess/"],
@@ -314,7 +336,8 @@
   });
   add({
     type: "learn", theme: "Problem solving: patterns and tables", why: "Organising information in a table and spotting patterns is how mathematicians crack problems.",
-    math: ["Beast Academy 2B, Problem Solving: make a table, find the pattern, and count systematically. Finish 2B with the hardest problems.", "math/patterns/"],
+    thread: "King Midas in the reading lesson 'The Golden Touch' is a ready example for the rhetoric lesson on the commonplace against a vice, since his story is about the cost of wanting gold above everything.",
+    math: ["Beast Academy 2B, Problem Solving: find the useful information, and organise the work carefully. Finish 2B with the hardest problems.", "math/patterns/"],
     mental: ["Count by 3s and 4s to 48 (ready for multiplication next year).", "math/games/"],
     phonics: ["Explode the Code Book 4: compound words (sun + flower).", "reading/phonics/"],
     readAloud: ["The Secret Garden (finish). Talk: how did Mary change?", ""],
@@ -322,7 +345,7 @@
     words: ["Word Roots Beginning. Latin: body and place words, and everyday Latin (a.m., p.m., etc.).", "reading/latin/"],
     logic: ["Mind Benders: 3 puzzles. Logic Lab: rotate and fold.", "tech/logic/"],
     science: ["Zoology: interesting insects (camouflage, fireflies). Lab: circuits (battery, bulb, switch) with a grown-up.", "science/physics/"],
-    history: ["Story of the World: Greece gets civilised; Athens and Sparta; the Greek gods as old stories.", "history/world/"],
+    history: ["Story of the World Vol. 1, ch. 16, 'The Return of Assyria', and ch. 17, 'Babylon Takes Over Again!' (ch. 8, 'The Assyrians', is optional background).", "history/world/"],
     art: ["Drawing with Children: draw outdoors (a tree or a building).", "arts/drawing/"],
     music: ["Piano daily; plan a small recital piece.", "music/theory/"],
     chess: ["Play one game a day; talk about a mistake she learned from.", "tech/chess/"],
@@ -331,6 +354,7 @@
   });
   add({
     type: "learn", theme: "Finishing 2B: the hardest problems", why: "Finish Beast Academy 2B properly, with the starred problems, before moving on. Depth before speed.",
+    thread: "Troy runs through the week: the history lesson on Crete, Mycenae and Troy, and the reading lesson on the opening of the Odyssey, which is the story of a man returning from the Trojan War.",
     math: ["Beast Academy 2B: the hardest starred problems, one a day, with a Solution Notebook entry. Placement check for 2C: 85% without help.", "math/games/"],
     mental: ["Add and subtract within 100 mentally.", "math/games/"],
     phonics: ["Explode the Code Book 4 begins: compound words.", "reading/phonics/"],
@@ -339,7 +363,7 @@
     words: ["Word Roots Beginning. Latin review game.", "reading/latin/"],
     logic: ["Mind Benders: 3 puzzles.", "tech/logic/"],
     science: ["Zoology: social insects and the honeybee's waggle dance. Lab: acids and bases, round 2: test 5 kitchen liquids.", "science/chemistry/"],
-    history: ["Story of the World: the Greek gods as old stories; the wars of the Greeks.", "history/world/"],
+    history: ["Story of the World Vol. 1, ch. 18, 'Life in Early Crete'.", "history/world/"],
     art: ["Famous Artists: who made this? quiz.", "arts/artists/"],
     music: ["Piano daily; begin a spring recital piece.", "music/theory/"],
     chess: ["Play one game a day; review one mistake.", "tech/chess/"],
@@ -348,11 +372,13 @@
   });
   add({
     type: "review", theme: "Review and portfolio", why: "End of term 2: show what she can do now that she couldn't in January.",
+    thread: "The reading review returns to Troy through Virgil and Tennyson, continuing last week's lesson on Crete, Mycenae and Troy and this week's lesson on the early Greeks.",
     math: ["Beast Academy 2B: finish the last problem-solving pages; review; timed challenge set.", "math/games/"],
     mental: ["Facts to 20: aim for every fact answered by recall or a quick strategy.", "math/games/"],
     phonics: ["Explode the Code review; read a Magic Tree House book alone.", "reading/phonics/"],
     readAloud: ["The Secret Garden (continue).", ""],
     writing: ["Portfolio: a struggle-then-mastery pair (an early page and a recent page).", ""],
+    history: ["Story of the World Vol. 1, ch. 19, 'The Early Greeks', and ch. 20, 'Greece Gets Civilized Again'.", "history/world/"],
     extra: ["Term 2 review (parents): one decision for term 3. Monthly math story: Ramanujan. Outing.", ""],
     check: "Term 2 milestone: subtraction with regrouping, expressions and balance equations, silent e and digraphs read well.",
   });
@@ -367,6 +393,7 @@
   // ───────────── TERM 3 · Apr–Jun 2027 · "Depth and stretch" ─────────────
   add({
     type: "learn", theme: "Measurement: how long?", why: "Measuring connects numbers to the real world: units, rulers and estimation.",
+    thread: "Comparison binds the week: the rhetoric lesson teaches syncrisis, the fair comparison; Plutarch's Alexander in reading comes from his Parallel Lives, which pair a Greek with a Roman; and Athens and Sparta in history are a natural pair to compare.",
     math: ["Beast Academy 2C, Measurement: length, using a ruler, estimating, and units (cm, m, in, ft).", "math/measure/"],
     mental: ["Estimate first, then measure: how close was she?", "math/measure/"],
     phonics: ["Explode the Code Book 4: endings -ing, -ed, -ful.", "reading/phonics/"],
@@ -375,8 +402,7 @@
     words: ["Word Roots Beginning. Latin review.", "reading/latin/"],
     logic: ["Mind Benders: 3 puzzles.", "tech/logic/"],
     science: ["Zoology: butterflies and moths. Lab: crystals: grow sugar crystals (a grown-up handles the hot water).", "science/chemistry/"],
-    history: ["Story of the World: the wars of the Greeks; Alexander the Great.", "history/world/"],
-    art: ["Famous Artists: Matisse cut-outs.", "arts/artists/"],
+    history: ["Story of the World Vol. 1, ch. 22, 'Sparta and Athens'.", "history/world/"],
     music: ["Piano daily.", "music/theory/"],
     chess: ["Chess puzzles: two-move ideas. Start Chess Tactics for Students: 3–5 puzzles a day.", "tech/chess/"],
     virtue: ["Kindness: help a younger child (or a sibling) with something.", ""],
@@ -384,6 +410,7 @@
   });
   add({
     type: "learn", theme: "Measurement: units and conversions", why: "Changing units (100 cm = 1 m) is place value again, in disguise.",
+    thread: "Herodotus, the first historian in the reading lesson, wrote the history of the wars with Persia, and this week's history lesson is on the Persian Empire.",
     math: ["Beast Academy 2C, Measurement: converting units and mixed measures (1 m 25 cm).", "math/measure/"],
     mental: ["Add and subtract within 100 mentally.", "math/games/"],
     phonics: ["Explode the Code Book 4: endings -est and -ness; 2-syllable words.", "reading/phonics/"],
@@ -392,7 +419,7 @@
     words: ["Word Roots Beginning. Latin: mottos and phrases.", "reading/latin/"],
     logic: ["Mind Benders: 3 puzzles.", "tech/logic/"],
     science: ["Zoology review: make a nature journal page of a bird and an insect seen outside. Lab: what changes can be undone? (melting vs baking).", "science/chemistry/"],
-    history: ["Story of the World: the people of the Americas; Persia.", "history/world/"],
+    history: ["Story of the World Vol. 1, ch. 21, 'The Medes and the Persians' (read after Sparta and Athens, to match the course order).", "history/world/"],
     art: ["Drawing with Children: draw from memory, then from life, and compare.", "arts/drawing/"],
     music: ["Piano daily; recital piece polishing.", "music/theory/"],
     chess: ["Chess puzzles.", "tech/chess/"],
@@ -401,6 +428,7 @@
   });
   add({
     type: "learn", theme: "Measurement in real life: time and money", why: "Clocks and coins are measurement she uses every day. Real-world math builds confidence.",
+    thread: "The rainbow joins science and reading: the lab makes a rainbow with a glass of water, and the reading lesson studies Wordsworth's rainbow poem.",
     math: ["Beast Academy 2C, Measurement: mixed measures and word problems. Extra: telling time to 5 minutes and counting coins.", "math/timemoney/"],
     mental: ["Count money: quarters, dimes, nickels, pennies.", "math/timemoney/"],
     phonics: ["Explode the Code Book 4: 2-syllable words with endings.", "reading/phonics/"],
@@ -409,7 +437,7 @@
     words: ["Word Roots Beginning. Latin: everyday Latin (a.m., p.m.).", "reading/latin/"],
     logic: ["Mind Benders: 3 puzzles.", "tech/logic/"],
     science: ["Zoology: interesting insects (fireflies, camouflage). Lab: light: make a rainbow with a glass of water.", "science/physics/"],
-    history: ["Story of the World: Alexander the Great; the people of the Americas.", "history/world/"],
+    history: ["Story of the World Vol. 1, ch. 24, 'The Wars of the Greeks', as the book's chapter on the Greek wars (the course lesson this week is the Persian Wars).", "history/world/"],
     art: ["Drawing with Children: draw a clock or a coin from life.", "arts/drawing/"],
     music: ["Piano daily.", "music/theory/"],
     chess: ["Chess puzzles.", "tech/chess/"],
@@ -418,16 +446,19 @@
   });
   add({
     type: "review", theme: "Review and portfolio", why: "A check on everything so far before the final weeks of the school year.",
+    thread: "Seeing is the thread: the rhetoric lesson on ekphrasis makes listeners see, and the art lesson on perspective with two points, air and foreshortening teaches how a flat page can show depth.",
     math: ["Beast Academy: review 2B and early 2C; monthly timed challenge set.", "math/games/"],
     mental: ["Facts to 20 fluent; 2-digit mental addition.", "math/games/"],
     phonics: ["Explode the Code review; read aloud with expression.", "reading/phonics/"],
     readAloud: ["Mary Poppins (finish).", ""],
     writing: ["Portfolio: her own 3 written sentences, dated.", ""],
+    history: ["Story of the World Vol. 1, ch. 24, 'The Wars of the Greeks', read again alongside the course lesson on the Peloponnesian War. If time allows, ch. 23, 'The Greek Gods'.", "history/world/"],
     extra: ["Monthly portfolio review; outing; math story: Maryam Mirzakhani. New game: KenKen.", "math/games/"],
     check: "Month 7 check: problem-solving strategies, measuring with units, compound words and endings read well.",
   });
   add({
     type: "learn", theme: "Strategies: thinking flexibly", why: "Strong mathematicians choose clever strategies: compensation, regrouping and estimating.",
+    thread: "Democritus, among the early Greek thinkers in the science story, proposed that matter is made of tiny particles, and the lab on why sugar disappears in water asks the same kind of question. Lewis Carroll, author of Alice, was also a logician, which suits the reading lesson on argument in Wonderland.",
     math: ["Beast Academy 2C, Strategies: adding and subtracting by compensation (49 + 26 = 50 + 25), and estimating to check.", "math/addsub/"],
     mental: ["Compensation tricks mentally.", "math/games/"],
     phonics: ["Explode the Code Book 4: syllable types and 3-syllable words.", "reading/phonics/"],
@@ -436,7 +467,7 @@
     words: ["Word Roots Beginning: finish if ready. Latin review game.", "reading/latin/"],
     logic: ["Mind Benders: 3 puzzles.", "tech/logic/"],
     science: ["Story of Science: early Greek thinkers and their questions (Thales, Pythagoras, Democritus). Lab: particles: why does sugar disappear in water?", "science/chemistry/"],
-    history: ["Story of the World: the founding of Rome; the Roman Republic; Roman numerals.", "history/world/"],
+    history: ["Story of the World Vol. 1, ch. 25, 'Alexander the Great'.", "history/world/"],
     art: ["Famous Artists: Van Gogh's swirls.", "arts/artists/"],
     music: ["Piano daily.", "music/theory/"],
     chess: ["Chess puzzles.", "tech/chess/"],
@@ -445,6 +476,7 @@
   });
   add({
     type: "learn", theme: "Estimation and checking", why: "A good mathematician asks 'Is my answer sensible?' Estimating catches mistakes before they happen.",
+    thread: "Eratosthenes runs through the week: the reading lesson on measuring the Earth, the science story of his shadows, and the math lesson on estimation and checks.",
     math: ["Beast Academy 2C, Strategies: estimating sums and differences by rounding to tens and hundreds; check each answer with an estimate. Zaccaro: 2 challenge problems.", "math/place/"],
     mental: ["Round to the nearest ten and hundred, then add.", "math/place/"],
     phonics: ["Explode the Code Book 4: syllables; read longer words by chunks.", "reading/phonics/"],
@@ -453,8 +485,7 @@
     words: ["Word Roots Beginning. Latin: numbers and families review.", "reading/latin/"],
     logic: ["Mind Benders: 3 puzzles.", "tech/logic/"],
     science: ["Story of Science: Eratosthenes measured the Earth with shadows. Lab: shadows at different times of day.", "science/physics/"],
-    history: ["Story of the World: the Roman Empire; roads and aqueducts.", "history/world/"],
-    art: ["Famous Artists: Kusama's polka dots.", "arts/artists/"],
+    history: ["Story of the World Vol. 1, ch. 26, 'The People of the Americas'.", "history/world/"],
     music: ["Piano daily.", "music/theory/"],
     chess: ["Chess puzzles.", "tech/chess/"],
     virtue: ["Honesty: say 'I don't know yet' when it's true.", ""],
@@ -462,6 +493,7 @@
   });
   add({
     type: "learn", theme: "Odds and evens", why: "Parity is a powerful idea: it lets you prove things without computing.",
+    thread: "Rome opens the week in history, and the reading lesson on 'Friends, Romans, countrymen' brings Shakespeare's Mark Antony to the ear. Parity links math and logic: odds and evens in one, parity and invariants in the other.",
     math: ["Beast Academy 2C, Odds & Evens: pairing, rules for adding odds and evens, and puzzles.", "math/patterns/"],
     mental: ["Odd or even for big numbers and sums.", "math/patterns/"],
     phonics: ["Explode the Code Book 4: finish. Independent reading: a chapter book a week.", "reading/phonics/"],
@@ -470,8 +502,8 @@
     words: ["Latin: review all words with pictures.", "reading/latin/"],
     logic: ["Mind Benders: 3 puzzles.", "tech/logic/"],
     science: ["Story of Science: Archimedes and the bathtub (Eureka!). Lab: float or sink, with a foil boat challenge.", "science/physics/"],
-    history: ["Story of the World: Julius Caesar; Augustus and the Roman Empire.", "history/world/"],
-    art: ["Drawing with Children: a final 'best drawing' for the portfolio.", "arts/drawing/"],
+    history: ["Story of the World Vol. 1, ch. 27, 'The Rise of Rome'.", "history/world/"],
+    art: ["Famous Artists: Kusama's polka dots.", "arts/artists/"],
     music: ["Piano daily; recital at home for family.", ""],
     chess: ["Play games; teach a family member a move.", "tech/chess/"],
     virtue: ["Honesty: review the year's virtues; she gives an example of each.", ""],
@@ -479,16 +511,20 @@
   });
   add({
     type: "review", theme: "Review and portfolio", why: "The last monthly review before the year-end celebration.",
+    thread: "Julius Caesar, whose funeral frames the speech 'Friends, Romans, countrymen' studied last week in reading, is this week's subject in history. The Gettysburg Address joins reading and rhetoric: reviewed in one, learned by heart in the other.",
     math: ["Beast Academy: review strategies and odds and evens; monthly timed challenge set.", "math/games/"],
     mental: ["Facts to 20 and mental math within 100.", "math/games/"],
     phonics: ["She reads to you for 20 minutes.", "reading/phonics/"],
     readAloud: ["The Number Devil (continue).", ""],
     writing: ["Portfolio: her best written sentences of the year.", ""],
+    history: ["Story of the World Vol. 1, ch. 29, \"Rome's War with Carthage\", and ch. 34, 'The Rise of Julius Caesar' (read out of book order to match the course lesson). Optional: ch. 35, 'Caesar the Hero'.", "history/world/"],
+    art: ["Famous Artists: Matisse cut-outs.", "arts/artists/"],
     extra: ["Portfolio review; outing; new game: Pentominoes.", "math/games/"],
     check: "Month 8 check: estimation, odds and evens, and reading longer words by syllables.",
   });
   add({
     type: "learn", theme: "Poems, puzzles and wonder", why: "End the school year with beauty: a memorised poem and a 'wow' math idea. Joy is part of learning.",
+    thread: "Square numbers link the math lesson on figurate numbers and proof with the wow idea of adding odd numbers to make squares.",
     math: ["Beast Academy 2C: finish Odds & Evens. Wow idea: add the first odd numbers (1, 1+3, 1+3+5…) and see the squares appear.", "math/games/"],
     mental: ["Mixed mental math review.", "math/games/"],
     phonics: ["Read a whole chapter book aloud with expression to the family.", "reading/phonics/"],
@@ -497,7 +533,8 @@
     words: ["Latin: everything this year in one review game.", "reading/latin/"],
     logic: ["Logic Lab: her favourite puzzles.", "tech/logic/"],
     science: ["Lab: her favourite experiment, taught by her to the family.", "science/chemistry/"],
-    history: ["Story of the World: the beginning of Christianity and Rome; the end of the Western Roman Empire.", "history/world/"],
+    history: ["Story of the World Vol. 1, ch. 36, 'The First Roman Prince', and ch. 37, 'The Beginning of Christianity'.", "history/world/"],
+    art: ["Drawing with Children: a final 'best drawing' for the portfolio.", "arts/drawing/"],
     music: ["Piano recital at home.", ""],
     chess: ["A family chess afternoon.", "tech/chess/"],
     virtue: ["All five virtues: she gives one example of each from her year.", ""],
@@ -505,9 +542,11 @@
   });
   add({
     type: "review", theme: "Year-end review and celebration", why: "The annual review: look at the whole year, celebrate growth, and plan Year 2.",
+    thread: "The year closes by looking back: the science lesson returns to the Greek thinkers and the art of measurement, and the history course ends with the fall of the Western Roman Empire.",
     math: ["Beast Academy: show-and-tell of her favourite problem from the Solution Notebook.", "math/games/"],
-    readAloud: ["Story of the World: the end of the Western Roman Empire (AD 476); wrap up Vol. 1.", "history/world/"],
+    readAloud: ["Story of the World Vol. 1, ch. 42, 'The End of Rome' (AD 476); wrap up Vol. 1.", "history/world/"],
     writing: ["Portfolio: choose 5–7 best pieces for the year.", ""],
+    history: ["Story of the World Vol. 1, ch. 40, 'Rome Begins to Weaken', and ch. 41, 'The Attacking Barbarians'.", "history/world/"],
     extra: ["Annual review (parents): academics, character, one plan for summer. Optional standardised test at home. Celebration outing!", ""],
     check: "Year-1 milestones: Beast Academy 2B done (2C started); facts to 20 fluent; reads at grade 2–3 level with joy; 2–3 correct written sentences; 5-sentence narration; 7 continents and 5 oceans; 10 ancient figures; 5 birds and 5 insects; one memorised poem.",
   });

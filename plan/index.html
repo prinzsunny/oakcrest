@@ -11,7 +11,7 @@
 <script src="../assets/oc.js"></script>
 <script src="../assets/firebase-config.js"></script>
 <script src="../assets/cloud.js"></script>
-<script src="../assets/plan.js"></script><script src="../assets/year-data.js"></script><script src="../assets/how-data.js"></script><script src="../assets/how-built.js"></script><script src="../assets/courses.js"></script><script src="../assets/year.js"></script></head>
+<script src="../assets/plan.js"></script><script src="../assets/year-data.js"></script><script src="../assets/how-data.js"></script><script src="../assets/how-built.js"></script><script src="../assets/courses.js"></script><script src="../assets/memory-data.js"></script><script src="../assets/year.js"></script></head>
 <body>
 <div class="oc-wrap pl">
   <header class="oc-top"><a class="oc-brand" href="../"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 3 42 9v13c0 11.5-7.6 19.6-18 23C13.6 41.6 6 33.5 6 22V9Z" fill="#7a4520"/><path d="M24 6.4 39 11.4V22c0 9.7-6.3 16.6-15 19.7C15.3 38.6 9 31.7 9 22V11.4Z" fill="#fffcf6"/><path d="M24 14.5c-4.6 0-7.6 2.4-7.9 5.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z" fill="#7a4520"/><path d="M17 21.3h14c-.2 6.3-3.1 10.7-7 12.6-3.9-1.9-6.8-6.3-7-12.6Z" fill="#c98c58"/><path d="M24 14.5v-3.2" stroke="#7a4520" stroke-width="2" stroke-linecap="round"/><path d="M19.4 17.3c1.5-1 3-1.4 4.6-1.4M28.6 17.3c-1.5-1-3-1.4-4.6-1.4" stroke="#c98c58" stroke-width="1.2" stroke-linecap="round" fill="none"/></svg><span><b>OakCrest Academy</b><small>Learning at home</small></span></a><span data-chip data-home="../"></span></header>
@@ -27,6 +27,7 @@
     <p class="oc-lead" data-lead></p>
     <section class="yr-week" data-week></section>
     <section class="yr-days" data-days></section>
+    <details class="yr-report"><summary>📄 Weekly report for the parent</summary><div data-report></div></details>
     <details class="yr-glance"><summary>📋 This week at a glance, by subject</summary><div data-glance></div></details>
     <h2 class="oc-strand">The whole year</h2>
     <p class="oc-note">Each square is a week. Tap one to open it. Colours: learning, review, light, break, summer.</p>
@@ -48,6 +49,21 @@
 .yr-courses{margin:0;padding-left:18px}
 .yr-courses li{padding:2px 0}
 .yr-over{margin-top:4px}
+.yr-thread{margin-top:6px}
+.yr-memory{margin:8px 0;padding:8px 12px;border-radius:12px;background:var(--accent-soft)}
+.yr-memory summary{cursor:pointer}
+.yr-poem{white-space:pre-wrap;font:500 16px/1.55 var(--serif, Georgia, serif);margin:8px 0}
+.yr-report{margin:12px 0}
+.yr-report summary{cursor:pointer;font-weight:800}
+.yr-report h3{margin:14px 0 4px;font-size:16px}
+.yr-report-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px}
+.yr-report-head span{display:block;color:var(--muted, #666);font-size:14px}
+.yr-report small{display:block;color:var(--muted, #666)}
+@media print{
+  body.yr-printing .oc-wrap > *:not([data-year-view]), body.yr-printing [data-year-view] > *:not(.yr-report){display:none !important}
+  body.yr-printing [data-print]{display:none}
+  body.yr-printing .yr-report summary{display:none}
+}
 </style>
 
 <script>const $ = (s) => document.querySelector(s);
@@ -105,6 +121,12 @@ function renderYear() {
       <span class="yr-type ${TYPE[week.type][1]}">${TYPE[week.type][0]}</span>
       <h2>${esc(week.theme)}</h2>
       <p class="yr-why"><b>Why this week:</b> ${esc(week.why)}</p>
+      ${week.thread ? `<p class="yr-why yr-thread"><b>🧵 This week's thread:</b> ${esc(week.thread)}</p>` : ""}
+      ${(() => {
+        const m = YEAR.memoryOf(w);
+        if (!m || ["break", "summer"].includes(week.type)) return "";
+        return `<details class="yr-memory"><summary>🧠 Memory work (weeks ${m.from + 1}–${m.to + 1}): <b>${esc(m.title)}</b>, ${esc(m.author)}</summary><p class="oc-note">${esc(m.why || "")}</p><pre class="yr-poem">${esc(m.text)}</pre><p class="oc-note">${esc(m.source || "")}</p></details>`;
+      })()}
       <div class="yr-check">
         <p><b>✅ Check by the end of the week:</b> ${esc(week.check)}</p>
         <div class="yr-check-row" role="group" aria-label="How did it go?">
@@ -161,6 +183,8 @@ function renderYear() {
       (adv.length ? `<tr><th>🚀 Advanced practice</th><td>${adv.map((i) => `<a href="../${i.path}">${esc(i.label.replace(/^Advanced: /, ""))}</a>`).join(" · ")} <small>(optional)</small></td></tr>` : "");
   })()}<tr><th>💭 Big question</th><td>${esc(YEAR.QUESTIONS[w % YEAR.QUESTIONS.length])}</td></tr></tbody></table>`;
 
+  $("[data-report]").innerHTML = renderReport(w);
+
   // The whole year map.
   $("[data-map]").innerHTML = YEAR.DATA.weeks
     .map((wk, i) => {
@@ -192,6 +216,76 @@ function renderYear() {
       return need ? `<p class="oc-note">This week's ${YEAR.lessonsOf(w).length} course lessons need about ${need} minutes on screen; the screen time above gives ${have} minutes a week, shared with soroban and the machine of the week. Lessons that do not fit are marked optional, never removed.</p>` : "";
     })()}
     <p class="oc-note">Tip: after the first month you can add Monday, Wednesday and Friday. Lessons spread out automatically.</p>`;
+}
+
+// ───────────── Weekly report (for the parent; printable) ─────────────
+function readJson(key, fallback) {
+  try {
+    const v = localStorage.getItem(key);
+    return v === null ? fallback : JSON.parse(v);
+  } catch {
+    return fallback;
+  }
+}
+function renderReport(w) {
+  const who = learner();
+  const week = YEAR.DATA.weeks[w];
+  const start = YEAR.weekStart(who, w);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 7);
+  const inWeek = (time) => time >= start.getTime() && time < end.getTime();
+  const t = YEAR.ticks(who);
+  const days = YEAR.daysOf(who, w);
+  const groups = new Map();
+  const notDone = [];
+  for (const d of days)
+    for (const it of d.items) {
+      if (it.optional) continue;
+      const g = groups.get(it.group) || { planned: 0, done: 0 };
+      g.planned += 1;
+      if (t[YEAR.tickKey(w, d.iso, it)]?.done) g.done += 1;
+      else if (!notDone.includes(it.label)) notDone.push(it.label);
+      groups.set(it.group, g);
+    }
+  const progress = readJson("oc-music", {})[who] || {};
+  const courses = window.OCCOURSES || {};
+  const recordOf = (id, n) => progress[`${courses[id]?.activity}:l${n}`] || {};
+  const lessons = YEAR.lessonsOf(w).map((l) => {
+    const r = recordOf(l.id, l.n);
+    return `<li>${esc(l.course.icon)} ${esc(l.course.title)}, lesson ${l.n}: ${esc(l.title)} · ${r.done ? `<b>done</b>, ${r.first} of ${r.of} practice problems right on the first try` : "<i>not done yet</i>"}</li>`;
+  });
+  // Questions missed on the first try this week, in any course lesson (newest first).
+  const missed = [];
+  for (const [id, c] of Object.entries(courses))
+    c.lessons.forEach((title, k) => {
+      for (const m of recordOf(id, k + 1).missed || []) if (inWeek(m.at)) missed.push({ ...m, where: `${c.title}, lesson ${k + 1}` });
+    });
+  missed.sort((a, b) => b.at - a.at);
+  const isoStart = YEAR.iso(start);
+  const isoEnd = YEAR.iso(new Date(end.getTime() - 86400000));
+  const site = new Map();
+  for (const e of OC.log()) if (e.learner === who && e.date >= isoStart && e.date <= isoEnd) site.set(e.subject, (site.get(e.subject) || 0) + (Number(e.minutes) || 0));
+  const check = t[YEAR.checkKey(w)] || {};
+  const status = { yes: "✅ Got it", almost: "🟡 Almost", notyet: "⏳ Not yet" }[check.status] || "not marked";
+  const next = YEAR.DATA.weeks[w + 1];
+  const memory = YEAR.memoryOf(w);
+  const total = [...groups.values()].reduce((a, g) => [a[0] + g.done, a[1] + g.planned], [0, 0]);
+  return `
+    <div class="yr-report-head"><div><b>Weekly report · ${esc(who)}</b><span>Week ${w + 1}: ${esc(week.theme)} · ${fmt(start, { month: "short", day: "numeric" })} – ${fmt(new Date(end.getTime() - 86400000), { month: "short", day: "numeric", year: "numeric" })}</span></div>
+      <button type="button" class="oc-button ghost" data-print>🖨️ Print</button></div>
+    <h3>Done this week: ${total[0]} of ${total[1]} planned items</h3>
+    <table class="yr-table"><tbody>${[...groups].map(([g, v]) => `<tr><th>${esc(g)}</th><td>${v.done} of ${v.planned}</td></tr>`).join("")}</tbody></table>
+    ${notDone.length && total[0] ? `<p class="oc-note"><b>Not ticked:</b> ${notDone.slice(0, 12).map(esc).join(" · ")}${notDone.length > 12 ? " …" : ""}</p>` : ""}
+    <h3>Course lessons</h3>${lessons.length ? `<ul class="yr-courses">${lessons.join("")}</ul>` : `<p class="oc-note">No course lessons this week.</p>`}
+    <h3>To revisit</h3>${
+      missed.length
+        ? `<p class="oc-note">Missed on the first try this week. Go over each one: the learner explains the right answer aloud.</p><ul class="yr-courses">${missed.slice(0, 12).map((m) => `<li>${esc(m.q)} <small>Answer: ${esc(m.a)} · ${esc(m.where)}</small></li>`).join("")}</ul>`
+        : `<p class="oc-note">Nothing missed on the first try in course lessons this week.</p>`
+    }
+    <h3>Time on OakCrest</h3>${site.size ? `<p>${[...site].map(([k, m]) => `${esc(k)}: ${Math.round(m)} min`).join(" · ")}</p>` : `<p class="oc-note">No app time logged this week on this device.</p>`}
+    <h3>Your check</h3><p>${esc(week.check)}<br><b>${status}</b>${check.note ? ` · ${esc(check.note)}` : ""}</p>
+    ${memory ? `<h3>Memory work</h3><p>${esc(memory.title)} (${esc(memory.author)})${w === memory.to ? ": recite it in full this week." : ""}</p>` : ""}
+    ${next ? `<h3>Next week</h3><p><b>${esc(next.theme)}.</b> ${esc(next.check || "")}</p>` : ""}`;
 }
 
 // ───────────── Little learner (the 4-week rotation) ─────────────
@@ -250,6 +344,14 @@ document.addEventListener("click", (event) => {
     if (go.classList.contains("yr-cell")) $("[data-week]").scrollIntoView({ behavior: "smooth" });
     return;
   }
+  if (event.target.closest("[data-print]")) {
+    const box = $(".yr-report");
+    box.open = true;
+    document.body.classList.add("yr-printing");
+    print();
+    document.body.classList.remove("yr-printing");
+    return;
+  }
   if (event.target.closest("[data-kid]")) {
     kid = !kid;
     return render();
@@ -295,7 +397,7 @@ document.addEventListener("change", (event) => {
       const d = new Date(`${value}T00:00:00`);
       d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // snap to Monday
       YEAR.setSettings(who, { start: YEAR.iso(d) });
-    } else if (k !== "start") YEAR.setSettings(who, { [k]: value });
+    } else if (k !== "start") YEAR.setSettings(who, k === "screen" ? { screen: value, screenSet: true } : { [k]: value });
     shownWeek = null;
     return render();
   }

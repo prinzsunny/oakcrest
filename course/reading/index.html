@@ -1642,6 +1642,21 @@ function listClass(list) {
   return "";
 }
 
+// Questions missed on the first try are kept with the lesson's progress (at most 20, newest last) for the
+// parent's weekly report; one answered right on the first try later is taken off the list.
+function remember(q, missed) {
+  try {
+    const id = shell.current();
+    const text = String(q.q || "").replace(/<[^>]*>/g, "").trim();
+    if (!id || !text) return;
+    const was = shell.progress()[id]?.missed || [];
+    const rest = was.filter((m) => m.q !== text);
+    if (!missed && rest.length === was.length) return;
+    const answer = Array.isArray(q.answer) && q.answerText == null ? q.answer.join(" → ") : String(q.answerText ?? q.answer);
+    shell.mark(id, { missed: missed ? [...rest, { q: text, a: answer.replace(/<[^>]*>/g, ""), at: Date.now() }].slice(-20) : rest });
+  } catch (error) {}
+}
+
 function ask(q0, label, my) {
   const q = fresh(q0);
   return new Promise((resolve) => {
@@ -1663,12 +1678,14 @@ function ask(q0, label, my) {
       const want = Array.isArray(q.answer) ? q.answer.join("|") : String(q.answer).trim().toLowerCase();
       const got = Array.isArray(value) ? value.join("|") : String(value).trim().toLowerCase();
       if (got === want) {
+        if (tries === 1) remember(q, false);
         MUSIC.chime();
         window.OC?.count("problems solved");
         finish(true);
         return true;
       }
       MUSIC.oops();
+      if (tries === 1) remember(q, true);
       if (tries === 1) say(`Not quite. ${q.hint ? esc(q.hint) : "Reconsider the question carefully."}`);
       else finish(false);
       return false;
@@ -1761,7 +1778,7 @@ const units = Object.fromEntries(
           await ask(challenge[k], `⭐ Challenge ${k + 1} of ${challenge.length}`, my);
           if (my !== token) return;
         }
-        shell.mark(id, { done: true, first, of: practice.length });
+        shell.mark(id, { done: true, first, of: practice.length, doneAt: Date.now() });
         show({ type: "big", text: `${first} / ${practice.length}`, caption: "practice problems correct on the first attempt" });
         panel(`<div class="ap-buttons"><button type="button" class="primary" data-explain>🗣️ Explain it</button><button type="button" data-off>📝 Task</button>${lesson.extend ? `<button type="button" data-extend>🚀 Go further</button>` : ""}<button type="button" data-again>↺ Again</button></div>`);
         say(`Lesson complete. Now explain the main idea in your own words.`);
