@@ -3262,21 +3262,42 @@ function listClass(list) {
 }
 
 // Questions missed on the first try are kept with the lesson's progress (at most 20, newest last) for the
-// parent's weekly report; one answered right on the first try later is taken off the list.
-function remember(q, missed) {
+// parent's weekly report and for review warm-ups in later lessons. `src` says where the question lives
+// ({ lesson, bank, k }), so a review can ask it again (a generated question comes back with new numbers).
+// One answered right on the first try later is taken off the list.
+const srcKey = (src) => (src ? `${src.lesson}:${src.bank}:${src.k}` : "");
+function remember(q, missed, src) {
   try {
-    const id = shell.current();
+    const id = src ? `l${src.lesson + 1}` : shell.current();
     const text = String(q.q || "").replace(/<[^>]*>/g, "").trim();
     if (!id || !text) return;
+    const key = srcKey(src);
     const was = shell.progress()[id]?.missed || [];
-    const rest = was.filter((m) => m.q !== text);
+    const rest = was.filter((m) => (key && m.src ? m.src !== key : m.q !== text));
     if (!missed && rest.length === was.length) return;
     const answer = Array.isArray(q.answer) && q.answerText == null ? q.answer.join(" → ") : String(q.answerText ?? q.answer);
-    shell.mark(id, { missed: missed ? [...rest, { q: text, a: answer.replace(/<[^>]*>/g, ""), at: Date.now() }].slice(-20) : rest });
+    shell.mark(id, { missed: missed ? [...rest, { q: text, a: answer.replace(/<[^>]*>/g, ""), at: Date.now(), ...(key ? { src: key } : {}) }].slice(-20) : rest });
   } catch (error) {}
 }
 
-function ask(q0, label, my) {
+// Spaced review: up to three questions missed in EARLIER lessons of this course, at least a day ago,
+// oldest first. Each is asked again at the start of the lesson; a first-try answer clears it.
+const REVIEW_MAX = 3;
+const REVIEW_GAP = 20 * 3600 * 1000;
+function reviewFor(index) {
+  const found = [];
+  const progress = shell.progress();
+  for (let i = 0; i < index; i++)
+    for (const m of progress[`l${i + 1}`]?.missed || []) {
+      if (!m.src || Date.now() - m.at < REVIEW_GAP) continue;
+      const [lesson, bank, k] = m.src.split(":");
+      const q = COURSE.lessons[Number(lesson)]?.[bank]?.[Number(k)];
+      if (q) found.push({ q, at: m.at, src: { lesson: Number(lesson), bank, k: Number(k) } });
+    }
+  return found.sort((a, b) => a.at - b.at).slice(0, REVIEW_MAX);
+}
+
+function ask(q0, label, my, src) {
   const q = fresh(q0);
   return new Promise((resolve) => {
     let tries = 0;
@@ -3297,14 +3318,14 @@ function ask(q0, label, my) {
       const want = Array.isArray(q.answer) ? q.answer.join("|") : String(q.answer).trim().toLowerCase();
       const got = Array.isArray(value) ? value.join("|") : String(value).trim().toLowerCase();
       if (got === want) {
-        if (tries === 1) remember(q, false);
+        if (tries === 1) remember(q, false, src);
         MUSIC.chime();
         window.OC?.count("problems solved");
         finish(true);
         return true;
       }
       MUSIC.oops();
-      if (tries === 1) remember(q, true);
+      if (tries === 1) remember(q, true, src);
       if (tries === 1) say(`Not quite. ${q.hint ? esc(q.hint) : "Reconsider the question carefully."}`);
       else finish(false);
       return false;
@@ -3384,17 +3405,28 @@ const units = Object.fromEntries(
         await learn(lesson, my);
         if (my !== token) return;
         let first = 0;
-        const practice = drawSet(lesson.practice || [], lesson.practiceCount || 12);
-        for (let k = 0; k < practice.length; k++) {
-          if (await ask(practice[k], `Practice ${k + 1} of ${practice.length}`, my)) first += 1;
+        const review = reviewFor(i);
+        if (review.length) {
+          say(`First, a short review: ${review.length === 1 ? "one question" : `${review.length} questions`} missed in an earlier lesson.`);
+          await wait(1400);
           if (my !== token) return;
         }
-        const challenge = drawSet(lesson.challenge || [], lesson.challengeCount || 3);
+        for (let k = 0; k < review.length; k++) {
+          await ask(review[k].q, `🔁 Review ${k + 1} of ${review.length}`, my, review[k].src);
+          if (my !== token) return;
+        }
+        const bankOf = (name) => (lesson[name] || []).map((q, k) => ({ q, k }));
+        const practice = drawSet(bankOf("practice"), lesson.practiceCount || 12);
+        for (let k = 0; k < practice.length; k++) {
+          if (await ask(practice[k].q, `Practice ${k + 1} of ${practice.length}`, my, { lesson: i, bank: "practice", k: practice[k].k })) first += 1;
+          if (my !== token) return;
+        }
+        const challenge = drawSet(bankOf("challenge"), lesson.challengeCount || 3);
         for (let k = 0; k < challenge.length; k++) {
           say("Challenge problem. Understand it, make a plan, carry it out, then check.");
           await wait(1200);
           if (my !== token) return;
-          await ask(challenge[k], `⭐ Challenge ${k + 1} of ${challenge.length}`, my);
+          await ask(challenge[k].q, `⭐ Challenge ${k + 1} of ${challenge.length}`, my, { lesson: i, bank: "challenge", k: challenge[k].k });
           if (my !== token) return;
         }
         shell.mark(id, { done: true, first, of: practice.length, doneAt: Date.now() });
