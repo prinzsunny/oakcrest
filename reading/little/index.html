@@ -1,0 +1,1376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Little Letters · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="reading">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Little Letters</b><small>Reading · Foundations</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, wait, confetti, explain, everyday, emoji } = KIT;
+const stage = $("[data-stage]");
+let token = 0;
+let cleanups = [];
+let shell = null;
+
+// ======================================================================
+// <DATA> pure data and round generators (no DOM). Checked by a Node script.
+// ======================================================================
+const ORDER = ["s", "a", "t", "p", "i", "n", "m", "d", "g", "o", "c", "k", "e", "u", "r", "h", "b", "f", "l", "j", "v", "w", "x", "y", "z"];
+// Letter names are what the voice says for a letter. Sounds are taught through words, never as bare sounds.
+const LETTER_NAME = { a: "ay", b: "bee", c: "see", d: "dee", e: "ee", f: "eff", g: "gee", h: "aitch", i: "eye", j: "jay", k: "kay", l: "ell", m: "em", n: "en", o: "oh", p: "pee", q: "cue", r: "are", s: "ess", t: "tee", u: "you", v: "vee", w: "double you", x: "ex", y: "why", z: "zee" };
+// c and k make the same first sound (cat, kite); every other letter has its own.
+const group = (l) => (l === "k" ? "c" : l);
+// Each word is [word, picture]. "svg:name" is a drawn picture (no clear emoji exists).
+// Vowels use their SHORT sound only. c is always the /k/ sound, g always the hard sound.
+// x is taught by words that END in x.
+const WORDS = {
+  s: [["sun", "☀️"], ["sock", "🧦"], ["seal", "🦭"], ["soap", "🧼"], ["salt", "🧂"], ["sandwich", "🥪"]],
+  a: [["apple", "🍎"], ["ant", "🐜"], ["ax", "🪓"], ["anchor", "⚓"]],
+  t: [["tiger", "🐯"], ["tent", "⛺"], ["turtle", "🐢"], ["tooth", "🦷"], ["taco", "🌮"], ["tomato", "🍅"], ["train", "🚆"]],
+  p: [["pig", "🐷"], ["pizza", "🍕"], ["pear", "🍐"], ["panda", "🐼"], ["penguin", "🐧"], ["pie", "🥧"], ["piano", "🎹"], ["pineapple", "🍍"], ["popcorn", "🍿"], ["pencil", "✏️"]],
+  i: [["igloo", "svg:igloo"], ["ink", "svg:ink"], ["insect", "svg:insect"]],
+  n: [["nose", "👃"], ["newspaper", "📰"], ["noodles", "🍜"], ["nine", "9️⃣"]],
+  m: [["moon", "🌙"], ["mouse", "🐭"], ["monkey", "🐒"], ["milk", "🥛"], ["mushroom", "🍄"], ["mango", "🥭"], ["map", "🗺️"], ["mountain", "⛰️"]],
+  d: [["dog", "🐕"], ["duck", "🦆"], ["door", "🚪"], ["drum", "🥁"], ["dolphin", "🐬"], ["donut", "🍩"], ["deer", "🦌"], ["dinosaur", "🦕"]],
+  g: [["goat", "🐐"], ["gift", "🎁"], ["guitar", "🎸"], ["gorilla", "🦍"], ["grapes", "🍇"]],
+  o: [["octopus", "🐙"], ["ox", "🐂"], ["otter", "🦦"], ["olive", "🫒"]],
+  c: [["cat", "🐱"], ["cow", "🐄"], ["car", "🚗"], ["carrot", "🥕"], ["cake", "🎂"], ["camel", "🐫"], ["corn", "🌽"], ["cookie", "🍪"], ["crab", "🦀"], ["crown", "👑"], ["camera", "📷"], ["cap", "🧢"]],
+  k: [["kite", "🪁"], ["key", "🔑"], ["kangaroo", "🦘"], ["koala", "🐨"], ["kiwi", "🥝"]],
+  e: [["egg", "🥚"], ["elephant", "🐘"], ["eggplant", "🍆"], ["elf", "🧝"]],
+  u: [["umbrella", "☂️"], ["up", "⬆️"], ["under", "svg:under"]],
+  r: [["rabbit", "🐰"], ["rainbow", "🌈"], ["ring", "💍"], ["robot", "🤖"], ["rocket", "🚀"], ["rose", "🌹"], ["rooster", "🐓"]],
+  h: [["horse", "🐴"], ["house", "🏠"], ["hammer", "🔨"], ["heart", "❤️"], ["helicopter", "🚁"], ["hippo", "🦛"], ["honey", "🍯"], ["hat", "🎩"]],
+  b: [["ball", "⚽"], ["bee", "🐝"], ["bear", "🐻"], ["boat", "⛵"], ["banana", "🍌"], ["bus", "🚌"], ["butterfly", "🦋"], ["bed", "🛏️"], ["book", "📖"], ["bird", "🐦"], ["bell", "🔔"], ["balloon", "🎈"], ["bread", "🍞"], ["bone", "🦴"], ["bat", "🦇"]],
+  f: [["fish", "🐟"], ["frog", "🐸"], ["fox", "🦊"], ["flower", "🌸"], ["fire", "🔥"], ["feather", "🪶"], ["foot", "🦶"]],
+  l: [["lion", "🦁"], ["leaf", "🍃"], ["lemon", "🍋"], ["ladder", "🪜"], ["ladybug", "🐞"], ["lock", "🔒"], ["lollipop", "🍭"], ["leg", "🦵"], ["lizard", "🦎"], ["lobster", "🦞"]],
+  j: [["juice", "🧃"], ["jeans", "👖"], ["jigsaw", "🧩"], ["joystick", "🕹️"], ["jack-o-lantern", "🎃"]],
+  v: [["van", "🚐"], ["violin", "🎻"], ["volcano", "🌋"], ["vest", "🦺"]],
+  w: [["watch", "⌚"], ["whale", "🐋"], ["watermelon", "🍉"], ["web", "🕸️"], ["window", "🪟"], ["wolf", "🐺"], ["worm", "🪱"]],
+  x: [["box", "📦"], ["fox", "🦊"], ["six", "6️⃣"], ["ax", "🪓"], ["ox", "🐂"]],
+  y: [["yo-yo", "🪀"], ["yarn", "🧶"], ["yawn", "🥱"], ["yellow", "💛"]],
+  z: [["zebra", "🦓"], ["zero", "0️⃣"], ["zipper", "svg:zipper"]],
+};
+// Rhyming sets. Every set rhymes in General American and in British English.
+const RHYMES = [
+  [["cat", "🐱"], ["hat", "🎩"], ["bat", "🦇"], ["rat", "🐀"]],
+  [["dog", "🐕"], ["log", "🪵"], ["fog", "🌫️"]],
+  [["bee", "🐝"], ["tree", "🌳"], ["key", "🔑"]],
+  [["star", "⭐"], ["car", "🚗"], ["guitar", "🎸"]],
+  [["moon", "🌙"], ["spoon", "🥄"], ["balloon", "🎈"]],
+  [["boat", "⛵"], ["goat", "🐐"], ["coat", "🧥"]],
+  [["bed", "🛏️"], ["sled", "🛷"]],
+  [["fish", "🐟"], ["dish", "🍽️"]],
+  [["house", "🏠"], ["mouse", "🐭"]],
+  [["snail", "🐌"], ["whale", "🐋"]],
+  [["hen", "🐔"], ["pen", "🖊️"], ["ten", "🔟"]],
+  [["bell", "🔔"], ["shell", "🐚"]],
+  [["train", "🚆"], ["rain", "🌧️"], ["plane", "✈️"], ["chain", "⛓️"]],
+  [["van", "🚐"], ["man", "👨"], ["can", "🥫"]],
+  [["cake", "🎂"], ["snake", "🐍"]],
+  [["fox", "🦊"], ["box", "📦"], ["ox", "🐂"]],
+  [["clock", "🕐"], ["lock", "🔒"], ["rock", "🪨"]],
+  [["pie", "🥧"], ["eye", "👁️"], ["fly", "🪰"], ["tie", "👔"]],
+  [["shoe", "👟"], ["blue", "🔵"]],
+  [["bear", "🐻"], ["pear", "🍐"], ["chair", "🪑"]],
+];
+// Short words for blending. rime is a real word the voice can say ("at", "an", "in", "en", "ox", "ad").
+const FAMILIES = [
+  { rime: "at", words: [["cat", "🐱"], ["bat", "🦇"], ["hat", "🎩"], ["rat", "🐀"]] },
+  { rime: "an", words: [["can", "🥫"], ["man", "👨"], ["van", "🚐"]] },
+  { rime: "in", words: [["pin", "📌"], ["bin", "🗑️"]] },
+  { rime: "en", words: [["hen", "🐔"], ["pen", "🖊️"], ["ten", "🔟"]] },
+  { rime: "ox", words: [["fox", "🦊"], ["box", "📦"]] },
+  { rime: "ad", words: [["sad", "😢"], ["mad", "😠"]] },
+];
+
+// ---------- letter shapes: standard print formation, one array of points per stroke, in order ----------
+const rad = (d) => (d * Math.PI) / 180;
+const arc = (cx, cy, rx, ry, a0, a1) => {
+  const n = Math.max(8, Math.ceil(Math.abs(a1 - a0) / 6));
+  return Array.from({ length: n + 1 }, (_, i) => {
+    const a = rad(a0 + ((a1 - a0) * i) / n);
+    return [cx + rx * Math.cos(a), cy + ry * Math.sin(a)];
+  });
+};
+const line = (x0, y0, x1, y1) => {
+  const n = Math.max(2, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 3));
+  return Array.from({ length: n + 1 }, (_, i) => [x0 + ((x1 - x0) * i) / n, y0 + ((y1 - y0) * i) / n]);
+};
+const bez = (p0, p1, p2, p3, n = 18) =>
+  Array.from({ length: n + 1 }, (_, i) => {
+    const t = i / n;
+    const u = 1 - t;
+    return [0, 1].map((k) => u * u * u * p0[k] + 3 * u * u * t * p1[k] + 3 * u * t * t * p2[k] + t * t * t * p3[k]);
+  });
+const chain = (...parts) => parts.flatMap((part, i) => (i ? part.slice(1) : part));
+const bowl = (a0, a1) => arc(28, 58, 22, 22, a0, a1);
+const hump = (x, top = 32) => chain(bez([x, 56], [x + 4, 36], [x + 38, top], [x + 38, 54]), line(x + 38, 54, x + 38, 80));
+const STROKES = {
+  a: [bowl(-45, -405), line(50, 36, 50, 80)],
+  b: [line(6, 4, 6, 80), bowl(180, 540)],
+  c: [bowl(-40, -320)],
+  d: [bowl(-45, -405), line(50, 4, 50, 80)],
+  e: [chain(line(6, 58, 50, 58), bowl(0, -315))],
+  f: [chain(bez([46, 12], [40, 2], [24, 2], [24, 24]), line(24, 24, 24, 80)), line(10, 38, 42, 38)],
+  g: [bowl(-45, -405), chain(line(50, 36, 50, 100), bez([50, 100], [50, 114], [34, 118], [16, 110]))],
+  h: [line(8, 4, 8, 80), hump(8)],
+  i: [line(28, 36, 28, 80), [[28, 16], [28, 17]]],
+  j: [chain(line(28, 36, 28, 100), bez([28, 100], [28, 114], [20, 118], [10, 112])), [[28, 16], [28, 17]]],
+  k: [line(8, 4, 8, 80), line(46, 36, 10, 62), line(24, 50, 48, 80)],
+  l: [line(28, 4, 28, 80)],
+  m: [line(6, 36, 6, 80), chain(bez([6, 56], [8, 36], [26, 34], [26, 54]), line(26, 54, 26, 80)), chain(bez([26, 56], [28, 36], [48, 34], [48, 54]), line(48, 54, 48, 80))],
+  n: [line(8, 36, 8, 80), hump(8)],
+  o: [arc(28, 58, 22, 22, -90, -450)],
+  p: [line(6, 36, 6, 116), bowl(180, 540)],
+  q: [bowl(-45, -405), line(50, 36, 50, 116)],
+  r: [line(10, 36, 10, 80), bez([10, 58], [14, 38], [28, 34], [40, 40])],
+  s: [chain(arc(28, 47, 15, 11, -40, -270), arc(28, 69, 17, 11, -90, 150))],
+  t: [chain(line(26, 8, 26, 70), bez([26, 70], [26, 80], [34, 82], [44, 76])), line(12, 38, 42, 38)],
+  u: [chain(line(8, 36, 8, 62), arc(28, 62, 20, 18, 180, 0)), line(48, 36, 48, 80)],
+  v: [chain(line(6, 36, 28, 80), line(28, 80, 50, 36))],
+  w: [chain(line(4, 36, 15, 80), line(15, 80, 28, 44), line(28, 44, 41, 80), line(41, 80, 52, 36))],
+  x: [line(8, 36, 48, 80), line(48, 36, 8, 80)],
+  y: [line(8, 36, 30, 78), line(48, 36, 14, 116)],
+  z: [chain(line(8, 36, 48, 36), line(48, 36, 8, 80), line(8, 80, 48, 80))],
+};
+const BOUNDS = {};
+for (const [ch, strokes] of Object.entries(STROKES)) {
+  const all = strokes.flat();
+  BOUNDS[ch] = { minX: Math.min(...all.map((p) => p[0])), maxX: Math.max(...all.map((p) => p[0])), minY: Math.min(...all.map((p) => p[1])), maxY: Math.max(...all.map((p) => p[1])) };
+}
+
+// ---------- round generators ----------
+const rpick = (list) => list[Math.floor(Math.random() * list.length)];
+const rshuffle = (list) => {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+};
+const itemsOf = (l) => WORDS[l].map(([w, pic]) => ({ w, pic, l }));
+const poolLetters = (week) => ORDER.slice(0, week + 1);
+const pickLetter = (week) => (Math.random() < 0.5 ? ORDER[week] : rpick(poolLetters(week)));
+// Pictures for the wrong answers: any word that starts with a different sound (never x words, never the same group).
+const otherStarts = (week, avoid) => ORDER.slice(0, Math.max(week, 9) + 1).filter((l) => l !== "x" && group(l) !== avoid).flatMap(itemsOf);
+const takeOthers = (list, n, used) => {
+  const out = [];
+  for (const item of rshuffle(list)) {
+    if (out.length >= n) break;
+    if (used.has(item.pic) || used.has(item.w) || out.some((o) => o.pic === item.pic || group(o.l) === group(item.l))) continue;
+    out.push(item);
+  }
+  return out;
+};
+const endsClean = (item) => !/[xsk]$/.test(item.w);
+const withOk = (correct, others) => rshuffle([{ ...correct, ok: true }, ...others.map((o) => ({ ...o, ok: false }))]);
+
+// Unit 1: which picture starts (or, for x, ends) like the target word?
+function genSame(week, n) {
+  const L = pickLetter(week);
+  if (L === "x") {
+    const [target, correct] = rshuffle(itemsOf("x")).slice(0, 2);
+    const others = rshuffle(otherStarts(week, "x").filter(endsClean)).filter((o, i, a) => a.findIndex((p) => p.pic === o.pic) === i && o.pic !== target.pic && o.pic !== correct.pic).slice(0, n - 1);
+    return { kind: "same", mode: "end", letter: "x", target, correct, choices: withOk(correct, others) };
+  }
+  const sameSound = poolLetters(week).filter((l) => group(l) === group(L)).flatMap(itemsOf);
+  const target = rpick(itemsOf(L));
+  const correct = rpick(sameSound.filter((i) => i.w !== target.w && i.pic !== target.pic));
+  const others = takeOthers(otherStarts(week, group(L)), n - 1, new Set([target.pic, correct.pic, target.w, correct.w]));
+  return { kind: "same", mode: "start", letter: L, target, correct, choices: withOk(correct, others) };
+}
+
+// Unit 2: the letter is shown with two example words; tap a different picture that starts with it.
+function genLetter(week, n) {
+  const L = pickLetter(week);
+  const keys = rshuffle(itemsOf(L)).slice(0, 2);
+  const correct = rpick(itemsOf(L).filter((i) => !keys.some((k) => k.pic === i.pic)));
+  const pool = L === "x" ? otherStarts(week, "x").filter(endsClean) : otherStarts(week, group(L));
+  const used = new Set([...keys.map((k) => k.pic), correct.pic]);
+  const others = L === "x" ? rshuffle(pool).filter((o, i, a) => !used.has(o.pic) && a.findIndex((p) => p.pic === o.pic) === i).slice(0, n - 1) : takeOthers(pool, n - 1, used);
+  return { kind: "letter", mode: L === "x" ? "end" : "start", letter: L, keys, correct, choices: withOk(correct, others) };
+}
+
+// Unit 4: which picture rhymes with the target?
+function genRhyme(n) {
+  const sets = RHYMES.map((s) => s.map(([w, pic]) => ({ w, pic })));
+  const set = rpick(sets);
+  const [target, correct] = rshuffle(set).slice(0, 2);
+  const usedPics = new Set(set.map((i) => i.pic));
+  const others = [];
+  for (const s of rshuffle(sets)) {
+    if (s === set || others.length >= n - 1) continue;
+    const cand = rpick(s);
+    if (usedPics.has(cand.pic) || others.some((o) => o.pic === cand.pic)) continue;
+    others.push(cand);
+  }
+  return { kind: "rhyme", mode: "none", target, correct, choices: withOk(correct, others) };
+}
+
+// Unit 5: blend a first letter with a rime word the voice can say ("at"), then pick the picture.
+const CVC = FAMILIES.flatMap((f) => f.words.map(([w, pic]) => ({ w, pic, l: w[0], rime: f.rime, fam: f.rime })));
+function genBlend(week, n) {
+  let usable = CVC.filter((c) => ORDER.indexOf(c.l) <= week);
+  if (usable.length < 6) usable = CVC.filter((c) => ORDER.indexOf(c.l) <= Math.max(week, ORDER.indexOf("b")));
+  const target = rpick(usable);
+  const family = CVC.filter((c) => c.fam === target.fam);
+  const model = rpick(family.filter((c) => c.w !== target.w));
+  const used = new Set([target.pic, model.pic]);
+  const others = [];
+  const sibling = n >= 3 ? rshuffle(family.filter((c) => c.w !== target.w && c.w !== model.w)) : [];
+  if (sibling.length) {
+    others.push(sibling[0]);
+    used.add(sibling[0].pic);
+  }
+  for (const c of rshuffle(CVC)) {
+    if (others.length >= n - 1) break;
+    if (c.fam === target.fam || used.has(c.pic) || others.some((o) => o.fam === c.fam)) continue;
+    others.push(c);
+    used.add(c.pic);
+  }
+  return { kind: "blend", mode: "none", target, onset: target.l, rime: target.rime, model, choices: withOk(target, others) };
+}
+// </DATA>
+
+// ======================================================================
+// speech and text helpers
+// ======================================================================
+const EMO = /[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{1F3FB}-\u{1F3FF}️‍⃣]/gu;
+const clean = (s) => String(s).replace(EMO, "").replace(/\s+/g, " ").trim();
+const SAY_WORD = { "yo-yo": "yo yo", "jack-o-lantern": "jack o lantern" };
+// {s} shows the letter on screen and is spoken as its name ("ess"). Words with a hyphen are spelled for the voice.
+const fmt = (t, speech) => {
+  const out = t.replace(/\{([a-z])\}/g, (_, l) => (speech ? LETTER_NAME[l] : `<b class="ll-l">${l}</b>`));
+  return speech ? out.replace(/yo-yo|jack-o-lantern/g, (m) => SAY_WORD[m]) : out;
+};
+function talk(t) {
+  say(fmt(t, false), { voice: false });
+  VOICE.speak(clean(fmt(t, true)));
+}
+function talkAsync(t) {
+  say(fmt(t, false), { voice: false });
+  return VOICE.speakAsync(clean(fmt(t, true)));
+}
+const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);
+const listOf = (words) => (words.length === 2 ? `${words[0]}, or ${words[1]}` : `${words.slice(0, -1).join(", ")}, or ${words[words.length - 1]}`);
+const FONT = "Andika, 'Century Gothic', 'Chalkboard SE', 'Comic Sans MS', ui-rounded, system-ui, sans-serif";
+const mark = (id, data) => shell.mark(id, data);
+const vowel = (l) => "aeiou".includes(l);
+
+// Saved week letter (the newest letter the grown-up has chosen). Practice covers it plus every earlier letter.
+const WEEK_KEY = "oc-little-letters-week";
+const urlLetter = (() => {
+  const m = (location.search + "&" + location.hash.replace(/^#/, "&")).match(/[?&#]letter=([a-z])/i) || location.hash.match(/^#([a-z])$/i);
+  const l = m && m[1].toLowerCase();
+  return ORDER.includes(l) ? l : null;
+})();
+let hasSaved = false;
+let week = (() => {
+  if (urlLetter) return ORDER.indexOf(urlLetter);
+  try {
+    const n = Number(localStorage.getItem(WEEK_KEY));
+    if (localStorage.getItem(WEEK_KEY) !== null && n >= 0 && n < ORDER.length) {
+      hasSaved = true;
+      return n;
+    }
+  } catch {}
+  return 0;
+})();
+function setWeek(n) {
+  week = n;
+  try {
+    localStorage.setItem(WEEK_KEY, String(n));
+  } catch {}
+}
+const weekLetter = () => ORDER[week];
+// Short sentence a grown-up can read: the letter with its example words.
+const exampleWords = (l, n = 3) => itemsOf(l).slice(0, n).map((i) => i.w);
+
+// ======================================================================
+// drawing helpers
+// ======================================================================
+function dims() {
+  const r = stage.getBoundingClientRect();
+  const aspect = r.width / Math.max(1, r.height);
+  const W = aspect >= 1.15 ? 1000 : 600;
+  return { W, H: Math.round(W / aspect), aspect, px: r.width / W };
+}
+const roundRect = (parent, r, attrs) => el("rect", { x: r.x, y: r.y, width: r.w, height: r.h, rx: Math.min(34, r.h / 4, r.w / 4), ...attrs }, parent);
+
+const letterD = (strokes) => strokes.map((pts) => "M" + pts.map((p) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join("L")).join(" ");
+// Fit a lowercase letter into a box. Letters keep their natural height ratio (b is taller than a).
+function fitLetter(ch, box, { pad = 12, tall = 70 } = {}) {
+  const b = BOUNDS[ch];
+  const s = Math.min(box.w / (b.maxX - b.minX + pad), box.h / (b.maxY - b.minY + pad), box.h / tall);
+  return { s, tx: box.x + box.w / 2 - (s * (b.minX + b.maxX)) / 2, ty: box.y + box.h / 2 - (s * (b.minY + b.maxY)) / 2 };
+}
+function drawLetter(parent, ch, box, { color = "var(--accent-dark)", sw = 10, opts } = {}) {
+  const f = fitLetter(ch, box, opts);
+  const g = el("g", { transform: `translate(${f.tx.toFixed(1)} ${f.ty.toFixed(1)}) scale(${f.s.toFixed(3)})` }, parent);
+  el("path", { d: letterD(STROKES[ch]), fill: "none", stroke: color, "stroke-width": sw, "stroke-linecap": "round", "stroke-linejoin": "round" }, g);
+  return g;
+}
+// A word in drawn letters on a shared baseline. Returns one group per letter so chunks can move.
+function drawWordShapes(parent, word, cx, baseY, s, colors = []) {
+  const gap = 16 * s;
+  const widths = [...word].map((ch) => (BOUNDS[ch].maxX - BOUNDS[ch].minX + 10) * s);
+  const total = widths.reduce((a, b) => a + b, 0) + gap * (word.length - 1);
+  let x = cx - total / 2;
+  return [...word].map((ch, i) => {
+    const b = BOUNDS[ch];
+    const g = el("g", {}, parent);
+    const inner = el("g", { transform: `translate(${(x + 5 * s - b.minX * s).toFixed(1)} ${(baseY - 80 * s).toFixed(1)}) scale(${s})` }, g);
+    el("path", { d: letterD(STROKES[ch]), fill: "none", stroke: colors[i] || "var(--accent-dark)", "stroke-width": 10, "stroke-linecap": "round", "stroke-linejoin": "round" }, inner);
+    const info = { g, ch, cx: x + widths[i] / 2, w: widths[i] };
+    x += widths[i] + gap;
+    return info;
+  });
+}
+// Caption under a picture. The letter being taught (first, or last for x) is highlighted.
+function caption(parent, x, y, word, size, hi = 0) {
+  const t = el("text", { x, y, "text-anchor": "middle", "font-size": size, "font-weight": 700, "font-family": FONT, fill: "#2b1d12" }, parent);
+  [...word].forEach((c, i) => {
+    const s = el("tspan", {}, t);
+    s.textContent = c;
+    if (i === hi) {
+      s.setAttribute("fill", "var(--accent-dark)");
+      s.setAttribute("font-weight", 900);
+    }
+  });
+  return t;
+}
+const fitSize = (word, width, max) => Math.max(14, Math.min(max, width / (word.length * 0.56)));
+const hiIndex = (word, mode) => (mode === "end" ? word.length - 1 : mode === "none" ? -1 : 0);
+
+// ---------- pictures: emoji, or a small drawn picture where no clear emoji exists ----------
+const DRAW = {
+  igloo(g) {
+    el("ellipse", { cx: 0, cy: 34, rx: 52, ry: 8, fill: "#cfe1ec" }, g);
+    el("path", { d: "M-46 32 A46 46 0 0 1 46 32 Z", fill: "#f4f9fc", stroke: "#8fb3c9", "stroke-width": 3 }, g);
+    for (const [y, r] of [[8, 38], [-12, 24]]) el("path", { d: `M${-r} ${y + 12} Q0 ${y - 4} ${r} ${y + 12}`, fill: "none", stroke: "#b7d0e0", "stroke-width": 2.5 }, g);
+    for (const x of [-26, -8, 12, 30]) el("path", { d: `M${x} 32 L${x * 0.8} 14`, stroke: "#b7d0e0", "stroke-width": 2 }, g);
+    el("path", { d: "M-15 32 V16 A15 15 0 0 1 15 16 V32 Z", fill: "#5b7c99" }, g);
+  },
+  ink(g) {
+    el("rect", { x: -34, y: -4, width: 56, height: 46, rx: 10, fill: "#2f4aa8", stroke: "#1f3270", "stroke-width": 3 }, g);
+    el("rect", { x: -22, y: -20, width: 32, height: 18, fill: "#d8dff0", stroke: "#8f9ac0", "stroke-width": 2.5 }, g);
+    el("rect", { x: -26, y: -30, width: 40, height: 12, rx: 4, fill: "#222" }, g);
+    el("rect", { x: -26, y: 8, width: 12, height: 26, rx: 5, fill: "#fff", opacity: 0.3 }, g);
+    el("path", { d: "M38 -2 C38 -2 26 16 26 26 a12 12 0 0 0 24 0 C50 16 38 -2 38 -2Z", fill: "#2f4aa8", stroke: "#1f3270", "stroke-width": 2.5 }, g);
+  },
+  insect(g) {
+    for (const s of [-1, 1]) {
+      for (const y of [-6, 8, 22]) el("path", { d: `M${s * 18} ${y} L${s * 42} ${y + (y < 8 ? -12 : y > 8 ? 12 : 2)}`, stroke: "#3a2a1a", "stroke-width": 4, "stroke-linecap": "round" }, g);
+      el("path", { d: `M${s * 6} -34 Q${s * 18} -52 ${s * 30} -48`, fill: "none", stroke: "#3a2a1a", "stroke-width": 3, "stroke-linecap": "round" }, g);
+    }
+    el("ellipse", { cx: 0, cy: 10, rx: 24, ry: 32, fill: "#5a8f3c", stroke: "#2f5a1c", "stroke-width": 3 }, g);
+    el("path", { d: "M0 -20 V42", stroke: "#2f5a1c", "stroke-width": 2.5 }, g);
+    el("circle", { cx: 0, cy: -28, r: 13, fill: "#3f6e28", stroke: "#2f5a1c", "stroke-width": 3 }, g);
+    for (const x of [-5, 5]) el("circle", { cx: x, cy: -30, r: 2.6, fill: "#fff" }, g);
+  },
+  under(g) {
+    el("rect", { x: -48, y: -26, width: 96, height: 12, rx: 4, fill: "#b9803f", stroke: "#7a4a22", "stroke-width": 2.5 }, g);
+    for (const x of [-40, 32]) el("rect", { x, y: -14, width: 8, height: 62, fill: "#a06b32", stroke: "#7a4a22", "stroke-width": 2 }, g);
+    el("circle", { cx: 0, cy: 28, r: 16, fill: "#e53935", stroke: "#8e1c1a", "stroke-width": 2.5 }, g);
+    el("circle", { cx: -5, cy: 22, r: 4.5, fill: "#fff", opacity: 0.7 }, g);
+  },
+  zipper(g) {
+    for (const x of [-30, 8]) el("rect", { x, y: -48, width: 22, height: 96, rx: 3, fill: "#3b82c4", stroke: "#25598c", "stroke-width": 2.5 }, g);
+    for (let k = 0; k < 9; k++) {
+      const y = -40 + k * 10;
+      el("rect", { x: k % 2 ? -8 : -4, y, width: 12, height: 6, rx: 2, fill: "#d4d9de", stroke: "#8a949e", "stroke-width": 1.5 }, g);
+    }
+    el("rect", { x: -11, y: -50, width: 22, height: 22, rx: 6, fill: "#c9ced4", stroke: "#8a949e", "stroke-width": 2.5 }, g);
+    el("circle", { cx: 0, cy: -20, r: 7, fill: "none", stroke: "#8a949e", "stroke-width": 3 }, g);
+  },
+};
+function drawPic(parent, cx, cy, size, item) {
+  if (item.pic.startsWith("svg:")) {
+    const g = el("g", { transform: `translate(${cx} ${cy}) scale(${size / 100})` }, parent);
+    DRAW[item.pic.slice(4)](g);
+    return g;
+  }
+  return emoji(parent, cx, cy, item.pic, size);
+}
+
+// ======================================================================
+// the tracing art (shared by "See it" and "Trace it")
+// ======================================================================
+function traceArt(parent, ch, box, px = 1) {
+  const S = STROKES[ch];
+  const f = fitLetter(ch, box, { pad: 20, tall: 60 });
+  const g = el("g", { transform: `translate(${f.tx.toFixed(1)} ${f.ty.toFixed(1)}) scale(${f.s.toFixed(3)})` }, parent);
+  const ppu = f.s * px; // screen pixels per letter unit
+  const sw = Math.max(6.5, 22 / ppu);
+  const b = BOUNDS[ch];
+  // faint writing lines (baseline and x-height)
+  for (const y of [36, 80]) el("path", { d: `M${b.minX - 14} ${y}H${b.maxX + 14}`, stroke: "#e9dfcb", "stroke-width": 1.4 / Math.max(0.6, ppu / 3), "stroke-dasharray": "6 5" }, g);
+  const guide = S.map((pts) => el("path", { d: letterD([pts]), fill: "none", stroke: "#ebe3d3", "stroke-width": sw + 3.2, "stroke-linecap": "round", "stroke-linejoin": "round" }, g));
+  S.forEach((pts) => el("path", { d: letterD([pts]), fill: "none", stroke: "#cfc3ad", "stroke-width": 1.6, "stroke-dasharray": "2 7", "stroke-linecap": "round" }, g));
+  const ink = S.map(() => el("path", { d: "", fill: "none", stroke: "var(--accent)", "stroke-width": sw, "stroke-linecap": "round", "stroke-linejoin": "round" }, g));
+  const r = Math.max(4.4, 15 / ppu);
+  const dots = S.map((pts, i) => {
+    const d = el("g", { transform: `translate(${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)})` }, g);
+    el("circle", { class: "ll-dot-ring", r: r * 1.5, fill: "none", stroke: "var(--accent)", "stroke-width": r * 0.28 }, d);
+    el("circle", { r, fill: "var(--accent-dark)", stroke: "#fff", "stroke-width": r * 0.22 }, d);
+    const t = text(d, 0, r * 0.42, i + 1, { "font-size": r * 1.25, fill: "#fff", "font-weight": 900, "font-family": FONT });
+    t.setAttribute("pointer-events", "none");
+    return d;
+  });
+  const pen = el("circle", { class: "ll-pen", r: r * 0.72, fill: "#ffcf5c", stroke: "#b8860b", "stroke-width": r * 0.2, visibility: "hidden", "pointer-events": "none" }, g);
+  const api = {
+    g, S, f, ppu, sw,
+    setInk(si, p) {
+      ink[si].setAttribute("d", p < 0 ? "" : letterD([S[si].slice(0, p + 1)]));
+    },
+    // state of the numbered dots: done strokes are hidden, the current one pulses, later ones are quiet
+    dots(si) {
+      dots.forEach((d, i) => {
+        d.setAttribute("opacity", i < si ? 0 : i === si ? 1 : 0.5);
+        d.querySelector(".ll-dot-ring").setAttribute("class", i === si ? "ll-dot-ring ll-pulse" : "ll-dot-ring");
+        d.querySelector(".ll-dot-ring").style.opacity = i === si ? "" : 0;
+      });
+    },
+    pen(si, p) {
+      if (si == null) return pen.setAttribute("visibility", "hidden");
+      const pt = S[si][p];
+      pen.setAttribute("cx", pt[0]);
+      pen.setAttribute("cy", pt[1]);
+      pen.setAttribute("visibility", p === 0 ? "hidden" : "visible");
+    },
+    allDone() {
+      ink.forEach((p) => p.setAttribute("stroke", "#22a05a"));
+      api.dots(S.length);
+      api.pen(null);
+    },
+    toLetter(cx, cy) {
+      const svgEl = g.ownerSVGElement;
+      const pt = svgEl.createSVGPoint();
+      pt.x = cx;
+      pt.y = cy;
+      const q = pt.matrixTransform(g.getScreenCTM().inverse());
+      return [q.x, q.y];
+    },
+  };
+  return api;
+}
+// Slide a pen along a whole stroke list, one stroke after another (used by See it and the Show me button).
+async function penDemo(art, { from = 0, fromPoint = 0, alive, gap = 380, speed = 150 }) {
+  for (let si = from; si < art.S.length; si++) {
+    const pts = art.S[si];
+    art.dots(si);
+    const start = si === from ? fromPoint : 0;
+    const lens = [0];
+    for (let i = 1; i < pts.length; i++) lens.push(lens[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    const from0 = lens[start];
+    const total = lens[lens.length - 1] - from0;
+    const dur = Math.max(450, (total / speed) * 1000);
+    art.pen(si, start);
+    await wait(180);
+    const t0 = performance.now();
+    let idx = start;
+    while (true) {
+      if (!alive()) return false;
+      const t = Math.min(1, (performance.now() - t0) / dur);
+      const target = from0 + total * t;
+      while (idx < pts.length - 1 && lens[idx + 1] <= target) idx++;
+      art.setInk(si, idx);
+      art.pen(si, idx);
+      if (t >= 1) break;
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+    await wait(gap);
+  }
+  return alive();
+}
+
+// ======================================================================
+// "Try it for real" finish card
+// ======================================================================
+function wrap(str, n) {
+  const lines = [];
+  for (const word of str.split(" ")) {
+    const last = lines[lines.length - 1];
+    if (last && (last + " " + word).length <= n) lines[lines.length - 1] = last + " " + word;
+    else lines.push(word);
+  }
+  return lines;
+}
+function finishCard({ id, icon, message, speech, again, nextId }) {
+  const my = token;
+  const { W, H } = dims();
+  stage.innerHTML = "";
+  const v = makeSvg(`0 0 ${W} ${H}`, stage);
+  roundRect(v, { x: 20, y: 20, w: W - 40, h: H - 40 }, { fill: "#fffaf0", stroke: "var(--accent)", "stroke-width": 5 });
+  const avail = H - 40;
+  const heading = Math.min(34, W * 0.05);
+  const circle = Math.max(34, Math.min(78, avail * 0.15));
+  let size = 38;
+  let lines = [];
+  for (; size >= 20; size -= 2) {
+    lines = wrap(message, Math.floor((W - 110) / (size * 0.52)));
+    if (circle * 2 + heading * 1.8 + lines.length * size * 1.35 + 50 <= avail) break;
+  }
+  const blockH = circle * 2 + 20 + heading * 1.6 + lines.length * size * 1.35;
+  const top = H / 2 - blockH / 2;
+  el("circle", { cx: W / 2, cy: top + circle, r: circle, fill: "var(--accent-soft)" }, v);
+  emoji(v, W / 2, top + circle - 4, icon, circle * 1.25);
+  const ty = top + circle * 2 + 20 + heading;
+  text(v, W / 2, ty, "Try it for real, with a grown-up", { "font-size": heading, fill: "var(--accent-dark)", "font-weight": 900, "font-family": FONT });
+  lines.forEach((ln, i) => text(v, W / 2, ty + 14 + (i + 1) * size * 1.3, ln, { "font-size": size, fill: "#2b1d12", "font-weight": 700, "font-family": FONT }));
+  confetti();
+  mark(id, { done: true });
+  const host = panel(`<div class="ap-buttons"><button type="button" data-again>🔁 Play again</button>${nextId ? '<button type="button" class="primary" data-next>▶ Next game</button>' : ""}</div>`);
+  talkAsync(speech).then(() => {});
+  host.onclick = (event) => {
+    if (my !== token) return;
+    if (event.target.closest("[data-again]")) {
+      VOICE.hush();
+      again();
+    } else if (event.target.closest("[data-next]")) shell.go(nextId);
+  };
+}
+const NEXT = { u1: "u2", u2: "u3", u3: "u4", u4: "u5", u5: null };
+
+const letterChip = () => `<button type="button" class="ll-chip" data-letter aria-label="Choose a letter">🔤 <b data-ltr>${weekLetter()}</b></button>`;
+function wireChip(host, extra) {
+  const my = token;
+  host.onclick = (event) => {
+    if (my !== token) return;
+    if (event.target.closest("[data-letter]")) {
+      VOICE.hush();
+      return shell.go("pick");
+    }
+    extra?.(event);
+  };
+}
+const watchSize = (fn) => {
+  let last = "";
+  const ro = new ResizeObserver(() => {
+    const r = stage.getBoundingClientRect();
+    const key = `${Math.round(r.width)}x${Math.round(r.height)}`;
+    if (key === last) return;
+    const first = last === "";
+    last = key;
+    if (!first) fn();
+  });
+  ro.observe(stage);
+  cleanups.push(() => ro.disconnect());
+};
+
+// ======================================================================
+// the choice game used by units 1, 2, 4 and 5
+// ======================================================================
+function slots(W, H, n) {
+  const wide = W > 700;
+  const gap = 14;
+  if (wide) {
+    const px = 16;
+    const pw = Math.round(W * 0.29);
+    const ax = px + pw + 18;
+    const cw = (W - 16 - ax - gap * (n - 1)) / n;
+    return { prompt: { x: px, y: 16, w: pw, h: H - 32 }, cards: Array.from({ length: n }, (_, i) => ({ x: ax + i * (cw + gap), y: 16, w: cw, h: H - 32 })) };
+  }
+  const ph = Math.round(H * 0.37);
+  const cy = 16 + ph + 14;
+  const cw = (W - 32 - gap * (n - 1)) / n;
+  return { prompt: { x: 16, y: 16, w: W - 32, h: ph }, cards: Array.from({ length: n }, (_, i) => ({ x: 16 + i * (cw + gap), y: cy, w: cw, h: H - cy - 16 })) };
+}
+function drawCard(v, r, c, i, showWord, mode) {
+  const g = el("g", { class: `ll-card${c.state ? " " + c.state : ""}`, "data-i": i, "data-ok": c.ok ? 1 : 0, role: "button", "aria-label": c.w }, v);
+  roundRect(g, r, { class: "ll-face", fill: "#fff", stroke: c.state === "good" ? "#22a05a" : c.state === "bad" ? "#f0a37a" : "#e2d6c4", "stroke-width": c.state === "good" ? 10 : 5 });
+  const size = Math.min(r.w * 0.78, r.h * (showWord ? 0.5 : 0.6));
+  drawPic(g, r.x + r.w / 2, r.y + r.h * (showWord ? 0.42 : 0.5), size, c);
+  if (showWord || c.state === "good") caption(g, r.x + r.w / 2, r.y + r.h - Math.max(22, r.h * 0.1), c.w, fitSize(c.w, r.w - 24, 40), hiIndex(c.w, mode));
+  return g;
+}
+function speakerBadge(g, x, y) {
+  el("circle", { cx: x, cy: y, r: 24, fill: "var(--accent-soft)" }, g);
+  emoji(g, x, y - 1, "🔊", 28);
+}
+
+function runChoice(cfg) {
+  const my = token;
+  const ROUNDS = 8;
+  let round = 0;
+  let q = null;
+  let open = false;
+  let tries = 0;
+  const host = panel(`<p class="ap-dots" data-dots></p><div class="ap-buttons"><button type="button" class="primary" data-again>🔊 Hear it again</button>${letterChip()}</div>`);
+  const dots = () => ($("[data-dots]").textContent = "●".repeat(round) + "○".repeat(ROUNDS - round));
+  function draw() {
+    if (!q || my !== token) return;
+    const { W, H } = dims();
+    stage.innerHTML = "";
+    const v = makeSvg(`0 0 ${W} ${H}`, stage);
+    const L = slots(W, H, q.choices.length);
+    const pg = el("g", {}, v);
+    cfg.drawPrompt(pg, L.prompt, q, { W, H });
+    q.choices.forEach((c, i) => drawCard(v, L.cards[i], c, i, !cfg.hideWords || c.state === "good", q.mode));
+  }
+  async function ask() {
+    if (my !== token) return;
+    q = cfg.gen(round);
+    tries = 0;
+    open = true;
+    dots();
+    draw();
+    await talkAsync(cfg.ask(q, round));
+  }
+  async function next() {
+    if (my !== token) return;
+    if (round >= ROUNDS) return finish();
+    await wait(450);
+    ask();
+  }
+  function finish() {
+    if (my !== token) return;
+    q = null;
+    finishCard({ id: cfg.id, icon: cfg.realIcon, message: cfg.real(), speech: `${cfg.end} ${cfg.real()}`, again: () => shell.go(cfg.id), nextId: NEXT[cfg.id] });
+  }
+  async function choose(i) {
+    const c = q.choices[i];
+    if (!open || c.state) return;
+    open = false;
+    window.OC?.touch();
+    if (c.ok) {
+      c.state = "good";
+      MUSIC.chime();
+      round += 1;
+      window.OC?.count(cfg.count);
+      dots();
+      draw();
+      cfg.after?.(q, c, tries, my);
+      await talkAsync(cfg.praise(q, c));
+      next();
+    } else {
+      tries += 1;
+      c.state = "bad";
+      MUSIC.oops();
+      draw();
+      if (tries >= 2) {
+        const right = q.choices.find((x) => x.ok);
+        right.state = "good";
+        round += 1;
+        window.OC?.count(cfg.count);
+        dots();
+        draw();
+        await talkAsync(cfg.reveal(q, c));
+        next();
+      } else {
+        await talkAsync(cfg.hint(q, c));
+        if (my === token) open = true;
+      }
+    }
+  }
+  stage.onpointerdown = (event) => {
+    const g = event.target.closest?.(".ll-card");
+    if (!g || my !== token || !q) return;
+    choose(Number(g.dataset.i));
+  };
+  cleanups.push(() => (stage.onpointerdown = null));
+  wireChip(host, (event) => {
+    if (event.target.closest("[data-again]") && q) talk(cfg.ask(q, round));
+  });
+  watchSize(draw);
+  ask();
+}
+
+// ---------- prompt cards ----------
+function promptFrame(g, r) {
+  roundRect(g, r, { fill: "#fffaf0", stroke: "var(--accent)", "stroke-width": 5 });
+}
+function drawWordPrompt(g, r, q) {
+  promptFrame(g, r);
+  const t = q.target;
+  const size = Math.min(r.w * 0.7, r.h * 0.5);
+  drawPic(g, r.x + r.w / 2, r.y + r.h * 0.4, size, t);
+  caption(g, r.x + r.w / 2, r.y + r.h - Math.max(24, r.h * 0.12), t.w, fitSize(t.w, r.w - 30, 46), hiIndex(t.w, q.mode));
+  speakerBadge(g, r.x + r.w - 34, r.y + 34);
+}
+function drawLetterPrompt(g, r, q) {
+  promptFrame(g, r);
+  const horiz = r.w > r.h * 1.25;
+  const L = q.letter;
+  const lb = horiz ? { x: r.x + 14, y: r.y + 12, w: r.w * 0.34, h: r.h - 24 } : { x: r.x + 12, y: r.y + 14, w: r.w * 0.8, h: r.h * 0.5 };
+  drawLetter(g, L, lb);
+  const up = el("text", { x: horiz ? r.x + r.w * 0.44 : r.x + r.w - 30, y: horiz ? r.y + r.h * 0.4 : lb.y + 50, "text-anchor": "middle", "font-size": horiz ? 46 : 50, "font-weight": 800, "font-family": FONT, fill: "#8a7b66" }, g);
+  up.textContent = L.toUpperCase();
+  const ax = horiz ? r.x + r.w * 0.52 : r.x + 12;
+  const aw = horiz ? r.w * 0.46 : r.w - 24;
+  const kw = Math.min(aw / 2 - 8, horiz ? r.h * 0.5 : r.h * 0.22);
+  q.keys.forEach((k, i) => {
+    const cx = ax + aw / 2 + (i - 0.5) * (aw / 2);
+    const cy = horiz ? r.y + r.h * 0.4 : r.y + r.h * 0.7;
+    drawPic(g, cx, cy, kw * 0.85, k);
+    caption(g, cx, horiz ? r.y + r.h - 20 : r.y + r.h - 16, k.w, fitSize(k.w, aw / 2 - 4, 28), hiIndex(k.w, q.mode));
+  });
+  speakerBadge(g, r.x + 34, r.y + 34);
+}
+const wordWidth = (word, s) => [...word].reduce((t, ch) => t + (BOUNDS[ch].maxX - BOUNDS[ch].minX + 10) * s, 0) + 16 * s * (word.length - 1);
+function drawBlendPrompt(g, r, q) {
+  promptFrame(g, r);
+  const solved = q.choices.some((c) => c.state === "good");
+  const mid = r.x + r.w / 2;
+  const chunk = 34;
+  const fitS = (total) => Math.min(3.2, (r.h * 0.5) / 112, (r.w - 40) / total);
+  let base = 0;
+  const place = (sc) => (base = r.y + r.h * 0.1 + 76 * sc + (r.h * 0.5 - 112 * sc) / 2);
+  if (solved) {
+    const s = fitS(wordWidth(q.target.w, 1));
+    place(s);
+    drawWordShapes(g, q.target.w, mid, base, s, [...q.target.w].map((_, i) => (i === 0 ? "#c0392b" : "var(--accent-dark)")));
+    drawPic(g, mid, r.y + r.h * 0.8, Math.min(r.w * 0.5, r.h * 0.26), q.target);
+  } else {
+    const s = fitS(wordWidth(q.onset, 1) + wordWidth(q.rime, 1) + chunk);
+    place(s);
+    const wa = wordWidth(q.onset, s);
+    const wb = wordWidth(q.rime, s);
+    const total = wa + wb + chunk * s;
+    const left = mid - total / 2;
+    drawWordShapes(g, q.onset, left + wa / 2, base, s, ["#c0392b"]);
+    text(g, left + wa + (chunk * s) / 2, base - 8 * s, "+", { "font-size": 22 * s, fill: "#8a7b66", "font-weight": 900, "font-family": FONT });
+    drawWordShapes(g, q.rime, left + wa + chunk * s + wb / 2, base, s);
+    const rr = Math.min(r.w, r.h) * 0.11;
+    el("circle", { cx: mid, cy: r.y + r.h * 0.82, r: rr, fill: "var(--accent-soft)" }, g);
+    text(g, mid, r.y + r.h * 0.82 + rr * 0.55, "?", { "font-size": rr * 1.6, fill: "var(--accent-dark)", "font-weight": 900, "font-family": FONT });
+  }
+  speakerBadge(g, r.x + r.w - 34, r.y + 34);
+}
+
+// ======================================================================
+// units
+// ======================================================================
+const UNITS = [
+  { id: "u0", label: "See it", icon: "👀" },
+  { id: "pick", label: "Choose a letter", icon: "🔤" },
+  { id: "u1", label: "1. Same start", icon: "🟰" },
+  { id: "u2", label: "2. Letter and picture", icon: "🔡" },
+  { id: "u3", label: "3. Trace it", icon: "✍️" },
+  { id: "u4", label: "4. Rhyme time", icon: "🎵" },
+  { id: "u5", label: "5. Blend it", icon: "🧩" },
+];
+const units = {
+  // ---------- See it ----------
+  u0() {
+    const my = token;
+    const alive = () => my === token;
+    const L = weekLetter();
+    const items = rshuffle(itemsOf(L)).slice(0, 3);
+    const endMode = L === "x";
+    const talkTo = async (api, t) => {
+      const ok = await talkAsync(t);
+      await api.wait(250);
+      return ok;
+    };
+    const card = (parent, r, item, { word = true, mode = "start" } = {}) => {
+      const g = el("g", {}, parent);
+      roundRect(g, r, { fill: "#fff", stroke: "#e2d6c4", "stroke-width": 5 });
+      drawPic(g, r.x + r.w / 2, r.y + r.h * 0.42, Math.min(r.w * 0.7, r.h * 0.5), item);
+      if (word) caption(g, r.x + r.w / 2, r.y + r.h - 28, item.w, fitSize(item.w, r.w - 24, 40), hiIndex(item.w, mode));
+      return g;
+    };
+    const pop = (g, api, y0) => {
+      g.setAttribute("opacity", 0);
+      return api.tween(380, (t) => {
+        g.setAttribute("opacity", t);
+        g.setAttribute("transform", `translate(0 ${(1 - t) * (y0 || 30)})`);
+      });
+    };
+    const scenes = [
+      {
+        say: "",
+        async draw(v, api) {
+          const p = talkTo(api, "Letters are all around you. They are on signs, on books, on food boxes, and in your name. Each letter helps us write the sounds in words.");
+          await everyday([["🚏", "Signs"], ["📖", "Books"], ["🥣", "Food boxes"], ["✏️", "Your name"]])(v, api);
+          await p;
+        },
+      },
+      {
+        say: "",
+        async draw(v, api) {
+          const lb = { x: 40, y: 50, w: 300, h: 360 };
+          const lg = drawLetter(v, L, lb);
+          lg.setAttribute("opacity", 0);
+          const up = text(v, 190, 500, L.toUpperCase(), { "font-size": 80, fill: "#8a7b66", "font-weight": 800, "font-family": FONT });
+          up.setAttribute("opacity", 0);
+          await api.tween(500, (t) => {
+            lg.setAttribute("opacity", t);
+            up.setAttribute("opacity", t);
+          });
+          const intro = endMode
+            ? "This is the letter {x}. We hear it at the end of words, like box."
+            : vowel(L)
+              ? `This is the letter {${L}}. It can make a short sound, as in ${items[0].w}.`
+              : `This is the letter {${L}}.`;
+          await talkTo(api, intro);
+          const cards = items.map((it, i) => {
+            const g = el("g", {}, v);
+            const inner = card(g, { x: 380 + i * 205, y: 110, w: 190, h: 300 }, it, { mode: endMode ? "end" : "start" });
+            g.setAttribute("opacity", 0);
+            return g;
+          });
+          for (let i = 0; i < cards.length; i++) {
+            await api.tween(350, (t) => cards[i].setAttribute("opacity", t));
+            await talkTo(api, cap(items[i].w) + ".");
+          }
+          await talkTo(api, endMode ? `They all end with the letter {x}.` : "They all start the same way.");
+        },
+      },
+      {
+        say: "",
+        async draw(v, api) {
+          const other = rpick(otherStarts(week, group(L)).filter((o) => (endMode ? endsClean(o) : true)));
+          const target = items[0];
+          const right = items[1];
+          const t = el("g", {}, v);
+          card(t, { x: 40, y: 110, w: 250, h: 320 }, target, { mode: endMode ? "end" : "start" });
+          roundRect(t, { x: 40, y: 110, w: 250, h: 320 }, { fill: "none", stroke: "var(--accent)", "stroke-width": 8 });
+          const order = rshuffle([right, other]);
+          const gs = order.map((it, i) => card(el("g", {}, v), { x: 350 + i * 310, y: 110, w: 290, h: 320 }, it, { mode: endMode ? "end" : "start" }));
+          const names = order.map((o) => o.w);
+          await talkTo(api, endMode ? `${cap(target.w)}. Which one ends the same way: ${listOf(names)}?` : `${cap(target.w)}. Which one starts like ${target.w}: ${listOf(names)}?`);
+          await api.wait(700);
+          const ri = order.indexOf(right);
+          const frame = roundRect(gs[ri], { x: 350 + ri * 310, y: 110, w: 290, h: 320 }, { fill: "none", stroke: "#22a05a", "stroke-width": 10 });
+          frame.setAttribute("opacity", 0);
+          await api.tween(350, (tt) => frame.setAttribute("opacity", tt));
+          MUSIC.chime();
+          await talkTo(api, endMode ? `${cap(target.w)}, ${right.w}. They both end with x.` : `${cap(target.w)}, ${right.w}. They start the same way. ${cap(order[1 - ri].w)} starts differently.`);
+        },
+      },
+      {
+        say: "",
+        async draw(v, api) {
+          const art = traceArt(v, L, { x: 230, y: 20, w: 540, h: 520 }, 0.9);
+          art.dots(0);
+          await talkTo(api, "We can write the letter with a finger. Start at the number one, then follow the path.");
+          await penDemo(art, { alive: api.alive });
+          art.allDone();
+          await talkTo(api, `That is the letter {${L}}.`);
+        },
+      },
+      {
+        say: "",
+        async draw(v, api) {
+          const slotsX = [90, 400, 710];
+          const cats = [{ w: "cat", pic: "🐱" }, { w: "hat", pic: "🎩" }, { w: "dog", pic: "🐕" }];
+          const gs = cats.map((c, i) => card(el("g", {}, v), { x: slotsX[i], y: 150, w: 200, h: 290 }, c, { mode: "end" }));
+          // caption highlight shows the last letter(s) only loosely; keep the picture the focus
+          await talkTo(api, "Words that rhyme sound the same at the end. Cat. Hat. They rhyme.");
+          const ring = el("path", { d: "M190 130 Q350 40 500 130", fill: "none", stroke: "#22a05a", "stroke-width": 9, "stroke-linecap": "round" }, v);
+          ring.setAttribute("opacity", 0);
+          await api.tween(450, (t) => ring.setAttribute("opacity", t));
+          MUSIC.chime();
+          await api.wait(500);
+          await talkTo(api, "Cat. Dog. Those do not sound the same at the end. They do not rhyme.");
+          const x = el("g", { stroke: "#d9822b", "stroke-width": 11, "stroke-linecap": "round" }, v);
+          el("path", { d: "M690 90 L750 150 M750 90 L690 150" }, x);
+          x.setAttribute("opacity", 0);
+          await api.tween(400, (t) => x.setAttribute("opacity", t));
+          await api.wait(500);
+        },
+      },
+      {
+        say: "",
+        async draw(v, api) {
+          const s = 2.2;
+          const base = 330;
+          await talkTo(api, "We can build a word from a smaller word. Look at hat.");
+          const hat = drawWordShapes(v, "hat", 420, base, s, ["#c0392b"]);
+          drawPic(v, 800, 250, 170, { pic: "🎩" });
+          await api.wait(500);
+          await talkTo(api, "Hat, without the {h}, says: at.");
+          await api.tween(500, (t) => hat[0].g.setAttribute("opacity", 1 - t));
+          await api.wait(350);
+          await talkTo(api, "Now put the letter {c} in front of at.");
+          const c = drawWordShapes(v, "c", hat[0].cx, base, s, ["#c0392b"])[0];
+          c.g.setAttribute("opacity", 0);
+          await api.tween(700, (t) => {
+            c.g.setAttribute("opacity", t);
+            c.g.setAttribute("transform", `translate(${(-160 * (1 - t)).toFixed(1)} 0)`);
+          });
+          MUSIC.chime();
+          v.querySelectorAll("text").forEach((n) => n.remove());
+          drawPic(v, 800, 250, 170, { pic: "🐱" });
+          await talkTo(api, "Cat.");
+          await api.wait(300);
+          await talkTo(api, "A different first letter makes a different word. Hat. Cat.");
+          await api.wait(600);
+        },
+      },
+    ];
+    explain(scenes, { alive, title: "", onDone: () => { mark("u0", { done: true }); shell.go("u1"); } });
+  },
+
+  // ---------- choose a letter ----------
+  pick() {
+    const my = token;
+    const host = panel(`<div class="ll-prev" data-prev></div><div class="ap-buttons"><button type="button" class="primary" data-start>▶ Learn this letter</button></div>`);
+    const preview = () => {
+      const l = weekLetter();
+      $("[data-prev]").innerHTML = `<b class="ll-big">${l}${l.toUpperCase()}</b>` + itemsOf(l).slice(0, 3).map((i) => `<span class="ll-mini">${i.pic.startsWith("svg:") ? "" : i.pic}<small>${i.w}</small></span>`).join("");
+    };
+    function draw() {
+      if (my !== token) return;
+      const { W, H, aspect } = dims();
+      stage.innerHTML = "";
+      const v = makeSvg(`0 0 ${W} ${H}`, stage);
+      const cols = aspect >= 2.2 ? 9 : aspect >= 1.15 ? 7 : 5;
+      const rows = Math.ceil(ORDER.length / cols);
+      const gap = 10;
+      const tw = (W - 24 - gap * (cols - 1)) / cols;
+      const th = (H - 24 - gap * (rows - 1)) / rows;
+      ORDER.forEach((l, i) => {
+        const r = { x: 12 + (i % cols) * (tw + gap), y: 12 + Math.floor(i / cols) * (th + gap), w: tw, h: th };
+        const g = el("g", { class: "ll-tile", "data-i": i, role: "button", "aria-label": `letter ${l}` }, v);
+        const now = i === week;
+        const learned = i < week;
+        roundRect(g, r, { fill: now ? "var(--accent)" : learned ? "var(--accent-soft)" : "#fff", stroke: now ? "var(--accent-dark)" : learned ? "var(--accent)" : "#e2d6c4", "stroke-width": now ? 6 : 3 });
+        drawLetter(g, l, { x: r.x + r.w * 0.1, y: r.y + r.h * 0.22, w: r.w * 0.8, h: r.h * 0.7 }, { color: now ? "#fff" : learned ? "var(--accent-dark)" : "#6b5e4c", sw: 11 });
+        const up = el("text", { x: r.x + 10, y: r.y + Math.min(24, r.h * 0.22), "font-size": Math.min(22, r.h * 0.2), "font-weight": 800, "font-family": FONT, fill: now ? "#fff" : "#8a7b66" }, g);
+        up.textContent = l.toUpperCase();
+      });
+    }
+    stage.onpointerdown = (event) => {
+      const g = event.target.closest?.(".ll-tile");
+      if (!g || my !== token) return;
+      const i = Number(g.dataset.i);
+      setWeek(i);
+      window.OC?.count("letters chosen");
+      draw();
+      preview();
+      const l = ORDER[i];
+      const w = exampleWords(l);
+      talk(l === "x" ? `{x}. We hear it at the end of ${listOf(w).replace("or ", "")}.` : `{${l}}. ${cap(w[0])}, ${w[1]}, ${w[2]}.`);
+    };
+    cleanups.push(() => (stage.onpointerdown = null));
+    wireChip(host, (event) => {
+      if (event.target.closest("[data-start]")) {
+        VOICE.hush();
+        shell.go("u0");
+      }
+    });
+    watchSize(draw);
+    draw();
+    preview();
+    talk("This is for a grown-up. Tap the newest letter you are learning. Every earlier letter is practised too.");
+  },
+
+  // ---------- 1. Same start ----------
+  u1() {
+    runChoice({
+      id: "u1",
+      count: "word starts matched",
+      gen: (round) => genSame(week, round < 4 ? 2 : 3),
+      drawPrompt: drawWordPrompt,
+      ask: (q, round) => {
+        const names = q.choices.map((c) => c.w);
+        if (q.mode === "end") return `${cap(q.target.w)}. The letter {x} is at the end of ${q.target.w}. Which one ends the same way: ${listOf(names)}?`;
+        return `${round === 0 ? "Listen to the start of each word. " : ""}${cap(q.target.w)}. Which one starts like ${q.target.w}: ${listOf(names)}?`;
+      },
+      praise: (q, c) => {
+        if (q.mode === "end") return `Yes. ${cap(q.target.w)} and ${c.w} both end with the letter {x}.`;
+        const split = q.target.l !== c.l ? ` One begins with the letter {${q.target.l}}, the other with {${c.l}}, but the first sound is the same.` : "";
+        return `Yes. ${cap(q.target.w)} and ${c.w} both start the same way.${split}`;
+      },
+      hint: (q, c) => (q.mode === "end" ? `Not quite. ${cap(c.w)} does not end with the letter {x}. Mistakes are how we learn. Try another.` : `Not quite. Mistakes are how we learn. Listen: ${q.target.w}, ${c.w}. They start differently. Try another.`),
+      reveal: (q) => {
+        const right = q.choices.find((x) => x.ok);
+        return q.mode === "end" ? `Let's look. ${cap(q.target.w)}, ${right.w}. They both end with the letter {x}.` : `Let's look. ${cap(q.target.w)}, ${right.w}. They start the same way. This one is ${right.w}.`;
+      },
+      end: "That is eight words. You listened closely to the start of each one.",
+      realIcon: "🏠",
+      real: () => {
+        const l = weekLetter();
+        const w = exampleWords(l, 1)[0];
+        return l === "x" ? "Find things whose names end like box. Say each name out loud." : `Find three things at home that start like ${w}. Say each name out loud.`;
+      },
+    });
+  },
+
+  // ---------- 2. Letter and picture ----------
+  u2() {
+    runChoice({
+      id: "u2",
+      count: "letters matched to pictures",
+      gen: (round) => genLetter(week, round < 3 ? 2 : 3),
+      drawPrompt: drawLetterPrompt,
+      ask: (q) => {
+        const names = q.choices.map((c) => c.w);
+        const [a, b] = q.keys.map((k) => k.w);
+        if (q.mode === "end") return `This is the letter {x}. It is at the end of ${a} and ${b}. Which of these ends with the letter {x}: ${listOf(names)}?`;
+        return `This is the letter {${q.letter}}. ${cap(a)} and ${b} start with it. Which of these starts with the letter {${q.letter}}: ${listOf(names)}?`;
+      },
+      praise: (q, c) => (q.mode === "end" ? `Yes. ${cap(c.w)} ends with the letter {x}, like ${q.keys[0].w}.` : `Yes. ${cap(c.w)} starts with the letter {${q.letter}}, like ${q.keys[0].w} and ${q.keys[1].w}.`),
+      hint: (q, c) => (q.mode === "end" ? `Not quite. ${cap(c.w)} does not end with the letter {x}. Mistakes are how we learn. Try another.` : `Not quite. ${cap(c.w)} does not start with the letter {${q.letter}}. Mistakes are how we learn. Try another.`),
+      reveal: (q) => {
+        const right = q.choices.find((x) => x.ok);
+        return q.mode === "end" ? `Let's look. ${cap(right.w)} ends with the letter {x}.` : `Let's look. ${cap(right.w)} starts with the letter {${q.letter}}.`;
+      },
+      end: "That is eight letters matched to pictures. You looked and listened carefully.",
+      realIcon: "🔡",
+      real: () => `Look for the letter ${weekLetter()} on signs, boxes and books. Point to it each time you see it.`,
+    });
+  },
+
+  // ---------- 3. Trace it ----------
+  u3() {
+    const my = token;
+    const alive = () => my === token;
+    const ROUNDS = 5;
+    let round = 0;
+    let letters = [];
+    let art = null;
+    let si = 0;
+    let p = 0;
+    let down = false;
+    let busy = false;
+    let idle = null;
+    let helps = 0;
+    let lastHint = 0;
+    let demoGen = 0;
+    const host = panel(`<p class="ap-dots" data-dots></p><div class="ap-buttons"><button type="button" class="primary" data-show>👆 Show me</button><button type="button" data-redo>↺ Start over</button>${letterChip()}</div>`);
+    const dots = () => ($("[data-dots]").textContent = "●".repeat(round) + "○".repeat(ROUNDS - round));
+    const plan = () => {
+      const pool = poolLetters(week);
+      const first = ORDER[week];
+      const rest = rshuffle(pool.filter((l) => l !== first));
+      letters = [first, ...rest].slice(0, ROUNDS);
+      while (letters.length < ROUNDS) letters.push(rpick(pool));
+    };
+    const cur = () => letters[round];
+    let over = false;
+    function build() {
+      if (!alive() || over) return;
+      const { W, H, px } = dims();
+      stage.innerHTML = "";
+      const v = makeSvg(`0 0 ${W} ${H}`, stage);
+      v.style.touchAction = "none";
+      art = traceArt(v, cur(), { x: 10, y: 6, w: W - 20, h: H - 12 }, px);
+      for (let k = 0; k < si; k++) art.setInk(k, art.S[k].length - 1);
+      if (si < art.S.length) art.setInk(si, p);
+      art.dots(si);
+      if (si < art.S.length) art.pen(si, p);
+      v.addEventListener("pointerdown", onDown);
+      v.addEventListener("pointermove", onMove);
+      for (const t of ["pointerup", "pointercancel"]) v.addEventListener(t, onUp);
+    }
+    function stopDemo() {
+      demoGen += 1;
+    }
+    function armIdle() {
+      clearTimeout(idle);
+      idle = setTimeout(async () => {
+        if (!alive() || busy || down || helps >= 2 || si >= art.S.length) return;
+        helps += 1;
+        await help();
+      }, 9000);
+    }
+    cleanups.push(() => clearTimeout(idle));
+    async function help() {
+      const g = ++demoGen;
+      const ok = () => alive() && g === demoGen;
+      talk("Follow the glowing dot.");
+      await penDemo(art, { from: si, fromPoint: 0, alive: ok, gap: 0 });
+      if (!ok()) return;
+      for (let k = si; k < art.S.length; k++) art.setInk(k, k === si ? p : -1);
+      art.dots(si);
+      art.pen(si, p);
+      armIdle();
+    }
+    async function startLetter() {
+      if (!alive()) return;
+      si = 0;
+      p = 0;
+      helps = 0;
+      busy = true;
+      dots();
+      build();
+      const l = cur();
+      const g = ++demoGen;
+      const ok = () => alive() && g === demoGen;
+      const done = await talkAsync(round === 0 ? `Let's write the letter {${l}}. Watch first. Start at the number one.` : `Now the letter {${l}}. Watch first.`);
+      if (!ok()) {
+        busy = false;
+        return;
+      }
+      await penDemo(art, { alive: ok });
+      if (!ok()) {
+        busy = false;
+        return;
+      }
+      for (let k = 0; k < art.S.length; k++) art.setInk(k, -1);
+      art.dots(0);
+      art.pen(0, 0);
+      busy = false;
+      talk("Now you try. Start at the number one.");
+      armIdle();
+      void done;
+    }
+    function advance(point) {
+      const [x, y] = point;
+      const pts = art.S[si];
+      const win = p === 0 ? 30 : 80;
+      const tol = Math.max(14, 46 / art.ppu) * (pts.length <= 3 ? 1.7 : 1);
+      let best = -1;
+      let run = 0;
+      for (let i = p; i < pts.length; i++) {
+        if (i > p) run += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+        if (run > win) break;
+        if (Math.hypot(pts[i][0] - x, pts[i][1] - y) <= tol) best = i;
+      }
+      return best;
+    }
+    function onDown(event) {
+      if (busy || !art) return;
+      event.preventDefault();
+      stopDemo();
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {}
+      down = true;
+      if (si < art.S.length) {
+        for (let k = si; k < art.S.length; k++) art.setInk(k, k === si ? p : -1);
+        art.pen(si, p);
+      }
+      track(event);
+    }
+    function onMove(event) {
+      if (!down || busy || !art) return;
+      const list = event.getCoalescedEvents ? event.getCoalescedEvents() : [event];
+      for (const e of list.length ? list : [event]) track(e);
+    }
+    function onUp() {
+      down = false;
+      armIdle();
+    }
+    function track(e) {
+      if (si >= art.S.length) return;
+      const pt = art.toLetter(e.clientX, e.clientY);
+      const best = advance(pt);
+      if (best > p) {
+        p = best;
+        art.setInk(si, p);
+        art.pen(si, p);
+        armIdle();
+        if (p >= art.S[si].length - 1 - (art.S[si].length > 12 ? 2 : 0)) strokeDone();
+      } else if (best < 0) {
+        const now = performance.now();
+        if (now - lastHint > 9000) {
+          lastHint = now;
+          talk(p === 0 ? "Start at the number one." : "Come back to the glowing dot.");
+        }
+      }
+    }
+    async function strokeDone() {
+      const k = si;
+      art.setInk(k, art.S[k].length - 1);
+      MUSIC.play("xylophone", 72 + k * 2, { gain: 0.6 });
+      si += 1;
+      p = 0;
+      if (si < art.S.length) {
+        art.dots(si);
+        art.pen(si, 0);
+        return;
+      }
+      await letterDone();
+    }
+    async function letterDone() {
+      busy = true;
+      clearTimeout(idle);
+      stopDemo();
+      art.allDone();
+      MUSIC.chime();
+      round += 1;
+      window.OC?.count("letters traced");
+      dots();
+      const l = letters[round - 1];
+      const w = exampleWords(l, 2);
+      const line = l === "x" ? `{x} is at the end of box.` : `{${l}} is the first letter of ${w[0]} and ${w[1]}.`;
+      await talkAsync(`Well traced. That is the letter {${l}}. ${line}`);
+      if (!alive()) return;
+      if (round >= ROUNDS) {
+        over = true;
+        return finishCard({
+          id: "u3",
+          icon: "✍️",
+          message: "Draw a letter big in the air with your pointer finger. Then draw it in a tray of dry salt or sand.",
+          speech: "That is five letters traced. You followed each path with care. Draw a letter big in the air with your pointer finger. Then draw it in a tray of dry salt or sand, with a grown-up.",
+          again: () => shell.go("u3"),
+          nextId: NEXT.u3,
+        });
+      }
+      await wait(500);
+      startLetter();
+    }
+    host.onclick = (event) => {
+      if (!alive()) return;
+      if (event.target.closest("[data-letter]")) {
+        VOICE.hush();
+        return shell.go("pick");
+      }
+      if (event.target.closest("[data-show]") && art && !busy) {
+        helps = 0;
+        si = 0;
+        p = 0;
+        for (let k = 0; k < art.S.length; k++) art.setInk(k, -1);
+        (async () => {
+          const g = ++demoGen;
+          const ok = () => alive() && g === demoGen;
+          await talkAsync("Watch. Start at the number one.");
+          if (!ok()) return;
+          await penDemo(art, { alive: ok });
+          if (!ok()) return;
+          for (let k = 0; k < art.S.length; k++) art.setInk(k, -1);
+          art.dots(0);
+          art.pen(0, 0);
+          talk("Now you try.");
+          armIdle();
+        })();
+      }
+      if (event.target.closest("[data-redo]") && art && !busy) {
+        stopDemo();
+        si = 0;
+        p = 0;
+        for (let k = 0; k < art.S.length; k++) art.setInk(k, -1);
+        art.dots(0);
+        art.pen(0, 0);
+        talk("Start at the number one.");
+      }
+    };
+    watchSize(build);
+    plan();
+    startLetter();
+  },
+
+  // ---------- 4. Rhyme time ----------
+  u4() {
+    runChoice({
+      id: "u4",
+      count: "rhymes found",
+      gen: (round) => genRhyme(round < 3 ? 2 : 3),
+      drawPrompt: drawWordPrompt,
+      ask: (q, round) => `${round === 0 ? "Words that rhyme sound the same at the end. " : ""}${cap(q.target.w)}. Which one rhymes with ${q.target.w}: ${listOf(q.choices.map((c) => c.w))}?`,
+      praise: (q, c) => `Yes. ${cap(q.target.w)} and ${c.w} rhyme. They sound the same at the end.`,
+      hint: (q, c) => `Not quite. ${cap(q.target.w)}, ${c.w}. They do not sound the same at the end. Mistakes are how we learn. Try another.`,
+      reveal: (q) => {
+        const right = q.choices.find((x) => x.ok);
+        return `Let's look. ${cap(q.target.w)}, ${right.w}. They sound the same at the end. They rhyme.`;
+      },
+      end: "That is eight rhymes. You listened closely to the ends of words.",
+      realIcon: "🎵",
+      real: () => "Say a word, and take turns finding a word that rhymes with it. Made-up words count too, if they sound the same at the end.",
+    });
+  },
+
+  // ---------- 5. Blend it ----------
+  u5() {
+    runChoice({
+      id: "u5",
+      count: "words blended",
+      gen: (round) => genBlend(week, round < 3 ? 2 : 3),
+      drawPrompt: drawBlendPrompt,
+      hideWords: true,
+      ask: (q) => `Listen. ${cap(q.model.w)}, without the {${q.model.w[0]}}, says: ${q.rime}. Put the letter {${q.onset}} in front of ${q.rime}: ${q.target.w}. Which picture is ${q.target.w}?`,
+      praise: (q) => `Yes. The letter {${q.onset}} in front of ${q.rime} makes ${q.target.w}.`,
+      hint: (q, c) => `Not quite. ${cap(c.w)} is a different word. Mistakes are how we learn. Listen again: ${q.rime}, ${q.target.w}. Try another.`,
+      reveal: (q) => `Let's look. ${cap(q.rime)}, ${q.target.w}. This picture is ${q.target.w}.`,
+      end: "That is eight words built from smaller words. You listened closely.",
+      realIcon: "🧩",
+      real: () => "Write two cards: one with a first letter and one with a word ending like at. Slide them together and read the new word. Change the first letter to make another word.",
+    });
+  },
+};
+
+shell = SHELL({
+  units: UNITS,
+  how: {
+    u0: { icon: "👀", title: "See it", steps: ["Watch the pictures and listen.", "Press Next to go on.", "Press Let's play at the end."] },
+    pick: { icon: "🔤", title: "Choose a letter", steps: ["A grown-up taps this week's letter.", "Earlier letters are practised too.", "Press Learn this letter."] },
+    u1: { icon: "🟰", title: "Same start", steps: ["Listen to the word.", "Which picture starts the same way?", "Tap it."] },
+    u2: { icon: "🔡", title: "Letter and picture", steps: ["Look at the letter.", "Listen to the pictures.", "Tap the one that starts with the letter."] },
+    u3: { icon: "✍️", title: "Trace it", steps: ["Watch the finger draw the letter.", "Put your finger on the number one.", "Follow the path to the end."] },
+    u4: { icon: "🎵", title: "Rhyme time", steps: ["Listen to the word.", "Which picture sounds the same at the end?", "Tap it."] },
+    u5: { icon: "🧩", title: "Blend it", steps: ["Listen to the small word and the new letter.", "Hear them join into a word.", "Tap the picture of the word."] },
+  },
+  start: urlLetter ? "u0" : hasSaved ? "u1" : "pick",
+  onStop() {
+    token += 1;
+    VOICE.hush();
+    for (const f of cleanups) {
+      try {
+        f();
+      } catch {}
+    }
+    cleanups = [];
+    stage.onpointerdown = null;
+    const p = $("[data-panel]");
+    if (p) p.onclick = null;
+  },
+  subject: "Reading",
+  activity: "Little Letters",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 78, 80, 82]);
+
+const style = document.createElement("style");
+style.textContent = `
+.ll-card,.ll-tile{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.ll-card.good,.ll-card.good>*{animation:ll-pop .6s ease-out}
+.ll-card.bad{opacity:.45}
+.ll-card.good{transform-box:fill-box;transform-origin:center}
+.ll-pulse{transform-box:fill-box;transform-origin:center;animation:ll-ring 1.2s ease-in-out infinite}
+.ll-pen{animation:ll-glow 1.2s ease-in-out infinite}
+.ll-chip{display:inline-flex;align-items:center;gap:6px}
+.ll-l{font-family:${FONT};font-size:1.25em;color:var(--accent-dark)}
+.ll-prev{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px 16px}
+.ll-big{font:900 clamp(34px,6vw,54px)/1 ${FONT};color:var(--accent-dark)}
+.ll-mini{display:inline-flex;flex-direction:column;align-items:center;font-size:clamp(28px,4.4vw,40px);line-height:1}
+.ll-mini small{font:800 13px ${FONT};color:var(--muted)}
+@keyframes ll-pop{0%{transform:scale(.96)}50%{transform:scale(1.04)}100%{transform:scale(1)}}
+@keyframes ll-ring{0%,100%{transform:scale(.9);opacity:.5}50%{transform:scale(1.25);opacity:1}}
+@keyframes ll-glow{0%,100%{opacity:.75}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.ll-card.good,.ll-card.good>*,.ll-pulse,.ll-pen{animation:none}}
+@media (max-height:460px){.ll-mini small{display:none}}
+`;
+document.head.appendChild(style);
+</script>
+</body>
+</html>
