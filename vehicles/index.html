@@ -126,7 +126,7 @@ const WHERE = {
   tracks: { name: "tracks", icon: "🛤️" },
   water: { name: "water", icon: "🌊" },
 };
-const ROUNDS = 6;
+const ROUNDS = 10;
 const rpick = (list) => list[Math.floor(Math.random() * list.length)];
 const ROAD = VEHICLES.filter((v) => v.where === "road");
 const plural = (name) => (name.endsWith("s") ? `${name}es` : `${name}s`);
@@ -259,7 +259,7 @@ const letterCard = (l) => `<svg viewBox="0 0 200 140" class="zt-v"><text x="100"
 const emojiPic = (glyph) => `<svg viewBox="0 0 260 160" class="zt-v"><text x="130" y="128" text-anchor="middle" font-size="128" font-family="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif">${glyph}</text></svg>`;
 const picOf = (pic) => (pic.startsWith("svg:") ? vehicle(pic.slice(4), "", { fill: "#e53935" }) : emojiPic(pic));
 // A delivery truck with a letter painted on its box.
-ART.box = ({ letter = "a", fill = "#1e88e5" } = {}) => `<rect x="8" y="26" width="176" height="100" rx="10" fill="#fff" stroke="${fill}" stroke-width="8"/><text x="96" y="104" text-anchor="middle" font-family="${LETTER_FONT}" font-weight="700" font-size="74" fill="#2b1d12">${letter.toUpperCase()}<tspan fill="${fill}" dx="4">${letter}</tspan></text><path d="M184 128 V58 Q184 52 190 52 H222 Q230 52 236 60 L254 90 V128Z" fill="${fill}"/>${winRect(192, 60, 38, 30, "kid")}<rect x="182" y="118" width="74" height="10" rx="3" fill="#cfd8dc"/><circle cx="248" cy="102" r="5" fill="#fff59d"/>${wheel(54)}${wheel(214)}`;
+ART.box = ({ letter = "a", fill = "#1e88e5", only = "" } = {}) => `<rect x="8" y="26" width="176" height="100" rx="10" fill="#fff" stroke="${fill}" stroke-width="8"/><text x="96" y="${only ? 108 : 104}" text-anchor="middle" font-family="${LETTER_FONT}" font-weight="700" font-size="${only ? 92 : 74}" fill="#2b1d12">${only === "lower" ? letter : `${letter.toUpperCase()}<tspan fill="${fill}" dx="4">${letter}</tspan>`}</text><path d="M184 128 V58 Q184 52 190 52 H222 Q230 52 236 60 L254 90 V128Z" fill="${fill}"/>${winRect(192, 60, 38, 30, "kid")}<rect x="182" y="118" width="74" height="10" rx="3" fill="#cfd8dc"/><circle cx="248" cy="102" r="5" fill="#fff59d"/>${wheel(54)}${wheel(214)}`;
 // Pattern trains: an engine (facing left, pulling) and wagons that are a colour or carry a vehicle.
 const WAGON_W = 124;
 function wagon(item, x, mode) {
@@ -449,7 +449,7 @@ const talk = (msg, my = token) => {
   return VOICE.speakAsync(msg.speech);
 };
 const mark = (id, data) => shell.mark(id, data);
-const NEXT = { see: "drive", drive: "dress", dress: "find", find: "colors", colors: "count", count: "letters", letters: "phonics", phonics: "patterns", patterns: "who", who: "hear", hear: "where", where: null };
+const NEXT = { see: "drive", drive: "dress", dress: "find", find: "colors", colors: "shapes", shapes: "count", count: "letters", letters: "phonics", phonics: "patterns", patterns: "sizes", sizes: "traffic", traffic: "who", who: "hear", hear: "where", where: "trip", trip: null };
 
 // ======================================================================
 // Learning that adapts. Each game keeps a level for the child:
@@ -534,9 +534,9 @@ async function giveSticker(my = token) {
   pop($("[data-book]"));
 }
 // A right answer: sparkles where the finger was, and a bigger surprise on every third star.
-function cheer(target, stars) {
+function cheer(target, round, rounds) {
   sparkle(target);
-  if (stars && stars % 3 === 0) surprise();
+  if (round < rounds && (round === 3 || round === rounds - 2)) surprise();
 }
 async function levelUp(my) {
   surprise();
@@ -581,6 +581,369 @@ function finishCard({ id, role, icon, message, speech }) {
     else if (event.target.closest("[data-next]")) shell.go(NEXT[id]);
   };
 }
+
+// ======================================================================
+// Round kinds. Each kind builds one round (gen) and knows what to say about it.
+// A game plays one kind (or two, mixed); Road trip mixes them all.
+// ======================================================================
+const FILLS = ["#1e88e5", "#e53935", "#43a047", "#fb8c00"];
+const LOOK_ALIKE = { b: "d", d: "b", p: "q", q: "p", m: "w", w: "m", n: "u", u: "n" };
+const starPath = (cx, cy, R, r) =>
+  Array.from({ length: 10 }, (_, i) => {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const d = i % 2 ? r : R;
+    return `${i ? "L" : "M"}${(cx + d * Math.cos(a)).toFixed(1)} ${(cy + d * Math.sin(a)).toFixed(1)}`;
+  }).join(" ") + "Z";
+// Shapes in the order they are learned, each with a fact and where it is seen on the road.
+const SHAPES = [
+  { name: "circle", about: "A circle is round, with no corners.", like: "Wheels are circles, so they roll!", draw: (f) => `<circle cx="80" cy="70" r="54" fill="${f}"/>` },
+  { name: "square", about: "A square has 4 sides, all the same.", like: "Lots of windows are squares.", draw: (f) => `<rect x="28" y="18" width="104" height="104" rx="6" fill="${f}"/>` },
+  { name: "triangle", about: "A triangle has 3 sides and 3 corners.", like: "Some road signs are triangles.", draw: (f) => `<path d="M80 16 L140 124 H20Z" fill="${f}" stroke="${f}" stroke-width="10" stroke-linejoin="round"/>` },
+  { name: "rectangle", about: "A rectangle has 4 sides: 2 long and 2 short.", like: "A bus is a long rectangle on wheels.", draw: (f) => `<rect x="8" y="36" width="144" height="68" rx="6" fill="${f}"/>` },
+  { name: "star", about: "A star has 5 points.", like: "Police officers wear a star badge.", draw: (f) => `<path d="${starPath(80, 74, 62, 26)}" fill="${f}" stroke="${f}" stroke-width="6" stroke-linejoin="round"/>` },
+  { name: "heart", about: "A heart means love.", like: "Helpers care for us with all their heart!", draw: (f) => `<path d="M80 126 C22 88 14 58 30 36 C46 16 72 22 80 44 C88 22 114 16 130 36 C146 58 138 88 80 126Z" fill="${f}"/>` },
+  { name: "oval", about: "An oval is like a stretched circle.", like: "A race track is an oval.", draw: (f) => `<ellipse cx="80" cy="70" rx="72" ry="44" fill="${f}"/>` },
+  { name: "diamond", about: "A diamond has 4 sides and stands on a corner.", like: "Some warning signs are diamonds.", draw: (f) => `<path d="M80 10 L144 70 L80 130 L16 70Z" fill="${f}" stroke="${f}" stroke-width="6" stroke-linejoin="round"/>` },
+];
+const shapeCard = (s, fill) => `<svg viewBox="0 0 160 140" class="zt-v">${s.draw(fill)}</svg>`;
+// Rhymes: a vehicle word and a word that rhymes with it (in American and British English).
+const RHYMES = [
+  ["car", "🚗", "star", "⭐"], ["train", "🚆", "rain", "🌧️"], ["boat", "⛵", "goat", "🐐"], ["jet", "✈️", "net", "🥅"], ["truck", "🚚", "duck", "🦆"],
+  ["van", "🚐", "can", "🥫"], ["bus", "🚌", "plus", "➕"], ["cab", "🚕", "crab", "🦀"], ["sled", "🛷", "bed", "🛏️"], ["ship", "🚢", "chip", "🍟"],
+].map(([word, pic, rhyme, rpic]) => ({ word, pic, rhyme, rpic }));
+const picCard = (pic, word) => `<div class="zt-act"><span>${pic}</span><b>${word}</b></div>`;
+// Opposites. Each pair draws both cards for one thing.
+const nested = (id, x, y, w, h, opts = {}) => `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 260 160">${ART[id](opts)}</svg>`;
+function trainOf(n) {
+  const w = 5 * WAGON_W + 176;
+  return `<svg viewBox="0 0 ${w} 140" class="zt-v">${Array.from({ length: n }, (_, i) => wagon(COLORS[i % COLORS.length], (5 - n + i) * WAGON_W, "color")).join("")}${nested("train", 5 * WAGON_W, 0, 176, 125)}</svg>`;
+}
+const OPPOSITES = [
+  {
+    min: 0, words: ["big", "small"], thing: () => rpick(ROAD),
+    ask: (w, v) => `Tap the <b>${w}</b> ${v.name}.`, told: (w, v) => `That ${v.name} is ${w}.`,
+    art: (w, v) => `<svg viewBox="0 0 260 160" class="zt-v">${w === "big" ? nested(v.id, 0, 0, 260, 160, { fill: "#1e88e5" }) : nested(v.id, 82, 96, 96, 60, { fill: "#1e88e5" })}</svg>`,
+  },
+  {
+    min: 1, words: ["high", "low"], thing: () => V.plane,
+    ask: (w) => `Which airplane is flying <b>${w}</b>?`, told: (w) => `That airplane is flying ${w}.`,
+    art: (w) => `<svg viewBox="0 0 260 200" class="zt-v"><rect y="176" width="260" height="24" rx="6" fill="#8bc34a"/>${nested("plane", 50, w === "high" ? 2 : 78, 160, 98)}</svg>`,
+  },
+  {
+    min: 1, words: ["long", "short"], thing: () => V.train,
+    ask: (w) => `Tap the <b>${w}</b> train.`, told: (w) => `That train is ${w}.`,
+    art: (w) => trainOf(w === "long" ? 5 : 1),
+  },
+  {
+    min: 2, words: ["fast", "slow"], thing: () => null,
+    ask: (w) => `Tap the car that is going <b>${w}</b>.`, told: (w) => `That car is going ${w}.`,
+    art: (w) => `<div class="zt-mover ${w}"><i></i><span>${vehicle("car", 'class="zt-v driving"', { fill: "#e53935" })}</span></div>`,
+  },
+  {
+    min: 2, words: ["day", "night"], thing: () => null,
+    ask: (w) => `Which car is driving in the <b>${w === "day" ? "daytime" : "night"}</b>?`, told: (w) => `That car is driving in the ${w === "day" ? "daytime" : "night"}.`,
+    art: (w) => `<svg viewBox="0 0 260 160" class="zt-v"><rect width="260" height="160" rx="14" fill="${w === "day" ? "#bfe6ff" : "#1a237e"}"/>${w === "day" ? '<circle cx="214" cy="38" r="22" fill="#ffd54f"/>' : '<circle cx="214" cy="38" r="20" fill="#fff9c4"/><circle cx="222" cy="32" r="18" fill="#1a237e"/><g fill="#fff"><circle cx="40" cy="30" r="2.5"/><circle cx="90" cy="18" r="2"/><circle cx="140" cy="40" r="2.5"/><circle cx="170" cy="16" r="2"/></g><path d="M226 112 L260 98 V136Z" fill="#fff59d" opacity=".6"/>'}<rect y="132" width="260" height="28" fill="#5b5f66"/>${nested("car", 30, 44, 190, 117, { fill: "#43a047" })}</svg>`,
+  },
+];
+// Road safety: traffic lights and the walking-person signal.
+const SIGNALS = {
+  red: { act: "stop", ask: `The light is <b style="color:#e53935">red</b>. What should the car do?`, why: "Red means stop. The car waits." },
+  green: { act: "go", ask: `The light is <b style="color:#2e7d32">green</b>. What should the car do?`, why: "Green means go! Off we drive." },
+  yellow: { act: "slow", ask: `The light is <b style="color:#c9a400">yellow</b>. What should the car do?`, why: "Yellow means slow down and get ready to stop." },
+  walk: { act: "cross", ask: `The little walking person is <b style="color:#2e7d32">green</b>. Can we cross the road?`, why: "The green person means we can cross. Hold a grown-up's hand, and look left and right first!" },
+  hand: { act: "wait", ask: `The sign shows a <b style="color:#e53935">red hand</b>. Can we cross the road?`, why: "The red hand means wait at the side of the road. We cross when the green person shows." },
+};
+const ACTS = { stop: { key: "stop", icon: "✋", label: "Stop" }, go: { key: "go", icon: "🏁", label: "Go" }, slow: { key: "slow", icon: "🐢", label: "Slow down" }, cross: { key: "cross", icon: "🚶", label: "Cross" }, wait: { key: "wait", icon: "🧍", label: "Wait" } };
+function signalArt(sig) {
+  if (sig === "walk" || sig === "hand")
+    return `<svg viewBox="0 0 100 250" class="zt-light"><rect x="44" y="120" width="12" height="130" fill="#546e7a"/><rect x="8" y="8" width="84" height="120" rx="14" fill="#263238"/><rect x="18" y="18" width="64" height="100" rx="10" fill="${sig === "walk" ? "#1b5e20" : "#7f1010"}"/><text x="50" y="88" text-anchor="middle" font-size="54" font-family="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif">${sig === "walk" ? "🚶" : "✋"}</text></svg>`;
+  const lamp = (c, y, glow) => `<circle cx="50" cy="${y}" r="21" fill="${sig === c ? glow : "#3e4a50"}"${sig === c ? ` style="filter:drop-shadow(0 0 10px ${glow})"` : ""}/>`;
+  return `<svg viewBox="0 0 100 250" class="zt-light"><rect x="44" y="160" width="12" height="90" fill="#546e7a"/><rect x="16" y="6" width="68" height="160" rx="18" fill="#263238"/>${lamp("red", 40, "#ff1744")}${lamp("yellow", 86, "#ffd600")}${lamp("green", 132, "#00e676")}</svg>`;
+}
+const signalPrompt = (sig) => `<div class="zt-traffic">${signalArt(sig)}<span class="zt-tcar">${sig === "walk" || sig === "hand" ? '<span class="zt-walker">🚶</span>' : vehicle("car", "", { fill: "#1e88e5" })}</span></div>`;
+
+const GAMES = {
+  find: {
+    id: "find",
+    count: "vehicles found",
+    skill: { start: 1, max: 2 },
+    gen(level, skill, last) {
+      const target = skill.pick(VEHICLES, (v) => v.id, last);
+      const others = shuffle(VEHICLES.filter((v) => v !== target)).slice(0, choicesFor(level) - 1);
+      return { target, key: target.id, choices: shuffle([target, ...others]).map((v) => ({ v, ok: v === target, art: vehicle(v.id), label: v.name })) };
+    },
+    ask: (q) => `Where is the <b>${q.target.name}</b>?`,
+    praise: (q) => `Yes! That is the ${q.target.name}. ${q.target.noise}`,
+    hint: (q, c) => `That is the ${c.v.name}. Find the ${q.target.name}.`,
+    reveal: (q) => `Here is the ${q.target.name}. ${q.target.fact}`,
+    sound: (q) => q.target.sound,
+  },
+  colors: {
+    id: "colors",
+    count: "colours found",
+    skill: { start: 1, max: 3 },
+    gen(level, skill, last) {
+      const pool = level >= 2 ? [...COLORS, ...MORE_COLORS] : COLORS;
+      const target = skill.pick(pool, (c) => c.name, last);
+      const others = shuffle(pool.filter((c) => c !== target)).slice(0, choicesFor(level) - 1);
+      return { target, key: target.name, choices: shuffle([target, ...others]).map((c) => ({ v: c, ok: c === target, art: vehicle("car", "", { fill: c.fill }), label: `${c.name} car` })) };
+    },
+    ask: (q) => `Tap the <b class="zt-word" style="color:${q.target.ink || q.target.fill}">${q.target.name}</b> car.`,
+    praise: (q) => `Yes! The ${q.target.name} car. Beep beep!`,
+    hint: (q, c) => `That car is ${c.v.name}. Find the ${q.target.name} one.`,
+    reveal: (q) => `Here is the ${q.target.name} car.`,
+    sound: () => "horn",
+  },
+  shapes: {
+    id: "shapes",
+    count: "shapes found",
+    skill: { start: 0, max: 2 },
+    stay: true,
+    gen(level, skill, last) {
+      const pool = SHAPES.slice(0, [3, 5, 8][Math.min(level, 2)]);
+      const target = skill.pick(pool, (s) => s.name, last);
+      const others = shuffle(pool.filter((s) => s !== target)).slice(0, [2, 3, 4][Math.min(level, 2)] - 1);
+      // Every card a different colour, so the shape (not the colour) is the clue.
+      const fills = shuffle(COLORS);
+      return { target, key: target.name, choices: shuffle([target, ...others]).map((s, i) => ({ v: s, ok: s === target, art: shapeCard(s, fills[i].fill), label: s.name })) };
+    },
+    ask: (q) => `Find the <b>${q.target.name}</b>.`,
+    praise: (q) => `Yes! A ${q.target.name}. ${q.target.about} ${q.target.like}`,
+    hint: (q, c) => `That is a ${c.v.name}. ${c.v.about} Find the ${q.target.name}.`,
+    reveal: (q) => `Here is the ${q.target.name}. ${q.target.about}`,
+  },
+  letters: {
+    id: "letters",
+    count: "letters found",
+    skill: { start: 0, max: 8 },
+    gen(level, skill, last) {
+      // Level 1: A–D. Each level adds three letters, so by level 9 it is the whole alphabet.
+      const pool = ABC.slice(0, Math.min(26, 4 + 3 * level));
+      const fresh = pool.slice(-3).filter((l) => l !== last);
+      const target = Math.random() < 0.35 && fresh.length ? rpick(fresh) : skill.pick(pool, (l) => l, last);
+      const n = level === 0 ? 2 : level < 3 ? 3 : 4;
+      let others = shuffle(pool.filter((l) => l !== target)).slice(0, n - 1);
+      // Later on, letters that look alike (b and d, p and q) are put side by side.
+      const twin = LOOK_ALIKE[target];
+      if (level >= 4 && twin && pool.includes(twin) && !others.includes(twin)) others = [twin, ...others.slice(0, n - 2)];
+      // From level 4, some rounds match a capital letter to its small letter.
+      const match = level >= 3 && Math.random() < 0.4;
+      return { target, key: target, match, choices: shuffle([target, ...others]).map((l, i) => ({ v: l, ok: l === target, art: vehicle("box", "", { letter: l, fill: FILLS[i], only: match ? "lower" : "" }), label: `letter ${l}` })) };
+    },
+    ask: (q) => (q.match ? { html: `Here is big <b class="zt-letter">${q.target.toUpperCase()}</b>. Find the <b>small</b> letter that goes with it.`, speech: `Here is big ${LN(q.target)}. Find the small ${LN(q.target)}.` } : { html: `Find the letter ${big(q.target)}.`, speech: `Find the letter ${LN(q.target)}.` }),
+    praise: (q) => (q.match ? { html: `Yes! Big <b class="zt-letter">${q.target.toUpperCase()}</b> and small <b class="zt-letter">${q.target}</b> are the same letter.`, speech: `Yes! Big ${LN(q.target)} and small ${LN(q.target)} are the same letter. ${cap(LN(q.target))} is for ${LETTER_WORD[q.target]}!` } : { html: `Yes! ${big(q.target)} is for <b>${LETTER_WORD[q.target]}</b>!`, speech: `Yes! ${cap(LN(q.target))}. ${cap(LN(q.target))} is for ${LETTER_WORD[q.target]}!` }),
+    hint: (q, c) => ({ html: `That is ${big(c.v)}. Find ${big(q.target)}.`, speech: `That is ${LN(c.v)}. Find ${LN(q.target)}.` }),
+    reveal: (q) => ({ html: `Here is ${big(q.target)}, for <b>${LETTER_WORD[q.target]}</b>.`, speech: `Here is ${LN(q.target)}. ${cap(LN(q.target))} is for ${LETTER_WORD[q.target]}.` }),
+    sound: () => "horn",
+  },
+  firstSound: {
+    id: "phonics",
+    count: "first sounds",
+    layout: "side",
+    stay: true,
+    skill: { start: 0, max: 2 },
+    gen(level, skill, last) {
+      const target = skill.pick(FIRST, (f) => f.word, last);
+      const others = shuffle(FIRST_LETTERS.filter((l) => soundGroup(l) !== soundGroup(target.letter))).slice(0, choicesFor(level) - 1);
+      return {
+        target,
+        key: target.word,
+        prompt: `<div class="zt-word-pic"><span class="zt-word-art">${picOf(target.pic)}</span><b data-word>${target.word}</b></div>`,
+        choices: shuffle([target.letter, ...others]).map((l) => ({ v: l, ok: l === target.letter, art: letterCard(l), label: `letter ${l}` })),
+      };
+    },
+    ask: (q) => ({ html: `<b>${cap(q.target.word)}</b>. What letter does <b>${q.target.word}</b> start with?`, speech: `${cap(q.target.word)}. ${cap(q.target.word)}. What letter does ${q.target.word} start with?` }),
+    onRight(q, box) {
+      const word = $("[data-word]", box);
+      if (word) word.innerHTML = `<span class="zt-first">${q.target.word[0]}</span>${q.target.word.slice(1)}`;
+    },
+    praise: (q) => ({ html: `Yes! <b>${q.target.word}</b> starts with ${big(q.target.letter)}.`, speech: `Yes! ${cap(q.target.word)} starts with ${LN(q.target.letter)}. ${cap(LN(q.target.letter))}, ${q.target.word}!` }),
+    hint(q, c) {
+      const like = FIRST.find((f) => f.letter === c.v);
+      return { html: `${big(c.v)} starts words like <b>${like.word}</b>. Listen again: <b>${q.target.word}</b>.`, speech: `${cap(LN(c.v))} starts words like ${like.word}. Listen to the start: ${q.target.word}, ${q.target.word}. Try again!` };
+    },
+    reveal: (q) => ({ html: `<b>${cap(q.target.word)}</b> starts with ${big(q.target.letter)}.`, speech: `${cap(q.target.word)} starts with ${LN(q.target.letter)}. ${cap(LN(q.target.letter))}, ${q.target.word}.` }),
+  },
+  rhyme: {
+    id: "phonics",
+    count: "rhymes found",
+    layout: "side",
+    stay: true,
+    skill: { start: 0, max: 2 },
+    gen(level, skill, last) {
+      const target = skill.pick(RHYMES, (r) => r.word, last);
+      const others = shuffle(RHYMES.filter((r) => r !== target)).slice(0, Math.max(2, choicesFor(level)) - 1);
+      return {
+        target,
+        key: `rhyme:${target.word}`,
+        prompt: `<div class="zt-word-pic"><span class="zt-word-art">${emojiPic(target.pic)}</span><b>${target.word}</b></div>`,
+        choices: shuffle([target, ...others]).map((r) => ({ v: r, ok: r === target, art: picCard(r.rpic, r.rhyme), label: r.rhyme })),
+      };
+    },
+    ask: (q) => `Which one rhymes with <b>${q.target.word}</b>? ${cap(q.target.word)}...`,
+    praise: (q) => `Yes! ${cap(q.target.word)}, ${q.target.rhyme}! They sound the same at the end. That's a rhyme!`,
+    hint: (q, c) => `Listen: ${q.target.word}, ${c.v.rhyme}. Do they sound the same at the end? Try again!`,
+    reveal: (q) => `${cap(q.target.word)}, ${q.target.rhyme}. They rhyme!`,
+  },
+  patterns: {
+    id: "patterns",
+    count: "patterns finished",
+    layout: "stack",
+    stay: true,
+    skill: { start: 0, max: 3 },
+    gen(level, skill, last) {
+      const kind = skill.pick(PATTERN_KINDS[Math.min(level, 3)], (k) => k, last?.kind);
+      const letters = [...new Set(kind)];
+      // From level 3 the wagons sometimes carry vehicles instead of being colours.
+      const mode = level >= 2 && Math.random() < 0.5 ? "cargo" : "color";
+      const source = mode === "color" ? shuffle(COLORS) : shuffle(CARGO).map((id) => ({ id, name: V[id].name }));
+      const items = letters.map((_, i) => source[i]);
+      const unit = [...kind].map((ch) => items[letters.indexOf(ch)]);
+      // "What comes next?", or from level 3 sometimes "What goes in the gap?"
+      const missing = level >= 2 && Math.random() < 0.35;
+      const length = Math.min(8, unit.length * 2 + 1 + Math.floor(Math.random() * unit.length));
+      const full = Array.from({ length }, (_, i) => unit[i % unit.length]);
+      const gap = missing ? unit.length + Math.floor(Math.random() * (length - unit.length - 1)) : length - 1;
+      const shown = full.map((x, i) => (i === gap ? null : x));
+      const answer = full[gap];
+      // Wrong choices: first the other wagons in the pattern (so the child must think), then a new one.
+      const n = level === 0 ? 2 : 3;
+      const others = [...items.filter((x) => x !== answer), ...source.slice(letters.length)].slice(0, n - 1);
+      return {
+        target: { kind },
+        key: kind,
+        missing,
+        full,
+        shown,
+        unit,
+        answer,
+        mode,
+        prompt: patternTrain(missing ? shown : shown.slice(0, gap + 1), mode),
+        choices: shuffle([answer, ...others]).map((x) => ({ v: x, ok: x === answer, art: wagonCard(x, mode), label: x.name })),
+      };
+    },
+    ask: (q) =>
+      q.missing
+        ? `One wagon is missing! ${q.shown.map((x) => (x ? x.name : "hmm")).join(", ")}. What goes in the gap?`
+        : `Look at the train! ${q.full.slice(0, -1).map((x) => x.name).join(", ")}... What comes next?`,
+    async onRight(q, box, my) {
+      box.innerHTML = patternTrain(q.full, q.mode);
+      const train = box.firstElementChild;
+      pop(train);
+      sfx("whistle");
+      await wait(500);
+      if (my === token) train.classList.add("driving");
+    },
+    praise: (q) => `Yes! ${q.full.map((x) => x.name).join(", ")}! The pattern is ${q.unit.map((x) => x.name).join(", ")}, again and again.`,
+    hint: () => `Let's say the pattern out loud together. What repeats? Try again!`,
+    reveal: (q) => `It's ${q.answer.name}! ${q.unit.map((x) => x.name).join(", ")}, ${q.unit.map((x) => x.name).join(", ")}.`,
+  },
+  sizes: {
+    id: "sizes",
+    count: "opposites found",
+    skill: { start: 0, max: 2 },
+    stay: true,
+    gen(level, skill, last) {
+      const pair = skill.pick(OPPOSITES.filter((p) => p.min <= level), (p) => p.words[0], last?.pair);
+      const word = rpick(pair.words);
+      const thing = pair.thing();
+      return { target: { pair, word }, key: pair.words[0], pair, word, thing, choices: shuffle(pair.words).map((w) => ({ v: w, ok: w === word, art: pair.art(w, thing), label: w })) };
+    },
+    ask: (q) => q.pair.ask(q.word, q.thing),
+    praise: (q) => `Yes! ${q.pair.told(q.word, q.thing)} ${cap(q.pair.words[0])} and ${q.pair.words[1]} are opposites!`,
+    hint: (q, c) => `${q.pair.told(c.v, q.thing)} Find the one that is ${q.word}.`,
+    reveal: (q) => `Here it is. ${q.pair.told(q.word, q.thing)} ${cap(q.pair.words[0])} and ${q.pair.words[1]} are opposites.`,
+  },
+  traffic: {
+    id: "traffic",
+    count: "road safety rules",
+    layout: "side",
+    stay: true,
+    skill: { start: 0, max: 2 },
+    gen(level, skill, last) {
+      const pool = ["red", "green", ...(level >= 1 ? ["yellow"] : []), ...(level >= 2 ? ["walk", "hand"] : [])];
+      const sig = skill.pick(pool, (s) => s, last);
+      const walking = sig === "walk" || sig === "hand";
+      const acts = walking ? [ACTS.cross, ACTS.wait] : level >= 1 ? [ACTS.stop, ACTS.go, ACTS.slow] : [ACTS.stop, ACTS.go];
+      return { target: sig, key: sig, sig, prompt: signalPrompt(sig), choices: shuffle(acts).map((a) => ({ v: a, ok: a.key === SIGNALS[sig].act, art: picCard(a.icon, a.label), label: a.label })) };
+    },
+    ask: (q) => SIGNALS[q.sig].ask,
+    praise: (q) => `Yes! ${SIGNALS[q.sig].why}`,
+    hint: (q, c) => `Hmm, ${c.v.label.toLowerCase()}? Look at the light again. Which one is shining?`,
+    reveal: (q) => SIGNALS[q.sig].why,
+    async onRight(q, box) {
+      const mover = $(".zt-tcar", box);
+      if (!mover) return;
+      const act = SIGNALS[q.sig].act;
+      if (act === "go" || act === "cross") {
+        sfx(act === "go" ? "horn" : "");
+        await anim(mover, [{ transform: "none" }, { transform: "translateX(160%)" }], 1300, { easing: "ease-in" });
+      } else if (act === "slow") await anim(mover, [{ transform: "none" }, { transform: "translateX(40%)" }], 2200, { easing: "ease-out" });
+      else await shake(mover);
+    },
+  },
+  who: {
+    id: "who",
+    count: "helpers matched",
+    layout: "side",
+    skill: { start: 1, max: 2 },
+    gen(level, skill, last) {
+      const target = skill.pick(VEHICLES, (v) => v.id, last);
+      const others = shuffle(VEHICLES.filter((v) => v !== target)).slice(0, choicesFor(level) - 1);
+      return { target, key: target.id, prompt: character(target.role), choices: shuffle([target, ...others]).map((v) => ({ v, ok: v === target, art: vehicle(v.id), label: v.name })) };
+    },
+    ask: (q) => `${cap(isA(ROLES[q.target.role].a))}! Which vehicle does ${ROLES[q.target.role].a} drive?`,
+    praise: (q) => `Yes! ${cap(ROLES[q.target.role].a)} drives the ${q.target.name}. ${ROLES[q.target.role].does}`,
+    hint: (q, c) => `That is the ${c.v.name}. Look at the hat. Which one is for ${ROLES[q.target.role].a}?`,
+    reveal: (q) => `${cap(ROLES[q.target.role].a)} drives the ${q.target.name}.`,
+    sound: (q) => q.target.sound,
+  },
+  hear: {
+    id: "hear",
+    count: "sounds matched",
+    layout: "side",
+    skill: { start: 1, max: 2 },
+    gen(level, skill, last) {
+      const target = skill.pick(VEHICLES, (v) => v.id, last);
+      // Never two vehicles that sound alike (the three sirens) in one round.
+      const pool = shuffle(VEHICLES.filter((v) => v.group !== target.group));
+      const others = [];
+      for (const v of pool) if (others.length < choicesFor(level) - 1 && !others.some((o) => o.group === v.group)) others.push(v);
+      return { target, key: target.id, prompt: `<button type="button" class="zt-card zt-ear" data-hear aria-label="Play the sound again"><span>🔊</span><small>Listen</small></button>`, choices: shuffle([target, ...others]).map((v) => ({ v, ok: v === target, art: vehicle(v.id), label: v.name })) };
+    },
+    ask: () => `Listen! Which vehicle makes this sound?`,
+    afterAsk: (q) => playHear(q),
+    onPrompt: (q) => playHear(q),
+    praise: (q) => `Yes! The ${q.target.name} goes: ${q.target.noise}`,
+    hint: (q, c) => `The ${c.v.name} goes: ${c.v.noise} Listen again.`,
+    reveal: (q) => `That was the ${q.target.name}. ${q.target.noise}`,
+  },
+};
+function playHear(q) {
+  const ear = $("[data-hear]", stage);
+  if (ear) {
+    ear.classList.add("playing");
+    setTimeout(() => ear.classList.remove("playing"), sfx(q.target.sound) || 600);
+  }
+}
+// A round that carries its kind's words and layout, so one game can switch kinds from round to round.
+const HANDLERS = ["layout", "stay", "ask", "praise", "hint", "reveal", "sound", "onRight", "afterAsk", "onPrompt", "count"];
+function roundOf(kind, level, skill, last) {
+  const q = kind.gen(level, skill, last);
+  q.h = Object.fromEntries(HANDLERS.map((k) => [k, kind[k] ?? (k === "layout" ? "" : undefined)]));
+  return q;
+}
+// Road trip: a story mission. Each stop is a round from any game, at the level the child has reached in that game.
+const MISSIONS = [
+  { racer: "fire", goal: "🔥", role: "fire", start: "Oh no, there's a fire! Help the fire truck get there. Every right answer drives it closer!", end: "We made it! Swoosh! The firefighters put out the fire. Hooray!", real: "Practise fire safety: if a smoke alarm beeps, get out and stay out. Ask a grown-up to show you where your family meets outside." },
+  { racer: "ambulance", goal: "🏥", role: "medic", start: "Someone hurt their leg! Help the ambulance get to the hospital. Every right answer drives it closer!", end: "We made it to the hospital! The doctors will help them feel better.", real: "Learn your home address with a grown-up, so you could tell a helper where you live." },
+  { racer: "bus", goal: "🏫", role: "bus", start: "Time for school! Help the school bus take the children there. Every right answer drives it closer!", end: "We made it to school! Everyone is safe and ready to learn.", real: "Play school bus: line up chairs as seats, and take turns being the driver and the passengers." },
+  { racer: "boat", goal: "🏝️", role: "captain", start: "Ahoy! Help the captain sail the boat to the island. Every right answer sails it closer!", end: "Land ahoy! We made it to the island!", real: "At bath time, find out what floats and what sinks: a toy boat, a spoon, a sponge, a stone." },
+  { racer: "plane", goal: "🏖️", role: "pilot", start: "Let's fly to the beach! Help the pilot. Every right answer flies the plane closer!", end: "We landed at the beach! Time to build a sandcastle!", real: "Make paper airplanes with a grown-up and see whose flies the furthest." },
+  { racer: "train", goal: "🚉", role: "train", start: "All aboard! Help the train get to the station. Every right answer moves it closer!", end: "Choo choo! We made it to the station!", real: "Build a train from boxes or chairs and give everyone a ticket." },
+  { racer: "digger", goal: "🏗️", role: "builder", start: "Let's build a new playground! Help the digger get to the building site. Every right answer drives it closer!", end: "We made it! The digger is scooping dirt for the new playground!", real: "Build a tower with blocks. How tall can you make it before it falls?" },
+];
+const TRIP_KINDS = ["find", "colors", "shapes", "letters", "firstSound", "rhyme", "patterns", "sizes", "traffic", "who"];
 
 // ---------- the world behind a vehicle: road, tracks, sky or water ----------
 const worldHtml = (where) => `<div class="zt-world" data-world="${where}"><div class="zt-sun"></div><div class="zt-cloud c1"></div><div class="zt-cloud c2"></div><div class="zt-cloud c3"></div><div class="zt-ground"></div><div class="zt-lane" data-lane></div></div>`;
@@ -730,45 +1093,14 @@ const units = {
   },
 
   // ---------- Find it: where is the fire truck? ----------
-  find() {
-    runChoice({
-      id: "find",
-      count: "vehicles found",
-      skill: { start: 1, max: 2 },
-      gen(level, skill, last) {
-        const target = skill.pick(VEHICLES, (v) => v.id, last);
-        const others = shuffle(VEHICLES.filter((v) => v !== target)).slice(0, choicesFor(level) - 1);
-        return { target, key: target.id, choices: shuffle([target, ...others]).map((v) => ({ v, ok: v === target, art: vehicle(v.id), label: v.name })) };
-      },
-      ask: (q) => `Where is the <b>${q.target.name}</b>?`,
-      praise: (q) => `Yes! That is the ${q.target.name}. ${q.target.noise}`,
-      hint: (q, c) => `That is the ${c.v.name}. Find the ${q.target.name}.`,
-      reveal: (q) => `Here is the ${q.target.name}. ${q.target.fact}`,
-      sound: (q) => q.target.sound,
-      finish: { role: "kid", icon: "🚗", message: "Line up your toy cars. A grown-up names one, and you find it and drive it over.", speech: "You found every vehicle! Line up your toy cars. A grown-up names one, and you find it and drive it over." },
-    });
-  },
-
-  // ---------- Colour cars: tap the blue car. Higher levels add pink, brown, black and white ----------
-  colors() {
-    runChoice({
-      id: "colors",
-      count: "colours found",
-      skill: { start: 1, max: 3 },
-      gen(level, skill, last) {
-        const pool = level >= 2 ? [...COLORS, ...MORE_COLORS] : COLORS;
-        const target = skill.pick(pool, (c) => c.name, last);
-        const others = shuffle(pool.filter((c) => c !== target)).slice(0, choicesFor(level) - 1);
-        return { target, key: target.name, choices: shuffle([target, ...others]).map((c) => ({ v: c, ok: c === target, art: vehicle("car", "", { fill: c.fill }), label: `${c.name} car` })) };
-      },
-      ask: (q) => `Tap the <b class="zt-word" style="color:${q.target.ink || q.target.fill}">${q.target.name}</b> car.`,
-      praise: (q) => `Yes! The ${q.target.name} car. Beep beep!`,
-      hint: (q, c) => `That car is ${c.v.name}. Find the ${q.target.name} one.`,
-      reveal: (q) => `Here is the ${q.target.name} car.`,
-      sound: () => "horn",
-      finish: { role: "kid", icon: "🎨", message: "On your next ride, look for red cars. How many can you count?", speech: "You know your car colours! On your next ride, look for red cars. How many can you count?" },
-    });
-  },
+  find: () => runChoice({ ...GAMES.find, finish: { role: "kid", icon: "🚗", message: "Line up your toy cars. A grown-up names one, and you find it and drive it over.", speech: "You found every vehicle! Line up your toy cars. A grown-up names one, and you find it and drive it over." } }),
+  colors: () => runChoice({ ...GAMES.colors, finish: { role: "kid", icon: "🎨", message: "On your next ride, look for red cars. How many can you count?", speech: "You know your car colours! On your next ride, look for red cars. How many can you count?" } }),
+  // ---------- Shapes: wheels are circles, signs are triangles ----------
+  shapes: () => runChoice({ ...GAMES.shapes, finish: { role: "builder", icon: "🔷", message: "Go on a shape hunt outside: circles on wheels, rectangles on doors, triangles on signs. How many can you find?", speech: "You know your shapes! Go on a shape hunt outside. Look for circles on wheels, rectangles on doors and triangles on signs." } }),
+  // ---------- Big & small: opposites ----------
+  sizes: () => runChoice({ ...GAMES.sizes, finish: { role: "kid", icon: "📏", message: "Line up your toy cars from the smallest to the biggest. Then make one go fast and one go slow.", speech: "You know your opposites! Line up your toy cars from the smallest to the biggest. Then make one go fast and one go slow." } }),
+  // ---------- Traffic lights: stop, go, slow down, and crossing the road ----------
+  traffic: () => runChoice({ ...GAMES.traffic, finish: { role: "police", icon: "🚦", message: "On your next walk, stop at the crossing, hold a grown-up's hand, and look left and right. Tell your grown-up what the light says.", speech: "You know the road safety rules! On your next walk, stop at the crossing, hold a grown-up's hand, and look left and right. Tell your grown-up what the light says." } }),
 
   // ---------- Count them: tap each vehicle to count, then pick how many ----------
   count() {
@@ -777,7 +1109,7 @@ const units = {
     // Level → how many vehicles: 1–3, then 2–5, 3–7, 4–10, 6–10.
     const RANGE = [[1, 3], [2, 5], [3, 7], [4, 10], [6, 10]];
     const SCALE = [72, 74, 76, 77, 79, 81, 83, 84, 86, 88];
-    const rounds = 5;
+    const rounds = 8;
     let round = 0;
     let tries = 0;
     let open = false;
@@ -790,22 +1122,24 @@ const units = {
     lot.className = "zt-lot";
     world.appendChild(lot);
     const nums = $("[data-nums]", stage);
-    const host = panel(`<div class="ap-row"><p class="ap-dots" data-dots></p><span class="ap-status" data-level></span><button type="button" class="ap-btn" data-again>🔊 Again</button></div>`);
+    const host = panel(`<div class="ap-row zt-row">${raceHtml("police")}<span class="ap-status" data-level></span><button type="button" class="ap-btn" data-again aria-label="Say it again">🔊<span class="zt-wide"> Again</span></button></div>`);
     const dots = () => {
-      $("[data-dots]", host).textContent = "⭐".repeat(round) + "⚪".repeat(rounds - round);
-      $("[data-level]", host).textContent = `🚦 Level ${skill.level + 1}`;
+      raceTo(host, round, rounds);
+      $("[data-level]", host).innerHTML = `🚦<span class="zt-wide"> Level</span> ${skill.level + 1}`;
     };
     const many = () => (q.n === 1 ? q.v.name : plural(q.v.name));
-    const question = () => `How many <b>${plural(q.v.name)}</b>? Tap each one to count.`;
+    const question = () => (q.add ? `How many <b>${plural(q.v.name)}</b> now? Tap each one to count.` : `How many <b>${plural(q.v.name)}</b>? Tap each one to count.`);
     host.onclick = (event) => event.target.closest("[data-again]") && q && talk(question(), my);
 
-    function ask() {
+    async function ask() {
       if (my !== token) return;
       const [lo, hi] = RANGE[skill.level];
       let n = lo + Math.floor(Math.random() * (hi - lo + 1));
       if (n === lastN && hi > lo) n = n === hi ? lo : n + 1;
       lastN = n;
-      q = { n, v: rpick(ROAD), counted: 0, tapped: new Set() };
+      // From level 3, some rounds add: a few vehicles are parked, then one or two more drive in.
+      const add = skill.level >= 2 && n >= 3 && Math.random() < 0.4 ? rpick([1, 2]) : 0;
+      q = { n, add, v: rpick(ROAD), counted: 0, tapped: new Set(), ready: !add };
       tries = 0;
       dots();
       // One or two rows; never fewer than three columns, so one vehicle is not giant.
@@ -814,9 +1148,11 @@ const units = {
       lot.style.padding = `0 ${Math.max(0, 3 - perRow) * 16}%`;
       lot.style.gridTemplateRows = `repeat(${Math.ceil(n / perRow)}, minmax(0, 1fr))`;
       lot.innerHTML = Array.from({ length: n }, (_, i) => `<button type="button" class="zt-cv" data-i="${i}" aria-label="${q.v.name}">${vehicle(q.v.id, 'class="zt-v driving" preserveAspectRatio="xMidYMax meet"')}<span class="zt-badge" hidden></span></button>`).join("");
-      [...lot.children].forEach((car, i) =>
-        anim(car, [{ transform: "translateX(-120vw)" }, { transform: "none" }], 900, { delay: i * 90, fill: "backwards" }).then(() => car.querySelector("svg")?.classList.remove("driving")),
-      );
+      const arrive = (car, i) => anim(car, [{ transform: "translateX(-120vw)" }, { transform: "none" }], 900, { delay: i * 90, fill: "backwards" }).then(() => car.querySelector("svg")?.classList.remove("driving"));
+      const cars = [...lot.children];
+      const later = cars.slice(n - add);
+      for (const car of later) car.style.visibility = "hidden";
+      cars.slice(0, n - add).forEach(arrive);
       // Number choices: the answer and two near it, in counting order.
       const near = shuffle([n - 2, n - 1, n + 1, n + 2].filter((k) => k >= 1 && k <= 10)).slice(0, 2);
       nums.innerHTML = [n, ...near]
@@ -824,6 +1160,19 @@ const units = {
         .map((k) => `<button type="button" class="zt-card zt-num" data-n="${k}" aria-label="${k}"><b>${k}</b><span class="zt-pips" aria-hidden="true">${"●".repeat(k)}</span></button>`)
         .join("");
       open = true;
+      if (add) {
+        const a = n - add;
+        await talk(`There ${a === 1 ? "is" : "are"} <b>${a}</b> ${a === 1 ? q.v.name : plural(q.v.name)}. Look! Here ${add === 1 ? "comes" : "come"} <b>${add}</b> more!`, my);
+        if (my !== token) return;
+        sfx(q.v.sound);
+        later.forEach((car, i) => {
+          car.style.visibility = "";
+          car.classList.add("zt-new");
+          arrive(car, i);
+        });
+        await wait(900);
+        q.ready = true;
+      }
       talk(question(), my);
     }
     // Count out loud, one vehicle at a time. The last number said tells how many.
@@ -846,7 +1195,7 @@ const units = {
       await talk(`<b>${q.n}</b>! The last number tells how many. There ${q.n === 1 ? "is" : "are"} ${q.n} ${many()}.`, my);
     }
     onTap(lot, "[data-i]", async (car) => {
-      if (!q || my !== token) return;
+      if (!q || !q.ready || my !== token) return;
       const i = Number(car.dataset.i);
       if (q.tapped.has(i)) {
         shake(car.querySelector(".zt-badge"));
@@ -876,16 +1225,21 @@ const units = {
         round += 1;
         window.OC?.count("vehicles counted", q.n);
         dots();
-        cheer(button, round < rounds && round);
+        cheer(button, round, rounds);
         [...lot.children].forEach((car, i) => {
           car.querySelector("svg")?.classList.add("driving");
           anim(car, [{ transform: "none" }, { transform: "translateX(120vw)" }], 1200, { delay: i * 60, easing: "ease-in" });
         });
-        await talk(`Yes! <b>${q.n}</b> ${many()}!`, my);
+        await talk(q.add ? `Yes! <b>${q.n - q.add}</b> and <b>${q.add}</b> more make <b>${q.n}</b>!` : `Yes! <b>${q.n}</b> ${many()}!`, my);
         if (my !== token) return;
         hushSfx();
         if (up && round < rounds) {
           await levelUp(my);
+          if (my !== token) return;
+        }
+        if (round === Math.ceil(rounds / 2) && round < rounds) {
+          surprise();
+          await talk(rpick(HALFWAY), my);
           if (my !== token) return;
         }
         if (round >= rounds)
@@ -917,174 +1271,48 @@ const units = {
     ask();
   },
 
-  // ---------- Letter trucks: find the letter. New letters join, A to Z, as the child learns ----------
-  letters() {
-    const PAIRS = { b: "d", d: "b", p: "q", q: "p", m: "w", w: "m", n: "u", u: "n" };
-    const FILLS = ["#1e88e5", "#e53935", "#43a047", "#fb8c00"];
-    runChoice({
-      id: "letters",
-      count: "letters found",
-      skill: { start: 0, max: 8 },
-      gen(level, skill, last) {
-        // Level 1: A–D. Each level adds three letters, so by level 8 it is the whole alphabet.
-        const pool = ABC.slice(0, Math.min(26, 4 + 3 * level));
-        const fresh = pool.slice(-3).filter((l) => l !== last);
-        const target = Math.random() < 0.35 && fresh.length ? rpick(fresh) : skill.pick(pool, (l) => l, last);
-        const n = level === 0 ? 2 : level < 3 ? 3 : 4;
-        let others = shuffle(pool.filter((l) => l !== target)).slice(0, n - 1);
-        // Later on, letters that look alike (b and d, p and q) are put side by side.
-        const twin = PAIRS[target];
-        if (level >= 4 && twin && pool.includes(twin) && !others.includes(twin)) others = [twin, ...others.slice(0, n - 2)];
-        return { target, key: target, choices: shuffle([target, ...others]).map((l, i) => ({ v: l, ok: l === target, art: vehicle("box", "", { letter: l, fill: FILLS[i] }), label: `letter ${l.toUpperCase()}` })) };
-      },
-      ask: (q) => ({ html: `Find the letter ${big(q.target)}.`, speech: `Find the letter ${LN(q.target)}.` }),
-      praise: (q) => ({ html: `Yes! ${big(q.target)} is for <b>${LETTER_WORD[q.target]}</b>!`, speech: `Yes! ${cap(LN(q.target))}. ${cap(LN(q.target))} is for ${LETTER_WORD[q.target]}!` }),
-      hint: (q, c) => ({ html: `That is ${big(c.v)}. Find ${big(q.target)}.`, speech: `That is ${LN(c.v)}. Find ${LN(q.target)}.` }),
-      reveal: (q) => ({ html: `Here is ${big(q.target)}, for <b>${LETTER_WORD[q.target]}</b>.`, speech: `Here is ${LN(q.target)}. ${cap(LN(q.target))} is for ${LETTER_WORD[q.target]}.` }),
-      sound: () => "horn",
-      finish: { role: "bus", icon: "🔤", message: "When you go out, look for letters on trucks, buses and signs. Can you find the first letter of your name?", speech: "You know your letters! When you go out, look for letters on trucks, buses and signs. Can you find the first letter of your name?" },
-    });
-  },
-
-  // ---------- First sounds: which letter does bus start with? ----------
+  // ---------- Letter trucks: find the letter; later, match capital to small ----------
+  letters: () => runChoice({ ...GAMES.letters, finish: { role: "bus", icon: "🔤", message: "When you go out, look for letters on trucks, buses and signs. Can you find the first letter of your name?", speech: "You know your letters! When you go out, look for letters on trucks, buses and signs. Can you find the first letter of your name?" } }),
+  // ---------- Sounds & rhymes: first sounds, and from level 2 rhymes too ----------
   phonics() {
     runChoice({
-      id: "phonics",
-      count: "first sounds",
-      layout: "side",
-      stay: true,
-      skill: { start: 0, max: 2 },
-      gen(level, skill, last) {
-        const target = skill.pick(FIRST, (f) => f.word, last);
-        const others = shuffle(FIRST_LETTERS.filter((l) => soundGroup(l) !== soundGroup(target.letter))).slice(0, choicesFor(level) - 1);
-        return {
-          target,
-          key: target.word,
-          prompt: `<div class="zt-word-pic"><span class="zt-word-art">${picOf(target.pic)}</span><b data-word>${target.word}</b></div>`,
-          choices: shuffle([target.letter, ...others]).map((l) => ({ v: l, ok: l === target.letter, art: letterCard(l), label: `letter ${l.toUpperCase()}` })),
-        };
-      },
-      ask: (q) => ({ html: `<b>${cap(q.target.word)}</b>. What letter does <b>${q.target.word}</b> start with?`, speech: `${cap(q.target.word)}. ${cap(q.target.word)}. What letter does ${q.target.word} start with?` }),
-      onRight(q, box) {
-        const word = $("[data-word]", box);
-        if (word) word.innerHTML = `<span class="zt-first">${q.target.word[0]}</span>${q.target.word.slice(1)}`;
-      },
-      praise: (q) => ({ html: `Yes! <b>${q.target.word}</b> starts with ${big(q.target.letter)}.`, speech: `Yes! ${cap(q.target.word)} starts with ${LN(q.target.letter)}. ${cap(LN(q.target.letter))}, ${q.target.word}!` }),
-      hint(q, c) {
-        const like = FIRST.find((f) => f.letter === c.v);
-        return { html: `${big(c.v)} starts words like <b>${like.word}</b>. Listen again: <b>${q.target.word}</b>.`, speech: `${cap(LN(c.v))} starts words like ${like.word}. Listen to the start: ${q.target.word}, ${q.target.word}. Try again!` };
-      },
-      reveal: (q) => ({ html: `<b>${cap(q.target.word)}</b> starts with ${big(q.target.letter)}.`, speech: `${cap(q.target.word)} starts with ${LN(q.target.letter)}. ${cap(LN(q.target.letter))}, ${q.target.word}.` }),
-      finish: { role: "train", icon: "🗣️", message: "Play I spy with your toy vehicles: I spy something that starts with the letter bee. Bus!", speech: "You hear first sounds so well! Play I spy with your toy vehicles. I spy something that starts with the letter bee. Bus!" },
+      ...GAMES.firstSound,
+      gen: (level, skill, last) => roundOf(level >= 1 && Math.random() < 0.4 ? GAMES.rhyme : GAMES.firstSound, level, skill, last),
+      finish: { role: "train", icon: "🗣️", message: "Play I spy with your toy vehicles: I spy something that starts with the letter bee. Bus! Then find words that rhyme: car, star, jar.", speech: "You hear sounds so well! Play I spy with your toy vehicles. I spy something that starts with the letter bee. Bus! Then find words that rhyme: car, star, jar." },
     });
   },
+  patterns: () => runChoice({ ...GAMES.patterns, finish: { role: "train", icon: "🔁", message: "Make a pattern train with toy cars or blocks: red, blue, red, blue. Ask a grown-up to start one, and you say what comes next.", speech: "You're a pattern expert! Make a pattern train with toy cars or blocks: red, blue, red, blue. Ask a grown-up to start one, and you say what comes next." } }),
+  who: () => runChoice({ ...GAMES.who, finish: { role: "fire", icon: "🧑‍🚒", message: "Read a picture book about helpers. Point to each helper and their vehicle. Wave to a real one when you see them!", speech: "You matched every helper! Read a picture book about helpers, and point to each helper and their vehicle. Wave to a real one when you see them!" } }),
+  hear: () => runChoice({ ...GAMES.hear, finish: { role: "kid", icon: "👂", message: "Sit by a window and close your eyes. Listen. What vehicles can you hear going by?", speech: "Great listening! Sit by a window and close your eyes. Listen. What vehicles can you hear going by?" } }),
 
-  // ---------- Train patterns: what comes next? ----------
-  patterns() {
+  // ---------- Road trip: a mission where every stop is a different kind of question ----------
+  trip() {
+    const m = rpick(MISSIONS);
+    let lastKind = null;
     runChoice({
-      id: "patterns",
-      count: "patterns finished",
-      layout: "stack",
-      stay: true,
-      skill: { start: 0, max: 3 },
-      gen(level, skill, last) {
-        const kind = skill.pick(PATTERN_KINDS[level], (k) => k, last?.kind);
-        const letters = [...new Set(kind)];
-        // From level 3 the wagons sometimes carry vehicles instead of being colours.
-        const mode = level >= 2 && Math.random() < 0.5 ? "cargo" : "color";
-        const source = mode === "color" ? shuffle(COLORS) : shuffle(CARGO).map((id) => ({ id, name: V[id].name }));
-        const items = letters.map((_, i) => source[i]);
-        const unit = [...kind].map((ch) => items[letters.indexOf(ch)]);
-        const shown = Math.min(7, unit.length * 2 + Math.floor(Math.random() * unit.length));
-        const seq = Array.from({ length: shown }, (_, i) => unit[i % unit.length]);
-        const answer = unit[shown % unit.length];
-        // Wrong choices: first the other wagons in the pattern (so the child must think), then a new one.
-        const n = level === 0 ? 2 : 3;
-        const others = [...items.filter((x) => x !== answer), ...source.slice(letters.length)].slice(0, n - 1);
-        return {
-          target: { kind },
-          key: kind,
-          seq,
-          unit,
-          answer,
-          mode,
-          prompt: patternTrain([...seq, null], mode),
-          choices: shuffle([answer, ...others]).map((x) => ({ v: x, ok: x === answer, art: wagonCard(x, mode), label: x.name })),
-        };
-      },
-      ask: (q) => `Look at the train! ${q.seq.map((x) => x.name).join(", ")}... What comes next?`,
-      async onRight(q, box, my) {
-        box.innerHTML = patternTrain([...q.seq, q.answer], q.mode);
-        const train = box.firstElementChild;
-        pop(train);
-        sfx("whistle");
-        await wait(500);
-        if (my === token) train.classList.add("driving");
-      },
-      praise: (q) => `Yes! ${[...q.seq, q.answer].map((x) => x.name).join(", ")}! The pattern is ${q.unit.map((x) => x.name).join(", ")}, again and again.`,
-      hint: (q) => `Let's say it together: ${q.seq.map((x) => x.name).join(", ")}... What repeats? Try again!`,
-      reveal: (q) => `It's ${q.answer.name}! ${q.unit.map((x) => x.name).join(", ")}, ${q.unit.map((x) => x.name).join(", ")}.`,
-      finish: { role: "train", icon: "🔁", message: "Make a pattern train with toy cars or blocks: red, blue, red, blue. Ask a grown-up to start one, and you say what comes next.", speech: "You're a pattern expert! Make a pattern train with toy cars or blocks: red, blue, red, blue. Ask a grown-up to start one, and you say what comes next." },
-    });
-  },
-
-  // ---------- Who drives it? The child as a helper picks the helper's vehicle ----------
-  who() {
-    runChoice({
-      id: "who",
-      count: "helpers matched",
-      layout: "side",
+      id: "trip",
+      count: "road trip stops",
       skill: { start: 1, max: 2 },
-      gen(level, skill, last) {
-        const target = skill.pick(VEHICLES, (v) => v.id, last);
-        const others = shuffle(VEHICLES.filter((v) => v !== target)).slice(0, choicesFor(level) - 1);
-        return { target, key: target.id, prompt: character(target.role), choices: shuffle([target, ...others]).map((v) => ({ v, ok: v === target, art: vehicle(v.id), label: v.name })) };
+      racer: m.racer,
+      goal: m.goal,
+      intro: m.start,
+      gen() {
+        const id = rpick(TRIP_KINDS.filter((k) => k !== lastKind));
+        lastKind = id;
+        const kind = GAMES[id];
+        // Each question comes at the level the child has reached in that game.
+        const own = skillOf(kind.id, kind.skill);
+        return roundOf(kind, own.level, own, null);
       },
-      ask: (q) => `${cap(isA(ROLES[q.target.role].a))}! Which vehicle does ${ROLES[q.target.role].a} drive?`,
-      praise: (q) => `Yes! ${cap(ROLES[q.target.role].a)} drives the ${q.target.name}. ${ROLES[q.target.role].does}`,
-      hint: (q, c) => `That is the ${c.v.name}. Look at the hat. Which one is for ${ROLES[q.target.role].a}?`,
-      reveal: (q) => `${cap(ROLES[q.target.role].a)} drives the ${q.target.name}.`,
-      sound: (q) => q.target.sound,
-      finish: { role: "fire", icon: "🧑‍🚒", message: "Read a picture book about helpers. Point to each helper and their vehicle. Wave to a real one when you see them!", speech: "You matched every helper! Read a picture book about helpers, and point to each helper and their vehicle. Wave to a real one when you see them!" },
+      finish: { role: m.role, icon: m.goal, message: m.real, speech: `${m.end} ${m.real}` },
     });
-  },
-
-  // ---------- Hear it: which vehicle makes this sound? ----------
-  hear() {
-    runChoice({
-      id: "hear",
-      count: "sounds matched",
-      layout: "side",
-      skill: { start: 1, max: 2 },
-      gen(level, skill, last) {
-        const target = skill.pick(VEHICLES, (v) => v.id, last);
-        // Never two vehicles that sound alike (the three sirens) in one round.
-        const pool = shuffle(VEHICLES.filter((v) => v.group !== target.group));
-        const others = [];
-        for (const v of pool) if (others.length < choicesFor(level) - 1 && !others.some((o) => o.group === v.group)) others.push(v);
-        return { target, key: target.id, prompt: `<button type="button" class="zt-card zt-ear" data-hear aria-label="Play the sound again"><span>🔊</span><small>Listen</small></button>`, choices: shuffle([target, ...others]).map((v) => ({ v, ok: v === target, art: vehicle(v.id), label: v.name })) };
-      },
-      ask: () => `Listen! Which vehicle makes this sound?`,
-      afterAsk: (q) => playHear(q),
-      praise: (q) => `Yes! The ${q.target.name} goes: ${q.target.noise}`,
-      hint: (q, c) => `The ${c.v.name} goes: ${c.v.noise} Listen again.`,
-      reveal: (q) => `That was the ${q.target.name}. ${q.target.noise}`,
-      onPrompt: (q) => playHear(q),
-      finish: { role: "kid", icon: "👂", message: "Sit by a window and close your eyes. Listen. What vehicles can you hear going by?", speech: "Great listening! Sit by a window and close your eyes. Listen. What vehicles can you hear going by?" },
-    });
-    function playHear(q) {
-      const ear = $("[data-hear]", stage);
-      if (ear) {
-        ear.classList.add("playing");
-        setTimeout(() => ear.classList.remove("playing"), sfx(q.target.sound) || 600);
-      }
-    }
   },
 
   // ---------- Where does it go? Drag (or tap) the vehicle to the road, tracks, sky or water ----------
   where() {
     const my = token;
-    const road = shuffle(VEHICLES.filter((v) => v.where === "road")).slice(0, 3);
+    const rounds = 8;
+    const road = shuffle(ROAD).slice(0, rounds - 3);
     const list = shuffle([V.plane, V.boat, V.train, ...road]);
     let round = 0;
     let tries = 0;
@@ -1093,8 +1321,8 @@ const units = {
     stage.innerHTML = `<div class="zt-where"><div class="zt-zones">${Object.entries(WHERE).map(([key, w]) => `<button type="button" class="zt-zone" data-zone="${key}" data-world="${key}" aria-label="${w.name}"><span class="zt-zone-ground"></span><span class="zt-zone-name">${w.icon} ${cap(w.name)}</span><span class="zt-zone-park" data-park></span></button>`).join("")}</div><div class="zt-dock"><div class="zt-token" data-token></div></div></div>`;
     const tokenEl = $("[data-token]", stage);
     const zones = [...stage.querySelectorAll("[data-zone]")];
-    const host = panel(`<div class="ap-row"><p class="ap-dots" data-dots></p><button type="button" class="ap-btn" data-again>🔊 Again</button></div>`);
-    const dots = () => ($("[data-dots]", host).textContent = "🚗".repeat(round) + "⚪".repeat(ROUNDS - round));
+    const host = panel(`<div class="ap-row zt-row">${raceHtml("bus")}<button type="button" class="ap-btn" data-again aria-label="Say it again">🔊<span class="zt-wide"> Again</span></button></div>`);
+    const dots = () => raceTo(host, round, rounds);
     host.onclick = (event) => event.target.closest("[data-again]") && v && talk(question(), my);
     const question = () => `Where does the <b>${v.name}</b> go? Drag it, or tap the place.`;
 
@@ -1130,12 +1358,17 @@ const units = {
         $("[data-park]", zone).appendChild(parked);
         pop(zone);
         round += 1;
-        cheer(zone, round < ROUNDS && round);
+        cheer(zone, round, rounds);
         window.OC?.count("vehicles placed");
         dots();
         await talk(`Yes! The ${v.name} goes on the ${WHERE[v.where].name}. ${v.fact}`, my);
         if (my !== token) return;
-        if (round >= ROUNDS)
+        if (round === Math.ceil(rounds / 2) && round < rounds) {
+          surprise();
+          await talk(rpick(HALFWAY), my);
+          if (my !== token) return;
+        }
+        if (round >= rounds)
           return finishCard({ id: "where", role: "builder", icon: "🛣️", message: "Make a road on the floor with tape and a river with a blue towel. Drive your cars on the road and float a boat on the river.", speech: "Everything is in the right place! Make a road on the floor with tape and a river with a blue towel. Drive your cars on the road and float a boat on the river." });
         ask();
       } else {
@@ -1214,8 +1447,21 @@ const units = {
   },
 };
 
+// The race track under every game: the child's car drives one step towards the flag for each answer.
+const raceHtml = (racer = "car", goal = "🏁") => `<div class="zt-race" data-race aria-hidden="true"><span class="zt-race-goal">${goal}</span><span class="zt-racer" data-racer>${vehicle(racer, "", { fill: "#e53935" })}</span></div>`;
+function raceTo(host, round, rounds) {
+  const racer = $("[data-racer]", host);
+  if (!racer) return;
+  racer.style.left = `calc((100% - 96px) * ${round / rounds} + 4px)`;
+  const svg = racer.querySelector("svg");
+  svg?.classList.add("driving");
+  setTimeout(() => svg?.classList.remove("driving"), 900);
+}
+const HALFWAY = ["Halfway there! Keep going!", "Wow, you're halfway! Vroom vroom!", "Halfway! You're doing great!"];
+
 // A round-based picking game. Taps answer on pointerdown; only classes change, the cards are never rebuilt mid-round.
-// The game's level (skillOf) sets how many choices there are and what is asked; cfg.gen(level, skill) builds a round.
+// The game's level (skillOf) sets how many choices there are and what is asked; cfg.gen(level, skill, last) builds a round.
+// A round may carry its own words and layout (q.h), so mixed games switch kinds from round to round.
 function runChoice(cfg) {
   const my = token;
   const rounds = cfg.rounds || ROUNDS;
@@ -1225,16 +1471,22 @@ function runChoice(cfg) {
   let open = false;
   let q = null;
   let last = null;
-  stage.innerHTML = `<div class="zt-play ${cfg.layout || ""}">${cfg.layout ? '<div class="zt-prompt" data-prompt></div>' : ""}<div class="zt-cards" data-cards></div></div>`;
+  stage.innerHTML = `<div class="zt-play" data-play><div class="zt-prompt" data-prompt></div><div class="zt-cards" data-cards></div></div>`;
+  const play = $("[data-play]", stage);
   const cards = $("[data-cards]", stage);
   const promptBox = $("[data-prompt]", stage);
-  const host = panel(`<div class="ap-row"><p class="ap-dots" data-dots></p><span class="ap-status" data-level></span><button type="button" class="ap-btn" data-again>🔊 Again</button></div>`);
+  const host = panel(`<div class="ap-row zt-row">${raceHtml(cfg.racer, cfg.goal)}<span class="ap-status" data-level></span><button type="button" class="ap-btn" data-again aria-label="Say it again">🔊<span class="zt-wide"> Again</span></button></div>`);
+  const H = () => {
+    const h = { ...cfg };
+    for (const [key, value] of Object.entries(q?.h || {})) if (value !== undefined) h[key] = value;
+    return h;
+  };
   const dots = () => {
-    $("[data-dots]", host).textContent = "⭐".repeat(round) + "⚪".repeat(rounds - round);
-    $("[data-level]", host).textContent = `🚦 Level ${skill.level + 1}`;
+    raceTo(host, round, rounds);
+    $("[data-level]", host).innerHTML = `🚦<span class="zt-wide"> Level</span> ${skill.level + 1}`;
   };
   host.onclick = (event) => {
-    if (event.target.closest("[data-again]") && q) talk(cfg.ask(q), my).then((ok) => ok && cfg.afterAsk?.(q));
+    if (event.target.closest("[data-again]") && q) talk(H().ask(q), my).then((ok) => ok && H().afterAsk?.(q));
   };
   async function ask() {
     if (my !== token) return;
@@ -1242,21 +1494,26 @@ function runChoice(cfg) {
     last = q.target;
     tries = 0;
     dots();
-    if (promptBox) {
-      promptBox.innerHTML = q.prompt || "";
-      anim(promptBox.firstElementChild, [{ transform: "scale(.85)", opacity: 0 }, { transform: "none", opacity: 1 }], 380, { fill: "none" });
-    }
+    const h = H();
+    play.className = `zt-play ${h.layout || ""}`;
+    promptBox.innerHTML = h.layout ? q.prompt || "" : "";
+    if (promptBox.firstElementChild) anim(promptBox.firstElementChild, [{ transform: "scale(.85)", opacity: 0 }, { transform: "none", opacity: 1 }], 380, { fill: "none" });
     cards.className = `zt-cards n${q.choices.length}`;
     cards.innerHTML = q.choices.map((c, i) => `<button type="button" class="zt-card zt-pick" data-c="${i}" aria-label="${c.label}"><span class="zt-art">${c.art}</span></button>`).join("");
     [...cards.children].forEach((card, i) => anim(card, [{ transform: "translateY(24px)", opacity: 0 }, { transform: "none", opacity: 1 }], 380, { delay: i * 70, fill: "backwards" }));
     open = true;
-    const ok = await talk(cfg.ask(q), my);
-    if (ok && my === token) cfg.afterAsk?.(q);
+    const ok = await talk(h.ask(q), my);
+    if (ok && my === token) h.afterAsk?.(q);
   }
   async function next(up) {
     if (my !== token) return;
     if (up && round < rounds) {
       await levelUp(my);
+      if (my !== token) return;
+    }
+    if (round === Math.ceil(rounds / 2) && round < rounds) {
+      surprise();
+      await talk(rpick(HALFWAY), my);
       if (my !== token) return;
     }
     if (round >= rounds) return finishCard({ id: cfg.id, ...cfg.finish });
@@ -1265,6 +1522,7 @@ function runChoice(cfg) {
   async function choose(button) {
     const c = q.choices[Number(button.dataset.c)];
     if (!open || c.state || my !== token) return;
+    const h = H();
     if (c.ok) {
       open = false;
       c.state = "good";
@@ -1272,16 +1530,16 @@ function runChoice(cfg) {
       for (const b of cards.children) if (b !== button) b.classList.add("dim");
       const up = tries === 0 ? skill.right(q.key) : false;
       MUSIC.chime();
-      if (cfg.sound) sfx(cfg.sound(q));
+      if (h.sound) sfx(h.sound(q));
       round += 1;
-      window.OC?.count(cfg.count);
+      window.OC?.count(h.count);
       dots();
-      cheer(button, round < rounds && round);
+      cheer(button, round, rounds);
       const art = button.querySelector(".zt-art");
-      const leave = cfg.stay ? pop(button) : (art.querySelector("svg")?.classList.add("driving"), anim(art, [{ transform: "none" }, { transform: "translateX(-6%)" }, { transform: "translateX(140%)" }], 1100, { easing: "ease-in" }));
-      await Promise.all([leave, cfg.onRight?.(q, promptBox, my)]);
+      const leave = h.stay ? pop(button) : (art.querySelector("svg")?.classList.add("driving"), anim(art, [{ transform: "none" }, { transform: "translateX(-6%)" }, { transform: "translateX(140%)" }], 1100, { easing: "ease-in" }));
+      await Promise.all([leave, h.onRight?.(q, promptBox, my)]);
       if (my !== token) return;
-      await talk(cfg.praise(q, c), my);
+      await talk(h.praise(q, c), my);
       if (my !== token) return;
       hushSfx();
       next(up);
@@ -1297,17 +1555,24 @@ function runChoice(cfg) {
         open = false;
         const right = cards.children[q.choices.findIndex((x) => x.ok)];
         right.classList.add("hint");
-        await talk(cfg.reveal(q, c), my);
+        await talk(h.reveal(q, c), my);
         if (my !== token) return;
         round += 1;
         dots();
         next(false);
-      } else await talk(cfg.hint(q, c), my);
+      } else await talk(h.hint(q, c), my);
     }
   }
   onTap(cards, "[data-c]", choose);
-  if (promptBox && cfg.onPrompt) onTap(promptBox, "[data-hear]", () => q && cfg.onPrompt(q));
-  ask();
+  onTap(promptBox, "[data-hear]", () => q && H().onPrompt?.(q));
+  (async () => {
+    dots();
+    if (cfg.intro) {
+      surprise("stars");
+      await talk(cfg.intro, my);
+    }
+    ask();
+  })();
 }
 
 // ======================================================================
@@ -1465,13 +1730,17 @@ const UNITS = [
   { id: "dress", label: "2. Dress up", icon: "🎩" },
   { id: "find", label: "3. Find it", icon: "🔎" },
   { id: "colors", label: "4. Colour cars", icon: "🎨" },
-  { id: "count", label: "5. Count them", icon: "🔢" },
-  { id: "letters", label: "6. Letter trucks", icon: "🔤" },
-  { id: "phonics", label: "7. First sounds", icon: "🗣️" },
-  { id: "patterns", label: "8. Train patterns", icon: "🔁" },
-  { id: "who", label: "9. Who drives it?", icon: "🧑‍🚒" },
-  { id: "hear", label: "10. Hear it", icon: "👂" },
-  { id: "where", label: "11. Where does it go?", icon: "🛣️" },
+  { id: "shapes", label: "5. Shapes", icon: "🔷" },
+  { id: "count", label: "6. Count them", icon: "🔢" },
+  { id: "letters", label: "7. Letter trucks", icon: "🔤" },
+  { id: "phonics", label: "8. Sounds & rhymes", icon: "🗣️" },
+  { id: "patterns", label: "9. Train patterns", icon: "🔁" },
+  { id: "sizes", label: "10. Big & small", icon: "📏" },
+  { id: "traffic", label: "11. Traffic lights", icon: "🚥" },
+  { id: "who", label: "12. Who drives it?", icon: "🧑‍🚒" },
+  { id: "hear", label: "13. Hear it", icon: "👂" },
+  { id: "where", label: "14. Where does it go?", icon: "🛣️" },
+  { id: "trip", label: "15. Road trip", icon: "🗺️" },
 ];
 shell = SHELL({
   units: UNITS,
@@ -1482,9 +1751,13 @@ shell = SHELL({
     dress: { icon: "🎩", title: "Dress up", steps: ["Tap a hat.", "See who you become!", "Grown-ups: tap 📷 to add a photo."] },
     find: { icon: "🔎", title: "Find it", steps: ["Listen to the name.", "Tap that vehicle."] },
     colors: { icon: "🎨", title: "Colour cars", steps: ["Listen to the colour.", "Tap the car with that colour."] },
+    shapes: { icon: "🔷", title: "Shapes", steps: ["Listen to the shape.", "Tap it.", "New shapes join as you learn them."] },
+    sizes: { icon: "📏", title: "Big & small", steps: ["Listen: big or small, fast or slow?", "Tap the right one.", "Opposites come in pairs!"] },
+    traffic: { icon: "🚥", title: "Traffic lights", steps: ["Look at the light.", "Should the car stop, go or slow down?", "Tap your answer."] },
+    trip: { icon: "🗺️", title: "Road trip", steps: ["A helper needs to get somewhere!", "Answer each question to drive closer.", "Every stop is a different game."] },
     count: { icon: "🔢", title: "Count them", steps: ["Tap each vehicle to count it.", "The last number tells how many.", "Tap that number."] },
     letters: { icon: "🔤", title: "Letter trucks", steps: ["Listen to the letter.", "Tap the truck with that letter.", "New letters join as you learn them."] },
-    phonics: { icon: "🗣️", title: "First sounds", steps: ["Look at the picture and listen to the word.", "Which letter does it start with?", "Tap the letter."] },
+    phonics: { icon: "🗣️", title: "Sounds & rhymes", steps: ["Look at the picture and listen to the word.", "Which letter does it start with? Or which word rhymes?", "Tap your answer."] },
     patterns: { icon: "🔁", title: "Train patterns", steps: ["Look at the train wagons.", "Say the pattern out loud.", "Tap the wagon that comes next."] },
     who: { icon: "🧑‍🚒", title: "Who drives it?", steps: ["Look at the helper's hat.", "Tap the vehicle they drive."] },
     hear: { icon: "👂", title: "Hear it", steps: ["Listen to the sound.", "Tap the vehicle that makes it.", "Tap 🔊 to hear it again."] },
@@ -1597,6 +1870,33 @@ html{touch-action:manipulation}
 .zt-play.stack .zt-cards{flex-direction:row}
 .zt-ptrain.driving{animation:zt-leave 1.4s ease-in forwards}
 @keyframes zt-leave{to{transform:translateX(-110%)}}
+/* race track */
+@media (max-width:480px){.zt-wide{display:none}.zt-row{gap:6px}.zt-row .ap-btn{min-width:52px;padding:0 12px}}
+.zt-row{flex-wrap:nowrap;width:min(100%,620px)}
+.zt-race{position:relative;flex:1 1 220px;min-width:140px;height:44px;border-radius:22px;background:#5b5f66;box-shadow:inset 0 0 0 3px #7cc66a}
+.zt-race::before{content:"";position:absolute;left:12px;right:44px;top:50%;height:3px;margin-top:-1px;background:repeating-linear-gradient(90deg,#fff 0 10px,transparent 10px 20px)}
+.zt-race-goal{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:24px;line-height:1}
+.zt-racer{position:absolute;left:4px;bottom:4px;width:58px;transition:left .9s cubic-bezier(.3,.8,.3,1)}
+.zt-racer svg{display:block;width:100%;height:auto}
+/* picture and word cards */
+.zt-act{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.zt-act span{font-size:clamp(40px,10vh,88px);line-height:1.1}
+.zt-act b{font:900 clamp(17px,3vh,28px)/1.1 var(--sans);color:#2b1d12}
+.zt-play:not(.side):not(.stack) .zt-prompt{display:none}
+/* opposites: fast and slow cars */
+.zt-mover{position:absolute;inset:0;overflow:hidden;border-radius:18px}
+.zt-mover i{position:absolute;left:0;right:0;bottom:0;height:22%;background:#5b5f66}
+.zt-mover span{position:absolute;bottom:12%;left:0;width:48%;animation:zt-move var(--d) ease-in-out infinite alternate}
+.zt-mover.fast span{--d:.6s}
+.zt-mover.slow span{--d:3.4s}
+.zt-mover svg{display:block;width:100%;height:auto}
+@keyframes zt-move{to{left:52%}}
+/* traffic lights */
+.zt-traffic{display:flex;align-items:flex-end;justify-content:center;gap:6%;width:100%;height:100%;padding:8px;overflow:hidden;background:linear-gradient(transparent 78%,#5b5f66 78%)}
+.zt-light{height:94%;width:auto;flex:none}
+.zt-tcar{width:52%;flex:none;margin-bottom:4%}
+.zt-tcar svg{display:block;width:100%;height:auto}
+.zt-walker{display:block;font-size:clamp(48px,10vh,96px);line-height:1;text-align:center}
 /* Count them */
 .zt-lot{position:absolute;left:3%;right:3%;top:16%;bottom:5%;display:grid;gap:4px;align-items:end}
 .zt-cv{position:relative;display:grid;place-items:end center;align-self:end;min-width:0;min-height:0;width:100%;aspect-ratio:260/215;max-height:100%;padding:0;border:0;background:none;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
@@ -1693,7 +1993,7 @@ html{touch-action:manipulation}
 @keyframes zt-drift{from{translate:0 0}to{translate:30vw 0}}
 @keyframes zt-glow{0%,100%{box-shadow:0 0 0 3px #f1e7da,0 6px 0 #e6dccd}50%{box-shadow:0 0 0 8px #ffcf5c,0 6px 0 #e6dccd}}
 @keyframes zt-ring{0%,100%{box-shadow:0 3px 0 #e6dccd}50%{box-shadow:0 3px 0 #e6dccd,0 0 0 7px #ffcf5c}}
-@media (prefers-reduced-motion:reduce){.zt-v.driving .wh,.zt-car.parked .zt-v,.zt-cloud,.zt-v .smoke,.zt-ear.playing,.ap-icon.zt-nudge,.zt-card.hint,.zt-zone.hint{animation:none}}
+@media (prefers-reduced-motion:reduce){.zt-mover span,.zt-v.driving .wh,.zt-car.parked .zt-v,.zt-cloud,.zt-v .smoke,.zt-ear.playing,.ap-icon.zt-nudge,.zt-card.hint,.zt-zone.hint{animation:none}}
 `;
 document.head.appendChild(style);
 </script>
