@@ -1,0 +1,1186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zoom Town · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../assets/oc.css">
+<link rel="stylesheet" href="../assets/app.css">
+<script src="../assets/oc.js"></script>
+<script src="../assets/firebase-config.js"></script>
+<script src="../assets/cloud.js"></script>
+<script src="../assets/voice.js"></script>
+<script src="../assets/music.js"></script>
+<script src="../assets/shell.js"></script>
+<script src="../assets/kit.js"></script>
+</head>
+<body data-subject="vehicles">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Zoom Town</b><small>Vehicles & helpers · Foundations</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../"></span>
+    <button type="button" class="ap-icon" data-photo aria-label="Add a photo" title="Add a photo">📷</button>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Vehicle sounds are made in the browser. Xylophone sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, panel, say, sayAsync, wait, confetti, explain, shuffle, still } = KIT;
+const stage = $("[data-stage]");
+let token = 0;
+let cleanups = [];
+let shell = null;
+
+// ======================================================================
+// The child's photo. Kept in this browser only (not synced, never in the repository).
+// ======================================================================
+const FACE_KEY = "oc-faces";
+const learner = () => (window.OC ? OC.current() : "") || "";
+const faces = () => {
+  try {
+    return JSON.parse(localStorage.getItem(FACE_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+};
+const faceOf = () => faces()[learner() || "Learner"] || "";
+const saveFace = (url) => {
+  const all = faces();
+  if (url) all[learner() || "Learner"] = url;
+  else delete all[learner() || "Learner"];
+  try {
+    localStorage.setItem(FACE_KEY, JSON.stringify(all));
+    return true;
+  } catch {
+    return false;
+  }
+};
+const esc = (s) => (window.OC ? OC.escapeHtml(s) : String(s));
+const NAME = () => esc(learner());
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+// "Zion is a firefighter" or, with no learner name, "You are a firefighter".
+const isA = (a) => (NAME() ? `${NAME()} is ${a}` : `You are ${a}`);
+
+// ======================================================================
+// <DATA> helpers and vehicles
+// ======================================================================
+const ROLES = {
+  kid: { name: "driver", a: "a driver", does: "Drivers look both ways and go slowly near people." },
+  fire: { name: "firefighter", a: "a firefighter", does: "Firefighters put out fires and keep us safe." },
+  medic: { name: "paramedic", a: "a paramedic", does: "Paramedics help sick and hurt people and take them to the hospital." },
+  doctor: { name: "doctor", a: "a doctor", does: "Doctors help us get better when we are sick. They listen to our heart." },
+  police: { name: "police officer", a: "a police officer", does: "Police officers help people and keep us safe." },
+  bus: { name: "bus driver", a: "a bus driver", does: "Bus drivers take children to school safely." },
+  garbage: { name: "garbage collector", a: "a garbage collector", does: "Garbage collectors take away our trash and keep the street clean." },
+  builder: { name: "builder", a: "a builder", does: "Builders dig and build new houses and roads." },
+  train: { name: "train driver", a: "a train driver", does: "Train drivers make the train go along the tracks." },
+  pilot: { name: "pilot", a: "a pilot", does: "Pilots fly airplanes high in the sky." },
+  captain: { name: "captain", a: "a boat captain", does: "Captains steer boats across the water." },
+  astro: { name: "astronaut", a: "an astronaut", does: "Astronauts ride rockets into space and float with no gravity." },
+  chef: { name: "chef", a: "a chef", does: "Chefs cook yummy food for lots of people." },
+};
+// where: road, tracks, sky or water. group: vehicles in one group sound alike, so never share a round in Hear it.
+const VEHICLES = [
+  { id: "fire", name: "fire truck", role: "fire", where: "road", sound: "wail", group: "siren", noise: "Nee naw, nee naw!", fact: "It carries water hoses and a tall ladder to put out fires." },
+  { id: "ambulance", name: "ambulance", role: "medic", where: "road", sound: "hilo", group: "siren", noise: "Nee naw!", fact: "It takes sick and hurt people to the hospital, fast." },
+  { id: "police", name: "police car", role: "police", where: "road", sound: "yelp", group: "siren", noise: "Woo woo woo!", fact: "It has flashing lights, red and blue." },
+  { id: "bus", name: "school bus", role: "bus", where: "road", sound: "bushorn", group: "horn", noise: "Honk honk!", fact: "It is big and yellow. It takes children to school." },
+  { id: "garbage", name: "garbage truck", role: "garbage", where: "road", sound: "crunch", group: "crunch", noise: "Crunch, crunch!", fact: "It picks up our trash and squashes it inside." },
+  { id: "digger", name: "digger", role: "builder", where: "road", sound: "beeps", group: "beeps", noise: "Beep, beep, beep!", fact: "It scoops up dirt with its big bucket." },
+  { id: "train", name: "train", role: "train", where: "tracks", sound: "whistle", group: "whistle", noise: "Choo choo!", fact: "It goes along on the tracks, never on the road." },
+  { id: "plane", name: "airplane", role: "pilot", where: "sky", sound: "jet", group: "jet", noise: "Whoooosh!", fact: "It has wings and flies high in the sky." },
+  { id: "boat", name: "boat", role: "captain", where: "water", sound: "foghorn", group: "foghorn", noise: "Toot toooot!", fact: "It floats on the water." },
+];
+const V = Object.fromEntries(VEHICLES.map((v) => [v.id, v]));
+const COLORS = [
+  { name: "red", fill: "#e53935" },
+  { name: "blue", fill: "#1e88e5" },
+  { name: "yellow", fill: "#fdd835" },
+  { name: "green", fill: "#43a047" },
+  { name: "orange", fill: "#fb8c00" },
+  { name: "purple", fill: "#8e24aa" },
+];
+const WHERE = {
+  sky: { name: "sky", icon: "☁️" },
+  road: { name: "road", icon: "🛣️" },
+  tracks: { name: "tracks", icon: "🛤️" },
+  water: { name: "water", icon: "🌊" },
+};
+const ROUNDS = 6;
+const rpick = (list) => list[Math.floor(Math.random() * list.length)];
+// A target that is not the same as last round.
+const nextTarget = (list, last) => rpick(list.filter((x) => x !== last));
+
+// ======================================================================
+// Art. Everything is SVG markup so it can go in a button, a card or a See it scene.
+// A head is drawn in a 200-wide box with its centre at (100, 100) and radius 62, then scaled.
+// ======================================================================
+let uidN = 0;
+const uid = (p) => `zt${p}${++uidN}`;
+const SKIN = "#c98d68";
+function faceArt() {
+  const url = faceOf();
+  if (url) {
+    const id = uid("f");
+    return `<clipPath id="${id}"><circle cx="100" cy="100" r="62"/></clipPath><circle cx="100" cy="100" r="62" fill="#ead3c0"/><image href="${url}" x="38" y="38" width="124" height="124" preserveAspectRatio="xMidYMid slice" clip-path="url(#${id})"/><circle cx="100" cy="100" r="61" fill="none" stroke="rgba(60,30,10,.18)" stroke-width="3"/>`;
+  }
+  // No photo yet: a friendly drawn face with dark curls.
+  return `<g fill="#2b1a10"><circle cx="58" cy="70" r="24"/><circle cx="78" cy="50" r="25"/><circle cx="104" cy="44" r="27"/><circle cx="130" cy="52" r="25"/><circle cx="146" cy="72" r="22"/><circle cx="50" cy="94" r="15"/><circle cx="152" cy="96" r="15"/></g><circle cx="100" cy="106" r="54" fill="${SKIN}"/><g fill="#2b1a10"><circle cx="78" cy="66" r="15"/><circle cx="100" cy="60" r="16"/><circle cx="122" cy="66" r="15"/></g><ellipse cx="80" cy="106" rx="7" ry="9" fill="#2a160c"/><ellipse cx="120" cy="106" rx="7" ry="9" fill="#2a160c"/><circle cx="82" cy="103" r="2.5" fill="#fff"/><circle cx="122" cy="103" r="2.5" fill="#fff"/><circle cx="68" cy="124" r="9" fill="#e57373" opacity=".35"/><circle cx="132" cy="124" r="9" fill="#e57373" opacity=".35"/><path d="M86 132 Q100 144 114 132" stroke="#6b3a2a" stroke-width="5" fill="none" stroke-linecap="round"/>`;
+}
+const HATS = {
+  kid: () => "",
+  medic: () => "",
+  fire: () => `<path d="M36 80 C36 30 68 16 100 16 C132 16 164 30 164 80Z" fill="#d32f2f"/><rect x="94" y="15" width="12" height="62" rx="5" fill="#b71c1c"/><path d="M20 80 Q100 62 180 80 Q184 92 170 92 Q100 78 30 92 Q16 92 20 80Z" fill="#a31515"/><path d="M84 28 H116 V56 L100 66 L84 56Z" fill="#ffca28" stroke="#f57f17" stroke-width="3"/><circle cx="100" cy="44" r="6" fill="#d32f2f"/>`,
+  police: () => `<path d="M38 72 Q30 30 100 26 Q170 30 162 72Z" fill="#1f2f6b"/><rect x="40" y="58" width="120" height="16" fill="#111a3f"/><path d="M48 74 Q100 96 152 74 Q100 84 48 74Z" fill="#111"/><path d="M100 34 L106 46 L119 46 L109 54 L113 66 L100 59 L87 66 L91 54 L81 46 L94 46Z" fill="#ffca28"/>`,
+  builder: () => `<path d="M38 78 C38 30 68 18 100 18 C132 18 162 30 162 78Z" fill="#fdd835"/><rect x="92" y="18" width="16" height="60" rx="6" fill="#f9a825"/><rect x="24" y="74" width="152" height="14" rx="7" fill="#f9a825"/>`,
+  pilot: () => `<path d="M38 72 Q30 30 100 26 Q170 30 162 72Z" fill="#14233f"/><rect x="40" y="58" width="120" height="14" fill="#ffc107"/><path d="M48 72 Q100 96 152 72 Q100 82 48 72Z" fill="#111"/><path d="M72 42 Q86 48 100 42 Q114 48 128 42 Q114 54 100 50 Q86 54 72 42Z" fill="#ffc107"/><circle cx="100" cy="45" r="5" fill="#fff"/>`,
+  train: () => {
+    const id = uid("p");
+    return `<pattern id="${id}" width="12" height="10" patternUnits="userSpaceOnUse"><rect width="12" height="10" fill="#1e4fa0"/><rect width="5" height="10" fill="#e3ecf8"/></pattern><path d="M40 74 Q38 26 100 24 Q162 26 160 74Z" fill="url(#${id})"/><path d="M40 72 Q24 80 36 88 Q100 80 164 88 Q176 80 160 72Z" fill="url(#${id})" stroke="#16397a" stroke-width="3"/>`;
+  },
+  bus: () => `<path d="M40 76 Q40 24 100 22 Q160 24 160 76Z" fill="#1565c0"/><circle cx="100" cy="24" r="6" fill="#0d47a1"/><path d="M58 72 Q110 64 176 78 Q180 88 166 88 Q110 80 58 82Z" fill="#0d47a1"/>`,
+  garbage: () => `<path d="M38 78 Q36 22 100 20 Q164 22 162 78Z" fill="#ef6c00"/><rect x="36" y="60" width="128" height="20" rx="8" fill="#e65100"/><rect x="36" y="66" width="128" height="6" fill="#e0e0e0"/><circle cx="100" cy="18" r="11" fill="#ff9800"/>`,
+  captain: () => `<path d="M34 64 Q26 26 100 22 Q174 26 166 64Z" fill="#fafafa" stroke="#cfd8dc" stroke-width="3"/><rect x="38" y="56" width="124" height="16" fill="#212121"/><path d="M46 72 Q100 94 154 72 Q100 82 46 72Z" fill="#111"/><path d="M100 30 V52 M92 36 H108 M88 46 Q100 58 112 46" stroke="#f9a825" stroke-width="4" fill="none" stroke-linecap="round"/>`,
+  doctor: () => `<path d="M40 64 Q100 42 160 64" stroke="#90a4ae" stroke-width="7" fill="none"/><circle cx="100" cy="50" r="15" fill="#eceff1" stroke="#90a4ae" stroke-width="4"/><circle cx="100" cy="50" r="5" fill="#b0bec5"/>`,
+  astro: () => `<circle cx="100" cy="100" r="74" fill="none" stroke="#eceff1" stroke-width="18"/><circle cx="100" cy="100" r="74" fill="none" stroke="#b0bec5" stroke-width="3"/><path d="M52 64 Q70 40 100 36" stroke="#fff" stroke-width="7" fill="none" stroke-linecap="round" opacity=".8"/><rect x="150" y="80" width="18" height="40" rx="5" fill="#ff7043"/>`,
+  chef: () => `<g fill="#fff" stroke="#e0e0e0" stroke-width="3"><circle cx="66" cy="36" r="24"/><circle cx="134" cy="36" r="24"/><circle cx="100" cy="22" r="30"/><rect x="58" y="40" width="84" height="36" rx="6"/></g>`,
+};
+function head(role, cx, cy, r) {
+  const k = r / 62;
+  return `<g transform="translate(${cx - 100 * k} ${cy - 100 * k}) scale(${k})">${faceArt()}${(HATS[role] || HATS.kid)()}</g>`;
+}
+const TORSO = "M22 250 Q24 182 66 168 L134 168 Q176 182 178 250Z";
+const NECK = `<rect x="84" y="148" width="32" height="30" rx="12" fill="${SKIN}"/>`;
+const reflect = (y) => `<rect x="0" y="${y}" width="200" height="12" fill="#e0e0e0"/><rect x="0" y="${y - 2}" width="200" height="3" fill="#fdd835"/><rect x="0" y="${y + 11}" width="200" height="3" fill="#fdd835"/>`;
+const BODIES = {
+  kid: ["#ffb300", `<path d="M80 168 Q100 184 120 168" stroke="#f57f17" stroke-width="6" fill="none"/><circle cx="100" cy="214" r="16" fill="#fff59d"/><path d="M92 214 L98 220 L110 206" stroke="#f57f17" stroke-width="4" fill="none"/>`],
+  fire: ["#c99a2e", `${reflect(206)}${reflect(232)}<path d="M100 168 V250" stroke="#8d6a1c" stroke-width="4"/><path d="M76 168 L100 190 L124 168Z" fill="#3e2a0c"/>`],
+  medic: ["#2e7d32", `${reflect(222)}<circle cx="138" cy="196" r="13" fill="#fff"/><rect x="134" y="186" width="8" height="20" fill="#e53935"/><rect x="128" y="192" width="20" height="8" fill="#e53935"/><path d="M78 168 L100 188 L122 168" stroke="#1b5e20" stroke-width="5" fill="none"/>`],
+  doctor: ["#fafafa", `<path d="M78 168 L100 210 L122 168Z" fill="#4fc3f7"/><path d="M78 168 L100 210 V250 M122 168 L100 210" stroke="#cfd8dc" stroke-width="3" fill="none"/><path d="M74 174 Q66 214 96 224 Q126 214 126 174" stroke="#455a64" stroke-width="5" fill="none"/><circle cx="96" cy="230" r="9" fill="#b0bec5" stroke="#455a64" stroke-width="3"/><rect x="128" y="214" width="24" height="22" rx="3" fill="none" stroke="#cfd8dc" stroke-width="3"/><rect x="140" y="204" width="4" height="16" fill="#1e88e5"/>`],
+  police: ["#1f2f6b", `<path d="M78 168 L100 196 L122 168Z" fill="#90caf9"/><path d="M96 190 H104 L108 236 L100 244 L92 236Z" fill="#111a3f"/><path d="M140 194 L144 202 L153 202 L146 208 L149 217 L140 212 L131 217 L134 208 L127 202 L136 202Z" fill="#ffca28"/><rect x="30" y="182" width="34" height="8" rx="3" fill="#111a3f"/><rect x="136" y="182" width="34" height="8" rx="3" fill="#111a3f"/>`],
+  bus: ["#64b5f6", `<path d="M78 168 L100 190 L122 168" stroke="#1565c0" stroke-width="6" fill="none"/><rect x="128" y="198" width="26" height="18" rx="3" fill="#fdd835"/><circle cx="100" cy="210" r="4" fill="#1565c0"/><circle cx="100" cy="232" r="4" fill="#1565c0"/>`],
+  garbage: ["#455a64", `<path d="M40 176 L82 168 L94 250 L22 250Z M160 176 L118 168 L106 250 L178 250Z" fill="#c6ff00"/>${reflect(220)}`],
+  builder: ["#1e88e5", `<path d="M40 176 L82 168 L94 250 L22 250Z M160 176 L118 168 L106 250 L178 250Z" fill="#ff9800"/><rect x="0" y="212" width="200" height="10" fill="#e0e0e0"/><rect x="0" y="234" width="200" height="10" fill="#e0e0e0"/>`],
+  train: ["#d32f2f", `<rect x="62" y="196" width="76" height="60" rx="6" fill="#2b59a8"/><path d="M70 168 L72 200 M130 168 L128 200" stroke="#2b59a8" stroke-width="12"/><circle cx="74" cy="204" r="4" fill="#ffca28"/><circle cx="126" cy="204" r="4" fill="#ffca28"/><rect x="88" y="212" width="24" height="16" rx="3" fill="none" stroke="#1d3f7a" stroke-width="3"/>`],
+  pilot: ["#14233f", `<path d="M76 168 L100 200 L124 168Z" fill="#fff"/><path d="M96 190 H104 L108 236 L100 244 L92 236Z" fill="#111"/><g fill="#ffc107"><rect x="28" y="184" width="36" height="5"/><rect x="28" y="192" width="36" height="5"/><rect x="136" y="184" width="36" height="5"/><rect x="136" y="192" width="36" height="5"/><path d="M126 210 Q138 216 150 210 Q162 216 174 210 Q162 222 150 218 Q138 222 126 210Z"/></g>`],
+  captain: ["#fafafa", `<path d="M78 168 L100 196 L122 168Z" fill="#212121"/><g fill="#f9a825"><circle cx="84" cy="212" r="5"/><circle cx="84" cy="236" r="5"/><circle cx="116" cy="212" r="5"/><circle cx="116" cy="236" r="5"/></g><rect x="28" y="182" width="36" height="10" rx="3" fill="#212121"/><rect x="136" y="182" width="36" height="10" rx="3" fill="#212121"/><rect x="28" y="185" width="36" height="3" fill="#f9a825"/><rect x="136" y="185" width="36" height="3" fill="#f9a825"/>`],
+  astro: ["#eceff1", `<rect x="70" y="196" width="60" height="40" rx="8" fill="#cfd8dc"/><circle cx="84" cy="216" r="6" fill="#e53935"/><circle cx="100" cy="216" r="6" fill="#43a047"/><circle cx="116" cy="216" r="6" fill="#1e88e5"/><rect x="30" y="200" width="26" height="18" rx="3" fill="#1e88e5"/>`],
+  chef: ["#fafafa", `<path d="M76 168 L100 190 L124 168Z" fill="#e53935"/><g fill="#9e9e9e"><circle cx="86" cy="206" r="4"/><circle cx="86" cy="226" r="4"/><circle cx="86" cy="246" r="4"/><circle cx="114" cy="206" r="4"/><circle cx="114" cy="226" r="4"/><circle cx="114" cy="246" r="4"/></g>`],
+};
+function character(role, attrs = "") {
+  const [fill, extra] = BODIES[role] || BODIES.kid;
+  const id = uid("t");
+  const outline = role === "doctor" || role === "captain" || role === "chef" || role === "astro" ? ' stroke="#dfe3e6" stroke-width="3"' : "";
+  return `<svg viewBox="0 0 200 250" ${attrs}><clipPath id="${id}"><path d="${TORSO}"/></clipPath>${NECK}<path d="${TORSO}" fill="${fill}"${outline}/><g clip-path="url(#${id})">${extra}</g>${head(role, 100, 100, 62)}</svg>`;
+}
+// A face in a window. The window shape clips the head, so hats can't poke out.
+function windowFace(shape, role, cx, cy, r) {
+  const id = uid("w");
+  return `<clipPath id="${id}">${shape}</clipPath><g fill="#bfe6ff">${shape}</g><g clip-path="url(#${id})">${head(role, cx, cy, r)}</g><g fill="none" stroke="rgba(0,0,0,.25)" stroke-width="3">${shape}</g>`;
+}
+const winRect = (x, y, w, h, role) => windowFace(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6"/>`, role, x + w / 2, y + h * 0.6, Math.min(w, h) * 0.5);
+const wheel = (x, r = 20, y = 130) => `<g class="wh"><circle cx="${x}" cy="${y}" r="${r}" fill="#263238"/><circle cx="${x}" cy="${y}" r="${r * 0.5}" fill="#b0bec5"/><rect x="${x - r * 0.08}" y="${y - r * 0.5}" width="${r * 0.16}" height="${r}" fill="#78909c"/><circle cx="${x}" cy="${y}" r="${r * 0.15}" fill="#546e7a"/></g>`;
+const lights = (x, y) => `<rect class="blink a" x="${x}" y="${y}" width="14" height="10" rx="4" fill="#e53935"/><rect class="blink b" x="${x + 14}" y="${y}" width="14" height="10" rx="4" fill="#1e88e5"/>`;
+const CAR = "M14 118 Q14 94 40 90 L78 88 L102 54 Q108 46 120 46 L178 46 Q190 46 198 56 L220 88 Q246 92 248 112 V120 Q248 128 240 128 H22 Q14 128 14 118Z";
+function carArt(fill, role = "kid", extra = "") {
+  const id = uid("c");
+  return `<clipPath id="${id}"><path d="${CAR}"/></clipPath><path d="${CAR}" fill="${fill}" stroke="rgba(0,0,0,.18)" stroke-width="3"/><g clip-path="url(#${id})">${extra}</g><polygon points="104,86 120,56 148,56 148,86" fill="#bfe6ff" stroke="rgba(0,0,0,.2)" stroke-width="3"/>${windowFace(`<polygon points="154,56 188,56 212,86 154,86"/>`, role, 176, 76, 17)}<rect x="160" y="94" width="14" height="4" rx="2" fill="rgba(0,0,0,.3)"/><circle cx="240" cy="104" r="6" fill="#fff59d"/><rect x="10" y="108" width="10" height="8" rx="3" fill="#e53935"/>${wheel(64)}${wheel(200)}`;
+}
+const ART = {
+  car: (o = {}) => carArt(o.fill || "#e53935", "kid"),
+  police: () => `${carArt("#fafafa", "police", `<rect x="0" y="96" width="260" height="24" fill="#1f2f6b"/><text x="128" y="114" text-anchor="middle" font-family="Nunito, sans-serif" font-weight="900" font-size="15" fill="#fff">POLICE</text>`)}${lights(122, 36)}`,
+  fire: () => `<rect x="20" y="51" width="6" height="14" fill="#90a4ae"/><rect x="160" y="51" width="6" height="14" fill="#90a4ae"/><rect x="10" y="62" width="178" height="66" rx="6" fill="#d32f2f"/><g fill="#b71c1c"><rect x="22" y="70" width="40" height="26" rx="3"/><rect x="70" y="70" width="40" height="26" rx="3"/><rect x="118" y="70" width="58" height="26" rx="3"/></g><circle cx="147" cy="83" r="10" fill="#cfd8dc"/><rect x="10" y="100" width="242" height="7" fill="#fff" opacity=".9"/><g fill="#cfd8dc"><rect x="12" y="40" width="168" height="5" rx="2"/><rect x="12" y="52" width="168" height="5" rx="2"/>${Array.from({ length: 11 }, (_, i) => `<rect x="${16 + i * 15}" y="40" width="4" height="17"/>`).join("")}</g><path d="M186 128 V50 Q186 42 194 42 H226 Q234 42 238 50 L252 86 V128Z" fill="#e53935"/>${winRect(194, 50, 40, 34, "fire")}<rect class="blink a" x="196" y="32" width="16" height="10" rx="4" fill="#ff1744"/><rect class="blink b" x="212" y="32" width="16" height="10" rx="4" fill="#ff8a80"/><rect x="186" y="118" width="68" height="10" rx="3" fill="#cfd8dc"/><circle cx="246" cy="98" r="5" fill="#fff59d"/>${wheel(50)}${wheel(138)}${wheel(216)}`,
+  ambulance: () => `<rect x="10" y="34" width="164" height="94" rx="8" fill="#fff" stroke="#cfd8dc" stroke-width="3"/><path d="M172 128 V62 Q172 56 178 56 H214 Q222 56 228 64 L250 92 V128Z" fill="#fff" stroke="#cfd8dc" stroke-width="3"/>${winRect(180, 64, 38, 30, "medic")}<rect x="10" y="100" width="242" height="10" fill="#e53935"/><rect x="80" y="46" width="18" height="46" rx="2" fill="#e53935"/><rect x="66" y="60" width="46" height="18" rx="2" fill="#e53935"/>${lights(20, 24)}${lights(140, 24)}<circle cx="244" cy="98" r="5" fill="#fff59d"/>${wheel(56)}${wheel(206)}`,
+  bus: () => `<rect x="8" y="32" width="244" height="96" rx="14" fill="#fbc02d"/><rect x="8" y="32" width="244" height="10" rx="5" fill="#f9a825"/>${[18, 54, 90, 126, 162].map((x) => `<rect x="${x}" y="48" width="30" height="30" rx="4" fill="#bfe6ff" stroke="rgba(0,0,0,.2)" stroke-width="3"/>`).join("")}${winRect(200, 46, 46, 40, "bus")}<rect x="8" y="96" width="244" height="5" fill="#212121"/><rect x="8" y="108" width="244" height="4" fill="#212121"/><circle cx="244" cy="116" r="5" fill="#fff59d"/><rect x="6" y="122" width="250" height="8" rx="3" fill="#424242"/><path d="M14 64 l6 -6 h8 l6 6 v8 l-6 6 h-8 l-6 -6Z" fill="#e53935" transform="translate(0 30)"/>${wheel(58)}${wheel(200)}`,
+  garbage: () => `<rect x="4" y="70" width="14" height="54" rx="4" fill="#1b5e20"/><path d="M12 128 V50 Q12 42 20 42 H166 V128Z" fill="#43a047"/><g fill="#388e3c">${[32, 62, 92, 122].map((x) => `<rect x="${x}" y="48" width="8" height="74" rx="3"/>`).join("")}</g><path d="M166 128 V62 Q166 56 172 56 H212 Q220 56 226 64 L250 92 V128Z" fill="#66bb6a"/>${winRect(174, 64, 38, 30, "garbage")}<rect x="190" y="46" width="16" height="10" rx="4" class="blink a" fill="#ffa000"/><rect x="164" y="118" width="90" height="10" rx="3" fill="#cfd8dc"/><circle cx="244" cy="100" r="5" fill="#fff59d"/>${wheel(48)}${wheel(120)}${wheel(214)}`,
+  digger: () => `<rect x="22" y="110" width="160" height="34" rx="17" fill="#37474f"/>${[42, 72, 102, 132, 162].map((x) => wheel(x, 10, 127)).join("")}<rect x="40" y="66" width="100" height="44" rx="6" fill="#fdd835"/><g stroke="#f9a825" stroke-width="4"><path d="M50 76 V100 M60 76 V100 M70 76 V100"/></g><path d="M98 108 V34 Q98 28 104 28 H146 Q152 28 152 34 V108Z" fill="#f9a825"/>${winRect(106, 36, 38, 38, "builder")}<path d="M146 80 L196 32 L210 44 L160 92Z" fill="#fdd835" stroke="#f9a825" stroke-width="3"/><path d="M196 32 L242 80 L232 90 L188 46Z" fill="#fdd835" stroke="#f9a825" stroke-width="3"/><path d="M160 82 L196 52" stroke="#90a4ae" stroke-width="6"/><path d="M222 82 L254 84 L248 114 Q238 124 222 110Z" fill="#616161"/><path d="M250 112 l6 6 M242 118 l4 7" stroke="#424242" stroke-width="4"/><circle cx="242" cy="82" r="5" fill="#424242"/>`,
+  train: () => `<g class="smoke" fill="#eceff1"><circle cx="198" cy="20" r="10"/><circle cx="182" cy="10" r="8"/><circle cx="166" cy="4" r="6"/></g><rect x="8" y="30" width="86" height="12" rx="4" fill="#212121"/><rect x="14" y="40" width="74" height="86" rx="4" fill="#c62828"/>${winRect(24, 50, 50, 42, "train")}<rect x="86" y="64" width="138" height="54" rx="24" fill="#2e7d32"/><g fill="#fbc02d"><rect x="122" y="64" width="6" height="54"/><rect x="174" y="64" width="6" height="54"/></g><path d="M136 66 Q136 48 150 48 Q164 48 164 66Z" fill="#fbc02d"/><path d="M190 66 V40 H184 V28 H216 V40 H210 V66Z" fill="#212121"/><rect x="214" y="70" width="14" height="14" rx="3" fill="#fff59d" stroke="#212121" stroke-width="3"/><rect x="12" y="116" width="216" height="10" fill="#212121"/><path d="M222 112 L254 136 H222Z" fill="#c62828"/>${wheel(44, 14, 134)}${wheel(112, 20)}${wheel(166, 20)}${wheel(212, 13, 135)}<rect x="110" y="127" width="58" height="5" rx="2" fill="#b0bec5"/>`,
+  plane: () => {
+    const id = uid("b");
+    const body = "M14 96 Q14 70 44 66 L196 62 Q240 66 254 98 Q242 124 200 126 L44 126 Q14 122 14 96Z";
+    return `<path d="M24 92 L34 22 Q36 16 42 16 L62 16 L90 70Z" fill="#1e88e5"/><clipPath id="${id}"><path d="${body}"/></clipPath><path d="${body}" fill="#fff" stroke="#cfd8dc" stroke-width="3"/><g clip-path="url(#${id})"><rect x="0" y="104" width="260" height="8" fill="#1e88e5"/></g><g fill="#90caf9">${[64, 86, 108, 130, 152, 174].map((x) => `<circle cx="${x}" cy="86" r="6"/>`).join("")}</g>${windowFace(`<path d="M198 72 Q228 70 242 90 L244 100 H198Z"/>`, "pilot", 220, 92, 15)}<path d="M96 108 L172 108 L128 158 L104 158Z" fill="#1565c0"/><path d="M20 94 L62 94 L44 110Z" fill="#1565c0"/>`;
+  },
+  boat: () => `<rect x="64" y="34" width="122" height="12" rx="4" fill="#1e88e5"/><rect x="70" y="44" width="110" height="48" rx="6" fill="#fff" stroke="#cfd8dc" stroke-width="3"/>${winRect(84, 50, 48, 38, "captain")}<circle cx="156" cy="66" r="11" fill="#bfe6ff" stroke="rgba(0,0,0,.2)" stroke-width="3"/><path d="M190 90 V28 H216 V90Z" fill="#fb8c00"/><rect x="190" y="28" width="26" height="10" fill="#212121"/><path d="M6 90 H254 L234 136 Q232 142 224 142 H36 Q28 142 26 136Z" fill="#c62828"/><rect x="10" y="90" width="240" height="10" fill="#fafafa"/><circle cx="52" cy="118" r="10" fill="none" stroke="#fff" stroke-width="6"/><g fill="#fafafa"><circle cx="110" cy="118" r="5"/><circle cx="140" cy="118" r="5"/><circle cx="170" cy="118" r="5"/></g>`,
+};
+function vehicle(id, attrs = "", opts = {}) {
+  return `<svg viewBox="0 0 260 160" class="zt-v" ${attrs}>${ART[id](opts)}</svg>`;
+}
+const mini = (role) => `<svg viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="104" r="88" fill="#fff4ec"/>${head(role, 100, 112, 62)}</svg>`;
+
+// ======================================================================
+// Vehicle sounds, made with Web Audio. They follow the Sounds on/off setting.
+// Returns how long the sound lasts, in milliseconds (0 when sounds are off).
+// ======================================================================
+let noiseBuf = null;
+let sfxOut = null;
+function hushSfx() {
+  if (!sfxOut) return;
+  const out = sfxOut;
+  sfxOut = null;
+  try {
+    out.gain.setTargetAtTime(0, out.context.currentTime, 0.03);
+    setTimeout(() => out.disconnect(), 300);
+  } catch {}
+}
+function sfx(kind) {
+  hushSfx();
+  if (!MUSIC.audio.on) return 0;
+  const ctx = MUSIC.context();
+  if (!ctx) return 0;
+  if (ctx.state === "suspended") ctx.resume();
+  const t0 = ctx.currentTime + 0.05;
+  const out = ctx.createGain();
+  out.gain.value = 0.9;
+  out.connect(ctx.destination);
+  sfxOut = out;
+  const envelope = (gain, a, b, g) => {
+    gain.gain.setValueAtTime(0.0001, a);
+    gain.gain.exponentialRampToValueAtTime(g, a + 0.04);
+    gain.gain.setValueAtTime(g, Math.max(a + 0.05, b - 0.08));
+    gain.gain.exponentialRampToValueAtTime(0.0001, b);
+  };
+  const osc = (type, f, a, b, g, cut = 2400) => {
+    const o = ctx.createOscillator();
+    o.type = type;
+    o.frequency.setValueAtTime(f, t0 + a);
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = cut;
+    const v = ctx.createGain();
+    envelope(v, t0 + a, t0 + b, g);
+    o.connect(lp).connect(v).connect(out);
+    o.start(t0 + a);
+    o.stop(t0 + b + 0.05);
+    return o;
+  };
+  const noise = (a, b, g, type, f0, f1) => {
+    if (!noiseBuf || noiseBuf.sampleRate !== ctx.sampleRate) {
+      noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    const s = ctx.createBufferSource();
+    s.buffer = noiseBuf;
+    s.loop = true;
+    const f = ctx.createBiquadFilter();
+    f.type = type;
+    f.frequency.setValueAtTime(f0, t0 + a);
+    if (f1) f.frequency.exponentialRampToValueAtTime(f1, t0 + b);
+    const v = ctx.createGain();
+    envelope(v, t0 + a, t0 + b, g);
+    s.connect(f).connect(v).connect(out);
+    s.start(t0 + a);
+    s.stop(t0 + b + 0.05);
+  };
+  switch (kind) {
+    case "wail": {
+      const o = osc("sawtooth", 520, 0, 2.6, 0.07, 2200);
+      for (let i = 0; i < 2; i++) {
+        o.frequency.linearRampToValueAtTime(1150, t0 + i * 1.3 + 0.65);
+        o.frequency.linearRampToValueAtTime(520, t0 + (i + 1) * 1.3);
+      }
+      return 2600;
+    }
+    case "hilo": {
+      const o = osc("square", 960, 0, 2.4, 0.045, 3000);
+      for (let i = 0; i < 6; i++) o.frequency.setValueAtTime(i % 2 ? 770 : 960, t0 + i * 0.4);
+      return 2400;
+    }
+    case "yelp": {
+      const o = osc("sawtooth", 700, 0, 2.2, 0.06, 2600);
+      for (let i = 0; i < 8; i++) {
+        o.frequency.setValueAtTime(700, t0 + i * 0.27);
+        o.frequency.exponentialRampToValueAtTime(1500, t0 + i * 0.27 + 0.24);
+      }
+      return 2200;
+    }
+    case "horn":
+      for (const [a, b] of [[0, 0.22], [0.32, 0.62]]) {
+        osc("square", 415, a, b, 0.05, 1800);
+        osc("square", 523, a, b, 0.04, 1800);
+      }
+      return 700;
+    case "bushorn":
+      for (const [a, b] of [[0, 0.5], [0.7, 1.5]]) {
+        osc("square", 233, a, b, 0.07, 1200);
+        osc("square", 294, a, b, 0.06, 1200);
+      }
+      return 1500;
+    case "whistle":
+      for (const [a, b] of [[0, 0.45], [0.6, 1.6]]) for (const f of [587, 740, 880]) osc("sine", f, a, b, 0.06, 4000);
+      for (let i = 0; i < 6; i++) noise(1.8 + i * 0.28, 1.96 + i * 0.28, 0.3, "bandpass", 900);
+      return 3500;
+    case "jet":
+      noise(0, 2.6, 0.4, "lowpass", 250, 2600);
+      osc("sine", 70, 0, 2.6, 0.15, 400);
+      return 2600;
+    case "foghorn":
+      for (const [a, b] of [[0, 1.1], [1.4, 2.5]]) {
+        osc("sawtooth", 98, a, b, 0.18, 500);
+        osc("sawtooth", 147, a, b, 0.08, 500);
+      }
+      return 2500;
+    case "beeps":
+      osc("sawtooth", 50, 0, 2.4, 0.14, 260);
+      for (let i = 0; i < 4; i++) osc("square", 1100, i * 0.55, i * 0.55 + 0.28, 0.045, 3000);
+      return 2400;
+    case "crunch":
+      osc("sawtooth", 46, 0, 2.3, 0.14, 240);
+      osc("triangle", 180, 0.4, 0.55, 0.25, 1200);
+      osc("triangle", 150, 0.75, 0.9, 0.25, 1200);
+      noise(1.3, 2.1, 0.22, "highpass", 2200);
+      return 2300;
+  }
+  return 0;
+}
+
+// ======================================================================
+// Smooth touch. Act on pointerdown (no waiting for click), never rebuild the stage on a tap,
+// and animate with transforms only. click still works for keyboards and switch access.
+// ======================================================================
+function onTap(host, selector, fn) {
+  let downAt = 0;
+  const run = (event) => {
+    const target = event.target.closest?.(selector);
+    if (target && host.contains(target) && !target.disabled) fn(target, event);
+  };
+  const down = (event) => {
+    if (event.button > 0) return;
+    downAt = Date.now();
+    window.OC?.touch();
+    run(event);
+  };
+  const click = (event) => {
+    if (Date.now() - downAt < 800) return;
+    run(event);
+  };
+  host.addEventListener("pointerdown", down);
+  host.addEventListener("click", click);
+  cleanups.push(() => {
+    host.removeEventListener("pointerdown", down);
+    host.removeEventListener("click", click);
+  });
+}
+const anim = (node, frames, ms, opts = {}) => {
+  if (!node?.animate) return Promise.resolve();
+  const duration = still.matches ? Math.min(ms, 120) : ms;
+  const a = node.animate(frames, { duration, easing: "cubic-bezier(.2,.8,.3,1)", fill: "both", ...opts });
+  // Never let a paused animation (hidden tab, power saving) stall a game.
+  return Promise.race([a.finished.catch(() => {}), wait(duration + (opts.delay || 0) + 250)]);
+};
+const pop = (node) => anim(node, [{ transform: "scale(1)" }, { transform: "scale(1.08)" }, { transform: "scale(1)" }], 380, { fill: "none" });
+const shake = (node) => anim(node, [{ transform: "translateX(0)" }, { transform: "translateX(-10px)" }, { transform: "translateX(9px)" }, { transform: "translateX(-6px)" }, { transform: "translateX(0)" }], 420, { fill: "none" });
+
+const talk = (html, my = token) => (my === token ? sayAsync(html) : Promise.resolve(false));
+const mark = (id, data) => shell.mark(id, data);
+const NEXT = { see: "drive", drive: "dress", dress: "find", find: "colors", colors: "who", who: "hear", hear: "where", where: null };
+
+function finishCard({ id, role, icon, message, speech }) {
+  const my = token;
+  stage.innerHTML = `<div class="zt-done"><div class="zt-done-pic">${character(role)}<span class="zt-done-badge" aria-hidden="true">${icon}</span></div><div class="zt-done-text"><h2>Try it for real, with a grown-up</h2><p>${message}</p></div></div>`;
+  confetti();
+  MUSIC.chime();
+  mark(id, { done: true });
+  const host = panel(`<div class="ap-buttons"><button type="button" data-again>🔁 Play again</button>${NEXT[id] ? '<button type="button" class="primary" data-next data-pulse>▶ Next game</button>' : ""}</div>`);
+  talk(speech, my);
+  host.onclick = (event) => {
+    if (event.target.closest("[data-again]")) shell.go(id);
+    else if (event.target.closest("[data-next]")) shell.go(NEXT[id]);
+  };
+}
+
+// ---------- the world behind a vehicle: road, tracks, sky or water ----------
+const worldHtml = (where) => `<div class="zt-world" data-world="${where}"><div class="zt-sun"></div><div class="zt-cloud c1"></div><div class="zt-cloud c2"></div><div class="zt-cloud c3"></div><div class="zt-ground"></div><div class="zt-lane" data-lane></div></div>`;
+// The same worlds as SVG, for See it scenes (1000 × 560).
+function svgWorld(where) {
+  const sky = `<rect width="1000" height="560" fill="#d6efff"/><circle cx="900" cy="80" r="46" fill="#ffd54f"/><g fill="#fff"><ellipse cx="200" cy="90" rx="70" ry="26"/><ellipse cx="240" cy="74" rx="44" ry="28"/><ellipse cx="560" cy="60" rx="60" ry="22"/></g>`;
+  if (where === "water") return `${sky}<rect y="430" width="1000" height="130" fill="#29b6f6"/><path d="M0 440 q25 -14 50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0 t50 0" stroke="#e1f5fe" stroke-width="6" fill="none"/>`;
+  if (where === "sky") return `${sky}<path d="M0 520 Q250 470 500 510 T1000 500 V560 H0Z" fill="#8bc34a"/>`;
+  if (where === "tracks") return `${sky}<rect y="450" width="1000" height="110" fill="#8bc34a"/><rect y="490" width="1000" height="40" fill="#a1887f"/><g fill="#6d4c41">${Array.from({ length: 34 }, (_, i) => `<rect x="${i * 30}" y="490" width="14" height="40"/>`).join("")}</g><rect y="494" width="1000" height="6" fill="#90a4ae"/><rect y="520" width="1000" height="6" fill="#90a4ae"/>`;
+  return `${sky}<rect y="450" width="1000" height="110" fill="#8bc34a"/><rect y="478" width="1000" height="82" fill="#5b5f66"/><g fill="#fff">${Array.from({ length: 12 }, (_, i) => `<rect x="${i * 90}" y="515" width="50" height="7" rx="3"/>`).join("")}</g>`;
+}
+// Where a 260 × 160 vehicle sits in a See it scene, so its wheels touch the ground.
+const sceneSpot = (where) => (where === "sky" ? { y: 40 } : where === "water" ? { y: 156 } : { y: 130 });
+
+// ======================================================================
+// Games
+// ======================================================================
+const units = {
+  // ---------- See it: meet each vehicle and its helper ----------
+  see() {
+    const my = token;
+    const intro = {
+      say: `Welcome to <b>Zoom Town</b>! Vehicles carry people and things from place to place. Helpers drive them. Let's meet them!`,
+      async draw(view, api) {
+        view.innerHTML = svgWorld("road");
+        const kid = el("g", {}, view);
+        kid.innerHTML = character("kid", 'x="20" y="225" width="270" height="337"');
+        const car = el("g", {}, view);
+        car.innerHTML = vehicle("car", 'x="330" y="130" width="600" height="370" class="zt-v driving"', { fill: "#1e88e5" });
+        await api.tween(1400, (t) => car.setAttribute("transform", `translate(${(1 - t) * 700} 0)`));
+        car.querySelector("svg")?.classList.remove("driving");
+      },
+    };
+    const scenes = [
+      intro,
+      ...VEHICLES.map((v) => ({
+        say: `This is the <b>${v.name}</b>. ${v.fact} ${cap(isA(ROLES[v.role].a))}!`,
+        async draw(view, api) {
+          view.innerHTML = svgWorld(v.where);
+          const car = el("g", {}, view);
+          car.innerHTML = vehicle(v.id, `x="330" y="${sceneSpot(v.where).y}" width="600" height="370" class="zt-v driving"`);
+          const who = el("g", { opacity: 0 }, view);
+          who.innerHTML = character(v.role, 'x="20" y="225" width="270" height="337"');
+          await api.tween(1400, (t) => car.setAttribute("transform", `translate(${(1 - t) * 700} 0)`));
+          car.querySelector("svg")?.classList.remove("driving");
+          await api.tween(450, (t) => {
+            who.setAttribute("opacity", t);
+            who.setAttribute("transform", `translate(0 ${(1 - t) * 40})`);
+          });
+        },
+      })),
+      {
+        say: `Vehicles go on <b>roads</b>, on <b>tracks</b>, in the <b>sky</b> and on the <b>water</b>. Now let's play!`,
+        async draw(view, api) {
+          view.innerHTML = `<rect width="1000" height="560" fill="#fff8f0"/>`;
+          const spots = [["bus", 40, 40, "Road"], ["train", 520, 40, "Tracks"], ["plane", 40, 300, "Sky"], ["boat", 520, 300, "Water"]];
+          for (const [id, x, y, label] of spots) {
+            const g = el("g", { opacity: 0 }, view);
+            g.innerHTML = `<rect x="${x}" y="${y}" width="440" height="230" rx="28" fill="#fff" stroke="var(--accent)" stroke-width="4"/>${vehicle(id, `x="${x + 60}" y="${y + 10}" width="320" height="170"`)}<text x="${x + 220}" y="${y + 212}" text-anchor="middle" font-family="Nunito, sans-serif" font-weight="900" font-size="30" fill="#2b1d12">${label}</text>`;
+            await api.tween(400, (t) => g.setAttribute("opacity", t));
+          }
+        },
+      },
+    ];
+    explain(scenes, { alive: () => my === token, onDone: () => { mark("see", { done: true }); shell.go("drive"); } });
+  },
+
+  // ---------- Drive! Free play: tap a vehicle, it drives in with its sound ----------
+  drive() {
+    const my = token;
+    stage.innerHTML = `<div class="zt-root">${worldHtml("road")}<div class="zt-garage" role="group" aria-label="Vehicles">${VEHICLES.map((v) => `<button type="button" class="zt-card zt-g" data-v="${v.id}" aria-label="${v.name}">${vehicle(v.id)}</button>`).join("")}</div></div>`;
+    const world = $(".zt-world", stage);
+    const lane = $("[data-lane]", stage);
+    const host = panel(`<p class="ap-dots" data-dots></p>`);
+    const seen = new Set();
+    let gen = 0;
+    let current = null;
+    const dots = () => ($("[data-dots]", host).textContent = VEHICLES.map((v) => (seen.has(v.id) ? "⭐" : "☆")).join(""));
+    dots();
+    say(`Tap a vehicle to make it go!`);
+    async function go(v, button) {
+      const g = ++gen;
+      const live = () => g === gen && my === token;
+      pop(button);
+      // The vehicle on the road leaves fast; the new one rolls in. Nothing else on screen changes.
+      if (current) {
+        const old = current;
+        anim(old, [{ transform: getComputedStyle(old).transform === "none" ? "translateX(0)" : getComputedStyle(old).transform }, { transform: "translateX(130%)" }], 350).then(() => old.remove());
+      }
+      world.dataset.world = v.where;
+      const car = document.createElement("div");
+      car.className = `zt-car zt-in-${v.where}`;
+      car.innerHTML = vehicle(v.id, 'class="zt-v driving"');
+      lane.appendChild(car);
+      current = car;
+      const length = sfx(v.sound);
+      say(`<b>${cap(v.name)}!</b> ${v.noise}`, { voice: !length });
+      await anim(car, [{ transform: "translateX(-130%)" }, { transform: "translateX(0)" }], 1100);
+      if (!live()) return;
+      car.querySelector("svg").classList.remove("driving");
+      car.classList.add("parked");
+      seen.add(v.id);
+      dots();
+      window.OC?.count("vehicles driven");
+      await wait(Math.max(0, length - 1000));
+      if (!live()) return;
+      await talk(`The ${v.name}! ${v.fact} ${cap(isA(ROLES[v.role].a))}!`, my);
+      if (!live()) return;
+      if (seen.size === VEHICLES.length && !shell.progress().drive?.done) {
+        mark("drive", { done: true });
+        confetti();
+        MUSIC.chime();
+        await talk(`You drove every vehicle! Super driving!`, my);
+      } else if (seen.size === 4 && !shell.progress().drive?.done) mark("drive", { done: true });
+    }
+    onTap(stage, "[data-v]", (button) => go(V[button.dataset.v], button));
+  },
+
+  // ---------- Dress up: the child's own face as every helper ----------
+  dress() {
+    const my = token;
+    const order = ["fire", "doctor", "police", "pilot", "builder", "astro", "medic", "train", "captain", "bus", "garbage", "chef"];
+    let role = "fire";
+    stage.innerHTML = `<div class="zt-dress"><div class="zt-me" data-me>${character(role)}</div><div class="zt-closet" role="group" aria-label="Dress up">${order.map((r) => `<button type="button" class="zt-card zt-tile${r === role ? " on" : ""}" data-role="${r}" aria-label="${ROLES[r].name}">${mini(r)}<span>${cap(ROLES[r].name)}</span></button>`).join("")}</div></div>`;
+    const me = $("[data-me]", stage);
+    const tried = new Set([role]);
+    const host = panel(faceOf() ? "" : `<button type="button" class="ap-link" data-add-photo>📷 Grown-ups: add a photo to put ${NAME() || "your child"} in every picture</button>`);
+    host.onclick = (event) => event.target.closest("[data-add-photo]") && openPhoto();
+    say(`Tap a hat to dress up! ${cap(isA(ROLES[role].a))}.`);
+    onTap(stage, "[data-role]", async (button) => {
+      role = button.dataset.role;
+      for (const b of stage.querySelectorAll("[data-role]")) b.classList.toggle("on", b === button);
+      me.innerHTML = character(role);
+      pop(me);
+      pop(button);
+      MUSIC.chime();
+      tried.add(role);
+      await talk(`${cap(isA(ROLES[role].a))}! ${ROLES[role].does}`, my);
+      if (tried.size === 5 && !shell.progress().dress?.done) mark("dress", { done: true });
+    });
+  },
+
+  // ---------- Find it: where is the fire truck? ----------
+  find() {
+    let last = null;
+    runChoice({
+      id: "find",
+      count: "vehicles found",
+      gen() {
+        const target = nextTarget(VEHICLES, last);
+        last = target;
+        const others = shuffle(VEHICLES.filter((v) => v !== target)).slice(0, 2);
+        return { target, choices: shuffle([target, ...others]).map((v) => ({ v, ok: v === target, art: vehicle(v.id), label: v.name })) };
+      },
+      ask: (q) => `Where is the <b>${q.target.name}</b>?`,
+      praise: (q) => `Yes! That is the ${q.target.name}. ${q.target.noise}`,
+      hint: (q, c) => `That is the ${c.v.name}. Find the ${q.target.name}.`,
+      reveal: (q) => `Here is the ${q.target.name}. ${q.target.fact}`,
+      sound: (q) => q.target.sound,
+      finish: { role: "kid", icon: "🚗", message: "Line up your toy cars. A grown-up names one, and you find it and drive it over.", speech: "You found every vehicle! Line up your toy cars. A grown-up names one, and you find it and drive it over." },
+    });
+  },
+
+  // ---------- Colour cars: tap the blue car ----------
+  colors() {
+    let last = null;
+    runChoice({
+      id: "colors",
+      count: "colours found",
+      gen() {
+        const target = nextTarget(COLORS, last);
+        last = target;
+        const others = shuffle(COLORS.filter((c) => c !== target)).slice(0, 2);
+        return { target, choices: shuffle([target, ...others]).map((c) => ({ v: c, ok: c === target, art: vehicle("car", "", { fill: c.fill }), label: `${c.name} car` })) };
+      },
+      ask: (q) => `Tap the <b class="zt-word" style="color:${q.target.fill === "#fdd835" ? "#c9a400" : q.target.fill}">${q.target.name}</b> car.`,
+      praise: (q) => `Yes! The ${q.target.name} car. Beep beep!`,
+      hint: (q, c) => `That car is ${c.v.name}. Find the ${q.target.name} one.`,
+      reveal: (q) => `Here is the ${q.target.name} car.`,
+      sound: () => "horn",
+      finish: { role: "kid", icon: "🎨", message: "On your next ride, look for red cars. How many can you count?", speech: "You know your car colours! On your next ride, look for red cars. How many can you count?" },
+    });
+  },
+
+  // ---------- Who drives it? The child as a helper picks the helper's vehicle ----------
+  who() {
+    let last = null;
+    runChoice({
+      id: "who",
+      count: "helpers matched",
+      layout: "side",
+      gen() {
+        const target = nextTarget(VEHICLES, last);
+        last = target;
+        const others = shuffle(VEHICLES.filter((v) => v !== target)).slice(0, 2);
+        return { target, prompt: character(target.role), choices: shuffle([target, ...others]).map((v) => ({ v, ok: v === target, art: vehicle(v.id), label: v.name })) };
+      },
+      ask: (q) => `${cap(isA(ROLES[q.target.role].a))}! Which vehicle does ${ROLES[q.target.role].a} drive?`,
+      praise: (q) => `Yes! ${cap(ROLES[q.target.role].a)} drives the ${q.target.name}. ${ROLES[q.target.role].does}`,
+      hint: (q, c) => `That is the ${c.v.name}. Look at the hat. Which one is for ${ROLES[q.target.role].a}?`,
+      reveal: (q) => `${cap(ROLES[q.target.role].a)} drives the ${q.target.name}.`,
+      sound: (q) => q.target.sound,
+      finish: { role: "fire", icon: "🧑‍🚒", message: "Read a picture book about helpers. Point to each helper and their vehicle. Wave to a real one when you see them!", speech: "You matched every helper! Read a picture book about helpers, and point to each helper and their vehicle. Wave to a real one when you see them!" },
+    });
+  },
+
+  // ---------- Hear it: which vehicle makes this sound? ----------
+  hear() {
+    let last = null;
+    runChoice({
+      id: "hear",
+      count: "sounds matched",
+      layout: "side",
+      gen() {
+        const target = nextTarget(VEHICLES, last);
+        last = target;
+        // Never two siren vehicles together: they sound too alike for little ears.
+        const pool = shuffle(VEHICLES.filter((v) => v.group !== target.group));
+        const others = [];
+        for (const v of pool) if (others.length < 2 && !others.some((o) => o.group === v.group)) others.push(v);
+        return { target, prompt: `<button type="button" class="zt-card zt-ear" data-hear aria-label="Play the sound again"><span>🔊</span><small>Listen</small></button>`, choices: shuffle([target, ...others]).map((v) => ({ v, ok: v === target, art: vehicle(v.id), label: v.name })) };
+      },
+      ask: () => `Listen! Which vehicle makes this sound?`,
+      afterAsk: (q) => playHear(q),
+      praise: (q) => `Yes! The ${q.target.name} goes: ${q.target.noise}`,
+      hint: (q, c) => `The ${c.v.name} goes: ${c.v.noise} Listen again.`,
+      reveal: (q) => `That was the ${q.target.name}. ${q.target.noise}`,
+      onPrompt: (q) => playHear(q),
+      finish: { role: "kid", icon: "👂", message: "Sit by a window and close your eyes. Listen. What vehicles can you hear going by?", speech: "Great listening! Sit by a window and close your eyes. Listen. What vehicles can you hear going by?" },
+    });
+    function playHear(q) {
+      const ear = $("[data-hear]", stage);
+      if (ear) {
+        ear.classList.add("playing");
+        setTimeout(() => ear.classList.remove("playing"), sfx(q.target.sound) || 600);
+      }
+    }
+  },
+
+  // ---------- Where does it go? Drag (or tap) the vehicle to the road, tracks, sky or water ----------
+  where() {
+    const my = token;
+    const road = shuffle(VEHICLES.filter((v) => v.where === "road")).slice(0, 3);
+    const list = shuffle([V.plane, V.boat, V.train, ...road]);
+    let round = 0;
+    let tries = 0;
+    let open = false;
+    let v = null;
+    stage.innerHTML = `<div class="zt-where"><div class="zt-zones">${Object.entries(WHERE).map(([key, w]) => `<button type="button" class="zt-zone" data-zone="${key}" data-world="${key}" aria-label="${w.name}"><span class="zt-zone-ground"></span><span class="zt-zone-name">${w.icon} ${cap(w.name)}</span><span class="zt-zone-park" data-park></span></button>`).join("")}</div><div class="zt-dock"><div class="zt-token" data-token></div></div></div>`;
+    const tokenEl = $("[data-token]", stage);
+    const zones = [...stage.querySelectorAll("[data-zone]")];
+    const host = panel(`<div class="ap-row"><p class="ap-dots" data-dots></p><button type="button" class="ap-btn" data-again>🔊 Again</button></div>`);
+    const dots = () => ($("[data-dots]", host).textContent = "🚗".repeat(round) + "⚪".repeat(ROUNDS - round));
+    host.onclick = (event) => event.target.closest("[data-again]") && v && talk(question(), my);
+    const question = () => `Where does the <b>${v.name}</b> go? Drag it, or tap the place.`;
+
+    async function ask() {
+      if (my !== token) return;
+      v = list[round];
+      tries = 0;
+      for (const a of tokenEl.getAnimations()) a.cancel();
+      tokenEl.innerHTML = vehicle(v.id);
+      tokenEl.style.transform = "";
+      tokenEl.hidden = false;
+      dots();
+      anim(tokenEl, [{ transform: "translateY(40px) scale(.8)", opacity: 0 }, { transform: "none", opacity: 1 }], 400, { fill: "none" });
+      open = true;
+      await talk(question(), my);
+    }
+    async function answer(zone, from) {
+      if (!open || my !== token) return;
+      open = false;
+      const key = zone.dataset.zone;
+      if (key === v.where) {
+        // Glide from wherever the finger let go into the zone, then park a small copy there.
+        const z = zone.getBoundingClientRect();
+        const t = tokenEl.getBoundingClientRect();
+        const dx = z.left + z.width / 2 - (t.left + t.width / 2) + (from?.x || 0);
+        const dy = z.top + z.height / 2 - (t.top + t.height / 2) + (from?.y || 0);
+        MUSIC.chime();
+        sfx(v.sound);
+        await anim(tokenEl, [{ transform: from ? `translate(${from.x}px, ${from.y}px)` : "none" }, { transform: `translate(${dx}px, ${dy}px) scale(.45)`, opacity: 0.2 }], 450);
+        tokenEl.hidden = true;
+        const parked = document.createElement("span");
+        parked.innerHTML = vehicle(v.id);
+        $("[data-park]", zone).appendChild(parked);
+        pop(zone);
+        round += 1;
+        window.OC?.count("vehicles placed");
+        dots();
+        await talk(`Yes! The ${v.name} goes on the ${WHERE[v.where].name}. ${v.fact}`, my);
+        if (my !== token) return;
+        if (round >= ROUNDS)
+          return finishCard({ id: "where", role: "builder", icon: "🛣️", message: "Make a road on the floor with tape and a river with a blue towel. Drive your cars on the road and float a boat on the river.", speech: "Everything is in the right place! Make a road on the floor with tape and a river with a blue towel. Drive your cars on the road and float a boat on the river." });
+        ask();
+      } else {
+        tries += 1;
+        MUSIC.oops();
+        shake(zone);
+        anim(tokenEl, [{ transform: from ? `translate(${from.x}px, ${from.y}px)` : "none" }, { transform: "none" }], 380, { fill: "none" });
+        const wrong = { road: "drive on the road", tracks: "go on train tracks", sky: "fly in the sky", water: "float on the water" }[key];
+        if (tries >= 2) {
+          const right = zones.find((z) => z.dataset.zone === v.where);
+          right.classList.add("hint");
+          await talk(`A ${v.name} can't ${wrong}. Look! The ${v.name} goes on the ${WHERE[v.where].name}. Drag it there.`, my);
+          right.classList.remove("hint");
+        } else await talk(`Hmm, a ${v.name} can't ${wrong}. Try another place!`, my);
+        if (my === token) open = true;
+      }
+    }
+    // Dragging: pointer capture keeps the finger on the vehicle; the move is one transform per frame.
+    let drag = null;
+    let frame = 0;
+    const zoneAt = (x, y) => zones.find((z) => {
+      const r = z.getBoundingClientRect();
+      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    });
+    tokenEl.addEventListener("pointerdown", (event) => {
+      if (!open || drag) return;
+      event.preventDefault();
+      // A finished spring-back must not hold the vehicle in place while the finger moves it.
+      for (const a of tokenEl.getAnimations()) a.cancel();
+      try {
+        tokenEl.setPointerCapture(event.pointerId);
+      } catch {}
+      drag = { id: event.pointerId, x0: event.clientX, y0: event.clientY, x: 0, y: 0, over: null };
+      tokenEl.classList.add("lift");
+      window.OC?.touch();
+    });
+    tokenEl.addEventListener("pointermove", (event) => {
+      if (!drag || event.pointerId !== drag.id) return;
+      drag.x = event.clientX - drag.x0;
+      drag.y = event.clientY - drag.y0;
+      drag.cx = event.clientX;
+      drag.cy = event.clientY;
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        if (!drag) return;
+        tokenEl.style.transform = `translate(${drag.x}px, ${drag.y}px) scale(1.06)`;
+        const over = zoneAt(drag.cx, drag.cy);
+        if (over !== drag.over) {
+          drag.over?.classList.remove("over");
+          over?.classList.add("over");
+          drag.over = over;
+        }
+      });
+    });
+    const drop = (event) => {
+      if (!drag || event.pointerId !== drag.id) return;
+      const d = drag;
+      drag = null;
+      cancelAnimationFrame(frame);
+      frame = 0;
+      tokenEl.classList.remove("lift");
+      d.over?.classList.remove("over");
+      const zone = event.type === "pointerup" ? zoneAt(event.clientX, event.clientY) : null;
+      tokenEl.style.transform = "";
+      if (zone) answer(zone, { x: d.x, y: d.y });
+      else {
+        anim(tokenEl, [{ transform: `translate(${d.x}px, ${d.y}px)` }, { transform: "none" }], 380, { fill: "none" });
+        if (Math.hypot(d.x, d.y) < 12) talk(question(), my);
+      }
+    };
+    tokenEl.addEventListener("pointerup", drop);
+    tokenEl.addEventListener("pointercancel", drop);
+    onTap(stage, "[data-zone]", (zone) => answer(zone));
+    ask();
+  },
+};
+
+// A round-based picking game. Taps answer on pointerdown; only classes change, the cards are never rebuilt mid-round.
+function runChoice(cfg) {
+  const my = token;
+  let round = 0;
+  let tries = 0;
+  let open = false;
+  let q = null;
+  stage.innerHTML = `<div class="zt-play ${cfg.layout || ""}">${cfg.layout === "side" ? '<div class="zt-prompt" data-prompt></div>' : ""}<div class="zt-cards" data-cards></div></div>`;
+  const cards = $("[data-cards]", stage);
+  const promptBox = $("[data-prompt]", stage);
+  const host = panel(`<div class="ap-row"><p class="ap-dots" data-dots></p><button type="button" class="ap-btn" data-again>🔊 Again</button></div>`);
+  const dots = () => ($("[data-dots]", host).textContent = "⭐".repeat(round) + "⚪".repeat(ROUNDS - round));
+  host.onclick = (event) => {
+    if (event.target.closest("[data-again]") && q) talk(cfg.ask(q), my).then((ok) => ok && cfg.afterAsk?.(q));
+  };
+  async function ask() {
+    if (my !== token) return;
+    q = cfg.gen(round);
+    tries = 0;
+    dots();
+    if (promptBox) {
+      promptBox.innerHTML = q.prompt || "";
+      anim(promptBox.firstElementChild, [{ transform: "scale(.85)", opacity: 0 }, { transform: "none", opacity: 1 }], 380, { fill: "none" });
+    }
+    cards.innerHTML = q.choices.map((c, i) => `<button type="button" class="zt-card zt-pick" data-c="${i}" aria-label="${c.label}"><span class="zt-art">${c.art}</span></button>`).join("");
+    [...cards.children].forEach((card, i) => anim(card, [{ transform: "translateY(24px)", opacity: 0 }, { transform: "none", opacity: 1 }], 380, { delay: i * 70, fill: "backwards" }));
+    open = true;
+    const ok = await talk(cfg.ask(q), my);
+    if (ok && my === token) cfg.afterAsk?.(q);
+  }
+  async function choose(button) {
+    const c = q.choices[Number(button.dataset.c)];
+    if (!open || c.state || my !== token) return;
+    if (c.ok) {
+      open = false;
+      c.state = "good";
+      button.classList.add("good");
+      for (const b of cards.children) if (b !== button) b.classList.add("dim");
+      MUSIC.chime();
+      sfx(cfg.sound?.(q) || "");
+      round += 1;
+      window.OC?.count(cfg.count);
+      dots();
+      const art = button.querySelector(".zt-art");
+      art.querySelector("svg")?.classList.add("driving");
+      await anim(art, [{ transform: "none" }, { transform: "translateX(-6%)" }, { transform: "translateX(140%)" }], 1100, { easing: "ease-in" });
+      if (my !== token) return;
+      await talk(cfg.praise(q, c), my);
+      if (my !== token) return;
+      hushSfx();
+      if (round >= ROUNDS) return finishCard({ id: cfg.id, ...cfg.finish });
+      ask();
+    } else {
+      tries += 1;
+      c.state = "bad";
+      button.classList.add("bad");
+      MUSIC.oops();
+      shake(button);
+      if (tries >= 2) {
+        open = false;
+        const right = cards.children[q.choices.findIndex((x) => x.ok)];
+        right.classList.add("hint");
+        await talk(cfg.reveal(q, c), my);
+        if (my !== token) return;
+        round += 1;
+        dots();
+        if (round >= ROUNDS) return finishCard({ id: cfg.id, ...cfg.finish });
+        ask();
+      } else await talk(cfg.hint(q, c), my);
+    }
+  }
+  onTap(cards, "[data-c]", choose);
+  if (promptBox && cfg.onPrompt) onTap(promptBox, "[data-hear]", () => q && cfg.onPrompt(q));
+  ask();
+}
+
+// ======================================================================
+// Photo: a grown-up picks a photo and drags it so the face fills the circle.
+// ======================================================================
+function openPhoto() {
+  VOICE.hush();
+  document.querySelector(".zt-photo")?.remove();
+  const box = document.createElement("div");
+  box.className = "zt-photo";
+  const who = NAME() || "your child";
+  const had = faceOf();
+  box.innerHTML = `<div class="zt-photo-card" role="dialog" aria-modal="true" aria-label="Photo">
+<h2>📷 A photo of ${who}</h2>
+<p class="zt-note">The face goes on every helper and in every vehicle. The photo stays in this browser only. It is not uploaded, synced or put on the website.</p>
+<div class="zt-crop" data-crop><img data-img alt="" draggable="false"><div class="zt-crop-ring"></div><span class="zt-crop-empty" data-empty>🙂</span></div>
+<p class="zt-note" data-help>Choose a photo of ${who}'s face.</p>
+<label class="zt-zoom" data-zoomrow hidden><span aria-hidden="true">➖</span><input type="range" min="1" max="4" step="0.01" value="1.4" data-zoom aria-label="Zoom"><span aria-hidden="true">➕</span></label>
+<div class="ap-buttons"><label class="zt-file">🖼️ ${had ? "Choose a new photo" : "Choose a photo"}<input type="file" accept="image/*" data-file></label><button type="button" class="primary" data-save disabled>✓ Save</button></div>
+<div class="ap-buttons">${had ? '<button type="button" data-remove>🗑 Remove photo</button>' : ""}<button type="button" data-close>Close</button></div>
+</div>`;
+  document.body.appendChild(box);
+  const crop = $("[data-crop]", box);
+  const img = $("[data-img]", box);
+  const zoom = $("[data-zoom]", box);
+  const help = $("[data-help]", box);
+  let size = null;
+  const st = { z: 1.4, x: 0, y: 0 };
+  const base = () => crop.clientWidth / Math.min(size.w, size.h);
+  const paint = () => {
+    if (!size) return;
+    const s = base() * st.z;
+    const mx = Math.max(0, (size.w * s - crop.clientWidth) / 2);
+    const my = Math.max(0, (size.h * s - crop.clientHeight) / 2);
+    st.x = Math.max(-mx, Math.min(mx, st.x));
+    st.y = Math.max(-my, Math.min(my, st.y));
+    img.style.width = `${size.w * s}px`;
+    img.style.height = `${size.h * s}px`;
+    img.style.transform = `translate(${-size.w * s / 2 + st.x}px, ${-size.h * s / 2 + st.y}px)`;
+  };
+  const load = (src, fresh) => {
+    img.onload = () => {
+      size = { w: img.naturalWidth, h: img.naturalHeight };
+      st.z = fresh ? 1.6 : 1;
+      st.x = 0;
+      // A portrait photo usually has the face in its upper half.
+      st.y = fresh && size.h > size.w * 1.1 ? (size.h * base() * st.z - crop.clientHeight) / 2 * 0.35 : 0;
+      zoom.value = st.z;
+      $("[data-zoomrow]", box).hidden = false;
+      $("[data-empty]", box).hidden = true;
+      $("[data-save]", box).disabled = !fresh;
+      help.textContent = "Drag the photo and use the slider so the face fills the circle.";
+      paint();
+    };
+    img.src = src;
+  };
+  if (had) load(had, false);
+  $("[data-file]", box).addEventListener("change", (event) => {
+    const file = event.target.files?.[0];
+    if (file) load(URL.createObjectURL(file), true);
+  });
+  zoom.addEventListener("input", () => {
+    st.z = Number(zoom.value);
+    $("[data-save]", box).disabled = false;
+    paint();
+  });
+  // One finger moves the photo; two fingers zoom.
+  const points = new Map();
+  let pinch = null;
+  crop.addEventListener("pointerdown", (event) => {
+    if (!size) return;
+    try {
+      crop.setPointerCapture(event.pointerId);
+    } catch {}
+    points.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (points.size === 2) {
+      const [a, b] = [...points.values()];
+      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: st.z };
+    }
+  });
+  crop.addEventListener("pointermove", (event) => {
+    const p = points.get(event.pointerId);
+    if (!p) return;
+    const now = { x: event.clientX, y: event.clientY };
+    if (points.size === 1) {
+      st.x += now.x - p.x;
+      st.y += now.y - p.y;
+    }
+    points.set(event.pointerId, now);
+    if (points.size === 2 && pinch) {
+      const [a, b] = [...points.values()];
+      st.z = Math.max(1, Math.min(4, pinch.z * (Math.hypot(a.x - b.x, a.y - b.y) / pinch.d)));
+      zoom.value = st.z;
+    }
+    $("[data-save]", box).disabled = false;
+    paint();
+  });
+  const up = (event) => {
+    points.delete(event.pointerId);
+    if (points.size < 2) pinch = null;
+  };
+  crop.addEventListener("pointerup", up);
+  crop.addEventListener("pointercancel", up);
+  crop.addEventListener("wheel", (event) => {
+    if (!size) return;
+    event.preventDefault();
+    st.z = Math.max(1, Math.min(4, st.z * (event.deltaY < 0 ? 1.06 : 0.94)));
+    zoom.value = st.z;
+    $("[data-save]", box).disabled = false;
+    paint();
+  }, { passive: false });
+  const close = () => {
+    box.remove();
+    shell.go(shell.current());
+    updatePhotoButton();
+  };
+  box.addEventListener("click", (event) => {
+    if (event.target === box || event.target.closest("[data-close]")) return close();
+    if (event.target.closest("[data-remove]")) {
+      saveFace("");
+      return close();
+    }
+    if (event.target.closest("[data-save]") && size) {
+      // Save a small square JPEG (about 25 KB) of exactly what is inside the circle.
+      const C = 320;
+      const f = C / crop.clientWidth;
+      const s = base() * st.z;
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = C;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ead3c0";
+      ctx.fillRect(0, 0, C, C);
+      ctx.drawImage(img, C / 2 + (st.x - (size.w * s) / 2) * f, C / 2 + (st.y - (size.h * s) / 2) * f, size.w * s * f, size.h * s * f);
+      if (!saveFace(canvas.toDataURL("image/jpeg", 0.86))) {
+        help.textContent = "This browser has no room to save the photo. Try a smaller photo.";
+        return;
+      }
+      close();
+    }
+  });
+}
+function updatePhotoButton() {
+  const b = $("[data-photo]");
+  b.classList.toggle("zt-nudge", !faceOf());
+  b.title = faceOf() ? "Change the photo" : "Add a photo";
+}
+$("[data-photo]").addEventListener("click", openPhoto);
+updatePhotoButton();
+window.OC?.onChange(updatePhotoButton);
+
+const UNITS = [
+  { id: "see", label: "See it", icon: "👀" },
+  { id: "drive", label: "1. Drive!", icon: "🚦" },
+  { id: "dress", label: "2. Dress up", icon: "🎩" },
+  { id: "find", label: "3. Find it", icon: "🔎" },
+  { id: "colors", label: "4. Colour cars", icon: "🎨" },
+  { id: "who", label: "5. Who drives it?", icon: "🧑‍🚒" },
+  { id: "hear", label: "6. Hear it", icon: "👂" },
+  { id: "where", label: "7. Where does it go?", icon: "🛣️" },
+];
+shell = SHELL({
+  units: UNITS,
+  unitWord: "Game",
+  how: {
+    see: { icon: "👀", title: "See it", steps: ["Watch each vehicle drive in.", "Meet the helper who drives it.", "Press Next to go on."] },
+    drive: { icon: "🚦", title: "Drive!", steps: ["Tap any vehicle.", "Watch it drive and hear its sound.", "Try them all!"] },
+    dress: { icon: "🎩", title: "Dress up", steps: ["Tap a hat.", "See who you become!", "Grown-ups: tap 📷 to add a photo."] },
+    find: { icon: "🔎", title: "Find it", steps: ["Listen to the name.", "Tap that vehicle."] },
+    colors: { icon: "🎨", title: "Colour cars", steps: ["Listen to the colour.", "Tap the car with that colour."] },
+    who: { icon: "🧑‍🚒", title: "Who drives it?", steps: ["Look at the helper's hat.", "Tap the vehicle they drive."] },
+    hear: { icon: "👂", title: "Hear it", steps: ["Listen to the sound.", "Tap the vehicle that makes it.", "Tap 🔊 to hear it again."] },
+    where: { icon: "🛣️", title: "Where does it go?", steps: ["Drag the vehicle with your finger.", "Drop it on the road, tracks, sky or water.", "You can tap the place, too."] },
+  },
+  // After the first See it, open straight on Drive!
+  start: MUSIC.progress.of(learner() || "Learner")["Zoom Town:see"]?.done ? "drive" : "see",
+  onStop() {
+    token += 1;
+    VOICE.hush();
+    hushSfx();
+    for (const f of cleanups) {
+      try {
+        f();
+      } catch {}
+    }
+    cleanups = [];
+    const p = $("[data-panel]");
+    if (p) p.onclick = null;
+  },
+  subject: "History & Social Studies",
+  activity: "Zoom Town",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [84, 88, 91, 96]);
+MUSIC.preload("piano", [64, 67]);
+
+const style = document.createElement("style");
+style.textContent = `
+body[data-subject="vehicles"]{--accent:#e8492f;--accent-dark:#b42d17;--accent-soft:#ffe6df}
+html{touch-action:manipulation}
+.ap-stage{-webkit-touch-callout:none}
+.zt-v{display:block;overflow:visible}
+.zt-v .wh{transform-box:fill-box;transform-origin:center}
+.zt-v.driving .wh{animation:zt-spin .45s linear infinite}
+.zt-v.driving .blink,.zt-car.parked .blink{animation:zt-blink .5s steps(1) infinite}
+.zt-v .blink.b{animation-delay:.25s}
+.zt-v .smoke{animation:zt-smoke 1.6s ease-out infinite;transform-box:fill-box;transform-origin:bottom left}
+
+/* cards: big, instant press feedback, no hover states that stick on touch */
+.zt-card{position:relative;display:grid;place-items:center;min-width:0;min-height:0;padding:8px;border:0;border-radius:24px;background:#fff;box-shadow:0 0 0 3px #f1e7da,0 6px 0 #e6dccd;color:var(--ink);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;transition:transform .08s ease,box-shadow .08s ease,opacity .3s ease}
+.zt-card:active{transform:translateY(4px) scale(.97);box-shadow:0 0 0 3px #f1e7da,0 2px 0 #e6dccd}
+.zt-card:focus-visible{outline:4px solid #ffcf5c;outline-offset:3px}
+.zt-card svg{pointer-events:none}
+.zt-card.good{box-shadow:0 0 0 5px #22a05a,0 6px 0 #157a40}
+.zt-card.bad{opacity:.4}
+.zt-card.dim{opacity:.3}
+.zt-card.hint,.zt-zone.hint{animation:zt-glow 1s ease-in-out infinite}
+
+/* Drive! */
+.zt-root{position:absolute;inset:0;display:flex;flex-direction:column;gap:clamp(6px,1.4vh,12px);padding:clamp(6px,1.4vh,12px)}
+.zt-world{position:relative;flex:1 1 auto;min-height:0;border-radius:22px;overflow:hidden;background:linear-gradient(#a9dcff,#e3f4ff 75%)}
+.zt-sun{position:absolute;right:6%;top:8%;width:clamp(36px,8vh,70px);aspect-ratio:1;border-radius:50%;background:#ffd54f;box-shadow:0 0 0 10px rgba(255,213,79,.3)}
+.zt-cloud{position:absolute;width:clamp(70px,14vw,140px);height:clamp(22px,4vw,40px);border-radius:40px;background:#fff;opacity:.95;animation:zt-drift 40s linear infinite}
+.zt-cloud::before{content:"";position:absolute;left:22%;top:-55%;width:45%;height:110%;border-radius:50%;background:#fff}
+.zt-cloud.c1{top:12%;left:8%}.zt-cloud.c2{top:26%;left:44%;transform:scale(.7);animation-duration:55s}.zt-cloud.c3{top:8%;left:70%;transform:scale(.8);animation-duration:48s}
+.zt-ground{position:absolute;left:0;right:0;bottom:0;height:30%;transition:background .35s ease}
+[data-world=road] .zt-ground{background:linear-gradient(#7cc66a 0 16%,#5b5f66 16%)}
+[data-world=road] .zt-ground::after{content:"";position:absolute;left:0;right:0;top:56%;height:6px;background:repeating-linear-gradient(90deg,#fff 0 40px,transparent 40px 80px)}
+[data-world=tracks] .zt-ground{background:linear-gradient(#7cc66a 0 16%,#a1887f 16% 62%,#7cc66a 62%)}
+[data-world=tracks] .zt-ground::after{content:"";position:absolute;left:0;right:0;top:18%;height:42%;background:linear-gradient(transparent 12%,#90a4ae 12% 22%,transparent 22% 76%,#90a4ae 76% 86%,transparent 86%),repeating-linear-gradient(90deg,#6d4c41 0 14px,transparent 14px 34px)}
+[data-world=water] .zt-ground{height:38%;background:linear-gradient(#4fc3f7,#0288d1)}
+[data-world=water] .zt-ground::after{content:"";position:absolute;left:0;right:0;top:-6px;height:14px;background:radial-gradient(circle at 10px 0,transparent 9px,#4fc3f7 10px) 0 0/20px 14px repeat-x}
+[data-world=sky] .zt-ground{height:14%;background:#8bc34a;border-radius:50% 50% 0 0/40% 40% 0 0}
+.zt-lane{position:absolute;left:3%;right:3%;bottom:8%;height:66%;display:grid;place-items:center;overflow:visible}
+[data-world=sky] .zt-lane{bottom:22%;height:60%}
+[data-world=water] .zt-lane{bottom:14%}
+.zt-car{grid-area:1/1;height:100%;max-width:100%;display:grid;place-items:center;will-change:transform}
+.zt-car .zt-v{height:100%;width:auto;max-width:100%}
+.zt-car.parked .zt-v{animation:zt-bob 1.4s ease-in-out infinite}
+.zt-garage{flex:0 0 auto;display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:clamp(5px,1vw,10px)}
+.zt-g{height:clamp(58px,13vh,108px);padding:6px}
+.zt-g .zt-v{position:absolute;inset:6px;width:calc(100% - 12px);height:calc(100% - 12px)}
+@media (max-width:760px){.zt-garage{grid-template-columns:repeat(5,minmax(0,1fr))}.zt-g{height:clamp(52px,9vh,80px)}}
+
+/* picking games */
+.zt-play{position:absolute;inset:0;display:flex;gap:clamp(8px,1.6vw,16px);padding:clamp(8px,1.6vw,16px)}
+.zt-cards{flex:1 1 auto;min-width:0;min-height:0;display:flex;gap:clamp(8px,1.6vw,16px)}
+.zt-pick{flex:1 1 0;overflow:hidden}
+.zt-art{position:absolute;inset:clamp(4px,1vh,10px);will-change:transform}
+.zt-art .zt-v{width:100%;height:100%}
+.zt-prompt{flex:0 0 30%;min-width:0;min-height:0;display:grid;place-items:center;border-radius:24px;background:var(--accent-soft)}
+.zt-prompt>svg{width:100%;height:100%;max-height:100%}
+.zt-ear{width:78%;aspect-ratio:1;max-height:90%;border-radius:50%;gap:0;align-content:center}
+.zt-ear span{font-size:clamp(46px,9vw,96px);line-height:1}
+.zt-ear small{font:900 clamp(16px,2.2vw,22px) var(--sans);color:var(--accent-dark)}
+.zt-ear.playing{animation:zt-ring .6s ease-in-out infinite}
+.zt-word{font-size:1.15em}
+.zt-play.side .zt-cards{flex-direction:column}
+@media (max-aspect-ratio:1/1){.zt-play,.zt-cards{flex-direction:column}.zt-prompt{flex-basis:32%}}
+
+/* Dress up */
+.zt-dress{position:absolute;inset:0;display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.4fr);gap:clamp(8px,1.6vw,16px);padding:clamp(8px,1.6vw,16px)}
+.zt-me{display:grid;place-items:center;min-height:0;border-radius:24px;background:radial-gradient(circle at 50% 40%,#fff,var(--accent-soft));will-change:transform}
+.zt-me svg{width:100%;height:100%;max-height:100%}
+.zt-closet{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:clamp(6px,1vw,10px);min-height:0}
+.zt-tile{padding:4px;gap:0;grid-template-rows:minmax(0,1fr) auto;border-radius:20px}
+.zt-tile svg{width:100%;height:100%;max-height:100%}
+.zt-tile span{font:800 clamp(11px,1.5vw,15px)/1.1 var(--sans);text-align:center}
+.zt-tile.on{box-shadow:0 0 0 5px var(--accent),0 6px 0 var(--accent-dark)}
+@media (max-aspect-ratio:1/1){.zt-dress{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1.15fr)}.zt-tile span{display:none}}
+@media (max-height:520px){.zt-tile span{display:none}}
+
+/* Where does it go? */
+.zt-where{position:absolute;inset:0;display:grid;grid-template-rows:minmax(0,1.35fr) minmax(0,1fr);gap:clamp(8px,1.6vh,14px);padding:clamp(8px,1.6vw,14px)}
+.zt-zones{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(6px,1.2vw,12px);min-height:0}
+.zt-zone{position:relative;min-height:0;border:0;border-radius:22px;overflow:hidden;background:linear-gradient(#a9dcff,#e3f4ff);box-shadow:0 0 0 3px #f1e7da,0 6px 0 #e6dccd;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:box-shadow .12s ease,transform .08s ease}
+.zt-zone:active{transform:translateY(3px)}
+.zt-zone.over{box-shadow:0 0 0 6px #ffcf5c,0 6px 0 #e6dccd;transform:scale(1.03)}
+.zt-zone-ground{position:absolute;left:0;right:0;bottom:0;height:42%}
+.zt-zone[data-world=road] .zt-zone-ground{background:linear-gradient(#7cc66a 0 18%,#5b5f66 18%)}
+.zt-zone[data-world=tracks] .zt-zone-ground{background:linear-gradient(#7cc66a 0 18%,transparent 18%),linear-gradient(transparent 35%,#90a4ae 35% 42%,transparent 42% 72%,#90a4ae 72% 79%,transparent 79%),repeating-linear-gradient(90deg,#6d4c41 0 10px,#a1887f 10px 24px)}
+.zt-zone[data-world=water] .zt-zone-ground{height:50%;background:linear-gradient(#4fc3f7,#0288d1)}
+.zt-zone[data-world=sky] .zt-zone-ground{height:14%;background:#8bc34a}
+.zt-zone-name{position:absolute;left:50%;top:8px;transform:translateX(-50%);padding:4px 12px;border-radius:14px;background:rgba(255,255,255,.92);color:var(--ink);font:900 clamp(13px,2vw,19px)/1.2 var(--sans);white-space:nowrap}
+.zt-zone-park{position:absolute;left:4%;right:4%;bottom:12%;height:46%;display:flex;justify-content:center;align-items:flex-end;flex-wrap:wrap-reverse;gap:2px;pointer-events:none}
+.zt-zone[data-world=sky] .zt-zone-park{bottom:26%}
+.zt-zone-park span{flex:0 1 46%;max-height:100%;display:grid}
+.zt-zone-park svg{width:100%;height:auto}
+.zt-dock{display:grid;place-items:center;min-height:0}
+.zt-token{height:100%;max-width:100%;aspect-ratio:260/160;display:grid;place-items:center;touch-action:none;cursor:grab;will-change:transform;-webkit-user-drag:none}
+.zt-token[hidden]{display:none}
+.zt-token svg{width:100%;height:100%;pointer-events:none}
+.zt-token.lift{cursor:grabbing;filter:drop-shadow(0 14px 12px rgba(0,0,0,.25));z-index:5}
+@media (max-aspect-ratio:1/1){.zt-zones{grid-template-columns:repeat(2,minmax(0,1fr))}.zt-where{grid-template-rows:minmax(0,1.6fr) minmax(0,1fr)}}
+
+/* end card */
+.zt-done{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:clamp(12px,3vw,32px);padding:16px;background:radial-gradient(circle at 30% 40%,#fff,var(--accent-soft))}
+.zt-done-pic{position:relative;height:min(78%,360px);aspect-ratio:200/250}
+.zt-done-pic svg{width:100%;height:100%}
+.zt-done-badge{position:absolute;right:-6%;bottom:6%;display:grid;place-items:center;width:28%;aspect-ratio:1;border-radius:50%;background:#fff;box-shadow:0 4px 0 #e6dccd;font-size:clamp(26px,5vw,44px)}
+.zt-done-text{max-width:30em}
+.zt-done-text h2{margin:0 0 8px;color:var(--accent-dark);font:900 clamp(20px,3vw,30px)/1.15 var(--sans)}
+.zt-done-text p{margin:0;color:#2b1d12;font:700 clamp(17px,2.4vw,24px)/1.35 var(--sans)}
+@media (max-aspect-ratio:1/1){.zt-done{flex-direction:column;text-align:center}.zt-done-pic{height:46%}}
+
+/* photo dialog */
+.zt-photo{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:12px;background:rgba(43,29,18,.45);backdrop-filter:blur(3px)}
+.zt-photo-card{width:min(440px,100%);max-height:100%;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px;border-radius:28px;background:var(--paper);box-shadow:0 24px 60px rgba(0,0,0,.3);text-align:center}
+.zt-photo-card h2{margin:0;color:var(--ink);font:900 22px/1.2 var(--sans)}
+.zt-note{margin:0;color:var(--muted);font:700 14px/1.4 var(--sans)}
+.zt-crop{position:relative;width:min(260px,70vw,46vh);aspect-ratio:1;border-radius:50%;overflow:hidden;background:#ead3c0;touch-action:none;cursor:grab;box-shadow:0 0 0 4px var(--accent),0 8px 20px rgba(0,0,0,.15)}
+.zt-crop img{position:absolute;left:50%;top:50%;max-width:none;user-select:none;-webkit-user-drag:none;pointer-events:none}
+.zt-crop-ring{position:absolute;inset:0;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(255,255,255,.6);pointer-events:none}
+.zt-crop-empty{position:absolute;inset:0;display:grid;place-items:center;font-size:80px;opacity:.5}
+.zt-crop-empty[hidden]{display:none}
+.zt-zoom{display:flex;align-items:center;gap:10px;width:100%;max-width:300px}
+.zt-zoom[hidden]{display:none}
+.zt-zoom input{flex:1;accent-color:var(--accent)}
+.zt-file{display:inline-grid;place-items:center;min-height:54px;padding:0 20px;border-radius:18px;background:#fff;box-shadow:0 4px 0 #e2d6c4;font:800 18px/1 var(--sans);cursor:pointer}
+.zt-file input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.ap-icon.zt-nudge{animation:zt-ring 1.6s ease-in-out infinite}
+
+@keyframes zt-spin{to{transform:rotate(360deg)}}
+@keyframes zt-blink{0%{opacity:1}50%{opacity:.25}}
+@keyframes zt-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3%)}}
+@keyframes zt-smoke{0%{transform:translateY(6px) scale(.7);opacity:0}30%{opacity:.9}100%{transform:translateY(-10px) scale(1.2);opacity:0}}
+@keyframes zt-drift{from{translate:0 0}to{translate:30vw 0}}
+@keyframes zt-glow{0%,100%{box-shadow:0 0 0 3px #f1e7da,0 6px 0 #e6dccd}50%{box-shadow:0 0 0 8px #ffcf5c,0 6px 0 #e6dccd}}
+@keyframes zt-ring{0%,100%{box-shadow:0 3px 0 #e6dccd}50%{box-shadow:0 3px 0 #e6dccd,0 0 0 7px #ffcf5c}}
+@media (prefers-reduced-motion:reduce){.zt-v.driving .wh,.zt-car.parked .zt-v,.zt-cloud,.zt-v .smoke,.zt-ear.playing,.ap-icon.zt-nudge,.zt-card.hint,.zt-zone.hint{animation:none}}
+`;
+document.head.appendChild(style);
+</script>
+</body>
+</html>
