@@ -2923,6 +2923,8 @@ function gen(make, want = null, { min = 0, max = 199 } = {}) {
   };
 }
 const sign = (chance = 0.5) => (coin(chance) ? 1 : -1);
+// Worlds 8 and up use big numbers, so their sums may go well past 199.
+const big = (make, want = null, opts = {}) => gen(make, want, { max: 9999999, ...opts });
 
 const WORLDS = [
   {
@@ -3051,6 +3053,243 @@ const WORLDS = [
       { name: "Lightning round", count: 8, time: [140, 220], gen: fromTutor(8) },
     ],
   },
+  // ---------- Worlds 8–20: the hard road to level 100 ----------
+  // Bigger numbers (three to seven digits), carrying and borrowing through zeros,
+  // long sums of many rows like soroban contests, and timed rounds.
+  {
+    name: "Hundreds Harbor",
+    icon: "⚓",
+    tint: "#2f6f8f",
+    wash: "linear-gradient(160deg,#e0eef4,#c4dde9)",
+    decor: "⚓🐳🚢🌊⚓",
+    text: "Three-digit numbers: the hundreds rod joins in.",
+    stickers: [["⚓", "Anchor"], ["🚢", "Ship"], ["🐳", "Whale"], ["🦭", "Seal"], ["🧭", "Compass"]],
+    golden: ["🏴‍☠️", "Pirate Flag"],
+    beads: "pearl",
+    levels: [
+      { name: "Show hundreds", help: true, gen: () => [pickInt(100, 999)] },
+      { name: "Hundreds + ones", help: true, gen: big(() => [pickInt(100, 889), pickInt(1, 9)], null, { max: 999 }) },
+      { name: "Add two digits", help: false, gen: big(() => [pickInt(100, 799), pickInt(11, 99)], null, { max: 999 }) },
+      { name: "Take away two digits", help: false, gen: big(() => [pickInt(200, 999), -pickInt(11, 99)]) },
+      { name: "Harbor mix", help: false, gen: big(() => [pickInt(100, 599), sign(0.6) * pickInt(11, 99), sign(0.6) * pickInt(11, 99)], null, { max: 999 }) },
+    ],
+  },
+  {
+    name: "Crystal Caves",
+    icon: "💎",
+    tint: "#6a4fb3",
+    wash: "linear-gradient(160deg,#ece6f8,#d6caf0)",
+    decor: "💎🔮✨🦇💎",
+    text: "Three digits and three digits, with friends on every rod.",
+    stickers: [["💎", "Diamond"], ["🔮", "Crystal Ball"], ["🦇", "Bat"], ["🪨", "Geode"], ["🕯️", "Candle"]],
+    golden: ["👑", "Crystal Crown"],
+    beads: "amethyst",
+    levels: [
+      { name: "Three + three", help: false, gen: big(() => [pickInt(100, 499), pickInt(100, 499)], onlyKinds("direct+"), { max: 999 }) },
+      { name: "With friends +", help: false, gen: big(() => [pickInt(100, 599), pickInt(105, 399)], (k) => [...k].some((kind) => !kind.startsWith("direct")), { max: 999 }) },
+      { name: "Three − three", help: false, gen: big(() => [pickInt(500, 999), -pickInt(101, 499)], (k) => [...k].some((kind) => !kind.startsWith("direct"))) },
+      { name: "Cave mix", help: false, gen: big(() => [pickInt(300, 699), sign() * pickInt(101, 299), sign() * pickInt(101, 299)], null, { max: 999 }) },
+      { name: "Four three-digit numbers", help: false, gen: big(() => [pickInt(100, 499), pickInt(100, 399), sign(0.6) * pickInt(100, 299), sign(0.6) * pickInt(100, 299)]) },
+    ],
+  },
+  {
+    name: "Number Ninja Dojo",
+    icon: "🥋",
+    tint: "#9b2c2c",
+    wash: "linear-gradient(160deg,#f7e3e0,#ecc6c0)",
+    decor: "🥋🎋🏯🌸🥋",
+    text: "The tricky moves: carrying and borrowing across many rods at once.",
+    stickers: [["🥋", "Black Belt"], ["🎋", "Bamboo"], ["🏯", "Dojo"], ["🐼", "Kung Fu Panda"], ["🌸", "Cherry Blossom"]],
+    golden: ["🥷", "Ninja"],
+    beads: "ruby",
+    levels: [
+      { name: "Carry across the tens", help: true, gen: () => { const a = pickInt(1, 8) * 100 + 90 + pickInt(1, 9); return [a, pickInt(10 - (a % 10), 9)]; } },
+      { name: "Borrow across the tens", help: true, gen: () => { const a = pickInt(1, 9) * 100 + pickInt(0, 8); return [a, -pickInt((a % 10) + 1, 9)]; } },
+      { name: "Chain carry", help: false, gen: () => { const a = pickInt(1, 8) * 1000 + 990 + pickInt(1, 9); return [a, pickInt(10 - (a % 10), 9)]; } },
+      { name: "Chain borrow", help: false, gen: () => { const a = pickInt(1, 9) * 1000 + pickInt(0, 8); return [a, -pickInt((a % 10) + 1, 9)]; } },
+      { name: "Ninja mix", help: false, gen: () => { const a = pickInt(1, 8) * 1000 + 990 + pickInt(1, 9); const b = pickInt(10 - (a % 10), 9); const c = a + b; return [a, b, -pickInt((c % 10) + 1, 9)]; } },
+    ],
+  },
+  {
+    name: "Thousand Peaks",
+    icon: "🏔️",
+    tint: "#4b6a88",
+    wash: "linear-gradient(160deg,#e6edf4,#cbd9e6)",
+    decor: "🏔️🦅☁️🌲🏔️",
+    text: "Four-digit numbers: thousands, hundreds, tens and ones.",
+    stickers: [["🦅", "Eagle"], ["🐏", "Ram"], ["⛷️", "Skier"], ["🧗", "Climber"], ["🚡", "Cable Car"]],
+    golden: ["🏆", "Summit Trophy"],
+    beads: "silver",
+    levels: [
+      { name: "Show thousands", help: true, gen: () => [pickInt(1000, 9999)] },
+      { name: "Four + two digits", help: false, gen: big(() => [pickInt(1000, 8999), sign(0.6) * pickInt(11, 99)], null, { max: 9999 }) },
+      { name: "Four + three digits", help: false, gen: big(() => [pickInt(1000, 8499), pickInt(101, 999)], null, { max: 9999 }) },
+      { name: "Four − three digits", help: false, gen: big(() => [pickInt(1500, 9999), -pickInt(101, 999)]) },
+      { name: "Four + four digits", help: false, gen: big(() => [pickInt(1000, 5999), sign(0.6) * pickInt(1001, 3999)], null, { max: 9999 }) },
+    ],
+  },
+  {
+    name: "Long Sum Lagoon",
+    icon: "🐋",
+    tint: "#1f7a7a",
+    wash: "linear-gradient(160deg,#dff3f1,#bfe5e1)",
+    decor: "🐋🐟🌊🐚🐋",
+    text: "Long sums, like real soroban contests: keep going row after row.",
+    stickers: [["🐟", "Fish"], ["🐚", "Shell"], ["🦑", "Squid"], ["🪼", "Jellyfish"], ["🦈", "Shark"]],
+    golden: ["🧜", "Mermaid"],
+    beads: "jade",
+    levels: [
+      { name: "Five rows", help: false, gen: big(() => [pickInt(1, 9), pickInt(1, 9), sign(0.6) * pickInt(1, 9), sign(0.6) * pickInt(1, 9), sign(0.6) * pickInt(1, 9)]) },
+      { name: "Six rows", help: false, gen: big(() => [pickInt(1, 9), ...Array.from({ length: 5 }, () => sign(0.6) * pickInt(1, 9))]) },
+      { name: "Four two-digit rows", help: false, gen: big(() => [pickInt(10, 99), ...Array.from({ length: 3 }, () => sign(0.6) * pickInt(10, 99))]) },
+      { name: "Five two-digit rows", help: false, gen: big(() => [pickInt(10, 99), ...Array.from({ length: 4 }, () => sign(0.6) * pickInt(10, 99))]) },
+      { name: "Lagoon mix", help: false, gen: big(() => [pickInt(100, 999), ...Array.from({ length: 4 }, () => sign(0.6) * pickInt(10, 999))], null, { max: 9999 }) },
+    ],
+  },
+  {
+    name: "Comet Run",
+    icon: "☄️",
+    tint: "#5b3e86",
+    wash: "linear-gradient(160deg,#ebe4f6,#d3c4ec)",
+    decor: "☄️⭐🌠✨☄️",
+    text: "Beat the clock with bigger numbers! Rounds of 8.",
+    stickers: [["🌠", "Shooting Star"], ["🛰️", "Satellite"], ["🌙", "Moon"], ["👽", "Alien"], ["🌌", "Milky Way"]],
+    golden: ["☄️", "Golden Comet"],
+    beads: "aurora",
+    levels: [
+      { name: "Quick two-digit sums", count: 8, time: [110, 170], gen: big(() => [pickInt(10, 89), sign(0.6) * pickInt(10, 99)]) },
+      { name: "Quick hundreds", count: 8, time: [90, 140], gen: () => [pickInt(100, 999)] },
+      { name: "Quick four rows", count: 8, time: [130, 200], gen: big(() => [pickInt(1, 9), sign(0.6) * pickInt(1, 9), sign(0.6) * pickInt(1, 9), sign(0.6) * pickInt(1, 9)]) },
+      { name: "Quick three-digit sums", count: 8, time: [150, 230], gen: big(() => [pickInt(100, 799), sign(0.6) * pickInt(11, 199)], null, { max: 999 }) },
+      { name: "Comet chase", count: 8, time: [180, 280], gen: big(() => [pickInt(10, 99), sign(0.6) * pickInt(10, 99), sign(0.6) * pickInt(10, 99)]) },
+    ],
+  },
+  {
+    name: "Ten-Thousand Temple",
+    icon: "🛕",
+    tint: "#b06a1c",
+    wash: "linear-gradient(160deg,#f8ead6,#efd3a9)",
+    decor: "🛕🪔🐘🌺🛕",
+    text: "Five-digit numbers: the ten-thousands rod.",
+    stickers: [["🐘", "Elephant"], ["🪔", "Lamp"], ["🌺", "Hibiscus"], ["🦚", "Peacock"], ["🐅", "Tiger"]],
+    golden: ["🪷", "Golden Lotus"],
+    beads: "amber",
+    levels: [
+      { name: "Show five digits", help: true, gen: () => [pickInt(10000, 99999)] },
+      { name: "Five + three digits", help: false, gen: big(() => [pickInt(10000, 98999), sign(0.6) * pickInt(101, 999)], null, { max: 99999 }) },
+      { name: "Five − four digits", help: false, gen: big(() => [pickInt(15000, 99999), -pickInt(1001, 9999)]) },
+      { name: "Five + five digits", help: false, gen: big(() => [pickInt(10000, 59999), sign(0.6) * pickInt(10001, 39999)], null, { max: 99999 }) },
+      { name: "Temple trio", help: false, gen: big(() => [pickInt(10000, 49999), sign(0.6) * pickInt(1001, 29999), sign(0.6) * pickInt(1001, 29999)], null, { max: 99999 }) },
+    ],
+  },
+  {
+    name: "Galaxy of Rows",
+    icon: "🌌",
+    tint: "#2c3e7a",
+    wash: "linear-gradient(160deg,#e3e7f6,#c5cdec)",
+    decor: "🌌🪐⭐🌙🌌",
+    text: "Very long sums: up to eight rows. Stay calm and keep going!",
+    stickers: [["🪐", "Saturn"], ["🌙", "Crescent"], ["🔭", "Telescope"], ["🛸", "UFO"], ["🌍", "Earth"]],
+    golden: ["🌌", "Galaxy"],
+    beads: "sapphire",
+    levels: [
+      { name: "Seven rows", help: false, gen: big(() => [pickInt(1, 9), ...Array.from({ length: 6 }, () => sign(0.6) * pickInt(1, 9))]) },
+      { name: "Eight rows", help: false, gen: big(() => [pickInt(1, 9), ...Array.from({ length: 7 }, () => sign(0.6) * pickInt(1, 9))]) },
+      { name: "Six two-digit rows", help: false, gen: big(() => [pickInt(10, 99), ...Array.from({ length: 5 }, () => sign(0.6) * pickInt(10, 99))]) },
+      { name: "Five three-digit rows", help: false, gen: big(() => [pickInt(100, 999), ...Array.from({ length: 4 }, () => sign(0.6) * pickInt(100, 999))]) },
+      { name: "Galaxy mix", help: false, gen: big(() => [pickInt(100, 999), ...Array.from({ length: 5 }, () => sign(0.6) * pickInt(1, 999))]) },
+    ],
+  },
+  {
+    name: "Lightning Lab",
+    icon: "⚡",
+    tint: "#8a7a12",
+    wash: "linear-gradient(160deg,#f7f3d6,#ece3a6)",
+    decor: "⚡🧪🔬💡⚡",
+    text: "Fast and big: timed rounds of 8 with three- and four-digit numbers.",
+    stickers: [["🧪", "Test Tube"], ["🔬", "Microscope"], ["💡", "Light Bulb"], ["🤖", "Robot"], ["🧲", "Magnet"]],
+    golden: ["⚡", "Lightning Bolt"],
+    beads: "lime",
+    levels: [
+      { name: "Quick three + three", count: 8, time: [170, 260], gen: big(() => [pickInt(100, 599), sign(0.6) * pickInt(101, 399)], null, { max: 999 }) },
+      { name: "Quick thousands", count: 8, time: [110, 170], gen: () => [pickInt(1000, 9999)] },
+      { name: "Quick five rows", count: 8, time: [200, 300], gen: big(() => [pickInt(1, 9), ...Array.from({ length: 4 }, () => sign(0.6) * pickInt(1, 9))]) },
+      { name: "Quick four + three", count: 8, time: [200, 300], gen: big(() => [pickInt(1000, 8999), sign(0.6) * pickInt(101, 999)], null, { max: 9999 }) },
+      { name: "Lab overload", count: 8, time: [240, 360], gen: big(() => [pickInt(10, 99), ...Array.from({ length: 3 }, () => sign(0.6) * pickInt(10, 99))]) },
+    ],
+  },
+  {
+    name: "Million Mountains",
+    icon: "🗻",
+    tint: "#5a4a6e",
+    wash: "linear-gradient(160deg,#ece7f1,#d5cbe0)",
+    decor: "🗻❄️🦬🌲🗻",
+    text: "Six-digit numbers: hundreds of thousands!",
+    stickers: [["🦬", "Bison"], ["❄️", "Ice Crystal"], ["🐺", "Wolf"], ["🦉", "Snowy Owl"], ["🛷", "Sled"]],
+    golden: ["🗻", "Golden Peak"],
+    beads: "frost",
+    levels: [
+      { name: "Show six digits", help: true, gen: () => [pickInt(100000, 999999)] },
+      { name: "Six + four digits", help: false, gen: big(() => [pickInt(100000, 989999), sign(0.6) * pickInt(1001, 9999)], null, { max: 999999 }) },
+      { name: "Six − five digits", help: false, gen: big(() => [pickInt(150000, 999999), -pickInt(10001, 99999)]) },
+      { name: "Six + six digits", help: false, gen: big(() => [pickInt(100000, 599999), sign(0.6) * pickInt(100001, 399999)], null, { max: 999999 }) },
+      { name: "Mountain trio", help: false, gen: big(() => [pickInt(100000, 499999), sign(0.6) * pickInt(10001, 299999), sign(0.6) * pickInt(10001, 299999)], null, { max: 999999 }) },
+    ],
+  },
+  {
+    name: "Dragon's Den",
+    icon: "🐉",
+    tint: "#2e7d32",
+    wash: "linear-gradient(160deg,#e3f1e2,#c4e2c3)",
+    decor: "🐉🔥💰🪙🐉",
+    text: "The dragon's hardest sums: many rows of big numbers.",
+    stickers: [["🪙", "Gold Coin"], ["💰", "Treasure Bag"], ["🔥", "Dragon Fire"], ["🗡️", "Sword"], ["🛡️", "Dragon Shield"]],
+    golden: ["🐲", "Dragon King"],
+    beads: "emerald",
+    levels: [
+      { name: "Four four-digit rows", help: false, gen: big(() => [pickInt(1000, 9999), ...Array.from({ length: 3 }, () => sign(0.6) * pickInt(1000, 9999))]) },
+      { name: "Six three-digit rows", help: false, gen: big(() => [pickInt(100, 999), ...Array.from({ length: 5 }, () => sign(0.6) * pickInt(100, 999))]) },
+      { name: "Ten one-digit rows", help: false, gen: big(() => [pickInt(1, 9), ...Array.from({ length: 9 }, () => sign(0.6) * pickInt(1, 9))]) },
+      { name: "Eight two-digit rows", help: false, gen: big(() => [pickInt(10, 99), ...Array.from({ length: 7 }, () => sign(0.6) * pickInt(10, 99))]) },
+      { name: "Dragon's fire", help: false, gen: big(() => [pickInt(1000, 9999), ...Array.from({ length: 5 }, () => sign(0.6) * pickInt(10, 9999))]) },
+    ],
+  },
+  {
+    name: "Champion Arena",
+    icon: "🏟️",
+    tint: "#b23a48",
+    wash: "linear-gradient(160deg,#f8e2e5,#efc3ca)",
+    decor: "🏟️🥇🎺🏅🏟️",
+    text: "Contest rounds against the clock, like a real soroban championship.",
+    stickers: [["🥉", "Bronze Medal"], ["🥈", "Silver Medal"], ["🥇", "Gold Medal"], ["🎺", "Trumpet"], ["🏅", "Champion Medal"]],
+    golden: ["🏆", "Champion Cup"],
+    beads: "rose",
+    levels: [
+      { name: "Bronze round", count: 8, time: [220, 330], gen: big(() => [pickInt(10, 99), ...Array.from({ length: 4 }, () => sign(0.6) * pickInt(10, 99))]) },
+      { name: "Silver round", count: 8, time: [240, 360], gen: big(() => [pickInt(100, 999), ...Array.from({ length: 2 }, () => sign(0.6) * pickInt(100, 999))]) },
+      { name: "Gold round", count: 8, time: [260, 400], gen: big(() => [pickInt(1000, 9999), sign(0.6) * pickInt(1000, 9999), sign(0.6) * pickInt(100, 999)]) },
+      { name: "Speed sprint", count: 10, time: [200, 300], gen: big(() => [pickInt(1, 9), ...Array.from({ length: 5 }, () => sign(0.6) * pickInt(1, 9))]) },
+      { name: "Championship final", count: 10, time: [360, 540], gen: big(() => [pickInt(100, 999), ...Array.from({ length: 4 }, () => sign(0.6) * pickInt(10, 999))]) },
+    ],
+  },
+  {
+    name: "Grandmaster Summit",
+    icon: "👑",
+    tint: "#7a5a12",
+    wash: "linear-gradient(160deg,#f6efd9,#e8d6a3)",
+    decor: "👑🌟🏛️✨👑",
+    text: "The very top: seven-digit numbers and the longest sums. Level 100 awaits!",
+    stickers: [["🏛️", "Hall of Fame"], ["🌟", "Bright Star"], ["🎓", "Graduate"], ["📜", "Scroll"], ["🧠", "Big Brain"]],
+    golden: ["👑", "Grandmaster Crown"],
+    beads: "diamond",
+    levels: [
+      { name: "Show seven digits", help: false, gen: () => [pickInt(1000000, 9999999)] },
+      { name: "Seven ± five digits", help: false, gen: big(() => [pickInt(1000000, 9899999), sign(0.6) * pickInt(10001, 99999)], null, { max: 9999999 }) },
+      { name: "Seven ± seven digits", help: false, gen: big(() => [pickInt(1000000, 5999999), sign(0.6) * pickInt(1000001, 3999999)], null, { max: 9999999 }) },
+      { name: "Ten two-digit rows", help: false, gen: big(() => [pickInt(10, 99), ...Array.from({ length: 9 }, () => sign(0.6) * pickInt(10, 99))]) },
+      { name: "Level 100: the Grandmaster", help: false, gen: big(() => [pickInt(10000, 99999), ...Array.from({ length: 5 }, () => sign(0.6) * pickInt(100, 99999))], null, { max: 9999999 }) },
+    ],
+  },
 ];
 const BONUS = [["🍦", "Ice Cream"], ["🧁", "Cupcake"], ["🎈", "Balloon"], ["🐼", "Panda"], ["🦁", "Lion"], ["🐧", "Penguin"], ["🎸", "Guitar"], ["🍉", "Watermelon"], ["🐳", "Whale"], ["🦩", "Flamingo"]];
 const BEADS = {
@@ -3062,7 +3301,32 @@ const BEADS = {
   rainbow: "Rainbow",
   gold: "Gold",
   galaxy: "Galaxy",
+  pearl: "Pearl",
+  amethyst: "Amethyst",
+  ruby: "Ruby",
+  silver: "Silver",
+  jade: "Jade",
+  aurora: "Aurora",
+  amber: "Amber",
+  sapphire: "Sapphire",
+  lime: "Lime",
+  frost: "Frost",
+  emerald: "Emerald",
+  rose: "Rose",
+  diamond: "Diamond",
 };
+// Beads won in worlds 8–20, made from a hue, saturation and lightness so each set shades like the wooden ones.
+const NEW_BEADS = { pearl: [40, 25, 82], amethyst: [275, 45, 50], ruby: [350, 70, 42], silver: [210, 8, 66], jade: [158, 45, 40], aurora: [190, 60, 48], amber: [36, 85, 50], sapphire: [222, 65, 42], lime: [85, 60, 45], frost: [195, 45, 72], emerald: [140, 60, 34], rose: [335, 60, 62], diamond: [200, 30, 86] };
+{
+  const style = document.createElement("style");
+  style.textContent = Object.entries(NEW_BEADS)
+    .map(([key, [h, s, l]]) => {
+      const c = (d) => `hsl(${h} ${s}% ${Math.max(4, Math.min(96, l + d))}%)`;
+      return `body[data-beads="${key}"] .sb-bead{--bead-paper:${c(0)};--bead-top:${c(26)};--bead-s0:${c(-20)};--bead-s1:${c(-15)};--bead-s2:${c(-10)};--bead-s3:${c(-4)};--bead-edge:${c(-36)};--bead-crease:${c(-30)};--bead-faint:${c(18)}}\n.lv-swatch[data-swatch="${key}"]{background:radial-gradient(ellipse at 40% 30%,${c(26)},${c(0)} 55%,${c(-20)})}`;
+    })
+    .join("\n");
+  document.head.appendChild(style);
+}
 
 const lv = { world: 0, pick: 0, round: null, token: 0, view: "map" };
 const overlay = $("[data-lv-overlay]");
@@ -3086,6 +3350,9 @@ function saveAdv(data) {
   stored(ADV_KEY, JSON.stringify(all));
 }
 const levelId = (w, k) => `w${w}l${k}`;
+// Levels are numbered across all worlds: world 1 has levels 1–5, world 20 has levels 96–100.
+const levelNo = (w, k) => w * 5 + k + 1;
+const LEVEL_COUNT = () => WORLDS.length * 5;
 const cleared = (data, w, k) => (data.levels[levelId(w, k)]?.stars || 0) > 0;
 const unlocked = (data, w, k) => k === 0 || cleared(data, w, k - 1);
 const starsIn = (data, w) => WORLDS[w].levels.reduce((sum, _, k) => sum + (data.levels[levelId(w, k)]?.stars || 0), 0);
@@ -3150,16 +3417,17 @@ function showMap() {
     .map((level, k) => {
       const open = unlocked(data, lv.world, k);
       const stars = data.levels[levelId(lv.world, k)]?.stars || 0;
-      return `<button type="button" class="lv-node${open ? "" : " locked"}${k === lv.pick ? " picked" : ""}${stars ? " done" : ""}" style="left:${xs[k]}%;top:${ys[k]}%" data-node="${k}" aria-label="Level ${k + 1}: ${level.name}${open ? "" : " (locked)"}"><b>${open ? k + 1 : "🔒"}</b><i>${open ? starText(stars) : ""}</i></button>`;
+      return `<button type="button" class="lv-node${open ? "" : " locked"}${k === lv.pick ? " picked" : ""}${stars ? " done" : ""}" style="left:${xs[k]}%;top:${ys[k]}%" data-node="${k}" aria-label="Level ${levelNo(lv.world, k)}: ${level.name}${open ? "" : " (locked)"}"><b>${open ? levelNo(lv.world, k) : "🔒"}</b><i>${open ? starText(stars) : ""}</i></button>`;
     })
     .join("");
   const decor = [...world.decor].filter((c) => c.trim() && c !== "️");
-  const sprinkles = [12, 33, 52, 70, 88]
-    .map((x, i) => `<span class="lv-decor" style="left:${x}%;top:${i % 2 ? 78 : 12}%">${decor[i % decor.length]}</span>`)
+  // Decorations keep to the corners and the bottom, clear of the title and the level path.
+  const sprinkles = [[6, 14], [30, 84], [52, 88], [74, 84], [94, 70]]
+    .map(([x, y], i) => `<span class="lv-decor" style="left:${x}%;top:${y}%">${decor[i % decor.length]}</span>`)
     .join("");
   showOverlay(`<div class="lv-map" style="--tint:${world.tint};background:${world.wash}">
     ${sprinkles}
-    <div class="lv-head"><button type="button" data-world="-1" aria-label="Previous world"${lv.world === 0 ? " disabled" : ""}>◀</button><span><b>${world.icon} World ${lv.world + 1} · ${world.name}</b><small>⭐ ${starsIn(data, lv.world)} of 15</small></span><button type="button" data-world="1" aria-label="Next world"${lv.world === WORLDS.length - 1 ? " disabled" : ""}>▶</button></div>
+    <div class="lv-head"><button type="button" data-world="-1" aria-label="Previous world"${lv.world === 0 ? " disabled" : ""}>◀</button><span><b>${world.icon} World ${lv.world + 1} of ${WORLDS.length} · ${world.name}</b><small>Levels ${levelNo(lv.world, 0)}–${levelNo(lv.world, 4)} · ⭐ ${starsIn(data, lv.world)} of 15</small></span><button type="button" data-world="1" aria-label="Next world"${lv.world === WORLDS.length - 1 ? " disabled" : ""}>▶</button></div>
     <svg class="lv-path" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="${path}"/></svg>
     ${nodes}
     <button type="button" class="lv-node chest${chestOpen ? " done" : ""}" style="left:${xs[5]}%;top:${ys[5]}%" data-node="chest" aria-label="Treasure chest"><b>${chestOpen ? world.golden[0] : "🎁"}</b><i>${chestOpen ? "opened" : "finish 5"}</i></button>
@@ -3169,8 +3437,8 @@ function showMap() {
   $("[data-lv-stars]").textContent = `⭐ ${allStars(data)} · 🧩 ${data.stickers.length}`;
   $("[data-lv-box]").hidden = true;
   $("[data-lv-dots]").textContent = "";
-  say("levels", `<b>Level ${lv.pick + 1}: ${level.name}</b><br><small>${world.text}${level.time ? ` Finish 8 in ${level.time[0]} seconds for 3 stars.` : ""}</small>`, { voice: false });
-  lvButtons(`<button type="button" class="primary" data-lv="play">▶ Play level ${lv.pick + 1}</button><button type="button" data-lv="book">📒 Stickers</button>${data.beads.length > 1 ? `<button type="button" data-lv="beads">🎨 Beads</button>` : ""}`);
+  say("levels", `<b>Level ${levelNo(lv.world, lv.pick)} of ${LEVEL_COUNT()}: ${level.name}</b><br><small>${world.text}${level.time ? ` Finish 8 in ${level.time[0]} seconds for 3 stars.` : ""}</small>`, { voice: false });
+  lvButtons(`<button type="button" class="primary" data-lv="play">▶ Play level ${levelNo(lv.world, lv.pick)}</button><button type="button" data-lv="book">📒 Stickers</button>${data.beads.length > 1 ? `<button type="button" data-lv="beads">🎨 Beads</button>` : ""}`);
 }
 
 function showBook(tab = lv.world) {
@@ -3215,7 +3483,7 @@ function startLevel() {
   lv.round = { spec, n: 0, count: spec.count || 5, helped: 0, mistakes: 0, started: performance.now(), problem: null, stage: 0, token: lv.token };
   hideOverlay();
   $("[data-lv-box]").hidden = false;
-  $("[data-lv-title]").textContent = `${WORLDS[lv.world].icon} Level ${lv.pick + 1}: ${spec.name}`;
+  $("[data-lv-title]").textContent = `${WORLDS[lv.world].icon} Level ${levelNo(lv.world, lv.pick)}: ${spec.name}`;
   lvButtons(`<button type="button" data-lv="hint">Hint</button><button type="button" data-lv="step">Show a step</button><button type="button" data-lv="map">🗺️ Map</button>`);
   record?.note("level", `${WORLDS[lv.world].name} ${lv.pick + 1}`);
   nextLevelProblem();
@@ -3321,7 +3589,7 @@ function finishLevel() {
   const rewardHtml = rewards.length
     ? rewards.map((reward, i) => `<div class="lv-reveal" style="animation-delay:${0.35 + i * 0.5}s">${stickerHtml(reward.sticker, { bonus: reward.kind === "bonus", tilt: i ? 4 : -3 })}<p>${reward.kind === "bonus" ? "✨ Mystery sticker!" : "New sticker!"}</p></div>`).join("")
     : `<p class="lv-none">${firstClear ? "" : "You already have this level's sticker. Play for more stars!"}</p>`;
-  showOverlay(`<div class="lv-win"><h2>Level ${lv.pick + 1} cleared!</h2><div class="lv-big-stars">${starText(stars)
+  showOverlay(`<div class="lv-win"><h2>${levelNo(lv.world, lv.pick) === LEVEL_COUNT() ? "🏆 Level 100! Grandmaster!" : `Level ${levelNo(lv.world, lv.pick)} cleared!`}</h2><div class="lv-big-stars">${starText(stars)
     .split("")
     .map((s, i) => `<span style="animation-delay:${i * 0.18}s" class="${s === "★" ? "on" : ""}">${s}</span>`)
     .join("")}</div><div class="lv-rewards">${rewardHtml}</div></div>`);
@@ -3383,7 +3651,7 @@ overlay.addEventListener("click", (event) => {
     }
     const k = Number(node.dataset.node);
     if (!unlocked(data, lv.world, k)) {
-      say("levels", `Finish level ${k} first to unlock this one!`);
+      say("levels", `Finish level ${levelNo(lv.world, k - 1)} first to unlock this one!`);
       return;
     }
     lv.pick = k;
