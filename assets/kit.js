@@ -60,8 +60,7 @@
     return VOICE.speakAsync(html);
   }
 
-  function confetti(host = $("[data-stage]")) {
-    if (still.matches || !host) return;
+  function confettiBurst(host) {
     const box = document.createElement("div");
     box.className = "kt-confetti";
     const colors = ["#e53935", "#fb8c00", "#fdd835", "#43a047", "#1e88e5", "#8e24aa", "#ec407a", "#c98c58"];
@@ -77,6 +76,120 @@
     }
     host.appendChild(box);
     setTimeout(() => box.remove(), 3200);
+  }
+
+  // ---------- Surprises: a different celebration each time a young learner achieves something ----------
+  const RAINBOW = ["#e53935", "#fb8c00", "#fdd835", "#43a047", "#1e88e5", "#8e24aa"];
+  const layer = (host, kind, ms) => {
+    const box = document.createElement("div");
+    box.className = `kt-surprise kt-${kind}`;
+    box.setAttribute("aria-hidden", "true");
+    host.appendChild(box);
+    setTimeout(() => box.remove(), ms);
+    return box;
+  };
+  const glyph = (box, char, css = {}) => {
+    const span = document.createElement("span");
+    span.textContent = char;
+    Object.assign(span.style, css);
+    box.appendChild(span);
+    return span;
+  };
+  const SURPRISES = {
+    rainbow(host) {
+      const box = layer(host, "rainbow", 3600);
+      box.innerHTML = `<svg viewBox="0 0 400 220">${RAINBOW.map((c, i) => `<path d="M${40 + i * 14} 210 A${160 - i * 14} ${160 - i * 14} 0 0 1 ${360 - i * 14} 210" stroke="${c}" stroke-width="15" fill="none" stroke-linecap="round" pathLength="100" style="animation-delay:${i * 0.08}s"/>`).join("")}<g class="kt-cloud"><circle cx="40" cy="206" r="26"/><circle cx="70" cy="200" r="30"/><circle cx="20" cy="214" r="18"/></g><g class="kt-cloud"><circle cx="330" cy="200" r="30"/><circle cx="360" cy="206" r="26"/><circle cx="382" cy="214" r="18"/></g></svg>`;
+      for (let i = 0; i < 12; i++) glyph(box, "✨", { left: `${10 + Math.random() * 80}%`, top: `${8 + Math.random() * 50}%`, animationDelay: `${0.6 + Math.random() * 1.2}s` });
+    },
+    unicorn(host) {
+      const box = layer(host, "unicorn", 3400);
+      box.innerHTML = `<div class="kt-trail">${RAINBOW.map((c) => `<i style="background:${c}"></i>`).join("")}</div>`;
+      glyph(box, "🦄").className = "kt-runner";
+    },
+    balloons(host) {
+      const box = layer(host, "balloons", 4200);
+      for (let i = 0; i < 11; i++) {
+        const b = document.createElement("i");
+        b.style.left = `${4 + i * 8.6 + Math.random() * 3}%`;
+        b.style.background = RAINBOW[i % RAINBOW.length];
+        b.style.animationDelay = `${Math.random() * 0.7}s`;
+        b.style.animationDuration = `${2.6 + Math.random() * 1.2}s`;
+        box.appendChild(b);
+      }
+    },
+    fireworks(host) {
+      const box = layer(host, "fireworks", 3000);
+      for (let k = 0; k < 4; k++) {
+        const burst = document.createElement("div");
+        burst.className = "kt-burst";
+        burst.style.left = `${15 + Math.random() * 70}%`;
+        burst.style.top = `${15 + Math.random() * 45}%`;
+        burst.style.animationDelay = `${k * 0.45}s`;
+        for (let i = 0; i < 16; i++) {
+          const p = document.createElement("i");
+          p.style.setProperty("--a", `${i * 22.5}deg`);
+          p.style.background = RAINBOW[(i + k) % RAINBOW.length];
+          p.style.animationDelay = `${k * 0.45}s`;
+          burst.appendChild(p);
+        }
+        box.appendChild(burst);
+      }
+    },
+    bubbles(host) {
+      const box = layer(host, "bubbles", 4000);
+      for (let i = 0; i < 18; i++) {
+        const b = document.createElement("i");
+        const size = 24 + Math.random() * 46;
+        Object.assign(b.style, { left: `${Math.random() * 94}%`, width: `${size}px`, height: `${size}px`, animationDelay: `${Math.random() * 1}s`, animationDuration: `${2.2 + Math.random() * 1.4}s` });
+        box.appendChild(b);
+      }
+    },
+    stars(host) {
+      const box = layer(host, "stars", 4000);
+      for (let i = 0; i < 3; i++) glyph(box, "⭐", { top: `${6 + i * 16}%`, animationDelay: `${i * 0.55}s` }).className = "kt-shoot";
+      for (let i = 0; i < 24; i++) glyph(box, i % 2 ? "⭐" : "🌟", { left: `${Math.random() * 92}%`, top: `${8 + Math.random() * 80}%`, fontSize: `${28 + Math.random() * 26}px`, animationDelay: `${0.2 + Math.random() * 2.2}s` }).className = "kt-twinkle";
+    },
+    butterflies(host) {
+      const box = layer(host, "butterflies", 4200);
+      for (let i = 0; i < 7; i++) glyph(box, "🦋", { top: `${10 + Math.random() * 65}%`, animationDelay: `${Math.random() * 1.2}s`, animationDuration: `${2.6 + Math.random() * 1.2}s`, fontSize: `${30 + Math.random() * 30}px` });
+    },
+    confetti: confettiBurst,
+  };
+  let deck = [];
+  // A different surprise each time: deal from a shuffled deck so none repeats until all have been seen.
+  function surprise(kind, host = $("[data-stage]")) {
+    if (still.matches || !host) return;
+    if (!SURPRISES[kind]) {
+      if (!deck.length) deck = shuffle(Object.keys(SURPRISES));
+      kind = deck.pop();
+    }
+    if (getComputedStyle(host).position === "static") host.style.position = "relative";
+    SURPRISES[kind](host);
+    return kind;
+  }
+  // A small burst of stars where something good just happened (an element or the stage centre).
+  function sparkle(target) {
+    if (still.matches) return;
+    const host = $("[data-stage]");
+    if (!host) return;
+    const h = host.getBoundingClientRect();
+    const r = target?.getBoundingClientRect?.() || h;
+    const box = layer(host, "sparkle", 1100);
+    box.style.left = `${r.left - h.left + r.width / 2}px`;
+    box.style.top = `${r.top - h.top + r.height / 2}px`;
+    for (let i = 0; i < 10; i++) {
+      const p = document.createElement("i");
+      p.textContent = i % 3 ? "✦" : "★";
+      p.style.setProperty("--a", `${i * 36}deg`);
+      p.style.color = RAINBOW[i % RAINBOW.length];
+      box.appendChild(p);
+    }
+  }
+  // Young learners get a surprise; older learners keep the calm confetti.
+  function confetti(host = $("[data-stage]")) {
+    if (still.matches || !host) return;
+    if (mature) return confettiBurst(host);
+    surprise(null, host);
   }
 
   function numpad(host, { onEnter, max = 4 } = {}) {
@@ -264,6 +377,37 @@
 .kt-step-dots i.on{width:26px;border-radius:6px;background:var(--accent)}
 .kt-step-dots small{margin-left:6px;color:var(--muted);font:800 13px var(--sans)}
 @media (max-height:460px){.kt-step-btn{min-height:42px;font-size:17px}}
+.kt-surprise{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:7}
+.kt-rainbow svg{position:absolute;left:50%;top:50%;width:min(92%,640px);transform:translate(-50%,-55%);animation:kt-fadeout 3.6s ease forwards}
+.kt-rainbow path{stroke-dasharray:100;stroke-dashoffset:100;animation:kt-draw .9s cubic-bezier(.3,.7,.3,1) forwards}
+.kt-rainbow .kt-cloud{fill:#fff;filter:drop-shadow(0 3px 4px rgba(0,0,0,.12));opacity:0;animation:kt-in .4s .7s forwards}
+.kt-rainbow span{position:absolute;font-size:28px;opacity:0;animation:kt-twink 1.2s ease-in-out forwards}
+.kt-trail{position:absolute;left:0;top:44%;height:72px;width:0;display:flex;flex-direction:column;border-radius:0 40px 40px 0;overflow:hidden;animation:kt-trail 2.4s cubic-bezier(.4,.1,.4,1) forwards,kt-fadeout 3.4s ease forwards}
+.kt-trail i{flex:1}
+.kt-runner{position:absolute;left:-90px;top:calc(44% - 36px);font-size:84px;line-height:1;transform:scaleX(-1);animation:kt-run 2.4s cubic-bezier(.4,.1,.4,1) forwards}
+.kt-balloons i{position:absolute;bottom:-120px;width:56px;height:70px;border-radius:50% 50% 48% 48%;box-shadow:inset -8px -10px 0 rgba(0,0,0,.12),inset 8px 8px 0 rgba(255,255,255,.35);animation:kt-rise linear forwards}
+.kt-balloons i::after{content:"";position:absolute;left:50%;top:100%;width:2px;height:60px;background:rgba(0,0,0,.25)}
+.kt-burst{position:absolute;width:0;height:0}
+.kt-burst i{position:absolute;left:-5px;top:-5px;width:10px;height:10px;border-radius:50%;opacity:0;animation:kt-boom 1.1s ease-out forwards}
+.kt-bubbles i{position:absolute;bottom:-80px;border-radius:50%;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.95),rgba(255,255,255,.2) 32%,rgba(120,200,255,.25) 60%,rgba(255,120,220,.35));box-shadow:inset 0 0 0 2px rgba(255,255,255,.7);animation:kt-bubble ease-in forwards}
+.kt-shoot{position:absolute;left:-60px;font-size:50px;line-height:1;opacity:0;animation:kt-shoot 1.5s ease-in forwards}
+.kt-shoot::before{content:"";position:absolute;right:70%;top:45%;width:160px;height:8px;border-radius:4px;background:linear-gradient(90deg,transparent,#ffe082);transform:rotate(-10deg);transform-origin:right center}
+.kt-twinkle{position:absolute;opacity:0;animation:kt-twink 1.6s ease-in-out forwards}
+.kt-butterflies span{position:absolute;left:-60px;animation:kt-flutter ease-in-out forwards}
+.kt-sparkle{position:absolute;inset:auto;width:0;height:0;overflow:visible}
+.kt-sparkle i{position:absolute;left:-10px;top:-12px;font:900 22px/1 sans-serif;font-style:normal;animation:kt-spark 1s ease-out forwards}
+@keyframes kt-draw{to{stroke-dashoffset:0}}
+@keyframes kt-in{to{opacity:1}}
+@keyframes kt-fadeout{0%,75%{opacity:1}100%{opacity:0}}
+@keyframes kt-twink{0%{opacity:0;transform:scale(.3) rotate(0)}40%{opacity:1;transform:scale(1.2) rotate(20deg)}100%{opacity:0;transform:scale(.6) rotate(40deg)}}
+@keyframes kt-trail{to{width:100%}}
+@keyframes kt-run{to{left:calc(100% + 10px)}}
+@keyframes kt-rise{0%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-55vh) rotate(5deg)}100%{transform:translateY(-115vh) rotate(-4deg)}}
+@keyframes kt-boom{0%{opacity:1;transform:rotate(var(--a)) translateX(0) scale(1.2)}100%{opacity:0;transform:rotate(var(--a)) translateX(110px) scale(.4)}}
+@keyframes kt-bubble{0%{transform:translateY(0) translateX(0)}50%{transform:translateY(-50vh) translateX(18px)}92%{opacity:1}100%{transform:translateY(-95vh) translateX(-10px) scale(1.4);opacity:0}}
+@keyframes kt-shoot{0%{transform:translate(0,0) rotate(-10deg);opacity:1}10%{opacity:1}100%{transform:translate(120vw,30vh) rotate(-10deg);opacity:0}}
+@keyframes kt-flutter{0%{transform:translate(0,0) rotate(-10deg)}25%{transform:translate(30vw,-40px) rotate(10deg)}50%{transform:translate(60vw,30px) rotate(-10deg)}75%{transform:translate(90vw,-30px) rotate(10deg)}100%{transform:translate(120vw,0) rotate(-10deg)}}
+@keyframes kt-spark{0%{opacity:1;transform:rotate(var(--a)) translateX(0) scale(.6)}100%{opacity:0;transform:rotate(var(--a)) translateX(70px) scale(1.2)}}
 .kt-confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:6}
 .kt-confetti span{position:absolute;top:-16px;width:9px;height:14px;border-radius:2px;animation:kt-fall linear forwards}
 @keyframes kt-fall{to{transform:translate(var(--drift),760px) rotate(var(--spin));opacity:.9}}
@@ -290,5 +434,5 @@
 `;
   document.head.appendChild(style);
 
-  window.KIT = { explain, emoji, everyday, howTo, NS, $, $$, pick, pickInt, wait, shuffle, PRAISE, KIND, still, svg, el, text, panel, say, sayAsync, confetti, numpad, choices };
+  window.KIT = { explain, emoji, everyday, howTo, NS, $, $$, pick, pickInt, wait, shuffle, PRAISE, KIND, still, svg, el, text, panel, say, sayAsync, confetti, surprise, sparkle, SURPRISES, numpad, choices };
 })();

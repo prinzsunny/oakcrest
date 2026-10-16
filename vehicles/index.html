@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Zoom Town · OakCrest Academy</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&display=swap">
 <link rel="stylesheet" href="../assets/oc.css">
 <link rel="stylesheet" href="../assets/app.css">
 <script src="../assets/oc.js"></script>
@@ -25,6 +25,7 @@
   <div class="ap-spacer"></div>
   <div class="ap-tools">
     <span data-chip data-home="../"></span>
+    <button type="button" class="ap-icon zt-book-btn" data-book aria-label="Sticker book" title="Sticker book">🎁<span data-book-count></span></button>
     <button type="button" class="ap-icon" data-photo aria-label="Add a photo" title="Add a photo">📷</button>
     <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
     <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
@@ -38,7 +39,7 @@
 </header>
 <main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
 </div>
-<script>const { $, el, panel, say, sayAsync, wait, confetti, explain, shuffle, still } = KIT;
+<script>const { $, el, panel, say, sayAsync, wait, confetti, explain, shuffle, still, surprise, sparkle } = KIT;
 const stage = $("[data-stage]");
 let token = 0;
 let cleanups = [];
@@ -108,10 +109,16 @@ const V = Object.fromEntries(VEHICLES.map((v) => [v.id, v]));
 const COLORS = [
   { name: "red", fill: "#e53935" },
   { name: "blue", fill: "#1e88e5" },
-  { name: "yellow", fill: "#fdd835" },
+  { name: "yellow", fill: "#fdd835", ink: "#c9a400" },
   { name: "green", fill: "#43a047" },
   { name: "orange", fill: "#fb8c00" },
   { name: "purple", fill: "#8e24aa" },
+];
+const MORE_COLORS = [
+  { name: "pink", fill: "#f06292" },
+  { name: "brown", fill: "#8d5a3b" },
+  { name: "black", fill: "#263238" },
+  { name: "white", fill: "#fafafa", ink: "#78909c" },
 ];
 const WHERE = {
   sky: { name: "sky", icon: "☁️" },
@@ -121,8 +128,36 @@ const WHERE = {
 };
 const ROUNDS = 6;
 const rpick = (list) => list[Math.floor(Math.random() * list.length)];
-// A target that is not the same as last round.
-const nextTarget = (list, last) => rpick(list.filter((x) => x !== last));
+const ROAD = VEHICLES.filter((v) => v.where === "road");
+const plural = (name) => (name.endsWith("s") ? `${name}es` : `${name}s`);
+
+// ---------- letters and first sounds ----------
+// The voice says a letter by its name ("bee"), never as a bare sound; sounds are taught through words.
+const LETTER_NAME = { a: "ay", b: "bee", c: "see", d: "dee", e: "ee", f: "eff", g: "gee", h: "aitch", i: "eye", j: "jay", k: "kay", l: "ell", m: "em", n: "en", o: "oh", p: "pee", q: "cue", r: "are", s: "ess", t: "tee", u: "you", v: "vee", w: "double you", x: "ex", y: "why", z: "zee" };
+const LN = (l) => LETTER_NAME[l];
+const big = (l) => `<b class="zt-letter">${l.toUpperCase()}${l}</b>`;
+const ABC = "abcdefghijklmnopqrstuvwxyz".split("");
+// "A is for ambulance": a vehicle or helper word that begins with each letter.
+const LETTER_WORD = { a: "ambulance", b: "bus", c: "car", d: "digger", e: "engine", f: "fire truck", g: "garbage truck", h: "helicopter", i: "ice cream truck", j: "jeep", k: "kayak", l: "ladder", m: "motorcycle", n: "nurse", o: "ocean liner", p: "police car", q: "quad bike", r: "rocket", s: "scooter", t: "train", u: "unicycle", v: "van", w: "wheel", x: "x-ray", y: "yacht", z: "zebra crossing" };
+// First sounds. Every word starts with the usual sound of its letter (short a, hard c and g, y as in yes).
+// Pictures: "svg:id" is a drawn vehicle with the child's face; anything else is an emoji.
+const FIRST = [
+  ["b", "bus", "svg:bus"], ["b", "boat", "svg:boat"], ["b", "bike", "🚲"],
+  ["c", "car", "svg:car"], ["d", "digger", "svg:digger"], ["f", "fire truck", "svg:fire"],
+  ["g", "garbage truck", "svg:garbage"], ["h", "helicopter", "🚁"], ["j", "jet", "✈️"],
+  ["k", "kayak", "🛶"], ["m", "motorcycle", "🏍️"], ["p", "police car", "svg:police"],
+  ["p", "pickup truck", "🛻"], ["r", "rocket", "🚀"], ["r", "race car", "🏎️"],
+  ["s", "scooter", "🛵"], ["t", "train", "svg:train"], ["t", "tractor", "🚜"],
+  ["t", "taxi", "🚕"], ["v", "van", "🚐"], ["a", "ambulance", "svg:ambulance"], ["y", "yacht", "🛥️"],
+].map(([letter, word, pic]) => ({ letter, word, pic }));
+// c and k start with the same sound (car, kayak), so they are never choices together.
+const soundGroup = (l) => (l === "k" ? "c" : l);
+const FIRST_LETTERS = [...new Set(FIRST.map((f) => f.letter))];
+
+// ---------- patterns ----------
+// Each level adds harder pattern shapes. Letters are positions in the repeating unit.
+const PATTERN_KINDS = [["AB"], ["AB", "AAB", "ABB"], ["AAB", "ABB", "ABC"], ["ABC", "AABB", "ABCC", "AABC"]];
+const CARGO = ["bus", "fire", "boat", "plane", "digger", "police"];
 
 // ======================================================================
 // Art. Everything is SVG markup so it can go in a button, a card or a See it scene.
@@ -218,7 +253,27 @@ const ART = {
 function vehicle(id, attrs = "", opts = {}) {
   return `<svg viewBox="0 0 260 160" class="zt-v" ${attrs}>${ART[id](opts)}</svg>`;
 }
-const mini = (role) => `<svg viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="104" r="88" fill="#fff4ec"/>${head(role, 100, 112, 62)}</svg>`;
+const LETTER_FONT = "Andika, 'Century Gothic', 'Chalkboard SE', ui-rounded, system-ui, sans-serif";
+// A letter shown the way school books print it: capital and small together.
+const letterCard = (l) => `<svg viewBox="0 0 200 140" class="zt-v"><text x="100" y="112" text-anchor="middle" font-family="${LETTER_FONT}" font-weight="700" font-size="118" fill="#2b1d12">${l.toUpperCase()}<tspan fill="var(--accent)" dx="6">${l}</tspan></text></svg>`;
+const emojiPic = (glyph) => `<svg viewBox="0 0 260 160" class="zt-v"><text x="130" y="128" text-anchor="middle" font-size="128" font-family="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif">${glyph}</text></svg>`;
+const picOf = (pic) => (pic.startsWith("svg:") ? vehicle(pic.slice(4), "", { fill: "#e53935" }) : emojiPic(pic));
+// A delivery truck with a letter painted on its box.
+ART.box = ({ letter = "a", fill = "#1e88e5" } = {}) => `<rect x="8" y="26" width="176" height="100" rx="10" fill="#fff" stroke="${fill}" stroke-width="8"/><text x="96" y="104" text-anchor="middle" font-family="${LETTER_FONT}" font-weight="700" font-size="74" fill="#2b1d12">${letter.toUpperCase()}<tspan fill="${fill}" dx="4">${letter}</tspan></text><path d="M184 128 V58 Q184 52 190 52 H222 Q230 52 236 60 L254 90 V128Z" fill="${fill}"/>${winRect(192, 60, 38, 30, "kid")}<rect x="182" y="118" width="74" height="10" rx="3" fill="#cfd8dc"/><circle cx="248" cy="102" r="5" fill="#fff59d"/>${wheel(54)}${wheel(214)}`;
+// Pattern trains: an engine (facing left, pulling) and wagons that are a colour or carry a vehicle.
+const WAGON_W = 124;
+function wagon(item, x, mode) {
+  if (!item) return `<g transform="translate(${x} 0)"><rect x="6" y="22" width="112" height="76" rx="12" fill="#fffaf0" stroke="var(--accent)" stroke-width="5" stroke-dasharray="12 9"/><text x="62" y="80" text-anchor="middle" font-family="Nunito, sans-serif" font-weight="900" font-size="54" fill="var(--accent)">?</text>${wheel(34, 13, 110)}${wheel(90, 13, 110)}</g>`;
+  const body = mode === "color" ? `<rect x="6" y="24" width="112" height="72" rx="10" fill="${item.fill}"/><rect x="6" y="24" width="112" height="12" rx="6" fill="rgba(0,0,0,.18)"/><rect x="20" y="46" width="34" height="26" rx="5" fill="rgba(255,255,255,.75)"/><rect x="70" y="46" width="34" height="26" rx="5" fill="rgba(255,255,255,.75)"/>` : `<svg x="4" y="14" width="116" height="72" viewBox="0 0 260 160">${ART[item.id]({ fill: "#e53935" })}</svg><rect x="4" y="84" width="116" height="14" rx="4" fill="#8d6e63"/>`;
+  return `<g transform="translate(${x} 0)"><rect x="-6" y="88" width="12" height="6" fill="#455a64"/>${body}${wheel(34, 13, 110)}${wheel(90, 13, 110)}</g>`;
+}
+// The train is a wrapping row (engine first), so on a narrow phone it reads in rows like a book.
+function patternTrain(items, mode) {
+  const engine = `<span class="zt-wg zt-engine"><svg viewBox="0 0 176 130" class="zt-v"><g transform="translate(176 0) scale(-1 1)"><svg width="176" height="125" viewBox="0 0 260 160">${ART.train()}</svg></g></svg></span>`;
+  return `<div class="zt-ptrain">${engine}${items.map((item) => `<span class="zt-wg${item ? "" : " zt-wg-q"}">${wagonCard(item, mode)}</span>`).join("")}</div>`;
+}
+const wagonCard = (item, mode) => `<svg viewBox="-8 0 136 130" class="zt-v">${wagon(item, 0, mode)}</svg>`;
+const mini = (role) =>`<svg viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="104" r="88" fill="#fff4ec"/>${head(role, 100, 112, 62)}</svg>`;
 
 // ======================================================================
 // Vehicle sounds, made with Web Audio. They follow the Sounds on/off setting.
@@ -384,9 +439,134 @@ const anim = (node, frames, ms, opts = {}) => {
 const pop = (node) => anim(node, [{ transform: "scale(1)" }, { transform: "scale(1.08)" }, { transform: "scale(1)" }], 380, { fill: "none" });
 const shake = (node) => anim(node, [{ transform: "translateX(0)" }, { transform: "translateX(-10px)" }, { transform: "translateX(9px)" }, { transform: "translateX(-6px)" }, { transform: "translateX(0)" }], 420, { fill: "none" });
 
-const talk = (html, my = token) => (my === token ? sayAsync(html) : Promise.resolve(false));
+// talk("html") shows and speaks the same words. talk({ html, speech }) speaks different words,
+// so a capital B on screen is read as "bee".
+const talk = (msg, my = token) => {
+  if (my !== token) return Promise.resolve(false);
+  if (typeof msg === "string") return sayAsync(msg);
+  const box = $("[data-say]");
+  if (box) box.innerHTML = msg.html;
+  return VOICE.speakAsync(msg.speech);
+};
 const mark = (id, data) => shell.mark(id, data);
-const NEXT = { see: "drive", drive: "dress", dress: "find", find: "colors", colors: "who", who: "hear", hear: "where", where: null };
+const NEXT = { see: "drive", drive: "dress", dress: "find", find: "colors", colors: "count", count: "letters", letters: "phonics", phonics: "patterns", patterns: "who", who: "hear", hear: "where", where: null };
+
+// ======================================================================
+// Learning that adapts. Each game keeps a level for the child:
+// three right first time in a row → a little harder; two misses in a row → a little easier.
+// Missed items are remembered and come back in later rounds until they are right first time.
+// ======================================================================
+function skillOf(id, { start = 1, max = 3 } = {}) {
+  const saved = shell.progress()[id] || {};
+  let level = Math.max(0, Math.min(max, saved.level ?? start));
+  let missed = Array.isArray(saved.missed) ? saved.missed : [];
+  let streak = 0;
+  let slips = 0;
+  const save = () => mark(id, { level, missed });
+  return {
+    get level() {
+      return level;
+    },
+    max,
+    // Right first time. Returns true when the level goes up.
+    right(key) {
+      streak += 1;
+      slips = 0;
+      missed = missed.filter((k) => k !== key);
+      const up = streak >= 3 && level < max;
+      if (up) {
+        level += 1;
+        streak = 0;
+      }
+      save();
+      return up;
+    },
+    wrong(key) {
+      streak = 0;
+      slips += 1;
+      missed = [key, ...missed.filter((k) => k !== key)].slice(0, 8);
+      if (slips >= 2 && level > 0) {
+        level -= 1;
+        slips = 0;
+      }
+      save();
+    },
+    // Not the same as last time; a missed item comes back about two rounds in five.
+    pick(list, keyOf, last) {
+      const others = list.filter((x) => x !== last);
+      const pool = others.length ? others : list;
+      const review = pool.filter((x) => missed.includes(keyOf(x)));
+      return review.length && Math.random() < 0.4 ? rpick(review) : rpick(pool);
+    },
+  };
+}
+const choicesFor = (level) => [2, 3, 4, 4][Math.min(level, 3)];
+// ======================================================================
+// Surprises and stickers. Every right answer sparkles, every third star brings a surprise
+// (rainbow, unicorn, balloons, fireworks, bubbles, shooting stars, butterflies, confetti),
+// and each level-up or finished game adds a sticker to the child's sticker book.
+// ======================================================================
+const STICKERS = [["🦄", "unicorn"], ["🌈", "rainbow"], ["🚀", "rocket"], ["🦖", "dinosaur"], ["🐬", "dolphin"], ["🦋", "butterfly"], ["🌟", "star"], ["🍦", "ice cream"], ["🎈", "balloon"], ["🐙", "octopus"], ["🦁", "lion"], ["🐼", "panda"], ["🚒", "fire truck"], ["🚁", "helicopter"], ["🍩", "donut"], ["🧸", "teddy bear"], ["🐳", "whale"], ["🦒", "giraffe"], ["🍉", "watermelon"], ["🐧", "penguin"], ["🌻", "sunflower"], ["🚂", "train"], ["🐢", "turtle"], ["🦜", "parrot"]];
+const myStickers = () => shell.progress().stickers?.list || [];
+function updateBook() {
+  const n = myStickers().length;
+  $("[data-book-count]").textContent = n ? n : "";
+}
+async function giveSticker(my = token) {
+  if (my !== token) return;
+  const have = myStickers();
+  const fresh = STICKERS.filter(([g]) => !have.includes(g));
+  const [g, name] = rpick(fresh.length ? fresh : STICKERS);
+  mark("stickers", { list: [...have, g] });
+  updateBook();
+  stage.querySelector(".zt-sticker")?.remove();
+  const box = document.createElement("div");
+  box.className = "zt-sticker";
+  box.innerHTML = `<div class="zt-sticker-card"><span class="zt-sticker-glyph">${g}</span><b>New sticker!</b><small>Tap 🎁 to see your sticker book</small></div>`;
+  stage.appendChild(box);
+  MUSIC.chime();
+  anim(box.firstElementChild, [{ transform: "scale(.2) rotate(-25deg)", opacity: 0 }, { transform: "scale(1.12) rotate(6deg)", opacity: 1 }, { transform: "none", opacity: 1 }], 700, { fill: "none" });
+  await talk(`You got a <b>${name}</b> sticker!`, my);
+  await wait(900);
+  if (!box.isConnected) return;
+  await anim(box.firstElementChild, [{ transform: "none", opacity: 1 }, { transform: "translate(40vw, -45vh) scale(.1)", opacity: 0 }], 650, { easing: "ease-in" });
+  box.remove();
+  pop($("[data-book]"));
+}
+// A right answer: sparkles where the finger was, and a bigger surprise on every third star.
+function cheer(target, stars) {
+  sparkle(target);
+  if (stars && stars % 3 === 0) surprise();
+}
+async function levelUp(my) {
+  surprise();
+  MUSIC.chime();
+  await talk(rpick(LEVEL_UP), my);
+  await giveSticker(my);
+}
+function openBook() {
+  VOICE.hush();
+  const have = myStickers();
+  const who = NAME() ? `${NAME()}'s` : "My";
+  const box = document.createElement("div");
+  box.className = "zt-photo zt-book";
+  box.innerHTML = `<div class="zt-photo-card" role="dialog" aria-modal="true" aria-label="Sticker book"><h2>🎁 ${who} sticker book</h2><p class="zt-note">${have.length ? `${new Set(have).size} of ${STICKERS.length} stickers. Finish games and go up levels to win more!` : "Finish a game or go up a level to win your first sticker!"}</p><div class="zt-book-grid">${STICKERS.map(([g, name]) => {
+    const n = have.filter((x) => x === g).length;
+    return n ? `<button type="button" class="zt-slot" data-sticker="${name}">${g}${n > 1 ? `<small>×${n}</small>` : ""}</button>` : `<span class="zt-slot empty">?</span>`;
+  }).join("")}</div><div class="ap-buttons"><button type="button" class="primary" data-close>Close</button></div></div>`;
+  document.body.appendChild(box);
+  if (have.length) VOICE.speak(`You have ${new Set(have).size} stickers!`);
+  box.addEventListener("pointerdown", (event) => {
+    const slot = event.target.closest("[data-sticker]");
+    if (!slot) return;
+    pop(slot);
+    VOICE.speak(cap(slot.dataset.sticker));
+  });
+  box.addEventListener("click", (event) => {
+    if (event.target === box || event.target.closest("[data-close]")) box.remove();
+  });
+}
+const LEVEL_UP = ["You're getting so good! Let's make it a little trickier.", "Wow, you're learning fast! Here comes a harder one.", "Super! Let's go up a level."];
 
 function finishCard({ id, role, icon, message, speech }) {
   const my = token;
@@ -395,7 +575,7 @@ function finishCard({ id, role, icon, message, speech }) {
   MUSIC.chime();
   mark(id, { done: true });
   const host = panel(`<div class="ap-buttons"><button type="button" data-again>🔁 Play again</button>${NEXT[id] ? '<button type="button" class="primary" data-next data-pulse>▶ Next game</button>' : ""}</div>`);
-  talk(speech, my);
+  talk(speech, my).then((ok) => ok && giveSticker(my));
   host.onclick = (event) => {
     if (event.target.closest("[data-again]")) shell.go(id);
     else if (event.target.closest("[data-next]")) shell.go(NEXT[id]);
@@ -502,6 +682,7 @@ const units = {
       if (!live()) return;
       car.querySelector("svg").classList.remove("driving");
       car.classList.add("parked");
+      if (!seen.has(v.id)) sparkle(car);
       seen.add(v.id);
       dots();
       window.OC?.count("vehicles driven");
@@ -514,6 +695,7 @@ const units = {
         confetti();
         MUSIC.chime();
         await talk(`You drove every vehicle! Super driving!`, my);
+        await giveSticker(my);
       } else if (seen.size === 4 && !shell.progress().drive?.done) mark("drive", { done: true });
     }
     onTap(stage, "[data-v]", (button) => go(V[button.dataset.v], button));
@@ -537,6 +719,10 @@ const units = {
       pop(me);
       pop(button);
       MUSIC.chime();
+      if (!tried.has(role)) {
+        sparkle(me);
+        if (tried.size % 4 === 3) surprise();
+      }
       tried.add(role);
       await talk(`${cap(isA(ROLES[role].a))}! ${ROLES[role].does}`, my);
       if (tried.size === 5 && !shell.progress().dress?.done) mark("dress", { done: true });
@@ -545,15 +731,14 @@ const units = {
 
   // ---------- Find it: where is the fire truck? ----------
   find() {
-    let last = null;
     runChoice({
       id: "find",
       count: "vehicles found",
-      gen() {
-        const target = nextTarget(VEHICLES, last);
-        last = target;
-        const others = shuffle(VEHICLES.filter((v) => v !== target)).slice(0, 2);
-        return { target, choices: shuffle([target, ...others]).map((v) => ({ v, ok: v === target, art: vehicle(v.id), label: v.name })) };
+      skill: { start: 1, max: 2 },
+      gen(level, skill, last) {
+        const target = skill.pick(VEHICLES, (v) => v.id, last);
+        const others = shuffle(VEHICLES.filter((v) => v !== target)).slice(0, choicesFor(level) - 1);
+        return { target, key: target.id, choices: shuffle([target, ...others]).map((v) => ({ v, ok: v === target, art: vehicle(v.id), label: v.name })) };
       },
       ask: (q) => `Where is the <b>${q.target.name}</b>?`,
       praise: (q) => `Yes! That is the ${q.target.name}. ${q.target.noise}`,
@@ -564,19 +749,19 @@ const units = {
     });
   },
 
-  // ---------- Colour cars: tap the blue car ----------
+  // ---------- Colour cars: tap the blue car. Higher levels add pink, brown, black and white ----------
   colors() {
-    let last = null;
     runChoice({
       id: "colors",
       count: "colours found",
-      gen() {
-        const target = nextTarget(COLORS, last);
-        last = target;
-        const others = shuffle(COLORS.filter((c) => c !== target)).slice(0, 2);
-        return { target, choices: shuffle([target, ...others]).map((c) => ({ v: c, ok: c === target, art: vehicle("car", "", { fill: c.fill }), label: `${c.name} car` })) };
+      skill: { start: 1, max: 3 },
+      gen(level, skill, last) {
+        const pool = level >= 2 ? [...COLORS, ...MORE_COLORS] : COLORS;
+        const target = skill.pick(pool, (c) => c.name, last);
+        const others = shuffle(pool.filter((c) => c !== target)).slice(0, choicesFor(level) - 1);
+        return { target, key: target.name, choices: shuffle([target, ...others]).map((c) => ({ v: c, ok: c === target, art: vehicle("car", "", { fill: c.fill }), label: `${c.name} car` })) };
       },
-      ask: (q) => `Tap the <b class="zt-word" style="color:${q.target.fill === "#fdd835" ? "#c9a400" : q.target.fill}">${q.target.name}</b> car.`,
+      ask: (q) => `Tap the <b class="zt-word" style="color:${q.target.ink || q.target.fill}">${q.target.name}</b> car.`,
       praise: (q) => `Yes! The ${q.target.name} car. Beep beep!`,
       hint: (q, c) => `That car is ${c.v.name}. Find the ${q.target.name} one.`,
       reveal: (q) => `Here is the ${q.target.name} car.`,
@@ -585,18 +770,275 @@ const units = {
     });
   },
 
+  // ---------- Count them: tap each vehicle to count, then pick how many ----------
+  count() {
+    const my = token;
+    const skill = skillOf("count", { start: 0, max: 4 });
+    // Level → how many vehicles: 1–3, then 2–5, 3–7, 4–10, 6–10.
+    const RANGE = [[1, 3], [2, 5], [3, 7], [4, 10], [6, 10]];
+    const SCALE = [72, 74, 76, 77, 79, 81, 83, 84, 86, 88];
+    const rounds = 5;
+    let round = 0;
+    let tries = 0;
+    let open = false;
+    let q = null;
+    let lastN = 0;
+    stage.innerHTML = `<div class="zt-root">${worldHtml("road")}<div class="zt-nums" data-nums></div></div>`;
+    const world = $(".zt-world", stage);
+    $("[data-lane]", world).remove();
+    const lot = document.createElement("div");
+    lot.className = "zt-lot";
+    world.appendChild(lot);
+    const nums = $("[data-nums]", stage);
+    const host = panel(`<div class="ap-row"><p class="ap-dots" data-dots></p><span class="ap-status" data-level></span><button type="button" class="ap-btn" data-again>🔊 Again</button></div>`);
+    const dots = () => {
+      $("[data-dots]", host).textContent = "⭐".repeat(round) + "⚪".repeat(rounds - round);
+      $("[data-level]", host).textContent = `🚦 Level ${skill.level + 1}`;
+    };
+    const many = () => (q.n === 1 ? q.v.name : plural(q.v.name));
+    const question = () => `How many <b>${plural(q.v.name)}</b>? Tap each one to count.`;
+    host.onclick = (event) => event.target.closest("[data-again]") && q && talk(question(), my);
+
+    function ask() {
+      if (my !== token) return;
+      const [lo, hi] = RANGE[skill.level];
+      let n = lo + Math.floor(Math.random() * (hi - lo + 1));
+      if (n === lastN && hi > lo) n = n === hi ? lo : n + 1;
+      lastN = n;
+      q = { n, v: rpick(ROAD), counted: 0, tapped: new Set() };
+      tries = 0;
+      dots();
+      // One or two rows; never fewer than three columns, so one vehicle is not giant.
+      const perRow = n <= 5 ? n : Math.ceil(n / 2);
+      lot.style.gridTemplateColumns = `repeat(${perRow}, minmax(0, 1fr))`;
+      lot.style.padding = `0 ${Math.max(0, 3 - perRow) * 16}%`;
+      lot.style.gridTemplateRows = `repeat(${Math.ceil(n / perRow)}, minmax(0, 1fr))`;
+      lot.innerHTML = Array.from({ length: n }, (_, i) => `<button type="button" class="zt-cv" data-i="${i}" aria-label="${q.v.name}">${vehicle(q.v.id, 'class="zt-v driving" preserveAspectRatio="xMidYMax meet"')}<span class="zt-badge" hidden></span></button>`).join("");
+      [...lot.children].forEach((car, i) =>
+        anim(car, [{ transform: "translateX(-120vw)" }, { transform: "none" }], 900, { delay: i * 90, fill: "backwards" }).then(() => car.querySelector("svg")?.classList.remove("driving")),
+      );
+      // Number choices: the answer and two near it, in counting order.
+      const near = shuffle([n - 2, n - 1, n + 1, n + 2].filter((k) => k >= 1 && k <= 10)).slice(0, 2);
+      nums.innerHTML = [n, ...near]
+        .sort((a, b) => a - b)
+        .map((k) => `<button type="button" class="zt-card zt-num" data-n="${k}" aria-label="${k}"><b>${k}</b><span class="zt-pips" aria-hidden="true">${"●".repeat(k)}</span></button>`)
+        .join("");
+      open = true;
+      talk(question(), my);
+    }
+    // Count out loud, one vehicle at a time. The last number said tells how many.
+    async function countTogether() {
+      q.counted = 0;
+      q.tapped.clear();
+      for (const b of lot.querySelectorAll(".zt-badge")) b.hidden = true;
+      await talk(`Let's count together. Touch each one as I count.`, my);
+      for (const [i, car] of [...lot.children].entries()) {
+        if (my !== token) return;
+        q.tapped.add(i);
+        q.counted = i + 1;
+        const badge = car.querySelector(".zt-badge");
+        badge.textContent = i + 1;
+        badge.hidden = false;
+        pop(car);
+        MUSIC.play("xylophone", SCALE[i], { gain: 0.45 });
+        await talk(`<b>${i + 1}</b>`, my);
+      }
+      await talk(`<b>${q.n}</b>! The last number tells how many. There ${q.n === 1 ? "is" : "are"} ${q.n} ${many()}.`, my);
+    }
+    onTap(lot, "[data-i]", async (car) => {
+      if (!q || my !== token) return;
+      const i = Number(car.dataset.i);
+      if (q.tapped.has(i)) {
+        shake(car.querySelector(".zt-badge"));
+        return;
+      }
+      q.tapped.add(i);
+      q.counted += 1;
+      const k = q.counted;
+      const badge = car.querySelector(".zt-badge");
+      badge.textContent = k;
+      badge.hidden = false;
+      pop(car);
+      MUSIC.play("xylophone", SCALE[k - 1], { gain: 0.45 });
+      await talk(`<b>${k}</b>`, my);
+      if (k === q.n && q.counted === q.n && open) await talk(`<b>${k}</b>! The last number tells how many. So how many ${plural(q.v.name)}?`, my);
+    });
+    onTap(nums, "[data-n]", async (button) => {
+      if (!open || !q || my !== token) return;
+      const k = Number(button.dataset.n);
+      if (k === q.n) {
+        open = false;
+        button.classList.add("good");
+        for (const b of nums.children) if (b !== button) b.classList.add("dim");
+        const up = tries === 0 ? skill.right(q.n) : false;
+        MUSIC.chime();
+        sfx(q.v.sound);
+        round += 1;
+        window.OC?.count("vehicles counted", q.n);
+        dots();
+        cheer(button, round < rounds && round);
+        [...lot.children].forEach((car, i) => {
+          car.querySelector("svg")?.classList.add("driving");
+          anim(car, [{ transform: "none" }, { transform: "translateX(120vw)" }], 1200, { delay: i * 60, easing: "ease-in" });
+        });
+        await talk(`Yes! <b>${q.n}</b> ${many()}!`, my);
+        if (my !== token) return;
+        hushSfx();
+        if (up && round < rounds) {
+          await levelUp(my);
+          if (my !== token) return;
+        }
+        if (round >= rounds)
+          return finishCard({ id: "count", role: "police", icon: "🔢", message: "Count the cars parked on your street. Touch each one with your finger, and say the numbers out loud.", speech: "Super counting! Count the cars parked on your street. Touch each one with your finger, and say the numbers out loud." });
+        ask();
+      } else {
+        if (tries === 0) skill.wrong(q.n);
+        tries += 1;
+        open = false;
+        MUSIC.oops();
+        shake(button);
+        button.classList.add("bad");
+        if (tries >= 2) {
+          nums.querySelector(`[data-n="${q.n}"]`)?.classList.add("hint");
+          await countTogether();
+          if (my !== token) return;
+          open = true;
+          await talk(`Tap the number <b>${q.n}</b>.`, my);
+        } else {
+          await talk(`Not quite. That says <b>${k}</b>.`, my);
+          if (my !== token) return;
+          await countTogether();
+          if (my !== token) return;
+          open = true;
+          await talk(`So how many ${plural(q.v.name)}?`, my);
+        }
+      }
+    });
+    ask();
+  },
+
+  // ---------- Letter trucks: find the letter. New letters join, A to Z, as the child learns ----------
+  letters() {
+    const PAIRS = { b: "d", d: "b", p: "q", q: "p", m: "w", w: "m", n: "u", u: "n" };
+    const FILLS = ["#1e88e5", "#e53935", "#43a047", "#fb8c00"];
+    runChoice({
+      id: "letters",
+      count: "letters found",
+      skill: { start: 0, max: 8 },
+      gen(level, skill, last) {
+        // Level 1: A–D. Each level adds three letters, so by level 8 it is the whole alphabet.
+        const pool = ABC.slice(0, Math.min(26, 4 + 3 * level));
+        const fresh = pool.slice(-3).filter((l) => l !== last);
+        const target = Math.random() < 0.35 && fresh.length ? rpick(fresh) : skill.pick(pool, (l) => l, last);
+        const n = level === 0 ? 2 : level < 3 ? 3 : 4;
+        let others = shuffle(pool.filter((l) => l !== target)).slice(0, n - 1);
+        // Later on, letters that look alike (b and d, p and q) are put side by side.
+        const twin = PAIRS[target];
+        if (level >= 4 && twin && pool.includes(twin) && !others.includes(twin)) others = [twin, ...others.slice(0, n - 2)];
+        return { target, key: target, choices: shuffle([target, ...others]).map((l, i) => ({ v: l, ok: l === target, art: vehicle("box", "", { letter: l, fill: FILLS[i] }), label: `letter ${l.toUpperCase()}` })) };
+      },
+      ask: (q) => ({ html: `Find the letter ${big(q.target)}.`, speech: `Find the letter ${LN(q.target)}.` }),
+      praise: (q) => ({ html: `Yes! ${big(q.target)} is for <b>${LETTER_WORD[q.target]}</b>!`, speech: `Yes! ${cap(LN(q.target))}. ${cap(LN(q.target))} is for ${LETTER_WORD[q.target]}!` }),
+      hint: (q, c) => ({ html: `That is ${big(c.v)}. Find ${big(q.target)}.`, speech: `That is ${LN(c.v)}. Find ${LN(q.target)}.` }),
+      reveal: (q) => ({ html: `Here is ${big(q.target)}, for <b>${LETTER_WORD[q.target]}</b>.`, speech: `Here is ${LN(q.target)}. ${cap(LN(q.target))} is for ${LETTER_WORD[q.target]}.` }),
+      sound: () => "horn",
+      finish: { role: "bus", icon: "🔤", message: "When you go out, look for letters on trucks, buses and signs. Can you find the first letter of your name?", speech: "You know your letters! When you go out, look for letters on trucks, buses and signs. Can you find the first letter of your name?" },
+    });
+  },
+
+  // ---------- First sounds: which letter does bus start with? ----------
+  phonics() {
+    runChoice({
+      id: "phonics",
+      count: "first sounds",
+      layout: "side",
+      stay: true,
+      skill: { start: 0, max: 2 },
+      gen(level, skill, last) {
+        const target = skill.pick(FIRST, (f) => f.word, last);
+        const others = shuffle(FIRST_LETTERS.filter((l) => soundGroup(l) !== soundGroup(target.letter))).slice(0, choicesFor(level) - 1);
+        return {
+          target,
+          key: target.word,
+          prompt: `<div class="zt-word-pic"><span class="zt-word-art">${picOf(target.pic)}</span><b data-word>${target.word}</b></div>`,
+          choices: shuffle([target.letter, ...others]).map((l) => ({ v: l, ok: l === target.letter, art: letterCard(l), label: `letter ${l.toUpperCase()}` })),
+        };
+      },
+      ask: (q) => ({ html: `<b>${cap(q.target.word)}</b>. What letter does <b>${q.target.word}</b> start with?`, speech: `${cap(q.target.word)}. ${cap(q.target.word)}. What letter does ${q.target.word} start with?` }),
+      onRight(q, box) {
+        const word = $("[data-word]", box);
+        if (word) word.innerHTML = `<span class="zt-first">${q.target.word[0]}</span>${q.target.word.slice(1)}`;
+      },
+      praise: (q) => ({ html: `Yes! <b>${q.target.word}</b> starts with ${big(q.target.letter)}.`, speech: `Yes! ${cap(q.target.word)} starts with ${LN(q.target.letter)}. ${cap(LN(q.target.letter))}, ${q.target.word}!` }),
+      hint(q, c) {
+        const like = FIRST.find((f) => f.letter === c.v);
+        return { html: `${big(c.v)} starts words like <b>${like.word}</b>. Listen again: <b>${q.target.word}</b>.`, speech: `${cap(LN(c.v))} starts words like ${like.word}. Listen to the start: ${q.target.word}, ${q.target.word}. Try again!` };
+      },
+      reveal: (q) => ({ html: `<b>${cap(q.target.word)}</b> starts with ${big(q.target.letter)}.`, speech: `${cap(q.target.word)} starts with ${LN(q.target.letter)}. ${cap(LN(q.target.letter))}, ${q.target.word}.` }),
+      finish: { role: "train", icon: "🗣️", message: "Play I spy with your toy vehicles: I spy something that starts with the letter bee. Bus!", speech: "You hear first sounds so well! Play I spy with your toy vehicles. I spy something that starts with the letter bee. Bus!" },
+    });
+  },
+
+  // ---------- Train patterns: what comes next? ----------
+  patterns() {
+    runChoice({
+      id: "patterns",
+      count: "patterns finished",
+      layout: "stack",
+      stay: true,
+      skill: { start: 0, max: 3 },
+      gen(level, skill, last) {
+        const kind = skill.pick(PATTERN_KINDS[level], (k) => k, last?.kind);
+        const letters = [...new Set(kind)];
+        // From level 3 the wagons sometimes carry vehicles instead of being colours.
+        const mode = level >= 2 && Math.random() < 0.5 ? "cargo" : "color";
+        const source = mode === "color" ? shuffle(COLORS) : shuffle(CARGO).map((id) => ({ id, name: V[id].name }));
+        const items = letters.map((_, i) => source[i]);
+        const unit = [...kind].map((ch) => items[letters.indexOf(ch)]);
+        const shown = Math.min(7, unit.length * 2 + Math.floor(Math.random() * unit.length));
+        const seq = Array.from({ length: shown }, (_, i) => unit[i % unit.length]);
+        const answer = unit[shown % unit.length];
+        // Wrong choices: first the other wagons in the pattern (so the child must think), then a new one.
+        const n = level === 0 ? 2 : 3;
+        const others = [...items.filter((x) => x !== answer), ...source.slice(letters.length)].slice(0, n - 1);
+        return {
+          target: { kind },
+          key: kind,
+          seq,
+          unit,
+          answer,
+          mode,
+          prompt: patternTrain([...seq, null], mode),
+          choices: shuffle([answer, ...others]).map((x) => ({ v: x, ok: x === answer, art: wagonCard(x, mode), label: x.name })),
+        };
+      },
+      ask: (q) => `Look at the train! ${q.seq.map((x) => x.name).join(", ")}... What comes next?`,
+      async onRight(q, box, my) {
+        box.innerHTML = patternTrain([...q.seq, q.answer], q.mode);
+        const train = box.firstElementChild;
+        pop(train);
+        sfx("whistle");
+        await wait(500);
+        if (my === token) train.classList.add("driving");
+      },
+      praise: (q) => `Yes! ${[...q.seq, q.answer].map((x) => x.name).join(", ")}! The pattern is ${q.unit.map((x) => x.name).join(", ")}, again and again.`,
+      hint: (q) => `Let's say it together: ${q.seq.map((x) => x.name).join(", ")}... What repeats? Try again!`,
+      reveal: (q) => `It's ${q.answer.name}! ${q.unit.map((x) => x.name).join(", ")}, ${q.unit.map((x) => x.name).join(", ")}.`,
+      finish: { role: "train", icon: "🔁", message: "Make a pattern train with toy cars or blocks: red, blue, red, blue. Ask a grown-up to start one, and you say what comes next.", speech: "You're a pattern expert! Make a pattern train with toy cars or blocks: red, blue, red, blue. Ask a grown-up to start one, and you say what comes next." },
+    });
+  },
+
   // ---------- Who drives it? The child as a helper picks the helper's vehicle ----------
   who() {
-    let last = null;
     runChoice({
       id: "who",
       count: "helpers matched",
       layout: "side",
-      gen() {
-        const target = nextTarget(VEHICLES, last);
-        last = target;
-        const others = shuffle(VEHICLES.filter((v) => v !== target)).slice(0, 2);
-        return { target, prompt: character(target.role), choices: shuffle([target, ...others]).map((v) => ({ v, ok: v === target, art: vehicle(v.id), label: v.name })) };
+      skill: { start: 1, max: 2 },
+      gen(level, skill, last) {
+        const target = skill.pick(VEHICLES, (v) => v.id, last);
+        const others = shuffle(VEHICLES.filter((v) => v !== target)).slice(0, choicesFor(level) - 1);
+        return { target, key: target.id, prompt: character(target.role), choices: shuffle([target, ...others]).map((v) => ({ v, ok: v === target, art: vehicle(v.id), label: v.name })) };
       },
       ask: (q) => `${cap(isA(ROLES[q.target.role].a))}! Which vehicle does ${ROLES[q.target.role].a} drive?`,
       praise: (q) => `Yes! ${cap(ROLES[q.target.role].a)} drives the ${q.target.name}. ${ROLES[q.target.role].does}`,
@@ -609,19 +1051,18 @@ const units = {
 
   // ---------- Hear it: which vehicle makes this sound? ----------
   hear() {
-    let last = null;
     runChoice({
       id: "hear",
       count: "sounds matched",
       layout: "side",
-      gen() {
-        const target = nextTarget(VEHICLES, last);
-        last = target;
-        // Never two siren vehicles together: they sound too alike for little ears.
+      skill: { start: 1, max: 2 },
+      gen(level, skill, last) {
+        const target = skill.pick(VEHICLES, (v) => v.id, last);
+        // Never two vehicles that sound alike (the three sirens) in one round.
         const pool = shuffle(VEHICLES.filter((v) => v.group !== target.group));
         const others = [];
-        for (const v of pool) if (others.length < 2 && !others.some((o) => o.group === v.group)) others.push(v);
-        return { target, prompt: `<button type="button" class="zt-card zt-ear" data-hear aria-label="Play the sound again"><span>🔊</span><small>Listen</small></button>`, choices: shuffle([target, ...others]).map((v) => ({ v, ok: v === target, art: vehicle(v.id), label: v.name })) };
+        for (const v of pool) if (others.length < choicesFor(level) - 1 && !others.some((o) => o.group === v.group)) others.push(v);
+        return { target, key: target.id, prompt: `<button type="button" class="zt-card zt-ear" data-hear aria-label="Play the sound again"><span>🔊</span><small>Listen</small></button>`, choices: shuffle([target, ...others]).map((v) => ({ v, ok: v === target, art: vehicle(v.id), label: v.name })) };
       },
       ask: () => `Listen! Which vehicle makes this sound?`,
       afterAsk: (q) => playHear(q),
@@ -689,6 +1130,7 @@ const units = {
         $("[data-park]", zone).appendChild(parked);
         pop(zone);
         round += 1;
+        cheer(zone, round < ROUNDS && round);
         window.OC?.count("vehicles placed");
         dots();
         await talk(`Yes! The ${v.name} goes on the ${WHERE[v.where].name}. ${v.fact}`, my);
@@ -773,34 +1215,52 @@ const units = {
 };
 
 // A round-based picking game. Taps answer on pointerdown; only classes change, the cards are never rebuilt mid-round.
+// The game's level (skillOf) sets how many choices there are and what is asked; cfg.gen(level, skill) builds a round.
 function runChoice(cfg) {
   const my = token;
+  const rounds = cfg.rounds || ROUNDS;
+  const skill = skillOf(cfg.id, cfg.skill);
   let round = 0;
   let tries = 0;
   let open = false;
   let q = null;
-  stage.innerHTML = `<div class="zt-play ${cfg.layout || ""}">${cfg.layout === "side" ? '<div class="zt-prompt" data-prompt></div>' : ""}<div class="zt-cards" data-cards></div></div>`;
+  let last = null;
+  stage.innerHTML = `<div class="zt-play ${cfg.layout || ""}">${cfg.layout ? '<div class="zt-prompt" data-prompt></div>' : ""}<div class="zt-cards" data-cards></div></div>`;
   const cards = $("[data-cards]", stage);
   const promptBox = $("[data-prompt]", stage);
-  const host = panel(`<div class="ap-row"><p class="ap-dots" data-dots></p><button type="button" class="ap-btn" data-again>🔊 Again</button></div>`);
-  const dots = () => ($("[data-dots]", host).textContent = "⭐".repeat(round) + "⚪".repeat(ROUNDS - round));
+  const host = panel(`<div class="ap-row"><p class="ap-dots" data-dots></p><span class="ap-status" data-level></span><button type="button" class="ap-btn" data-again>🔊 Again</button></div>`);
+  const dots = () => {
+    $("[data-dots]", host).textContent = "⭐".repeat(round) + "⚪".repeat(rounds - round);
+    $("[data-level]", host).textContent = `🚦 Level ${skill.level + 1}`;
+  };
   host.onclick = (event) => {
     if (event.target.closest("[data-again]") && q) talk(cfg.ask(q), my).then((ok) => ok && cfg.afterAsk?.(q));
   };
   async function ask() {
     if (my !== token) return;
-    q = cfg.gen(round);
+    q = cfg.gen(skill.level, skill, last);
+    last = q.target;
     tries = 0;
     dots();
     if (promptBox) {
       promptBox.innerHTML = q.prompt || "";
       anim(promptBox.firstElementChild, [{ transform: "scale(.85)", opacity: 0 }, { transform: "none", opacity: 1 }], 380, { fill: "none" });
     }
+    cards.className = `zt-cards n${q.choices.length}`;
     cards.innerHTML = q.choices.map((c, i) => `<button type="button" class="zt-card zt-pick" data-c="${i}" aria-label="${c.label}"><span class="zt-art">${c.art}</span></button>`).join("");
     [...cards.children].forEach((card, i) => anim(card, [{ transform: "translateY(24px)", opacity: 0 }, { transform: "none", opacity: 1 }], 380, { delay: i * 70, fill: "backwards" }));
     open = true;
     const ok = await talk(cfg.ask(q), my);
     if (ok && my === token) cfg.afterAsk?.(q);
+  }
+  async function next(up) {
+    if (my !== token) return;
+    if (up && round < rounds) {
+      await levelUp(my);
+      if (my !== token) return;
+    }
+    if (round >= rounds) return finishCard({ id: cfg.id, ...cfg.finish });
+    ask();
   }
   async function choose(button) {
     const c = q.choices[Number(button.dataset.c)];
@@ -810,27 +1270,30 @@ function runChoice(cfg) {
       c.state = "good";
       button.classList.add("good");
       for (const b of cards.children) if (b !== button) b.classList.add("dim");
+      const up = tries === 0 ? skill.right(q.key) : false;
       MUSIC.chime();
-      sfx(cfg.sound?.(q) || "");
+      if (cfg.sound) sfx(cfg.sound(q));
       round += 1;
       window.OC?.count(cfg.count);
       dots();
+      cheer(button, round < rounds && round);
       const art = button.querySelector(".zt-art");
-      art.querySelector("svg")?.classList.add("driving");
-      await anim(art, [{ transform: "none" }, { transform: "translateX(-6%)" }, { transform: "translateX(140%)" }], 1100, { easing: "ease-in" });
+      const leave = cfg.stay ? pop(button) : (art.querySelector("svg")?.classList.add("driving"), anim(art, [{ transform: "none" }, { transform: "translateX(-6%)" }, { transform: "translateX(140%)" }], 1100, { easing: "ease-in" }));
+      await Promise.all([leave, cfg.onRight?.(q, promptBox, my)]);
       if (my !== token) return;
       await talk(cfg.praise(q, c), my);
       if (my !== token) return;
       hushSfx();
-      if (round >= ROUNDS) return finishCard({ id: cfg.id, ...cfg.finish });
-      ask();
+      next(up);
     } else {
+      if (tries === 0) skill.wrong(q.key);
       tries += 1;
       c.state = "bad";
       button.classList.add("bad");
       MUSIC.oops();
       shake(button);
-      if (tries >= 2) {
+      // With two choices one miss leaves only the answer, so show it straight away.
+      if (tries >= Math.min(2, q.choices.length - 1)) {
         open = false;
         const right = cards.children[q.choices.findIndex((x) => x.ok)];
         right.classList.add("hint");
@@ -838,8 +1301,7 @@ function runChoice(cfg) {
         if (my !== token) return;
         round += 1;
         dots();
-        if (round >= ROUNDS) return finishCard({ id: cfg.id, ...cfg.finish });
-        ask();
+        next(false);
       } else await talk(cfg.hint(q, c), my);
     }
   }
@@ -993,6 +1455,7 @@ function updatePhotoButton() {
   b.title = faceOf() ? "Change the photo" : "Add a photo";
 }
 $("[data-photo]").addEventListener("click", openPhoto);
+$("[data-book]").addEventListener("click", openBook);
 updatePhotoButton();
 window.OC?.onChange(updatePhotoButton);
 
@@ -1002,9 +1465,13 @@ const UNITS = [
   { id: "dress", label: "2. Dress up", icon: "🎩" },
   { id: "find", label: "3. Find it", icon: "🔎" },
   { id: "colors", label: "4. Colour cars", icon: "🎨" },
-  { id: "who", label: "5. Who drives it?", icon: "🧑‍🚒" },
-  { id: "hear", label: "6. Hear it", icon: "👂" },
-  { id: "where", label: "7. Where does it go?", icon: "🛣️" },
+  { id: "count", label: "5. Count them", icon: "🔢" },
+  { id: "letters", label: "6. Letter trucks", icon: "🔤" },
+  { id: "phonics", label: "7. First sounds", icon: "🗣️" },
+  { id: "patterns", label: "8. Train patterns", icon: "🔁" },
+  { id: "who", label: "9. Who drives it?", icon: "🧑‍🚒" },
+  { id: "hear", label: "10. Hear it", icon: "👂" },
+  { id: "where", label: "11. Where does it go?", icon: "🛣️" },
 ];
 shell = SHELL({
   units: UNITS,
@@ -1015,6 +1482,10 @@ shell = SHELL({
     dress: { icon: "🎩", title: "Dress up", steps: ["Tap a hat.", "See who you become!", "Grown-ups: tap 📷 to add a photo."] },
     find: { icon: "🔎", title: "Find it", steps: ["Listen to the name.", "Tap that vehicle."] },
     colors: { icon: "🎨", title: "Colour cars", steps: ["Listen to the colour.", "Tap the car with that colour."] },
+    count: { icon: "🔢", title: "Count them", steps: ["Tap each vehicle to count it.", "The last number tells how many.", "Tap that number."] },
+    letters: { icon: "🔤", title: "Letter trucks", steps: ["Listen to the letter.", "Tap the truck with that letter.", "New letters join as you learn them."] },
+    phonics: { icon: "🗣️", title: "First sounds", steps: ["Look at the picture and listen to the word.", "Which letter does it start with?", "Tap the letter."] },
+    patterns: { icon: "🔁", title: "Train patterns", steps: ["Look at the train wagons.", "Say the pattern out loud.", "Tap the wagon that comes next."] },
     who: { icon: "🧑‍🚒", title: "Who drives it?", steps: ["Look at the helper's hat.", "Tap the vehicle they drive."] },
     hear: { icon: "👂", title: "Hear it", steps: ["Listen to the sound.", "Tap the vehicle that makes it.", "Tap 🔊 to hear it again."] },
     where: { icon: "🛣️", title: "Where does it go?", steps: ["Drag the vehicle with your finger.", "Drop it on the road, tracks, sky or water.", "You can tap the place, too."] },
@@ -1042,7 +1513,9 @@ shell = SHELL({
     units[id]();
   },
 });
-MUSIC.preload("xylophone", [84, 88, 91, 96]);
+MUSIC.preload("xylophone", [72, 74, 76, 77, 79, 81, 83, 84, 86, 88, 91, 96]);
+updateBook();
+window.OC?.onChange(updateBook);
 MUSIC.preload("piano", [64, 67]);
 
 const style = document.createElement("style");
@@ -1106,6 +1579,34 @@ html{touch-action:manipulation}
 .zt-ear small{font:900 clamp(16px,2.2vw,22px) var(--sans);color:var(--accent-dark)}
 .zt-ear.playing{animation:zt-ring .6s ease-in-out infinite}
 .zt-word{font-size:1.15em}
+.zt-letter{font-family:Andika,'Century Gothic',ui-rounded,sans-serif;font-size:1.3em;color:var(--accent-dark)}
+.zt-play.stack{flex-direction:column}
+.zt-play.stack .zt-prompt{flex:0 0 44%;padding:6px}
+.zt-play.side .zt-cards.n4,.zt-cards.n4.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr))}
+.zt-word-pic{display:grid;grid-template-rows:minmax(0,1fr) auto;place-items:center;width:100%;height:100%;padding:8px}
+.zt-word-art{position:relative;width:100%;height:100%;min-height:0}
+.zt-word-art svg{position:absolute;inset:0;width:100%;height:100%}
+.zt-prompt{overflow:hidden}
+.zt-word-pic b{font:700 clamp(26px,4.4vw,48px)/1.1 Andika,ui-rounded,sans-serif;color:#2b1d12}
+.zt-first{color:var(--accent);font-size:1.25em}
+.zt-ptrain{display:flex;flex-wrap:wrap;justify-content:center;align-content:center;row-gap:6px;width:100%;height:100%;container-type:size}
+.zt-wg{flex:0 0 auto;width:min(11.5%,calc(46cqh * 136 / 130))}
+.zt-wg.zt-engine{width:min(15%,calc(46cqh * 176 / 130))}
+.zt-wg svg{display:block;width:100%;height:auto}
+@media (max-aspect-ratio:1/1){.zt-wg{width:23%}.zt-wg.zt-engine{width:30%}.zt-play.stack .zt-prompt{flex-basis:50%}}
+.zt-play.stack .zt-cards{flex-direction:row}
+.zt-ptrain.driving{animation:zt-leave 1.4s ease-in forwards}
+@keyframes zt-leave{to{transform:translateX(-110%)}}
+/* Count them */
+.zt-lot{position:absolute;left:3%;right:3%;top:16%;bottom:5%;display:grid;gap:4px;align-items:end}
+.zt-cv{position:relative;display:grid;place-items:end center;align-self:end;min-width:0;min-height:0;width:100%;aspect-ratio:260/215;max-height:100%;padding:0;border:0;background:none;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.zt-cv svg{position:absolute;left:4%;bottom:0;width:92%;height:78%;pointer-events:none}
+.zt-badge{position:absolute;left:50%;top:0;transform:translateX(-50%);display:grid;place-items:center;min-width:clamp(34px,6vh,54px);height:clamp(34px,6vh,54px);padding:0 6px;border-radius:999px;background:#fff;box-shadow:0 0 0 4px var(--accent),0 4px 10px rgba(0,0,0,.2);color:var(--accent-dark);font:900 clamp(20px,4vh,32px)/1 var(--sans);pointer-events:none}
+.zt-badge[hidden]{display:none}
+.zt-nums{flex:0 0 auto;display:flex;justify-content:center;gap:clamp(8px,2vw,18px)}
+.zt-num{flex:0 1 150px;min-height:clamp(70px,13vh,110px);gap:2px;align-content:center}
+.zt-num b{font:900 clamp(34px,7vh,60px)/1 var(--sans);color:#2b1d12}
+.zt-pips{max-width:5.5em;color:var(--accent);font-size:clamp(9px,1.6vh,14px);letter-spacing:1px;line-height:1.1;word-break:break-all;text-align:center}
 .zt-play.side .zt-cards{flex-direction:column}
 @media (max-aspect-ratio:1/1){.zt-play,.zt-cards{flex-direction:column}.zt-prompt{flex-basis:32%}}
 
@@ -1154,6 +1655,20 @@ html{touch-action:manipulation}
 .zt-done-text p{margin:0;color:#2b1d12;font:700 clamp(17px,2.4vw,24px)/1.35 var(--sans)}
 @media (max-aspect-ratio:1/1){.zt-done{flex-direction:column;text-align:center}.zt-done-pic{height:46%}}
 
+/* stickers */
+.zt-book-btn{position:relative}
+.zt-book-btn span{position:absolute;right:-4px;top:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--accent);color:#fff;font:900 12px/20px var(--sans)}
+.zt-book-btn span:empty{display:none}
+.zt-sticker{position:absolute;inset:0;z-index:8;display:grid;place-items:center;pointer-events:none}
+.zt-sticker-card{display:flex;flex-direction:column;align-items:center;gap:4px;padding:18px 28px;border-radius:32px;background:#fff;box-shadow:0 0 0 6px #ffcf5c,0 18px 40px rgba(0,0,0,.25);text-align:center}
+.zt-sticker-glyph{font-size:clamp(70px,16vh,130px);line-height:1.1;animation:zt-wiggle 1s ease-in-out infinite}
+.zt-sticker-card b{font:900 clamp(22px,3.4vh,32px)/1.1 var(--sans);color:var(--accent-dark)}
+.zt-sticker-card small{font:700 14px var(--sans);color:var(--muted)}
+.zt-book-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:8px;width:100%}
+.zt-slot{position:relative;display:grid;place-items:center;aspect-ratio:1;border:0;border-radius:16px;background:#fff;box-shadow:0 3px 0 #e6dccd;font-size:34px;cursor:pointer;touch-action:manipulation}
+.zt-slot.empty{background:#efe7dc;box-shadow:none;color:#c9b9a6;font:900 22px var(--sans);cursor:default}
+.zt-slot small{position:absolute;right:4px;bottom:2px;font:900 11px var(--sans);color:var(--accent-dark)}
+@keyframes zt-wiggle{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg) scale(1.06)}}
 /* photo dialog */
 .zt-photo{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:12px;background:rgba(43,29,18,.45);backdrop-filter:blur(3px)}
 .zt-photo-card{width:min(440px,100%);max-height:100%;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px;border-radius:28px;background:var(--paper);box-shadow:0 24px 60px rgba(0,0,0,.3);text-align:center}
