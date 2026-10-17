@@ -354,7 +354,7 @@
   });
   add({
     type: "learn", theme: "Finishing 2B: the hardest problems", why: "Finish Beast Academy 2B properly, with the starred problems, before moving on. Depth before speed.",
-    thread: "Troy runs through the week: the history lesson on Crete, Mycenae and Troy, and the reading lesson on the opening of the Odyssey, which is the story of a man returning from the Trojan War.",
+    thread: "Troy runs through the week: the history lesson on Crete, Mycenae and Troy, and the reading lesson on the opening of the Odyssey, the story of a long voyage home.",
     math: ["Beast Academy 2B: the hardest starred problems, one a day, with a Solution Notebook entry. Placement check for 2C: 85% without help.", "math/games/"],
     mental: ["Add and subtract within 100 mentally.", "math/games/"],
     phonics: ["Explode the Code Book 4 begins: compound words.", "reading/phonics/"],
@@ -410,7 +410,7 @@
   });
   add({
     type: "learn", theme: "Measurement: units and conversions", why: "Changing units (100 cm = 1 m) is place value again, in disguise.",
-    thread: "Herodotus, the first historian in the reading lesson, wrote the history of the wars with Persia, and this week's history lesson is on the Persian Empire.",
+    thread: "Herodotus, the first historian in the reading lesson, traveled widely and wrote about the peoples of Persia, and this week's history lesson is on the Persian Empire.",
     math: ["Beast Academy 2C, Measurement: converting units and mixed measures (1 m 25 cm).", "math/measure/"],
     mental: ["Add and subtract within 100 mentally.", "math/games/"],
     phonics: ["Explode the Code Book 4: endings -est and -ness; 2-syllable words.", "reading/phonics/"],
@@ -437,7 +437,7 @@
     words: ["Word Roots Beginning. Latin: everyday Latin (a.m., p.m.).", "reading/latin/"],
     logic: ["Mind Benders: 3 puzzles.", "tech/logic/"],
     science: ["Zoology: interesting insects (fireflies, camouflage). Lab: light: make a rainbow with a glass of water.", "science/physics/"],
-    history: ["Story of the World Vol. 1, ch. 24, 'The Wars of the Greeks', as the book's chapter on the Greek wars (the course lesson this week is the Persian Wars).", "history/world/"],
+    history: ["Look at a map of the Persian Royal Road from Sardis to Susa and trace the messengers' route together (the course lesson this week).", "history/world/"],
     art: ["Drawing with Children: draw a clock or a coin from life.", "arts/drawing/"],
     music: ["Piano daily.", "music/theory/"],
     chess: ["Chess puzzles.", "tech/chess/"],
@@ -452,7 +452,7 @@
     phonics: ["Explode the Code review; read aloud with expression.", "reading/phonics/"],
     readAloud: ["Mary Poppins (finish).", ""],
     writing: ["Portfolio: her own 3 written sentences, dated.", ""],
-    history: ["Story of the World Vol. 1, ch. 24, 'The Wars of the Greeks', read again alongside the course lesson on the Peloponnesian War. If time allows, ch. 23, 'The Greek Gods'.", "history/world/"],
+    history: ["Story of the World Vol. 1, ch. 23, 'The Greek Gods', alongside the course lesson on Athens' golden age.", "history/world/"],
     extra: ["Monthly portfolio review; outing; math story: Maryam Mirzakhani. New game: KenKen.", "math/games/"],
     check: "Month 7 check: problem-solving strategies, measuring with units, compound words and endings read well.",
   });
@@ -493,7 +493,7 @@
   });
   add({
     type: "learn", theme: "Odds and evens", why: "Parity is a powerful idea: it lets you prove things without computing.",
-    thread: "Rome opens the week in history, and the reading lesson on 'Friends, Romans, countrymen' brings Shakespeare's Mark Antony to the ear. Parity links math and logic: odds and evens in one, parity and invariants in the other.",
+    thread: "Rome opens the week in history, and the reading lesson on King Lear sets flattery beside honest love. Parity links math and logic: odds and evens in one, parity and invariants in the other.",
     math: ["Beast Academy 2C, Odds & Evens: pairing, rules for adding odds and evens, and puzzles.", "math/patterns/"],
     mental: ["Odd or even for big numbers and sums.", "math/patterns/"],
     phonics: ["Explode the Code Book 4: finish. Independent reading: a chapter book a week.", "reading/phonics/"],
@@ -511,13 +511,13 @@
   });
   add({
     type: "review", theme: "Review and portfolio", why: "The last monthly review before the year-end celebration.",
-    thread: "Julius Caesar, whose funeral frames the speech 'Friends, Romans, countrymen' studied last week in reading, is this week's subject in history. The Gettysburg Address joins reading and rhetoric: reviewed in one, learned by heart in the other.",
+    thread: "Carthage's harbor and the calendar Julius Caesar reformed are this week's subjects in history. Scripture joins reading and rhetoric: 1 Corinthians 13 reviewed in one, Psalm 100 learned by heart in the other.",
     math: ["Beast Academy: review strategies and odds and evens; monthly timed challenge set.", "math/games/"],
     mental: ["Facts to 20 and mental math within 100.", "math/games/"],
     phonics: ["She reads to you for 20 minutes.", "reading/phonics/"],
     readAloud: ["The Number Devil (continue).", ""],
     writing: ["Portfolio: her best written sentences of the year.", ""],
-    history: ["Story of the World Vol. 1, ch. 29, \"Rome's War with Carthage\", and ch. 34, 'The Rise of Julius Caesar' (read out of book order to match the course lesson). Optional: ch. 35, 'Caesar the Hero'.", "history/world/"],
+    history: ["Look together at a picture of Carthage's round harbor, then make a paper calendar with 12 months and a leap day, as Caesar's calendar has (the course lesson this week).", "history/world/"],
     art: ["Famous Artists: Matisse cut-outs.", "arts/artists/"],
     extra: ["Portfolio review; outing; new game: Pentominoes.", "math/games/"],
     check: "Month 8 check: estimation, odds and evens, and reading longer words by syllables.",

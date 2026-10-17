@@ -48,6 +48,17 @@
   }
 
   const UK_ONLY = /\bBritain\b|Anglo-Saxon/;
+  // Gentle history for young children: skills about war, conquest, slavery, killing or plague are left out,
+  // and a few mentions in the skills that stay are softened.
+  const HIDDEN = new Set(["mt_xAG0aMeAIN", "mt_NnlnxCx1DO", "mt_5qNMVZi3dQ", "mt_HZyUwycFvf", "mt_e1Yr6rhRNW", "mt_VP9yZJ1xeP", "mt_14F_x1Xwwp", "mt_MlD0gwLSw9", "mt_XMz_ohNjYO", "mt_H4bLNkDrGJ", "mt_c-F__Qe23X", "mt_EHiM4_qg1R", "mt_aXNlkbAeIk", "mt__o3TCmfomv", "mt_M_xcaRcvSo", "mt_X5fdB4haHf", "mt_OiDHqtLoln", "mt_CqzsM0BDFP", "mt_8oAzr0WxRb", "mt_Zy-CKUkq34", "mt_6XnezHOcM3"]);
+  const GENTLE = [
+    [/women, enslaved people, and foreigners/gi, "women and foreigners"],
+    [/,? ?enslaved people,?/gi, ""],
+    [/\(Roman conquest\)/g, "(when Rome took over)"],
+    [/Athena \(wisdom, warfare\)/g, "Athena (wisdom, crafts)"],
+    [/,? ?Ares \(war\)/g, ""],
+  ];
+  const gentle = (t) => (typeof t === "string" ? GENTLE.reduce((x, [re, to]) => x.replace(re, to), t) : t);
   const usStandard = (code) => !/^uk-nc/.test(code);
 
   const topics = new Map();
@@ -59,8 +70,8 @@
   window.MARBLE = {
     add(data) {
       for (const [id, domain, name, type, ageStart, ageEnd, description, evidence, prompt, standards, centrality] of data.topics) {
-        if (UK_ONLY.test(name)) continue;
-        topics.set(id, { id, subject: data.subject, domain, name: us(name), type, ageStart, ageEnd, description: us(description), evidence: evidence.map(us), prompt: us(prompt), standards: standards.filter(usStandard), centrality });
+        if (UK_ONLY.test(name) || HIDDEN.has(id)) continue;
+        topics.set(id, { id, subject: data.subject, domain, name: us(name), type, ageStart, ageEnd, description: us(gentle(description)), evidence: evidence.map((e) => us(gentle(e))), prompt: us(gentle(prompt)), standards: standards.filter(usStandard), centrality });
       }
       for (const [topic, need, hard, reason0] of data.deps) {
         const reason = us(reason0);
