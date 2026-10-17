@@ -1,0 +1,1482 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Explorer · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="tech">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>AI Explorer</b><small>Artificial intelligence · Levels 2–4</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Bit's “AI” is a few lines of code in this page that compare pictures. It runs only in your browser; nothing is sent anywhere. Xylophone and piano sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, text, panel, wait, confetti, explain, everyday, shuffle, still, surprise, sparkle } = KIT;
+const stage = $("[data-stage]");
+let token = 0;
+let cleanups = [];
+let shell = null;
+const STOP = Symbol("stop");
+const rpick = (list) => list[Math.floor(Math.random() * list.length)];
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+const ROUNDS = 8;
+
+// ======================================================================
+// Art: Bit the robot, and cats and dogs drawn from four features.
+// ======================================================================
+function robotSvg(mood = "happy", attrs = "") {
+  const eyes = mood === "think" ? `<circle cx="86" cy="82" r="10" fill="#7fe3ff"/><circle cx="126" cy="82" r="10" fill="#7fe3ff"/>` : mood === "oops" ? `<path d="M70 82 l18 10 M70 92 l18 -10 M112 82 l18 10 M112 92 l18 -10" stroke="#7fe3ff" stroke-width="6" stroke-linecap="round"/>` : `<circle cx="80" cy="88" r="11" fill="#7fe3ff"/><circle cx="120" cy="88" r="11" fill="#7fe3ff"/><circle cx="84" cy="84" r="3.5" fill="#fff"/><circle cx="124" cy="84" r="3.5" fill="#fff"/>`;
+  const mouth = mood === "think" ? `<path d="M86 116 H114" stroke="#7fe3ff" stroke-width="7" stroke-linecap="round"/>` : mood === "oops" ? `<path d="M78 120 Q89 108 100 120 Q111 132 122 120" stroke="#7fe3ff" stroke-width="7" fill="none" stroke-linecap="round"/>` : `<path d="M80 110 Q100 128 120 110" stroke="#7fe3ff" stroke-width="7" fill="none" stroke-linecap="round"/>`;
+  return `<svg viewBox="0 0 200 240" class="ai-v" ${attrs} aria-hidden="true"><path d="M58 182 Q30 190 30 216" stroke="#9fb3cc" stroke-width="13" fill="none" stroke-linecap="round"/><path d="M142 182 Q170 190 170 216" stroke="#9fb3cc" stroke-width="13" fill="none" stroke-linecap="round"/><rect x="58" y="160" width="84" height="68" rx="20" fill="#3b82f6"/><circle cx="100" cy="192" r="13" fill="#ffd166"/><rect x="86" y="148" width="28" height="18" rx="6" fill="#9fb3cc"/><line x1="100" y1="36" x2="100" y2="14" stroke="#5b6b82" stroke-width="6" stroke-linecap="round"/><circle cx="100" cy="13" r="10" fill="#ffb020"/><rect x="20" y="72" width="20" height="46" rx="10" fill="#9fb3cc"/><rect x="160" y="72" width="20" height="46" rx="10" fill="#9fb3cc"/><rect x="34" y="34" width="132" height="120" rx="34" fill="#eef3fa" stroke="#3b82f6" stroke-width="6"/><rect x="52" y="54" width="96" height="80" rx="22" fill="#1f2a44"/>${eyes}${mouth}</svg>`;
+}
+const COLOURS = {
+  orange: { name: "orange", fill: "#f0923a", dark: "#c96d1d", muzzle: "#ffdcb5", patch: "#fff6ea" },
+  grey: { name: "grey", fill: "#9aa4ae", dark: "#6f7a85", muzzle: "#e3e7eb", patch: "#f4f6f8" },
+  black: { name: "black", fill: "#3b3b40", dark: "#1c1c20", muzzle: "#76767f", patch: "#f2eee8" },
+  white: { name: "white", fill: "#fbf8f3", dark: "#d9cfc2", muzzle: "#ffffff", patch: "#3b3b40" },
+  brown: { name: "brown", fill: "#8d5a3b", dark: "#5f3820", muzzle: "#dcbca0", patch: "#f6eadf" },
+};
+const COLOUR_IDS = Object.keys(COLOURS);
+// One animal: kind (cat or dog, which also sets the nose), colour, ears (cats always pointy) and a patch over one eye.
+const A = (kind, colour, ears, patch) => ({ kind, colour, ears: kind === "cat" ? "pointy" : ears || "floppy", patch: !!patch });
+const same = (a, b) => a.kind === b.kind && a.colour === b.colour && a.ears === b.ears && a.patch === b.patch;
+function animalSvg(a, attrs = "") {
+  const c = COLOURS[a.colour];
+  const line = a.colour === "white" ? "#c9bdae" : c.dark;
+  const pointy = `<path d="M46 96 L50 18 L96 60Z" fill="${c.fill}" stroke="${line}" stroke-width="5" stroke-linejoin="round"/><path d="M154 96 L150 18 L104 60Z" fill="${c.fill}" stroke="${line}" stroke-width="5" stroke-linejoin="round"/><path d="M58 74 L60 40 L82 62Z" fill="#f4a7b9"/><path d="M142 74 L140 40 L118 62Z" fill="#f4a7b9"/>`;
+  const floppy = `<path d="M54 64 Q14 64 16 124 Q18 154 40 146 Q60 116 70 74Z" fill="${c.dark}"/><path d="M146 64 Q186 64 184 124 Q182 154 160 146 Q140 116 130 74Z" fill="${c.dark}"/>`;
+  const whisk = a.colour === "black" ? "#e9e4dc" : "#4a2c1a";
+  const nose =
+    a.kind === "cat"
+      ? `<path d="M90 124 L110 124 L100 135Z" fill="#f48fb1" stroke="#c2185b" stroke-width="2" stroke-linejoin="round"/><path d="M100 135 Q94 146 84 141 M100 135 Q106 146 116 141" stroke="${whisk}" stroke-width="3.5" fill="none" stroke-linecap="round"/><g stroke="${whisk}" stroke-width="3" stroke-linecap="round"><path d="M70 128 L22 118 M70 136 L20 138 M72 144 L26 158 M130 128 L178 118 M130 136 L180 138 M128 144 L174 158"/></g>`
+      : `<ellipse cx="100" cy="142" rx="38" ry="28" fill="${c.muzzle}"${a.colour === "white" ? ` stroke="${line}" stroke-width="3"` : ""}/><path d="M100 140 V152 M100 152 Q88 162 78 154 M100 152 Q112 162 122 154" stroke="#2a1a10" stroke-width="3.5" fill="none" stroke-linecap="round"/><path d="M92 158 Q100 178 108 158Z" fill="#ef6f8e"/><ellipse cx="100" cy="128" rx="16" ry="11" fill="#1d1d1d"/><ellipse cx="95" cy="125" rx="5" ry="3" fill="#fff" opacity=".5"/>`;
+  const pupil = a.kind === "cat" ? (x) => `<ellipse cx="${x}" cy="102" rx="4.5" ry="9" fill="#1d1d1d"/>` : (x) => `<circle cx="${x}" cy="102" r="7" fill="#1d1d1d"/>`;
+  const eyes = [76, 124].map((x) => `<circle cx="${x}" cy="102" r="12" fill="${a.kind === "cat" ? "#d6f5a8" : "#fff"}" stroke="#2a1a10" stroke-width="2"/>${pupil(x)}<circle cx="${x + 3}" cy="98" r="2.5" fill="#fff"/>`).join("");
+  return `<svg viewBox="0 0 200 190" class="ai-v ai-animal" ${attrs}>${a.ears === "pointy" ? pointy : ""}<ellipse cx="100" cy="114" rx="68" ry="62" fill="${c.fill}" stroke="${line}" stroke-width="5"/>${a.patch ? `<ellipse cx="72" cy="98" rx="27" ry="24" fill="${c.patch}"/>` : ""}${a.ears === "floppy" ? floppy : ""}${eyes}${nose}</svg>`;
+}
+const describe = (a) => `${a.colour} ${a.kind}${a.kind === "dog" && a.ears === "pointy" ? " with pointy ears" : ""}${a.patch ? `${a.kind === "dog" && a.ears === "pointy" ? " and" : " with"} a patch` : ""}`;
+const NOSE = { cat: "a small pink nose and whiskers", dog: "a big black nose and a long snout" };
+const KIND = { cat: { icon: "🐱", name: "Cat", plural: "Cats" }, dog: { icon: "🐶", name: "Dog", plural: "Dogs" } };
+
+// ======================================================================
+// Bit's "AI": nearest neighbour. Bit adds up how different a new animal is from each example
+// it was shown, then copies the label of the closest one. A different colour changes most of the
+// picture, so it counts the most: that is exactly why one-sided examples fool Bit.
+// ======================================================================
+const WEIGHT = { colour: 6, nose: 3, ears: 1, patch: 1 };
+function diff(a, b) {
+  const parts = { colour: a.colour !== b.colour ? WEIGHT.colour : 0, nose: a.kind !== b.kind ? WEIGHT.nose : 0, ears: a.ears !== b.ears ? WEIGHT.ears : 0, patch: a.patch !== b.patch ? WEIGHT.patch : 0 };
+  return { parts, total: parts.colour + parts.nose + parts.ears + parts.patch };
+}
+function classify(memory, a) {
+  if (!memory.length) return null;
+  let best = null;
+  memory.forEach((m, index) => {
+    const d = diff(a, m.a).total;
+    if (!best || d < best.d) best = { d, index, label: m.label, tie: false };
+    else if (d === best.d && m.label !== best.label) best.tie = true;
+  });
+  return best;
+}
+// What the new animal shares with the example Bit matched, in words.
+function shared(a, b) {
+  const out = [];
+  if (a.colour === b.colour) out.push("the same colour");
+  if (a.kind === b.kind) out.push("the same nose");
+  if (a.ears === b.ears) out.push("the same ears");
+  return out.length ? `It has ${out.join(" and ").replace(/ and (?=.* and )/, ", ")} as this one.` : "This one is the closest I have.";
+}
+
+// ======================================================================
+// Smooth touch. Act on pointerdown (no waiting for click), never rebuild the stage on a tap,
+// and animate with transforms only. click still works for keyboards and switch access.
+// ======================================================================
+let lastDown = 0;
+addEventListener("pointerdown", () => (lastDown = Date.now()), true);
+const fresh = () => Date.now() - lastDown < 800;
+function onTap(host, selector, fn) {
+  const run = (event) => {
+    const target = event.target.closest?.(selector);
+    if (target && host.contains(target) && !target.disabled) fn(target, event);
+  };
+  const down = (event) => {
+    if (event.button > 0) return;
+    window.OC?.touch();
+    run(event);
+  };
+  // A click that follows a pointerdown already acted on; only keyboard and switch clicks get here.
+  const click = (event) => {
+    if (fresh()) return;
+    run(event);
+  };
+  host.addEventListener("pointerdown", down);
+  host.addEventListener("click", click);
+  cleanups.push(() => {
+    host.removeEventListener("pointerdown", down);
+    host.removeEventListener("click", click);
+  });
+}
+const anim = (node, frames, ms, opts = {}) => {
+  if (!node?.animate) return Promise.resolve();
+  const duration = still.matches ? Math.min(ms, 120) : ms;
+  const a = node.animate(frames, { duration, easing: "cubic-bezier(.2,.8,.3,1)", fill: "both", ...opts });
+  // Never let a paused animation (hidden tab, power saving) stall a game.
+  return Promise.race([a.finished.catch(() => {}), wait(duration + (opts.delay || 0) + 250)]);
+};
+const pop = (node) => anim(node, [{ transform: "scale(1)" }, { transform: "scale(1.08)" }, { transform: "scale(1)" }], 380, { fill: "none" });
+const shake = (node) => anim(node, [{ transform: "translateX(0)" }, { transform: "translateX(-10px)" }, { transform: "translateX(9px)" }, { transform: "translateX(-6px)" }, { transform: "translateX(0)" }], 420, { fill: "none" });
+
+// talk("html") shows and speaks the same words. talk({ html, speech }) speaks different words.
+let lastSaid = "";
+const talk = (msg, my = token) => {
+  if (my !== token) return Promise.resolve(false);
+  lastSaid = msg;
+  if (typeof msg === "string") return KIT.sayAsync(msg);
+  const box = $("[data-say]");
+  if (box) box.innerHTML = msg.html;
+  return VOICE.speakAsync(msg.speech);
+};
+// Async games stop the moment the child picks another game: guard(my)(promise) throws STOP.
+const guard = (my) => async (p) => {
+  const v = await p;
+  if (my !== token) throw STOP;
+  return v;
+};
+function flow(fn) {
+  const my = token;
+  Promise.resolve()
+    .then(() => fn(my, guard(my)))
+    .catch((error) => {
+      if (error !== STOP) console.error(error);
+    });
+}
+// Big buttons in the panel; resolves with the key of the one tapped.
+function choose(list, my = token) {
+  return new Promise((resolve) => {
+    const box = $("[data-act]");
+    if (!box || my !== token) return;
+    box.innerHTML = list.map((b) => `<button type="button" class="${b.primary ? "primary" : ""}" data-k="${b.key}"${b.pulse ? " data-pulse" : ""}>${b.label}</button>`).join("");
+    let done = false;
+    const act = (event) => {
+      const b = event.target.closest("[data-k]");
+      if (!b || done || my !== token) return;
+      if (event.type === "click" && fresh()) return;
+      done = true;
+      window.OC?.touch();
+      box.innerHTML = "";
+      box.onpointerdown = box.onclick = null;
+      resolve(b.dataset.k);
+    };
+    box.onpointerdown = act;
+    box.onclick = act;
+  });
+}
+const mark = (id, data) => shell.mark(id, data);
+const NEXT = { see: "spot", spot: "teach", teach: "data", data: "garbage", garbage: "rules", rules: "safe", safe: null };
+
+// ======================================================================
+// Learning that adapts. Each game keeps a level for the child:
+// three right first time in a row → a little harder; two misses in a row → a little easier.
+// Missed items are remembered and come back in later rounds until they are right first time.
+// ======================================================================
+function skillOf(id, { start = 0, max = 3 } = {}) {
+  const saved = shell.progress()[id] || {};
+  let level = Math.max(0, Math.min(max, saved.level ?? start));
+  let missed = Array.isArray(saved.missed) ? saved.missed : [];
+  let streak = 0;
+  let slips = 0;
+  const save = () => mark(id, { level, missed });
+  return {
+    get level() {
+      return level;
+    },
+    max,
+    right(key) {
+      streak += 1;
+      slips = 0;
+      missed = missed.filter((k) => k !== key);
+      const up = streak >= 3 && level < max;
+      if (up) {
+        level += 1;
+        streak = 0;
+      }
+      save();
+      return up;
+    },
+    wrong(key) {
+      streak = 0;
+      slips += 1;
+      missed = [key, ...missed.filter((k) => k !== key)].slice(0, 8);
+      if (slips >= 2 && level > 0) {
+        level -= 1;
+        slips = 0;
+      }
+      save();
+    },
+    // Not the same as last time; a missed item comes back about two rounds in five.
+    pick(list, keyOf, last) {
+      const others = list.filter((x) => x !== last);
+      const pool = others.length ? others : list;
+      const review = pool.filter((x) => missed.includes(keyOf(x)));
+      return review.length && Math.random() < 0.4 ? rpick(review) : rpick(pool);
+    },
+  };
+}
+function cheer(target, round, rounds) {
+  sparkle(target);
+  if (round < rounds && (round === 3 || round === rounds - 2)) surprise();
+}
+const LEVEL_UP = ["You're getting so good! Let's make it a little trickier.", "Wow, you're learning fast! Here comes a harder one.", "Super thinking! Let's go up a level."];
+async function levelUp(my) {
+  surprise();
+  MUSIC.chime();
+  await talk(rpick(LEVEL_UP), my);
+}
+const HALFWAY = ["Halfway there! Keep going!", "Halfway! Your brain is working hard!", "Halfway! You're doing brilliantly!"];
+
+function finishCard({ id, icon, message, speech }) {
+  const my = token;
+  stage.innerHTML = `<div class="ai-done"><div class="ai-done-pic">${robotSvg("happy")}<span class="ai-done-badge" aria-hidden="true">${icon}</span></div><div class="ai-done-text"><h2>Try it for real, with a grown-up</h2><p>${message}</p></div></div>`;
+  confetti();
+  MUSIC.chime();
+  mark(id, { done: true });
+  const host = panel(`<div class="ap-buttons"><button type="button" data-again>🔁 Play again</button>${NEXT[id] ? '<button type="button" class="primary" data-next data-pulse>▶ Next game</button>' : ""}</div>`);
+  talk(speech, my);
+  host.onclick = (event) => {
+    if (event.target.closest("[data-again]")) shell.go(id);
+    else if (event.target.closest("[data-next]")) shell.go(NEXT[id]);
+  };
+}
+
+// ======================================================================
+// Round engine for the picking games. Taps answer on pointerdown; only classes change,
+// the cards are never rebuilt mid-round. Bit drives along a track, one step per answer.
+// ======================================================================
+const raceHtml = (goal = "🏁") => `<div class="ai-race" data-race aria-hidden="true"><span class="ai-race-goal">${goal}</span><span class="ai-racer" data-racer>🤖</span></div>`;
+function raceTo(host, round, rounds) {
+  const racer = $("[data-racer]", host);
+  if (racer) racer.style.left = `calc((100% - 84px) * ${round / rounds} + 6px)`;
+}
+const picCard = (icon, label) => `<div class="ai-act"><span>${icon}</span><b>${label}</b></div>`;
+const HANDLERS = ["layout", "ask", "praise", "hint", "reveal", "count"];
+function roundOf(kind, level, skill, last) {
+  const q = kind.gen(level, skill, last);
+  q.h = Object.fromEntries(HANDLERS.map((k) => [k, kind[k] ?? (k === "layout" ? "" : undefined)]));
+  return q;
+}
+function runChoice(cfg) {
+  const my = token;
+  const rounds = cfg.rounds || ROUNDS;
+  const skill = skillOf(cfg.id, cfg.skill);
+  let round = 0;
+  let tries = 0;
+  let open = false;
+  let q = null;
+  let last = null;
+  stage.innerHTML = `<div class="ai-play" data-play><div class="ai-prompt" data-prompt></div><div class="ai-cards" data-cards></div></div>`;
+  const play = $("[data-play]", stage);
+  const cards = $("[data-cards]", stage);
+  const promptBox = $("[data-prompt]", stage);
+  const host = panel(`<div class="ap-row ai-row">${raceHtml(cfg.goal)}<span class="ap-status" data-level></span><button type="button" class="ap-btn" data-again aria-label="Say it again">🔊<span class="ai-wide"> Again</span></button></div>`);
+  const H = () => {
+    const h = { ...cfg };
+    for (const [key, value] of Object.entries(q?.h || {})) if (value !== undefined) h[key] = value;
+    return h;
+  };
+  const dots = () => {
+    raceTo(host, round, rounds);
+    $("[data-level]", host).innerHTML = `⭐<span class="ai-wide"> Level</span> ${skill.level + 1}`;
+  };
+  host.onclick = (event) => {
+    if (event.target.closest("[data-again]") && q) talk(H().ask(q), my);
+  };
+  async function ask() {
+    if (my !== token) return;
+    q = cfg.gen(skill.level, skill, last);
+    last = q.target;
+    tries = 0;
+    dots();
+    const h = H();
+    play.className = `ai-play ${h.layout || ""}`;
+    promptBox.innerHTML = h.layout ? q.prompt || "" : "";
+    if (promptBox.firstElementChild) anim(promptBox.firstElementChild, [{ transform: "scale(.85)", opacity: 0 }, { transform: "none", opacity: 1 }], 380, { fill: "none" });
+    cards.className = `ai-cards n${q.choices.length}`;
+    cards.innerHTML = q.choices.map((c, i) => `<button type="button" class="ai-card ai-pick" data-c="${i}" aria-label="${c.label}"><span class="ai-art">${c.art}</span></button>`).join("");
+    [...cards.children].forEach((card, i) => anim(card, [{ transform: "translateY(24px)", opacity: 0 }, { transform: "none", opacity: 1 }], 380, { delay: i * 70, fill: "backwards" }));
+    open = true;
+    await talk(h.ask(q), my);
+  }
+  async function next(up) {
+    if (my !== token) return;
+    if (up && round < rounds) {
+      await levelUp(my);
+      if (my !== token) return;
+    }
+    if (round === Math.ceil(rounds / 2) && round < rounds) {
+      surprise();
+      await talk(rpick(HALFWAY), my);
+      if (my !== token) return;
+    }
+    if (round >= rounds) return finishCard({ id: cfg.id, ...cfg.finish });
+    ask();
+  }
+  async function pick(button) {
+    const c = q.choices[Number(button.dataset.c)];
+    if (!open || c.state || my !== token) return;
+    const h = H();
+    if (c.ok) {
+      open = false;
+      c.state = "good";
+      button.classList.add("good");
+      for (const b of cards.children) if (b !== button) b.classList.add("dim");
+      const up = tries === 0 ? skill.right(q.key) : false;
+      MUSIC.chime();
+      round += 1;
+      window.OC?.count(h.count);
+      dots();
+      cheer(button, round, rounds);
+      pop(button);
+      await talk(h.praise(q, c), my);
+      if (my !== token) return;
+      next(up);
+    } else {
+      if (tries === 0) skill.wrong(q.key);
+      tries += 1;
+      c.state = "bad";
+      button.classList.add("bad");
+      MUSIC.oops();
+      shake(button);
+      // With two choices one miss leaves only the answer, so show it straight away.
+      if (tries >= Math.min(2, q.choices.length - 1)) {
+        open = false;
+        const right = cards.children[q.choices.findIndex((x) => x.ok)];
+        right.classList.add("hint");
+        await talk(h.reveal(q, c), my);
+        if (my !== token) return;
+        round += 1;
+        dots();
+        next(false);
+      } else await talk(h.hint(q, c), my);
+    }
+  }
+  onTap(cards, "[data-c]", pick);
+  (async () => {
+    dots();
+    if (cfg.intro) {
+      surprise("stars");
+      await talk(cfg.intro, my);
+    }
+    ask();
+  })();
+}
+
+// ======================================================================
+// Spot the AI: learns from examples, follows set steps, or no computer at all?
+// ======================================================================
+const SPOT = [
+  { id: "face", icon: "📱", name: "Face unlock on a phone", cat: "ai", why: "It learned what faces look like from lots and lots of example photos. Then it checks whether the face it sees matches yours." },
+  { id: "videos", icon: "📺", name: "Video suggestions", cat: "ai", why: "It spots patterns in what you and other people watched, then guesses what you might like next." },
+  { id: "voice", icon: "🗣️", name: "Voice assistant", cat: "ai", why: "It learned from many recordings of people talking, so it can turn the sounds you make into words. It can still mishear!" },
+  { id: "keyboard", icon: "⌨️", name: "Next-word suggestions when typing", cat: "ai", why: "It learned from lots of writing which word often comes next." },
+  { id: "translate", icon: "🌍", name: "Translation app", cat: "ai", why: "It learned from lots of sentences written in two languages." },
+  { id: "spam", icon: "📧", name: "Junk email filter", cat: "ai", why: "It learned from lots of emails that people marked as junk." },
+  { id: "photos", icon: "🖼️", name: "Photo app that finds all your dog photos", cat: "ai", why: "It learned from lots of pictures that people had labelled “dog”." },
+  { id: "maps", icon: "🗺️", name: "Map app that guesses the traffic", cat: "ai", why: "It learned from lots of past journeys how busy the roads usually get." },
+  { id: "calc", icon: "🔢", name: "Calculator", cat: "steps", why: "It follows exact maths rules that people wrote. 2 + 2 is always 4. It never needs to learn." },
+  { id: "lights", icon: "🚦", name: "Traffic lights", cat: "steps", why: "A small computer runs the same set steps, changing the colours again and again." },
+  { id: "microwave", icon: "⏲️", name: "Microwave timer", cat: "steps", why: "It counts down the time you set, then beeps. The same steps every time." },
+  { id: "alarm", icon: "⏰", name: "Alarm clock", cat: "steps", why: "It rings at the time you set. It follows a set rule." },
+  { id: "door", icon: "🚪", name: "Automatic door", cat: "steps", why: "A sensor notices someone close by, and a simple rule says: open the door. It senses and responds, but it doesn't learn." },
+  { id: "washer", icon: "🧺", name: "Washing machine", cat: "steps", why: "It runs a program: fill, wash, rinse, spin. The same steps each time." },
+  { id: "toyrobot", icon: "🤖", name: "Toy robot that does the same dance", cat: "steps", why: "A robot is a machine that follows instructions people gave it. It isn't alive, and this one doesn't learn." },
+  { id: "switch", icon: "💡", name: "Light switch", cat: "none", why: "It just joins or breaks the wire. You decide when the light goes on. There's no computer inside." },
+  { id: "pencil", icon: "✏️", name: "Pencil", cat: "none", why: "A pencil has no computer. You do all the thinking!" },
+  { id: "bike", icon: "🚲", name: "Bicycle", cat: "none", why: "Pedals, a chain and wheels. No computer: you steer!" },
+  { id: "umbrella", icon: "☂️", name: "Umbrella", cat: "none", why: "No computer at all. It just keeps the rain off." },
+  { id: "teddy", icon: "🧸", name: "Teddy bear", cat: "none", why: "No computer inside. It can't think or feel, but you can imagine!" },
+  { id: "toaster", icon: "🍞", name: "Ordinary pop-up toaster", cat: "none", two: true, why: "It heats up and a simple timer pops the toast. It does the same thing every time and can't learn." },
+];
+const SPOT_CATS = {
+  ai: { icon: "🧠", label: "AI: learns from examples" },
+  not: { icon: "⚙️", label: "Not AI" },
+  steps: { icon: "⚙️", label: "Computer: follows set steps" },
+  none: { icon: "🚫", label: "No computer at all" },
+};
+const GAMES = {};
+GAMES.spot = {
+  layout: "side",
+  count: "AI things spotted",
+  gen(level, skill, last) {
+    const three = level >= 1;
+    const pool = SPOT.filter((s) => three ? !s.two : true);
+    const target = skill.pick(pool, (s) => s.id, last);
+    const keys = three ? ["ai", "steps", "none"] : ["ai", "not"];
+    const answer = three ? target.cat : target.cat === "ai" ? "ai" : "not";
+    return {
+      target,
+      key: target.id,
+      three,
+      prompt: `<div class="ai-thing"><span>${target.icon}</span><b>${target.name}</b></div>`,
+      choices: keys.map((k) => ({ v: k, ok: k === answer, art: picCard(SPOT_CATS[k].icon, SPOT_CATS[k].label), label: SPOT_CATS[k].label })),
+    };
+  },
+  ask: (q) => (q.three ? `<b>${q.target.name}</b>. Is it AI, a computer following set steps, or no computer at all?` : `<b>${q.target.name}</b>. Is it AI? Did it learn from lots of examples?`),
+  praise: (q) => `Yes! ${q.target.why}`,
+  hint: () => `Hmm, think again. Did it learn from lots of examples? Or does it do the same set steps every time?`,
+  reveal: (q) => `${q.target.name}: ${SPOT_CATS[q.three ? q.target.cat : q.target.cat === "ai" ? "ai" : "not"].label}. ${q.target.why}`,
+};
+
+// ======================================================================
+// Patterns in data: what comes next, reading a data table, and which robot to trust.
+// ======================================================================
+const SEQ = [["☀️", "sun"], ["🌧️", "rain"], ["❄️", "snow"], ["🍎", "apple"], ["🍌", "banana"], ["🐱", "cat"], ["🐶", "dog"], ["🔴", "red"], ["🔵", "blue"], ["🟡", "yellow"], ["🌙", "moon"], ["⭐", "star"]];
+const SEQ_KINDS = [["AB"], ["AB", "ABC", "AAB"], ["ABC", "AAB", "ABB"], ["ABB", "AABB", "ABC", "AABC"]];
+const TABLES = [
+  { id: "ice", title: "Ice creams sold", inCol: "Weather", outCol: "Sold", ins: [["☀️", "sunny"], ["🌧️", "rainy"]], unseen: ["❄️", "snowy"], outs: [["🍦🍦🍦", "lots of ice creams"], ["🍦", "only a few ice creams"]], q: (i) => `Tomorrow will be <b>${i}</b>. What will Bit predict the shop sells?` },
+  { id: "rain", title: "Did it rain later?", inCol: "Morning sky", outCol: "Afternoon", ins: [["☁️", "dark clouds"], ["🌤️", "a clear sky"]], unseen: ["🌫️", "thick fog"], outs: [["☔", "rain"], ["😎", "no rain"]], q: (i) => `This morning there is <b>${i}</b>. What will Bit predict for the afternoon?` },
+  { id: "kite", title: "Flying a kite", inCol: "Wind", outCol: "Kite", ins: [["💨", "windy"], ["🍃", "calm"]], unseen: ["🌫️", "foggy"], outs: [["🪁", "flies high"], ["⬇️", "falls down"]], q: (i) => `Today it is <b>${i}</b>. What will Bit predict for the kite?` },
+  { id: "plant", title: "Bean plants", inCol: "Each day", outCol: "Plant", ins: [["💧", "watered"], ["🏜️", "not watered"]], unseen: ["🌑", "kept in the dark"], outs: [["🌱", "grows"], ["🥀", "droops"]], q: (i) => `A new bean plant is <b>${i}</b>. What will Bit predict?` },
+  { id: "pup", title: "Puppy after lunch", inCol: "Morning", outCol: "Afternoon", ins: [["🦮", "a long walk"], ["🛋️", "no walk"]], unseen: ["🛁", "a bath"], outs: [["😴", "sleepy"], ["🐕", "bouncy"]], q: (i) => `This morning the puppy had <b>${i}</b>. What will Bit predict for the afternoon?` },
+];
+const UNSURE = ["🤷", "Not sure: no data like this"];
+const TRUST = [
+  { min: 1, good: "100 days", bad: "2 days", topic: "whether it will rain tomorrow", why: "More data shows more patterns, so the guesses get better." },
+  { min: 1, good: "1,000 photos of all sorts of cats", bad: "1 photo of a cat", topic: "which animals are cats", why: "One photo can't show all the ways a cat can look. More, and more different, examples help." },
+  { min: 2, good: "100 days in every season", bad: "100 summer days", topic: "the weather on a snowy winter day", why: "A robot that only saw summer has never seen snow! The data must match the real world." },
+  { min: 2, good: "data that people checked carefully", bad: "data full of mistakes", topic: "what people will like", why: "Garbage in, garbage out! Mistakes in the data make mistakes in the guesses." },
+  { min: 3, good: "children of every age", bad: "only grown-ups", topic: "how tall children will grow", why: "To guess about children, the robot needs examples of children." },
+];
+GAMES.next = {
+  layout: "stack",
+  count: "patterns predicted",
+  gen(level, skill, last) {
+    const kind = skill.pick(SEQ_KINDS[Math.min(level, 3)], (k) => k, last?.kind);
+    const letters = [...new Set(kind)];
+    const items = shuffle(SEQ).slice(0, letters.length + 2);
+    const unit = [...kind].map((ch) => items[letters.indexOf(ch)]);
+    const length = Math.min(9, unit.length * 2 + 1 + Math.floor(Math.random() * unit.length));
+    const full = Array.from({ length: length + 1 }, (_, i) => unit[i % unit.length]);
+    const answer = full[length];
+    const others = [...items.slice(0, letters.length).filter((x) => x !== answer), ...items.slice(letters.length)].slice(0, (level === 0 ? 2 : 3) - 1);
+    return {
+      target: { kind },
+      key: `seq:${kind}`,
+      shown: full.slice(0, length),
+      unit,
+      answer,
+      prompt: `<div class="ai-seq">${full.slice(0, length).map((x) => `<span>${x[0]}</span>`).join("")}<span class="ai-q">?</span></div>`,
+      choices: shuffle([answer, ...others]).map((x) => ({ v: x, ok: x === answer, art: picCard(x[0], x[1]), label: x[1] })),
+    };
+  },
+  ask: (q) => `Here is Bit's data: ${q.shown.map((x) => x[1]).join(", ")}. What will Bit guess comes next?`,
+  praise: (q) => `Yes! The pattern is ${q.unit.map((x) => x[1]).join(", ")}, again and again. Finding patterns in data is how AI makes its guesses.`,
+  hint: () => `Say the data out loud. What repeats? Try again!`,
+  reveal: (q) => `It's ${q.answer[1]}. The pattern is ${q.unit.map((x) => x[1]).join(", ")}, again and again.`,
+};
+GAMES.table = {
+  layout: "wide",
+  count: "predictions made",
+  gen(level, skill, last) {
+    const t = skill.pick(TABLES, (x) => x.id, last?.t);
+    const n = level === 0 ? 4 : level === 1 ? 5 : 6;
+    let ins = shuffle([0, 0, 1, 1, ...Array.from({ length: n - 4 }, () => Math.round(Math.random()))]);
+    const rows = ins.map((i) => ({ i, o: i }));
+    // From level 3, real data has a surprise row: Bit goes with what happened most often.
+    const noisy = level >= 2;
+    if (noisy) {
+      const counts = [0, 1].map((k) => rows.filter((r) => r.i === k).length);
+      const k = counts[0] >= 3 ? 0 : counts[1] >= 3 ? 1 : -1;
+      if (k >= 0) rows[rows.findIndex((r) => r.i === k)].o = 1 - k;
+    }
+    const askUnseen = level >= 3 && Math.random() < 0.35;
+    const qi = Math.round(Math.random());
+    const inWord = askUnseen ? t.unseen[1] : t.ins[qi][1];
+    const matching = rows.filter((r) => r.i === qi);
+    const outVotes = [0, 1].map((o) => matching.filter((r) => r.o === o).length);
+    const answer = askUnseen ? -1 : outVotes[0] >= outVotes[1] ? 0 : 1;
+    const opts = askUnseen || level >= 3 ? [0, 1, -1] : [0, 1];
+    const art = (o) => (o < 0 ? picCard(UNSURE[0], UNSURE[1]) : picCard(t.outs[o][0], t.outs[o][1]));
+    return {
+      target: { t },
+      key: `table:${t.id}`,
+      t,
+      inWord,
+      qi,
+      askUnseen,
+      noisy: noisy && matching.some((r) => r.o !== r.i),
+      answer,
+      prompt: `<table class="ai-table"><caption>${t.title}</caption><thead><tr><th>Day</th><th>${t.inCol}</th><th>${t.outCol}</th></tr></thead><tbody>${rows.map((r, d) => `<tr><td>${d + 1}</td><td>${t.ins[r.i][0]} <small>${t.ins[r.i][1]}</small></td><td>${t.outs[r.o][0]}</td></tr>`).join("")}</tbody></table>`,
+      choices: shuffle(opts).map((o) => ({ v: o, ok: o === answer, art: art(o), label: o < 0 ? UNSURE[1] : t.outs[o][1] })),
+    };
+  },
+  ask: (q) => `Look at Bit's data table. ${q.t.q(q.inWord)}`,
+  praise: (q) =>
+    q.askUnseen
+      ? `Yes! Bit has no data about ${q.inWord} days, so it can't make a good guess. AI only knows the data it was given.`
+      : `Yes! When it was ${q.t.ins[q.qi][1]}, the table mostly says ${q.t.outs[q.answer][1]}. ${q.noisy ? "One day was different: real data is messy, so Bit goes with what happened most often." : "Bit uses that pattern to predict."}`,
+  hint: (q) => (q.askUnseen ? `Look for a day like that in the table. Is there one?` : `Find the days when it was ${q.t.ins[q.qi][1]}. What happened most often?`),
+  reveal: (q) => (q.askUnseen ? `The table has no ${q.inWord} days at all, so Bit can't make a good guess.` : `On the ${q.t.ins[q.qi][1]} days, it was mostly ${q.t.outs[q.answer][1]}. That's Bit's prediction.`),
+};
+GAMES.trust = {
+  layout: "",
+  count: "predictions made",
+  gen(level, skill, last) {
+    const t = skill.pick(TRUST.filter((x) => x.min <= level), (x) => x.bad, last?.t);
+    const goodIsA = Math.random() < 0.5;
+    const a = goodIsA ? t.good : t.bad;
+    const b = goodIsA ? t.bad : t.good;
+    return {
+      target: { t },
+      key: `trust:${t.bad}`,
+      t,
+      a,
+      b,
+      choices: [
+        { v: "A", ok: goodIsA, art: picCard("🤖", `Robot A<br><small>${a}</small>`), label: `Robot A: ${a}` },
+        { v: "B", ok: !goodIsA, art: picCard("🤖", `Robot B<br><small>${b}</small>`), label: `Robot B: ${b}` },
+      ],
+    };
+  },
+  ask: (q) => `Two robots guess ${q.t.topic}. Robot A learned from <b>${q.a}</b>. Robot B learned from <b>${q.b}</b>. Whose guess should we trust more?`,
+  praise: (q) => `Yes! ${q.t.why}`,
+  hint: (q) => `Think: which robot's data is bigger, or matches better?`,
+  reveal: (q) => `The robot that learned from ${q.t.good}. ${q.t.why}`,
+};
+
+// ======================================================================
+// Rules or learning? and Who is better at it?
+// ======================================================================
+const JOBS = [
+  { icon: "🛒", name: "Adding up prices at a shop till", ok: "rules", why: "The maths rules are known exactly, so rules are perfect for this." },
+  { icon: "⏰", name: "Ringing an alarm at 7 o'clock", ok: "rules", why: "One simple rule does it: when the clock says 7, ring." },
+  { icon: "🔒", name: "Opening a lock when you type the right code", ok: "rules", why: "A rule can check the code exactly: right code, open; wrong code, stay shut." },
+  { icon: "👻", name: "A game ghost that always chases you the same way", ok: "rules", why: "Many game characters follow fixed if-then rules, like: if the player is on the left, go left." },
+  { icon: "🙂", name: "Recognising your friend's face", ok: "learn", why: "Faces are far too tricky to describe with rules. It learns from lots of examples instead." },
+  { icon: "🗣️", name: "Understanding spoken words", ok: "learn", why: "Everyone's voice is different, so it learns from lots of recordings." },
+  { icon: "📧", name: "Spotting junk emails", ok: "learn", why: "Junk emails keep changing, so it learns from lots of examples that people marked as junk." },
+  { icon: "✍️", name: "Reading messy handwriting", ok: "learn", why: "Everyone writes differently, so it learns from many examples of each letter." },
+  { icon: "🎮", name: "A game that learns how you play and gets harder", ok: "learn", why: "It learns from your moves, like learning from examples." },
+];
+const WHO = [
+  { icon: "⚡", name: "Doing a million sums in one second", ok: "computer", why: "Computers are amazingly fast at sums." },
+  { icon: "🤗", name: "Comforting a sad friend", ok: "people", why: "People understand feelings. Computers don't have feelings at all." },
+  { icon: "🎨", name: "Making up a brand-new game with friends", ok: "people", why: "People are wonderfully creative. AI can only remix what it has seen." },
+  { icon: "📚", name: "Remembering every word in a whole library", ok: "computer", why: "Computers can store huge amounts of information without forgetting." },
+  { icon: "🔁", name: "Doing the same job 10,000 times without getting bored", ok: "computer", why: "Computers never get tired or bored of repeating a job." },
+  { icon: "🌊", name: "Knowing a puddle is too deep to jump in, without being told", ok: "people", why: "That's common sense. People are great at it; computers often get it wrong." },
+];
+const JOB_CHOICES = { rules: { icon: "📜", label: "Rules robot: follows rules we write" }, learn: { icon: "🧠", label: "Learning robot: learns from examples" } };
+const WHO_CHOICES = { people: { icon: "🧒", label: "People" }, computer: { icon: "💻", label: "Computers" } };
+GAMES.job = {
+  layout: "side",
+  count: "jobs matched",
+  gen(level, skill, last) {
+    const target = skill.pick(JOBS, (j) => j.name, last);
+    return { target, key: target.name, prompt: `<div class="ai-thing"><span>${target.icon}</span><b>${target.name}</b></div>`, choices: ["rules", "learn"].map((k) => ({ v: k, ok: k === target.ok, art: picCard(JOB_CHOICES[k].icon, JOB_CHOICES[k].label), label: JOB_CHOICES[k].label })) };
+  },
+  ask: (q) => `<b>${q.target.name}</b>. Which robot is best for this job?`,
+  praise: (q) => `Yes! ${q.target.why}`,
+  hint: () => `Could you write exact rules for it? Or is it too tricky, so the robot needs examples?`,
+  reveal: (q) => `The ${q.target.ok === "rules" ? "rules robot" : "learning robot"}. ${q.target.why}`,
+};
+GAMES.who = {
+  layout: "side",
+  count: "jobs matched",
+  gen(level, skill, last) {
+    const target = skill.pick(WHO, (j) => j.name, last);
+    return { target, key: target.name, prompt: `<div class="ai-thing"><span>${target.icon}</span><b>${target.name}</b></div>`, choices: ["people", "computer"].map((k) => ({ v: k, ok: k === target.ok, art: picCard(WHO_CHOICES[k].icon, WHO_CHOICES[k].label), label: WHO_CHOICES[k].label })) };
+  },
+  ask: (q) => `<b>${q.target.name}</b>. Who is better at this: people or computers?`,
+  praise: (q) => `Yes! ${q.target.why}`,
+  hint: () => `Is it about speed and memory, or about feelings, ideas and common sense?`,
+  reveal: (q) => `${q.target.ok === "people" ? "People" : "Computers"}. ${q.target.why}`,
+};
+
+// ======================================================================
+// Smart and safe: what to do when AI is part of the story.
+// ======================================================================
+const SAFE = [
+  { id: "fact", min: 0, pic: "💬🐕", ask: "A chatbot says: “Dogs have six legs.” What should you do?", choices: [["📖", "Check with a grown-up or a book", true], ["✅", "Believe it: computers are always right"], ["📝", "Copy it into my homework"]], why: "AI can be wrong, even when it sounds sure. Check facts with a grown-up or a good book. Dogs have four legs!" },
+  { id: "address", min: 0, pic: "📱🏠", ask: "A game app asks: “What is your home address?” What should you do?", choices: [["🙋", "Ask a grown-up first", true], ["⌨️", "Type it in"], ["📢", "Tell the whole game chat"]], why: "Your address, school, full name, phone number and passwords are private. Always ask a grown-up before sharing anything." },
+  { id: "mishear", min: 0, pic: "🔊🐦", ask: "You ask a voice assistant for bird songs, but it plays word songs! Why?", choices: [["👂", "It misheard: AI makes mistakes", true], ["😠", "It's cross with me"], ["🙈", "It wants to trick me"]], why: "Voice assistants turn sounds into words, and sometimes they get it wrong. It isn't cross: it has no feelings. Try saying it again, clearly." },
+  { id: "toy", min: 0, pic: "🤖💖", ask: "A talking toy says, “I love you. I'm your best friend!” Is that true?", choices: [["⚙️", "It's a program saying words", true], ["❤️", "Yes, it really feels love"], ["🥺", "Yes, so I must play with it all day"]], why: "The toy says words people gave it. It doesn't feel anything. Real friends are people, and pets!" },
+  { id: "password", min: 1, pic: "💬🔑", ask: "A chatbot asks for your password. What should you do?", choices: [["🙅", "Never share it, and tell a grown-up", true], ["⌨️", "Type it in"], ["👫", "Share it with friends too"]], why: "Passwords are secret. A helpful app never needs yours. Tell a grown-up straight away." },
+  { id: "bubble", min: 1, pic: "📺🔁", ask: "A video app keeps suggesting the same kind of video, again and again. What's happening?", choices: [["🔍", "It learned what I click on", true], ["🔮", "It can read my mind"], ["🎲", "It picks at random"]], why: "It spots patterns in what you watched and shows more of the same. You can choose something different, or take a break!" },
+  { id: "fake", min: 1, pic: "🖼️🐉", ask: "You see a photo of a dragon flying over a school. What's most likely?", choices: [["🎨", "A computer might have made it", true], ["📰", "Dragons are real now"], ["📸", "Every photo is real"]], why: "AI can make pictures and videos that look real but aren't. Not everything online is true. Talk about it with a grown-up." },
+  { id: "honest", min: 1, pic: "🎨🤖", ask: "An AI app made a picture for you. Your friend asks who drew it. What do you say?", choices: [["🙂", "“An AI app made it”", true], ["🤥", "“I drew it all myself”"], ["🤐", "Say nothing and hide it"]], why: "Being honest matters. Using tools is fine, but say when an AI made something." },
+  { id: "who", min: 2, pic: "🛒💎", ask: "A free game keeps saying “Buy more gems!” Who made it, and why?", choices: [["🏢", "A company that wants to sell things", true], ["🎁", "A friend who wants to give me presents"], ["🤖", "The game decided by itself"]], why: "People and companies make apps, and many want to make money. Ask a grown-up before buying anything." },
+  { id: "fair", min: 2, pic: "⚖️🏆", ask: "Should a computer decide, all by itself, who gets picked for the team?", choices: [["🧑‍🤝‍🧑", "No: people should check its choices", true], ["👍", "Yes: computers are always fair"], ["🎲", "Yes: let it guess"]], why: "If its examples were one-sided, its choices can be unfair. The people who make and use AI are responsible, so they must check it." },
+  { id: "speaker", min: 2, pic: "🔊👂", ask: "A smart speaker listens for its wake word. What can your family do about privacy?", choices: [["🔇", "Learn how to mute it and check its settings", true], ["🙉", "Nothing: it can't hear anything"], ["📣", "Tell it all our secrets"]], why: "Smart speakers have microphones. Grown-ups can mute them and choose what gets saved." },
+];
+GAMES.safe = {
+  layout: "side",
+  count: "safe choices",
+  gen(level, skill, last) {
+    const target = skill.pick(SAFE.filter((s) => s.min <= level), (s) => s.id, last);
+    const opts = level === 0 ? target.choices.slice(0, 2) : target.choices;
+    return {
+      target,
+      key: target.id,
+      prompt: `<div class="ai-thing ai-scene"><span>${target.pic}</span></div>`,
+      choices: shuffle(opts).map(([icon, label, ok]) => ({ v: label, ok: !!ok, art: picCard(icon, label), label })),
+    };
+  },
+  ask: (q) => q.target.ask,
+  praise: (q) => `Yes! ${q.target.why}`,
+  hint: () => `Hmm. Is that the smart and safe choice? Try again.`,
+  reveal: (q) => `The smart choice: ${q.target.choices.find((c) => c[2])[1]}. ${q.target.why}`,
+};
+
+// ======================================================================
+// The lab: Bit's two baskets of examples (its memory), Bit itself, and the animal being sorted or tested.
+// ======================================================================
+function makeLab({ my, score = true } = {}) {
+  stage.innerHTML = `<div class="ai-lab"><div class="ai-bins">${["cat", "dog"].map((k) => `<div class="ai-bin" data-zone="${k}" role="button" tabindex="0" aria-label="${KIND[k].plural} basket"><span class="ai-bin-name">${KIND[k].icon} ${KIND[k].plural}</span><span class="ai-mem" data-mem="${k}"></span></div>`).join("")}</div><div class="ai-side"><div class="ai-bot"><span class="ai-bot-art" data-bot>${robotSvg("happy")}</span><span class="ai-bubble" data-bubble hidden></span></div><div class="ai-dock"><div class="ai-token" data-token hidden></div></div><div class="ai-hist" data-hist></div></div></div>`;
+  const host = panel(`<div class="ap-row ai-row">${score ? '<span class="ai-score" data-score></span>' : ""}<span class="ap-buttons" data-act></span><button type="button" class="ap-btn" data-how aria-label="How Bit thinks">🔍<span class="ai-wide"> How Bit thinks</span></button><button type="button" class="ap-btn" data-again aria-label="Say it again">🔊</button></div>`);
+  const tokenEl = $("[data-token]", stage);
+  const zones = [...stage.querySelectorAll("[data-zone]")];
+  const lab = {
+    mem: [],
+    open: false,
+    current: null,
+    onPick: null,
+    onThumb: null,
+    host,
+    zone: (k) => zones.find((z) => z.dataset.zone === k),
+    bot(mood) {
+      $("[data-bot]", stage).innerHTML = robotSvg(mood);
+    },
+    bubble(html) {
+      const b = $("[data-bubble]", stage);
+      b.hidden = !html;
+      b.innerHTML = html || "";
+      if (html) pop(b);
+    },
+    show(a) {
+      lab.current = a;
+      for (const x of tokenEl.getAnimations()) x.cancel();
+      tokenEl.style.transform = "";
+      tokenEl.innerHTML = animalSvg(a);
+      tokenEl.hidden = false;
+      anim(tokenEl, [{ transform: "translateY(40px) scale(.8)", opacity: 0 }, { transform: "none", opacity: 1 }], 400, { fill: "none" });
+    },
+    hide() {
+      tokenEl.hidden = true;
+      lab.current = null;
+    },
+    thumb(i) {
+      return stage.querySelector(`[data-m="${i}"]`);
+    },
+    add(a, label, { animate = true } = {}) {
+      const i = lab.mem.length;
+      lab.mem.push({ a, label });
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "ai-thumb";
+      b.dataset.m = i;
+      b.setAttribute("aria-label", `${describe(a)}, in the ${label} basket`);
+      b.innerHTML = animalSvg(a);
+      $(`[data-mem="${label}"]`, stage).appendChild(b);
+      if (animate) pop(b);
+      return b;
+    },
+    move(i) {
+      const m = lab.mem[i];
+      m.label = m.label === "cat" ? "dog" : "cat";
+      const b = lab.thumb(i);
+      b.setAttribute("aria-label", `${describe(m.a)}, in the ${m.label} basket`);
+      $(`[data-mem="${m.label}"]`, stage).appendChild(b);
+      pop(b);
+    },
+    // Glide from wherever the finger let go into the basket.
+    async glide(key, from) {
+      const z = $(`[data-mem="${key}"]`, stage).getBoundingClientRect();
+      const t = tokenEl.getBoundingClientRect();
+      const dx = z.left + z.width / 2 - (t.left + t.width / 2) + (from?.x || 0);
+      const dy = z.top + z.height / 2 - (t.top + t.height / 2) + (from?.y || 0);
+      await anim(tokenEl, [{ transform: from ? `translate(${from.x}px, ${from.y}px)` : "none" }, { transform: `translate(${dx}px, ${dy}px) scale(.25)`, opacity: 0.2 }], 420);
+      tokenEl.hidden = true;
+    },
+    back(from) {
+      anim(tokenEl, [{ transform: from ? `translate(${from.x}px, ${from.y}px)` : "none" }, { transform: "none" }], 380, { fill: "none" });
+    },
+    score(marks) {
+      const s = $("[data-score]", host);
+      if (s) s.innerHTML = marks.length ? `Bit: ${marks.map((m) => (m ? '<b class="y">✓</b>' : '<b class="n">✗</b>')).join("")}` : "";
+    },
+    history(list) {
+      $("[data-hist]", stage).innerHTML = list.map((h, i) => `<span${i === list.length - 1 ? ' class="now"' : ""}>${h}</span>`).join("");
+    },
+  };
+  host.onclick = (event) => {
+    if (event.target.closest("[data-again]") && lastSaid) talk(lastSaid, my);
+    else if (event.target.closest("[data-how]")) howBit(lab);
+  };
+  // Dragging: pointer capture keeps the finger on the animal; the move is one transform per frame.
+  let drag = null;
+  let frame = 0;
+  const zoneAt = (x, y) =>
+    zones.find((z) => {
+      const r = z.getBoundingClientRect();
+      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    });
+  tokenEl.addEventListener("pointerdown", (event) => {
+    if (!lab.open || drag) return;
+    event.preventDefault();
+    for (const a of tokenEl.getAnimations()) a.cancel();
+    try {
+      tokenEl.setPointerCapture(event.pointerId);
+    } catch {}
+    drag = { id: event.pointerId, x0: event.clientX, y0: event.clientY, x: 0, y: 0, over: null };
+    tokenEl.classList.add("lift");
+    window.OC?.touch();
+  });
+  tokenEl.addEventListener("pointermove", (event) => {
+    if (!drag || event.pointerId !== drag.id) return;
+    drag.x = event.clientX - drag.x0;
+    drag.y = event.clientY - drag.y0;
+    drag.cx = event.clientX;
+    drag.cy = event.clientY;
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      if (!drag) return;
+      tokenEl.style.transform = `translate(${drag.x}px, ${drag.y}px) scale(1.06)`;
+      const over = zoneAt(drag.cx, drag.cy);
+      if (over !== drag.over) {
+        drag.over?.classList.remove("over");
+        over?.classList.add("over");
+        drag.over = over;
+      }
+    });
+  });
+  const drop = (event) => {
+    if (!drag || event.pointerId !== drag.id) return;
+    const d = drag;
+    drag = null;
+    cancelAnimationFrame(frame);
+    frame = 0;
+    tokenEl.classList.remove("lift");
+    d.over?.classList.remove("over");
+    const zone = event.type === "pointerup" ? zoneAt(event.clientX, event.clientY) : null;
+    tokenEl.style.transform = "";
+    if (zone && lab.open) lab.onPick?.(zone.dataset.zone, { x: d.x, y: d.y });
+    else lab.back(d);
+  };
+  tokenEl.addEventListener("pointerup", drop);
+  tokenEl.addEventListener("pointercancel", drop);
+  onTap(stage, "[data-m]", (b, event) => {
+    if (lab.onThumb) {
+      event.stopPropagation();
+      lab.onThumb(Number(b.dataset.m), b);
+    }
+  });
+  onTap(stage, "[data-zone]", (zone, event) => {
+    if (event.target.closest("[data-m]") && lab.onThumb) return;
+    if (lab.open) lab.onPick?.(zone.dataset.zone);
+  });
+  const keys = (event) => {
+    const zone = event.target.closest?.("[data-zone]");
+    if (zone && (event.key === "Enter" || event.key === " ") && lab.open) {
+      event.preventDefault();
+      lab.onPick?.(zone.dataset.zone);
+    }
+  };
+  stage.addEventListener("keydown", keys);
+  cleanups.push(() => stage.removeEventListener("keydown", keys));
+  return lab;
+}
+
+// The child sorts one animal into a basket. Wrong baskets get a kind hint; the second miss shows the right one.
+function sortOne(lab, a, my, say) {
+  return new Promise((resolve) => {
+    let tries = 0;
+    lab.show(a);
+    lab.bubble("");
+    lab.open = true;
+    if (say) talk(say, my);
+    lab.onPick = async (key, from) => {
+      if (!lab.open || my !== token) return;
+      lab.open = false;
+      const bin = lab.zone(key);
+      if (key === a.kind) {
+        bin.classList.remove("hint");
+        MUSIC.chime();
+        await lab.glide(key, from);
+        if (my !== token) return;
+        lab.add(a, key);
+        sparkle(bin);
+        window.OC?.count("examples taught");
+        resolve();
+      } else {
+        tries += 1;
+        MUSIC.oops();
+        shake(bin);
+        lab.back(from);
+        if (tries >= 2) {
+          lab.zone(a.kind).classList.add("hint");
+          await talk(`It has ${NOSE[a.kind]}, so it's a ${a.kind}. Put it in the ${KIND[a.kind].plural} basket.`, my);
+        } else await talk(`Look closely at the nose. Cats have ${NOSE.cat}. Dogs have ${NOSE.dog}. Try again!`, my);
+        if (my === token) lab.open = true;
+      }
+    };
+  });
+}
+
+// Bit guesses one animal. With judge, the child taps ✓ or ✗ to say if Bit was right.
+async function testOne(lab, a, my, { judge = true } = {}) {
+  const $w = guard(my);
+  lab.show(a);
+  lab.bot("think");
+  lab.bubble("🤔 Hmm…");
+  await $w(wait(still.matches ? 200 : 700));
+  const g = classify(lab.mem, a);
+  const m = lab.mem[g.index];
+  const thumb = lab.thumb(g.index);
+  thumb?.classList.add("match");
+  lab.bot("happy");
+  lab.bubble(`${KIND[g.label].icon} ${KIND[g.label].name}${g.tie ? "?" : "!"}`);
+  const right = g.label === a.kind;
+  const reason = shared(a, m.a);
+  const wrongWhy =
+    m.label !== m.a.kind
+      ? `Bit's closest example was in the wrong basket! It's really a ${m.a.kind}, but it was sorted as a ${m.label}.`
+      : m.a.colour === a.colour
+        ? `Bit matched the colour: the ${m.a.colour} ${m.label} is the same colour. But colour doesn't tell cats from dogs!`
+        : `Bit didn't have a close enough example.`;
+  let ok = right;
+  if (judge) {
+    await $w(talk(`I think it's a <b>${g.label}</b>${g.tie ? ", but I'm not sure" : ""}! ${reason} Is Bit right?`, my));
+    const k = await $w(choose([{ key: "yes", label: "✓ Right" }, { key: "no", label: "✗ Wrong" }], my));
+    const said = k === "yes";
+    window.OC?.count("robot guesses checked");
+    if (said === right) {
+      MUSIC.chime();
+      sparkle($("[data-token]", stage));
+      if (right) await $w(talk(`Yes, Bit got it right! It's a ${a.kind}.`, my));
+      else {
+        lab.bot("oops");
+        await $w(talk(`Well spotted! Bit got it wrong. It's a ${a.kind}. ${wrongWhy}`, my));
+      }
+    } else {
+      MUSIC.oops();
+      if (right) await $w(talk(`Look again: it has ${NOSE[a.kind]}, so it's a ${a.kind}. Bit was right!`, my));
+      else {
+        lab.bot("oops");
+        await $w(talk(`Look again: it has ${NOSE[a.kind]}, so it's a ${a.kind}. Bit got it wrong. ${wrongWhy}`, my));
+      }
+    }
+  } else {
+    if (right) MUSIC.chime();
+    else {
+      MUSIC.oops();
+      lab.bot("oops");
+    }
+    await $w(talk({ html: `${cap(g.label)}! ${right ? "✓ Right." : `✗ Wrong: it's a ${a.kind}.`}`, speech: `${cap(g.label)}! ${right ? "Right." : `Wrong: it's a ${a.kind}.`}` }, my));
+  }
+  thumb?.classList.remove("match");
+  lab.bot("happy");
+  return ok;
+}
+async function testAll(lab, list, my, opts) {
+  const marks = [];
+  lab.score(marks);
+  for (const a of list) {
+    marks.push(await testOne(lab, a, my, opts));
+    lab.score(marks);
+  }
+  lab.hide();
+  lab.bubble("");
+  return marks.filter(Boolean).length;
+}
+// "How Bit thinks": the real sum Bit does, for the animal on screen.
+function howBit(lab) {
+  stage.querySelector(".ai-how")?.remove();
+  const a = lab.current;
+  const rows = a && lab.mem.length ? lab.mem.map((m, i) => ({ m, i, d: diff(a, m.a) })).sort((x, y) => x.d.total - y.d.total).slice(0, 3) : [];
+  const box = document.createElement("div");
+  box.className = "ai-how";
+  box.innerHTML = `<div class="ai-how-card" role="dialog" aria-label="How Bit thinks"><h2>🔍 How Bit thinks</h2><p>Bit compares a new animal with <b>every example</b> in its baskets and adds up the differences:</p><ul class="ai-pts"><li>🎨 different colour <b>+${WEIGHT.colour}</b></li><li>👃 different nose <b>+${WEIGHT.nose}</b></li><li>👂 different ears <b>+${WEIGHT.ears}</b></li><li>🩹 patch or no patch <b>+${WEIGHT.patch}</b></li></ul><p>The example with the <b>smallest</b> total is the closest, and Bit copies its basket. Colour changes most of the picture, so it counts the most. That's why Bit needs examples of every colour!</p>${rows.length ? `<div class="ai-near">${rows.map((r) => `<span><i>${animalSvg(r.m.a)}</i><b>${r.d.total}</b><small>${KIND[r.m.label].name}</small></span>`).join("")}</div>` : ""}<div class="ap-buttons"><button type="button" class="primary" data-close>OK</button></div></div>`;
+  stage.appendChild(box);
+  VOICE.speak(`Bit compares the new animal with every example, and adds up the differences. A different colour counts 6, a different nose 3, different ears 1, and a patch 1. The smallest total is the closest, and Bit copies its basket.`);
+  box.addEventListener("click", (event) => {
+    if (event.target === box || event.target.closest("[data-close]")) {
+      VOICE.hush();
+      box.remove();
+    }
+  });
+}
+
+// ======================================================================
+// Games
+// ======================================================================
+const units = {
+  // ---------- See it ----------
+  see() {
+    const my = token;
+    const nested = (html, x, y, w, h) => html.replace("<svg ", `<svg x="${x}" y="${y}" width="${w}" height="${h}" `);
+    const scenes = [
+      {
+        say: `Hello! I'm <b>Bit</b>, a computer robot. Computers follow instructions, step by step, exactly as they are written.`,
+        async draw(view, api) {
+          el("rect", { width: 1000, height: 560, fill: "#eef5ff" }, view);
+          const bot = el("g", { opacity: 0 }, view);
+          bot.innerHTML = nested(robotSvg("happy"), 60, 90, 330, 400);
+          await api.tween(500, (t) => bot.setAttribute("opacity", t));
+          const steps = ["1. Go forward", "2. Turn left", "3. Pick up the star ⭐"];
+          for (let i = 0; i < steps.length; i++) {
+            const g = el("g", { opacity: 0 }, view);
+            el("rect", { x: 460, y: 120 + i * 120, width: 470, height: 92, rx: 22, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, g);
+            text(g, 695, 178 + i * 120, steps[i], { "font-size": 38, fill: "#2b1d12", "font-weight": 800 });
+            await api.tween(400, (t) => g.setAttribute("opacity", t));
+            await api.wait(350);
+          }
+        },
+      },
+      {
+        say: `Some jobs are easy to write rules for. A calculator follows maths rules: 2 + 2 is always 4. It never has to learn.`,
+        async draw(view, api) {
+          el("rect", { width: 1000, height: 560, fill: "#eef5ff" }, view);
+          // A calculator: a screen and a grid of keys.
+          const calc = el("g", {}, view);
+          el("rect", { x: 300, y: 50, width: 400, height: 470, rx: 40, fill: "#37474f" }, calc);
+          el("rect", { x: 330, y: 80, width: 340, height: 110, rx: 18, fill: "#1f2a44" }, calc);
+          ["7", "8", "9", "+", "4", "5", "6", "−", "1", "2", "3", "=", "0", ".", "C", "×"].forEach((k, i) => {
+            const x = 330 + (i % 4) * 88;
+            const y = 214 + Math.floor(i / 4) * 74;
+            el("rect", { x, y, width: 76, height: 62, rx: 14, fill: k === "=" ? "var(--accent)" : "#eceff1" }, calc);
+            text(calc, x + 38, y + 44, k, { "font-size": 34, fill: k === "=" ? "#fff" : "#2b1d12", "font-weight": 900 });
+          });
+          const g = el("g", { opacity: 0 }, view);
+          text(g, 500, 160, "2 + 2 = 4", { "font-size": 60, fill: "#7fe3ff", "font-weight": 900 });
+          await api.tween(500, (t) => g.setAttribute("opacity", t));
+        },
+      },
+      {
+        say: `But could you write rules for <b>what a cat looks like</b>? Cats come in lots of colours, with patches or without. Rules for that are really hard to write!`,
+        async draw(view, api) {
+          el("rect", { width: 1000, height: 560, fill: "#eef5ff" }, view);
+          const cats = [A("cat", "orange"), A("cat", "black", 0, 1), A("cat", "grey"), A("cat", "white", 0, 1), A("cat", "brown")];
+          for (let i = 0; i < cats.length; i++) {
+            const g = el("g", { opacity: 0 }, view);
+            g.innerHTML = nested(animalSvg(cats[i]), 30 + i * 190, 150 + (i % 2) * 70, 180, 171);
+            await api.tween(300, (t) => g.setAttribute("opacity", t));
+          }
+          text(view, 500, 110, "Rules for “cat”? 🤔", { "font-size": 52, fill: "#2b1d12", "font-weight": 900 });
+        },
+      },
+      {
+        say: `So people let computers <b>learn from examples</b>. That's called <b>AI</b>, short for artificial intelligence. First, show it lots of examples. Next, it finds the patterns. Then, it makes a guess about something new.`,
+        async draw(view, api) {
+          el("rect", { width: 1000, height: 560, fill: "#eef5ff" }, view);
+          const steps = [["🖼️", "1. Lots of examples"], ["🔍", "2. Find patterns"], ["💬", "3. Guess something new"]];
+          for (let i = 0; i < 3; i++) {
+            const g = el("g", { opacity: 0 }, view);
+            const x = 40 + i * 320;
+            el("rect", { x, y: 110, width: 280, height: 330, rx: 30, fill: "#fff", stroke: "var(--accent)", "stroke-width": 4 }, g);
+            el("circle", { cx: x + 140, cy: 240, r: 90, fill: "var(--accent-soft)" }, g);
+            KIT.emoji(g, x + 140, 236, steps[i][0], 100);
+            text(g, x + 140, 396, steps[i][1], { "font-size": 27, fill: "#2b1d12", "font-weight": 800 });
+            if (i < 2) text(g, x + 300, 290, "▶", { "font-size": 40, fill: "var(--accent)" });
+            await api.tween(400, (t) => g.setAttribute("opacity", t));
+            await api.wait(500);
+          }
+        },
+      },
+      {
+        say: `AI is <b>not magic</b>, and it is <b>not alive</b>. It has no feelings. It only knows the examples it was given, so it can make mistakes. That's why people check its answers!`,
+        async draw(view, api) {
+          el("rect", { width: 1000, height: 560, fill: "#eef5ff" }, view);
+          const bot = el("g", {}, view);
+          bot.innerHTML = nested(robotSvg("oops"), 80, 90, 330, 400);
+          const g = el("g", { opacity: 0 }, view);
+          g.innerHTML = nested(animalSvg(A("cat", "brown", 0, 1)), 520, 120, 260, 247);
+          el("rect", { x: 500, y: 390, width: 420, height: 90, rx: 24, fill: "#fff", stroke: "#e53935", "stroke-width": 4 }, g);
+          text(g, 710, 450, "Bit: “Dog!” ✗", { "font-size": 44, fill: "#c62828", "font-weight": 900 });
+          await api.tween(500, (t) => g.setAttribute("opacity", t));
+        },
+      },
+      {
+        say: `You meet AI every day: face unlock, video suggestions, voice assistants and typing suggestions. Let's explore how it works!`,
+        draw: everyday([["📱", "Face unlock"], ["📺", "Video suggestions"], ["🗣️", "Voice assistants"], ["⌨️", "Typing suggestions"]]),
+      },
+    ];
+    explain(scenes, {
+      alive: () => my === token,
+      onDone: () => {
+        mark("see", { done: true });
+        shell.go("spot");
+      },
+    });
+  },
+
+  // ---------- 1. Spot the AI ----------
+  spot() {
+    runChoice({
+      id: "spot",
+      skill: { start: 0, max: 2 },
+      goal: "🔎",
+      gen: (level, skill, last) => roundOf(GAMES.spot, level, skill, last),
+      finish: {
+        icon: "🔎",
+        message: "Go on an AI hunt around your home. Which things learn from examples, which follow set steps, and which have no computer at all? Make three piles or a list.",
+        speech: "You're a great AI spotter! Now go on an AI hunt around your home with a grown-up. Which things learn from examples, which follow set steps, and which have no computer at all?",
+      },
+    });
+  },
+
+  // ---------- 2. Teach the robot ----------
+  teach() {
+    flow(async (my, $w) => {
+      const lab = makeLab({ my });
+      const [a, b, c, d, e] = shuffle(COLOUR_IDS);
+      // Three rounds of teaching. Each test uses animals Bit has never seen; scores rise as the examples cover more colours.
+      const plan = [
+        { train: [A("cat", a), A("dog", b, "floppy")], test: [A("cat", b, 0, 1), A("dog", a, "floppy", 1), A("cat", c), A("dog", d, "pointy")] },
+        { train: [A("cat", b), A("dog", a, "floppy"), A("cat", d, 0, 1), A("dog", e, "floppy", 1)], test: [A("cat", e), A("dog", b, "pointy", 1), A("cat", a, 0, 1), A("dog", c, "floppy")] },
+        { train: [A("cat", e), A("dog", d, "floppy"), A("cat", c), A("dog", c, "floppy")], test: [A("cat", d), A("dog", e, "pointy"), A("cat", c, 0, 1), A("dog", b, "floppy", 1)] },
+      ];
+      const hist = [];
+      lab.history(["Memory: empty"]);
+      await $w(talk(`This is <b>Bit</b>. Bit's baskets are empty: it knows nothing about cats and dogs yet! Let's teach Bit with examples.`, my));
+      for (let r = 0; r < plan.length; r++) {
+        const p = plan[r];
+        for (let i = 0; i < p.train.length; i++) {
+          const say = i === 0 ? (r === 0 ? `Is this a cat or a dog? Drag it into its basket, or tap the basket.` : `Let's teach Bit more examples, in new colours. Where does this one go?`) : rpick([`And this one?`, `Where does this one go?`, `Cat or dog?`]);
+          await $w(sortOne(lab, p.train[i], my, say));
+        }
+        lab.hide();
+        await $w(talk(`Bit has ${lab.mem.length} examples now. Let's test Bit with animals it has <b>never seen</b>.`, my));
+        await $w(choose([{ key: "go", label: "▶ Test Bit", primary: true, pulse: true }], my));
+        const n = await $w(testAll(lab, shuffle(p.test), my));
+        hist.push(`Test ${r + 1}: ${n} of ${p.test.length}`);
+        lab.history([`${lab.mem.length} examples`, ...hist]);
+        if (n >= 3) cheer($("[data-hist]", stage), r + 1, 4);
+        if (r < plan.length - 1) {
+          await $w(talk(`Bit got <b>${n} out of ${p.test.length}</b> right. ${n < p.test.length ? "Bit only knows a few examples, so it mixed up the colours. More examples will help!" : "Brilliant!"}`, my));
+          await $w(choose([{ key: "go", label: "➕ Teach more", primary: true, pulse: true }], my));
+          lab.score([]);
+        } else {
+          await $w(talk(`<b>${n} out of ${p.test.length}!</b> ${hist.join(", ")}. More examples, in more colours, made Bit better and better.`, my));
+          await $w(wait(600));
+          finishCard({
+            id: "teach",
+            icon: "🧑‍🏫",
+            message: "Play “teach the robot”: a grown-up pretends to be a robot that knows nothing. Make up a secret rule (like “things with wheels”), show 3 examples that fit and 3 that don't, then see if your robot can sort new things.",
+            speech: `You taught Bit to tell cats from dogs! ${hist.join(". ")}. Now play teach the robot with a grown-up: make up a secret rule, show examples, and see if they can guess new ones.`,
+          });
+        }
+      }
+    });
+  },
+
+  // ---------- 3. Patterns in data ----------
+  data() {
+    let lastKind = null;
+    runChoice({
+      id: "data",
+      skill: { start: 0, max: 3 },
+      goal: "📊",
+      gen(level, skill, last) {
+        const kinds = level === 0 ? ["next", "table"] : ["next", "table", "trust", "table"];
+        const id = rpick(kinds.filter((k) => k !== lastKind));
+        lastKind = id;
+        return roundOf(GAMES[id], level, skill, last);
+      },
+      finish: {
+        icon: "📊",
+        message: "Keep a weather chart for a week: each morning draw the sky, and each evening tick if it rained. At the end, look for patterns. Could you predict tomorrow? Is one week enough data?",
+        speech: "You found the patterns in Bit's data! Now keep a weather chart for a week with a grown-up. Look for patterns, and try to predict tomorrow.",
+      },
+    });
+  },
+
+  // ---------- 4. Garbage in, garbage out ----------
+  garbage() {
+    flow(async (my, $w) => {
+      const lab = makeLab({ my });
+      const [a, b, c, d, e] = shuffle(COLOUR_IDS);
+      // Mission 1: two examples are in the wrong basket.
+      const good = [A("cat", a), A("dog", a, "floppy"), A("cat", b, 0, 1), A("dog", b, "pointy"), A("cat", e), A("dog", e, "floppy", 1)];
+      const bad = [[A("cat", d), "dog"], [A("dog", c, "floppy"), "cat"]];
+      const start = shuffle([...good.map((x) => [x, x.kind]), ...bad]);
+      for (const [x, label] of start) lab.add(x, label, { animate: false });
+      const tests = [A("cat", d, 0, 1), A("dog", c, "floppy", 1), A("cat", a, 0, 1)];
+      lab.history(["Mission 1: mixed-up examples"]);
+      await $w(talk(`Uh-oh! Someone sorted Bit's examples in a hurry. Let's test Bit and see how it does.`, my));
+      await $w(choose([{ key: "go", label: "▶ Test Bit", primary: true, pulse: true }], my));
+      let n = await $w(testAll(lab, tests, my));
+      const before = n;
+      await $w(talk(`Bit got ${n} out of ${tests.length}. Look closely at Bit's baskets: <b>two animals are in the wrong basket</b>! Tap each one to move it.`, my));
+      let fixed = 0;
+      await $w(
+        new Promise((resolve) => {
+          lab.onThumb = async (i, btn) => {
+            if (my !== token) return;
+            const m = lab.mem[i];
+            if (m.label !== m.a.kind) {
+              lab.move(i);
+              MUSIC.chime();
+              sparkle(btn);
+              fixed += 1;
+              window.OC?.count("examples fixed");
+              if (fixed >= 2) {
+                lab.onThumb = null;
+                resolve();
+              } else talk(`Yes! That ${m.a.kind} was in the wrong basket. Find one more!`, my);
+            } else {
+              MUSIC.oops();
+              shake(btn);
+              talk(`That ${m.a.kind} is in the right basket. Look for a ${m.a.kind === "cat" ? "dog" : "cat"} in the ${KIND[m.label].plural} basket.`, my);
+            }
+          };
+        }),
+      );
+      await $w(talk(`You fixed Bit's examples! Let's test again.`, my));
+      n = await $w(testAll(lab, tests, my, { judge: false }));
+      lab.history([`Before: ${before}/${tests.length}`, `After fixing: ${n}/${tests.length}`]);
+      surprise();
+      await $w(talk(`${n} out of ${tests.length}! People call this <b>garbage in, garbage out</b>: wrong examples give wrong guesses. Good examples give good guesses.`, my));
+      await $w(choose([{ key: "go", label: "▶ Mission 2", primary: true, pulse: true }], my));
+
+      // Mission 2: one-sided examples. Every cat is one colour and every dog another.
+      const lab2 = makeLab({ my });
+      const [x, y, z, w] = shuffle(COLOUR_IDS);
+      for (const an of [A("cat", x), A("cat", x, 0, 1), A("dog", y, "floppy"), A("dog", y, "floppy", 1), A("dog", y, "pointy")]) lab2.add(an, an.kind, { animate: false });
+      const tests2 = [A("cat", y), A("dog", x, "floppy"), A("cat", z, 0, 1)];
+      lab2.history(["Mission 2: one-sided examples"]);
+      await $w(talk(`Mission 2. These examples are all in the right baskets. But look: every cat is ${x}, and every dog is ${y}. Let's test Bit.`, my));
+      await $w(choose([{ key: "go", label: "▶ Test Bit", primary: true, pulse: true }], my));
+      n = await $w(testAll(lab2, tests2, my));
+      const before2 = n;
+      await $w(talk(`Bit got ${n} out of ${tests2.length}. Bit only saw ${x} cats and ${y} dogs, so it thinks <b>${x} means cat</b>! How can we help Bit?`, my));
+      const fixes = shuffle([
+        { key: "all", label: "🌈 Show cats and dogs of every colour" },
+        { key: "more", label: `➕ Show more ${x} cats` },
+        { key: "tell", label: "😠 Tell Bit off" },
+      ]);
+      for (;;) {
+        const k = await $w(choose(fixes, my));
+        if (k === "all") break;
+        MUSIC.oops();
+        await $w(talk(k === "more" ? `That's even more of the same. Bit would still think ${x} means cat. Try another idea!` : `Bit isn't alive and has no feelings, so telling it off can't help. Only better examples can. Try another idea!`, my));
+      }
+      MUSIC.chime();
+      await $w(talk(`Yes! Bit needs examples of <b>every kind</b>. Here they come!`, my));
+      for (const an of [A("cat", y, 0, 1), A("cat", z), A("cat", w), A("dog", x, "floppy", 1), A("dog", z, "pointy"), A("dog", w, "floppy")]) {
+        lab2.add(an, an.kind);
+        window.OC?.count("examples taught");
+        await $w(wait(still.matches ? 60 : 280));
+      }
+      n = await $w(testAll(lab2, tests2, my, { judge: false }));
+      lab2.history([`One-sided: ${before2}/${tests2.length}`, `Every colour: ${n}/${tests2.length}`]);
+      surprise();
+      await $w(talk(`${n} out of ${tests2.length}! This really happens with AI. Some face-recognition systems learned from photos of too few kinds of people, so they made more mistakes for everyone else. That isn't fair. The fix is the same: examples of everyone, and testing with everyone.`, my));
+      await $w(choose([{ key: "go", label: "🏁 Finish", primary: true, pulse: true }], my));
+      finishCard({
+        id: "garbage",
+        icon: "🗑️",
+        message: "With a grown-up, try a phone's photo search (search for “dog” or “tree”). Does it ever get it wrong? Talk about why: which examples might it be missing? Who could be left out if the examples were one-sided?",
+        speech: "You fixed Bit's examples, twice! Now, with a grown-up, try a phone's photo search. Does it ever get it wrong? Talk about which examples it might be missing.",
+      });
+    });
+  },
+
+  // ---------- 5. Rules or learning? ----------
+  rules() {
+    flow(async (my, $w) => {
+      const tests = [A("cat", "grey"), A("cat", "black", 0, 1), A("cat", "orange"), A("dog", "orange", "floppy"), A("dog", "white", "pointy"), A("dog", "brown", "pointy", 1)];
+      // Bit learned from one cat and one dog of every colour (not the same animals as the test).
+      const memory = COLOUR_IDS.flatMap((col) => {
+        const tc = tests.find((t) => t.kind === "cat" && t.colour === col);
+        const td = tests.find((t) => t.kind === "dog" && t.colour === col);
+        return [A("cat", col, 0, tc ? !tc.patch : 1), A("dog", col, "floppy", td && td.ears === "floppy" ? !td.patch : 0)];
+      }).map((x) => ({ a: x, label: x.kind }));
+      const RULES = {
+        ears: { label: "👂 pointy ears", test: (x) => x.ears === "pointy", said: "Some dogs have pointy ears too, so the rule broke on them." },
+        orange: { label: "🟠 orange fur", test: (x) => x.colour === "orange", said: "Cats and dogs can be any colour, so colour is a poor rule." },
+        nose: { label: "👃 a small pink nose", test: (x) => x.kind === "cat", said: "The nose is the best clue. Your rule got them all! When we know a good rule, rules work brilliantly." },
+      };
+      stage.innerHTML = `<div class="ai-rules"><div class="ai-rule" data-rule>📜 If it has <b>…</b>, it's a cat. If not, it's a dog.</div><div class="ai-grid">${tests.map((t, i) => `<div class="ai-tcard" data-t="${i}"><span class="ai-tart">${animalSvg(t)}</span><span class="ai-marks"><i data-r>📜</i><i data-b>🧠</i></span></div>`).join("")}</div><div class="ai-tally"><span data-rs>📜 Rules robot: ?</span><span data-bs>🧠 Bit: ?</span></div></div>`;
+      panel(`<div class="ap-row ai-row"><span class="ap-buttons" data-act></span><button type="button" class="ap-btn" data-again aria-label="Say it again">🔊</button></div>`).onclick = (event) => {
+        if (event.target.closest("[data-again]") && lastSaid) talk(lastSaid, my);
+      };
+      const cardsEl = [...stage.querySelectorAll("[data-t]")];
+      const markAll = async (slot, guessOf, out) => {
+        let n = 0;
+        for (let i = 0; i < tests.length; i++) {
+          const ok = guessOf(tests[i]) === tests[i].kind;
+          n += ok ? 1 : 0;
+          const m = $(`[data-${slot}]`, cardsEl[i]);
+          m.textContent = `${slot === "r" ? "📜" : "🧠"}${ok ? "✓" : "✗"}`;
+          m.className = ok ? "y" : "n";
+          pop(cardsEl[i]);
+          if (ok) MUSIC.chime();
+          else MUSIC.oops();
+          await $w(wait(still.matches ? 80 : 420));
+        }
+        $(out, stage).textContent = `${slot === "r" ? "📜 Rules robot" : "🧠 Bit"}: ${n} of ${tests.length}`;
+        return n;
+      };
+      await $w(talk(`A <b>rules robot</b> follows a rule that people write. A <b>learning robot</b>, like Bit, learns from examples. Which works better? Pick a rule: <b>if it has…, it's a cat.</b>`, my));
+      let bitDone = false;
+      let tried = 0;
+      for (;;) {
+        const k = await $w(choose(Object.entries(RULES).map(([key, r]) => ({ key, label: r.label })), my));
+        const rule = RULES[k];
+        tried += 1;
+        window.OC?.count("rules tested");
+        $("[data-rule]", stage).innerHTML = `📜 If it has <b>${rule.label.replace(/^\S+\s/, "")}</b>, it's a cat. If not, it's a dog.`;
+        for (const cEl of cardsEl) Object.assign($("[data-r]", cEl), { textContent: "📜", className: "" });
+        await $w(talk(`Let's run your rule on six animals.`, my));
+        const n = await markAll("r", (x) => (rule.test(x) ? "cat" : "dog"), "[data-rs]");
+        await $w(talk(`The rules robot got <b>${n} out of 6</b>. ${rule.said}`, my));
+        if (!bitDone) {
+          await $w(talk(`Now Bit has a go. Bit learned from 10 examples: a cat and a dog in every colour.`, my));
+          const b = await markAll("b", (x) => classify(memory, x).label, "[data-bs]");
+          bitDone = true;
+          await $w(talk(`Bit got <b>${b} out of 6</b>, without anyone writing a rule. It found the pattern in its examples.`, my));
+        }
+        const go = await $w(choose([{ key: "again", label: "🔁 Try another rule" }, ...(tried >= 1 ? [{ key: "next", label: "▶ Which robot for the job?", primary: true, pulse: tried >= 2 || k === "nose" }] : [])], my));
+        if (go === "next") break;
+      }
+      await $w(talk(`Rules are best when we know exactly what to check, like a calculator. Learning helps when rules are too hard to write, like faces and voices. But it needs lots of good examples. Now: which robot for each job?`, my));
+      let lastKind = null;
+      runChoice({
+        id: "rules",
+        skill: { start: 0, max: 2 },
+        goal: "📜",
+        gen(level, skill, last) {
+          const id = level === 0 ? "job" : rpick(["job", "job", "who"].filter((x) => x !== lastKind || x === "job"));
+          lastKind = id;
+          return roundOf(GAMES[id], level, skill, last);
+        },
+        finish: {
+          icon: "📜",
+          message: "Write a rule for sorting your toys, like “if it has wheels, it goes in this box”. Then hunt for a toy that breaks your rule! Talk about whether examples or rules would work better.",
+          speech: "You know when to use rules and when to learn from examples! Now write a rule for sorting your toys with a grown-up, then hunt for a toy that breaks it.",
+        },
+      });
+    });
+  },
+
+  // ---------- 6. Smart and safe ----------
+  safe() {
+    runChoice({
+      id: "safe",
+      skill: { start: 0, max: 2 },
+      goal: "🛡️",
+      gen: (level, skill, last) => roundOf(GAMES.safe, level, skill, last),
+      finish: {
+        icon: "🛡️",
+        message: "Make a family AI promise together: we check facts with a grown-up, we keep private things private, we say when AI made something, and we ask for help when something feels wrong. Stick it by the computer.",
+        speech: "You're smart and safe with AI! Now make a family AI promise with a grown-up: check facts, keep private things private, be honest, and ask for help.",
+      },
+    });
+  },
+};
+
+const UNITS = [
+  { id: "see", label: "See it", icon: "👀" },
+  { id: "spot", label: "1. Spot the AI", icon: "🔎" },
+  { id: "teach", label: "2. Teach the robot", icon: "🧑‍🏫" },
+  { id: "data", label: "3. Patterns in data", icon: "📊" },
+  { id: "garbage", label: "4. Garbage in, garbage out", icon: "🗑️" },
+  { id: "rules", label: "5. Rules or learning?", icon: "📜" },
+  { id: "safe", label: "6. Smart and safe", icon: "🛡️" },
+];
+const learnerName = () => (window.OC ? OC.current() : "") || "Learner";
+shell = SHELL({
+  units: UNITS,
+  unitWord: "Game",
+  how: {
+    see: { icon: "👀", title: "See it", steps: ["Watch the pictures.", "Press Next ▶ to go on."] },
+    spot: { icon: "🔎", title: "Spot the AI", steps: ["Look at the thing.", "Does it learn from examples, follow set steps, or have no computer?", "Tap your answer."] },
+    teach: { icon: "🧑‍🏫", title: "Teach the robot", steps: ["Drag each animal into the Cats or Dogs basket, or tap the basket.", "Test Bit with animals it has never seen.", "Tap Right if Bit is right, or Wrong if Bit made a mistake."] },
+    data: { icon: "📊", title: "Patterns in data", steps: ["Look at Bit's data.", "Find the pattern.", "Tap what Bit will guess."] },
+    garbage: { icon: "🗑️", title: "Garbage in, garbage out", steps: ["Test Bit and check its guesses.", "Find the examples that are wrong or one-sided.", "Fix them, and test again!"] },
+    rules: { icon: "📜", title: "Rules or learning?", steps: ["Pick a rule for the rules robot.", "Compare it with Bit, who learned from examples.", "Then pick the best robot for each job."] },
+    safe: { icon: "🛡️", title: "Smart and safe", steps: ["Listen to what happens.", "Choose the smart, safe thing to do.", "AI can be wrong, so we check!"] },
+  },
+  // After the first See it, open straight on Spot the AI.
+  start: MUSIC.progress.of(learnerName())["AI Explorer:see"]?.done ? "spot" : "see",
+  onStop() {
+    token += 1;
+    VOICE.hush();
+    for (const f of cleanups) {
+      try {
+        f();
+      } catch {}
+    }
+    cleanups = [];
+    lastSaid = "";
+    const p = $("[data-panel]");
+    if (p) p.onclick = null;
+  },
+  subject: "Tech",
+  activity: "AI Explorer",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [84, 88, 91, 96]);
+MUSIC.preload("piano", [64, 67]);
+
+const style = document.createElement("style");
+style.textContent = `
+html{touch-action:manipulation}
+.ap-stage{-webkit-touch-callout:none}
+.ai-v{display:block;overflow:visible}
+.ai-card,.ai-bin,.ai-thumb{-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.ai-card{position:relative;display:grid;place-items:center;min-width:0;min-height:0;padding:8px;border:0;border-radius:24px;background:#fff;box-shadow:0 0 0 3px #e3ecf8,0 6px 0 #d3dfee;color:var(--ink);cursor:pointer;transition:transform .08s ease,box-shadow .08s ease,opacity .3s ease}
+.ai-card:active{transform:translateY(4px) scale(.97);box-shadow:0 0 0 3px #e3ecf8,0 2px 0 #d3dfee}
+.ai-card:focus-visible,.ai-bin:focus-visible,.ai-thumb:focus-visible{outline:4px solid #ffcf5c;outline-offset:3px}
+.ai-card *{pointer-events:none}
+.ai-card.good{box-shadow:0 0 0 5px #22a05a,0 6px 0 #157a40}
+.ai-card.bad{opacity:.4}
+.ai-card.dim{opacity:.3}
+.ai-card.hint,.ai-bin.hint{animation:ai-glow 1s ease-in-out infinite}
+
+/* picking games */
+.ai-play{position:absolute;inset:0;display:flex;gap:clamp(8px,1.6vw,16px);padding:clamp(8px,1.6vw,16px)}
+.ai-cards{flex:1 1 auto;min-width:0;min-height:0;display:flex;gap:clamp(8px,1.6vw,16px)}
+.ai-pick{flex:1 1 0;overflow:hidden}
+.ai-art{position:absolute;inset:clamp(4px,1vh,10px)}
+.ai-prompt{flex:0 0 34%;min-width:0;min-height:0;display:grid;place-items:center;overflow:hidden;border-radius:24px;background:var(--accent-soft);container-type:size}
+.ai-play:not(.side):not(.stack):not(.wide) .ai-prompt{display:none}
+.ai-play.side .ai-cards,.ai-play.wide .ai-cards{flex-direction:column}
+.ai-play.wide .ai-prompt{flex-basis:50%}
+.ai-play.stack{flex-direction:column}
+.ai-play.stack .ai-prompt{flex:0 0 40%;padding:6px}
+.ai-act{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:6px 10px;text-align:center}
+.ai-act span{font-size:clamp(34px,8vh,76px);line-height:1.1}
+.ai-act b{font:900 clamp(16px,2.6vh,25px)/1.15 var(--sans);color:#2b1d12}
+.ai-act small{font-weight:800;font-size:.85em;color:var(--accent-dark)}
+.ai-cards.n3 .ai-act span{font-size:clamp(28px,6vh,60px)}
+.ai-play.side .ai-act,.ai-play.wide .ai-act{flex-direction:row;gap:14px;justify-content:flex-start;padding:6px 18px;text-align:left}
+.ai-thing{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2cqh;width:100%;height:100%;padding:12px;text-align:center}
+.ai-thing span{font-size:min(42cqh,32cqw);line-height:1.05}
+.ai-thing b{font:900 min(9cqh,8.5cqw,34px)/1.15 var(--sans);color:#2b1d12}
+.ai-scene span{font-size:min(48cqh,26cqw);letter-spacing:-.05em}
+.ai-seq{display:flex;flex-wrap:wrap;justify-content:center;align-content:center;gap:1.5cqw;width:100%;height:100%;padding:8px}
+.ai-seq span{display:grid;place-items:center;width:min(15cqw,40cqh);aspect-ratio:1;border-radius:18%;background:#fff;font-size:min(10cqw,27cqh);line-height:1}
+.ai-seq .ai-q{background:none;box-shadow:inset 0 0 0 4px var(--accent);border-radius:18%;color:var(--accent);font:900 min(9cqw,24cqh) var(--sans)}
+.ai-table{border-collapse:separate;border-spacing:0 3px;font:800 min(6cqh,4.6cqw,24px)/1.25 var(--sans);color:#2b1d12;margin:0 auto}
+.ai-table caption{font-weight:900;color:var(--accent-dark);padding-bottom:2px}
+.ai-table th{font-size:.8em;color:var(--muted);padding:0 .6em}
+.ai-table td{background:#fff;padding:.12em .6em;text-align:center;white-space:nowrap}
+.ai-table td:first-child{border-radius:10px 0 0 10px;color:var(--muted)}
+.ai-table td:last-child{border-radius:0 10px 10px 0}
+.ai-table small{font-size:.75em;color:var(--muted)}
+@media (max-aspect-ratio:1/1){.ai-play,.ai-cards{flex-direction:column}.ai-prompt{flex-basis:30%}.ai-play.wide .ai-prompt{flex-basis:48%}.ai-act{flex-direction:row;gap:12px;justify-content:flex-start;padding:4px 14px;text-align:left}.ai-act span,.ai-cards.n3 .ai-act span{font-size:clamp(30px,5vh,48px)}.ai-act b{font-size:clamp(15px,2.2vh,20px)}}
+
+/* race track */
+@media (max-width:480px){.ai-wide{display:none}.ai-row{gap:6px}.ai-row .ap-btn{min-width:50px;padding:0 12px}}
+.ai-row{flex-wrap:wrap;width:min(100%,900px)}
+.ai-race{position:relative;flex:1 1 220px;min-width:130px;height:44px;border-radius:22px;background:#dbe7f7;box-shadow:inset 0 0 0 3px #b9cdea}
+.ai-race::before{content:"";position:absolute;left:14px;right:44px;top:50%;height:3px;margin-top:-1px;background:repeating-linear-gradient(90deg,#8aa6cf 0 8px,transparent 8px 16px)}
+.ai-race-goal{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:24px;line-height:1}
+.ai-racer{position:absolute;left:6px;top:50%;margin-top:-17px;font-size:30px;line-height:34px;transition:left .9s cubic-bezier(.3,.8,.3,1)}
+
+/* the lab */
+.ai-lab{position:absolute;inset:0;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:clamp(8px,1.4vw,14px);padding:clamp(8px,1.4vw,14px)}
+.ai-bins{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(6px,1.2vw,12px);min-height:0}
+.ai-bin{position:relative;display:flex;flex-direction:column;min-height:0;padding:8px;border-radius:22px;background:#f4f8fe;box-shadow:0 0 0 3px #d3dfee,0 6px 0 #c4d3e8;cursor:pointer;transition:box-shadow .12s ease,transform .08s ease}
+.ai-bin[data-zone=dog]{background:#fff7ec;box-shadow:0 0 0 3px #f0dfc6,0 6px 0 #e6d2b4}
+.ai-bin.over{box-shadow:0 0 0 6px #ffcf5c,0 6px 0 #c4d3e8;transform:scale(1.02)}
+.ai-bin-name{flex:none;padding:2px 0 6px;color:var(--ink);font:900 clamp(17px,2.6vh,24px)/1.2 var(--sans);text-align:center}
+.ai-mem{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(44px,8.5vh,78px),1fr));grid-auto-rows:min-content;align-content:start;gap:6px;overflow:auto}
+.ai-thumb{display:block;width:100%;aspect-ratio:200/190;padding:3px;border:0;border-radius:14px;background:#fff;box-shadow:0 2px 0 rgba(0,0,0,.08);cursor:pointer}
+.ai-thumb svg{width:100%;height:100%;pointer-events:none}
+.ai-thumb.match{box-shadow:0 0 0 5px #ffb020,0 0 18px #ffb020;position:relative;z-index:2}
+.ai-side{display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:8px;min-height:0}
+.ai-bot{display:flex;align-items:center;justify-content:center;gap:8px;height:clamp(64px,17vh,140px)}
+.ai-bot-art{height:100%;aspect-ratio:200/240}
+.ai-bot-art svg{width:100%;height:100%}
+.ai-bubble{position:relative;padding:8px 16px;border-radius:20px;background:#fff;box-shadow:0 0 0 3px var(--accent),0 4px 0 var(--accent-dark);color:var(--ink);font:900 clamp(18px,3.2vh,30px)/1.2 var(--sans);white-space:nowrap}
+.ai-bubble[hidden]{display:none}
+.ai-dock{display:grid;place-items:center;min-height:0;border-radius:22px;background:radial-gradient(circle,#fff 30%,var(--accent-soft));container-type:size}
+.ai-token{width:min(92cqw,calc(90cqh * 200 / 190));aspect-ratio:200/190;display:grid;place-items:center;touch-action:none;cursor:grab;will-change:transform}
+.ai-token[hidden]{display:none}
+.ai-token svg{width:100%;height:100%;pointer-events:none}
+.ai-token.lift{cursor:grabbing;filter:drop-shadow(0 14px 12px rgba(0,0,0,.25));z-index:5}
+.ai-hist{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;min-height:0}
+.ai-hist span{padding:3px 10px;border-radius:12px;background:#eef3fa;color:var(--muted);font:800 clamp(12px,1.8vh,15px)/1.3 var(--sans)}
+.ai-hist span.now{background:var(--accent);color:#fff}
+.ai-score{min-width:5.5em;padding:6px 12px;border-radius:14px;background:#fff;box-shadow:0 3px 0 #e2d6c4;font:900 17px/1.2 var(--sans);color:var(--ink);white-space:nowrap}
+.ai-score:empty{display:none}
+.ai-score .y{color:#1f8a4c}.ai-score .n{color:#c62828}
+.ai-row .ap-buttons:empty{display:none}
+@media (max-aspect-ratio:1/1){.ai-lab{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1.15fr)}.ai-side{grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);grid-template-rows:minmax(0,1fr) auto}.ai-bot{flex-direction:column;height:auto;min-height:0}.ai-bot-art{height:auto;width:min(100%,110px)}.ai-dock{grid-row:1;grid-column:2}.ai-hist{grid-column:1/-1}.ai-bubble{font-size:18px;padding:5px 10px}.ai-mem{grid-template-columns:repeat(auto-fill,minmax(42px,1fr))}}
+@media (max-width:480px){.ai-row .ap-buttons button{min-height:48px;padding:0 14px;font-size:16px}.ai-score{min-width:0;font-size:15px;padding:5px 8px}}
+/* How Bit thinks */
+.ai-how{position:absolute;inset:0;z-index:9;display:grid;place-items:center;padding:10px;background:rgba(238,243,250,.94)}
+.ai-how-card{width:min(560px,100%);max-height:100%;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 20px;border-radius:26px;background:#fff;box-shadow:0 8px 0 #dbe5f2,0 18px 40px rgba(30,60,110,.18);text-align:center;color:#2b1d12;font:700 clamp(15px,2.2vh,18px)/1.4 var(--sans)}
+.ai-how-card h2{margin:0;font:900 24px/1.2 var(--sans)}
+.ai-how-card p{margin:0}
+.ai-pts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:0;padding:0;list-style:none;width:100%}
+.ai-pts li{padding:6px 10px;border-radius:12px;background:#eef3fa;text-align:left}
+.ai-pts b{color:var(--accent-dark)}
+.ai-near{display:flex;justify-content:center;gap:10px}
+.ai-near span{display:flex;flex-direction:column;align-items:center;padding:6px;border-radius:14px;background:#f4f8fe}
+.ai-near i{display:block;width:60px}
+.ai-near b{font:900 20px/1 var(--sans);color:var(--accent-dark)}
+.ai-near small{color:var(--muted);font-weight:800}
+/* Rules or learning */
+.ai-rules{position:absolute;inset:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:clamp(6px,1.2vh,12px);padding:clamp(8px,1.4vw,14px)}
+.ai-rule{justify-self:center;padding:10px 18px;border-radius:18px;background:var(--accent-soft);color:var(--ink);font:800 clamp(16px,2.6vh,24px)/1.3 var(--sans);text-align:center}
+.ai-rule b{color:var(--accent-dark)}
+.ai-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:clamp(6px,1.2vw,12px);min-height:0}
+.ai-tcard{position:relative;display:grid;grid-template-rows:minmax(0,1fr) auto;place-items:center;min-height:0;padding:6px;border-radius:20px;background:#fff;box-shadow:0 0 0 3px #e3ecf8}
+.ai-tart{height:100%;min-height:0;aspect-ratio:200/190;max-width:100%}
+.ai-tart svg{width:100%;height:100%}
+.ai-marks{display:flex;gap:6px}
+.ai-marks i{padding:2px 8px;border-radius:10px;background:#eef3fa;color:var(--muted);font:900 clamp(13px,2vh,18px)/1.3 var(--sans);font-style:normal}
+.ai-marks i.y{background:#dff3e6;color:#1f8a4c}.ai-marks i.n{background:#fbe0dc;color:#c62828}
+.ai-tally{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.ai-tally span{padding:4px 14px;border-radius:14px;background:#fff;box-shadow:0 3px 0 #e2d6c4;font:900 clamp(15px,2.2vh,19px)/1.3 var(--sans);color:var(--ink)}
+@media (max-aspect-ratio:1/1){.ai-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr))}.ai-tcard{grid-template-rows:minmax(0,1fr);grid-template-columns:minmax(0,1fr) auto;gap:4px;padding:4px 6px}.ai-marks{flex-direction:column}.ai-tally{gap:6px}.ai-tally span{padding:3px 10px;font-size:15px}.ai-rule{padding:6px 12px;font-size:16px}}
+/* end card */
+.ai-done{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:clamp(12px,3vw,32px);padding:16px;background:radial-gradient(circle at 30% 40%,#fff,var(--accent-soft))}
+.ai-done-pic{position:relative;height:min(74%,340px);aspect-ratio:200/240}
+.ai-done-pic svg{width:100%;height:100%}
+.ai-done-badge{position:absolute;right:-12%;bottom:4%;display:grid;place-items:center;width:34%;aspect-ratio:1;border-radius:50%;background:#fff;box-shadow:0 4px 0 #dbe5f2;font-size:clamp(26px,5vw,44px)}
+.ai-done-text{max-width:30em}
+.ai-done-text h2{margin:0 0 8px;color:var(--accent-dark);font:900 clamp(20px,3vw,30px)/1.15 var(--sans)}
+.ai-done-text p{margin:0;color:#2b1d12;font:700 clamp(16px,2.3vw,23px)/1.35 var(--sans)}
+@media (max-aspect-ratio:1/1){.ai-done{flex-direction:column;text-align:center}.ai-done-pic{height:38%}}
+@keyframes ai-glow{0%,100%{box-shadow:0 0 0 3px #e3ecf8,0 6px 0 #d3dfee}50%{box-shadow:0 0 0 8px #ffcf5c,0 6px 0 #d3dfee}}
+@media (prefers-reduced-motion:reduce){.ai-card.hint,.ai-bin.hint{animation:none;box-shadow:0 0 0 6px #ffcf5c}.ai-racer{transition:none}}
+`;
+document.head.appendChild(style);
+</script>
+</body>
+</html>

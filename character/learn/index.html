@@ -1,0 +1,1324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Learning to Learn · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="character">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Learning to Learn</b><small>Growth mindset & study skills · Levels 2–4</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Xylophone and piano sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, text, panel, sayAsync, wait, confetti, explain, everyday, emoji, shuffle, still, surprise, sparkle } = KIT;
+const stage = $("[data-stage]");
+let token = 0;
+let cleanups = [];
+let shell = null;
+// Tests can shorten the focus timer (1 = real minutes).
+let TIMER_SCALE = 1;
+
+const learner = () => (window.OC ? OC.current() : "") || "";
+const esc = (s) => (window.OC ? OC.escapeHtml(s) : String(s));
+const NAME = () => esc(learner());
+const rpick = (list) => list[Math.floor(Math.random() * list.length)];
+const ROUNDS = 10;
+// Where each child starts: Level 2 (and younger) → 0, Level 3 → 1, Level 4 and up → 2.
+function ageStart() {
+  try {
+    const at = window.OC ? OC.LEVELS.indexOf(OC.levelOf(OC.current())) : -1;
+    return at <= 1 ? 0 : at === 2 ? 1 : 2;
+  } catch {
+    return 0;
+  }
+}
+
+// ======================================================================
+// Smooth touch. Act on pointerdown (no waiting for click), never rebuild the stage on a tap,
+// and animate with transforms only. click still works for keyboards and switch access.
+// ======================================================================
+function onTap(host, selector, fn) {
+  let downAt = 0;
+  const run = (event) => {
+    const target = event.target.closest?.(selector);
+    if (target && host.contains(target) && !target.disabled) fn(target, event);
+  };
+  const down = (event) => {
+    if (event.button > 0) return;
+    downAt = Date.now();
+    window.OC?.touch();
+    run(event);
+  };
+  const click = (event) => {
+    if (Date.now() - downAt < 800) return;
+    run(event);
+  };
+  host.addEventListener("pointerdown", down);
+  host.addEventListener("click", click);
+  cleanups.push(() => {
+    host.removeEventListener("pointerdown", down);
+    host.removeEventListener("click", click);
+  });
+}
+const anim = (node, frames, ms, opts = {}) => {
+  if (!node?.animate) return Promise.resolve();
+  const duration = still.matches ? Math.min(ms, 120) : ms;
+  const a = node.animate(frames, { duration, easing: "cubic-bezier(.2,.8,.3,1)", fill: "both", ...opts });
+  // Never let a paused animation (hidden tab, power saving) stall a game.
+  return Promise.race([a.finished.catch(() => {}), wait(duration + (opts.delay || 0) + 250)]);
+};
+const pop = (node) => anim(node, [{ transform: "scale(1)" }, { transform: "scale(1.08)" }, { transform: "scale(1)" }], 380, { fill: "none" });
+const shake = (node) => anim(node, [{ transform: "translateX(0)" }, { transform: "translateX(-10px)" }, { transform: "translateX(9px)" }, { transform: "translateX(-6px)" }, { transform: "translateX(0)" }], 420, { fill: "none" });
+const bounce = (node) => anim(node, [{ transform: "translateY(0) scale(1)" }, { transform: "translateY(-14%) scale(1.08)" }, { transform: "translateY(0) scale(1)" }], 520, { fill: "none" });
+
+// talk("html") shows and speaks the same words. talk({ html, speech }) speaks different words,
+// so a quote shown on the card can be read aloud with the question.
+const talk = (msg, my = token) => {
+  if (my !== token) return Promise.resolve(false);
+  if (typeof msg === "string") return sayAsync(msg);
+  const box = $("[data-say]");
+  if (box) box.innerHTML = msg.html;
+  return VOICE.speakAsync(msg.speech);
+};
+const mark = (id, data) => shell.mark(id, data);
+const NEXT = { see: "mind", mind: "practice", practice: "memory", memory: "stuck", stuck: "focus", focus: "teach", teach: null };
+
+// ======================================================================
+// Learning that adapts. Each game keeps a level for the child (0, 1, 2 ≈ Level 2, 3, 4):
+// three right first time in a row → a little harder; two misses in a row → a little easier.
+// Missed items are remembered and come back in later rounds until they are right first time.
+// ======================================================================
+function skillOf(id, { start = ageStart(), max = 2 } = {}) {
+  const saved = shell.progress()[id] || {};
+  let level = Math.max(0, Math.min(max, saved.level ?? start));
+  let missed = Array.isArray(saved.missed) ? saved.missed : [];
+  let streak = 0;
+  let slips = 0;
+  const save = () => mark(id, { level, missed });
+  return {
+    get level() {
+      return level;
+    },
+    max,
+    right(key) {
+      streak += 1;
+      slips = 0;
+      missed = missed.filter((k) => k !== key);
+      const up = streak >= 3 && level < max;
+      if (up) {
+        level += 1;
+        streak = 0;
+      }
+      save();
+      return up;
+    },
+    wrong(key) {
+      streak = 0;
+      slips += 1;
+      missed = [key, ...missed.filter((k) => k !== key)].slice(0, 8);
+      if (slips >= 2 && level > 0) {
+        level -= 1;
+        slips = 0;
+      }
+      save();
+    },
+    // Set the level straight away (games scored at the end, like the pairs game).
+    set(next) {
+      level = Math.max(0, Math.min(max, next));
+      save();
+    },
+    // Not the same as last time; a missed item comes back about two rounds in five.
+    pick(list, keyOf, lastKey) {
+      const others = list.filter((x) => keyOf(x) !== lastKey);
+      const pool = others.length ? others : list;
+      const review = pool.filter((x) => missed.includes(keyOf(x)));
+      return review.length && Math.random() < 0.4 ? rpick(review) : rpick(pool);
+    },
+  };
+}
+const LEVEL_UP = ["You're getting so good at this! Let's make it a little trickier.", "Wow, your brain is growing! Here comes a harder one.", "Super thinking! Let's go up a level."];
+
+// A right answer: sparkles where the finger was, and a bigger surprise now and then.
+function cheer(target, round, rounds) {
+  sparkle(target);
+  if (round < rounds && (round === 3 || round === rounds - 2)) surprise();
+}
+async function levelUp(my) {
+  surprise();
+  MUSIC.chime();
+  await talk(rpick(LEVEL_UP), my);
+}
+
+function finishCard({ id, icon, message, speech, note = "" }) {
+  const my = token;
+  stage.innerHTML = `<div class="ll-done"><div class="ll-done-pic" aria-hidden="true"><span>${icon}</span></div><div class="ll-done-text">${note ? `<p class="ll-done-note">${note}</p>` : ""}<h2>Try it for real, with a grown-up</h2><p>${message}</p></div></div>`;
+  anim($(".ll-done-pic", stage), [{ transform: "scale(.5) rotate(-12deg)", opacity: 0 }, { transform: "scale(1.08) rotate(4deg)", opacity: 1 }, { transform: "none", opacity: 1 }], 700, { fill: "none" });
+  confetti();
+  MUSIC.chime();
+  mark(id, { done: true });
+  const host = panel(`<div class="ap-buttons"><button type="button" data-again>🔁 Play again</button>${NEXT[id] ? '<button type="button" class="primary" data-next data-pulse>▶ Next game</button>' : ""}</div>`);
+  talk(speech || `Try it for real, with a grown-up. ${message}`, my);
+  host.onclick = (event) => {
+    if (event.target.closest("[data-again]")) shell.go(id);
+    else if (event.target.closest("[data-next]")) shell.go(NEXT[id]);
+  };
+}
+
+// ======================================================================
+// <DATA>
+// ======================================================================
+// Fixed thinking and a growth way to say the same thing. not: tempting answers that are still fixed.
+// hard: only from the top level (subtle ones, such as effort without a new strategy).
+const FIXED = [
+  { say: "I'm just bad at maths.", good: "Maths is tricky for me, but I get better when I practise.", not: ["Some people are maths people, and I'm not."] },
+  { say: "I can't read this word.", good: "I can't read this word yet. I'll sound it out." },
+  { say: "I give up.", good: "I'll try a different way." },
+  { say: "This is too hard.", good: "This is hard, and hard things help me learn." },
+  { say: "I made a mistake, so I'm not clever.", good: "My mistake shows me what to fix next.", not: ["I'll hide my mistakes so nobody sees."] },
+  { say: "She's better than me, so why try?", good: "What can I learn from how she does it?", not: ["She's just born clever."] },
+  { say: "I'll never be good at drawing.", good: "If I keep practising, my drawing will get better." },
+  { say: "I can't do it.", good: "I can't do it yet." },
+  { say: "If it's hard, I must be doing it wrong.", good: "Hard means I'm learning something new.", hard: true },
+  { say: "I don't need to practise. I'm already good at it.", good: "Practice helps me get even better.", not: ["Clever people never need to practise."], hard: true },
+  { say: "I keep trying the same way, but it doesn't work.", good: "I'll try a new strategy, or ask for help.", not: ["I'll just try harder the same way."], hard: true },
+  { say: "I got it right first time, so I'm a genius.", good: "I got it right because I practised. What's my next challenge?", not: ["I'll only do easy things so I always get them right."], hard: true },
+];
+const GROWTH = [
+  "I can't do it yet, but I'm learning.",
+  "Let me try another way.",
+  "Mistakes help me learn.",
+  "When I'm really stuck, I can ask for help.",
+  "Practice makes it easier.",
+  "This is hard, but I'm getting better.",
+  "What can I learn from this?",
+  "I'm proud of how hard I tried.",
+  "My friend's way might help me too.",
+];
+// Unhelpful replies: still fixed, or not trying at all.
+const UNHELPFUL = [
+  "Someone else should do it for me.",
+  "I'll just copy the answer.",
+  "I'll never try that again.",
+  "Only clever people can do this.",
+  "I'll pretend I've finished.",
+  "It's not fair, so I'm stopping.",
+];
+
+// When I'm stuck: the ladder, and some unhelpful moves.
+const STEPS = {
+  reread: { icon: "📖", label: "Read it again, slowly", n: 1 },
+  other: { icon: "🔄", label: "Try another way", n: 2 },
+  example: { icon: "🔎", label: "Look at an example", n: 3 },
+  break: { icon: "🧘", label: "Take a short break", n: 4 },
+  help: { icon: "🙋", label: "Ask for help", n: 5 },
+  giveup: { icon: "🏳️", label: "Give up" },
+  copy: { icon: "👀", label: "Copy someone's answer" },
+  guess: { icon: "🎲", label: "Guess anything" },
+  same: { icon: "🔁", label: "Keep doing the same thing" },
+  rush: { icon: "⚡", label: "Rush to the end" },
+};
+const LADDER = ["reread", "other", "example", "break", "help"];
+const BAD_STEPS = ["giveup", "copy", "guess", "same", "rush"];
+// a: the best next step. d: ladder steps that are not the best fit here (used at higher levels).
+const STUCK = [
+  { s: "You read the maths question really fast. Now you're not sure what it's asking.", a: "reread", d: ["break", "example"], why: "Reading it again slowly often clears it up." },
+  { s: "You counted on your fingers three times and keep losing your place.", a: "other", d: ["reread", "break"], why: "Try another way, like drawing dots or using blocks." },
+  { s: "You don't know how to start a new kind of sum, but there's one already done at the top of the page.", a: "example", d: ["break", "other"], why: "The worked example shows you the steps. Follow it, then try yours." },
+  { s: "You've been trying for a long time. You feel cross and your head feels fuzzy.", a: "break", d: ["reread", "example"], why: "A short break, a stretch or a few slow breaths helps your brain reset. Then come back to it." },
+  { s: "You read it again, tried another way and looked at an example. You're still stuck.", a: "help", d: ["reread", "break"], why: "You've had a good go yourself. Now asking for help is the smart move." },
+  { s: "Your block tower keeps falling over when you build it the same way.", a: "other", d: ["reread", "help"], why: "Try another way. A wider base might help!" },
+  { s: "You're learning to write the letter g, and there's a neat g printed on the page.", a: "example", d: ["break", "help"], why: "Look closely at the example: where does it start, and which way does it go?" },
+  { s: "There's a word in the instructions you don't know. You've read the sentence twice and still can't work it out.", a: "help", d: ["reread", "other"], why: "You've already looked again, so ask: what does this word mean?" },
+  { s: "You got an answer, but it doesn't look right.", a: "reread", d: ["break", "help"], why: "Look again slowly and check each step. You might spot the slip yourself." },
+  { s: "One tricky bit of your piano piece keeps going wrong, even when you play it again and again.", a: "other", d: ["reread", "break"], why: "Try another way: play just that bit, slowly, one hand at a time." },
+  { s: "You're so upset about a hard puzzle that you want to throw it.", a: "break", d: ["other", "example"], why: "Big feelings make thinking hard. Take a break and some slow breaths first." },
+  { s: "Your friend solved a problem like yours yesterday and wrote down how.", a: "example", d: ["break", "reread"], why: "Their working is an example. See how it was done, then do yours your own way." },
+];
+
+// Focus & goals: good goals, planning steps, and beating distractions.
+const FOCUS = [
+  { kind: "goal", q: "Which is a good small goal for today?", a: ["📖", "Read 2 pages of my book before lunch"], d: [["🌍", "Read every book in the world"], ["🤷", "Get better at stuff"]], why: "It's small and clear, so you'll know when you've done it." },
+  { kind: "goal", q: "Which goal is clear enough to check?", a: ["✏️", "Practise 5 spellings for 10 minutes"], d: [["✨", "Be good at spelling"], ["🏆", "Never make a mistake again"]], why: "You can check it: 5 spellings, 10 minutes. Done!" },
+  { kind: "goal", q: "You want to learn to swim. Which goal helps most this week?", a: ["🏊", "Practise kicking with a float 3 times"], d: [["🥇", "Win a big race tomorrow"], ["😴", "Wait until I can just do it"]], why: "A small step you can practise is how big skills grow." },
+  { kind: "steps", q: "Big job: write a story. What should come first?", a: ["💡", "Plan who is in it and what happens"], d: [["🎨", "Draw the cover"], ["🔚", "Write THE END"]], why: "A quick plan first makes the writing much easier." },
+  { kind: "steps", q: "Big job: learn the 5 times table. Which plan works best?", a: ["🪜", "Learn a few facts each day, then test myself"], d: [["🌙", "Read it all once, the night before"], ["🙈", "Hope I just remember it"]], why: "A little every day, and testing yourself, helps it stick." },
+  { kind: "steps", q: "Big job: tidy your room. Which plan works best?", a: ["🧩", "One small job at a time: toys, then books, then clothes"], d: [["😵", "Look at the whole mess and give up"], ["🔀", "Rush from job to job and finish none"]], why: "Breaking a big job into small steps makes it doable." },
+  { kind: "steps", q: "Big job: build a model. What should you do first?", a: ["🧰", "Get everything I need ready"], d: [["🧪", "Start, then stop to hunt for the glue"], ["⏳", "Wait until I feel like it"]], why: "Getting things ready first means you don't keep stopping." },
+  { kind: "distract", q: "You're reading and the TV is on.", a: ["🔇", "Ask to turn it off, or move somewhere quiet"], d: [["📺", "Read and watch at the same time"], ["👀", "Watch one more show first"]], why: "Your brain focuses best on one thing at a time." },
+  { kind: "distract", q: "A tablet keeps buzzing next to you while you practise.", a: ["📦", "Put it in another room until I'm done"], d: [["📱", "Check it every time it buzzes"], ["🔊", "Turn it up louder"]], why: "Out of sight helps keep it out of mind." },
+  { kind: "distract", q: "Your little brother wants to play while you do your sums.", a: ["🤝", "Say kindly: “After my 10 minutes!”"], d: [["😠", "Shout at him to go away"], ["🎲", "Play now and forget the sums"]], why: "Kind and clear: you finish, then you play." },
+  { kind: "distract", q: "Your tummy is rumbling just before focus time.", a: ["🍎", "Have a snack and a drink first, then focus"], d: [["🍪", "Get up for a snack every few minutes"], ["😣", "Ignore it and feel grumpy"]], why: "Getting ready first helps you stay focused." },
+  { kind: "distract", q: "In the middle of your task, your mind wanders off to the park.", a: ["🎯", "Notice it, then gently bring my mind back"], d: [["🏃", "Stop and go to the park now"], ["😞", "Decide I'm just bad at focusing"]], why: "Everyone's mind wanders. Noticing it and coming back is the skill, and it gets better with practice." },
+];
+
+// Memory tricks: story sets (each sentence adds one thing and links it to the last) and plain things.
+const STORIES = [
+  [["🐱", "cat", "A <b>cat</b> woke up feeling silly."], ["🎩", "hat", "The cat put on a tall <b>hat</b>."], ["🚲", "bike", "In her hat, she rode a <b>bike</b>."], ["🎂", "cake", "The bike crashed into a giant <b>cake</b>."], ["🎈", "balloon", "Out of the cake floated a <b>balloon</b>."], ["🌙", "moon", "The balloon carried her up to the <b>moon</b>."], ["🧀", "cheese", "The moon was made of <b>cheese</b>."], ["🐭", "mouse", "And a <b>mouse</b> was nibbling the cheese!"]],
+  [["🐶", "dog", "A <b>dog</b> went for a walk."], ["🥁", "drum", "The dog found a loud <b>drum</b> and banged it."], ["🌳", "tree", "Boom! A <b>tree</b> shook."], ["🍎", "apple", "Down fell a shiny red <b>apple</b>."], ["🐢", "turtle", "It bonked a sleepy <b>turtle</b> on the head."], ["☂️", "umbrella", "The turtle opened an <b>umbrella</b>."], ["🌈", "rainbow", "Under the umbrella, he saw a <b>rainbow</b>."], ["🦆", "duck", "A <b>duck</b> slid down the rainbow. Quack!"]],
+  [["🚀", "rocket", "A <b>rocket</b> landed in a pond."], ["🐟", "fish", "Out jumped a <b>fish</b>."], ["🎸", "guitar", "The fish played a <b>guitar</b>."], ["👟", "shoe", "Its song made a <b>shoe</b> dance."], ["🍕", "pizza", "The shoe stepped on a hot <b>pizza</b>."], ["🦒", "giraffe", "A <b>giraffe</b> ate the pizza in one bite."], ["📚", "book", "Then the giraffe read a <b>book</b>."], ["⏰", "clock", "Ring! A <b>clock</b> said it was bedtime."]],
+];
+const THINGS = [["🍌", "banana"], ["🔑", "key"], ["🧦", "sock"], ["🐸", "frog"], ["🌻", "sunflower"], ["⚽", "ball"], ["🥕", "carrot"], ["🦋", "butterfly"], ["🧸", "teddy"], ["🐝", "bee"], ["🍦", "ice cream"], ["🚗", "car"], ["🦀", "crab"], ["🎁", "present"], ["🔦", "torch"], ["🍪", "biscuit"], ["🐘", "elephant"], ["⭐", "star"], ["🐧", "penguin"], ["🍓", "strawberry"], ["🚂", "train"], ["🔔", "bell"], ["🧲", "magnet"], ["🍋", "lemon"], ["🐌", "snail"], ["🎺", "trumpet"]];
+
+// Teach it back.
+const TOYS = [["🧸", "Teddy"], ["🐶", "Puppy"], ["🦖", "Dino"], ["🐰", "Bunny"]];
+const TEACH_TOPICS = [
+  { icon: "🧠", label: "Why practice helps", model: "When I practise, the connections in my brain get stronger, so the thing gets easier. Like riding my bike: it was wobbly at first, and now it's easy." },
+  { icon: "🪜", label: "What to do when I'm stuck", model: "First I read it again, slowly. Then I try another way, or look at an example. I can take a short break. If I'm still stuck, I ask for help." },
+  { icon: "🌱", label: "The power of yet", model: "If I can't do something, I say I can't do it yet. Yet means I'm still learning, and with practice I'll get there." },
+  { icon: "🧩", label: "A memory trick", model: "To remember a list, I make a silly story that links each thing to the next one. The story helps me find them again." },
+  { icon: "➕", label: "Something from maths" },
+  { icon: "📚", label: "Something I read" },
+];
+const CHECKS = [
+  ["🏷️", "Say what it's called."],
+  ["🗣️", "Explain it in your own words."],
+  ["💡", "Give an example. Make one up!"],
+  ["✋", "Show it: draw it, use your hands, or act it out."],
+  ["❓", "Ask your toy a question about it, then answer it."],
+  ["🔍", "Was there a bit you couldn't explain? That's the bit to learn again."],
+];
+
+// Focus timer goals.
+const GOALS = [["📖", "Read a page or two"], ["✏️", "Practise 5 spellings"], ["➕", "Do 5 sums"], ["🎨", "Finish a drawing"], ["🎹", "Practise a tune"], ["🧹", "Tidy my desk"]];
+
+// ======================================================================
+// Card art (HTML): an emoji over words.
+// ======================================================================
+const card = (icon, label, cls = "") => `<span class="ll-c ${cls}"><span class="ll-ico" aria-hidden="true">${icon}</span><span class="ll-lbl">${label}</span></span>`;
+const quote = (s, icon = "💬") => `<div class="ll-quote"><span aria-hidden="true">${icon}</span><q>${s}</q></div>`;
+// A situation or question (not somebody's words), so no quote marks.
+const scene = (s, icon = "🤔") => `<div class="ll-quote"><span aria-hidden="true">${icon}</span><p>${s}</p></div>`;
+
+// ======================================================================
+// Round-based picking game. Taps answer on pointerdown; only classes change, cards are never rebuilt mid-round.
+// cfg.gen(level, skill, lastKey) builds a round: { key, prompt, choices: [{ ok, art, label }] }.
+// ======================================================================
+const raceHtml = (racer = "🧠", goal = "⭐") => `<div class="ll-race" data-race aria-hidden="true"><span class="ll-race-goal">${goal}</span><span class="ll-racer" data-racer>${racer}</span></div>`;
+function raceTo(host, round, rounds) {
+  const racer = $("[data-racer]", host);
+  if (racer) racer.style.left = `calc((100% - 84px) * ${round / rounds} + 6px)`;
+}
+const HALFWAY = ["Halfway there! Keep going!", "You're halfway! Your brain is working hard.", "Halfway! Great thinking so far."];
+
+function runChoice(cfg) {
+  const my = token;
+  const rounds = cfg.rounds || ROUNDS;
+  const skill = skillOf(cfg.id, cfg.skill);
+  let round = 0;
+  let firstTry = 0;
+  let tries = 0;
+  let open = false;
+  let q = null;
+  let lastKey = null;
+  stage.innerHTML = `<div class="ll-play" data-play><div class="ll-prompt" data-prompt></div><div class="ll-cards" data-cards></div></div>`;
+  const cards = $("[data-cards]", stage);
+  const promptBox = $("[data-prompt]", stage);
+  const host = panel(`<div class="ap-row ll-row">${raceHtml(cfg.racer, cfg.goal)}<span class="ap-status" data-level></span><button type="button" class="ap-btn" data-again aria-label="Say it again">🔊<span class="ll-wide"> Again</span></button></div>`);
+  const dots = () => {
+    raceTo(host, round, rounds);
+    $("[data-level]", host).innerHTML = `🌱 ${["Level 2", "Level 3", "Level 4"][skill.level] || `Level ${skill.level + 2}`}`;
+  };
+  host.onclick = (event) => {
+    if (event.target.closest("[data-again]") && q) talk(cfg.ask(q), my);
+  };
+  async function ask() {
+    if (my !== token) return;
+    q = cfg.gen(skill.level, skill, lastKey);
+    lastKey = q.key;
+    tries = 0;
+    dots();
+    promptBox.innerHTML = q.prompt;
+    anim(promptBox.firstElementChild, [{ transform: "scale(.9)", opacity: 0 }, { transform: "none", opacity: 1 }], 380, { fill: "none" });
+    cards.className = `ll-cards n${q.choices.length}`;
+    cards.innerHTML = q.choices.map((c, i) => `<button type="button" class="ll-card" data-c="${i}" aria-label="${c.label.replace(/"/g, "&quot;")}">${c.art}</button>`).join("");
+    [...cards.children].forEach((b, i) => anim(b, [{ transform: "translateY(20px)", opacity: 0 }, { transform: "none", opacity: 1 }], 380, { delay: i * 70, fill: "backwards" }));
+    open = true;
+    await talk(cfg.ask(q), my);
+  }
+  async function next(up) {
+    if (my !== token) return;
+    if (up && round < rounds) {
+      await levelUp(my);
+      if (my !== token) return;
+    }
+    if (round === Math.ceil(rounds / 2) && round < rounds) {
+      surprise();
+      await talk(rpick(HALFWAY), my);
+      if (my !== token) return;
+    }
+    if (round >= rounds) {
+      if (cfg.after) return cfg.after({ firstTry, rounds, level: skill.level });
+      return finishCard({ id: cfg.id, ...cfg.finish, note: `${firstTry} of ${rounds} right first time.` });
+    }
+    ask();
+  }
+  async function choose(button) {
+    const c = q.choices[Number(button.dataset.c)];
+    if (!open || c.state || my !== token) return;
+    if (c.ok) {
+      open = false;
+      c.state = "good";
+      button.classList.add("good");
+      for (const b of cards.children) if (b !== button) b.classList.add("dim");
+      const up = tries === 0 ? skill.right(q.key) : false;
+      if (tries === 0) firstTry += 1;
+      MUSIC.chime();
+      round += 1;
+      window.OC?.count(cfg.count);
+      dots();
+      cheer(button, round, rounds);
+      pop(button);
+      await talk(cfg.praise(q, c), my);
+      if (my !== token) return;
+      await wait(250);
+      next(up);
+    } else {
+      if (tries === 0) skill.wrong(q.key);
+      tries += 1;
+      c.state = "bad";
+      button.classList.add("bad");
+      MUSIC.oops();
+      shake(button);
+      // With two choices one miss leaves only the answer, so show it straight away.
+      if (tries >= Math.min(2, q.choices.length - 1)) {
+        open = false;
+        const right = cards.children[q.choices.findIndex((x) => x.ok)];
+        right.classList.add("hint");
+        await talk(cfg.reveal(q, c), my);
+        if (my !== token) return;
+        await wait(400);
+        round += 1;
+        dots();
+        next(false);
+      } else await talk(cfg.hint(q, c), my);
+    }
+  }
+  onTap(cards, "[data-c]", choose);
+  (async () => {
+    dots();
+    if (cfg.intro) await talk(cfg.intro, my);
+    ask();
+  })();
+}
+
+// ======================================================================
+// Games
+// ======================================================================
+const NEURON = (cx, cy, r, fill, angle = 0) => {
+  const arms = Array.from({ length: 6 }, (_, i) => {
+    const a = ((angle + i * 60) * Math.PI) / 180;
+    const x1 = cx + Math.cos(a) * r * 0.8;
+    const y1 = cy + Math.sin(a) * r * 0.8;
+    const x2 = cx + Math.cos(a) * r * 2;
+    const y2 = cy + Math.sin(a) * r * 2;
+    const b = a + 0.5;
+    return `<path d="M${x1} ${y1} L${x2} ${y2} M${(x1 + x2) / 2 + Math.cos(a) * r * 0.2} ${(y1 + y2) / 2 + Math.sin(a) * r * 0.2} l${Math.cos(b) * r * 0.6} ${Math.sin(b) * r * 0.6}" stroke="${fill}" stroke-width="${r * 0.22}" stroke-linecap="round" fill="none"/>`;
+  }).join("");
+  return `<g>${arms}<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}"/><circle cx="${cx - r * 0.25}" cy="${cy - r * 0.25}" r="${r * 0.3}" fill="#fff" opacity=".45"/></g>`;
+};
+const SANS = "Nunito, ui-rounded, system-ui, sans-serif";
+function label(view, x, y, words, size = 34, fill = "#2b1d12", attrs = {}) {
+  return text(view, x, y, words, { "font-size": size, fill, "font-family": SANS, "font-weight": 900, ...attrs });
+}
+
+const units = {
+  // ---------- See it: how learning works ----------
+  see() {
+    const my = token;
+    const scenes = [
+      {
+        say: `Your brain is full of tiny cells called <b>neurons</b>. They pass messages to each other along little paths. There are billions of them!`,
+        async draw(view, api) {
+          view.innerHTML = `<rect width="1000" height="560" fill="#f4f4ff"/>`;
+          const spots = [[170, 150], [420, 110], [690, 170], [860, 330], [560, 380], [260, 400]];
+          const links = el("g", {}, view);
+          const cells = el("g", {}, view);
+          for (const [i, [x, y]] of spots.entries()) {
+            const g = el("g", { opacity: 0 }, cells);
+            g.innerHTML = NEURON(x, y, 34, ["#6366f1", "#8b5cf6", "#ec4899", "#14b8a6", "#f59e0b", "#3b82f6"][i], i * 17);
+            await api.tween(260, (t) => g.setAttribute("opacity", t));
+          }
+          for (let i = 0; i < spots.length; i++) {
+            const [a, b] = [spots[i], spots[(i + 1) % spots.length]];
+            el("line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: "#c7c9f5", "stroke-width": 5, "stroke-dasharray": "10 10" }, links);
+          }
+          const dot = el("circle", { r: 12, fill: "#facc15", stroke: "#fff", "stroke-width": 4 }, view);
+          for (let lap = 0; lap < 2; lap++)
+            for (let i = 0; i < spots.length; i++) {
+              const [a, b] = [spots[i], spots[(i + 1) % spots.length]];
+              await api.tween(380, (t) => {
+                dot.setAttribute("cx", a[0] + (b[0] - a[0]) * t);
+                dot.setAttribute("cy", a[1] + (b[1] - a[1]) * t);
+              }, (t) => t);
+            }
+        },
+      },
+      {
+        say: `When you <b>practise</b>, the same message goes along the same path again and again, and that connection gets <b>stronger</b>. It's a bit like a path across a field: the more you walk it, the clearer it gets.`,
+        async draw(view, api) {
+          view.innerHTML = `<rect width="1000" height="560" fill="#f4f4ff"/>${NEURON(180, 290, 56, "#6366f1")}${NEURON(820, 290, 56, "#ec4899", 30)}`;
+          const path = el("path", { d: "M240 290 C400 170 600 410 760 290", stroke: "#a5b4fc", "stroke-width": 3, fill: "none", "stroke-linecap": "round" }, view);
+          const count = label(view, 500, 500, "Practice 0", 44, "#3730a3");
+          const dot = el("circle", { r: 14, fill: "#facc15", stroke: "#fff", "stroke-width": 4 }, view);
+          const len = path.getTotalLength();
+          for (let n = 1; n <= 6; n++) {
+            count.textContent = `Practice ${n}`;
+            const w0 = 3 + (n - 1) * 5;
+            await api.tween(Math.max(450, 1300 - n * 150), (t) => {
+              const p = path.getPointAtLength(len * t);
+              dot.setAttribute("cx", p.x);
+              dot.setAttribute("cy", p.y);
+              path.setAttribute("stroke-width", w0 + 5 * t);
+            }, (t) => t);
+            path.setAttribute("stroke", n >= 4 ? "#4f46e5" : n >= 2 ? "#818cf8" : "#a5b4fc");
+          }
+          count.textContent = "Stronger, faster, easier!";
+        },
+      },
+      {
+        say: `That's why things that were hard get <b>easier</b> with practice. Riding a bike, reading, tying laces, playing music: wobbly at first, then easier and easier.`,
+        draw: everyday([["🚲", "Riding a bike"], ["📖", "Reading"], ["👟", "Tying laces"], ["🎹", "Playing music"]]),
+      },
+      {
+        say: `<b>Mistakes</b> help too. A mistake shows you what to fix. When you check it and fix it, your brain learns something new.`,
+        async draw(view, api) {
+          view.innerHTML = `<rect width="1000" height="560" fill="#f4f4ff"/><rect x="190" y="60" width="620" height="440" rx="30" fill="#fff" stroke="#c7c9f5" stroke-width="4"/>`;
+          const a = label(view, 500, 170, "7 + 5 = 13", 84);
+          a.setAttribute("opacity", 0);
+          await api.tween(400, (t) => a.setAttribute("opacity", t));
+          const x = emoji(view, 760, 140, "❌", 60, { opacity: 0 });
+          await api.tween(300, (t) => x.setAttribute("opacity", t));
+          await api.wait(500);
+          const c = label(view, 500, 290, "Check: 7 + 3 = 10, and 2 more is 12", 30, "#6b5a49", { opacity: 0 });
+          await api.tween(400, (t) => c.setAttribute("opacity", t));
+          await api.wait(500);
+          const b = label(view, 500, 420, "7 + 5 = 12", 84, "#15803d", { opacity: 0 });
+          await api.tween(400, (t) => b.setAttribute("opacity", t));
+          const tick = emoji(view, 760, 390, "✅", 60, { opacity: 0 });
+          await api.tween(300, (t) => tick.setAttribute("opacity", t));
+        },
+      },
+      {
+        say: `So when something is hard, don't say "I can't do it." Say "I can't do it <b>yet</b>." Yet means you're still learning, and you're on your way.`,
+        async draw(view, api) {
+          view.innerHTML = `<rect width="1000" height="560" fill="#f4f4ff"/><path d="M120 120 H880 Q910 120 910 150 V330 Q910 360 880 360 H330 L250 440 L270 360 H120 Q90 360 90 330 V150 Q90 120 120 120Z" fill="#fff" stroke="#c7c9f5" stroke-width="5"/>`;
+          label(view, 400, 262, "I can't do it", 70);
+          const yet = label(view, 730, 262, "…yet!", 78, "#4f46e5", { opacity: 0 });
+          await api.wait(900);
+          await api.tween(500, (t) => {
+            yet.setAttribute("opacity", t);
+            yet.setAttribute("transform", `translate(${730 * (1 - (0.6 + 0.4 * t))} ${262 * (1 - (0.6 + 0.4 * t))}) scale(${0.6 + 0.4 * t})`);
+          });
+          const sprout = emoji(view, 800, 455, "🌱", 90, { opacity: 0 });
+          await api.tween(400, (t) => sprout.setAttribute("opacity", t));
+        },
+      },
+      {
+        say: `Getting better takes three things: <b>effort</b>, <b>good strategies</b> (smart ways to practise), and <b>help</b> when you need it. Trying hard the same way isn't always enough. Let's learn some strategies!`,
+        async draw(view, api) {
+          view.innerHTML = `<rect width="1000" height="560" fill="#f4f4ff"/>`;
+          const parts = [["💪", "Effort"], ["🧭", "Strategies"], ["🤝", "Help"]];
+          for (const [i, [g, w]] of parts.entries()) {
+            const x = 60 + i * 230;
+            const box = el("g", { opacity: 0 }, view);
+            box.innerHTML = `<rect x="${x}" y="150" width="200" height="240" rx="28" fill="#fff" stroke="var(--accent)" stroke-width="4"/>`;
+            emoji(box, x + 100, 245, g, 90);
+            label(box, x + 100, 350, w, 32);
+            if (i < 2) label(box, x + 215, 285, "+", 54, "#4f46e5");
+            await api.tween(380, (t) => box.setAttribute("opacity", t));
+          }
+          const end = el("g", { opacity: 0 }, view);
+          label(end, 760, 285, "=", 54, "#4f46e5");
+          emoji(end, 880, 250, "🌳", 120);
+          label(end, 880, 370, "Growing!", 32, "#15803d");
+          await api.tween(500, (t) => end.setAttribute("opacity", t));
+        },
+      },
+    ];
+    explain(scenes, {
+      title: "Learning to Learn",
+      alive: () => my === token,
+      onDone() {
+        mark("see", { done: true });
+        shell.go("mind");
+      },
+    });
+  },
+
+  // ---------- Fixed or growth? ----------
+  mind() {
+    runChoice({
+      id: "mind",
+      count: "growth thoughts",
+      racer: "🌱",
+      goal: "🌳",
+      intro: `<b>Fixed thinking</b> says "I can't change." <b>Growth thinking</b> says "I can get better." Let's spot them!`,
+      gen(level, skill, lastKey) {
+        const kind = level === 0 ? "sort" : level === 1 ? rpick(["sort", "fix"]) : rpick(["fix", "fix", "sort"]);
+        if (kind === "sort") {
+          const all = [...FIXED.filter((f) => level >= 2 || !f.hard).map((f) => ({ s: f.say, fixed: true, f })), ...GROWTH.map((g) => ({ s: g, fixed: false }))];
+          const t = skill.pick(all, (x) => x.s, lastKey);
+          return {
+            kind,
+            t,
+            key: t.s,
+            prompt: quote(t.s),
+            choices: [
+              { ok: t.fixed, art: card("🧱", "Fixed thinking"), label: "Fixed thinking" },
+              { ok: !t.fixed, art: card("🌱", "Growth thinking"), label: "Growth thinking" },
+            ],
+          };
+        }
+        const t = skill.pick(FIXED.filter((f) => level >= 2 || !f.hard), (f) => f.say, lastKey);
+        const n = level >= 2 ? 4 : 3;
+        const wrong = [...new Set([...shuffle(t.not || []), ...shuffle(UNHELPFUL)])].slice(0, n - 1);
+        return {
+          kind,
+          t,
+          key: t.say,
+          prompt: quote(t.say, "🧱"),
+          choices: shuffle([{ ok: true, art: card("💬", t.good, "ll-words"), label: t.good }, ...wrong.map((w) => ({ ok: false, art: card("💬", w, "ll-words"), label: w }))]),
+        };
+      },
+      ask: (q) => (q.kind === "sort" ? { html: `Is this <b>fixed</b> thinking or <b>growth</b> thinking?`, speech: `"${q.t.s}" Is this fixed thinking, or growth thinking?` } : { html: `That's fixed thinking. Tap the <b>growth</b> way to say it.`, speech: `"${q.t.say}" That's fixed thinking. Tap the growth way to say it.` }),
+      praise(q) {
+        if (q.kind === "sort") return q.t.fixed ? `Yes, that's fixed thinking. A growth way to say it: "${q.t.f.good}"` : `Yes! That's growth thinking. It says you can get better.`;
+        return `Yes! "${q.t.good}" That's growth thinking.`;
+      },
+      hint: () => `That one still sounds stuck. Find the one that says you can learn and get better.`,
+      reveal(q) {
+        if (q.kind === "sort") return q.t.fixed ? `That's fixed thinking: it says you can't change. A growth way: "${q.t.f.good}"` : `That's growth thinking: it says you can keep learning.`;
+        return `The growth way to say it is: "${q.t.good}"`;
+      },
+      finish: { icon: "🌱", message: "Next time something feels hard, catch any fixed thinking out loud and change it together: “I can't do it” becomes “I can't do it <b>yet</b>.” Grown-ups can do it too!" },
+    });
+  },
+
+  // ---------- The power of practice: the same pairs game, three tries ----------
+  practice() {
+    const my = token;
+    const skill = skillOf("practice");
+    const pairs = [4, 5, 6][skill.level];
+    const TRIES = 3;
+    const faces = shuffle(["🍎", "🚀", "🐢", "🌈", "🎈", "🐙", "⚽", "🌻", "🦊", "🍩"]).slice(0, pairs);
+    const deck = shuffle([...faces, ...faces]);
+    const results = [];
+    let turns = 0;
+    let first = null;
+    let busy = true;
+    let matched = 0;
+    stage.innerHTML = `<div class="ll-practice"><div class="ll-grid n${deck.length}" data-grid>${deck.map((f, i) => `<button type="button" class="ll-flip" data-i="${i}" aria-label="Card ${i + 1}"><span class="ll-face ll-back" aria-hidden="true">?</span><span class="ll-face ll-front">${f}</span></button>`).join("")}</div><div class="ll-chart" data-chart></div></div>`;
+    const grid = $("[data-grid]", stage);
+    const flips = [...grid.children];
+    const chart = $("[data-chart]", stage);
+    const host = panel(`<div class="ap-row"><span class="ap-status" data-turns></span><div class="ap-buttons" data-ctrl></div></div>`);
+    const status = () => ($("[data-turns]", host).innerHTML = `Try ${results.length + 1} of ${TRIES} · Turns: <b>${turns}</b>`);
+    const drawChart = () => {
+      const max = Math.max(pairs * 3, ...results);
+      const bw = 64;
+      const bars = Array.from({ length: TRIES }, (_, i) => {
+        const v = results[i];
+        const x = 40 + i * 90;
+        const h = v ? (v / max) * 150 : 0;
+        return `<g><rect x="${x}" y="${190 - h}" width="${bw}" height="${h}" rx="10" fill="${i === results.length - 1 ? "var(--accent)" : "#a5b4fc"}" class="ll-bar"/>${v ? `<text x="${x + bw / 2}" y="${182 - h}" text-anchor="middle" font-family="${SANS}" font-weight="900" font-size="22" fill="#2b1d12">${v}</text>` : `<text x="${x + bw / 2}" y="180" text-anchor="middle" font-family="${SANS}" font-weight="900" font-size="22" fill="#c7c9f5">?</text>`}<text x="${x + bw / 2}" y="216" text-anchor="middle" font-family="${SANS}" font-weight="800" font-size="17" fill="#6b5a49">Try ${i + 1}</text></g>`;
+      }).join("");
+      const by = 190 - (pairs / max) * 150;
+      chart.innerHTML = `<h3>My turns <small>(fewer is better)</small></h3><svg viewBox="0 0 320 228" role="img" aria-label="Turns for each try: ${results.join(", ") || "none yet"}"><line x1="28" y1="190" x2="310" y2="190" stroke="#d6cdbf" stroke-width="3"/><line x1="28" y1="${by}" x2="310" y2="${by}" stroke="#16a34a" stroke-width="2" stroke-dasharray="6 6"/><text x="310" y="${by - 6}" text-anchor="end" font-family="${SANS}" font-weight="800" font-size="13" fill="#15803d">best: ${pairs}</text>${bars}</svg>`;
+    };
+    const show = (b, up) => b.classList.toggle("up", up);
+    function setCtrl(html, fn) {
+      const ctrl = $("[data-ctrl]", host);
+      ctrl.innerHTML = html;
+      ctrl.onclick = (e) => {
+        const b = e.target.closest("button");
+        if (b) fn(b);
+      };
+    }
+    async function startTry() {
+      if (my !== token) return;
+      turns = 0;
+      first = null;
+      matched = 0;
+      for (const b of flips) b.classList.remove("up", "got");
+      status();
+      setCtrl("", () => {});
+      busy = false;
+      const n = results.length;
+      await talk(n === 0 ? `Find the pairs! Tap two cards to turn them over. Try to use as few turns as you can.` : `Try ${n + 1}. Same cards, in the same places. Can your brain remember where they are?`, my);
+    }
+    async function endTry() {
+      busy = true;
+      results.push(turns);
+      window.OC?.count("pairs tries");
+      drawChart();
+      pop(chart);
+      surprise();
+      const n = results.length;
+      const better = n > 1 && turns < results[n - 2];
+      const same = n > 1 && turns === results[n - 2];
+      let words = n === 1 ? `You found all the pairs in <b>${turns}</b> turns. Now let's practise with the same cards.` : better ? `<b>${turns}</b> turns: fewer than last time! Your brain remembered where things were.` : same ? `<b>${turns}</b> turns again. Your brain is still building the paths. Keep going!` : `<b>${turns}</b> turns. Practice can be bumpy, and that's normal. Your brain is still learning the places.`;
+      if (n < TRIES) {
+        await talk(words, my);
+        if (my !== token) return;
+        setCtrl(`<button type="button" class="primary" data-pulse>▶ Try ${n + 1}</button>`, () => startTry());
+        return;
+      }
+      const gain = results[0] - turns;
+      words = gain > 0 ? `From <b>${results[0]}</b> turns down to <b>${turns}</b>. That's practice working! Each try strengthened the paths in your brain.` : `Some days practice looks bumpy. Over a few days, it really does get easier.`;
+      await talk(words, my);
+      if (my !== token) return;
+      if (turns <= pairs + 1) skill.set(skill.level + 1);
+      else if (turns > pairs * 3 && gain <= 0) skill.set(skill.level - 1);
+      await wait(600);
+      finishCard({
+        id: "practice",
+        icon: "📈",
+        note: `My turns: ${results.join(" → ")}`,
+        message: "Pick one skill, like throwing and catching a ball, or writing your name with your other hand. Count how many you get right on day 1. Practise a few minutes every day, count again on day 5, and make a chart together.",
+      });
+    }
+    async function flip(b) {
+      if (busy || my !== token || b.classList.contains("up")) return;
+      const i = Number(b.dataset.i);
+      show(b, true);
+      if (first === null) {
+        first = i;
+        return;
+      }
+      const a = flips[first];
+      first = null;
+      turns += 1;
+      status();
+      if (deck[i] === deck[Number(a.dataset.i)]) {
+        a.classList.add("got");
+        b.classList.add("got");
+        matched += 1;
+        MUSIC.chime();
+        sparkle(b);
+        if (matched === pairs) {
+          await wait(500);
+          if (my === token) endTry();
+        }
+      } else {
+        busy = true;
+        await wait(900);
+        if (my !== token) return;
+        show(a, false);
+        show(b, false);
+        busy = false;
+      }
+    }
+    onTap(grid, "[data-i]", flip);
+    drawChart();
+    status();
+    startTry();
+  },
+
+  // ---------- Memory tricks: plain, then with a story ----------
+  memory() {
+    const my = token;
+    const skill = skillOf("memory");
+    const N = [5, 6, 8][skill.level];
+    const story = rpick(STORIES).slice(0, N);
+    const storyWords = new Set(STORIES.flat().map((x) => x[1]));
+    const plainPool = shuffle(THINGS.filter((t) => !storyWords.has(t[1])));
+    const plain = plainPool.slice(0, N);
+    const scores = [];
+    stage.innerHTML = `<div class="ll-mem" data-mem></div>`;
+    const box = $("[data-mem]", stage);
+    const host = panel(`<div class="ap-buttons" data-ctrl></div>`);
+    const ctrl = $("[data-ctrl]", host);
+    let ctrlFn = () => {};
+    ctrl.onclick = (e) => {
+      const b = e.target.closest("button");
+      if (b && !b.disabled) ctrlFn(b);
+    };
+    const setCtrl = (html, fn) => {
+      ctrl.innerHTML = html;
+      ctrlFn = fn;
+    };
+    const tile = (t, i, extra = "") => `<button type="button" class="ll-thing" data-t="${i}" aria-label="${t[1]}"${extra}><span aria-hidden="true">${t[0]}</span><b>${t[1]}</b></button>`;
+
+    async function look(items, withStory) {
+      if (my !== token) return;
+      box.className = `ll-mem look${withStory ? " story" : ""}`;
+      box.innerHTML = `<div class="ll-look">${items.map((t, i) => `<div class="ll-thing show" style="--i:${i}"><span aria-hidden="true">${t[0]}</span><b>${t[1]}</b>${withStory ? `<small>${i + 1}</small>` : ""}</div>`).join(withStory ? '<i class="ll-arrow" aria-hidden="true">➜</i>' : "")}</div><div class="ll-timebar"><i data-bar></i></div>`;
+      [...box.querySelectorAll(".ll-thing")].forEach((n, i) => anim(n, [{ transform: "scale(.6)", opacity: 0 }, { transform: "none", opacity: 1 }], 400, { delay: i * 90, fill: "backwards" }));
+      let ready = false;
+      setCtrl(`<button type="button" class="primary" data-ready disabled>✋ I'm ready</button>`, () => (ready = true));
+      if (withStory) {
+        await talk(`Trick: make a silly story that links each thing to the next. Listen and picture it!`, my);
+        for (let i = 0; i < items.length; i++) {
+          if (my !== token) return;
+          const n = box.querySelectorAll(".ll-thing")[i];
+          n.classList.add("on");
+          await talk(items[i][2], my);
+          n.classList.remove("on");
+        }
+        if (my !== token) return;
+        await talk(`Now say the story to yourself, picturing each thing. Press <b>I'm ready</b> when you are.`, my);
+      } else {
+        await talk(`Look at these ${items.length} things and try to remember them: ${items.map((t) => t[1]).join(", ")}. Press <b>I'm ready</b> when you are.`, my);
+      }
+      if (my !== token) return;
+      const button = $("[data-ready]", ctrl);
+      if (button) button.disabled = false;
+      // A gentle time limit: about 3 seconds a thing, or sooner if the child is ready.
+      const limit = items.length * 3000;
+      const t0 = Date.now();
+      const bar = $("[data-bar]", box);
+      while (!ready && Date.now() - t0 < limit) {
+        if (my !== token) return;
+        if (bar) bar.style.transform = `scaleX(${1 - (Date.now() - t0) / limit})`;
+        await wait(100);
+      }
+    }
+    // Pick the things you saw from a mix. Returns how many were right.
+    function test(items, avoid) {
+      return new Promise((resolve) => {
+        const fakes = shuffle(THINGS.filter((t) => !items.includes(t) && !avoid.includes(t[1]) && !storyWords.has(t[1]))).slice(0, items.length);
+        const mix = shuffle([...items, ...fakes]);
+        box.className = `ll-mem test n${mix.length}`;
+        box.innerHTML = `<div class="ll-pick">${mix.map((t, i) => tile(t, i)).join("")}</div>`;
+        const picked = new Set();
+        let done = false;
+        const update = () => {
+          const b = $("[data-check]", ctrl);
+          if (b) {
+            b.disabled = !picked.size;
+            b.textContent = `✓ Check (${picked.size} of ${items.length})`;
+          }
+        };
+        setCtrl(`<button type="button" class="primary" data-check disabled>✓ Check</button>`, async () => {
+          if (done) return;
+          done = true;
+          let hits = 0;
+          [...box.querySelectorAll("[data-t]")].forEach((b) => {
+            const t = mix[Number(b.dataset.t)];
+            const was = items.includes(t);
+            if (was && picked.has(b.dataset.t)) {
+              hits += 1;
+              b.classList.add("good");
+            } else if (was) b.classList.add("missed");
+            else if (picked.has(b.dataset.t)) b.classList.add("bad");
+            else b.classList.add("dim");
+          });
+          MUSIC.chime();
+          setCtrl("", () => {});
+          resolve(hits);
+        });
+        update();
+        onTap(box, "[data-t]", (b) => {
+          if (done || my !== token) return;
+          const id = b.dataset.t;
+          if (picked.has(id)) picked.delete(id);
+          else if (picked.size < items.length) picked.add(id);
+          else {
+            shake(b);
+            talk(`You can pick ${items.length}. Tap one again to take it away.`, my);
+            return;
+          }
+          b.classList.toggle("on", picked.has(id));
+          pop(b);
+          update();
+        });
+        talk(`Which ${items.length} did you see? Tap them, then press <b>Check</b>.`, my);
+      });
+    }
+    const compare = () => {
+      const bar = (v, i, name) => `<div class="ll-cbar"><b>${v} of ${N}</b><i style="--h:${Math.max(4, (v / N) * 100)}%;${i ? "background:var(--accent)" : ""}"></i><span>${name}</span></div>`;
+      box.className = "ll-mem compare";
+      box.innerHTML = `<div class="ll-compare">${bar(scores[0], 0, "🙂 Just looking")}${bar(scores[1], 1, "📖 With a story")}</div>`;
+      anim(box.firstElementChild, [{ transform: "translateY(20px)", opacity: 0 }, { transform: "none", opacity: 1 }], 450, { fill: "none" });
+    };
+    // Two quick questions on making memories last: spacing and testing yourself.
+    function quiz() {
+      const QS = [
+        { q: "Which way helps you remember your spellings best?", a: ["📅", "5 minutes every day for a week"], d: ["⏰", "35 minutes all on Sunday night"], why: "A little every day beats a lot all at once. Each time you come back, the memory gets stronger." },
+        { q: "Which helps you remember more?", a: ["🙈", "Cover the words and try to say them"], d: ["👀", "Just read them again and again"], why: "Testing yourself makes your brain fetch the memory, and that makes it stick." },
+      ];
+      return new Promise((resolve) => {
+        let i = 0;
+        let open = false;
+        const askQ = async () => {
+          const Q = QS[i];
+          const opts = shuffle([{ ok: true, v: Q.a }, { ok: false, v: Q.d }]);
+          box.className = "ll-mem quiz";
+          box.innerHTML = `<div class="ll-play"><div class="ll-prompt">${scene(Q.q)}</div><div class="ll-cards n2">${opts.map((o, k) => `<button type="button" class="ll-card" data-o="${k}" aria-label="${o.v[1]}">${card(o.v[0], o.v[1], "ll-words")}</button>`).join("")}</div></div>`;
+          box.opts = opts;
+          open = true;
+          await talk(Q.q, my);
+        };
+        onTap(box, "[data-o]", async (b) => {
+          if (!open || my !== token || !box.opts) return;
+          open = false;
+          const o = box.opts[Number(b.dataset.o)];
+          const Q = QS[i];
+          if (o.ok) {
+            b.classList.add("good");
+            MUSIC.chime();
+            sparkle(b);
+            await talk(`Yes! ${Q.why}`, my);
+          } else {
+            b.classList.add("bad");
+            MUSIC.oops();
+            shake(b);
+            box.querySelectorAll("[data-o]").forEach((x) => box.opts[Number(x.dataset.o)].ok && x.classList.add("hint"));
+            await talk(`Good thinking, but the other way works better. ${Q.why}`, my);
+          }
+          if (my !== token) return;
+          await wait(400);
+          i += 1;
+          if (i < QS.length) askQ();
+          else resolve();
+        });
+        askQ();
+      });
+    }
+    (async () => {
+      await talk(`Let's test your memory two ways: first just by looking, then with a memory trick.`, my);
+      if (my !== token) return;
+      await look(plain, false);
+      if (my !== token) return;
+      scores.push(await test(plain, []));
+      window.OC?.count("memory tries");
+      if (my !== token) return;
+      await talk(`You remembered <b>${scores[0]} of ${N}</b>. Now let's try a trick, with different things.`, my);
+      if (my !== token) return;
+      await look(story, true);
+      if (my !== token) return;
+      scores.push(await test(story, plain.map((t) => t[1])));
+      window.OC?.count("memory tries");
+      if (my !== token) return;
+      await talk(`You remembered <b>${scores[1]} of ${N}</b>.`, my);
+      if (my !== token) return;
+      compare();
+      surprise();
+      const gain = scores[1] - scores[0];
+      await talk(gain > 0 ? `The story helped! Linking things together gives your brain hooks to find them again.` : scores[1] === N ? `All of them! Linking things in a story gives your brain hooks to find them again.` : `Tricks take practice too. The more you use a story, the better it works.`, my);
+      if (my !== token) return;
+      if (scores[1] === N) skill.set(skill.level + 1);
+      else if (scores[1] < N / 2 && scores[0] < N / 2) skill.set(skill.level - 1);
+      await wait(800);
+      if (my !== token) return;
+      await quiz();
+      if (my !== token) return;
+      finishCard({
+        id: "memory",
+        icon: "🧩",
+        note: `Just looking: ${scores[0]} of ${N} · With a story: ${scores[1]} of ${N}`,
+        message: "Write a shopping list of 6 things. Make up a silly story that links them, then go shopping without looking at the list! For spellings, practise a few minutes every day and test yourself by covering the words.",
+      });
+    })();
+  },
+
+  // ---------- When I'm stuck ----------
+  stuck() {
+    runChoice({
+      id: "stuck",
+      count: "stuck steps",
+      racer: "🧗",
+      goal: "⛰️",
+      intro: `Everyone gets stuck. Good learners know what to try next. Read it again, try another way, look at an example, take a break, and ask for help.`,
+      gen(level, skill, lastKey) {
+        const t = skill.pick(STUCK, (x) => x.s, lastKey);
+        const n = [2, 3, 4][level];
+        const bad = shuffle(BAD_STEPS);
+        const others = level === 0 ? [bad[0]] : level === 1 ? [shuffle(t.d)[0], bad[0]] : [...t.d, bad[0]];
+        const keys = shuffle([t.a, ...others.slice(0, n - 1)]);
+        return {
+          t,
+          key: t.s,
+          prompt: `<div class="ll-scene">${scene(t.s)}${level >= 1 ? `<ol class="ll-ladder" aria-label="The stuck ladder">${LADDER.map((k) => `<li>${STEPS[k].icon}<span> ${STEPS[k].label}</span></li>`).join("")}</ol>` : ""}</div>`,
+          choices: keys.map((k) => ({ ok: k === t.a, k, art: card(STEPS[k].icon, STEPS[k].label), label: STEPS[k].label })),
+        };
+      },
+      ask: (q) => ({ html: `What's the <b>best next step</b>?`, speech: `${q.t.s} What's the best next step?` }),
+      praise: (q) => `Yes! ${STEPS[q.t.a].label}. ${q.t.why}`,
+      hint(q, c) {
+        if (BAD_STEPS.includes(c.k)) return `Hmm, "${STEPS[c.k].label}" won't help you learn. Try again!`;
+        return `That can help sometimes, but there's a better step here. Look again.`;
+      },
+      reveal: (q) => `The best step here: <b>${STEPS[q.t.a].label}</b>. ${q.t.why}`,
+      finish: { icon: "🪜", message: "Draw the stuck ladder on a card: 📖 read it again, 🔄 try another way, 🔎 look at an example, 🧘 take a break, 🙋 ask for help. Keep it by your desk, and next time you're stuck, point to the step you're trying." },
+    });
+  },
+
+  // ---------- Focus & goals, then a real focus time ----------
+  focus() {
+    runChoice({
+      id: "focus",
+      count: "focus choices",
+      rounds: 8,
+      racer: "🎯",
+      goal: "🏁",
+      skill: { max: 1 },
+      intro: `Good learners set small goals, break big jobs into steps, and beat distractions. Let's practise!`,
+      gen(level, skill, lastKey) {
+        const t = skill.pick(FOCUS, (x) => x.q, lastKey);
+        const n = level === 0 ? 2 : 3;
+        const opts = shuffle([{ ok: true, v: t.a }, ...shuffle(t.d).slice(0, n - 1).map((v) => ({ ok: false, v }))]);
+        const head = { goal: "🎯 Goals", steps: "🪜 Big jobs", distract: "🔕 Distractions" }[t.kind];
+        return { t, key: t.q, prompt: `<div class="ll-scene"><span class="ll-tag">${head}</span>${scene(t.q)}</div>`, choices: opts.map((o) => ({ ok: o.ok, art: card(o.v[0], o.v[1], "ll-words"), label: o.v[1] })) };
+      },
+      ask: (q) => ({ html: `What's the best choice?`, speech: `${q.t.q} What's the best choice?` }),
+      praise: (q) => `Yes! ${q.t.why}`,
+      hint: () => `Hmm, would that really help you learn? Try again.`,
+      reveal: (q) => `The best choice: <b>${q.t.a[1]}</b>. ${q.t.why}`,
+      after: () => focusTime(),
+    });
+  },
+
+  // ---------- Teach it back ----------
+  teach() {
+    const my = token;
+    const level = skillOf("teach").level;
+    const checks = CHECKS.slice(0, [4, 5, 6][level]);
+    let toy = null;
+    let topic = null;
+    const host = panel(`<div class="ap-buttons" data-ctrl></div>`);
+    const ctrl = $("[data-ctrl]", host);
+    const pickFrom = (items, html, fn) => {
+      stage.innerHTML = `<div class="ll-choose n${items.length}">${items.map((x, i) => `<button type="button" class="ll-card" data-p="${i}" aria-label="${x[1] || x.label}">${card(x[0] || x.icon, x[1] || x.label)}</button>`).join("")}</div>`;
+      [...stage.querySelectorAll("[data-p]")].forEach((b, i) => anim(b, [{ transform: "translateY(20px)", opacity: 0 }, { transform: "none", opacity: 1 }], 380, { delay: i * 60, fill: "backwards" }));
+      onTap(stage.firstElementChild, "[data-p]", (b) => {
+        if (my !== token) return;
+        pop(b);
+        fn(items[Number(b.dataset.p)]);
+      });
+      talk(html, my);
+    };
+    const checklist = () => {
+      cleanups.forEach((f) => f());
+      cleanups = [];
+      const done = new Set();
+      stage.innerHTML = `<div class="ll-teach"><div class="ll-toy"><span class="ll-toy-face" data-toy aria-hidden="true">${toy[0]}</span><b>${toy[1]}</b><small>is listening…</small><span class="ll-topic">${topic.icon} ${topic.label}</span></div><div class="ll-checks">${checks.map((c, i) => `<button type="button" class="ll-check" data-k="${i}" aria-pressed="false"><span class="ll-box" aria-hidden="true"></span><span class="ll-ico" aria-hidden="true">${c[0]}</span><span>${c[1]}</span></button>`).join("")}</div></div>`;
+      ctrl.innerHTML = topic.model ? `<button type="button" data-model>🔊 Hear an example</button>` : "";
+      ctrl.onclick = (e) => {
+        if (e.target.closest("[data-model]")) talk(`Here's one way to say it: "${topic.model}" Now say it your own way!`, my);
+      };
+      const face = $("[data-toy]", stage);
+      onTap(stage.firstElementChild, "[data-k]", async (b) => {
+        if (my !== token || done.has(b.dataset.k)) return;
+        done.add(b.dataset.k);
+        b.classList.add("on");
+        b.setAttribute("aria-pressed", "true");
+        MUSIC.chime();
+        sparkle(b);
+        bounce(face);
+        window.OC?.count("teach-back steps");
+        if (done.size === checks.length) {
+          await talk(`${toy[1]} learned all about ${topic.label.toLowerCase()}! And explaining it helped <b>you</b> learn it even better.`, my);
+          if (my !== token) return;
+          await wait(400);
+          finishCard({
+            id: "teach",
+            icon: toy[0],
+            message: "At dinner tonight, teach your family one thing you learned today. Let them ask you questions. If there's a bit you can't explain, look it up together. That's the bit your brain still needs!",
+          });
+          return;
+        }
+        const nextOne = checks.findIndex((_, i) => !done.has(String(i)));
+        await talk(`${rpick(["Great!", "Lovely!", "Nice one!", `${toy[1]} likes that!`])} Next: ${checks[nextOne][1]}`, my);
+      });
+      talk(`Teach ${toy[1]} about <b>${topic.label.toLowerCase()}</b>. Do each step out loud, then tick it. First: ${checks[0][1]}`, my);
+    };
+    pickFrom(TOYS, `When you teach something, you learn it even better! Who will you teach today?`, (t) => {
+      toy = t;
+      cleanups.forEach((f) => f());
+      cleanups = [];
+      pickFrom(TEACH_TOPICS, `What will you teach ${t[1]}?`, (p) => {
+        topic = p;
+        checklist();
+      });
+    });
+  },
+};
+
+// A real focus time: pick a small goal and a time, then work away from the screen with a calm picture.
+function focusTime() {
+  const my = token;
+  const level = skillOf("focus").level;
+  let goal = null;
+  let minutes = 0;
+  let timer = 0;
+  cleanups.push(() => clearInterval(timer));
+  const host = panel(`<div class="ap-buttons" data-ctrl></div>`);
+  const ctrl = $("[data-ctrl]", host);
+  const pickFrom = (items, words, fn) => {
+    stage.innerHTML = `<div class="ll-choose n${items.length}">${items.map((x, i) => `<button type="button" class="ll-card" data-p="${i}" aria-label="${x[1]}">${card(x[0], x[1])}</button>`).join("")}</div>`;
+    const box = stage.firstElementChild;
+    onTap(box, "[data-p]", (b) => {
+      if (my !== token || box.dataset.used) return;
+      box.dataset.used = "1";
+      pop(b);
+      fn(items[Number(b.dataset.p)]);
+    });
+    talk(words, my);
+  };
+  const times = level === 0 ? [1, 2, 3] : [2, 5, 10];
+  pickFrom(GOALS, `Now a real <b>focus time</b>! Pick one small goal to work on, away from the screen.`, (g) => {
+    goal = g;
+    pickFrom(times.map((m) => ["⏱️", `${m} minute${m > 1 ? "s" : ""}`]), `How long will you focus on: ${g[1].toLowerCase()}?`, (t) => {
+      minutes = Number(t[1].split(" ")[0]);
+      run();
+    });
+  });
+  function run() {
+    const total = minutes * 60000 * TIMER_SCALE;
+    stage.innerHTML = `<div class="ll-timer"><svg viewBox="0 0 400 400" class="ll-ring" aria-hidden="true"><circle cx="200" cy="200" r="120" class="ll-breathe" fill="var(--accent-soft)"/><circle cx="200" cy="200" r="172" fill="none" stroke="#ecebff" stroke-width="20"/><circle cx="200" cy="200" r="172" fill="none" stroke="var(--accent)" stroke-width="20" stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90 200 200)" data-arc/><text x="200" y="232" text-anchor="middle" font-size="110" font-family="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif" data-plant>🌱</text></svg><div class="ll-timer-side"><span class="ll-goal">${goal[0]} ${goal[1]}</span><b class="ll-clock" data-clock>${minutes}:00</b><small>Breathe slowly with the circle. Work on your goal.</small></div></div>`;
+    ctrl.innerHTML = `<button type="button" data-stop>⏹ I'm finished early</button>`;
+    const arc = $("[data-arc]", stage);
+    const clock = $("[data-clock]", stage);
+    const plant = $("[data-plant]", stage);
+    const t0 = Date.now();
+    let over = false;
+    const end = (early) => {
+      if (over || my !== token) return;
+      over = true;
+      clearInterval(timer);
+      window.OC?.count("focus minutes", Math.round(Math.min(total, Date.now() - t0) / 60000 / TIMER_SCALE));
+      arc.setAttribute("stroke-dashoffset", early ? arc.getAttribute("stroke-dashoffset") : 0);
+      plant.textContent = early ? plant.textContent : "🌳";
+      MUSIC.chime();
+      check(early);
+    };
+    ctrl.onclick = (e) => e.target.closest("[data-stop]") && end(true);
+    timer = setInterval(() => {
+      if (my !== token) return clearInterval(timer);
+      const gone = Math.min(1, (Date.now() - t0) / total);
+      const left = Math.max(0, Math.ceil((total - (Date.now() - t0)) / TIMER_SCALE / 1000));
+      clock.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+      arc.setAttribute("stroke-dashoffset", (100 * (1 - gone)).toFixed(2));
+      plant.textContent = gone < 0.34 ? "🌱" : gone < 0.67 ? "🌿" : "🪴";
+      if (gone >= 1) end(false);
+    }, 250);
+    talk(`Ready, steady, focus! Put the screen down and work on your goal. If your mind wanders, gently bring it back. I'll ring a chime when the time is up.`, my);
+  }
+  function check(early) {
+    ctrl.innerHTML = "";
+    const answers = [["✅", "I did my goal!"], ["🙂", "I did some of it"], ["😅", "I got distracted"]];
+    const box = document.createElement("div");
+    box.className = "ll-askback";
+    box.innerHTML = `<p>${early ? "Finished early!" : "Time's up!"} How did it go?</p><div class="ll-choose n3">${answers.map((x, i) => `<button type="button" class="ll-card" data-a="${i}" aria-label="${x[1]}">${card(x[0], x[1])}</button>`).join("")}</div>`;
+    stage.appendChild(box);
+    talk(`${early ? "Finished early!" : "Time's up!"} How did your focus time go?`, my);
+    onTap(box, "[data-a]", async (b) => {
+      if (my !== token || box.dataset.used) return;
+      box.dataset.used = "1";
+      pop(b);
+      const k = Number(b.dataset.a);
+      const reply = [`Brilliant! You set a goal and you did it. That's how big things get done: one small goal at a time.`, `Some is great progress! Next time, you could pick a slightly smaller goal, or a little more time.`, `That happens to everyone, and noticing it is the first step. Next time, move distractions away before you start.`][k];
+      await talk(reply, my);
+      if (my !== token) return;
+      await wait(400);
+      finishCard({
+        id: "focus",
+        icon: "🎯",
+        note: `${goal[0]} ${goal[1]} · ${minutes} minute${minutes > 1 ? "s" : ""}`,
+        message: "Each day this week, pick one small goal with a grown-up. Clear the space, put screens away, and use a kitchen timer. At the end, tick it off on a chart and talk about what helped you focus.",
+      });
+    });
+  }
+}
+
+const UNITS = [
+  { id: "see", label: "See it", icon: "👀" },
+  { id: "mind", label: "1. Fixed or growth?", icon: "🌱" },
+  { id: "practice", label: "2. Power of practice", icon: "📈" },
+  { id: "memory", label: "3. Memory tricks", icon: "🧩" },
+  { id: "stuck", label: "4. When I'm stuck", icon: "🪜" },
+  { id: "focus", label: "5. Focus & goals", icon: "🎯" },
+  { id: "teach", label: "6. Teach it back", icon: "🧸" },
+];
+shell = SHELL({
+  units: UNITS,
+  unitWord: "Game",
+  how: {
+    see: { icon: "👀", title: "See it", steps: ["Watch how your brain learns.", "Press Next to go on."] },
+    mind: { icon: "🌱", title: "Fixed or growth?", steps: ["Read what someone says.", "Is it fixed thinking or growth thinking?", "Later, pick the growth way to say it."] },
+    practice: { icon: "📈", title: "Power of practice", steps: ["Tap two cards to find a pair.", "Play 3 times with the same cards.", "Watch your chart: fewer turns means practice is working!"] },
+    memory: { icon: "🧩", title: "Memory tricks", steps: ["Look at some things and remember them.", "Then try again with a story trick.", "See which way helped you remember more."] },
+    stuck: { icon: "🪜", title: "When I'm stuck", steps: ["Read what's happening.", "Pick the best next step on the stuck ladder.", "Tap 🔊 to hear it again."] },
+    focus: { icon: "🎯", title: "Focus & goals", steps: ["Pick the best choice for goals and focus.", "Then set a small goal of your own.", "Use the focus timer, away from the screen."] },
+    teach: { icon: "🧸", title: "Teach it back", steps: ["Choose a toy to teach.", "Choose what to teach.", "Do each step out loud, then tick it."] },
+  },
+  // After the first See it, open straight on the first game.
+  start: MUSIC.progress.of(learner() || "Learner")["Learning to Learn:see"]?.done ? "mind" : "see",
+  onStop() {
+    token += 1;
+    VOICE.hush();
+    for (const f of cleanups) {
+      try {
+        f();
+      } catch {}
+    }
+    cleanups = [];
+    const p = $("[data-panel]");
+    if (p) p.onclick = null;
+  },
+  subject: "Other",
+  activity: "Learning to Learn",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [84, 88, 91, 96]);
+MUSIC.preload("piano", [64, 67]);
+
+const style = document.createElement("style");
+style.textContent = `
+html{touch-action:manipulation}
+.ap-stage{-webkit-touch-callout:none}
+/* picking games */
+.ll-play{position:absolute;inset:0;display:flex;flex-direction:column;gap:clamp(8px,1.6vh,14px);padding:clamp(8px,1.6vw,16px)}
+.ll-prompt{flex:0 0 auto;max-height:46%;min-height:0;overflow:auto;display:grid;place-items:center;padding:clamp(8px,1.4vh,14px) clamp(10px,2vw,20px);border-radius:24px;background:var(--accent-soft)}
+.ll-quote{display:flex;align-items:center;gap:12px;max-width:44em;text-align:left}
+.ll-quote>span{flex:none;font-size:clamp(30px,5vh,46px);line-height:1}
+.ll-quote q,.ll-quote p{margin:0;color:#2b1d12;font:900 clamp(19px,min(3vw,4.2vh),32px)/1.25 var(--sans)}
+.ll-scene{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%}
+.ll-tag{padding:3px 12px;border-radius:12px;background:#fff;color:var(--accent-dark);font:900 14px/1.3 var(--sans);text-transform:uppercase;letter-spacing:.05em}
+.ll-ladder{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:0;padding:0;list-style:none;counter-reset:l}
+.ll-ladder li{counter-increment:l;display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:12px;background:#fff;color:#4b3b2c;font:800 clamp(12px,1.5vw,15px)/1.2 var(--sans)}
+.ll-ladder li::before{content:counter(l);display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:12px}
+.ll-cards{flex:1 1 auto;min-height:0;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:clamp(8px,1.6vw,16px)}
+.ll-card{position:relative;display:grid;place-items:center;min-width:0;min-height:0;padding:10px;border:0;border-radius:24px;background:#fff;box-shadow:0 0 0 3px #e9e7fb,0 6px 0 #dcd9f3;color:var(--ink);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;transition:transform .08s ease,box-shadow .08s ease,opacity .3s ease}
+.ll-card:active{transform:translateY(4px) scale(.98);box-shadow:0 0 0 3px #e9e7fb,0 2px 0 #dcd9f3}
+.ll-card:focus-visible,.ll-flip:focus-visible,.ll-thing:focus-visible,.ll-check:focus-visible{outline:4px solid #ffcf5c;outline-offset:3px}
+.ll-card.good,.ll-thing.good{box-shadow:0 0 0 5px #22a05a,0 6px 0 #157a40}
+.ll-card.bad,.ll-thing.bad{opacity:.45}
+.ll-card.dim,.ll-thing.dim{opacity:.3}
+.ll-card.hint,.ll-thing.missed{animation:ll-glow 1s ease-in-out infinite}
+.ll-c{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(4px,1vh,10px);pointer-events:none}
+.ll-c .ll-ico{font-size:clamp(34px,8vh,72px);line-height:1}
+.ll-c .ll-lbl{font:900 clamp(17px,min(2.4vw,3.4vh),28px)/1.2 var(--sans);color:#2b1d12;text-align:center}
+.ll-c.ll-words .ll-ico{font-size:clamp(26px,5.5vh,52px)}
+.ll-c.ll-words .ll-lbl{font-size:clamp(16px,min(2.4vw,3.6vh),28px);font-weight:800}
+.ll-cards.n4{grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr))}
+@media (max-aspect-ratio:1/1){.ll-cards.n3{grid-auto-flow:row;grid-template-columns:none;grid-auto-rows:minmax(0,1fr)}.ll-cards.n3 .ll-c{flex-direction:row;gap:12px}.ll-cards.n3 .ll-lbl{text-align:left}.ll-ladder li span{display:none}}
+.ll-row{flex-wrap:nowrap;width:min(100%,620px)}
+.ll-row .ap-status{white-space:nowrap}
+.ll-race{position:relative;flex:1 1 220px;min-width:140px;height:44px;border-radius:22px;background:#e5e7ff;box-shadow:inset 0 0 0 3px #c7c9f5}
+.ll-race::before{content:"";position:absolute;left:16px;right:44px;top:50%;height:3px;margin-top:-1px;background:repeating-linear-gradient(90deg,#a5b4fc 0 10px,transparent 10px 20px)}
+.ll-race-goal{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:24px;line-height:1}
+.ll-racer{position:absolute;left:6px;top:50%;margin-top:-17px;font-size:30px;line-height:34px;transition:left .9s cubic-bezier(.3,.8,.3,1)}
+@media (max-width:480px){.ll-wide{display:none}.ll-row{gap:6px}.ll-row .ap-btn{min-width:52px;padding:0 12px}}
+/* choose a goal, toy or topic */
+.ll-choose{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:clamp(8px,1.6vw,16px);padding:clamp(8px,1.6vw,16px)}
+.ll-choose.n4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-aspect-ratio:1/1){.ll-choose,.ll-choose.n4{grid-template-columns:repeat(2,minmax(0,1fr))}.ll-choose.n3{grid-template-columns:none}}
+/* pairs game */
+.ll-practice{position:absolute;inset:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,32%);gap:clamp(8px,1.6vw,16px);padding:clamp(8px,1.6vw,16px)}
+.ll-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:clamp(6px,1.2vw,12px);min-height:0}
+.ll-grid.n10{grid-template-columns:repeat(5,minmax(0,1fr))}
+.ll-grid.n12{grid-template-columns:repeat(4,minmax(0,1fr))}
+.ll-flip{position:relative;min-width:0;min-height:0;padding:0;border:0;background:none;cursor:pointer;perspective:600px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.ll-face{position:absolute;inset:0;display:grid;place-items:center;border-radius:20px;backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:transform .35s cubic-bezier(.3,.7,.3,1);font-size:clamp(30px,min(7vw,9vh),70px);line-height:1}
+.ll-back{background:linear-gradient(135deg,var(--accent),#7c3aed);color:#fff;font:900 clamp(26px,5vh,44px) var(--sans);box-shadow:0 5px 0 var(--accent-dark)}
+.ll-front{background:#fff;box-shadow:0 0 0 3px #e9e7fb,0 5px 0 #dcd9f3;transform:rotateY(180deg)}
+.ll-flip.up .ll-back{transform:rotateY(-180deg)}
+.ll-flip.up .ll-front{transform:none}
+.ll-flip.got .ll-front{box-shadow:0 0 0 4px #22a05a,0 5px 0 #157a40;background:#f1faf3}
+.ll-chart{display:flex;flex-direction:column;justify-content:center;gap:4px;min-height:0;padding:10px;border-radius:24px;background:var(--accent-soft)}
+.ll-chart h3{margin:0;text-align:center;color:#2b1d12;font:900 clamp(16px,2vw,20px)/1.2 var(--sans)}
+.ll-chart h3 small{color:var(--muted);font-size:.75em}
+.ll-chart svg{width:100%;height:auto;max-height:100%;min-height:0}
+.ll-bar{transition:y .5s ease,height .5s ease}
+@media (max-aspect-ratio:1/1){.ll-practice{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,auto)}.ll-chart{flex-direction:row;align-items:center;padding:6px 10px}.ll-chart h3{flex:0 0 30%}.ll-chart svg{flex:1;max-height:min(22vh,150px)}.ll-grid.n10{grid-template-columns:repeat(5,minmax(0,1fr))}.ll-grid.n12{grid-template-columns:repeat(4,minmax(0,1fr))}}
+/* memory */
+.ll-mem{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;gap:12px;padding:clamp(8px,1.6vw,16px)}
+.ll-look{flex:1 1 auto;min-height:0;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;align-items:center;gap:clamp(8px,1.4vw,14px)}
+.ll-thing{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;min-height:0;padding:8px;border:0;border-radius:20px;background:#fff;box-shadow:0 0 0 3px #e9e7fb,0 5px 0 #dcd9f3;color:var(--ink);transition:transform .15s ease,box-shadow .15s ease,opacity .3s ease;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.ll-thing span{font-size:clamp(34px,min(6vw,8vh),64px);line-height:1.1}
+.ll-thing b{font:900 clamp(14px,min(1.8vw,2.6vh),20px)/1.1 var(--sans)}
+.ll-thing small{position:absolute;left:6px;top:4px;color:var(--accent-dark);font:900 13px var(--sans)}
+.ll-look .ll-thing{width:clamp(84px,min(15vw,26vh),180px);aspect-ratio:1}
+.ll-thing.show.on{box-shadow:0 0 0 6px #ffcf5c,0 5px 0 #dcd9f3;transform:scale(1.08)}
+.ll-arrow{font-style:normal;color:var(--accent);font:900 22px var(--sans)}
+.ll-timebar{flex:none;height:10px;border-radius:5px;background:#ecebff;overflow:hidden}
+.ll-timebar i{display:block;height:100%;background:var(--accent);transform-origin:left;transition:transform .1s linear}
+.ll-pick{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:clamp(6px,1.2vw,12px)}
+.ll-mem.n12 .ll-pick{grid-template-columns:repeat(6,minmax(0,1fr))}
+.ll-mem.n16 .ll-pick{grid-template-columns:repeat(8,minmax(0,1fr))}
+.ll-pick .ll-thing{cursor:pointer}
+.ll-pick .ll-thing.on{box-shadow:0 0 0 5px var(--accent),0 5px 0 var(--accent-dark);background:var(--accent-soft)}
+@media (max-aspect-ratio:1/1){.ll-pick,.ll-mem.n12 .ll-pick{grid-template-columns:repeat(3,minmax(0,1fr))}.ll-mem.n16 .ll-pick{grid-template-columns:repeat(4,minmax(0,1fr))}.ll-look .ll-thing{width:clamp(76px,26vw,120px)}.ll-mem.story .ll-arrow{display:none}}
+.ll-compare{flex:1 1 auto;min-height:0;display:flex;justify-content:center;align-items:stretch;gap:clamp(20px,6vw,70px);padding:10px}
+.ll-cbar{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;width:clamp(110px,22vw,200px)}
+.ll-cbar i{display:block;width:70%;height:var(--h);min-height:6px;border-radius:14px 14px 4px 4px;background:#a5b4fc}
+.ll-cbar b{font:900 clamp(20px,3vw,30px)/1 var(--sans);color:#2b1d12}
+.ll-cbar span{font:800 clamp(15px,2vw,19px)/1.2 var(--sans);color:#4b3b2c;text-align:center}
+.ll-mem.quiz{padding:0}
+/* teach it back */
+.ll-teach{position:absolute;inset:0;display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.4fr);gap:clamp(8px,1.6vw,16px);padding:clamp(8px,1.6vw,16px)}
+.ll-toy{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:0;border-radius:24px;background:radial-gradient(circle at 50% 40%,#fff,var(--accent-soft));text-align:center}
+.ll-toy-face{font-size:clamp(70px,min(14vw,20vh),150px);line-height:1.1}
+.ll-toy b{font:900 clamp(20px,3vw,28px)/1.1 var(--sans);color:#2b1d12}
+.ll-toy small{color:var(--muted);font:800 14px var(--sans)}
+.ll-topic{margin-top:6px;padding:4px 12px;border-radius:14px;background:#fff;color:var(--accent-dark);font:900 clamp(14px,1.8vw,17px)/1.25 var(--sans)}
+.ll-checks{display:grid;grid-auto-rows:minmax(0,1fr);gap:clamp(5px,1vh,10px);min-height:0}
+.ll-check{display:flex;align-items:center;gap:10px;min-height:0;padding:6px 14px;border:0;border-radius:18px;background:#fff;box-shadow:0 0 0 3px #e9e7fb,0 4px 0 #dcd9f3;color:#2b1d12;font:800 clamp(15px,min(1.9vw,2.8vh),21px)/1.2 var(--sans);text-align:left;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:background .2s ease,box-shadow .2s ease}
+.ll-check .ll-ico{font-size:clamp(22px,3.6vh,32px);line-height:1}
+.ll-box{flex:none;display:grid;place-items:center;width:clamp(28px,4.4vh,40px);aspect-ratio:1;border-radius:10px;box-shadow:inset 0 0 0 3px #c7c9f5;color:#fff;font:900 22px/1 var(--sans)}
+.ll-check.on{background:#f1faf3;box-shadow:0 0 0 3px #22a05a,0 4px 0 #157a40}
+.ll-check.on .ll-box{background:#22a05a;box-shadow:none}
+.ll-check.on .ll-box::after{content:"✓"}
+@media (max-aspect-ratio:1/1){.ll-teach{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,.5fr) minmax(0,1.5fr)}.ll-toy{flex-direction:row;flex-wrap:wrap;gap:4px 10px}.ll-toy-face{font-size:clamp(50px,9vh,80px)}}
+/* focus timer */
+.ll-timer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:clamp(12px,4vw,48px);padding:16px}
+.ll-ring{height:min(92%,420px);width:auto;max-width:60%;flex:none}
+.ll-breathe{transform-box:fill-box;transform-origin:center;animation:ll-breathe 8s ease-in-out infinite}
+.ll-timer-side{display:flex;flex-direction:column;align-items:flex-start;gap:8px;max-width:22em}
+.ll-goal{padding:6px 14px;border-radius:16px;background:var(--accent-soft);color:var(--accent-dark);font:900 clamp(17px,2.4vw,22px)/1.2 var(--sans)}
+.ll-clock{font:900 clamp(54px,9vw,96px)/1 var(--sans);color:#2b1d12;font-variant-numeric:tabular-nums}
+.ll-timer-side small{color:var(--muted);font:800 clamp(14px,1.8vw,17px)/1.35 var(--sans)}
+@media (max-aspect-ratio:1/1){.ll-timer{flex-direction:column;gap:10px}.ll-ring{max-width:86%;height:auto;width:min(86%,46vh)}.ll-timer-side{align-items:center;text-align:center}}
+.ll-askback{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;gap:10px;padding:clamp(8px,1.6vw,16px);background:rgba(250,248,255,.94)}
+.ll-askback p{margin:0;text-align:center;color:#2b1d12;font:900 clamp(20px,3vw,28px)/1.2 var(--sans)}
+.ll-askback .ll-choose{position:relative;inset:auto;flex:1;padding:0}
+/* end card */
+.ll-done{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:clamp(12px,3vw,32px);padding:16px;background:radial-gradient(circle at 30% 40%,#fff,var(--accent-soft))}
+.ll-done-pic{display:grid;place-items:center;flex:none;width:clamp(120px,22vw,220px);aspect-ratio:1;border-radius:50%;background:#fff;box-shadow:0 8px 0 #dcd9f3,0 0 0 8px var(--accent-soft)}
+.ll-done-pic span{font-size:clamp(64px,12vw,120px);line-height:1}
+.ll-done-text{max-width:32em}
+.ll-done-note{display:inline-block;margin:0 0 10px!important;padding:4px 12px;border-radius:12px;background:#fff;color:var(--accent-dark)!important;font:900 clamp(14px,1.8vw,17px)/1.3 var(--sans)!important}
+.ll-done-text h2{margin:0 0 8px;color:var(--accent-dark);font:900 clamp(20px,3vw,30px)/1.15 var(--sans)}
+.ll-done-text p{margin:0;color:#2b1d12;font:700 clamp(16px,2.2vw,22px)/1.4 var(--sans)}
+@media (max-aspect-ratio:1/1){.ll-done{flex-direction:column;text-align:center;overflow:auto;justify-content:flex-start;padding-top:20px}.ll-done-pic{width:clamp(96px,30vw,150px)}}
+@keyframes ll-glow{0%,100%{box-shadow:0 0 0 3px #e9e7fb,0 6px 0 #dcd9f3}50%{box-shadow:0 0 0 8px #ffcf5c,0 6px 0 #dcd9f3}}
+@keyframes ll-breathe{0%,100%{transform:scale(.72)}50%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.ll-card.hint,.ll-thing.missed,.ll-breathe{animation:none}.ll-face,.ll-racer,.ll-bar{transition:none}}
+`;
+document.head.appendChild(style);
+</script>
+</body>
+</html>

@@ -1,0 +1,1808 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Money & Business · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="life">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Money & Business</b><small>Life skills · Levels 2–4</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Coins are drawn at their true sizes compared with each other. Xylophone sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, text, emoji, everyday, panel, say, sayAsync, wait, confetti, explain, shuffle, still, surprise, sparkle } = KIT;
+const stage = $("[data-stage]");
+let token = 0;
+let cleanups = [];
+let shell = null;
+const rpick = (list) => list[Math.floor(Math.random() * list.length)];
+const rint = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+const learner = () => (window.OC ? OC.current() : "") || "";
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+
+// ======================================================================
+// Money: US dollars and cents. Amounts are kept in cents (whole numbers) everywhere.
+// ======================================================================
+const fmt = (c) => {
+  const neg = c < 0;
+  const a = Math.abs(c);
+  const s = a < 100 ? `${a}¢` : a % 100 ? `$${Math.floor(a / 100)}.${String(a % 100).padStart(2, "0")}` : `$${a / 100}`;
+  return neg ? `−${s}` : s;
+};
+const words = (c) => {
+  const d = Math.floor(c / 100);
+  const r = c % 100;
+  if (!d) return `${r} cent${r === 1 ? "" : "s"}`;
+  return `${d} dollar${d === 1 ? "" : "s"}${r ? ` and ${r} cent${r === 1 ? "" : "s"}` : ""}`;
+};
+// The voice reads "$1.50" as "1 dollar and 50 cents" and "25¢" as "25 cents".
+const spoken = (html) =>
+  String(html)
+    .replace(/(−\s?)?\$(\d+)(?:\.(\d\d))?/g, (_, neg, d, c) => `${neg ? "minus " : ""}${words(Number(d) * 100 + Number(c || 0))}`)
+    .replace(/(\d+)¢/g, (_, n) => words(Number(n)))
+    .replace(/\s\+\s/g, " plus ")
+    .replace(/\s−\s/g, " minus ");
+{
+  const raw = VOICE.speakAsync;
+  VOICE.speakAsync = (html) => raw(spoken(html));
+  VOICE.speak = (html) => void VOICE.speakAsync(html);
+}
+
+// True US coin diameters (mm): dime 17.91 < penny 19.05 < nickel 21.21 < quarter 24.26.
+const MONEY = {
+  p: { v: 1, name: "penny", d: 19.05, fill: ["#ffd9b8", "#c8753f", "#8a4220"], edge: "#6e3417", ink: "#3d1a07" },
+  n: { v: 5, name: "nickel", d: 21.21, fill: ["#f5f5f2", "#b5b8b6", "#7f8483"], edge: "#666b6a", ink: "#2e3439" },
+  d: { v: 10, name: "dime", d: 17.91, fill: ["#ffffff", "#d0d4d8", "#9097a0"], edge: "#757c85", ink: "#2e3439", reeded: true },
+  q: { v: 25, name: "quarter", d: 24.26, fill: ["#ffffff", "#c3c8ce", "#868d95"], edge: "#6b7179", ink: "#2e3439", reeded: true },
+  b1: { v: 100, name: "one-dollar bill", bill: true },
+  b5: { v: 500, name: "five-dollar bill", bill: true },
+};
+const VAL = (k) => MONEY[k].v;
+let uidN = 0;
+const uid = (p) => `mb${p}${++uidN}`;
+// Every coin shares one 26 × 26 box, so coins drawn at the same height keep their true relative sizes.
+function coinSvg(k) {
+  const c = MONEY[k];
+  const r = c.d / 2;
+  const id = uid("g");
+  return `<svg viewBox="-13 -13 26 26.6" class="mb-coin" aria-hidden="true"><defs><radialGradient id="${id}" cx="35%" cy="30%" r="80%"><stop offset="0" stop-color="${c.fill[0]}"/><stop offset=".55" stop-color="${c.fill[1]}"/><stop offset="1" stop-color="${c.fill[2]}"/></radialGradient></defs><circle cy=".6" r="${r}" fill="rgba(0,0,0,.2)"/><circle r="${r}" fill="url(#${id})" stroke="${c.edge}" stroke-width=".5"/>${c.reeded ? `<circle r="${r - 0.5}" fill="none" stroke="${c.edge}" stroke-width=".7" stroke-dasharray=".3 .5" opacity=".8"/>` : ""}<circle r="${r * 0.8}" fill="none" stroke="rgba(255,255,255,.6)" stroke-width=".45"/><text y="${r * 0.3}" text-anchor="middle" font-family="Nunito, ui-rounded, sans-serif" font-weight="900" font-size="${Math.max(6.4, r * 0.8)}" fill="${c.ink}">${c.v}¢</text></svg>`;
+}
+function billSvg(k) {
+  const c = MONEY[k];
+  return `<svg viewBox="0 0 62 28" class="mb-bill" aria-hidden="true"><rect x="1" y="2" width="60" height="25.4" rx="2.5" fill="rgba(0,0,0,.16)"/><rect x="1" y="1" width="60" height="25.4" rx="2.5" fill="#d3e6c8" stroke="#4e7a45" stroke-width=".8"/><rect x="3.4" y="3.4" width="55.2" height="20.6" rx="1.6" fill="none" stroke="#6f9a63" stroke-width=".6"/><ellipse cx="31" cy="13.7" rx="7" ry="8.4" fill="#aecd9e" stroke="#4e7a45" stroke-width=".6"/><text x="9" y="10" text-anchor="middle" font-family="Nunito, sans-serif" font-weight="900" font-size="6" fill="#2f5a28">${c.v / 100}</text><text x="53" y="23" text-anchor="middle" font-family="Nunito, sans-serif" font-weight="900" font-size="6" fill="#2f5a28">${c.v / 100}</text><text x="31" y="17.6" text-anchor="middle" font-family="Nunito, sans-serif" font-weight="900" font-size="11" fill="#24481f">$${c.v / 100}</text></svg>`;
+}
+const moneyArt = (k) => (MONEY[k].bill ? billSvg(k) : coinSvg(k));
+// Fewest pieces for an amount, using only the kinds given (biggest first).
+function greedy(c, kinds) {
+  const out = [];
+  for (const k of [...kinds].sort((a, b) => VAL(b) - VAL(a)))
+    while (c >= VAL(k)) {
+      out.push(k);
+      c -= VAL(k);
+    }
+  return out;
+}
+const plural = (k, m) => (m === 1 ? MONEY[k].name : k === "p" ? "pennies" : `${MONEY[k].name}s`);
+const countList = (list) => {
+  const n = {};
+  for (const k of list) n[k] = (n[k] || 0) + 1;
+  return Object.entries(n).map(([k, m]) => `${m} ${plural(k, m)}`).join(", ");
+};
+
+// ======================================================================
+// Smooth touch (from Zoom Town). Act on pointerdown, never rebuild the stage on a tap,
+// and animate with transforms only. click still works for keyboards and switch access.
+// ======================================================================
+function onTap(host, selector, fn) {
+  let downAt = 0;
+  const run = (event) => {
+    const target = event.target.closest?.(selector);
+    if (target && host.contains(target) && !target.disabled) fn(target, event);
+  };
+  const down = (event) => {
+    if (event.button > 0) return;
+    downAt = Date.now();
+    window.OC?.touch();
+    run(event);
+  };
+  const click = (event) => {
+    if (Date.now() - downAt < 800) return;
+    run(event);
+  };
+  host.addEventListener("pointerdown", down);
+  host.addEventListener("click", click);
+  cleanups.push(() => {
+    host.removeEventListener("pointerdown", down);
+    host.removeEventListener("click", click);
+  });
+}
+const anim = (node, frames, ms, opts = {}) => {
+  if (!node?.animate) return Promise.resolve();
+  const duration = still.matches ? Math.min(ms, 120) : ms;
+  const a = node.animate(frames, { duration, easing: "cubic-bezier(.2,.8,.3,1)", fill: "both", ...opts });
+  // Never let a paused animation (hidden tab, power saving) stall a game.
+  return Promise.race([a.finished.catch(() => {}), wait(duration + (opts.delay || 0) + 250)]);
+};
+const pop = (node) => anim(node, [{ transform: "scale(1)" }, { transform: "scale(1.08)" }, { transform: "scale(1)" }], 380, { fill: "none" });
+const shake = (node) => anim(node, [{ transform: "translateX(0)" }, { transform: "translateX(-10px)" }, { transform: "translateX(9px)" }, { transform: "translateX(-6px)" }, { transform: "translateX(0)" }], 420, { fill: "none" });
+const popIn = (node, delay = 0) => anim(node, [{ transform: "translateY(18px) scale(.85)", opacity: 0 }, { transform: "none", opacity: 1 }], 360, { delay, fill: "backwards" });
+
+// talk("html") shows and speaks the same words. talk({ html, speech }) speaks different words.
+const talk = (msg, my = token) => {
+  if (my !== token) return Promise.resolve(false);
+  if (typeof msg === "string") return sayAsync(msg);
+  const box = $("[data-say]");
+  if (box) box.innerHTML = msg.html;
+  return VOICE.speakAsync(msg.speech);
+};
+const mark = (id, data) => shell.mark(id, data);
+const NEXT = { see: "needs", needs: "shop", shop: "goal", goal: "lemon", lemon: "jobs", jobs: "smart", smart: null };
+
+// ======================================================================
+// Learning that adapts. Three right first time in a row → a little harder;
+// two misses in a row → a little easier. Missed items come back in later rounds.
+// ======================================================================
+function skillOf(id, { start = 1, max = 3 } = {}) {
+  const saved = shell.progress()[id] || {};
+  let level = Math.max(0, Math.min(max, saved.level ?? start));
+  let missed = Array.isArray(saved.missed) ? saved.missed : [];
+  let streak = 0;
+  let slips = 0;
+  const save = () => mark(id, { level, missed });
+  return {
+    get level() {
+      return level;
+    },
+    max,
+    right(key) {
+      streak += 1;
+      slips = 0;
+      missed = missed.filter((k) => k !== key);
+      const up = streak >= 3 && level < max;
+      if (up) {
+        level += 1;
+        streak = 0;
+      }
+      save();
+      return up;
+    },
+    wrong(key) {
+      streak = 0;
+      slips += 1;
+      missed = [key, ...missed.filter((k) => k !== key)].slice(0, 8);
+      if (slips >= 2 && level > 0) {
+        level -= 1;
+        slips = 0;
+      }
+      save();
+    },
+    // Not the same as last time; a missed item comes back about two rounds in five.
+    pick(list, keyOf, last) {
+      const others = list.filter((x) => x !== last && keyOf(x) !== (last && keyOf(last)));
+      const pool = others.length ? others : list;
+      const review = pool.filter((x) => missed.includes(keyOf(x)));
+      return review.length && Math.random() < 0.4 ? rpick(review) : rpick(pool);
+    },
+  };
+}
+const choicesFor = (level) => [2, 3, 3, 4][Math.min(level, 3)];
+const LEVEL_UP = ["You're getting so good! Let's make it a little trickier.", "Wow, you're learning fast! Here comes a harder one.", "Super! Let's go up a level."];
+const HALFWAY = ["Halfway there! Keep going!", "Halfway! You're doing great!", "You're halfway! Brilliant work!"];
+// A right answer: sparkles where the finger was, and a bigger surprise now and then.
+function cheer(target, round, rounds) {
+  sparkle(target);
+  if (round < rounds && (round === 3 || round === rounds - 2)) surprise();
+}
+async function levelUp(my) {
+  surprise();
+  MUSIC.chime();
+  await talk(rpick(LEVEL_UP), my);
+}
+
+function finishCard({ id, icon, message, speech }) {
+  const my = token;
+  stage.innerHTML = `<div class="mb-done"><div class="mb-done-pic" aria-hidden="true"><span>${icon}</span><i>🤝</i></div><div class="mb-done-text"><h2>Try it for real, with a grown-up</h2><p>${message}</p></div></div>`;
+  confetti();
+  MUSIC.chime();
+  mark(id, { done: true });
+  const host = panel(`<div class="ap-buttons"><button type="button" data-again>🔁 Play again</button>${NEXT[id] ? '<button type="button" class="primary" data-next data-pulse>▶ Next game</button>' : ""}</div>`);
+  talk(speech, my);
+  host.onclick = (event) => {
+    if (event.target.closest("[data-again]")) shell.go(id);
+    else if (event.target.closest("[data-next]")) shell.go(NEXT[id]);
+  };
+}
+
+// The race track under every game: a token moves one step towards the goal for each answer.
+const raceHtml = (racer = "🛒", goal = "🏁") => `<div class="mb-race" data-race aria-hidden="true"><span class="mb-race-goal">${goal}</span><span class="mb-racer" data-racer>${racer}</span></div>`;
+function raceTo(host, round, rounds) {
+  const racer = $("[data-racer]", host);
+  if (racer) racer.style.left = `calc((100% - 84px) * ${round / rounds} + 6px)`;
+}
+const levelHtml = (skill) => `⭐<span class="mb-wide"> Level</span> ${skill.level + 1}`;
+const statusRow = (racer, goal) => `<div class="ap-row mb-row">${raceHtml(racer, goal)}<span class="ap-status" data-level></span><button type="button" class="ap-btn" data-again aria-label="Say it again">🔊<span class="mb-wide"> Again</span></button></div>`;
+
+// Picture cards for choices and prompts.
+const picCard = (glyph, label, sub = "") => `<div class="mb-act"><span>${glyph}</span><b>${label}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
+const multi = (glyphs) => `<span class="mb-multi">${glyphs.map((g) => `<i>${g}</i>`).join("")}</span>`;
+const txtCard = (glyph, words) => `<div class="mb-txtcard"><span aria-hidden="true">${glyph}</span><p>${words}</p></div>`;
+
+// ======================================================================
+// A round-based picking game (from Zoom Town). Taps answer on pointerdown; only classes change.
+// cfg.gen(level, skill, last) builds a round; a round may carry its own words (q.h).
+// ======================================================================
+const HANDLERS = ["layout", "ask", "praise", "hint", "reveal", "onRight", "count"];
+function roundOf(kind, level, skill, last) {
+  const q = kind.gen(level, skill, last);
+  q.h = Object.fromEntries(HANDLERS.map((k) => [k, kind[k] ?? (k === "layout" ? "" : undefined)]));
+  return q;
+}
+function runChoice(cfg) {
+  const my = token;
+  const rounds = cfg.rounds || 8;
+  const skill = skillOf(cfg.id, cfg.skill);
+  let round = 0;
+  let tries = 0;
+  let open = false;
+  let q = null;
+  let last = null;
+  stage.innerHTML = `<div class="mb-play" data-play><div class="mb-prompt" data-prompt></div><div class="mb-cards" data-cards></div></div>`;
+  const play = $("[data-play]", stage);
+  const cards = $("[data-cards]", stage);
+  const promptBox = $("[data-prompt]", stage);
+  const host = panel(statusRow(cfg.racer, cfg.goal));
+  const H = () => {
+    const h = { ...cfg };
+    for (const [key, value] of Object.entries(q?.h || {})) if (value !== undefined) h[key] = value;
+    return h;
+  };
+  const dots = () => {
+    raceTo(host, round, rounds);
+    $("[data-level]", host).innerHTML = levelHtml(skill);
+  };
+  host.onclick = (event) => {
+    if (event.target.closest("[data-again]") && q) talk(H().ask(q), my);
+  };
+  async function ask() {
+    if (my !== token) return;
+    q = cfg.gen(skill.level, skill, last);
+    last = q.target;
+    tries = 0;
+    dots();
+    const h = H();
+    play.className = `mb-play ${h.layout || ""}`;
+    promptBox.innerHTML = h.layout ? q.prompt || "" : "";
+    if (promptBox.firstElementChild) anim(promptBox.firstElementChild, [{ transform: "scale(.85)", opacity: 0 }, { transform: "none", opacity: 1 }], 380, { fill: "none" });
+    cards.className = `mb-cards n${q.choices.length}${q.wide ? " wide" : ""}`;
+    cards.innerHTML = q.choices.map((c, i) => `<button type="button" class="mb-card mb-pick" data-c="${i}" aria-label="${c.label}"><span class="mb-art">${c.art}</span></button>`).join("");
+    [...cards.children].forEach((card, i) => anim(card, [{ transform: "translateY(24px)", opacity: 0 }, { transform: "none", opacity: 1 }], 380, { delay: i * 70, fill: "backwards" }));
+    open = true;
+    await talk(h.ask(q), my);
+  }
+  async function next(up) {
+    if (my !== token) return;
+    if (up && round < rounds) {
+      await levelUp(my);
+      if (my !== token) return;
+    }
+    if (round === Math.ceil(rounds / 2) && round < rounds) {
+      surprise();
+      await talk(rpick(HALFWAY), my);
+      if (my !== token) return;
+    }
+    if (round >= rounds) return finishCard({ id: cfg.id, ...cfg.finish });
+    ask();
+  }
+  async function choose(button) {
+    const c = q.choices[Number(button.dataset.c)];
+    if (!open || c.state || my !== token) return;
+    const h = H();
+    if (c.ok) {
+      open = false;
+      c.state = "good";
+      button.classList.add("good");
+      for (const b of cards.children) if (b !== button) b.classList.add("dim");
+      const up = tries === 0 ? skill.right(q.key) : false;
+      MUSIC.chime();
+      round += 1;
+      window.OC?.count(h.count);
+      dots();
+      cheer(button, round, rounds);
+      await Promise.all([pop(button), h.onRight?.(q, promptBox, my)]);
+      if (my !== token) return;
+      await talk(h.praise(q, c), my);
+      if (my !== token) return;
+      next(up);
+    } else {
+      if (tries === 0) skill.wrong(q.key);
+      tries += 1;
+      c.state = "bad";
+      button.classList.add("bad");
+      MUSIC.oops();
+      shake(button);
+      // With two choices one miss leaves only the answer, so show it straight away.
+      if (tries >= Math.min(2, q.choices.length - 1)) {
+        open = false;
+        const right = cards.children[q.choices.findIndex((x) => x.ok)];
+        right.classList.add("hint");
+        await talk(h.reveal(q, c), my);
+        if (my !== token) return;
+        round += 1;
+        dots();
+        next(false);
+      } else await talk(h.hint(q, c), my);
+    }
+  }
+  onTap(cards, "[data-c]", choose);
+  (async () => {
+    dots();
+    if (cfg.intro) {
+      surprise("stars");
+      await talk(cfg.intro, my);
+    }
+    ask();
+  })();
+}
+
+// ======================================================================
+// <DATA>
+// ======================================================================
+// Needs and wants. lv: the level an item joins. ctx: when it matters (at Level 3 "it can depend").
+const NW = [
+  { g: "🍎", t: "Healthy food", k: "need", lv: 0, why: "Our bodies need food to grow and stay strong." },
+  { g: "💧", t: "Water", k: "need", lv: 0, why: "Everyone needs clean water to drink every day." },
+  { g: "🏠", t: "A home", k: "need", lv: 0, why: "A home keeps us safe, warm and dry." },
+  { g: "🛏️", t: "A bed", k: "need", lv: 0, why: "We need a place to sleep, so our bodies can rest." },
+  { g: "🪥", t: "Toothbrush", k: "need", lv: 0, why: "Brushing keeps our teeth healthy." },
+  { g: "👟", t: "Shoes", k: "need", lv: 0, why: "Shoes protect our feet." },
+  { g: "🍬", t: "Candy", k: "want", lv: 0, why: "Candy is a treat. Nice, but we don't need it." },
+  { g: "🎮", t: "Video game", k: "want", lv: 0, why: "A video game is fun, but we can be healthy and safe without it." },
+  { g: "🤖", t: "Toy robot", k: "want", lv: 0, why: "A toy robot is fun to have, so it's a want." },
+  { g: "🎈", t: "Balloon", k: "want", lv: 0, why: "A balloon is fun for a little while. It's a want." },
+  { g: "🍦", t: "Ice cream", k: "want", lv: 0, why: "Ice cream is a yummy treat, not something we need." },
+  { g: "⭐", t: "Stickers", k: "want", lv: 0, why: "Stickers are fun, but we don't need them." },
+  { g: "🥪", t: "Lunch", k: "need", lv: 1, why: "Lunch gives us energy for the afternoon. It's a need." },
+  { g: "🎂", t: "Cake", k: "want", lv: 1, why: "Cake is lovely at a party, but it's a want." },
+  { g: "🥤", t: "Soda", k: "want", lv: 1, why: "Soda is sweet, but plain water is what the body needs. Soda is a want." },
+  { g: "💊", t: "Medicine", ctx: "when you are sick", k: "need", lv: 1, why: "Medicine from a doctor or grown-up helps us get better. It's a need." },
+  { g: "📚", t: "School books", k: "need", lv: 1, why: "We need books to learn." },
+  { g: "✨", t: "Light-up sneakers", ctx: "your old ones still fit", k: "want", lv: 1, why: "The lights are fun, but they don't protect your feet any better. The extra is a want." },
+  { g: "🧢", t: "A fifth cap", k: "want", lv: 1, why: "You already have caps. One more is a want." },
+  { g: "🧥", t: "A warm coat", ctx: "on a snowy day", k: "need", lv: 2, why: "In the cold, a warm coat keeps us healthy. Here it's a need." },
+  { g: "🧥", t: "A fourth coat", ctx: "you already have three", k: "want", lv: 2, why: "One warm coat is a need. A fourth coat is a want. It depends!" },
+  { g: "🚲", t: "A second bike", ctx: "just for fun", k: "want", lv: 2, why: "One bike is plenty for fun. A second one is a want." },
+  { g: "🚌", t: "A bus ticket", ctx: "for a grown-up to get to work", k: "need", lv: 2, why: "Grown-ups need to get to work to earn money, so here the ticket is a need." },
+  { g: "📱", t: "A new phone", ctx: "the old one works well", k: "want", lv: 2, why: "If the old phone works, a new one is a want." },
+  { g: "👓", t: "Glasses", ctx: "to see the board at school", k: "need", lv: 2, why: "Glasses that help you see are a need." },
+  { g: "🕶️", t: "Party sunglasses", k: "want", lv: 2, why: "Fun party sunglasses are a want." },
+];
+const nwKey = (it) => `${it.t}|${it.ctx || ""}`;
+const lower = (s) => s[0].toLowerCase() + s.slice(1);
+const an = (word) => `${/^[aeiou]/i.test(word) ? "an" : "a"} ${word}`;
+
+// Shop items: [glyph, name with "a"/"an"/"some"].
+const CHEAP = [["🍬", "a candy"], ["✏️", "a pencil"], ["🍭", "a lollipop"], ["🎈", "a balloon"], ["🍪", "a cookie"], ["🍌", "a banana"]];
+const MID = [["🍎", "an apple"], ["🧃", "a juice box"], ["🖍️", "a crayon"], ["🪀", "a yo-yo"], ["📒", "a notebook"], ["🧁", "a cupcake"], ["🥨", "a pretzel"], ["🍊", "an orange"]];
+const BIG = [["🧸", "a teddy bear"], ["⚽", "a ball"], ["📚", "a book"], ["🪁", "a kite"], ["🎨", "a paint set"], ["🧩", "a puzzle"], ["🚂", "a toy train"], ["🎲", "a board game"]];
+const noun = (name) => name.replace(/^(a|an|some) /, "");
+
+// Things to save for.
+const TOYS = [["🪁", "kite"], ["🧸", "teddy bear"], ["⚽", "soccer ball"], ["🎨", "paint set"], ["🧩", "puzzle"], ["🚂", "toy train"], ["🛹", "skateboard"], ["🎲", "board game"], ["🏀", "basketball"], ["🔭", "telescope"], ["🎸", "toy guitar"], ["🦕", "dinosaur kit"]];
+
+// Lemonade stand. A pitcher makes 8 cups and costs $3 for lemons, sugar and cups.
+const PITCHER_COST = 300;
+const PITCHER_CUPS = 8;
+const WEATHER = {
+  hot: { icon: "🥵", sky: "☀️", name: "hot", label: "Hot and sunny", base: 22, tip: "hot" },
+  sunny: { icon: "😎", sky: "🌤️", name: "sunny", label: "Sunny", base: 15, tip: "sunny" },
+  cloudy: { icon: "🙂", sky: "☁️", name: "cloudy", label: "Cloudy and cool", base: 9, tip: "cloudy" },
+  rainy: { icon: "☔", sky: "🌧️", name: "rainy", label: "Rainy", base: 4, tip: "rainy" },
+};
+const PRICES = [50, 100, 200];
+const PRICE_PULL = { 50: 1.35, 100: 1, 200: 0.42 };
+const PEOPLE = ["🧒", "👩", "🧓", "👨", "👧", "🧑", "👵", "👦", "👱", "🧔", "👩‍🦱", "👨‍🦰"];
+
+// Goods and services.
+const GOODS = [
+  ["🍞", "Bread from the baker", "goods"], ["🍎", "Apples from a farm", "goods"], ["🧸", "A teddy bear from a toy shop", "goods"], ["👟", "New shoes", "goods"], ["📚", "A book", "goods"], ["🖼️", "A painting", "goods"], ["🧁", "Cupcakes at a bake sale", "goods"],
+  ["💇", "A haircut", "service"], ["🐕", "Someone walking your dog", "service"], ["🚗", "A car wash", "service"], ["🏊", "Swimming lessons", "service"], ["🩺", "A check-up at the doctor", "service"], ["🔧", "Fixing a bike", "service"], ["🚕", "A taxi ride", "service"],
+].map(([g, t, k]) => ({ g, t, k }));
+const KINDS = { goods: { g: "📦", name: "Goods", sub: "things you can touch" }, service: { g: "🤝", name: "Service", sub: "work done for you" } };
+// Jobs: who people pay, and for what.
+const JOBS = [
+  ["💇", "hairdresser", "cut your hair"], ["🧑‍🔧", "mechanic", "fix the family car"], ["🧑‍🌾", "farmer", "grow vegetables to sell"], ["👩‍🍳", "baker", "bake a birthday cake"],
+  ["🧑‍⚕️", "doctor", "check you when you feel sick"], ["🧑‍🏫", "teacher", "teach children to read"], ["🪠", "plumber", "fix a leaky pipe"], ["🧑‍🎨", "artist", "paint a picture for your wall"],
+  ["🐾", "vet", "look after a sick puppy"], ["🧑‍✈️", "pilot", "fly people across the country"],
+].map(([g, name, task]) => ({ g, name, task }));
+// Earning ideas that grow from what a child enjoys. Always with a grown-up's OK.
+const IDEAS = [
+  ["🐶", "animals", "🦮", "Walk a neighbour's dog"], ["🖍️", "drawing", "💌", "Make and sell greeting cards"], ["🧁", "baking", "🍪", "Bake cookies for a bake sale"],
+  ["🌱", "plants", "🪴", "Water a neighbour's plants"], ["🧹", "tidying", "📦", "Help clear out the garage"], ["🧶", "making things", "📿", "Make bracelets to sell"],
+  ["🍋", "lemonade", "🥤", "Run a lemonade stand"], ["📚", "books", "🏷️", "Sell finished books at a yard sale"],
+].map(([g, like, ig, idea]) => ({ g, like, ig, idea }));
+const EARN = [["🦮", "walk a dog", "walks"], ["🚗", "wash a car", "car washes"], ["🪴", "water plants", "waterings"], ["🍂", "rake leaves", "yards"], ["📦", "sort recycling", "jobs"]].map(([g, task, many]) => ({ g, task, many }));
+// Smart shopper: tricks and too-good-to-be-true messages, with the wise choice first.
+const TRICKS = [
+  { g: "📩", says: "A message pops up: <i>“You won a free tablet! Type your grown-up's card number.”</i>", opts: [["🙅", "Don't reply. Tell a grown-up."], ["⌨️", "Type the number quickly"], ["📤", "Send it to a friend"]], why: "Prizes that ask for card numbers are tricks. Never type card numbers or passwords. Tell a grown-up." },
+  { g: "🎮", says: "A game says: <i>“Buy 500 gems now! Only 1 minute left!”</i>", opts: [["✋", "Stop and ask a grown-up first"], ["⏱️", "Tap buy before time runs out"], ["🔑", "Use a grown-up's password secretly"]], why: "“Hurry, only 1 minute!” is a trick to make you buy without thinking. Stop and ask a grown-up." },
+  { g: "📺", says: "An advert shows a toy car flying around the room.", opts: [["🧐", "Adverts can make toys look better than they are"], ["✈️", "The toy will fly at home too"], ["👀", "Everyone has one, so I need it"]], why: "Adverts want you to buy. They can make toys look much more exciting than they really are." },
+  { g: "💬", says: "Someone online says: <i>“Tell me your password and I'll give you free coins.”</i>", opts: [["🔒", "Never share passwords. Tell a grown-up."], ["😃", "Tell them, free coins are great"], ["🤫", "Tell them, but keep it a secret"]], why: "A password is like a key to your house. Never share it, and always tell a grown-up." },
+  { g: "🏷️", says: "A sign online says: <i>“Brand-new bike, only $1!”</i>", opts: [["🤔", "Too good to be true? Check with a grown-up"], ["🏃", "Pay right away before it's gone"], ["💳", "Use the family card yourself"]], why: "A new bike for $1 is too good to be true. If something seems too good to be true, it usually is." },
+];
+
+// ======================================================================
+// Games
+// ======================================================================
+function drawJar(view, x, y, w, h, label, color, glyph) {
+  const g = el("g", {}, view);
+  el("rect", { x: x + w * 0.18, y: y - 20, width: w * 0.64, height: 30, rx: 9, fill: "#c9b8a3" }, g);
+  el("path", { d: `M${x} ${y + 34} Q${x} ${y + 10} ${x + w * 0.18} ${y + 10} H${x + w * 0.82} Q${x + w} ${y + 10} ${x + w} ${y + 34} V${y + h - 26} Q${x + w} ${y + h} ${x + w - 26} ${y + h} H${x + 26} Q${x} ${y + h} ${x} ${y + h - 26}Z`, fill: "rgba(214,242,248,.6)", stroke: color, "stroke-width": 7 }, g);
+  el("rect", { x: x + w * 0.12, y: y + h * 0.3, width: w * 0.76, height: 58, rx: 12, fill: "#fff", stroke: color, "stroke-width": 4 }, g);
+  text(g, x + w / 2, y + h * 0.3 + 41, label, { "font-size": 34, fill: color, "font-weight": 900 });
+  emoji(g, x + w / 2, y + h * 0.15, glyph, 40);
+  return g;
+}
+
+const units = {
+  // ---------- See it: what money is for ----------
+  see() {
+    const my = token;
+    const scenes = [
+      {
+        say: `Welcome to <b>Money & Business</b>! Money is what we use to pay for the things we <b>need</b>, and the things we <b>want</b>.`,
+        draw: everyday([["🍎", "Food"], ["🏠", "A home"], ["👟", "Shoes"], ["🧸", "Toys"]]),
+      },
+      {
+        say: `Long ago there was no money. People <b>swapped</b>: eggs for bread. But what if the baker didn't want eggs? So people started to use <b>money</b> instead.`,
+        async draw(view, api) {
+          view.innerHTML = `<rect width="1000" height="560" fill="#fff8f0"/>`;
+          emoji(view, 200, 250, "🧑‍🌾", 180);
+          emoji(view, 800, 250, "🧑‍🍳", 180);
+          text(view, 200, 430, "Farmer", { "font-size": 34, fill: "#2b1d12", "font-weight": 900 });
+          text(view, 800, 430, "Baker", { "font-size": 34, fill: "#2b1d12", "font-weight": 900 });
+          const egg = emoji(view, 340, 300, "🥚", 90);
+          const bread = emoji(view, 660, 300, "🍞", 90);
+          await api.wait(700);
+          await api.tween(1300, (t) => {
+            egg.setAttribute("transform", `translate(${t * 320} ${-Math.sin(t * Math.PI) * 90})`);
+            bread.setAttribute("transform", `translate(${-t * 320} ${Math.sin(t * Math.PI) * 60})`);
+          });
+          await api.wait(500);
+          const coin = el("g", { opacity: 0 }, view);
+          coin.innerHTML = `<svg x="420" y="40" width="160" height="160" viewBox="-13 -13 26 26.6">${coinSvg("q").replace(/^<svg[^>]*>|<\/svg>$/g, "")}</svg>`;
+          text(coin, 500, 240, "Money!", { "font-size": 40, fill: "var(--accent-dark)", "font-weight": 900 });
+          await api.tween(500, (t) => coin.setAttribute("opacity", t));
+        },
+      },
+      {
+        say: `Money comes as <b>coins</b> and <b>bills</b>. Bills are also called notes. A <b>bank card</b> or a <b>phone</b> can pay too, using money kept in a bank.`,
+        draw: everyday([["🪙", "Coins"], ["💵", "Bills"], ["💳", "Bank card"], ["📱", "Phone pay"]]),
+      },
+      {
+        say: `Grown-ups <b>earn</b> money by working. Some make <b>goods</b>, things you can touch, like bread. Some do <b>services</b>, work for other people, like cutting hair.`,
+        draw: everyday([["🧑‍🍳", "Baker makes goods"], ["🧑‍🌾", "Farmer grows goods"], ["💇", "Hairdresser: a service"], ["🧑‍⚕️", "Doctor: a service"]]),
+      },
+      {
+        say: `When you get money, you can split it into three jars: <b>Save</b> some for later, <b>Spend</b> some now, and <b>Give</b> some to help others.`,
+        async draw(view, api) {
+          view.innerHTML = `<rect width="1000" height="560" fill="#fff8f0"/>`;
+          const jars = [["SAVE", "#2f6fd6", "🐷", 70], ["SPEND", "#e07a1f", "🛍️", 385], ["GIVE", "#d64570", "💛", 700]];
+          for (const [label, color, glyph, x] of jars) drawJar(view, x, 170, 230, 340, label, color, glyph);
+          const drops = [0, 1, 0, 2, 1];
+          const filled = [0, 0, 0];
+          for (const j of drops) {
+            const x = jars[j][3] + 115 + (filled[j] - 0.5) * 50;
+            const c = el("g", {}, view);
+            c.innerHTML = `<svg x="${x - 30}" y="0" width="60" height="62" viewBox="-13 -13 26 26.6">${coinSvg("q").replace(/^<svg[^>]*>|<\/svg>$/g, "")}</svg>`;
+            const to = 430 - (filled[j] % 2) * 10;
+            await api.tween(650, (t) => c.setAttribute("transform", `translate(0 ${t * to})`));
+            filled[j] += 1;
+          }
+        },
+      },
+      {
+        say: `Keep money safe: in a piggy bank, a wallet, or a bank. Don't leave it lying around. A bank keeps money safe and can even pay you a little extra, called <b>interest</b>.`,
+        draw: everyday([["🐷", "Piggy bank"], ["👛", "Wallet"], ["🏦", "Bank"], ["🙋", "Ask a grown-up"]]),
+      },
+      {
+        say: `A <b>business</b> sells goods or services to <b>customers</b>. Money in, minus money out, is your <b>profit</b>. Let's play!`,
+        async draw(view, api) {
+          view.innerHTML = `<rect width="1000" height="560" fill="#fff8f0"/>`;
+          emoji(view, 190, 250, "🍋", 170);
+          text(view, 190, 420, "Lemonade stand", { "font-size": 32, fill: "#2b1d12", "font-weight": 900 });
+          const rows = [["Money in", 1000, "#22a05a", "$10"], ["Money out", 400, "#e0603a", "$4"], ["Profit", 600, "#d4a017", "$6"]];
+          for (const [i, [label, v, color, s]] of rows.entries()) {
+            const y = 120 + i * 130;
+            text(view, 480, y + 52, label, { "font-size": 32, fill: "#2b1d12", "font-weight": 900, "text-anchor": "end" });
+            const bar = el("rect", { x: 500, y: y + 10, width: 0, height: 64, rx: 14, fill: color }, view);
+            const lab = text(view, 520, y + 54, s, { "font-size": 34, fill: "#2b1d12", "font-weight": 900, "text-anchor": "start", opacity: 0 });
+            await api.tween(700, (t) => bar.setAttribute("width", (v / 1000) * 380 * t));
+            lab.setAttribute("x", 520 + (v / 1000) * 380);
+            lab.setAttribute("opacity", 1);
+            await api.wait(250);
+          }
+        },
+      },
+    ];
+    explain(scenes, { alive: () => my === token, onDone: () => { mark("see", { done: true }); shell.go("needs"); } });
+  },
+
+  // ---------- Needs or wants? Drag (or tap) each picture into Need or Want ----------
+  needs() {
+    const my = token;
+    const rounds = 8;
+    const skill = skillOf("needs", { start: 0, max: 2 });
+    const used = new Set();
+    let round = 0;
+    let tries = 0;
+    let open = false;
+    let it = null;
+    stage.innerHTML = `<div class="mb-sort"><div class="mb-bins">${[["need", "🏠", "Need", "We must have it"], ["want", "✨", "Want", "Nice to have"]].map(([k, g, name, sub]) => `<button type="button" class="mb-bin ${k}" data-bin="${k}" aria-label="${name}"><span class="mb-bin-name">${g} ${name}</span><small>${sub}</small><span class="mb-bin-park" data-park></span></button>`).join("")}</div><div class="mb-dock"><div class="mb-token" data-token></div></div></div>`;
+    const tokenEl = $("[data-token]", stage);
+    const bins = [...stage.querySelectorAll("[data-bin]")];
+    const host = panel(statusRow("🛒", "🏁"));
+    const dots = () => {
+      raceTo(host, round, rounds);
+      $("[data-level]", host).innerHTML = levelHtml(skill);
+    };
+    const label = (x) => `${x.t}${x.ctx ? `, ${x.ctx}` : ""}`;
+    const question = () => `<b>${label(it)}</b>. Is it a need or a want? Drag it, or tap the box.`;
+    host.onclick = (event) => event.target.closest("[data-again]") && it && talk(question(), my);
+
+    function choose() {
+      const L = skill.level;
+      let pool = NW.filter((x) => x.lv <= L && !used.has(nwKey(x)));
+      const fresh = pool.filter((x) => x.lv === L);
+      if (fresh.length && Math.random() < 0.6) pool = fresh;
+      if (!pool.length) pool = NW.filter((x) => x.lv <= L);
+      const pick = skill.pick(pool, nwKey, it);
+      used.add(nwKey(pick));
+      return pick;
+    }
+    async function ask() {
+      if (my !== token) return;
+      it = choose();
+      tries = 0;
+      for (const a of tokenEl.getAnimations()) a.cancel();
+      tokenEl.innerHTML = `<span class="mb-tok-g">${it.g}</span><b>${it.t}</b>${it.ctx ? `<small>${it.ctx}</small>` : ""}`;
+      tokenEl.style.transform = "";
+      tokenEl.hidden = false;
+      dots();
+      anim(tokenEl, [{ transform: "translateY(40px) scale(.8)", opacity: 0 }, { transform: "none", opacity: 1 }], 400, { fill: "none" });
+      open = true;
+      await talk(question(), my);
+    }
+    async function answer(bin, from) {
+      if (!open || my !== token) return;
+      open = false;
+      const key = bin.dataset.bin;
+      if (key === it.k) {
+        const up = tries === 0 ? skill.right(nwKey(it)) : false;
+        const z = bin.getBoundingClientRect();
+        const t = tokenEl.getBoundingClientRect();
+        const dx = z.left + z.width / 2 - (t.left + t.width / 2) + (from?.x || 0);
+        const dy = z.top + z.height / 2 - (t.top + t.height / 2) + (from?.y || 0);
+        MUSIC.chime();
+        await anim(tokenEl, [{ transform: from ? `translate(${from.x}px, ${from.y}px)` : "none" }, { transform: `translate(${dx}px, ${dy}px) scale(.4)`, opacity: 0.2 }], 450);
+        tokenEl.hidden = true;
+        const parked = document.createElement("span");
+        parked.textContent = it.g;
+        $("[data-park]", bin).appendChild(parked);
+        pop(bin);
+        round += 1;
+        cheer(bin, round, rounds);
+        window.OC?.count("needs and wants sorted");
+        dots();
+        await talk(`Yes! ${it.why}`, my);
+        if (my !== token) return;
+        if (up && round < rounds) {
+          await levelUp(my);
+          if (my !== token) return;
+          if (skill.level === 2) await talk(`Now some things <b>depend</b> on the situation. Read the small words!`, my);
+          if (my !== token) return;
+        }
+        if (round === Math.ceil(rounds / 2) && round < rounds) {
+          surprise();
+          await talk(rpick(HALFWAY), my);
+          if (my !== token) return;
+        }
+        if (round >= rounds)
+          return finishCard({ id: "needs", icon: "🛒", message: "At the store, help a grown-up sort the shopping list into needs and wants. Which does your family buy first? Talk about why.", speech: "You can tell needs from wants! Next time you go to the store, help a grown-up sort the shopping list into needs and wants. Which does your family buy first? Talk about why." });
+        ask();
+      } else {
+        if (tries === 0) skill.wrong(nwKey(it));
+        tries += 1;
+        MUSIC.oops();
+        shake(bin);
+        anim(tokenEl, [{ transform: from ? `translate(${from.x}px, ${from.y}px)` : "none" }, { transform: "none" }], 380, { fill: "none" });
+        if (tries >= 2) {
+          const right = bins.find((b) => b.dataset.bin === it.k);
+          right.classList.add("hint");
+          await talk(`It's a <b>${it.k}</b>. ${it.why} Drag it there.`, my);
+          right.classList.remove("hint");
+        } else await talk(`Hmm, think again. Could we stay healthy and safe without <b>${lower(it.t)}</b>${it.ctx ? `, ${it.ctx}` : ""}?`, my);
+        if (my === token) open = true;
+      }
+    }
+    // Dragging: pointer capture keeps the finger on the card; the move is one transform per frame.
+    let drag = null;
+    let frame = 0;
+    const binAt = (x, y) => bins.find((z) => {
+      const r = z.getBoundingClientRect();
+      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    });
+    tokenEl.addEventListener("pointerdown", (event) => {
+      if (!open || drag) return;
+      event.preventDefault();
+      for (const a of tokenEl.getAnimations()) a.cancel();
+      try {
+        tokenEl.setPointerCapture(event.pointerId);
+      } catch {}
+      drag = { id: event.pointerId, x0: event.clientX, y0: event.clientY, x: 0, y: 0, over: null };
+      tokenEl.classList.add("lift");
+      window.OC?.touch();
+    });
+    tokenEl.addEventListener("pointermove", (event) => {
+      if (!drag || event.pointerId !== drag.id) return;
+      drag.x = event.clientX - drag.x0;
+      drag.y = event.clientY - drag.y0;
+      drag.cx = event.clientX;
+      drag.cy = event.clientY;
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        if (!drag) return;
+        tokenEl.style.transform = `translate(${drag.x}px, ${drag.y}px) scale(1.04)`;
+        const over = binAt(drag.cx, drag.cy);
+        if (over !== drag.over) {
+          drag.over?.classList.remove("over");
+          over?.classList.add("over");
+          drag.over = over;
+        }
+      });
+    });
+    const drop = (event) => {
+      if (!drag || event.pointerId !== drag.id) return;
+      const d = drag;
+      drag = null;
+      cancelAnimationFrame(frame);
+      frame = 0;
+      tokenEl.classList.remove("lift");
+      d.over?.classList.remove("over");
+      const bin = event.type === "pointerup" ? binAt(event.clientX, event.clientY) : null;
+      tokenEl.style.transform = "";
+      if (bin) answer(bin, { x: d.x, y: d.y });
+      else {
+        anim(tokenEl, [{ transform: `translate(${d.x}px, ${d.y}px)` }, { transform: "none" }], 380, { fill: "none" });
+        if (Math.hypot(d.x, d.y) < 12) talk(question(), my);
+      }
+    };
+    tokenEl.addEventListener("pointerup", drop);
+    tokenEl.addEventListener("pointercancel", drop);
+    onTap(stage, "[data-bin]", (bin) => answer(bin));
+    dots();
+    ask();
+  },
+
+  // ---------- Shop & change: pay exactly, then be the shopkeeper and give change ----------
+  shop() {
+    const my = token;
+    const rounds = 6;
+    const skill = skillOf("shop", { start: 0, max: 3 });
+    const PURSE = [["p", "n", "d"], ["p", "n", "d", "q"], ["p", "n", "d", "q"], ["n", "d", "q", "b1"]];
+    let round = 0;
+    let tries = 0;
+    let open = false;
+    let q = null;
+    let last = null;
+    let tray = [];
+    stage.innerHTML = `<div class="mb-shop"><div class="mb-counter" data-counter></div><div class="mb-trayrow"><div class="mb-tray" data-tray role="group" aria-label="Money on the counter"></div><div class="mb-trayside"><output class="mb-total" data-total>0¢</output><div class="mb-acts"><button type="button" class="mb-btn" data-clear aria-label="Take all the money back">↩️</button><button type="button" class="mb-btn go" data-done>✓ Done</button></div></div></div><div class="mb-purse" data-purse role="group" aria-label="Your money"></div></div>`;
+    const counter = $("[data-counter]", stage);
+    const trayEl = $("[data-tray]", stage);
+    const totalEl = $("[data-total]", stage);
+    const purse = $("[data-purse]", stage);
+    const host = panel(statusRow("🛒", "🏪"));
+    const dots = () => {
+      raceTo(host, round, rounds);
+      $("[data-level]", host).innerHTML = levelHtml(skill);
+    };
+    const sum = () => tray.reduce((s, m) => s + VAL(m), 0);
+    const showTotal = () => (totalEl.textContent = fmt(sum()));
+    host.onclick = (event) => event.target.closest("[data-again]") && q && talk(question(), my);
+    const question = () => {
+      if (q.step === "total") return `Someone buys <b>${q.items[0][1]}</b> for <b>${fmt(q.prices[0])}</b> and <b>${q.items[1][1]}</b> for <b>${fmt(q.prices[1])}</b>. What is the total?`;
+      if (q.mode === "pay") return `${cap(q.items[0][1])} costs <b>${fmt(q.price)}</b>. Tap coins to pay exactly ${fmt(q.price)}, then press <b>Done</b>.`;
+      if (q.items.length === 2) return `The total is <b>${fmt(q.price)}</b>. They pay with a <b>${fmt(q.paid)}</b> bill. Give the change! Count up from ${fmt(q.price)} to ${fmt(q.paid)}.`;
+      return `You're the shopkeeper! Someone buys <b>${q.items[0][1]}</b> for <b>${fmt(q.price)}</b> and pays with <b>${fmt(q.paid)}</b>. Give the change: count up from ${fmt(q.price)} to ${fmt(q.paid)}.`;
+    };
+    function gen(L) {
+      if (L === 0) {
+        const item = rpick(CHEAP.filter((x) => x !== last));
+        return { mode: "pay", items: [item], price: rint(2, 20), kinds: PURSE[0] };
+      }
+      if (L === 1) {
+        const item = rpick(MID.filter((x) => x !== last));
+        return { mode: "pay", items: [item], price: rint(26, 95), kinds: PURSE[1] };
+      }
+      if (L === 2) {
+        const item = rpick(MID.filter((x) => x !== last));
+        const price = 5 * rint(3, 19);
+        return { mode: "change", items: [item], price, paid: 100, kinds: PURSE[2] };
+      }
+      const items = shuffle(BIG).slice(0, 2);
+      const prices = [25 * rint(3, 10), 25 * rint(3, 8)];
+      const price = prices[0] + prices[1];
+      return { mode: "change", items, prices, price, paid: 500, kinds: PURSE[3], step: "total" };
+    }
+    function tag(item, price) {
+      return `<div class="mb-item"><span class="mb-item-g">${item[0]}</span><span class="mb-tag">${fmt(price)}</span><small>${noun(item[1])}</small></div>`;
+    }
+    function drawCounter() {
+      let html = "";
+      if (q.items.length === 2) html = `${tag(q.items[0], q.prices[0])}<span class="mb-op">+</span>${tag(q.items[1], q.prices[1])}`;
+      else html = tag(q.items[0], q.price);
+      if (q.mode === "change") html += `<div class="mb-paid"><span class="mb-who">${rpick(PEOPLE)}</span><small>pays with</small><span class="mb-paid-art">${moneyArt(q.paid === 500 ? "b5" : "b1")}</span></div>`;
+      if (q.step === "total") {
+        const opts = shuffle([...new Set([q.price, q.price + 100, q.price - 25 > 0 ? q.price - 25 : q.price + 50])]).sort((a, b) => a - b);
+        html += `<div class="mb-totals" data-totals><b>Total?</b>${opts.map((v) => `<button type="button" class="mb-card mb-chip" data-tot="${v}">${fmt(v)}</button>`).join("")}</div>`;
+      }
+      counter.innerHTML = html;
+      [...counter.children].forEach((c, i) => popIn(c, i * 80));
+    }
+    function drawPurse() {
+      purse.innerHTML = q.kinds.map((k) => `<button type="button" class="mb-card mb-money${MONEY[k].bill ? " bill" : ""}" data-m="${k}" aria-label="${MONEY[k].name}, ${words(VAL(k))}"><span class="mb-m">${moneyArt(k)}</span><small>${fmt(VAL(k))}</small></button>`).join("");
+    }
+    async function ask() {
+      if (my !== token) return;
+      q = gen(skill.level);
+      last = q.items[0];
+      tries = 0;
+      tray = [];
+      trayEl.innerHTML = "";
+      showTotal();
+      dots();
+      drawCounter();
+      drawPurse();
+      stage.querySelector(".mb-shop").classList.toggle("locked", q.step === "total");
+      open = true;
+      await talk(question(), my);
+    }
+    function addMoney(k, from) {
+      if (!open || q.step === "total") return;
+      if (tray.length >= 16) {
+        talk(`That's lots of money! Try a bigger coin, or tap ↩️ to start again.`, my);
+        return;
+      }
+      tray.push(k);
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = `mb-tm${MONEY[k].bill ? " bill" : ""}`;
+      b.dataset.k = k;
+      b.setAttribute("aria-label", `Take back ${MONEY[k].name}`);
+      b.innerHTML = moneyArt(k);
+      trayEl.appendChild(b);
+      pop(from);
+      anim(b, [{ transform: "translateY(60px) scale(.6)", opacity: 0 }, { transform: "none", opacity: 1 }], 300, { fill: "none" });
+      MUSIC.play?.("xylophone", 72 + Math.min(tray.length, 12), { gain: 0.35 });
+      showTotal();
+      VOICE.speak(fmt(sum()));
+    }
+    function takeBack(node) {
+      if (!open) return;
+      const i = [...trayEl.children].indexOf(node);
+      if (i < 0) return;
+      tray.splice(i, 1);
+      node.remove();
+      showTotal();
+      VOICE.speak(fmt(sum()));
+    }
+    // Paying: count the biggest coins first. Change: count up from the price, smallest coins first, the way shopkeepers do.
+    const countUp = (from, list, biggestFirst = false) => {
+      let s = from;
+      return [...list].sort((a, b) => (biggestFirst ? VAL(b) - VAL(a) : VAL(a) - VAL(b))).map((k) => fmt((s += VAL(k))));
+    };
+    async function done() {
+      if (!open || q.step === "total" || my !== token) return;
+      const target = q.mode === "pay" ? q.price : q.paid - q.price;
+      const total = sum();
+      if (!tray.length) return talk(`Tap the money at the bottom to put it on the counter.`, my);
+      open = false;
+      if (total === target) {
+        const up = tries === 0 ? skill.right(`${q.mode}${q.items.length}`) : false;
+        MUSIC.chime();
+        round += 1;
+        window.OC?.count(q.mode === "pay" ? "items paid for" : "change given");
+        dots();
+        cheer(trayEl, round, rounds);
+        pop(trayEl);
+        if (q.mode === "pay") await talk(`Yes! ${countUp(0, tray, true).join(", ")}. That's exactly <b>${fmt(q.price)}</b>. Thank you!`, my);
+        else await talk(`Yes! ${fmt(q.price)}, then ${countUp(q.price, tray).join(", ")}. The change is <b>${fmt(target)}</b>. Thank you, shopkeeper!`, my);
+        if (my !== token) return;
+        return next(up);
+      }
+      if (tries === 0) skill.wrong(`${q.mode}${q.items.length}`);
+      tries += 1;
+      MUSIC.oops();
+      shake(trayEl);
+      if (tries >= 2) {
+        // Show one right way, counting it out loud.
+        const way = greedy(target, q.kinds);
+        tray = [...way];
+        trayEl.innerHTML = way.map((k) => `<span class="mb-tm${MONEY[k].bill ? " bill" : ""}">${moneyArt(k)}</span>`).join("");
+        showTotal();
+        trayEl.classList.add("hint");
+        if (q.mode === "pay") await talk(`Here's one way: ${countList(way)}. Count: ${countUp(0, way, true).join(", ")}. That makes ${fmt(q.price)}.`, my);
+        else await talk(`Let's count up together. Start at ${fmt(q.price)}: ${countUp(q.price, way).join(", ")}. The change is ${fmt(target)}.`, my);
+        trayEl.classList.remove("hint");
+        if (my !== token) return;
+        round += 1;
+        dots();
+        return next(false);
+      }
+      open = true;
+      if (total < target) await talk(`That's ${fmt(total)}. We need <b>${fmt(target)}</b>${q.mode === "change" ? " in change" : ""}, so add a bit more.${q.mode === "change" ? ` Count up from ${fmt(q.price)}.` : ""}`, my);
+      else await talk(`That's ${fmt(total)}. That's more than <b>${fmt(target)}</b>. Tap a coin to take it back.`, my);
+    }
+    async function next(up) {
+      if (up && round < rounds) {
+        await levelUp(my);
+        if (my !== token) return;
+      }
+      if (round === Math.ceil(rounds / 2) && round < rounds) {
+        surprise();
+        await talk(rpick(HALFWAY), my);
+        if (my !== token) return;
+      }
+      if (round >= rounds)
+        return finishCard({ id: "shop", icon: "🪙", message: "Play shop at home with real coins and price tags on your toys. Take turns: one buys, one is the shopkeeper and counts up the change.", speech: "Super shopkeeping! Play shop at home with real coins and price tags on your toys. Take turns: one person buys, and the shopkeeper counts up the change." });
+      ask();
+    }
+    async function pickTotal(button) {
+      if (!open || q.step !== "total") return;
+      const v = Number(button.dataset.tot);
+      if (v === q.price) {
+        button.classList.add("good");
+        MUSIC.chime();
+        sparkle(button);
+        open = false;
+        await talk(`Yes! ${fmt(q.prices[0])} + ${fmt(q.prices[1])} = <b>${fmt(q.price)}</b>.`, my);
+        if (my !== token) return;
+        q.step = "change";
+        tries = 0;
+        stage.querySelector(".mb-shop").classList.remove("locked");
+        $("[data-totals]", counter).innerHTML = `<b>Total ${fmt(q.price)}</b>`;
+        open = true;
+        await talk(question(), my);
+        return;
+      }
+      if (tries === 0) skill.wrong("total");
+      tries += 1;
+      button.classList.add("bad");
+      shake(button);
+      MUSIC.oops();
+      if (tries >= 2) {
+        open = false;
+        counter.querySelector(`[data-tot="${q.price}"]`)?.classList.add("hint");
+        await talk(`Add the dollars, then the cents: ${fmt(q.prices[0])} + ${fmt(q.prices[1])} = ${fmt(q.price)}.`, my);
+        if (my !== token) return;
+        q.step = "change";
+        tries = 0;
+        stage.querySelector(".mb-shop").classList.remove("locked");
+        $("[data-totals]", counter).innerHTML = `<b>Total ${fmt(q.price)}</b>`;
+        open = true;
+        await talk(question(), my);
+      } else await talk(`Not quite. Add the dollars first, then the cents.`, my);
+    }
+    onTap(purse, "[data-m]", (b) => addMoney(b.dataset.m, b));
+    onTap(trayEl, ".mb-tm", (b) => takeBack(b));
+    onTap(counter, "[data-tot]", pickTotal);
+    onTap(stage, "[data-done]", () => done());
+    onTap(stage, "[data-clear]", () => {
+      if (!open) return;
+      tray = [];
+      trayEl.innerHTML = "";
+      showTotal();
+    });
+    dots();
+    ask();
+  },
+
+  // ---------- Saving goal: choose a toy, save each week, watch the jar fill ----------
+  goal() {
+    const my = token;
+    const rounds = 4;
+    const skill = skillOf("goal", { start: 0, max: 2 });
+    let round = 0;
+    let pending = null;
+    stage.innerHTML = `<div class="mb-goal"><div class="mb-goal-left"><div class="mb-target" data-target><span>🎁</span><b>?</b></div><div class="mb-jar" data-jar><div class="mb-jar-fill" data-fill></div><span class="mb-jar-goal"></span><output class="mb-jar-label" data-saved>$0</output></div></div><div class="mb-chart" data-chart></div><div class="mb-goal-choices" data-choices></div></div>`;
+    const target = $("[data-target]", stage);
+    const fill = $("[data-fill]", stage);
+    const savedEl = $("[data-saved]", stage);
+    const chart = $("[data-chart]", stage);
+    const choicesEl = $("[data-choices]", stage);
+    const host = panel(statusRow("🐷", "🎁"));
+    let lastSay = "";
+    host.onclick = (event) => event.target.closest("[data-again]") && lastSay && talk(lastSay, my);
+    const dots = () => {
+      raceTo(host, round, rounds);
+      $("[data-level]", host).innerHTML = levelHtml(skill);
+    };
+    const ask = (msg) => {
+      lastSay = msg;
+      return talk(msg, my);
+    };
+    onTap(choicesEl, "[data-o]", (b) => pending?.(b));
+    const waitTap = () => new Promise((resolve) => (pending = resolve));
+    const setFill = (v, goal, ms = 500) => {
+      savedEl.textContent = fmt(v);
+      return anim(fill, [{ transform: getComputedStyle(fill).transform === "none" ? "scaleY(0)" : getComputedStyle(fill).transform }, { transform: `scaleY(${Math.min(1, v / goal)})` }], ms);
+    };
+    function drawChart(series, goal) {
+      const weeks = Math.max(...series.map((s) => s.weeks));
+      const top = Math.max(goal, ...series.map((s) => s.per * s.weeks));
+      const cols = Array.from({ length: weeks }, (_, i) => `<div class="mb-col"><div class="mb-bars">${series.map((s, j) => (i < s.weeks ? `<i class="s${j}" style="height:${((s.per * (i + 1)) / top) * 100}%" data-bar="${j}-${i}"></i>` : `<i class="s${j} none"></i>`)).join("")}</div><small>${i + 1}</small></div>`).join("");
+      chart.innerHTML = `<div class="mb-chart-head"><b>Savings each week</b>${series.map((s, j) => `<span class="mb-key s${j}">${fmt(s.per)} a week</span>`).join("")}</div><div class="mb-plot"><div class="mb-goal-line" style="bottom:${(goal / top) * 100}%"><span>Goal ${fmt(goal)}</span></div><div class="mb-cols">${cols}</div></div><div class="mb-axis">Weeks</div>`;
+      for (const bar of chart.querySelectorAll("[data-bar]")) bar.style.transform = "scaleY(0)";
+    }
+    const growBar = (j, i, ms = 380) => {
+      const bar = chart.querySelector(`[data-bar="${j}-${i}"]`);
+      if (!bar) return Promise.resolve();
+      bar.style.transform = "";
+      return anim(bar, [{ transform: "scaleY(0)" }, { transform: "scaleY(1)" }], ms);
+    };
+    // One question with number choices. Resolves true when right first time.
+    async function askNumber(msg, answer, options, hint, why) {
+      choicesEl.innerHTML = `<b class="mb-ask">How many weeks?</b>${options.map((v) => `<button type="button" class="mb-card mb-wk" data-o="${v}" aria-label="${v} weeks"><b>${v}</b><small>week${v === 1 ? "" : "s"}</small></button>`).join("")}`;
+      [...choicesEl.querySelectorAll("[data-o]")].forEach((b, i) => popIn(b, i * 70));
+      ask(msg);
+      let tries = 0;
+      for (;;) {
+        const b = await waitTap();
+        pending = null;
+        if (my !== token) return null;
+        if (Number(b.dataset.o) === answer) {
+          b.classList.add("good");
+          MUSIC.chime();
+          sparkle(b);
+          for (const o of choicesEl.querySelectorAll("[data-o]")) if (o !== b) o.classList.add("dim");
+          return tries === 0;
+        }
+        tries += 1;
+        b.classList.add("bad");
+        b.disabled = true;
+        shake(b);
+        MUSIC.oops();
+        if (tries >= 2) {
+          choicesEl.querySelector(`[data-o="${answer}"]`)?.classList.add("hint");
+          await talk(why, my);
+          return false;
+        }
+        talk(hint, my);
+      }
+    }
+    const near = (n, extra = []) => [...new Set([n, ...extra, n + 1, n - 1, n + 2].filter((v) => v >= 1))].slice(0, 3).sort((a, b) => a - b);
+    function plan(L) {
+      const toys = shuffle(TOYS).slice(0, 3);
+      if (L === 0) {
+        const per = rpick([100, 200]);
+        const ws = shuffle([2, 3, 4, 5]).slice(0, 3);
+        return { per, toys: toys.map((t, i) => ({ g: t[0], name: t[1], price: per * ws[i] })) };
+      }
+      if (L === 1) {
+        const per = rpick([200, 400]);
+        const ws = shuffle(per === 400 ? [3, 4, 5] : [3, 4, 5, 6]).slice(0, 3);
+        return { per, half: true, toys: toys.map((t, i) => ({ g: t[0], name: t[1], price: per * ws[i] })) };
+      }
+      const allowance = rpick([400, 600, 800]);
+      const per = allowance / 2;
+      const ws = shuffle([3, 4, 5]);
+      // Most prices are not a whole number of weeks, so the last week still counts.
+      return { per, allowance, toys: toys.map((t, i) => ({ g: t[0], name: t[1], price: per * ws[i] - (Math.random() < 0.75 ? 100 * rint(1, per / 100 - 1) : 0) })) };
+    }
+    async function playRound() {
+      const L = skill.level;
+      const p = plan(L);
+      dots();
+      // Empty jar and chart, then pick a toy.
+      target.innerHTML = `<span>🎁</span><b>?</b>`;
+      for (const a of fill.getAnimations()) a.cancel();
+      fill.style.transform = "scaleY(0)";
+      savedEl.textContent = "$0";
+      chart.innerHTML = `<div class="mb-chart-empty">📈<br>Your savings chart</div>`;
+      choicesEl.innerHTML = `<b class="mb-ask">Save for…</b>${p.toys.map((t, i) => `<button type="button" class="mb-card mb-toy" data-o="${i}" aria-label="${t.name}, ${words(t.price)}"><span>${t.g}</span><small>${t.name}</small><b class="mb-tag">${fmt(t.price)}</b></button>`).join("")}`;
+      [...choicesEl.querySelectorAll("[data-o]")].forEach((b, i) => popIn(b, i * 70));
+      ask(round === 0 ? `Let's save up! Pick something you'd like to buy.` : `Pick something new to save for!`);
+      const b = await waitTap();
+      pending = null;
+      if (my !== token) return;
+      const toy = p.toys[Number(b.dataset.o)];
+      b.classList.add("good");
+      pop(b);
+      target.innerHTML = `<span>${toy.g}</span><b>${fmt(toy.price)}</b>`;
+      pop(target);
+      const n = Math.ceil(toy.price / p.per);
+      const exact = toy.price % p.per === 0;
+      // The chart is drawn after the answer, so its weeks don't give the answer away.
+      chart.innerHTML = `<div class="mb-chart-empty">📈<br>Goal: <b>${fmt(toy.price)}</b><br>${fmt(p.per)} a week</div>`;
+      await wait(350);
+      if (my !== token) return;
+      const steps = Array.from({ length: n }, (_, i) => fmt(p.per * (i + 1)));
+      const msg = p.allowance
+        ? `You get <b>${fmt(p.allowance)}</b> a week and save <b>half</b>, so you save <b>${fmt(p.per)}</b> a week. The ${toy.name} costs <b>${fmt(toy.price)}</b>. How many weeks until you have enough?`
+        : `You save <b>${fmt(p.per)}</b> every week. The ${toy.name} costs <b>${fmt(toy.price)}</b>. How many weeks until you can buy it?`;
+      const options = near(n, exact ? [] : [Math.floor(toy.price / p.per)]);
+      const why = exact
+        ? `Count up by ${fmt(p.per)}: ${steps.join(", ")}. That's <b>${n} weeks</b>.`
+        : `Count up by ${fmt(p.per)}: ${steps.join(", ")}. After ${n - 1} weeks you have ${fmt(p.per * (n - 1))}, not quite enough. So it takes <b>${n} weeks</b>.`;
+      const first = await askNumber(msg, n, options, `Count up by ${fmt(p.per)} until you reach ${fmt(toy.price)}. Try again!`, why);
+      if (first === null || my !== token) return;
+      const up = first ? skill.right(`goal${L}`) : (skill.wrong(`goal${L}`), false);
+      drawChart([{ per: p.per, weeks: n }], toy.price);
+      // Watch it grow, week by week.
+      for (let i = 0; i < n; i++) {
+        if (my !== token) return;
+        growBar(0, i);
+        await setFill(p.per * (i + 1), toy.price, 420);
+        MUSIC.play?.("xylophone", 72 + i, { gain: 0.35 });
+        await talk(`Week ${i + 1}: ${fmt(p.per * (i + 1))}`, my);
+      }
+      if (my !== token) return;
+      sparkle(target);
+      const left = p.per * n - toy.price;
+      await talk(`You did it! After <b>${n} weeks</b> you have ${fmt(p.per * n)}${left ? `, with ${fmt(left)} left over` : ""}. Now you can buy the ${toy.name}! Waiting and saving pays off.`, my);
+      if (my !== token) return;
+      // What if…? Half as much (Level 2), or all of the allowance (Level 3).
+      if (L >= 1) {
+        const per2 = p.allowance ? p.allowance : p.per / 2;
+        const n2 = Math.ceil(toy.price / per2);
+        const msg2 = p.allowance
+          ? `What if you saved <b>all</b> ${fmt(p.allowance)} every week? How many weeks then?`
+          : `What if you saved only <b>half</b> as much, ${fmt(per2)} a week? How many weeks then?`;
+        const steps2 = Array.from({ length: n2 }, (_, i) => fmt(per2 * (i + 1)));
+        const why2 = `Count up by ${fmt(per2)}: ${steps2.join(", ")}. That's <b>${n2} weeks</b>.`;
+        const second = await askNumber(msg2, n2, near(n2, [n]), `Count up by ${fmt(per2)} until you reach ${fmt(toy.price)}.`, why2);
+        if (second === null || my !== token) return;
+        drawChart([{ per: p.per, weeks: n }, { per: per2, weeks: n2 }], toy.price);
+        for (let i = 0; i < n; i++) growBar(0, i, 1);
+        for (let i = 0; i < n2; i++) {
+          if (my !== token) return;
+          await growBar(1, i, 160);
+        }
+        await talk(p.allowance ? `Saving all of it takes ${n2} weeks instead of ${n}. Quicker, but then there's nothing to spend or give. Saving half is a good balance.` : `Saving half as much takes <b>twice as long</b>: ${n2} weeks instead of ${n}.`, my);
+        if (my !== token) return;
+      }
+      round += 1;
+      window.OC?.count("savings goals reached");
+      dots();
+      cheer(target, round, rounds);
+      if (up && round < rounds) await levelUp(my);
+    }
+    (async () => {
+      while (round < rounds) {
+        await playRound();
+        if (my !== token) return;
+        if (round === Math.ceil(rounds / 2) && round < rounds) {
+          surprise();
+          await talk(rpick(HALFWAY), my);
+          if (my !== token) return;
+        }
+      }
+      finishCard({ id: "goal", icon: "🐷", message: "Make a savings chart: draw your goal at the top and colour in one box for each week you save. When the chart is full, you can buy it!", speech: "You're a super saver! With a grown-up, make a savings chart. Draw your goal at the top and colour in one box for each week you save. When the chart is full, you can buy it!" });
+    })();
+  },
+
+  // ---------- Lemonade stand: costs, price, weather, customers and profit ----------
+  lemon() {
+    const my = token;
+    const days = 4;
+    const skill = skillOf("lemon", { start: 0, max: 2 });
+    const forecast = shuffle(Object.keys(WEATHER));
+    let day = 0;
+    let bank = 0;
+    let best = null;
+    let choice = { p: 0, price: 0 };
+    let pending = null;
+    stage.innerHTML = `<div class="mb-lemon"><div class="mb-scene" data-scene><div class="mb-sky" data-sky></div><div class="mb-queue" data-queue></div><div class="mb-stand"><div class="mb-sign" data-sign>Lemonade</div><div class="mb-awning"></div><div class="mb-table"><span class="mb-cups" data-cups></span><span class="mb-lemons" aria-hidden="true">🍋🍋</span></div></div><output class="mb-box" data-box>💰 $0</output></div><div class="mb-ctrl" data-ctrl></div></div>`;
+    const sky = $("[data-sky]", stage);
+    const queue = $("[data-queue]", stage);
+    const sign = $("[data-sign]", stage);
+    const cupsEl = $("[data-cups]", stage);
+    const box = $("[data-box]", stage);
+    const ctrl = $("[data-ctrl]", stage);
+    const host = panel(statusRow("🍋", "🏆"));
+    let lastSay = "";
+    host.onclick = (event) => event.target.closest("[data-again]") && lastSay && talk(lastSay, my);
+    const ask = (msg) => {
+      lastSay = msg;
+      return talk(msg, my);
+    };
+    const dots = () => {
+      raceTo(host, day, days);
+      $("[data-level]", host).innerHTML = levelHtml(skill);
+    };
+    const waitTap = () => new Promise((resolve) => (pending = resolve));
+    onTap(ctrl, "[data-v], [data-open], [data-o], [data-nextday]", (b) => pending?.(b));
+    const showCups = (n) => (cupsEl.textContent = n > 0 ? `🥤 × ${n}` : "Sold out!");
+
+    async function planDay(wx) {
+      choice = { p: 0, price: 0 };
+      ctrl.innerHTML = `<h3>Day ${day + 1} of ${days} · ${wx.sky} ${wx.label}</h3><p class="mb-note">Each pitcher makes ${PITCHER_CUPS} cups and costs <b>$3</b> for lemons, sugar and cups.</p><div class="mb-opt-head">How many pitchers?</div><div class="mb-opts" data-group="p">${[1, 2, 3].map((n) => `<button type="button" class="mb-card mb-opt" data-v="${n}" data-g="p" aria-label="${n} pitcher${n > 1 ? "s" : ""}, ${n * PITCHER_CUPS} cups, costs ${n * 3} dollars"><b>${"🍋".repeat(n)}</b><small>${n * PITCHER_CUPS} cups · ${fmt(n * PITCHER_COST)}</small></button>`).join("")}</div><div class="mb-opt-head">Price for one cup?</div><div class="mb-opts" data-group="price">${PRICES.map((c) => `<button type="button" class="mb-card mb-opt" data-v="${c}" data-g="price" aria-label="${words(c)} a cup"><b>${fmt(c)}</b></button>`).join("")}</div><button type="button" class="mb-btn go mb-open" data-open disabled>🍋 Open the stand!</button>`;
+      [...ctrl.children].forEach((c, i) => popIn(c, i * 60));
+      sky.dataset.wx = forecast[day];
+      sky.innerHTML = `<span class="mb-sun">${wx.sky}</span>`;
+      queue.innerHTML = "";
+      showCups(0);
+      cupsEl.textContent = "";
+      sign.textContent = "Lemonade";
+      ask(day === 0
+        ? `Welcome to your lemonade stand! Today is <b>${wx.name}</b>. How many pitchers will you make, and what price will you charge for a cup?`
+        : `Day ${day + 1}. Today is <b>${wx.name}</b>. ${wx.name === "rainy" || wx.name === "cloudy" ? "Will as many people want lemonade today?" : "Lots of people get thirsty on sunny days!"} Make your plan.`);
+      for (;;) {
+        const b = await waitTap();
+        pending = null;
+        if (my !== token) return false;
+        if (b.matches("[data-open]")) break;
+        const g = b.dataset.g;
+        choice[g] = Number(b.dataset.v);
+        for (const o of ctrl.querySelectorAll(`[data-g="${g}"]`)) o.classList.toggle("on", o === b);
+        pop(b);
+        if (g === "p") VOICE.speak(`${choice.p} pitcher${choice.p > 1 ? "s" : ""}: ${choice.p * PITCHER_CUPS} cups. That costs ${fmt(choice.p * PITCHER_COST)}.`);
+        else VOICE.speak(`${fmt(choice.price)} a cup.`);
+        const ready = choice.p && choice.price;
+        const go = $("[data-open]", ctrl);
+        go.disabled = !ready;
+        if (ready) go.setAttribute("data-pulse", "");
+      }
+      return true;
+    }
+    async function sell(wx) {
+      const cups = choice.p * PITCHER_CUPS;
+      const want = Math.max(1, Math.round(wx.base * PRICE_PULL[choice.price]) + rint(-1, 1));
+      const sold = Math.min(cups, want);
+      ctrl.innerHTML = `<h3>Day ${day + 1} · Open for business!</h3><p class="mb-note">${choice.p} pitcher${choice.p > 1 ? "s" : ""} · ${fmt(choice.price)} a cup</p><div class="mb-tally"><span>Customers <b data-cust>0</b></span><span>Cups sold <b data-sold>0</b></span></div>`;
+      sign.textContent = `Lemonade ${fmt(choice.price)}`;
+      showCups(cups);
+      box.textContent = `💰 ${fmt(0)}`;
+      ask(`Here come the customers!`);
+      const shown = Math.min(want, 24);
+      const gap = still.matches ? 40 : Math.max(90, Math.min(260, 2600 / shown));
+      let s = 0;
+      for (let i = 0; i < shown; i++) {
+        if (my !== token) return null;
+        const person = document.createElement("span");
+        person.className = "mb-person";
+        person.textContent = PEOPLE[i % PEOPLE.length];
+        queue.appendChild(person);
+        anim(person, [{ transform: "translateX(-60px)", opacity: 0 }, { transform: "none", opacity: 1 }], 300, { fill: "none" });
+        // Customers beyond the shown 24 count as buyers too, so the numbers stay true.
+        const buys = i < sold;
+        if (buys) {
+          s += 1;
+          showCups(cups - s);
+          box.textContent = `💰 ${fmt(s * choice.price)}`;
+          person.classList.add("happy");
+        } else person.classList.add("sad");
+        const c = $("[data-cust]", ctrl);
+        if (c) c.textContent = i + 1;
+        const so = $("[data-sold]", ctrl);
+        if (so) so.textContent = s;
+        await wait(gap);
+      }
+      if (want > shown) {
+        s = sold;
+        $("[data-cust]", ctrl).textContent = want;
+        $("[data-sold]", ctrl).textContent = s;
+        showCups(cups - s);
+        box.textContent = `💰 ${fmt(s * choice.price)}`;
+      }
+      pop(box);
+      MUSIC.chime();
+      return { cups, want, sold };
+    }
+    function tipFor(wx, r, profit) {
+      const left = r.cups - r.sold;
+      const missed = r.want - r.sold;
+      const pricey = choice.price === 200 && left > 0;
+      if (profit < 0) return `Oh no, a <b>loss</b>: more money went out than came in. That's okay! Real business owners learn from a slow day. ${pricey ? "Next time, try a lower price, or make less lemonade." : left ? `Next time, make less lemonade on a ${wx.name} day.` : "Next time, try a different price."}`;
+      if (missed >= 3) return `${missed} people wanted lemonade, but you <b>ran out</b>! On a ${wx.name} day, you could make more.`;
+      if (pricey && left >= 4) return `${left} cups were <b>left over</b>. At $2 a cup, fewer people wanted to buy. A lower price might sell more.`;
+      if (left >= PITCHER_CUPS) return `${left} cups were <b>left over</b>. That lemonade cost money, but nobody bought it. Make less on ${wx.name} days.`;
+      if (choice.price === 50 && r.sold >= 10) return `Lots of customers! But at 50¢ a cup, the money in was small. A higher price could earn more.`;
+      return `Great planning! You matched your lemonade to the weather.`;
+    }
+    async function results(wx, r) {
+      const income = r.sold * choice.price;
+      const cost = choice.p * PITCHER_COST;
+      const profit = income - cost;
+      const top = Math.max(income, cost, 1);
+      const L = skill.level;
+      // First level: did we make a profit or a loss? Then work out the profit: whole dollars first, never a loss (no negative numbers yet).
+      const pl = L === 0 && profit !== 0;
+      const quiz = profit >= 0 && (L >= 2 || (L === 1 && income % 100 === 0));
+      ctrl.innerHTML = `<h3>Day ${day + 1} results</h3><div class="mb-ledger"><div class="mb-lrow in"><span>Money in</span><small>${r.sold} cup${r.sold === 1 ? "" : "s"} × ${fmt(choice.price)}</small><i style="--w:${(income / top) * 100}%"></i><b>${fmt(income)}</b></div><div class="mb-lrow out"><span>Money out</span><small>${choice.p} pitcher${choice.p > 1 ? "s" : ""} × $3</small><i style="--w:${(cost / top) * 100}%"></i><b>${fmt(cost)}</b></div><div class="mb-lrow pr${profit < 0 ? " loss" : ""}${pl || quiz ? " hide" : ""}"><span>${profit < 0 ? "Loss" : "Profit"}</span><small>money in − money out</small><i style="--w:${(Math.abs(profit) / top) * 100}%"></i><b data-profit>${quiz ? "?" : fmt(profit)}</b></div></div><div class="mb-quiz" data-quiz></div>`;
+      for (const bar of ctrl.querySelectorAll(".mb-lrow i")) anim(bar, [{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }], 700);
+      let first = true;
+      if (pl) {
+        const quizEl = $("[data-quiz]", ctrl);
+        $("[data-profit]", ctrl).textContent = "?";
+        $(".mb-lrow.pr span", ctrl).textContent = "Profit or loss?";
+        quizEl.innerHTML = [["profit", "😀", "Profit"], ["loss", "😟", "Loss"]].map(([k, g, t]) => `<button type="button" class="mb-card mb-chip" data-o="${k}">${g} ${t}</button>`).join("");
+        ask(`Money in is <b>${fmt(income)}</b>. Money out is <b>${fmt(cost)}</b>. Did you make a <b>profit</b> or a <b>loss</b>?`);
+        const right = profit > 0 ? "profit" : "loss";
+        let tries = 0;
+        for (;;) {
+          const b = await waitTap();
+          pending = null;
+          if (my !== token) return null;
+          if (!b.matches("[data-o]")) continue;
+          if (b.dataset.o === right) {
+            b.classList.add("good");
+            MUSIC.chime();
+            sparkle(b);
+            break;
+          }
+          tries += 1;
+          first = false;
+          b.classList.add("bad");
+          b.disabled = true;
+          shake(b);
+          MUSIC.oops();
+          quizEl.querySelector(`[data-o="${right}"]`)?.classList.add("hint");
+          await talk(profit > 0 ? `More money came in than went out, so it's a profit.` : `More money went out than came in, so it's a loss.`, my);
+          break;
+        }
+        if (my !== token) return null;
+        $(".mb-lrow.pr span", ctrl).textContent = profit < 0 ? "Loss" : "Profit";
+        $("[data-profit]", ctrl).textContent = fmt(profit);
+        if (first) skill.right(`lemon-${wx.name}`);
+        else skill.wrong(`lemon-${wx.name}`);
+      }
+      if (quiz) {
+        const opts = shuffle([...new Set([profit, income, profit + 100 * rint(1, 2), profit - 100].filter((v) => v >= 0))]).slice(0, 3);
+        if (!opts.includes(profit)) opts[0] = profit;
+        const quizEl = $("[data-quiz]", ctrl);
+        quizEl.innerHTML = `<b>Profit?</b>${opts.sort((a, b) => a - b).map((v) => `<button type="button" class="mb-card mb-chip" data-o="${v}">${fmt(v)}</button>`).join("")}`;
+        ask(`Money in is <b>${fmt(income)}</b>. Money out is <b>${fmt(cost)}</b>. What is the profit?`);
+        let tries = 0;
+        for (;;) {
+          const b = await waitTap();
+          pending = null;
+          if (my !== token) return null;
+          if (!b.matches("[data-o]")) continue;
+          if (Number(b.dataset.o) === profit) {
+            b.classList.add("good");
+            MUSIC.chime();
+            sparkle(b);
+            break;
+          }
+          tries += 1;
+          first = false;
+          b.classList.add("bad");
+          b.disabled = true;
+          shake(b);
+          MUSIC.oops();
+          if (tries >= 2) {
+            quizEl.querySelector(`[data-o="${profit}"]`)?.classList.add("hint");
+            await talk(`Take money out away from money in: ${fmt(income)} − ${fmt(cost)} = ${fmt(profit)}.`, my);
+            break;
+          }
+          talk(Number(b.dataset.o) === income ? `That's the money in. Don't forget to take away the money out: the costs!` : `Not quite. Profit is money in, take away money out.`, my);
+        }
+        if (my !== token) return null;
+        $("[data-profit]", ctrl).textContent = fmt(profit);
+        if (first) skill.right(`lemon-${wx.name}`);
+        else skill.wrong(`lemon-${wx.name}`);
+      }
+      const prow = $(".mb-lrow.pr", ctrl);
+      if (prow.classList.contains("hide")) {
+        prow.classList.remove("hide");
+        anim($("i", prow), [{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }], 600);
+      }
+      bank += profit;
+      if (!best || profit > best.profit) best = { profit, wx };
+      box.textContent = `💰 Total ${fmt(bank)}`;
+      window.OC?.count("lemonade days run");
+      const tip = tipFor(wx, r, profit);
+      $("[data-quiz]", ctrl).innerHTML = `<p class="mb-tip">💡 ${tip}</p><button type="button" class="mb-btn go" data-nextday data-pulse>${day + 1 < days ? "▶ Next day" : "🏆 See how you did"}</button>`;
+      const summary = profit >= 0 ? `Money in ${fmt(income)}, money out ${fmt(cost)}. Your profit is <b>${fmt(profit)}</b>.` : `Money in ${fmt(income)}, money out ${fmt(cost)}.`;
+      ask(`${summary} ${tip}`);
+      for (;;) {
+        const b = await waitTap();
+        pending = null;
+        if (my !== token) return null;
+        if (b.matches("[data-nextday]")) break;
+      }
+      return profit;
+    }
+    (async () => {
+      dots();
+      while (day < days) {
+        const wx = WEATHER[forecast[day]];
+        if (!(await planDay(wx))) return;
+        const r = await sell(wx);
+        if (!r || my !== token) return;
+        await wait(500);
+        if (my !== token) return;
+        const p = await results(wx, r);
+        if (p === null || my !== token) return;
+        day += 1;
+        dots();
+        if (day === 2 && day < days) surprise();
+      }
+      const msg = bank > 0 ? `Your stand made <b>${fmt(bank)}</b> profit in ${days} days!` : `Business is tricky! Your stand made ${fmt(bank)} in ${days} days. Every business owner learns by trying again.`;
+      await talk(`${msg} Your best day was the ${best.wx.name} day.`, my);
+      if (my !== token) return;
+      finishCard({ id: "lemon", icon: "🍋", message: "Make lemonade (or another treat) with a grown-up. Write down what the ingredients cost, sell cups to family for a fair price, then work out: money in − money out = profit.", speech: "What a business owner! Make lemonade or another treat with a grown-up. Write down what the ingredients cost, sell cups to your family for a fair price, then work out your profit: money in, minus money out." });
+    })();
+  },
+
+  // ---------- Jobs & earning: goods and services, who we pay, ideas for earning ----------
+  jobs() {
+    let lastKind = null;
+    const KIND = {
+      goods: {
+        layout: "side",
+        count: "goods and services sorted",
+        gen(level, skill, last) {
+          const it = skill.pick(GOODS, (x) => x.t, last);
+          return { target: it, key: it.t, it, prompt: picCard(it.g, it.t), choices: ["goods", "service"].map((k) => ({ v: k, ok: k === it.k, art: picCard(KINDS[k].g, KINDS[k].name, KINDS[k].sub), label: KINDS[k].name })) };
+        },
+        ask: (q) => `<b>${q.it.t}</b>. Is that <b>goods</b>, or a <b>service</b>?`,
+        praise: (q) => (q.it.k === "goods" ? `Yes! ${q.it.t}: goods, a thing you can touch and take home.` : `Yes! ${q.it.t}: a service. Someone does work for you.`),
+        hint: () => `Can you touch it and take it home? Then it's goods. Is someone doing work for you? Then it's a service.`,
+        reveal: (q) => (q.it.k === "goods" ? `${q.it.t} is goods: a thing you can touch.` : `${q.it.t} is a service: work someone does for you.`),
+      },
+      who: {
+        layout: "",
+        count: "jobs matched",
+        gen(level, skill, last) {
+          const job = skill.pick(JOBS, (x) => x.name, last);
+          const others = shuffle(JOBS.filter((x) => x !== job)).slice(0, choicesFor(level) - 1);
+          return { target: job, key: job.name, job, choices: shuffle([job, ...others]).map((x) => ({ v: x, ok: x === job, art: picCard(x.g, cap(x.name)), label: x.name })) };
+        },
+        ask: (q) => `Who would you pay to <b>${q.job.task}</b>?`,
+        praise: (q) => `Yes! People pay ${an(q.job.name)} to ${q.job.task}. That's how ${an(q.job.name)} earns money.`,
+        hint: (q, c) => `${cap(an(c.v.name))} doesn't usually ${q.job.task}. Who does?`,
+        reveal: (q) => `${cap(an(q.job.name))} would ${q.job.task}.`,
+      },
+      idea: {
+        layout: "side",
+        count: "earning ideas",
+        gen(level, skill, last) {
+          const it = skill.pick(IDEAS, (x) => x.like, last);
+          const others = shuffle(IDEAS.filter((x) => x !== it)).slice(0, 2);
+          return { target: it, key: it.like, it, prompt: picCard(it.g, `I love ${it.like}`), wide: true, choices: shuffle([it, ...others]).map((x) => ({ v: x, ok: x === it, art: txtCard(x.ig, x.idea), label: x.idea })) };
+        },
+        ask: (q) => `Sam loves <b>${q.it.like}</b> and wants to earn some money. Which idea fits Sam best?`,
+        praise: (q) => `Yes! ${q.it.idea}. Earning money doing something you enjoy is a great idea. Always ask a grown-up first.`,
+        hint: () => `That's a good idea too, but which one is about what Sam loves?`,
+        reveal: (q) => `Sam loves ${q.it.like}, so: ${lower(q.it.idea)}.`,
+      },
+      earn: {
+        layout: "side",
+        count: "earnings worked out",
+        gen(level, skill, last) {
+          const job = rpick(EARN.filter((x) => x !== last?.job));
+          const rate = 100 * rint(2, 5);
+          const n = rint(2, 5);
+          const total = rate * n;
+          const opts = shuffle([...new Set([total, rate + 100 * n, total + rate, total - rate].filter((v) => v > 0))]).slice(0, 3);
+          if (!opts.includes(total)) opts[0] = total;
+          return { target: { job }, key: `earn${n}`, job, rate, n, total, prompt: `<div class="mb-earn">${Array.from({ length: n }, () => `<span>${job.g}<b>${fmt(rate)}</b></span>`).join("")}</div>`, choices: opts.sort((a, b) => a - b).map((v) => ({ v, ok: v === total, art: picCard("💵", fmt(v)), label: words(v) })) };
+        },
+        ask: (q) => `You ${q.job.task} for <b>${fmt(q.rate)}</b> each time. You do it <b>${q.n} times</b>. How much do you earn?`,
+        praise: (q) => `Yes! ${q.n} × ${fmt(q.rate)} = <b>${fmt(q.total)}</b>. You earned it with your work!`,
+        hint: (q) => `Count up by ${fmt(q.rate)}, ${q.n} times.`,
+        reveal: (q) => `${Array.from({ length: q.n }, (_, i) => fmt(q.rate * (i + 1))).join(", ")}. That's ${fmt(q.total)}.`,
+      },
+    };
+    runChoice({
+      id: "jobs",
+      count: "jobs rounds",
+      skill: { start: 0, max: 2 },
+      racer: "🧑‍🔧",
+      goal: "💵",
+      ...KIND.goods,
+      gen(level, skill, last) {
+        const pool = level >= 2 ? ["goods", "who", "idea", "earn"] : level >= 1 ? ["goods", "who", "idea"] : ["goods", "who"];
+        const id = rpick(pool.filter((k) => k !== lastKind));
+        lastKind = id;
+        return roundOf(KIND[id], level, skill, last);
+      },
+      finish: { icon: "🧑‍🔧", message: "Make a job menu together: jobs you could do for neighbours or family, like watering plants or washing the car, and a fair price for each. (Some jobs we do for free, just because we're a family!)", speech: "You know all about jobs! With a grown-up, make a job menu: jobs you could do for neighbours or family, like watering plants or washing the car, and a fair price for each. Some jobs we do for free, just because we're a family!" },
+    });
+  },
+
+  // ---------- Smart shopper: enough money? better deal? too good to be true? ----------
+  smart() {
+    let lastKind = null;
+    const usedTricks = new Set();
+    const KIND = {
+      enough: {
+        layout: "side",
+        count: "can-I-buy-it checks",
+        gen() {
+          const kinds = ["q", "d", "n", "p"];
+          const coins = Array.from({ length: rint(2, 5) }, () => rpick(kinds)).sort((a, b) => VAL(b) - VAL(a));
+          const have = coins.reduce((s, k) => s + VAL(k), 0);
+          const item = rpick(MID);
+          const price = Math.max(1, have + rpick([-1, 1]) * rint(1, 10) * (Math.random() < 0.25 ? 0 : 1));
+          const ok = have >= price;
+          return { target: item, key: ok ? "enough" : "short", item, coins, have, price, ok, prompt: `<div class="mb-have"><div class="mb-have-coins">${coins.map((k) => `<span>${coinSvg(k)}</span>`).join("")}</div><div class="mb-item"><span class="mb-item-g">${item[0]}</span><span class="mb-tag">${fmt(price)}</span></div></div>`, choices: [{ v: true, ok, art: picCard("✅", "Yes, enough"), label: "Yes, I have enough" }, { v: false, ok: !ok, art: picCard("❌", "Not enough"), label: "Not enough" }] };
+        },
+        ask: (q) => `Count your coins. Can you buy ${q.item[1]} for <b>${fmt(q.price)}</b>?`,
+        praise: (q) => `Yes! Your coins make ${fmt(q.have)}. ${q.ok ? (q.have > q.price ? `That's enough, with ${fmt(q.have - q.price)} left over.` : "That's exactly enough!") : `That's ${fmt(q.price - q.have)} short. You could save a little more.`}`,
+        hint: () => `Count the coins: start with the biggest.`,
+        reveal: (q) => `Your coins make ${fmt(q.have)}. ${q.ok ? "That's enough!" : `It costs ${fmt(q.price)}, so it's not enough.`}`,
+      },
+      cheaper: {
+        layout: "",
+        count: "prices compared",
+        gen() {
+          const item = rpick([...MID, ...CHEAP]);
+          const a = 5 * rint(4, 18);
+          const b = a + 5 * rint(1, 4) * rpick([-1, 1]);
+          const shops = shuffle([["🏪", "Corner shop", a], ["🛒", "Market", Math.max(5, b)]]);
+          const min = Math.min(...shops.map((s) => s[2]));
+          return { target: item, key: "cheaper", item, shops, min, choices: shops.map((s) => ({ v: s, ok: s[2] === min, art: `<div class="mb-act"><span>${item[0]}</span><b class="mb-tag">${fmt(s[2])}</b><small>${s[0]} ${s[1]}</small></div>`, label: `${s[1]}, ${words(s[2])}` })) };
+        },
+        ask: (q) => `The same ${noun(q.item[1])} in two shops. Which one costs <b>less</b>?`,
+        praise: (q) => `Yes! ${fmt(q.min)} is less. Comparing prices saves money.`,
+        hint: () => `Look at the price tags. Which number is smaller?`,
+        reveal: (q) => `${fmt(q.min)} costs less.`,
+      },
+      deal: {
+        layout: "",
+        count: "deals compared",
+        gen() {
+          const [g, name, many] = rpick([["✏️", "pencil", "pencils"], ["🍎", "apple", "apples"], ["🧃", "juice box", "juice boxes"], ["🍪", "cookie", "cookies"], ["🎾", "ball", "balls"]]);
+          const single = rpick([30, 40, 50, 60, 75, 80]);
+          const k = rint(2, 4);
+          // Usually the pack is cheaper for each one; sometimes it costs more, so bigger is not always better.
+          const per = Math.random() < 0.7 ? single - 5 * rint(2, 4) : single + 5 * rint(2, 3);
+          const pack = per * k;
+          const better = per < single ? "pack" : "one";
+          return { target: name, key: `deal-${better}`, name, many, single, k, per, pack, better, choices: shuffle([{ v: "one", ok: better === "one", art: `<div class="mb-act"><span>${g}</span><b class="mb-tag">${fmt(single)}</b><small>1 ${name}</small></div>`, label: `1 ${name} for ${words(single)}` }, { v: "pack", ok: better === "pack", art: `<div class="mb-act">${multi(Array(k).fill(g))}<b class="mb-tag">${fmt(pack)}</b><small>${k} ${many}</small></div>`, label: `${k} ${many} for ${words(pack)}` }]) };
+        },
+        ask: (q) => `Which is the better deal for <b>each ${q.name}</b>? 1 for ${fmt(q.single)}, or ${q.k} for ${fmt(q.pack)}?`,
+        praise: (q) => `Yes! ${q.k} for ${fmt(q.pack)} is ${fmt(q.per)} each, and 1 costs ${fmt(q.single)}. ${q.better === "pack" ? "The pack is cheaper for each one, but only if you need that many!" : "Here the single one is cheaper. Bigger isn't always better!"}`,
+        hint: (q) => `Work out the price of <b>one</b> ${q.name} in the pack: ${fmt(q.pack)} shared by ${q.k}.`,
+        reveal: (q) => `${fmt(q.pack)} shared by ${q.k} is ${fmt(q.per)} each. One on its own is ${fmt(q.single)}.`,
+      },
+      trick: {
+        layout: "side",
+        count: "tricks spotted",
+        gen(level, skill, last) {
+          const fresh = TRICKS.filter((x) => !usedTricks.has(x.g));
+          const t = skill.pick(fresh.length ? fresh : TRICKS, (x) => x.g, last);
+          usedTricks.add(t.g);
+          return { target: t, key: `trick-${t.g}`, t, prompt: txtCard(t.g, t.says), wide: true, choices: shuffle(t.opts.map((o, i) => ({ v: i, ok: i === 0, art: txtCard(o[0], o[1]), label: o[1] }))) };
+        },
+        ask: (q) => `${q.t.says} What should you do?`,
+        praise: (q) => `Yes! ${q.t.why}`,
+        hint: () => `Hmm. Is that what a wise shopper would do? Think again.`,
+        reveal: (q) => q.t.why,
+      },
+      budget: {
+        layout: "",
+        count: "budgets planned",
+        gen() {
+          const items = shuffle(BIG).slice(0, 5).map((it) => [...it, 100 * rint(2, 7)]);
+          const pairs = [];
+          for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) pairs.push([items[i], items[j]]);
+          const fit = pairs.filter(([a, b]) => a[2] + b[2] <= 1000);
+          const over = pairs.filter(([a, b]) => a[2] + b[2] > 1000);
+          if (!fit.length || over.length < 2) return KIND.budget.gen();
+          const good = rpick(fit);
+          const bad = shuffle(over).slice(0, 2);
+          const sum = (p) => p[0][2] + p[1][2];
+          return { target: "budget", key: "budget", good, sum: sum(good), choices: shuffle([good, ...bad]).map((p) => ({ v: p, ok: p === good, art: `<div class="mb-act">${multi([p[0][0], p[1][0]])}<b>${fmt(p[0][2])} + ${fmt(p[1][2])}</b><small>${noun(p[0][1])} and ${noun(p[1][1])}</small></div>`, label: `${noun(p[0][1])} and ${noun(p[1][1])}` })) };
+        },
+        ask: () => `You have <b>$10</b> to spend. Which two things can you buy together?`,
+        praise: (q) => `Yes! ${fmt(q.good[0][2])} + ${fmt(q.good[1][2])} = ${fmt(q.sum)}. That fits in $10${q.sum < 1000 ? `, with ${fmt(1000 - q.sum)} left` : ""}. Choosing one thing can mean not having enough for another.`,
+        hint: (q, c) => `${fmt(c.v[0][2])} + ${fmt(c.v[1][2])} = ${fmt(c.v[0][2] + c.v[1][2])}. That's more than $10. Try another pair.`,
+        reveal: (q) => `${fmt(q.good[0][2])} + ${fmt(q.good[1][2])} = ${fmt(q.sum)}. That fits in $10.`,
+      },
+    };
+    runChoice({
+      id: "smart",
+      count: "smart shopper rounds",
+      skill: { start: 0, max: 2 },
+      racer: "🛒",
+      goal: "🏷️",
+      ...KIND.enough,
+      gen(level, skill, last) {
+        const pool = level >= 2 ? ["deal", "trick", "budget", "trick"] : level >= 1 ? ["enough", "deal", "trick"] : ["enough", "cheaper"];
+        const id = rpick(pool.filter((k) => k !== lastKind));
+        lastKind = id;
+        return roundOf(KIND[id], level, skill, last);
+      },
+      finish: { icon: "🏷️", message: "At the grocery store, find two sizes of the same thing. Look at the small “unit price” on the shelf label with a grown-up: which is the better deal? Do you need that much?", speech: "You're a smart shopper! At the grocery store, find two sizes of the same thing. Look at the small unit price on the shelf label with a grown-up. Which is the better deal? And do you need that much?" },
+    });
+  },
+};
+
+const UNITS = [
+  { id: "see", label: "See it", icon: "👀" },
+  { id: "needs", label: "1. Needs or wants?", icon: "🤔" },
+  { id: "shop", label: "2. Shop & change", icon: "🪙" },
+  { id: "goal", label: "3. Saving goal", icon: "🐷" },
+  { id: "lemon", label: "4. Lemonade stand", icon: "🍋" },
+  { id: "jobs", label: "5. Jobs & earning", icon: "🧑‍🔧" },
+  { id: "smart", label: "6. Smart shopper", icon: "🏷️" },
+];
+shell = SHELL({
+  units: UNITS,
+  unitWord: "Game",
+  how: {
+    see: { icon: "👀", title: "See it", steps: ["Watch and listen.", "Press Next to go on."] },
+    needs: { icon: "🤔", title: "Needs or wants?", steps: ["Look at the picture.", "Drag it to Need or Want, or tap the box.", "Later, read the small words: it can depend!"] },
+    shop: { icon: "🪙", title: "Shop & change", steps: ["Tap coins to put them on the counter.", "Tap a coin on the counter to take it back.", "Press ✓ Done. Later, you're the shopkeeper: give change!"] },
+    goal: { icon: "🐷", title: "Saving goal", steps: ["Pick something to save for.", "How many weeks will it take? Tap your answer.", "Watch your jar and chart fill up!"] },
+    lemon: { icon: "🍋", title: "Lemonade stand", steps: ["Look at the weather.", "Choose how much lemonade to make and a price.", "Open the stand, then see your profit!"] },
+    jobs: { icon: "🧑‍🔧", title: "Jobs & earning", steps: ["Listen to the question.", "Tap the right job, or goods or service.", "Find ways to earn money!"] },
+    smart: { icon: "🏷️", title: "Smart shopper", steps: ["Count, compare and think.", "Tap your answer.", "Watch out for tricks!"] },
+  },
+  start: MUSIC.progress.of(learner() || "Learner")["Money & Business:see"]?.done ? "needs" : "see",
+  onStop() {
+    token += 1;
+    VOICE.hush();
+    for (const f of cleanups) {
+      try {
+        f();
+      } catch {}
+    }
+    cleanups = [];
+    const p = $("[data-panel]");
+    if (p) p.onclick = null;
+  },
+  subject: "Life Skills",
+  activity: "Money & Business",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84]);
+MUSIC.preload("piano", [64, 67]);
+
+const style = document.createElement("style");
+style.textContent = `
+html{touch-action:manipulation}
+.ap-stage{-webkit-touch-callout:none}
+/* cards: big, instant press feedback, no hover states that stick on touch */
+.mb-card{position:relative;display:grid;place-items:center;min-width:0;min-height:0;padding:8px;border:0;border-radius:24px;background:#fff;box-shadow:0 0 0 3px #e3eef1,0 6px 0 #d3e2e6;color:var(--ink);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;transition:transform .08s ease,box-shadow .08s ease,opacity .3s ease;font-family:var(--sans)}
+.mb-card:active{transform:translateY(4px) scale(.97);box-shadow:0 0 0 3px #e3eef1,0 2px 0 #d3e2e6}
+.mb-card:focus-visible,.mb-btn:focus-visible,.mb-bin:focus-visible{outline:4px solid #ffcf5c;outline-offset:3px}
+.mb-card svg{pointer-events:none}
+.mb-card.good,.mb-card.on{box-shadow:0 0 0 5px #22a05a,0 6px 0 #157a40}
+.mb-card.on{box-shadow:0 0 0 5px var(--accent),0 6px 0 var(--accent-dark);background:var(--accent-soft)}
+.mb-card.bad{opacity:.4}
+.mb-card.dim{opacity:.3}
+.mb-card:disabled{cursor:default}
+.mb-card.hint,.mb-bin.hint,.mb-tray.hint{animation:mb-glow 1s ease-in-out infinite}
+.mb-btn{min-height:56px;min-width:56px;padding:0 18px;border:0;border-radius:18px;background:#fff;color:var(--ink);box-shadow:0 4px 0 #d3e2e6;font:900 19px/1 var(--sans);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.mb-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #d3e2e6}
+.mb-btn.go{background:var(--accent);color:#fff;box-shadow:0 4px 0 var(--accent-dark)}
+.mb-btn:disabled{opacity:.4;cursor:default}
+.mb-btn[data-pulse]:not(:disabled){animation:mb-pulse 1.4s ease-in-out infinite}
+.mb-tag{display:inline-block;padding:2px 12px;border-radius:12px;background:#fff8d6;box-shadow:inset 0 0 0 3px #e3b52a;color:#4a3300;font:900 clamp(20px,3.6vh,32px)/1.25 var(--sans);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* race track */
+@media (max-width:480px){.mb-wide{display:none}.mb-row{gap:6px}.mb-row .ap-btn{min-width:52px;padding:0 12px}}
+.mb-row{flex-wrap:nowrap;width:min(100%,620px)}
+.mb-race{position:relative;flex:1 1 220px;min-width:140px;height:44px;border-radius:22px;background:#cfe9ef;box-shadow:inset 0 0 0 3px var(--accent)}
+.mb-race::before{content:"";position:absolute;left:14px;right:44px;top:50%;height:3px;margin-top:-1px;background:repeating-linear-gradient(90deg,var(--accent) 0 8px,transparent 8px 18px);opacity:.5}
+.mb-race-goal{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:24px;line-height:1}
+.mb-racer{position:absolute;left:6px;top:50%;margin-top:-16px;font-size:28px;line-height:32px;transition:left .9s cubic-bezier(.3,.8,.3,1)}
+
+/* picking games */
+.mb-play{position:absolute;inset:0;display:flex;gap:clamp(8px,1.6vw,16px);padding:clamp(8px,1.6vw,16px)}
+.mb-cards{flex:1 1 auto;min-width:0;min-height:0;display:flex;gap:clamp(8px,1.6vw,16px)}
+.mb-pick{flex:1 1 0;overflow:hidden}
+.mb-art{position:absolute;inset:clamp(4px,1vh,10px)}
+.mb-prompt{flex:0 0 32%;min-width:0;min-height:0;position:relative;display:grid;place-items:center;border-radius:24px;background:var(--accent-soft);overflow:hidden}
+.mb-play:not(.side) .mb-prompt{display:none}
+.mb-play.side .mb-cards{flex-direction:column}
+.mb-act{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:4px;text-align:center}
+.mb-act span{font-size:clamp(40px,10vh,92px);line-height:1.1;white-space:nowrap}
+.mb-act b{font:900 clamp(17px,3vh,28px)/1.15 var(--sans);color:#2b1d12}
+.mb-act .mb-multi{display:flex;flex-wrap:wrap;justify-content:center;max-width:100%;font-size:clamp(30px,7vh,76px);white-space:normal}
+.mb-multi i{font-style:normal}
+.mb-act small{font:800 clamp(13px,2vh,18px)/1.2 var(--sans);color:var(--muted)}
+.mb-act .mb-tag{font-size:clamp(20px,3.6vh,32px)}
+.mb-txtcard{position:absolute;inset:0;display:flex;align-items:center;gap:clamp(8px,1.4vw,14px);padding:6px clamp(8px,1.4vw,16px);text-align:left}
+.mb-txtcard span{flex:none;font-size:clamp(30px,6vh,54px);line-height:1}
+.mb-txtcard p{margin:0;font:800 clamp(15px,2.3vh,21px)/1.3 var(--sans);color:#2b1d12}
+.mb-prompt .mb-txtcard{position:relative;flex-direction:column;justify-content:center;text-align:center;height:100%}
+.mb-prompt .mb-txtcard span{font-size:clamp(46px,10vh,90px)}
+.mb-prompt .mb-txtcard p{font-size:clamp(16px,2.6vh,23px)}
+.mb-play.side .mb-cards.wide .mb-pick{min-height:56px}
+.mb-earn{display:flex;flex-wrap:wrap;justify-content:center;align-content:center;gap:8px;padding:10px}
+.mb-earn span{display:flex;flex-direction:column;align-items:center;font-size:clamp(34px,7vh,60px);line-height:1.1}
+.mb-earn b{font:900 clamp(15px,2.4vh,22px) var(--sans);color:#2b1d12}
+.mb-have{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;width:100%;height:100%;padding:10px}
+.mb-have-coins{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px;width:100%}
+.mb-have-coins span{display:block;height:clamp(46px,9vh,78px)}
+.mb-have-coins svg{height:100%;width:auto;display:block}
+@media (max-aspect-ratio:1/1){.mb-play,.mb-cards{flex-direction:column}.mb-prompt{flex-basis:34%}.mb-cards.n3:not(.wide),.mb-cards.n4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(0,1fr)}.mb-play:not(.side) .mb-cards.n2{flex-direction:row}}
+
+/* Needs or wants */
+.mb-sort{position:absolute;inset:0;display:grid;grid-template-rows:minmax(0,1.4fr) minmax(0,1fr);gap:clamp(8px,1.6vh,14px);padding:clamp(8px,1.6vw,14px)}
+.mb-bins{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(8px,1.6vw,16px);min-height:0}
+.mb-bin{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:0;padding:10px;border:0;border-radius:24px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:box-shadow .12s ease,transform .08s ease;font-family:var(--sans)}
+.mb-bin.need{background:#e2f4e8;box-shadow:0 0 0 4px #2e8f55,0 6px 0 #1f6b3e}
+.mb-bin.want{background:#f1e5fa;box-shadow:0 0 0 4px #8a44b8,0 6px 0 #6a2f91}
+.mb-bin.over{transform:scale(1.03);box-shadow:0 0 0 7px #ffcf5c,0 6px 0 #e6dccd}
+.mb-bin-name{font:900 clamp(24px,4.4vh,40px)/1.1 var(--sans);color:#2b1d12}
+.mb-bin small{font:800 clamp(13px,2vh,17px) var(--sans);color:var(--muted)}
+.mb-bin-park{flex:1;display:flex;flex-wrap:wrap;align-content:flex-end;justify-content:center;gap:2px;width:100%;font-size:clamp(26px,5vh,42px);line-height:1.1;pointer-events:none;overflow:hidden}
+.mb-dock{display:grid;place-items:center;min-height:0}
+.mb-token{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;max-height:220px;min-width:min(280px,80%);max-width:100%;padding:8px 22px;border-radius:24px;background:#fff;box-shadow:0 0 0 4px var(--accent),0 8px 0 var(--accent-dark);touch-action:none;cursor:grab;will-change:transform;user-select:none;-webkit-user-select:none;text-align:center}
+.mb-token[hidden]{display:none}
+.mb-token.lift{cursor:grabbing;box-shadow:0 0 0 4px var(--accent),0 18px 30px rgba(0,0,0,.22);z-index:5}
+.mb-tok-g{font-size:clamp(46px,10vh,90px);line-height:1.05;pointer-events:none}
+.mb-token b{font:900 clamp(20px,3.4vh,30px)/1.15 var(--sans);color:#2b1d12;pointer-events:none}
+.mb-token small{font:800 clamp(14px,2.2vh,19px)/1.2 var(--sans);color:var(--accent-dark);pointer-events:none}
+
+/* Shop & change */
+.mb-shop{position:absolute;inset:0;display:grid;grid-template-rows:minmax(0,1.15fr) auto minmax(0,.9fr);gap:clamp(6px,1.4vh,12px);padding:clamp(8px,1.4vw,14px)}
+.mb-counter{position:relative;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;align-content:center;gap:4px clamp(10px,3vw,36px);min-height:0;padding:8px;border-radius:22px;background:var(--accent-soft);overflow:hidden}
+.mb-item{display:flex;flex-direction:column;align-items:center;gap:4px}
+.mb-item-g{font-size:clamp(46px,11vh,104px);line-height:1}
+.mb-item small{font:800 clamp(13px,2vh,17px) var(--sans);color:var(--muted)}
+.mb-op{font:900 clamp(28px,5vh,44px) var(--sans);color:var(--accent-dark)}
+.mb-paid{display:flex;flex-direction:column;align-items:center;gap:2px}
+.mb-who{font-size:clamp(40px,8vh,74px);line-height:1}
+.mb-paid small{font:800 14px var(--sans);color:var(--muted)}
+.mb-paid-art svg{display:block;height:clamp(40px,7vh,64px);width:auto}
+.mb-totals{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;flex-basis:100%}
+.mb-totals>b{font:900 clamp(18px,3vh,26px) var(--sans);color:var(--accent-dark)}
+.mb-chip{min-height:54px;min-width:92px;padding:4px 14px;font:900 clamp(19px,3vh,26px)/1 var(--sans)}
+.mb-trayrow{display:flex;align-items:stretch;gap:10px}
+.mb-tray{flex:1 1 auto;min-width:0;min-height:clamp(62px,11vh,92px);display:flex;flex-wrap:wrap;align-items:center;align-content:center;gap:4px;padding:6px 10px;border-radius:18px;background:#f4ede2;box-shadow:inset 0 3px 0 #e6dccd}
+.mb-tray:empty::before{content:"Tap money below to put it here";color:var(--muted);font:800 15px var(--sans)}
+.mb-tm{display:block;height:clamp(44px,8vh,66px);padding:0;border:0;background:none;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.mb-tm svg{display:block;height:100%;width:auto;pointer-events:none}
+.mb-tm.bill{height:clamp(38px,6.6vh,56px)}
+.mb-trayside{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.mb-total{font:900 clamp(22px,4vh,34px)/1 var(--sans);color:#2b1d12;font-variant-numeric:tabular-nums;min-width:3.4em;text-align:center}
+.mb-acts{display:flex;gap:8px}
+.mb-purse{display:flex;justify-content:center;align-items:stretch;gap:clamp(6px,1.4vw,14px);min-height:0}
+.mb-money{flex:0 1 150px;min-height:70px;grid-template-rows:minmax(0,1fr) auto;padding:6px}
+.mb-m{display:grid;place-items:center;width:100%;height:100%;min-height:0}
+.mb-m svg{height:100%;max-height:110px;width:auto;max-width:100%}
+.mb-money.bill .mb-m svg{height:auto;width:100%;max-height:none}
+.mb-money small{font:900 clamp(15px,2.4vh,20px) var(--sans);color:var(--accent-dark)}
+.mb-shop.locked .mb-purse,.mb-shop.locked .mb-trayrow{opacity:.35;pointer-events:none}
+@media (max-width:600px){.mb-trayrow{flex-wrap:wrap}.mb-tray{flex-basis:100%}.mb-trayside{flex-direction:row;flex:1 1 100%;justify-content:space-between}}
+@media (max-aspect-ratio:1/1){.mb-shop{grid-template-rows:minmax(0,1.5fr) auto minmax(0,.75fr)}.mb-counter{gap:4px 12px;padding:6px}.mb-item{gap:2px}.mb-item-g{font-size:clamp(34px,6vh,64px)}.mb-counter .mb-tag{font-size:clamp(18px,2.6vh,24px)}.mb-paid{flex-direction:row;gap:6px}.mb-who{font-size:clamp(30px,4.6vh,44px)}.mb-paid-art svg{height:clamp(32px,4.6vh,44px)}.mb-chip{min-height:46px;min-width:74px;font-size:19px}.mb-totals>b{font-size:17px}}
+
+/* Saving goal */
+.mb-goal{position:absolute;inset:0;display:grid;grid-template-columns:minmax(0,.7fr) minmax(0,1.6fr);grid-template-rows:minmax(0,1fr) auto;gap:clamp(8px,1.4vw,14px);padding:clamp(8px,1.4vw,14px)}
+.mb-goal-left{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:0}
+.mb-target{display:flex;align-items:center;gap:8px}
+.mb-target span{font-size:clamp(36px,8vh,70px);line-height:1}
+.mb-target b{font:900 clamp(20px,3.6vh,32px) var(--sans);color:#2b1d12}
+.mb-jar{position:relative;flex:1 1 auto;min-height:60px;width:min(100%,170px);border:6px solid #2f6fd6;border-top-width:14px;border-radius:18px 18px 30px 30px;background:rgba(214,242,248,.6);overflow:hidden}
+.mb-jar-fill{position:absolute;left:0;right:0;bottom:0;height:100%;background:repeating-radial-gradient(circle at 20% 30%,#ffe082 0 6px,#f9c74f 6px 10px);transform:scaleY(0);transform-origin:bottom}
+.mb-jar-goal{position:absolute;left:0;right:0;top:0;border-top:3px dashed #d4a017}
+.mb-jar-label{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:2px 10px;border-radius:12px;background:rgba(255,255,255,.92);font:900 clamp(18px,3.2vh,28px) var(--sans);color:#2b1d12}
+.mb-chart{display:flex;flex-direction:column;min-height:0;padding:10px 12px;border-radius:22px;background:#fff;box-shadow:inset 0 0 0 3px #e3eef1}
+.mb-chart-empty{margin:auto;text-align:center;color:var(--muted);font:800 clamp(16px,2.6vh,22px)/1.4 var(--sans)}
+.mb-chart-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;font:800 clamp(13px,2vh,17px) var(--sans);color:#2b1d12}
+.mb-key::before{content:"";display:inline-block;width:14px;height:14px;margin-right:4px;border-radius:4px;vertical-align:-2px}
+.mb-key.s0::before,.mb-bars i.s0{background:var(--accent)}
+.mb-key.s1::before,.mb-bars i.s1{background:#f4a261}
+.mb-plot{position:relative;flex:1 1 auto;min-height:60px;margin-top:22px;border-left:3px solid #b9c9cd;border-bottom:3px solid #b9c9cd}
+.mb-goal-line{position:absolute;left:0;right:0;border-top:3px dashed #d4a017;z-index:1}
+.mb-goal-line span{position:absolute;right:0;bottom:2px;padding:0 6px;border-radius:8px;background:#fff8d6;font:900 clamp(12px,1.9vh,16px) var(--sans);color:#4a3300;white-space:nowrap}
+.mb-cols{position:absolute;inset:0;display:flex;align-items:stretch;gap:3px;padding:0 4px}
+.mb-col{flex:1 1 0;min-width:0;display:flex;flex-direction:column;position:relative}
+.mb-bars{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:2px}
+.mb-bars i{flex:1 1 0;max-width:34px;border-radius:5px 5px 0 0;transform-origin:bottom}
+.mb-bars i.none{visibility:hidden}
+.mb-col small{position:absolute;left:0;right:0;bottom:-21px;text-align:center;font:800 clamp(11px,1.7vh,14px) var(--sans);color:var(--muted)}
+.mb-axis{margin-top:20px;text-align:center;font:800 12px var(--sans);color:var(--muted)}
+.mb-goal-choices{grid-column:1/-1;display:flex;align-items:stretch;justify-content:center;gap:clamp(6px,1.4vw,14px);min-height:clamp(84px,15vh,128px)}
+.mb-ask{align-self:center;font:900 clamp(16px,2.6vh,22px) var(--sans);color:var(--accent-dark)}
+.mb-toy,.mb-wk{flex:0 1 170px;gap:2px;padding:6px;align-content:center}
+.mb-toy span{font-size:clamp(32px,6.4vh,54px);line-height:1}
+.mb-toy small{font:800 clamp(12px,1.9vh,16px)/1.1 var(--sans);color:var(--muted)}
+.mb-toy .mb-tag{font-size:clamp(16px,2.6vh,22px)}
+.mb-wk b{font:900 clamp(32px,6vh,54px)/1 var(--sans);color:#2b1d12}
+.mb-wk small{font:800 clamp(13px,2vh,16px) var(--sans);color:var(--muted)}
+@media (max-aspect-ratio:1/1){.mb-goal{grid-template-columns:minmax(0,.62fr) minmax(0,1.38fr)}.mb-target{flex-direction:column;gap:0}.mb-ask{display:none}.mb-goal-choices{min-height:110px}}
+
+/* Lemonade stand */
+.mb-lemon{position:absolute;inset:0;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:clamp(8px,1.4vw,14px);padding:clamp(8px,1.4vw,14px)}
+.mb-scene{position:relative;min-height:0;border-radius:22px;overflow:hidden;background:linear-gradient(#a9dcff,#e3f4ff 62%,#9ed27f 62%)}
+.mb-sky{position:absolute;inset:0 0 38% 0;transition:background .4s ease}
+.mb-sky[data-wx=hot]{background:linear-gradient(#ffd27a,#fff3c4)}
+.mb-sky[data-wx=cloudy]{background:linear-gradient(#b7c4cc,#e6ecef)}
+.mb-sky[data-wx=rainy]{background:linear-gradient(#8a9aa6,#cdd6dc)}
+.mb-sun{position:absolute;left:46%;top:5%;font-size:clamp(34px,8vh,76px);line-height:1}
+.mb-stand{position:absolute;right:5%;bottom:7%;width:44%;height:56%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+.mb-sign{padding:4px 12px;border-radius:10px 10px 0 0;background:#fff59d;box-shadow:inset 0 0 0 3px #f2c94c;font:900 clamp(14px,2.4vh,22px)/1.2 var(--sans);color:#4a3300;white-space:nowrap}
+.mb-awning{width:112%;height:24%;max-height:44px;flex:none;border-radius:6px 6px 14px 14px;background:repeating-linear-gradient(90deg,#ffe066 0 18px,#fff 18px 36px);box-shadow:0 4px 0 rgba(0,0,0,.12)}
+.mb-table{position:relative;width:100%;flex:1 1 auto;max-height:150px;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:8px 8px 4px 4px;background:linear-gradient(#e9b872,#c98c58);box-shadow:inset 0 10px 0 #f3d2a2,0 6px 0 #8d5a3b}
+.mb-lemons{font-size:clamp(16px,3vh,28px);line-height:1}
+.mb-cups:empty{display:none}
+.mb-cups{padding:2px 10px;border-radius:12px;background:rgba(255,255,255,.92);font:900 clamp(15px,2.6vh,22px) var(--sans);color:#2b1d12}
+.mb-queue{position:absolute;left:3%;right:52%;bottom:6%;display:flex;flex-wrap:wrap-reverse;align-content:flex-start;gap:2px;font-size:clamp(22px,4.6vh,38px);line-height:1.1}
+.mb-person{position:relative}
+.mb-person.happy::after{content:"🥤";position:absolute;right:-6px;bottom:-2px;font-size:.5em}
+.mb-person.sad{opacity:.55;filter:grayscale(.6)}
+.mb-person.sad::after{content:"💭";position:absolute;right:-6px;top:-8px;font-size:.5em}
+.mb-box{position:absolute;left:3%;top:4%;padding:4px 12px;border-radius:14px;background:#fff;box-shadow:0 3px 0 #d3e2e6;font:900 clamp(16px,2.8vh,24px) var(--sans);color:#2b1d12;font-variant-numeric:tabular-nums}
+.mb-ctrl{display:flex;flex-direction:column;justify-content:center;gap:clamp(4px,1vh,10px);min-height:0;overflow:auto;padding:4px}
+.mb-ctrl h3{margin:0;font:900 clamp(18px,3vh,26px)/1.15 var(--sans);color:#2b1d12}
+.mb-note{margin:0;font:700 clamp(13px,2vh,17px)/1.35 var(--sans);color:var(--muted)}
+.mb-opt-head{font:900 clamp(15px,2.4vh,20px) var(--sans);color:var(--accent-dark)}
+.mb-opts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.mb-opt{min-height:clamp(54px,9vh,76px);gap:0;padding:4px;align-content:center}
+.mb-opt b{font:900 clamp(18px,3vh,26px)/1.1 var(--sans);white-space:nowrap}
+.mb-opt small{font:800 clamp(11px,1.8vh,14px)/1.1 var(--sans);color:var(--muted)}
+.mb-open{margin-top:4px}
+.mb-tally{display:flex;gap:16px;font:800 clamp(16px,2.6vh,22px) var(--sans)}
+.mb-tally b{font-weight:900;color:var(--accent-dark);font-variant-numeric:tabular-nums}
+.mb-ledger{display:grid;gap:8px}
+.mb-lrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"name note val" "bar bar bar";align-items:center;gap:2px 8px}
+.mb-lrow span{grid-area:name;font:900 clamp(15px,2.4vh,20px) var(--sans);color:#2b1d12}
+.mb-lrow small{grid-area:note;font:700 clamp(12px,1.9vh,15px) var(--sans);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mb-lrow b{grid-area:val;font:900 clamp(18px,3vh,26px) var(--sans);color:#2b1d12;font-variant-numeric:tabular-nums}
+.mb-lrow i{grid-area:bar;display:block;width:max(var(--w),6px);height:14px;border-radius:7px;transform-origin:left}
+.mb-lrow.in i{background:#22a05a}.mb-lrow.out i{background:#e0603a}.mb-lrow.pr i{background:#d4a017}.mb-lrow.loss i{background:#9e9e9e}
+.mb-lrow.pr{padding-top:6px;border-top:3px solid #e3eef1}
+.mb-lrow.hide i{visibility:hidden}
+.mb-quiz{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px}
+.mb-quiz>b{font:900 clamp(17px,2.8vh,24px) var(--sans);color:var(--accent-dark)}
+.mb-tip{margin:0;padding:8px 12px;border-radius:14px;background:#fff8d6;font:800 clamp(14px,2.2vh,18px)/1.35 var(--sans);color:#4a3300;text-align:left}
+@media (max-aspect-ratio:1/1){.mb-lemon{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(96px,.42fr) minmax(0,1.58fr)}.mb-opt{min-height:52px}.mb-ctrl{justify-content:flex-start;gap:6px}.mb-ctrl .mb-btn{min-height:52px}.mb-queue{right:50%;font-size:22px}.mb-sun{left:auto;right:52%;top:30%;font-size:30px}.mb-box{font-size:15px;padding:2px 8px}}
+
+/* end card */
+.mb-done{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:clamp(12px,3vw,32px);padding:16px;background:radial-gradient(circle at 30% 40%,#fff,var(--accent-soft))}
+.mb-done-pic{position:relative;display:grid;place-items:center;width:min(34vh,260px);aspect-ratio:1;flex:none;border-radius:50%;background:#fff;box-shadow:0 0 0 6px var(--accent),0 10px 0 var(--accent-dark)}
+.mb-done-pic span{font-size:min(18vh,140px);line-height:1}
+.mb-done-pic i{position:absolute;right:-4%;bottom:2%;display:grid;place-items:center;width:34%;aspect-ratio:1;border-radius:50%;background:#fff;box-shadow:0 4px 0 #d3e2e6;font-size:min(7vh,50px);font-style:normal}
+.mb-done-text{max-width:30em}
+.mb-done-text h2{margin:0 0 8px;color:var(--accent-dark);font:900 clamp(20px,3vw,30px)/1.15 var(--sans)}
+.mb-done-text p{margin:0;color:#2b1d12;font:700 clamp(17px,2.4vw,24px)/1.35 var(--sans)}
+@media (max-aspect-ratio:1/1){.mb-done{flex-direction:column;text-align:center}.mb-done-pic{width:min(30vh,200px)}}
+
+@keyframes mb-glow{0%,100%{box-shadow:0 0 0 3px #e3eef1,0 6px 0 #d3e2e6}50%{box-shadow:0 0 0 8px #ffcf5c,0 6px 0 #d3e2e6}}
+@keyframes mb-pulse{0%,100%{box-shadow:0 4px 0 var(--accent-dark)}50%{box-shadow:0 4px 0 var(--accent-dark),0 0 0 6px #ffcf5c}}
+@media (prefers-reduced-motion:reduce){.mb-card.hint,.mb-bin.hint,.mb-tray.hint,.mb-btn[data-pulse],.mb-racer{animation:none;transition:none}}
+`;
+document.head.appendChild(style);
+</script>
+</body>
+</html>

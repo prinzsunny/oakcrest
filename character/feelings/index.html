@@ -1,0 +1,1354 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feelings & Friends · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="character">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Feelings & Friends</b><small>Feelings & friendship · Foundations–Level 3</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Grown-ups: every feeling is welcome here. The games teach names for feelings, calm-down tools and kind choices. Wrong answers are gently explained, never scored against your child.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, panel, say, sayAsync, wait, confetti, explain, shuffle, still, surprise, sparkle } = KIT;
+const stage = $("[data-stage]");
+let token = 0;
+let cleanups = [];
+let shell = null;
+
+const learner = () => (window.OC ? OC.current() : "") || "";
+const esc = (s) => (window.OC ? OC.escapeHtml(s) : String(s));
+const NAME = () => esc(learner());
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+const rpick = (list) => list[Math.floor(Math.random() * list.length)];
+const ROUNDS = 10;
+// Where the child starts: Foundations at level 1, Level 2 at level 2, Level 3 and up at level 3.
+const startLevel = () => {
+  try {
+    const at = window.OC ? OC.LEVELS.indexOf(OC.levelOf(OC.current())) : -1;
+    return Math.max(0, Math.min(2, at));
+  } catch {
+    return 0;
+  }
+};
+
+// ======================================================================
+// <DATA> feelings, people, scenes and scenarios
+// ======================================================================
+// tier: the game level a feeling joins at. twin: a feeling that looks alike, kept apart until the top level.
+const FEELS = {
+  happy: { word: "happy", tier: 0, means: "feeling good inside", cue: "the smile and the bright eyes", body: "a big smile and a bouncy body" },
+  sad: { word: "sad", tier: 0, means: "how we feel when we lose something or miss someone", cue: "the tears and the mouth turned down", body: "tears, a droopy face and wanting a cuddle" },
+  angry: { word: "angry", tier: 0, means: "how we feel when something seems unfair or someone hurts us", cue: "the eyebrows pulled down and the hot cheeks", body: "tight fists, a hot face and stamping feet" },
+  scared: { word: "scared", tier: 0, means: "how we feel when we think something could hurt us", cue: "the big wide eyes and the wobbly mouth", body: "a fast heartbeat and wanting to hide" },
+  surprised: { word: "surprised", tier: 1, means: "how we feel when something happens that we did not expect", cue: "the eyebrows up high and the round open mouth", body: "jumping a little and saying oh!" },
+  excited: { word: "excited", tier: 1, means: "how we feel when we can't wait for something good", cue: "the big open smile and the sparkly eyes", body: "jumping up and down and not keeping still" },
+  worried: { word: "worried", tier: 2, twin: "scared", means: "when we keep thinking that something might go wrong", cue: "the wobbly mouth and the eyebrows lifted in the middle", body: "butterflies in the tummy" },
+  proud: { word: "proud", tier: 2, twin: "happy", means: "how we feel when we worked hard and did something well", cue: "the chin held high and the happy closed eyes", body: "standing tall with your chest out" },
+  frustrated: { word: "frustrated", tier: 2, twin: "angry", means: "how we feel when we keep trying and it still doesn't work", cue: "the gritted teeth and the cross eyebrows", body: "groaning argh and wanting to give up" },
+  calm: { word: "calm", tier: 2, twin: "happy", means: "when our body feels quiet, still and relaxed", cue: "the soft closed eyes and the gentle smile", body: "slow breathing and soft shoulders" },
+  embarrassed: { word: "embarrassed", tier: 2, means: "how we feel when we think we looked silly in front of other people", cue: "the pink cheeks and the eyes looking away", body: "hot cheeks and wanting to hide your face" },
+  disappointed: { word: "disappointed", tier: 3, twin: "sad", means: "how we feel when something we hoped for doesn't happen", cue: "the droopy eyes and the flat mouth", body: "a big sigh and droopy shoulders" },
+};
+const FEEL_IDS = Object.keys(FEELS);
+const twins = (a, b) => FEELS[a].twin === b || FEELS[b].twin === a || (FEELS[a].twin && FEELS[a].twin === FEELS[b].twin);
+const feelsAt = (level) => FEEL_IDS.filter((f) => FEELS[f].tier <= level);
+// A small cast of children, drawn with different skin tones and hair.
+const PEOPLE = [
+  { name: "Mia", skin: "#f1c7a5", hair: "#5a3a22", style: "bob", they: "she", them: "her", their: "her" },
+  { name: "Leo", skin: "#c98d68", hair: "#2b1a10", style: "curls", they: "he", them: "him", their: "his" },
+  { name: "Amara", skin: "#8a5a3c", hair: "#1d120b", style: "puffs", they: "she", them: "her", their: "her" },
+  { name: "Sam", skin: "#eab892", hair: "#c9772f", style: "short", they: "he", them: "him", their: "his" },
+  { name: "Priya", skin: "#b07a55", hair: "#1d120b", style: "long", they: "she", them: "her", their: "her" },
+  { name: "Jonah", skin: "#f5d0b5", hair: "#d9ae45", style: "spiky", they: "he", them: "him", their: "his" },
+  { name: "Zara", skin: "#6e4630", hair: "#1d120b", style: "curls", they: "she", them: "her", their: "her" },
+  { name: "Ben", skin: "#d9a27c", hair: "#3b2416", style: "short", they: "he", them: "him", their: "his" },
+];
+const fill = (text, p) => text.replace(/\{n\}/g, p.name).replace(/\{they\}/g, p.they).replace(/\{them\}/g, p.them).replace(/\{their\}/g, p.their).replace(/\{They\}/g, cap(p.they));
+// "How might they feel?" scenes. sharp: the scene clearly fits this feeling better than its look-alike twin.
+const SCENES = [
+  { feel: "happy", pic: "🤗", text: "Grandma comes to visit and gives {n} a big hug." },
+  { feel: "happy", pic: "🏖️", text: "{n} is building a sandcastle with a friend in the sunshine." },
+  { feel: "sad", pic: "🚚", text: "{n}'s best friend has moved away to another town." },
+  { feel: "sad", pic: "🧸", text: "{n} has lost {their} favourite teddy and can't find it anywhere." },
+  { feel: "angry", pic: "🧱", text: "Someone knocks down {n}'s tower on purpose and laughs." },
+  { feel: "angry", pic: "🚗", text: "Someone grabs {n}'s toy car and won't give it back." },
+  { feel: "scared", pic: "🐕", text: "A big dog barks loudly and runs towards {n}." },
+  { feel: "scared", pic: "⛈️", text: "There is a loud thunderstorm in the middle of the night." },
+  { feel: "surprised", pic: "🎉", text: "{n} opens the door and everyone shouts: Surprise!" },
+  { feel: "surprised", pic: "🐸", text: "{n} puts on a welly boot and finds a little frog inside!" },
+  { feel: "excited", pic: "🌊", text: "Tomorrow {n} is going to the seaside for the very first time!" },
+  { feel: "excited", pic: "🎂", text: "It's the morning of {n}'s birthday party!" },
+  { feel: "worried", pic: "🏫", text: "Tomorrow is {n}'s first day at a new school. {They} keep thinking about it.", sharp: true },
+  { feel: "worried", pic: "🐶", text: "{n}'s puppy is poorly and has gone to the vet.", sharp: true },
+  { feel: "proud", pic: "🚲", text: "{n} practised and practised, and now can ride a bike all alone!", sharp: true },
+  { feel: "proud", pic: "📖", text: "{n} read a whole book alone for the very first time.", sharp: true },
+  { feel: "frustrated", pic: "🧥", text: "{n} tries to do up {their} coat zip again and again, but it keeps getting stuck.", sharp: true },
+  { feel: "frustrated", pic: "🧩", text: "{n} has tried and tried, but the last puzzle piece just won't fit.", sharp: true },
+  { feel: "calm", pic: "☁️", text: "{n} is lying on the soft grass, watching the clouds float by.", sharp: true },
+  { feel: "calm", pic: "🛁", text: "{n} is in a warm bath at bedtime, breathing slowly.", sharp: true },
+  { feel: "embarrassed", pic: "🙈", text: "{n} slips over in front of the whole class, and everyone looks." },
+  { feel: "embarrassed", pic: "👩‍🏫", text: "{n} calls the teacher Mum by mistake, and some children giggle." },
+  { feel: "disappointed", pic: "🌧️", text: "It rains, so the trip to the park that {n} hoped for is cancelled.", sharp: true },
+  { feel: "disappointed", pic: "🏃", text: "{n} hoped to win the race, but came fourth.", sharp: true },
+];
+
+// How big is the problem? small: you can sort it out yourself. medium: a grown-up may need to help, but it can be fixed.
+// big: someone is hurt or not safe, so get a grown-up straight away.
+const SIZES = [
+  { key: "small", word: "small", color: "#43a047", fill: 0.3, means: "A small problem is one you can sort out yourself. A small problem needs a small reaction: take a breath and try again." },
+  { key: "medium", word: "medium", color: "#f9a825", fill: 0.62, means: "A medium problem might need a grown-up to help a little, but it can be fixed today." },
+  { key: "big", word: "big", color: "#e53935", fill: 0.95, means: "A big problem is when someone is hurt or not safe. Get a grown-up straight away. It's OK to have big feelings about big problems." },
+];
+const PROBLEMS = [
+  { size: "small", pic: "🖍️", text: "Your crayon snaps in half." },
+  { size: "small", pic: "🔄", text: "You have to wait a little for your turn on the swing." },
+  { size: "small", pic: "🥤", text: "You wanted the red cup, but you got the blue one." },
+  { size: "small", pic: "🃏", text: "You lose a game of snap." },
+  { size: "small", pic: "🥪", text: "Your sandwich is cut in squares, not triangles." },
+  { size: "small", pic: "🧦", text: "Your sock has gone on inside out." },
+  { size: "medium", pic: "🧃", text: "You spill a whole jug of juice all over the table and floor." },
+  { size: "medium", pic: "🪁", text: "Your kite is stuck high up in a tree." },
+  { size: "medium", pic: "🩹", text: "You fall over and scrape your knee. It stings and needs a plaster." },
+  { size: "medium", pic: "📚", text: "You can't find your library book, and it is due back today." },
+  { size: "medium", pic: "🤒", text: "Your tummy feels poorly at lunchtime." },
+  { size: "big", pic: "🚨", text: "The smoke alarm is beeping and won't stop." },
+  { size: "big", pic: "🛒", text: "You can't find your grown-up anywhere in a big shop." },
+  { size: "big", pic: "🤕", text: "Your friend falls off the climbing frame, is crying, and can't get up." },
+  { size: "big", pic: "🔥", text: "You see smoke coming from the kitchen." },
+];
+// Feeling words in families, from mild to strong.
+const LADDERS = [
+  { family: "angry", pic: "😠", words: ["annoyed", "angry", "furious"] },
+  { family: "scared", pic: "😨", words: ["nervous", "scared", "terrified"] },
+  { family: "happy", pic: "😊", words: ["pleased", "happy", "overjoyed"] },
+  { family: "sad", pic: "😢", words: ["a bit low", "sad", "heartbroken"] },
+  { family: "tired of waiting", pic: "⏳", words: ["restless", "impatient", "fed up"] },
+];
+
+// Kind or not kind? (Foundations)
+const ACTS = [
+  { kind: true, pic: "🖍️", text: "{n} shares {their} crayons with a friend.", why: "Sharing is kind. Now you both can draw!" },
+  { kind: true, pic: "🧱", text: "{n} helps pick up the blocks a friend dropped.", why: "Helping is kind. Many hands make the job quick." },
+  { kind: false, pic: "🚫", text: "{n} says: You can't play with us!", why: "Leaving someone out makes them feel sad and lonely. We could say: come and join in!" },
+  { kind: false, pic: "⚽", text: "{n} snatches the ball from a friend.", why: "Snatching is not kind. We can ask: can I have a turn, please?" },
+  { kind: true, pic: "⏳", text: "{n} waits for {their} turn on the slide.", why: "Waiting for your turn is kind and fair." },
+  { kind: true, pic: "🙏", text: "{n} says thank you to Grandad for the snack.", why: "Saying thank you is kind. It makes people feel good." },
+  { kind: false, pic: "😆", text: "{n} laughs when a friend falls over and gets hurt.", why: "Laughing when someone is hurt is not kind. We can ask: are you OK?" },
+  { kind: true, pic: "🤗", text: "{n} gives a sad friend a gentle hug.", why: "Comforting a friend is kind. It shows you care." },
+  { kind: false, pic: "🚶", text: "{n} pushes in at the front of the line.", why: "Pushing in is not fair. We wait our turn at the back." },
+  { kind: true, pic: "💌", text: "{n} makes a get-well card for a poorly friend.", why: "That's so kind. It will cheer your friend up." },
+  { kind: false, pic: "🗯️", text: "{n} calls a friend a mean name.", why: "Mean names hurt feelings. Kind words help." },
+  { kind: true, pic: "🙋", text: "{n} says sorry for bumping into someone, and asks: are you OK?", why: "Saying sorry and checking on someone is kind." },
+];
+// What would you do? One kind, helpful choice and some that are not.
+const DILEMMAS = [
+  { tier: 1, pic: "🖍️", text: "You have lots of crayons. Your friend has none.", ok: ["🤝", "Share some crayons with my friend."], no: [["🙅", "Keep them all for me."], ["🙈", "Hide the crayons."]], why: "Sharing means you both get to draw. That's what friends do." },
+  { tier: 1, pic: "🔄", text: "You and your friend both want the same swing.", ok: ["🔄", "Take turns: one goes first, then swap."], no: [["✋", "Push my friend off."], ["📢", "Shout: Mine!"]], why: "Taking turns is fair, and the game is more fun for both of you." },
+  { tier: 1, pic: "🧍", text: "A new child is standing alone at playtime.", ok: ["👋", "Ask: do you want to play with us?"], no: [["🙄", "Pretend I didn't see them."], ["🤫", "Whisper about them."]], why: "Inviting someone in helps them feel welcome. Being left out feels lonely." },
+  { tier: 1, pic: "🧱", text: "You knock over your friend's tower by accident.", ok: ["🙋", "Say sorry, and offer to help build it again."], no: [["🏃", "Run away."], ["😝", "Say: it was rubbish anyway."]], why: "A good sorry says what happened and helps put it right." },
+  { tier: 1, pic: "⚽", text: "Some children are playing ball. You want to join in.", ok: ["🙂", "Ask: can I play too, please?"], no: [["🫳", "Grab the ball."], ["😤", "Stamp off and sulk."]], why: "Asking nicely is the best way to join a game." },
+  { tier: 1, pic: "😢", text: "Your friend is crying because they miss their mum.", ok: ["🤗", "Sit with them and say: I'm here."], no: [["🙉", "Say: stop crying!"], ["🍪", "Take their snack."]], why: "Staying close shows you care. It's OK to feel sad." },
+  { tier: 1, pic: "🍱", text: "You can't open your lunchbox.", ok: ["🙋", "Ask a grown-up: can you help me, please?"], no: [["💥", "Throw it on the floor."], ["🚫", "Give up and go hungry."]], why: "Asking for help is a smart, brave thing to do." },
+  { tier: 2, pic: "🏖️", text: "Your friend is telling you all about their holiday.", ok: ["👂", "Look at them and listen until they finish."], no: [["🗣️", "Talk over them about my toy."], ["🚶", "Walk off while they are talking."]], why: "Good listeners look at the speaker and wait until they finish." },
+  { tier: 2, pic: "☕", text: "You broke a cup by accident.", ok: ["🗣️", "Tell a grown-up the truth."], no: [["🗑️", "Hide the pieces."], ["🐕", "Say the dog did it."]], why: "Telling the truth is brave, and grown-ups can help clear up safely." },
+  { tier: 2, pic: "🃏", text: "You lose a game of snap.", ok: ["🤝", "Say: good game! Shall we play again?"], no: [["💥", "Throw the cards."], ["😠", "Say: you cheated!"]], why: "Being a good loser keeps the game fun, and keeps your friends." },
+  { tier: 2, pic: "🍙", text: "Your friend has a different lunch from yours.", ok: ["😋", "Ask kindly: what's that? Is it tasty?"], no: [["🤢", "Say: yuck!"], ["😆", "Laugh at it."]], why: "People eat different foods. Being curious and kind helps us learn about each other." },
+  { tier: 2, pic: "🗯️", text: "Someone keeps calling your friend unkind names.", ok: ["🛡️", "Stand with my friend, say stop, and tell a grown-up."], no: [["😆", "Laugh along."], ["🙈", "Look away and do nothing."]], why: "That's being an upstander. Standing with someone and telling a grown-up helps stop unkindness." },
+  { tier: 2, pic: "🎲", text: "Your friend wants to play tag. You want hide-and-seek.", ok: ["🔁", "Play one game first, then the other."], no: [["😤", "Say: my game, or I'm going home!"], ["😶", "Say nothing and stomp off."]], why: "That's a compromise: both of you get something you want." },
+  { tier: 3, pic: "💬", text: "In a game chat, someone sends a mean message about a classmate.", ok: ["🧑‍🏫", "Don't pass it on, and tell a grown-up."], no: [["📤", "Send it to more friends."], ["😂", "Add a laughing face."]], why: "Mean messages hurt just as much as mean words. People behind screens have real feelings." },
+  { tier: 3, pic: "🍪", text: "There are 6 biscuits and 3 friends.", ok: ["➗", "Give everyone 2 each."], no: [["😋", "Take 4 for me."], ["👯", "Give them all to my best friend."]], why: "2 each is fair, so nobody is left out." },
+  { tier: 3, pic: "📝", text: "Your friend's drawing doesn't look like yours.", ok: ["🌟", "Say what I like about it."], no: [["👎", "Say: mine is better."], ["✏️", "Scribble on it to fix it."]], why: "Kind words help friends feel good about trying. Everyone draws differently." },
+];
+
+// Feelings detective cases. Two steps: how do they feel, then what would help.
+const CASES = [
+  { tier: 0, feel: "sad", body: "Tears on {their} cheeks. Shoulders slumped down.", what: "{n}'s ice cream fell on the ground.", ok: ["🤗", "Say: oh no, I'm sorry! and sit with {them}."], no: [["😆", "Laugh at the ice cream on the ground."], ["🙉", "Say: stop crying!"]] },
+  { tier: 0, feel: "angry", body: "Fists squeezed tight. Stamping feet. Hot red cheeks.", what: "Someone knocked down {n}'s tower on purpose.", ok: ["🧱", "Say: that wasn't fair. Shall we build it again together?"], no: [["💥", "Knock it down again."], ["📢", "Shout at {them} to stop being cross."]] },
+  { tier: 0, feel: "scared", body: "Heart beating fast. Hiding behind a grown-up.", what: "There is a loud thunderstorm in the night.", ok: ["🤝", "Hold {their} hand and say: we're safe inside."], no: [["👻", "Jump out and shout BOO!"], ["🙄", "Say: don't be a baby."]] },
+  { tier: 0, feel: "happy", body: "A big smile. Skipping and humming a song.", what: "{n} is at the park with a best friend.", ok: ["😊", "Smile and join in the fun."], no: [["🙄", "Say: the park is boring."], ["⚽", "Take {their} ball away."]] },
+  { tier: 1, feel: "excited", body: "Jumping up and down. Can't keep still!", what: "It's {n}'s birthday party today!", ok: ["🎉", "Say: happy birthday! I can't wait for the party!"], no: [["🙄", "Say: birthdays are silly."], ["🚶", "Walk away and ignore {them}."]] },
+  { tier: 1, feel: "surprised", body: "Eyebrows up high. Mouth open: oh!", what: "{n} found a little frog in {their} welly boot!", ok: ["🐸", "Say: wow! Let's take the frog back outside, gently."], no: [["😝", "Squash the boot."], ["🙈", "Hide the frog in {their} bag."]] },
+  { tier: 1, feel: "sad", body: "Quiet. Looking down. Wants a cuddle.", what: "{n}'s best friend moved away to another town.", ok: ["✉️", "Say: you could draw your friend a picture and post it."], no: [["😝", "Say: who cares?"], ["🏃", "Run off to play without {them}."]] },
+  { tier: 2, feel: "worried", body: "Butterflies in {their} tummy. Asking lots of questions.", what: "{n} has a swimming test tomorrow.", ok: ["🏊", "Say: it's OK to feel worried. Shall we practise together?"], no: [["😝", "Say: you'll probably sink!"], ["🙄", "Say: worrying is silly."]], sharp: true },
+  { tier: 2, feel: "frustrated", body: "Groaning: argh! Wants to throw the puzzle.", what: "{n} has tried again and again, but the last piece won't fit.", ok: ["⏸️", "Say: let's take a break, then try together."], no: [["👎", "Say: you're no good at puzzles."], ["🧩", "Grab it and do it without asking."]], sharp: true },
+  { tier: 2, feel: "proud", body: "Standing tall, chest out, a big smile.", what: "{n} read a whole book alone for the first time!", ok: ["👏", "Say: well done! You worked so hard!"], no: [["🙄", "Say: that book is easy."], ["🚶", "Walk away without looking."]], sharp: true },
+  { tier: 2, feel: "embarrassed", body: "Hot pink cheeks. Hiding {their} face.", what: "{n} called the teacher Mum by mistake, and some children giggled.", ok: ["🙂", "Say: don't worry, lots of people do that!"], no: [["😆", "Keep laughing and tell everyone."], ["👉", "Point at {them}."]] },
+  { tier: 2, feel: "calm", body: "Slow breathing. Soft, relaxed shoulders.", what: "{n} is reading in a cosy corner.", ok: ["📖", "Read quietly too, or ask: can I sit with you?"], no: [["📢", "Shout in {their} ear."], ["📕", "Grab {their} book."]], sharp: true },
+  { tier: 3, feel: "disappointed", body: "A big sigh. Droopy shoulders.", what: "{n} hoped to win the race, but came fourth.", ok: ["🏃", "Say: you ran really fast! Shall we practise together?"], no: [["😆", "Say: ha, you lost!"], ["🛑", "Say: just give up."]], sharp: true },
+  // Hidden feelings: the face says one thing, the other clues say another.
+  { tier: 3, feel: "sad", mask: "happy", body: "Says: I'm fine. But {their} voice is very quiet, and {their} eyes look down at the ground.", what: "{n} is sitting alone while everyone else plays tag.", ok: ["🪑", "Sit beside {them} and ask: do you want to play with us?"], no: [["🏃", "Believe I'm fine and run off."], ["📢", "Shout to everyone: {n} is sad!"]] },
+  { tier: 3, feel: "worried", mask: "happy", body: "Smiles, but keeps biting {their} nails and can't eat lunch.", what: "{n}'s grandad is in hospital.", ok: ["💬", "Say: you seem a bit worried. Do you want to talk?"], no: [["🙄", "Say: cheer up!"], ["🍕", "Eat {their} lunch."]], sharp: true },
+];
+
+// Solving a disagreement in five steps.
+const STEPS = [
+  { icon: "🛑", name: "Stop", tip: "Stop. Don't grab, push or shout." },
+  { icon: "🌬️", name: "Calm down", tip: "Take slow breaths until your body feels calmer." },
+  { icon: "🗣️", name: "Say how you feel", tip: "Use words: I feel ... when ..." },
+  { icon: "👂", name: "Listen", tip: "Let the other person say how they feel, too." },
+  { icon: "🤝", name: "Choose a fair plan", tip: "Find a plan that works for both of you." },
+];
+const CONFLICTS = [
+  { pic: "🚲", text: "Leo and Mia both want to ride the red bike.", say: ["I feel cross when you take the bike. Can we share it?", "Give it back NOW, or else!", "Say nothing, and stomp off."], plan: ["Take turns: 5 minutes each, with a timer.", "Whoever is biggest gets it.", "Leo keeps it all day."] },
+  { pic: "📺", text: "Sam's brother changed the programme while Sam was watching.", say: ["I feel upset when you change it without asking. I was watching that.", "You're the worst brother ever!", "Throw the remote."], plan: ["Finish this programme, then the brother chooses the next one.", "Whoever shouts loudest chooses.", "Nobody watches anything ever again."] },
+  { pic: "👑", text: "Amara and Zara both want to be the leader in the game.", say: ["I feel sad when I never get to lead. Can I have a go?", "You're so bossy! I'm not your friend!", "Push Zara out of the way."], plan: ["Amara leads this game, and Zara leads the next one.", "Zara is always the leader.", "Stop playing and sulk."] },
+  { pic: "🖊️", text: "Jonah used Priya's pens without asking, and one broke.", say: ["I feel sad when my things get broken. Please ask first.", "You broke it, so I'm breaking yours!", "Cry and hide the other pens forever."], plan: ["Jonah says sorry and asks before borrowing next time.", "Priya breaks one of Jonah's pens.", "They never play together again."] },
+  { pic: "🎲", text: "Ben and Leo can't agree on which game to play.", say: ["I feel fed up when we always play your game. Can we try mine?", "Your game is stupid!", "Grab the dice and run off."], plan: ["Play Ben's game first, then Leo's game.", "Leo decides, because he's older.", "Whoever grabs the dice first wins."] },
+];
+
+// ======================================================================
+// Art. Faces are SVG markup in a 200 × 200 box, so they go in a card, a clue or a See it scene.
+// ======================================================================
+const INK = "#2a160c";
+const HAIR = {
+  short: { front: (c) => `<path d="M38 104 Q34 42 100 40 Q166 42 162 104 Q156 74 128 64 Q100 74 72 64 Q44 74 38 104Z" fill="${c}"/>` },
+  bob: { back: (c) => `<path d="M30 110 Q28 36 100 34 Q172 36 170 110 L172 162 Q152 170 138 160 L62 160 Q48 170 28 162Z" fill="${c}"/>`, front: (c) => `<path d="M40 100 Q38 44 100 42 Q162 44 160 100 Q150 64 100 62 Q50 64 40 100Z" fill="${c}"/>` },
+  long: { back: (c) => `<path d="M28 110 Q26 34 100 32 Q174 34 172 110 L178 198 L22 198Z" fill="${c}"/>`, front: (c) => `<path d="M40 100 Q38 44 100 42 Q162 44 160 100 Q130 70 104 54 Q76 66 40 100Z" fill="${c}"/>` },
+  curls: { front: (c) => `<g fill="${c}"><circle cx="50" cy="80" r="18"/><circle cx="68" cy="56" r="22"/><circle cx="100" cy="44" r="26"/><circle cx="132" cy="56" r="22"/><circle cx="150" cy="80" r="18"/></g>` },
+  puffs: { back: (c) => `<g fill="${c}"><circle cx="40" cy="54" r="28"/><circle cx="160" cy="54" r="28"/></g>`, front: (c) => `<path d="M40 96 Q38 46 100 44 Q162 46 160 96 Q150 66 100 64 Q50 66 40 96Z" fill="${c}"/>` },
+  spiky: { front: (c) => `<path d="M38 100 L40 60 L54 66 L60 40 L76 56 L88 32 L100 52 L114 30 L124 54 L140 38 L146 64 L160 58 L162 100 Q150 70 100 68 Q50 70 38 100Z" fill="${c}"/>` },
+};
+const both = (fn) => fn(74, 1) + fn(126, -1);
+const EYES = {
+  dot: () => both((x) => `<ellipse cx="${x}" cy="104" rx="7" ry="9" fill="${INK}"/><circle cx="${x + 2.5}" cy="100.5" r="2.6" fill="#fff"/>`),
+  down: () => both((x) => `<ellipse cx="${x}" cy="108" rx="7" ry="8" fill="${INK}"/><circle cx="${x + 2}" cy="105" r="2.2" fill="#fff"/>`),
+  wide: () => both((x) => `<circle cx="${x}" cy="102" r="13" fill="#fff" stroke="${INK}" stroke-width="3"/><circle cx="${x}" cy="103" r="6.5" fill="${INK}"/><circle cx="${x + 2}" cy="100.5" r="2" fill="#fff"/>`),
+  happy: () => both((x) => `<path d="M${x - 10} 107 Q${x} 94 ${x + 10} 107" stroke="${INK}" stroke-width="5" fill="none" stroke-linecap="round"/>`),
+  closed: () => both((x) => `<path d="M${x - 10} 102 Q${x} 111 ${x + 10} 102" stroke="${INK}" stroke-width="5" fill="none" stroke-linecap="round"/>`),
+  half: (s) => both((x) => `<ellipse cx="${x}" cy="106" rx="7" ry="8" fill="${INK}"/><rect x="${x - 11}" y="94" width="22" height="11" fill="${s}"/><path d="M${x - 10} 105 H${x + 10}" stroke="${INK}" stroke-width="3.5" stroke-linecap="round"/>`),
+  aside: () => both((x) => `<ellipse cx="${x - 4}" cy="107" rx="6.5" ry="8.5" fill="${INK}"/><circle cx="${x - 2}" cy="104" r="2.2" fill="#fff"/>`),
+  sparkle: () => both((x) => `<ellipse cx="${x}" cy="103" rx="8.5" ry="10.5" fill="${INK}"/><circle cx="${x + 3}" cy="99" r="3.4" fill="#fff"/><circle cx="${x - 2.5}" cy="107.5" r="1.8" fill="#fff"/>`),
+};
+const brow = (l, r, w = 5) => `<path d="${l}" stroke="${INK}" stroke-width="${w}" fill="none" stroke-linecap="round"/><path d="${r}" stroke="${INK}" stroke-width="${w}" fill="none" stroke-linecap="round"/>`;
+const BROWS = {
+  flat: () => brow("M62 82 Q74 77 86 82", "M114 82 Q126 77 138 82"),
+  up: () => brow("M62 76 Q74 66 86 74", "M114 74 Q126 66 138 76"),
+  cross: () => brow("M60 76 L86 87", "M140 76 L114 87", 6),
+  worry: () => brow("M62 87 L86 77", "M138 87 L114 77"),
+  soft: () => brow("M64 84 Q74 80 84 84", "M116 84 Q126 80 136 84", 4),
+};
+const line = (d, w = 5) => `<path d="${d}" stroke="${INK}" stroke-width="${w}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+const MOUTHS = {
+  smile: () => line("M78 136 Q100 156 122 136"),
+  grin: () => `<path d="M70 130 Q100 174 130 130Z" fill="${INK}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M86 154 Q100 168 114 154 Q100 147 86 154Z" fill="#e57373"/>`,
+  frown: () => line("M80 153 Q100 136 120 153"),
+  cross: () => `<path d="M78 156 Q100 128 122 156Z" fill="${INK}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M84 151 H116" stroke="#fff" stroke-width="4"/>`,
+  o: () => `<ellipse cx="100" cy="146" rx="11" ry="14" fill="${INK}"/>`,
+  scared: () => `<path d="M80 152 Q100 128 120 152 Q100 160 80 152Z" fill="${INK}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M88 142 H112" stroke="#fff" stroke-width="4" stroke-linecap="round"/>`,
+  wavy: () => line("M78 147 q5.5 -7 11 0 t11 0 t11 0 t11 0", 4.5),
+  teeth: () => `<rect x="76" y="135" width="48" height="19" rx="7" fill="#fff" stroke="${INK}" stroke-width="4"/><path d="M77 144.5 H123 M88 136 V153 M100 136 V153 M112 136 V153" stroke="${INK}" stroke-width="2.5"/>`,
+  small: () => line("M86 140 Q100 150 114 140", 4.5),
+  proud: () => line("M74 132 Q100 156 126 132"),
+  down: () => line("M82 151 Q100 142 118 151"),
+  shy: () => line("M86 143 q7 5 14 0 t14 0", 4.5),
+};
+const starPath = (cx, cy, R, r) =>
+  Array.from({ length: 10 }, (_, i) => {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const d = i % 2 ? r : R;
+    return `${i ? "L" : "M"}${(cx + d * Math.cos(a)).toFixed(1)} ${(cy + d * Math.sin(a)).toFixed(1)}`;
+  }).join(" ") + "Z";
+const cheeks = (op, rx = 12, ry = 7) => `<ellipse cx="62" cy="126" rx="${rx}" ry="${ry}" fill="#e57373" opacity="${op}"/><ellipse cx="138" cy="126" rx="${rx}" ry="${ry}" fill="#e57373" opacity="${op}"/>`;
+const EXTRAS = {
+  tears: `<path d="M70 116 Q63 130 70 134 Q77 130 70 116Z" fill="#64b5f6"/><path d="M130 118 Q124 130 130 133 Q136 130 130 118Z" fill="#64b5f6"/>`,
+  sweat: `<path d="M160 66 Q151 81 160 87 Q169 81 160 66Z" fill="#90caf9" stroke="#64b5f6" stroke-width="2"/>`,
+  scribble: `<path d="M140 26 l7 10 l7 -10 l7 10 l7 -10 l7 10" stroke="#e53935" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+  sparkles: `<g fill="#fdd835" stroke="#f9a825" stroke-width="2" stroke-linejoin="round"><path d="${starPath(26, 44, 14, 6)}"/><path d="${starPath(176, 36, 12, 5)}"/><path d="${starPath(182, 150, 9, 4)}"/></g>`,
+  star: `<path d="${starPath(170, 40, 16, 7)}" fill="#fdd835" stroke="#f9a825" stroke-width="2.5" stroke-linejoin="round"/>`,
+  hot: `<g stroke="#e53935" stroke-width="4" stroke-linecap="round" fill="none"><path d="M30 60 l-10 -8 M26 76 l-12 -2 M170 60 l10 -8 M174 76 l12 -2"/></g>`,
+};
+// eyes, brows, mouth, cheeks and extras for each feeling.
+const LOOK = {
+  happy: { eyes: "dot", brows: "flat", mouth: "smile", cheeks: 0.3 },
+  sad: { eyes: "down", brows: "worry", mouth: "frown", after: "tears" },
+  angry: { eyes: "dot", brows: "cross", mouth: "cross", tint: "#e53935", after: "hot" },
+  scared: { eyes: "wide", brows: "worry", mouth: "scared", after: "sweat" },
+  surprised: { eyes: "wide", brows: "up", mouth: "o" },
+  excited: { eyes: "sparkle", brows: "up", mouth: "grin", cheeks: 0.35, after: "sparkles" },
+  worried: { eyes: "dot", brows: "worry", mouth: "wavy", after: "sweat" },
+  proud: { eyes: "happy", brows: "flat", mouth: "proud", cheeks: 0.3, chin: true, after: "star" },
+  frustrated: { eyes: "dot", brows: "cross", mouth: "teeth", after: "scribble" },
+  calm: { eyes: "closed", brows: "soft", mouth: "small", glow: true },
+  embarrassed: { eyes: "aside", brows: "worry", mouth: "shy", cheeks: 0.75, big: true },
+  disappointed: { eyes: "half", brows: "worry", mouth: "down" },
+};
+function faceArt(p, feel) {
+  const L = LOOK[feel];
+  const h = HAIR[p.style];
+  const lift = L.chin ? -6 : 0;
+  return `${L.glow ? `<circle cx="100" cy="108" r="86" fill="#c5e1f5" opacity=".55"/>` : ""}${h.back ? h.back(p.hair) : ""}<circle cx="37" cy="112" r="11" fill="${p.skin}"/><circle cx="163" cy="112" r="11" fill="${p.skin}"/><circle cx="100" cy="108" r="64" fill="${p.skin}"/>${L.tint ? `<circle cx="100" cy="108" r="64" fill="${L.tint}" opacity=".16"/>` : ""}${h.front(p.hair)}<g transform="translate(0 ${lift})">${EYES[L.eyes](p.skin)}${BROWS[L.brows]()}${MOUTHS[L.mouth]()}${L.cheeks ? cheeks(L.cheeks, L.big ? 16 : 12, L.big ? 9 : 7) : ""}</g>${L.after ? EXTRAS[L.after] : ""}`;
+}
+const faceSvg = (p, feel, attrs = "") => `<svg viewBox="0 0 200 200" class="ff-face" ${attrs} aria-hidden="true">${faceArt(p, feel)}</svg>`;
+// A face placed inside a See it scene (1000 × 560).
+const sceneFace = (p, feel, x, y, size) => `<svg x="${x}" y="${y}" width="${size}" height="${size}" viewBox="0 0 200 200">${faceArt(p, feel)}</svg>`;
+const faceCard = (p, feel, label = true) => `<div class="ff-fc">${faceSvg(p, feel)}${label ? `<b>${FEELS[feel].word}</b>` : ""}</div>`;
+const BALLOON = `<ellipse cx="100" cy="100" rx="78" ry="92" fill="#ef5350"/><ellipse cx="70" cy="64" rx="16" ry="26" fill="#fff" opacity=".45" transform="rotate(-20 70 64)"/><path d="M92 190 L108 190 L100 204Z" fill="#c62828"/><path d="M100 204 Q90 230 104 248 T100 270" stroke="#8d6e63" stroke-width="3" fill="none"/>`;
+const optCard = (icon, text) => `<div class="ff-opt"><span aria-hidden="true">${icon}</span><b>${text}</b></div>`;
+const sceneCard = (pic, text) => `<div class="ff-scene"><span class="ff-scene-pic" aria-hidden="true">${pic}</span><p>${text}</p></div>`;
+function thermo(size, { word = true } = {}) {
+  const s = SIZES.find((x) => x.key === size);
+  const top = 22;
+  const bottom = 160;
+  const y = bottom - (bottom - top) * s.fill;
+  return `<div class="ff-th"><svg viewBox="0 0 120 210" aria-hidden="true"><rect x="42" y="14" width="36" height="160" rx="18" fill="#fff" stroke="#cfc4b4" stroke-width="5"/><rect x="50" y="${y}" width="20" height="${bottom - y + 14}" rx="10" fill="${s.color}"/><circle cx="60" cy="178" r="26" fill="${s.color}" stroke="#cfc4b4" stroke-width="5"/>${[50, 90, 130].map((t) => `<path d="M80 ${t} H92" stroke="#cfc4b4" stroke-width="4" stroke-linecap="round"/>`).join("")}</svg>${word ? `<b style="color:${s.color === "#f9a825" ? "#b8860b" : s.color}">${cap(s.word)}</b>` : ""}</div>`;
+}
+
+// ======================================================================
+// Smooth touch. Act on pointerdown (no waiting for click), never rebuild the stage on a tap,
+// and animate with transforms only. click still works for keyboards and switch access.
+// ======================================================================
+function onTap(host, selector, fn) {
+  let downAt = 0;
+  const run = (event) => {
+    const target = event.target.closest?.(selector);
+    if (target && host.contains(target) && !target.disabled) fn(target, event);
+  };
+  const down = (event) => {
+    if (event.button > 0) return;
+    downAt = Date.now();
+    window.OC?.touch();
+    run(event);
+  };
+  const click = (event) => {
+    if (Date.now() - downAt < 800) return;
+    run(event);
+  };
+  host.addEventListener("pointerdown", down);
+  host.addEventListener("click", click);
+  cleanups.push(() => {
+    host.removeEventListener("pointerdown", down);
+    host.removeEventListener("click", click);
+  });
+}
+const anim = (node, frames, ms, opts = {}) => {
+  if (!node?.animate) return Promise.resolve();
+  const duration = still.matches ? Math.min(ms, 120) : ms;
+  const a = node.animate(frames, { duration, easing: "cubic-bezier(.2,.8,.3,1)", fill: "both", ...opts });
+  // Never let a paused animation (hidden tab, power saving) stall a game.
+  return Promise.race([a.finished.catch(() => {}), wait(duration + (opts.delay || 0) + 250)]);
+};
+const pop = (node) => anim(node, [{ transform: "scale(1)" }, { transform: "scale(1.08)" }, { transform: "scale(1)" }], 380, { fill: "none" });
+const shake = (node) => anim(node, [{ transform: "translateX(0)" }, { transform: "translateX(-10px)" }, { transform: "translateX(9px)" }, { transform: "translateX(-6px)" }, { transform: "translateX(0)" }], 420, { fill: "none" });
+
+// talk("html") shows and speaks the same words. talk({ html, speech }) speaks different words.
+const talk = (msg, my = token) => {
+  if (my !== token) return Promise.resolve(false);
+  if (typeof msg === "string") return sayAsync(msg);
+  const box = $("[data-say]");
+  if (box) box.innerHTML = msg.html;
+  return VOICE.speakAsync(msg.speech);
+};
+const mark = (id, data) => shell.mark(id, data);
+const NEXT = { see: "name", name: "big", big: "calm", calm: "kind", kind: "detective", detective: "fix", fix: null };
+
+// ======================================================================
+// Learning that adapts. Each game keeps a level for the child:
+// three right first time in a row → a little harder; two misses in a row → a little easier.
+// Missed items are remembered and come back in later rounds until they are right first time.
+// ======================================================================
+function skillOf(id, { start = 1, max = 3 } = {}) {
+  const saved = shell.progress()[id] || {};
+  let level = Math.max(0, Math.min(max, saved.level ?? start));
+  let missed = Array.isArray(saved.missed) ? saved.missed : [];
+  let streak = 0;
+  let slips = 0;
+  const save = () => mark(id, { level, missed });
+  return {
+    get level() {
+      return level;
+    },
+    max,
+    right(key) {
+      streak += 1;
+      slips = 0;
+      missed = missed.filter((k) => k !== key);
+      const up = streak >= 3 && level < max;
+      if (up) {
+        level += 1;
+        streak = 0;
+      }
+      save();
+      return up;
+    },
+    wrong(key) {
+      streak = 0;
+      slips += 1;
+      missed = [key, ...missed.filter((k) => k !== key)].slice(0, 8);
+      if (slips >= 2 && level > 0) {
+        level -= 1;
+        slips = 0;
+      }
+      save();
+    },
+    // Not the same as last time; a missed item comes back about two rounds in five.
+    pick(list, keyOf, last) {
+      const others = list.filter((x) => keyOf(x) !== last);
+      const pool = others.length ? others : list;
+      const review = pool.filter((x) => missed.includes(keyOf(x)));
+      return review.length && Math.random() < 0.4 ? rpick(review) : rpick(pool);
+    },
+  };
+}
+const choicesFor = (level) => [2, 3, 3, 4][Math.min(level, 3)];
+
+// A right answer: sparkles where the finger was, and a bigger surprise now and then.
+function cheer(target, round, rounds) {
+  sparkle(target);
+  if (round < rounds && (round === 3 || round === rounds - 2)) surprise();
+}
+const LEVEL_UP = ["You're getting so good at this! Let's make it a little trickier.", "Wow, you're learning fast! Here comes a harder one.", "Super thinking! Let's go up a level."];
+const HALFWAY = ["Halfway there! Keep going!", "You're halfway! You're doing brilliantly!", "Halfway! Great thinking so far!"];
+// Gentle words when an answer isn't the one we were looking for. Never a telling-off.
+const AGAIN = ["Good thinking! Let's look again.", "Nice try! Let's think again.", "That's OK! Let's look again together."];
+async function levelUp(my) {
+  surprise();
+  MUSIC.chime();
+  await talk(rpick(LEVEL_UP), my);
+}
+
+function finishCard({ id, feel = "happy", icon, message, speech }) {
+  const my = token;
+  const p = rpick(PEOPLE);
+  stage.innerHTML = `<div class="ff-done"><div class="ff-done-pic">${faceSvg(p, feel)}<span class="ff-done-badge" aria-hidden="true">${icon}</span></div><div class="ff-done-text"><h2>Try it for real, with a grown-up</h2><p>${message}</p></div></div>`;
+  confetti();
+  MUSIC.chime();
+  mark(id, { done: true });
+  const host = panel(`<div class="ap-buttons"><button type="button" data-again>🔁 Play again</button>${NEXT[id] ? '<button type="button" class="primary" data-next data-pulse>▶ Next game</button>' : ""}</div>`);
+  talk(`${NAME() ? `Well done, ${NAME()}! ` : "Well done! "}${speech}`, my);
+  host.onclick = (event) => {
+    if (event.target.closest("[data-again]")) shell.go(id);
+    else if (event.target.closest("[data-next]")) shell.go(NEXT[id]);
+  };
+}
+
+// ======================================================================
+// Round games. Each game's gen(level, skill, last) builds one round:
+// { key, target, layout, prompt, choices: [{ ok, art, label, ... }] } and the game says what to ask and answer.
+// ======================================================================
+const GAMES = {
+  // ---------- Name the feeling ----------
+  name: {
+    id: "name",
+    count: "feelings named",
+    skill: { max: 3 },
+    racer: "🦋",
+    goal: "🌻",
+    gen(level, skill, last) {
+      const pool = feelsAt(level);
+      // Level 1: tap the face. From level 3, most rounds are "how might they feel?" scenes.
+      const scene = level >= 1 && Math.random() < [0, 0.3, 0.5, 0.75][level];
+      if (scene) {
+        const scenes = SCENES.filter((s) => pool.includes(s.feel));
+        const s = skill.pick(scenes, (x) => x.text, last);
+        const p = rpick(PEOPLE);
+        const n = choicesFor(level);
+        // A look-alike feeling only joins as a wrong choice at the top level, and only when the scene clearly fits one of them.
+        const others = shuffle(pool.filter((f) => f !== s.feel && (level >= 3 && s.sharp ? true : !twins(f, s.feel))));
+        const twin = level >= 3 && s.sharp ? others.find((f) => twins(f, s.feel)) : null;
+        const rest = others.filter((f) => f !== twin);
+        const picks = (twin ? [twin, ...rest] : rest).slice(0, n - 1);
+        const shown = rpick(PEOPLE.filter((x) => x !== p));
+        return {
+          kind: "scene", key: s.text, target: s.text, feel: s.feel, p, scene: s, layout: "side",
+          prompt: sceneCard(s.pic, fill(s.text, p)),
+          choices: shuffle([s.feel, ...picks]).map((f) => ({ v: f, ok: f === s.feel, art: faceCard(shown, f), label: FEELS[f].word })),
+        };
+      }
+      const faces = level === 0 ? ["happy", "sad", "angry", "scared"] : pool;
+      const target = skill.pick(faces, (f) => f, last);
+      const n = choicesFor(level);
+      const others = shuffle(faces.filter((f) => f !== target && !twins(f, target))).slice(0, n - 1);
+      const p = rpick(PEOPLE);
+      return { kind: "face", key: target, target, feel: target, p, layout: "", choices: shuffle([target, ...others]).map((f) => ({ v: f, ok: f === target, art: faceCard(p, f, false), label: `${FEELS[f].word} face` })) };
+    },
+    ask(q) {
+      if (q.kind === "scene") return { html: `How might <b>${q.p.name}</b> feel?`, speech: `${fill(q.scene.text, q.p)} How might ${q.p.name} feel? Is it ${q.choices.map((c) => FEELS[c.v].word).join(", or ")}?` };
+      return `Find the <b>${FEELS[q.feel].word}</b> face.`;
+    },
+    praise(q) {
+      const F = FEELS[q.feel];
+      if (q.kind === "scene") return `Yes! ${q.p.name} might feel <b>${F.word}</b>. ${cap(F.word)} is ${F.means}. ${rpick(["Different people can feel different things, too.", "Have you ever felt like that?", "Feelings like this come and go."])}`;
+      return `Yes! That face looks <b>${F.word}</b>. Look at ${F.cue}.`;
+    },
+    hint(q, c) {
+      const F = FEELS[c.v];
+      if (q.kind === "scene") return `${rpick(AGAIN)} <b>${cap(F.word)}</b> is ${F.means}. How would you feel if it happened to you?`;
+      return `${rpick(AGAIN)} That face looks <b>${F.word}</b>: see ${F.cue}? Find the ${FEELS[q.feel].word} face.`;
+    },
+    reveal(q) {
+      const F = FEELS[q.feel];
+      if (q.kind === "scene") return `${q.p.name} might feel <b>${F.word}</b>. ${cap(F.word)} is ${F.means}.`;
+      return `Here is the <b>${F.word}</b> face. Look at ${F.cue}.`;
+    },
+  },
+
+  // ---------- How big is the problem? and mild-to-strong feeling words ----------
+  big: {
+    id: "big",
+    count: "problems sized",
+    skill: { max: 3 },
+    racer: "🎈",
+    goal: "☁️",
+    gen(level, skill, last) {
+      if (level >= 2 && Math.random() < 0.4) {
+        const lad = skill.pick(LADDERS, (l) => l.family, last);
+        const want = level >= 3 && Math.random() < 0.5 ? "smallest" : "biggest";
+        const answer = want === "biggest" ? lad.words[2] : lad.words[0];
+        return {
+          kind: "ladder", key: lad.family, target: lad.family, lad, want, answer, layout: "side",
+          prompt: `<div class="ff-ladder" data-ladder><span class="ff-scene-pic" aria-hidden="true">${lad.pic}</span><p><b>${cap(lad.family)}</b> words</p></div>`,
+          choices: shuffle(lad.words).map((w) => ({ v: w, ok: w === answer, art: `<div class="ff-word">${w}</div>`, label: w })),
+        };
+      }
+      const sizes = level === 0 ? ["small", "big"] : ["small", "medium", "big"];
+      const pr = skill.pick(PROBLEMS.filter((x) => sizes.includes(x.size)), (x) => x.text, last);
+      return { kind: "problem", key: pr.text, target: pr.text, pr, layout: "side across", prompt: sceneCard(pr.pic, pr.text), choices: sizes.map((s) => ({ v: s, ok: s === pr.size, art: thermo(s), label: `${s} problem` })) };
+    },
+    ask(q) {
+      if (q.kind === "ladder") return { html: `Which word is the <b>${q.want}</b> feeling?`, speech: `Here are three ${q.lad.family} words: ${shuffle(q.lad.words).join(", ")}. Which word is the ${q.want} feeling?` };
+      return { html: `How big is this problem?`, speech: `${q.pr.text} How big is this problem? ${q.choices.length === 2 ? "Small, or big?" : "Small, medium, or big?"}` };
+    },
+    praise(q) {
+      if (q.kind === "ladder") return `Yes! From small to big: <b>${q.lad.words.join(" → ")}</b>. Knowing how big a feeling is helps us choose what to do.`;
+      return `Yes! That's a <b>${q.pr.size}</b> problem. ${SIZES.find((s) => s.key === q.pr.size).means}`;
+    },
+    hint(q, c) {
+      if (q.kind === "ladder") return `${rpick(AGAIN)} Is <b>${c.v}</b> a little feeling, or a huge one? Try another word.`;
+      return `${rpick(AGAIN)} Is anyone hurt or not safe? Could you sort it out yourself?`;
+    },
+    reveal(q) {
+      if (q.kind === "ladder") return `The ${q.want} is <b>${q.answer}</b>. From small to big: ${q.lad.words.join(", ")}.`;
+      return `This is a <b>${q.pr.size}</b> problem. ${SIZES.find((s) => s.key === q.pr.size).means}`;
+    },
+    onRight(q, box) {
+      if (q.kind !== "ladder") return;
+      const lad = $("[data-ladder]", box);
+      if (lad) lad.innerHTML = `<ol class="ff-steps-up">${[...q.lad.words].reverse().map((w, i) => `<li style="--h:${3 - i}">${w}</li>`).join("")}</ol>`;
+    },
+  },
+
+  // ---------- Kind or not kind? What would you do? ----------
+  kind: {
+    id: "kind",
+    count: "kind choices",
+    skill: { max: 3 },
+    racer: "🐝",
+    goal: "🌼",
+    gen(level, skill, last) {
+      const p = rpick(PEOPLE);
+      if (level === 0 || (level === 1 && Math.random() < 0.4)) {
+        const a = skill.pick(ACTS, (x) => x.text, last);
+        return {
+          kind: "act", key: a.text, target: a.text, a, p, layout: "side",
+          prompt: sceneCard(a.pic, fill(a.text, p)),
+          choices: [true, false].map((k) => ({ v: k, ok: k === a.kind, art: optCard(k ? "💛" : "💔", k ? "Kind" : "Not kind"), label: k ? "kind" : "not kind" })),
+        };
+      }
+      const d = skill.pick(DILEMMAS.filter((x) => x.tier <= Math.max(1, level)), (x) => x.text, last);
+      const n = level >= 2 ? 3 : 2;
+      const opts = [{ icon: d.ok[0], text: d.ok[1], ok: true }, ...shuffle(d.no).slice(0, n - 1).map(([icon, text]) => ({ icon, text, ok: false }))];
+      return { kind: "do", key: d.text, target: d.text, d, layout: "side", prompt: sceneCard(d.pic, d.text), choices: shuffle(opts).map((o) => ({ v: o, ok: o.ok, art: optCard(o.icon, o.text), label: o.text })) };
+    },
+    ask(q) {
+      if (q.kind === "act") return { html: `Is that <b>kind</b>, or <b>not kind</b>?`, speech: `${fill(q.a.text, q.p)} Is that kind, or not kind?` };
+      return { html: `What would you do?`, speech: `${q.d.text} What would you do? ${q.choices.map((c) => c.v.text).join(" Or, ")}` };
+    },
+    praise(q) {
+      if (q.kind === "act") return `Yes! ${q.a.kind ? "That's <b>kind</b>." : "That's <b>not kind</b>."} ${q.a.why}`;
+      return `Yes! <b>${q.d.ok[1]}</b> ${q.d.why}`;
+    },
+    hint(q) {
+      if (q.kind === "act") return `${rpick(AGAIN)} How would the other person feel?`;
+      return `${rpick(AGAIN)} How would the other person feel if you did that?`;
+    },
+    reveal(q) {
+      if (q.kind === "act") return `${q.a.kind ? "That one is <b>kind</b>." : "That one is <b>not kind</b>."} ${q.a.why}`;
+      return `A kind choice is: <b>${q.d.ok[1]}</b> ${q.d.why}`;
+    },
+  },
+
+  // ---------- Feelings detective: read the clues, then choose what would help ----------
+  detective: {
+    id: "detective",
+    count: "feelings detected",
+    skill: { max: 3 },
+    racer: "🔍",
+    goal: "💛",
+    layout: "stack",
+    gen(level, skill, last) {
+      // Each case is two rounds: first "how do they feel?", then "what would help?".
+      if (this.pending) {
+        const q = this.pending;
+        this.pending = null;
+        const n = level >= 2 ? 3 : 2;
+        const opts = [{ icon: q.c.ok[0], text: fill(q.c.ok[1], q.p), ok: true }, ...shuffle(q.c.no).slice(0, n - 1).map(([icon, text]) => ({ icon, text: fill(text, q.p), ok: false }))];
+        return { ...q, step: "help", key: `${q.key}:help`, choices: shuffle(opts).map((o) => ({ v: o, ok: o.ok, art: optCard(o.icon, o.text), label: o.text })) };
+      }
+      const pool = CASES.filter((c) => c.tier <= level);
+      const c = skill.pick(pool, (x) => x.what, last);
+      const p = rpick(PEOPLE);
+      const feels = feelsAt(Math.max(level, FEELS[c.feel].tier));
+      const n = choicesFor(level);
+      const others = shuffle(feels.filter((f) => f !== c.feel && f !== c.mask && (level >= 3 && c.sharp ? true : !twins(f, c.feel))));
+      const twin = level >= 3 && c.sharp ? others.find((f) => twins(f, c.feel)) : null;
+      // In a hidden-feelings case the face the child sees is a choice too, so they must weigh the other clues.
+      const firsts = [c.mask, twin].filter(Boolean);
+      const picks = [...firsts, ...others.filter((f) => !firsts.includes(f))].slice(0, n - 1);
+      const shown = rpick(PEOPLE.filter((x) => x !== p));
+      const q = {
+        step: "feel", key: c.what, target: c.what, c, p, feel: c.feel,
+        prompt: `<div class="ff-clues"><div class="ff-clue" data-clue="0"><small>👀 Face</small>${faceSvg(p, c.mask || c.feel)}</div><div class="ff-clue" data-clue="1"><small>🧍 Body</small><p>${fill(c.body, p)}</p></div><div class="ff-clue" data-clue="2"><small>📖 What happened</small><p>${fill(c.what, p)}</p></div></div>`,
+        choices: shuffle([c.feel, ...picks]).map((f) => ({ v: f, ok: f === c.feel, art: faceCard(shown, f), label: FEELS[f].word })),
+      };
+      this.pending = q;
+      return q;
+    },
+    ask(q) {
+      if (q.step === "help") return { html: `What would help <b>${q.p.name}</b>?`, speech: `${q.p.name} feels ${FEELS[q.feel].word}. What would help? ${q.choices.map((c) => c.v.text).join(" Or, ")}` };
+      return { html: `Detective time! Look at the clues. How does <b>${q.p.name}</b> feel?`, speech: `Detective time! Look at the clues. ${q.c.mask ? `${q.p.name}'s face is smiling.` : ""} Body: ${fill(q.c.body, q.p)} What happened: ${fill(q.c.what, q.p)} How does ${q.p.name} feel? Is it ${q.choices.map((c) => FEELS[c.v].word).join(", or ")}?` };
+    },
+    praise(q) {
+      if (q.step === "help") return `Yes! That would help ${q.p.name} feel better. Noticing feelings and being kind is called empathy.`;
+      const F = FEELS[q.feel];
+      if (q.c.mask) return `Great detective work! ${q.p.name} is smiling, but the other clues say <b>${F.word}</b>. Sometimes people hide how they feel. It's good to share feelings with someone you trust.`;
+      return `Great detective work! ${q.p.name} feels <b>${F.word}</b>. The clues: ${F.cue}, and ${F.body}.`;
+    },
+    hint(q, c) {
+      if (q.step === "help") return `${rpick(AGAIN)} Would that make ${q.p.name} feel better, or worse?`;
+      return `${rpick(AGAIN)} ${q.c.mask ? "Faces don't always tell the whole story. " : ""}Look at the body clue and what happened.`;
+    },
+    reveal(q) {
+      if (q.step === "help") return `This would help: <b>${fill(q.c.ok[1], q.p)}</b>`;
+      return `${q.p.name} feels <b>${FEELS[q.feel].word}</b>. ${cap(FEELS[q.feel].word)} is ${FEELS[q.feel].means}.`;
+    },
+    onRight(q, box) {
+      if (q.step === "feel") for (const clue of box.querySelectorAll("[data-clue]")) clue.classList.add("solved");
+    },
+  },
+
+  // ---------- Solve it together: five steps, I-feel words and fair plans ----------
+  fix: {
+    id: "fix",
+    count: "problems solved",
+    skill: { max: 2 },
+    racer: "🐢",
+    goal: "🤝",
+    gen(level, skill, last) {
+      const kinds = level === 0 ? ["order"] : level === 1 ? ["order", "order", "say", "plan"] : ["order", "say", "plan", "listen"];
+      const kind = rpick(kinds.filter((k) => k !== last?.kind || kinds.length === 1));
+      if (kind === "order") {
+        const at = level === 0 ? Math.floor(Math.random() * 3) : Math.floor(Math.random() * 5);
+        const answer = STEPS[at];
+        const n = level === 0 ? 2 : 3;
+        const others = shuffle(STEPS.filter((s) => s !== answer)).slice(0, n - 1);
+        return {
+          kind, key: `step${at}`, target: { kind }, at, answer, layout: "stack",
+          prompt: `<div class="ff-path" data-path>${STEPS.map((s, i) => `<span class="ff-step${i < at ? " on" : i === at ? " q" : ""}">${i < at ? `<i aria-hidden="true">${s.icon}</i><b>${s.name}</b>` : i === at ? "<i>?</i>" : `<i>${i + 1}</i>`}</span>`).join("")}</div>`,
+          choices: shuffle([answer, ...others]).map((s) => ({ v: s, ok: s === answer, art: optCard(s.icon, s.name), label: s.name })),
+        };
+      }
+      const c = rpick(CONFLICTS);
+      if (kind === "listen") {
+        const opts = [["👀", "Look at them, and let them finish.", true], ["🗣️", "Talk over them.", false], ["🧸", "Play with a toy and ignore them.", false]];
+        return { kind, key: "listen", target: { kind }, c, layout: "side", prompt: sceneCard("👂", `${c.text} Now one friend is saying how they feel.`), choices: shuffle(opts).map(([icon, text, ok]) => ({ v: { text }, ok, art: optCard(icon, text), label: text })) };
+      }
+      const list = kind === "say" ? c.say : c.plan;
+      const icons = kind === "say" ? ["🗣️", "😡", "😶"] : ["🤝", "😤", "🚫"];
+      const n = level >= 2 ? 3 : 2;
+      const opts = list.map((text, i) => ({ text, ok: i === 0, icon: icons[i] })).slice(0, n);
+      return { kind, key: `${kind}:${c.text}`, target: { kind }, c, layout: "side", prompt: sceneCard(c.pic, c.text), choices: shuffle(opts).map((o) => ({ v: o, ok: o.ok, art: optCard(o.icon, o.text), label: o.text })) };
+    },
+    ask(q) {
+      if (q.kind === "order") return q.at === 0 ? `Two friends disagree. What is the <b>first</b> step?` : `Steps so far: ${STEPS.slice(0, q.at).map((s) => s.name).join(", ")}. What comes <b>next</b>?`;
+      if (q.kind === "listen") return { html: `What does good <b>listening</b> look like?`, speech: `${q.c.text} Now one friend is saying how they feel. What does good listening look like? ${q.choices.map((c) => c.v.text).join(" Or, ")}` };
+      if (q.kind === "say") return { html: `Which is a good way to <b>say how you feel</b>?`, speech: `${q.c.text} Which is a good way to say how you feel? ${q.choices.map((c) => c.v.text).join(" Or, ")}` };
+      return { html: `Which plan is <b>fair</b> for both?`, speech: `${q.c.text} Which plan is fair for both? ${q.choices.map((c) => c.v.text).join(" Or, ")}` };
+    },
+    praise(q) {
+      if (q.kind === "order") return `Yes! Step ${q.at + 1}: <b>${q.answer.name}</b>. ${q.answer.tip}`;
+      if (q.kind === "listen") return `Yes! Good listeners look at the speaker and wait until they finish. Then it's your turn.`;
+      if (q.kind === "say") return `Yes! "I feel... when..." words are calm and clear. They tell the other person what's wrong without hurting them.`;
+      return `Yes! That plan is fair, because both friends get something they need.`;
+    },
+    hint(q) {
+      if (q.kind === "order") return `${rpick(AGAIN)} Think: first we stop, then we calm our body, then we use words.`;
+      if (q.kind === "say") return `${rpick(AGAIN)} Which one uses calm words, like "I feel..."?`;
+      if (q.kind === "plan") return `${rpick(AGAIN)} Would both friends think that plan is fair?`;
+      return `${rpick(AGAIN)} How would you like people to listen to you?`;
+    },
+    reveal(q) {
+      if (q.kind === "order") return `Step ${q.at + 1} is <b>${q.answer.name}</b>. ${q.answer.tip}`;
+      return `A good choice is: <b>${q.choices.find((c) => c.ok).v.text}</b>`;
+    },
+    onRight(q, box) {
+      if (q.kind !== "order") return;
+      const step = box.querySelectorAll(".ff-step")[q.at];
+      if (step) {
+        step.className = "ff-step on";
+        step.innerHTML = `<i aria-hidden="true">${q.answer.icon}</i><b>${q.answer.name}</b>`;
+        return pop(step);
+      }
+    },
+  },
+};
+
+// The race track under every game: the racer moves one step towards the goal for each answer.
+const raceHtml = (racer = "🐞", goal = "🏁") => `<div class="ff-race" data-race aria-hidden="true"><span class="ff-race-goal">${goal}</span><span class="ff-racer" data-racer>${racer}</span></div>`;
+function raceTo(host, round, rounds) {
+  const racer = $("[data-racer]", host);
+  if (!racer) return;
+  racer.style.left = `calc((100% - 84px) * ${round / rounds} + 6px)`;
+}
+
+// A round-based picking game. Taps answer on pointerdown; only classes change, the cards are never rebuilt mid-round.
+function runChoice(cfg) {
+  const my = token;
+  const rounds = cfg.rounds || ROUNDS;
+  const skill = skillOf(cfg.id, { start: Math.min(startLevel(), cfg.skill.max), max: cfg.skill.max });
+  let round = 0;
+  let tries = 0;
+  let open = false;
+  let q = null;
+  let last = null;
+  cfg.pending = null;
+  stage.innerHTML = `<div class="ff-play" data-play><div class="ff-prompt" data-prompt></div><div class="ff-cards" data-cards></div></div>`;
+  const play = $("[data-play]", stage);
+  const cards = $("[data-cards]", stage);
+  const promptBox = $("[data-prompt]", stage);
+  const host = panel(`<div class="ap-row ff-row">${raceHtml(cfg.racer, cfg.goal)}<span class="ap-status" data-level></span><button type="button" class="ap-btn" data-again aria-label="Say it again">🔊<span class="ff-wide"> Again</span></button></div>`);
+  const dots = () => {
+    raceTo(host, round, rounds);
+    $("[data-level]", host).innerHTML = `⭐<span class="ff-wide"> Stage</span> ${skill.level + 1}`;
+  };
+  host.onclick = (event) => {
+    if (event.target.closest("[data-again]") && q) talk(cfg.ask(q), my);
+  };
+  async function ask() {
+    if (my !== token) return;
+    q = cfg.gen(skill.level, skill, last);
+    last = q.target;
+    tries = 0;
+    dots();
+    const layout = q.layout ?? cfg.layout ?? "";
+    play.className = `ff-play ${layout}`;
+    // The detective's second step keeps the same clues on screen.
+    if (!(q.step === "help" && promptBox.firstElementChild)) promptBox.innerHTML = layout ? q.prompt || "" : "";
+    if (q.step !== "help" && promptBox.firstElementChild) anim(promptBox.firstElementChild, [{ transform: "scale(.9)", opacity: 0 }, { transform: "none", opacity: 1 }], 380, { fill: "none" });
+    cards.className = `ff-cards n${q.choices.length}`;
+    cards.innerHTML = q.choices.map((c, i) => `<button type="button" class="ff-card ff-pick" data-c="${i}" aria-label="${c.label}"><span class="ff-art">${c.art}</span></button>`).join("");
+    [...cards.children].forEach((card, i) => anim(card, [{ transform: "translateY(24px)", opacity: 0 }, { transform: "none", opacity: 1 }], 380, { delay: i * 70, fill: "backwards" }));
+    open = true;
+    await talk(cfg.ask(q), my);
+  }
+  async function next(up) {
+    if (my !== token) return;
+    if (up && round < rounds) {
+      await levelUp(my);
+      if (my !== token) return;
+    }
+    if (round === Math.ceil(rounds / 2) && round < rounds) {
+      surprise();
+      await talk(rpick(HALFWAY), my);
+      if (my !== token) return;
+    }
+    if (round >= rounds) return finishCard({ id: cfg.id, ...cfg.finish });
+    ask();
+  }
+  async function choose(button) {
+    const c = q.choices[Number(button.dataset.c)];
+    if (!open || c.state || my !== token) return;
+    if (c.ok) {
+      open = false;
+      c.state = "good";
+      button.classList.add("good");
+      for (const b of cards.children) if (b !== button) b.classList.add("dim");
+      const up = tries === 0 ? skill.right(q.key) : false;
+      MUSIC.chime();
+      round += 1;
+      window.OC?.count(cfg.count);
+      dots();
+      cheer(button, round, rounds);
+      await Promise.all([pop(button), cfg.onRight?.(q, promptBox, my)]);
+      if (my !== token) return;
+      await talk(cfg.praise(q, c), my);
+      if (my !== token) return;
+      next(up);
+    } else {
+      if (tries === 0) skill.wrong(q.key);
+      tries += 1;
+      c.state = "bad";
+      button.classList.add("bad");
+      MUSIC.oops();
+      shake(button);
+      // With two choices one miss leaves only the answer, so show it straight away.
+      if (tries >= Math.min(2, q.choices.length - 1)) {
+        open = false;
+        const right = cards.children[q.choices.findIndex((x) => x.ok)];
+        right.classList.add("hint");
+        await talk(cfg.reveal(q, c), my);
+        if (my !== token) return;
+        round += 1;
+        dots();
+        next(false);
+      } else await talk(cfg.hint(q, c), my);
+    }
+  }
+  onTap(cards, "[data-c]", choose);
+  (async () => {
+    dots();
+    if (cfg.intro) await talk(cfg.intro, my);
+    ask();
+  })();
+}
+
+// ======================================================================
+// Games
+// ======================================================================
+const units = {
+  // ---------- See it: what feelings are ----------
+  see() {
+    const my = token;
+    const [mia, leo, amara, sam, priya, jonah, zara, ben] = PEOPLE;
+    const label = (x, y, text, size = 30) => `<text x="${x}" y="${y}" text-anchor="middle" font-family="Nunito, sans-serif" font-weight="900" font-size="${size}" fill="#2b1d12">${text}</text>`;
+    const bg = (fill = "#f6f4ff") => `<rect width="1000" height="560" fill="${fill}"/>`;
+    const emo = (x, y, glyph, size = 80) => `<text x="${x}" y="${y + size * 0.35}" text-anchor="middle" font-size="${size}" font-family="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif">${glyph}</text>`;
+    const row = (people, feels, api, view, y = 120, size = 200) => {
+      const gap = (1000 - feels.length * size) / (feels.length + 1);
+      return feels.map((f, i) => {
+        const x = gap + i * (size + gap);
+        const g = el("g", { opacity: 0 }, view);
+        g.innerHTML = `<rect x="${x - 8}" y="${y - 8}" width="${size + 16}" height="${size + 70}" rx="26" fill="#fff" stroke="var(--accent)" stroke-width="4"/>${sceneFace(people[i], f, x, y, size)}${label(x + size / 2, y + size + 46, FEELS[f].word)}`;
+        return g;
+      });
+    };
+    const fadeIn = async (api, groups, ms = 380, gap = 250) => {
+      for (const g of groups) {
+        await api.tween(ms, (t) => g.setAttribute("opacity", t));
+        await api.wait(gap);
+      }
+    };
+    const scenes = [
+      {
+        say: `Welcome to <b>Feelings & Friends</b>! Feelings are like messages from inside us. They tell us how we are, and what we need.`,
+        async draw(view, api) {
+          view.innerHTML = `${bg()}<circle cx="500" cy="290" r="210" fill="var(--accent-soft)"/>${sceneFace(mia, "happy", 330, 120, 340)}`;
+          const note = el("g", { opacity: 0 }, view);
+          note.innerHTML = emo(800, 130, "💌", 110);
+          await api.tween(900, (t) => {
+            note.setAttribute("opacity", t);
+            note.setAttribute("transform", `translate(${(1 - t) * -200} ${(1 - t) * 120})`);
+          });
+        },
+      },
+      {
+        say: `Everyone has feelings: children, grown-ups, even your teacher! Here are four: <b>happy</b>, <b>sad</b>, <b>angry</b> and <b>scared</b>.`,
+        async draw(view, api) {
+          view.innerHTML = bg();
+          await fadeIn(api, row([leo, amara, sam, priya], ["happy", "sad", "angry", "scared"], api, view, 130));
+        },
+      },
+      {
+        say: `And here are some more: <b>surprised</b>, <b>excited</b>, <b>worried</b> and <b>proud</b>. Every feeling has a name.`,
+        async draw(view, api) {
+          view.innerHTML = bg();
+          await fadeIn(api, row([jonah, zara, ben, mia], ["surprised", "excited", "worried", "proud"], api, view, 130));
+        },
+      },
+      {
+        say: `We can spot feelings in faces and in bodies. Angry can feel like hot cheeks and tight fists. Scared can feel like a fast heartbeat. Worried can feel like butterflies in your tummy.`,
+        async draw(view, api) {
+          view.innerHTML = bg();
+          const items = [[sam, "angry", "✊"], [priya, "scared", "💓"], [ben, "worried", "🦋"]];
+          const groups = items.map(([p, f, glyph], i) => {
+            const x = 70 + i * 310;
+            const g = el("g", { opacity: 0 }, view);
+            g.innerHTML = `<rect x="${x}" y="70" width="240" height="420" rx="30" fill="#fff" stroke="var(--accent)" stroke-width="4"/>${sceneFace(p, f, x + 30, 90, 180)}${emo(x + 120, 340, glyph, 90)}${label(x + 120, 460, FEELS[f].word, 32)}`;
+            return g;
+          });
+          await fadeIn(api, groups, 400, 600);
+        },
+      },
+      {
+        say: `Feelings change. Leo felt <b>sad</b> when it rained. Then the sun came out, and he felt <b>happy</b>! And the same thing can make two people feel different things.`,
+        async draw(view, api) {
+          view.innerHTML = `${bg("#e3f2fd")}<rect y="440" width="1000" height="120" fill="#8bc34a"/>`;
+          const sky = el("g", {}, view);
+          sky.innerHTML = `${emo(500, 90, "🌧️", 120)}`;
+          const kid = el("g", {}, view);
+          kid.innerHTML = sceneFace(leo, "sad", 380, 180, 240);
+          await api.wait(1800);
+          sky.innerHTML = `${emo(500, 90, "☀️", 120)}`;
+          kid.innerHTML = sceneFace(leo, "happy", 380, 180, 240);
+          await api.tween(500, (t) => kid.setAttribute("transform", `translate(0 ${-Math.sin(t * Math.PI) * 30})`));
+          const others = el("g", { opacity: 0 }, view);
+          others.innerHTML = `${sceneFace(amara, "excited", 60, 260, 170)}${sceneFace(jonah, "disappointed", 770, 260, 170)}${emo(145, 470, "🏖️", 50)}${emo(855, 470, "⛄", 50)}`;
+          await api.wait(700);
+          await api.tween(500, (t) => others.setAttribute("opacity", t));
+        },
+      },
+      {
+        say: `All feelings are OK. But not all actions are OK. It's OK to feel angry. It's not OK to hit. We can use words instead: <b>I feel angry because...</b>`,
+        async draw(view, api) {
+          view.innerHTML = bg();
+          const cards = [
+            [sceneFace(sam, "angry", 95, 110, 190), "Feeling angry", "✅"],
+            [emo(500, 205, "👊", 150), "Hitting", "❌"],
+            [`${emo(810, 205, "🗣️", 150)}`, "Using words", "✅"],
+          ];
+          const groups = cards.map(([art, text, mark], i) => {
+            const x = 50 + i * 310;
+            const g = el("g", { opacity: 0 }, view);
+            g.innerHTML = `<rect x="${x}" y="70" width="280" height="400" rx="30" fill="#fff" stroke="${mark === "❌" ? "#e53935" : "#43a047"}" stroke-width="6"/>${art}${label(x + 140, 380, text, 34)}${emo(x + 140, 420, mark, 54)}`;
+            return g;
+          });
+          await fadeIn(api, groups, 400, 700);
+        },
+      },
+      {
+        say: `Feelings can be small, medium or big. When a feeling gets big, we can use a calm-down tool, like slow balloon breaths, or ask a grown-up for help. Let's play!`,
+        async draw(view, api) {
+          view.innerHTML = `${bg()}<foreignObject x="80" y="40" width="300" height="480"><div xmlns="http://www.w3.org/1999/xhtml" class="ff-see-th" data-th></div></foreignObject>`;
+          const box = view.querySelector("[data-th]");
+          for (const size of ["small", "medium", "big"]) {
+            box.innerHTML = thermo(size);
+            await api.wait(900);
+          }
+          // The balloon grows and shrinks from the bottom of its string, like slow breaths.
+          const at = (k) => `translate(${680 - 100 * k} ${520 - 270 * k}) scale(${k})`;
+          const balloon = el("g", { transform: at(0.9) }, view);
+          balloon.innerHTML = BALLOON;
+          for (let i = 0; i < 2; i++) {
+            await api.tween(1600, (t) => balloon.setAttribute("transform", at(0.9 + 0.7 * t)));
+            await api.tween(1800, (t) => balloon.setAttribute("transform", at(1.6 - 0.7 * t)));
+          }
+        },
+      },
+    ];
+    explain(scenes, { alive: () => my === token, onDone: () => { mark("see", { done: true }); shell.go("name"); } });
+  },
+
+  name: () => runChoice({ ...GAMES.name, finish: { feel: "happy", icon: "🙂", message: "Make a feelings chart for the fridge: draw happy, sad, angry and scared faces. Each day, put a magnet on how you feel, and say why.", speech: "You know so many feelings! Make a feelings chart for the fridge. Draw happy, sad, angry and scared faces. Each day, put a magnet on how you feel, and say why." } }),
+  big: () => runChoice({ ...GAMES.big, finish: { feel: "calm", icon: "🌡️", message: "Make a paper feelings thermometer: green at the bottom, red at the top. When something goes wrong, point to how big the problem is, then choose a reaction to match.", speech: "Great sizing! Make a paper feelings thermometer, green at the bottom and red at the top. When something goes wrong, point to how big the problem is, then choose a reaction to match." } }),
+  kind: () => runChoice({ ...GAMES.kind, finish: { feel: "proud", icon: "💛", message: "Do a secret kindness today: help lay the table, share a toy, or make a card for someone. Then tell your grown-up how it felt.", speech: "What kind choices! Do a secret kindness today. Help lay the table, share a toy, or make a card for someone. Then tell your grown-up how it felt." } }),
+  detective: () => runChoice({ ...GAMES.detective, finish: { feel: "excited", icon: "🔍", message: "Read a picture book with a grown-up. On each page, be a feelings detective: look at the faces and bodies. How do they feel? What would help?", speech: "Super detective work! Read a picture book with a grown-up. On each page, be a feelings detective. Look at the faces and bodies. How do they feel? What would help?" } }),
+  fix: () => runChoice({ ...GAMES.fix, finish: { feel: "proud", icon: "🤝", message: "Next time there's a disagreement, try the five steps with a grown-up: stop, calm down, say “I feel… when…”, listen, and choose a fair plan together.", speech: "You're a great problem solver! Next time there's a disagreement, try the five steps with a grown-up. Stop, calm down, say I feel, when, listen, and choose a fair plan together." } }),
+
+  // ---------- Calm-down toolbox: guided breathing, counting and squeezing ----------
+  calm() {
+    const my = token;
+    const TOOLS = [
+      { id: "balloon", icon: "🎈", name: "Balloon breaths" },
+      { id: "flower", icon: "🌸", name: "Flower and candle" },
+      { id: "count", icon: "🖐️", name: "Count to 5" },
+      { id: "squeeze", icon: "🍋", name: "Squeeze and let go" },
+    ];
+    stage.innerHTML = `<div class="ff-calm"><div class="ff-tools" role="group" aria-label="Calm-down tools">${TOOLS.map((t) => `<button type="button" class="ff-card ff-tool" data-tool="${t.id}" aria-label="${t.name}"><span aria-hidden="true">${t.icon}</span><b>${t.name}</b></button>`).join("")}</div><div class="ff-area" data-area></div></div>`;
+    const area = $("[data-area]", stage);
+    const host = panel(`<p class="ap-dots" data-dots></p><div class="ap-buttons ff-check" data-check hidden><button type="button" data-feel="calmer">😌 Calmer</button><button type="button" data-feel="same">😐 The same</button><button type="button" data-feel="big">😣 Still big</button></div>`);
+    const tried = new Set();
+    let finished = false;
+    let gen = 0;
+    const dots = () => ($("[data-dots]", host).textContent = TOOLS.map((t) => (tried.has(t.id) ? "⭐" : "☆")).join(""));
+    const check = $("[data-check]", host);
+    dots();
+    const idle = () => (area.innerHTML = `<div class="ff-idle"><span aria-hidden="true">🧰</span><p>Pick a tool</p></div>`);
+    idle();
+    talk(`This is your calm-down toolbox. Pick a tool to try! Practise when you feel calm, so the tools are ready when feelings get big.`, my);
+    // Counts out loud in time, so the child can breathe along.
+    const beat = async (live, n, el) => {
+      for (let k = 1; k <= n; k++) {
+        if (!live()) return false;
+        if (el) el.textContent = k;
+        await wait(1000);
+      }
+      return live();
+    };
+    const RUN = {
+      async balloon(live) {
+        area.innerHTML = `<div class="ff-breath"><div class="ff-balloon" data-b><svg viewBox="0 0 200 270" aria-hidden="true">${BALLOON}</svg></div><div class="ff-breath-side"><b class="ff-phase" data-phase></b><b class="ff-count" data-n></b></div></div>`;
+        const b = $("[data-b]", area);
+        const n = $("[data-n]", area);
+        const phase = $("[data-phase]", area);
+        b.style.transform = "scale(.55)";
+        await talk(`Balloon breaths. Put your hands on your tummy. Breathe in through your nose, and fill your tummy like a balloon. Then let the air out, slowly.`, my);
+        for (let i = 0; i < 3; i++) {
+          if (!live()) return false;
+          phase.textContent = "Breathe in…";
+          say(`Breathe in… <small>(${i + 1} of 3)</small>`);
+          anim(b, [{ transform: "scale(.55)" }, { transform: "scale(1)" }], 4000, { easing: "ease-in-out" });
+          if (!(await beat(live, 4, n))) return false;
+          phase.textContent = "And out…";
+          say(`And slowly out…`);
+          anim(b, [{ transform: "scale(1)" }, { transform: "scale(.55)" }], 5000, { easing: "ease-in-out" });
+          if (!(await beat(live, 5, n))) return false;
+        }
+        n.textContent = "";
+        phase.textContent = "";
+        return live();
+      },
+      async flower(live) {
+        area.innerHTML = `<div class="ff-fc2"><div class="ff-flower" data-fl aria-hidden="true">🌸</div><div class="ff-candle" aria-hidden="true"><span class="ff-flame" data-flame></span><span class="ff-wax"></span></div><b class="ff-count ff-count2" data-n></b></div>`;
+        const fl = $("[data-fl]", area);
+        const flame = $("[data-flame]", area);
+        const n = $("[data-n]", area);
+        await talk(`Smell the flower, blow the candle. Breathe in slowly through your nose, as if you're smelling a flower. Then blow out gently through your mouth, to make the candle flicker.`, my);
+        for (let i = 0; i < 3; i++) {
+          if (!live()) return false;
+          say(`Smell the flower… 🌸 <small>(${i + 1} of 3)</small>`);
+          anim(fl, [{ transform: "scale(1)" }, { transform: "scale(1.25)" }], 4000, { easing: "ease-in-out" });
+          flame.classList.remove("blown");
+          if (!(await beat(live, 4, n))) return false;
+          say(`Blow the candle, gently…`);
+          anim(fl, [{ transform: "scale(1.25)" }, { transform: "scale(1)" }], 900);
+          flame.classList.add("blown");
+          if (!(await beat(live, 5, n))) return false;
+        }
+        flame.classList.remove("blown");
+        n.textContent = "";
+        return live();
+      },
+      async count(live) {
+        area.innerHTML = `<div class="ff-five">${[1, 2, 3, 4, 5].map((k) => `<span class="ff-num" data-k="${k}">${k}</span>`).join("")}</div>`;
+        await talk(`Count to five. Let's count slowly together, and take one slow breath with each number.`, my);
+        for (let k = 1; k <= 5; k++) {
+          if (!live()) return false;
+          const dot = $(`[data-k="${k}"]`, area);
+          dot.classList.add("on");
+          pop(dot);
+          MUSIC.play?.("xylophone", [72, 74, 76, 77, 79][k - 1], { gain: 0.35 });
+          await talk(`<b>${k}</b>…`, my);
+          await wait(1400);
+        }
+        if (!live()) return false;
+        await talk(`Five! Now count back down: five, four, three, two, one.`, my);
+        for (let k = 5; k >= 1; k--) {
+          if (!live()) return false;
+          $(`[data-k="${k}"]`, area).classList.remove("on");
+          await wait(700);
+        }
+        return live();
+      },
+      async squeeze(live) {
+        area.innerHTML = `<div class="ff-sq"><button type="button" class="ff-lemon" data-lemon aria-label="Squeeze the lemon: press and hold"><span aria-hidden="true">🍋</span></button><b class="ff-phase" data-phase>Press and hold</b></div>`;
+        const lemon = $("[data-lemon]", area);
+        const phase = $("[data-phase]", area);
+        await talk(`Squeeze and let go. Pretend there's a lemon in your hand. Press and hold the lemon, and squeeze your hands tight! Then let go, and feel your hands go soft and floppy.`, my);
+        for (let i = 0; i < 3; i++) {
+          if (!live()) return false;
+          phase.textContent = "Press and hold";
+          say(`Press and hold the lemon. Squeeze tight! <small>(${i + 1} of 3)</small>`);
+          // Hold for 3 seconds. A keyboard press squeezes for you.
+          const ok = await new Promise((resolve) => {
+            let timer = 0;
+            let done = false;
+            const finish = (v) => {
+              if (done) return;
+              done = true;
+              clearInterval(poll);
+              clearTimeout(timer);
+              lemon.removeEventListener("pointerdown", down);
+              lemon.removeEventListener("pointerup", up);
+              lemon.removeEventListener("pointercancel", up);
+              lemon.removeEventListener("pointerleave", up);
+              lemon.removeEventListener("click", key);
+              resolve(v);
+            };
+            const poll = setInterval(() => !live() && finish(false), 300);
+            const squeeze = () => {
+              lemon.classList.add("held");
+              phase.textContent = "Squeeze…";
+              VOICE.speak("Squeeze, squeeze, squeeze!");
+              timer = setTimeout(() => finish(true), 3000);
+            };
+            const down = (event) => {
+              if (event.button > 0) return;
+              window.OC?.touch();
+              try {
+                lemon.setPointerCapture(event.pointerId);
+              } catch {}
+              squeeze();
+            };
+            const up = () => {
+              if (done || !lemon.classList.contains("held")) return;
+              clearTimeout(timer);
+              lemon.classList.remove("held");
+              phase.textContent = "Press and hold";
+              say(`Keep squeezing a little longer! Press and hold.`);
+            };
+            const key = (event) => {
+              if (event.detail === 0 && !lemon.classList.contains("held")) squeeze();
+            };
+            lemon.addEventListener("pointerdown", down);
+            lemon.addEventListener("pointerup", up);
+            lemon.addEventListener("pointercancel", up);
+            lemon.addEventListener("pointerleave", up);
+            lemon.addEventListener("click", key);
+          });
+          if (!ok || !live()) return false;
+          lemon.classList.remove("held");
+          phase.textContent = "Let go…";
+          await talk(`And let go… Feel your hands go soft and floppy.`, my);
+          await wait(1500);
+        }
+        return live();
+      },
+    };
+    async function start(tool, button) {
+      const g = ++gen;
+      const live = () => g === gen && my === token;
+      check.hidden = true;
+      for (const b of stage.querySelectorAll("[data-tool]")) b.classList.toggle("on", b === button);
+      pop(button);
+      const ok = await RUN[tool.id](live);
+      if (!ok || !live()) return;
+      if (!tried.has(tool.id)) sparkle(button);
+      tried.add(tool.id);
+      dots();
+      window.OC?.count("calm tools practised");
+      if (tried.size >= 2) mark("calm", { done: true });
+      check.hidden = false;
+      check.dataset.gen = g;
+      await talk(`Well done! How does your body feel now?`, my);
+    }
+    onTap(stage, "[data-tool]", (button) => start(TOOLS.find((t) => t.id === button.dataset.tool), button));
+    onTap(check, "[data-feel]", async (button) => {
+      if (my !== token) return;
+      const g = ++gen;
+      check.hidden = true;
+      pop(button);
+      const feel = button.dataset.feel;
+      await talk(
+        feel === "calmer"
+          ? `Brilliant! Your body is getting calm. You can use this tool any time.`
+          : feel === "same"
+            ? `That's OK. Sometimes it takes a few goes. Try it again, or pick another tool.`
+            : `That's OK. Big feelings can take a while to settle. Try another tool, and remember you can always ask a grown-up for a hug or some help.`,
+        my,
+      );
+      if (g !== gen || my !== token) return;
+      if (tried.size === TOOLS.length && !finished) {
+        finished = true;
+        return finishCard({ id: "calm", feel: "calm", icon: "🧰", message: "Make a calm-down corner with a grown-up: a cushion, a soft toy, and pictures of your calm tools. Practise balloon breaths at bedtime, when you already feel calm.", speech: "You tried every calm-down tool! Make a calm-down corner with a grown-up, with a cushion, a soft toy, and pictures of your calm tools. Practise balloon breaths at bedtime, when you already feel calm." });
+      }
+      for (const b of stage.querySelectorAll("[data-tool]")) b.classList.remove("on");
+      idle();
+      if (tried.size < TOOLS.length) say(`Pick a tool to try.`, { voice: false });
+    });
+  },
+};
+
+const UNITS = [
+  { id: "see", label: "See it", icon: "👀" },
+  { id: "name", label: "1. Name the feeling", icon: "🙂" },
+  { id: "big", label: "2. How big is it?", icon: "🌡️" },
+  { id: "calm", label: "3. Calm-down toolbox", icon: "🎈" },
+  { id: "kind", label: "4. Kind or not kind?", icon: "💛" },
+  { id: "detective", label: "5. Feelings detective", icon: "🔍" },
+  { id: "fix", label: "6. Solve it together", icon: "🤝" },
+];
+shell = SHELL({
+  units: UNITS,
+  unitWord: "Game",
+  how: {
+    see: { icon: "👀", title: "See it", steps: ["Look at the pictures and listen.", "Press Next to go on."] },
+    name: { icon: "🙂", title: "Name the feeling", steps: ["Listen to the feeling, or the story.", "Tap the face that matches.", "New feelings join as you learn them."] },
+    big: { icon: "🌡️", title: "How big is it?", steps: ["Listen to the problem.", "Is it small, medium or big?", "Later: which feeling word is the biggest?"] },
+    calm: { icon: "🎈", title: "Calm-down toolbox", steps: ["Pick a tool.", "Breathe, count or squeeze along.", "Say how your body feels after."] },
+    kind: { icon: "💛", title: "Kind or not kind?", steps: ["Listen to what happens.", "Tap the kind choice.", "Think: how would they feel?"] },
+    detective: { icon: "🔍", title: "Feelings detective", steps: ["Look at the clues: face, body, and what happened.", "Tap how they feel.", "Then choose what would help."] },
+    fix: { icon: "🤝", title: "Solve it together", steps: ["Learn the five steps to sort out a disagreement.", "Tap what comes next.", "Choose kind words and fair plans."] },
+  },
+  start: MUSIC.progress.of(learner() || "Learner")["Feelings & Friends:see"]?.done ? "name" : "see",
+  onStop() {
+    token += 1;
+    VOICE.hush();
+    for (const f of cleanups) {
+      try {
+        f();
+      } catch {}
+    }
+    cleanups = [];
+    const p = $("[data-panel]");
+    if (p) p.onclick = null;
+  },
+  subject: "Life Skills",
+  activity: "Feelings & Friends",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", [72, 74, 76, 77, 79]);
+MUSIC.preload("piano", [64, 67]);
+
+const style = document.createElement("style");
+style.textContent = `
+html{touch-action:manipulation}
+.ap-stage{-webkit-touch-callout:none}
+.ff-face{display:block;overflow:visible}
+
+/* cards: big, instant press feedback, no hover states that stick on touch */
+.ff-card{position:relative;display:grid;place-items:center;min-width:0;min-height:0;padding:8px;border:0;border-radius:24px;background:#fff;box-shadow:0 0 0 3px #e6e4f5,0 6px 0 #d9d6ec;color:var(--ink);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;transition:transform .08s ease,box-shadow .08s ease,opacity .3s ease}
+.ff-card:active{transform:translateY(4px) scale(.97);box-shadow:0 0 0 3px #e6e4f5,0 2px 0 #d9d6ec}
+.ff-card:focus-visible{outline:4px solid #ffcf5c;outline-offset:3px}
+.ff-card svg{pointer-events:none}
+.ff-card.good{box-shadow:0 0 0 5px #22a05a,0 6px 0 #157a40}
+.ff-card.bad{opacity:.45}
+.ff-card.dim{opacity:.3}
+.ff-card.hint{animation:ff-glow 1s ease-in-out infinite}
+
+/* picking games */
+.ff-play{position:absolute;inset:0;display:flex;gap:clamp(8px,1.6vw,16px);padding:clamp(8px,1.6vw,16px)}
+.ff-cards{flex:1 1 auto;min-width:0;min-height:0;display:flex;gap:clamp(8px,1.6vw,16px)}
+.ff-pick{flex:1 1 0;overflow:hidden}
+.ff-art{position:absolute;inset:clamp(4px,1vh,10px);container-type:size;display:grid;place-items:center}
+.ff-prompt{flex:0 0 34%;min-width:0;min-height:0;display:grid;place-items:center;border-radius:24px;background:var(--accent-soft);overflow:hidden;container-type:size}
+.ff-play:not(.side):not(.stack) .ff-prompt{display:none}
+.ff-play.side .ff-cards{flex-direction:column}
+.ff-play.side .ff-cards.n4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr))}
+.ff-play.side.across .ff-cards{flex-direction:row}
+.ff-play.stack{flex-direction:column}
+.ff-play.stack .ff-prompt{flex:0 0 46%}
+.ff-play.stack .ff-cards{flex-direction:row}
+/* a face card, with or without its word */
+.ff-fc{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:0}
+.ff-fc svg{flex:1 1 0;min-height:0;width:100%;height:auto}
+.ff-fc b{flex:none}
+.ff-fc b{font:900 clamp(15px,min(13cqw,14cqh),30px)/1.1 var(--sans);color:#2b1d12}
+/* a text choice with a picture */
+.ff-opt{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;padding:2px}
+.ff-opt span{font-size:clamp(26px,min(30cqh,26cqw),70px);line-height:1.1}
+.ff-opt b{font:800 clamp(13px,min(7.4cqw,10.5cqh),24px)/1.22 var(--sans);color:#2b1d12;text-wrap:balance}
+.ff-word{font:900 clamp(20px,min(13cqw,26cqh),44px)/1.1 var(--sans);color:#2b1d12;text-align:center}
+/* a story card in the prompt */
+.ff-scene,.ff-ladder{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px 14px;text-align:center}
+.ff-scene-pic{font-size:clamp(36px,min(30cqh,34cqw),110px);line-height:1.1}
+.ff-scene p,.ff-ladder p{margin:0;font:800 clamp(15px,min(7.4cqw,9cqh),26px)/1.3 var(--sans);color:#2b1d12;text-wrap:balance}
+.ff-steps-up{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;width:90%}
+.ff-steps-up li{padding:6px 10px;border-radius:14px;background:#fff;font:900 clamp(16px,min(8cqw,10cqh),28px)/1.15 var(--sans);color:#2b1d12;box-shadow:inset calc(var(--h) * 10px) 0 0 rgba(229,57,53,calc(var(--h) * .3))}
+/* thermometers */
+.ff-th{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:0}
+.ff-th svg{flex:1 1 0;min-height:0;width:100%;height:auto}
+.ff-th b{flex:none}
+.ff-th b{font:900 clamp(17px,min(13cqw,13cqh),32px)/1.1 var(--sans)}
+.ff-see-th{width:300px;height:480px;container-type:size}
+/* detective clues */
+.ff-clues{width:100%;height:100%;display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1fr) minmax(0,1.2fr);gap:8px;padding:8px}
+.ff-clue{position:relative;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:8px 10px;border-radius:18px;background:#fff;box-shadow:0 3px 0 #d9d6ec;container-type:size;transition:box-shadow .3s ease}
+.ff-clue small{position:absolute;left:8px;top:6px;font:900 clamp(11px,1.6vh,14px)/1 var(--sans);color:var(--accent-dark);text-transform:uppercase;letter-spacing:.04em}
+.ff-clue svg{width:100%;height:calc(100% - 20px);margin-top:16px}
+.ff-clue p{margin:14px 0 0;font:800 clamp(13px,min(8.5cqw,11cqh),24px)/1.28 var(--sans);color:#2b1d12;text-align:center;text-wrap:balance}
+.ff-clue.solved{box-shadow:0 0 0 4px #22a05a}
+/* solving steps */
+.ff-path{width:100%;height:100%;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;padding:10px;align-items:center}
+.ff-step{height:min(100%,180px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:6px;border-radius:18px;background:rgba(255,255,255,.55);border:3px dashed #c7c3ea;text-align:center;container-type:size}
+.ff-step i{font-style:normal;font:900 clamp(22px,min(36cqh,40cqw),56px)/1 var(--sans);color:#a5a1cf}
+.ff-step b{font:900 clamp(11px,min(12cqw,13cqh),20px)/1.1 var(--sans);color:#2b1d12}
+.ff-step.on{background:#fff;border:3px solid var(--accent)}
+.ff-step.on i{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;font-weight:400}
+.ff-step.q{background:#fff;border:3px dashed var(--accent);animation:ff-q 1.4s ease-in-out infinite}
+.ff-step.q i{color:var(--accent)}
+/* race track */
+.ff-row{flex-wrap:nowrap;width:min(100%,620px)}
+.ff-race{position:relative;flex:1 1 220px;min-width:140px;height:44px;border-radius:22px;background:#e9f5e1;box-shadow:inset 0 0 0 3px #b6dca0}
+.ff-race::before{content:"";position:absolute;left:14px;right:44px;top:50%;height:3px;margin-top:-1px;background:repeating-linear-gradient(90deg,#9ccc85 0 8px,transparent 8px 16px)}
+.ff-race-goal{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:24px;line-height:1}
+.ff-racer{position:absolute;left:6px;top:50%;margin-top:-17px;font-size:30px;line-height:34px;transition:left .9s cubic-bezier(.3,.8,.3,1)}
+@media (max-width:480px){.ff-wide{display:none}.ff-row{gap:6px}.ff-row .ap-btn{min-width:52px;padding:0 12px}}
+/* Calm-down toolbox */
+.ff-calm{position:absolute;inset:0;display:grid;grid-template-columns:minmax(150px,.32fr) minmax(0,1fr);gap:clamp(8px,1.6vw,16px);padding:clamp(8px,1.6vw,16px)}
+.ff-tools{display:grid;grid-template-rows:repeat(4,minmax(0,1fr));gap:clamp(6px,1.2vh,12px);min-height:0}
+.ff-tool{grid-template-columns:auto 1fr;gap:10px;justify-items:start;padding:6px 14px;text-align:left}
+.ff-tool span{font-size:clamp(28px,6vh,48px);line-height:1}
+.ff-tool b{font:900 clamp(14px,2.4vh,20px)/1.15 var(--sans)}
+.ff-tool.on{box-shadow:0 0 0 5px var(--accent),0 6px 0 var(--accent-dark)}
+.ff-area{position:relative;min-height:0;border-radius:24px;background:radial-gradient(circle at 50% 45%,#fff,var(--accent-soft));overflow:hidden;display:grid;place-items:center}
+.ff-idle{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--accent-dark)}
+.ff-idle span{font-size:clamp(60px,16vh,120px);line-height:1}
+.ff-idle p{margin:0;font:900 clamp(18px,3vh,26px) var(--sans)}
+.ff-breath{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:4%;padding:12px}
+.ff-balloon{height:92%;aspect-ratio:200/270;transform-origin:50% 75%;will-change:transform}
+.ff-balloon svg{width:100%;height:100%}
+.ff-breath-side{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:6em}
+.ff-phase{font:900 clamp(20px,3.6vh,34px)/1.1 var(--sans);color:var(--accent-dark);text-align:center}
+.ff-count{font:900 clamp(48px,12vh,110px)/1 var(--sans);color:var(--accent);min-height:1em}
+.ff-fc2{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:10%}
+.ff-flower{font-size:clamp(70px,22vh,180px);line-height:1;will-change:transform}
+.ff-candle{position:relative;display:flex;flex-direction:column;align-items:center}
+.ff-wax{width:clamp(36px,7vh,60px);height:clamp(90px,24vh,190px);border-radius:10px 10px 6px 6px;background:linear-gradient(90deg,#fff3e0,#ffe0b2);box-shadow:inset -6px 0 0 #ffcc80}
+.ff-flame{width:clamp(22px,4.4vh,38px);height:clamp(38px,8vh,66px);margin-bottom:4px;border-radius:50% 50% 50% 50%/62% 62% 38% 38%;background:radial-gradient(circle at 50% 70%,#fff59d,#ffb300 55%,#ff7043);transform-origin:50% 100%;animation:ff-flicker 1.2s ease-in-out infinite alternate;transition:transform 1.2s ease}
+.ff-flame.blown{animation:ff-blow .5s ease-in-out infinite alternate}
+.ff-count2{position:absolute;right:5%;bottom:5%;font-size:clamp(34px,8vh,70px)}
+.ff-five{display:flex;gap:clamp(6px,2vw,22px);flex-wrap:wrap;justify-content:center;padding:10px}
+.ff-num{display:grid;place-items:center;width:clamp(54px,min(15vw,16vh),120px);aspect-ratio:1;border-radius:50%;background:#fff;box-shadow:0 0 0 4px #d9d6ec;font:900 clamp(26px,min(8vw,8vh),60px)/1 var(--sans);color:#a5a1cf;transition:background .4s ease,color .4s ease,box-shadow .4s ease}
+.ff-num.on{background:var(--accent);color:#fff;box-shadow:0 0 0 6px var(--accent-soft),0 0 24px var(--accent)}
+.ff-sq{display:flex;flex-direction:column;align-items:center;gap:10px}
+.ff-lemon{display:grid;place-items:center;width:clamp(140px,min(36vh,40vw),260px);aspect-ratio:1;border:0;border-radius:50%;background:#fffde7;box-shadow:0 0 0 6px #fff59d,0 8px 0 #f9e27a;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+.ff-lemon span{font-size:clamp(80px,min(22vh,24vw),170px);line-height:1;transition:transform .5s ease}
+.ff-lemon.held span{transform:scale(1.12,.72)}
+.ff-lemon.held{box-shadow:0 0 0 10px #ffd54f,0 4px 0 #f9e27a}
+.ff-lemon:focus-visible{outline:4px solid #ffcf5c;outline-offset:4px}
+.ff-check[hidden]{display:none}
+@media (max-aspect-ratio:1/1){
+  .ff-play,.ff-cards{flex-direction:column}
+  .ff-prompt{flex-basis:34%}
+  .ff-play.stack .ff-prompt{flex-basis:46%}
+  .ff-play.stack .ff-cards,.ff-play.side.across .ff-cards{flex-direction:row}
+  .ff-play.stack .ff-cards.n4,.ff-play.side .ff-cards.n4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr))}
+  .ff-calm{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+  .ff-tools{grid-template-rows:none;grid-template-columns:repeat(4,minmax(0,1fr))}
+  .ff-tool{grid-template-columns:none;justify-items:center;padding:6px 4px;text-align:center;min-height:76px}
+  .ff-tool b{font-size:12px}
+  .ff-clues{grid-template-columns:minmax(0,.7fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr)}
+  .ff-clue[data-clue="0"]{grid-row:span 2}
+  .ff-path{gap:4px;padding:6px}
+  .ff-step{border-width:2px}
+}
+/* end card */
+.ff-done{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:clamp(12px,3vw,32px);padding:16px;background:radial-gradient(circle at 30% 40%,#fff,var(--accent-soft))}
+.ff-done-pic{position:relative;height:min(70%,320px);aspect-ratio:1}
+.ff-done-pic svg{width:100%;height:100%}
+.ff-done-badge{position:absolute;right:-4%;bottom:2%;display:grid;place-items:center;width:30%;aspect-ratio:1;border-radius:50%;background:#fff;box-shadow:0 4px 0 #d9d6ec;font-size:clamp(26px,5vw,44px)}
+.ff-done-text{max-width:30em}
+.ff-done-text h2{margin:0 0 8px;color:var(--accent-dark);font:900 clamp(20px,3vw,30px)/1.15 var(--sans)}
+.ff-done-text p{margin:0;color:#2b1d12;font:700 clamp(17px,2.4vw,24px)/1.35 var(--sans)}
+@media (max-aspect-ratio:1/1){.ff-done{flex-direction:column;text-align:center}.ff-done-pic{height:40%}}
+@keyframes ff-glow{0%,100%{box-shadow:0 0 0 3px #e6e4f5,0 6px 0 #d9d6ec}50%{box-shadow:0 0 0 8px #ffcf5c,0 6px 0 #d9d6ec}}
+@keyframes ff-q{0%,100%{transform:none}50%{transform:scale(1.05)}}
+@keyframes ff-flicker{from{transform:rotate(-3deg) scaleY(1)}to{transform:rotate(3deg) scaleY(1.08)}}
+@keyframes ff-blow{from{transform:rotate(-28deg) scale(.7,.55)}to{transform:rotate(-18deg) scale(.6,.45)}}
+@media (prefers-reduced-motion:reduce){.ff-card.hint,.ff-step.q,.ff-flame{animation:none}.ff-flame.blown{animation:none;transform:rotate(-24deg) scale(.65,.5)}.ff-racer{transition:none}}
+`;
+document.head.appendChild(style);
+</script>
+</body>
+</html>
