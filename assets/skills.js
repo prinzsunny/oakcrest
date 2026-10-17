@@ -125,8 +125,8 @@
   function check(id, status, { name = learner(), src = "check", note } = {}) {
     const all = readAll();
     const mine = (all[name] ||= {});
-    if (status) mine[id] = { s: status, src, at: Date.now(), ...(note ? { note } : {}) };
-    else delete mine[id];
+    // Clearing keeps an empty, dated entry, so family-account sync does not bring the old check back.
+    mine[id] = { s: status || "", src, at: Date.now(), ...(note ? { note } : {}) };
     try {
       localStorage.setItem(KEY, JSON.stringify(all));
     } catch {}
@@ -177,7 +177,7 @@
     const map = new Map();
     for (const t of topics.values()) {
       const c = mine[t.id];
-      if (c) map.set(t.id, c.s);
+      if (c?.s) map.set(t.id, c.s);
       else if (work.has(t.id)) map.set(t.id, work.get(t.id));
       else if (t.ageEnd < age) map.set(t.id, "assumed");
       else map.set(t.id, "new");
@@ -262,5 +262,31 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => mountSummaries());
   else setTimeout(() => mountSummaries());
 
-  window.SKILLS = { us, mountSummaries, load, loadIndex, topics, pre, post, SUBJECTS, learner, ageOf, checks, check, statusMap, known, isReady, next, practice, prompt, summaries, onChange: (fn) => listeners.add(fn) };
+  // Goals: skills a grown-up picks to work toward. Saved with the checks as "goal:<id>".
+  const goals = (name = learner()) =>
+    Object.entries(checks(name))
+      .filter(([k, v]) => k.startsWith("goal:") && v.s === "goal" && topics.has(k.slice(5)))
+      .sort((a, b) => b[1].at - a[1].at)
+      .map(([k]) => k.slice(5));
+  const setGoal = (id, on, name = learner()) => check(`goal:${id}`, on ? "goal" : null, { name });
+  // The steps to a skill: every skill that must come before it (hard prerequisites) and is not known yet, in an order that can be learned
+  // (each step comes after the steps it needs).
+  function pathTo(id, status = statusMap()) {
+    const need = new Set();
+    const stack = [id];
+    while (stack.length)
+      for (const p of pre.get(stack.pop()) || [])
+        if (p.hard && topics.has(p.id) && !need.has(p.id) && !known(status.get(p.id))) (need.add(p.id), stack.push(p.id));
+    const depth = new Map();
+    const d = (x) => {
+      if (depth.has(x)) return depth.get(x);
+      depth.set(x, 0);
+      const v = 1 + Math.max(-1, ...(pre.get(x) || []).filter((p) => need.has(p.id)).map((p) => d(p.id)));
+      depth.set(x, v);
+      return v;
+    };
+    return [...need].sort((a, b) => d(a) - d(b) || topics.get(a).ageStart - topics.get(b).ageStart);
+  }
+
+  window.SKILLS = { us, mountSummaries, goals, setGoal, pathTo, load, loadIndex, topics, pre, post, SUBJECTS, learner, ageOf, checks, check, statusMap, known, isReady, next, practice, prompt, summaries, onChange: (fn) => listeners.add(fn) };
 })();
