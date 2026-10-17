@@ -7,6 +7,49 @@
   const KEY = "oc-skills";
   const here = document.currentScript.src;
   const base = new URL("marble/", here);
+  // ---------- American English ----------
+  // Marble was written for the US and the UK. OakCrest is a US school, so its text is shown in American English
+  // (spelling, dollars and cents, school grades), England-only topics are left out, and only US standards are shown.
+  // American English for Marble's text (it was written for the US and the UK).
+  const US_WORDS = {
+    maths: "math", mum: "mom", mums: "moms", sweets: "candy", biscuit: "cookie", biscuits: "cookies", torch: "flashlight", torches: "flashlights",
+    grey: "gray", programme: "program", programmes: "programs", aluminium: "aluminum", defence: "defense", defences: "defenses", licence: "license", catalogue: "catalog",
+    practise: "practice", practised: "practiced", practises: "practices", practising: "practicing", anticlockwise: "counterclockwise", lorry: "truck", lorries: "trucks",
+    petrol: "gas", nappy: "diaper", nappies: "diapers", rubbish: "trash", pence: "cents", penny: "cent", pennies: "cents", "pocket money": "allowance", "full stop": "period", "full stops": "periods",
+    "inverted commas": "quotation marks", "car park": "parking lot", "pounds and pence": "dollars and cents", "pound coin": "dollar coin", "football pitch": "soccer field", tyre: "tire", tyres: "tires",
+    plough: "plow", ploughed: "plowed", jewellery: "jewelry", cheque: "check", mould: "mold", moulds: "molds", sceptical: "skeptical", "towards": "toward",
+  };
+  // -ise / -isation verbs that become -ize in American English (words like "precise" or "exercise" are not touched).
+  const IZE = "recogn|organ|summar|general|special|civil|fertil|factor|capital|emphas|synthes|memor|categor|priorit|real|apolog|critic|visual|personal|standard|minim|maxim|symbol|harmon|sympath|util|fossil|colon|modern|industrial|normal|character|public|mobil|final|optim|theor|energ|sanit|ideal|alphabet|item|random|digit|magnet|steril|vapor|vapour|crystall|stabil|neutral|central|legal|total|social|vocal|verbal|agon|human|emphasis|hypothes|global|urban|familiar|polar|national|commercial|natural|external|internal|motor|scrutin|patron|terror|summar|author|custom|equal|individual|tantal|jeopard|merchand|categor|catalog|computer|economi|immun|ostrac|politic|western|vandal|mechan|plagiar|famil|item|stigmat|tranquil|rational|material|initial|serial|special";
+  const IZE_RE = new RegExp(`\\b(${IZE})is(e|ed|es|ing|ation|ations|er|ers)\\b`, "gi");
+  const LYSE_RE = /\b(ana|para|cata|dia)lys(e|ed|es|ing)\b/gi;
+  const OUR = "colo|behavio|favo|neighbo|hono|labo|harbo|humo|flavo|rumo|odo|armo|savo|endeavo|parlo|vigo|rigo|valo|cando|clamo|splendo|tumo|vapo|ardo|fervo|glamo";
+  const OUR_RE = new RegExp(`\\b(${OUR})ur(s|ed|ing|ite|ites|able|ful|fully|less|ly|ism|ist|ists|hood|hoods)?\\b`, "gi");
+  const TRE_RE = /\b(cen|me|li|thea|fib|calib|lus|somb|kilome|centime|millime|millili|amphithea)tre(s|d)?\b/gi;
+  const LL_RE = /\b(travel|label|model|cancel|counsel|fuel|signal|total|level|marvel|jewel|dial|equal|tunnel|channel|quarrel|shovel|pedal|snorkel|yodel)l(ed|ing|er|ers)\b/gi;
+  const keepCase = (from, to) => (from[0] === from[0].toUpperCase() ? to[0].toUpperCase() + to.slice(1) : to);
+  function us(text) {
+    if (!text || typeof text !== "string") return text;
+    let t = text
+      .replace(/£\s?(\d+(?:\.\d+)?)/g, "$$$1")
+      .replace(/\b(\d+)p\b/g, "$1¢")
+      // A UK school year is one ahead of the US grade: Year 1 is kindergarten, Year 3 is 2nd grade.
+      .replace(/\bYear ([1-6])(?:(\s*(?:and|-|–|to)\s*)([1-6]))?\b/g, (m, a, sep, b) => {
+        const g = (n) => (Number(n) === 1 ? "kindergarten" : `${Number(n) - 1}`);
+        return b ? `grade ${g(a)}${sep}${g(b)}` : Number(a) === 1 ? "kindergarten" : `grade ${g(a)}`;
+      })
+      .replace(IZE_RE, (m, stem, end) => keepCase(m, stem.toLowerCase() + "iz" + end.toLowerCase()))
+      .replace(LYSE_RE, (m, pre, end) => keepCase(m, pre.toLowerCase() + "lyz" + end.toLowerCase()))
+      .replace(OUR_RE, (m, stem, end = "") => keepCase(m, stem.toLowerCase() + "r" + end.toLowerCase()))
+      .replace(TRE_RE, (m, stem, end = "") => keepCase(m, stem.toLowerCase() + "ter" + end.toLowerCase()))
+      .replace(LL_RE, (m, stem, end) => keepCase(m, stem.toLowerCase() + end.toLowerCase()));
+    for (const [uk, am] of Object.entries(US_WORDS)) t = t.replace(new RegExp(`\\b${uk}\\b`, "gi"), (m) => keepCase(m, am));
+    return t;
+  }
+
+  const UK_ONLY = /\bBritain\b|Anglo-Saxon/;
+  const usStandard = (code) => !/^uk-nc/.test(code);
+
   const topics = new Map();
   const pre = new Map();
   const post = new Map();
@@ -15,9 +58,12 @@
 
   window.MARBLE = {
     add(data) {
-      for (const [id, domain, name, type, ageStart, ageEnd, description, evidence, prompt, standards, centrality] of data.topics)
-        topics.set(id, { id, subject: data.subject, domain, name, type, ageStart, ageEnd, description, evidence, prompt, standards, centrality });
-      for (const [topic, need, hard, reason] of data.deps) {
+      for (const [id, domain, name, type, ageStart, ageEnd, description, evidence, prompt, standards, centrality] of data.topics) {
+        if (UK_ONLY.test(name)) continue;
+        topics.set(id, { id, subject: data.subject, domain, name: us(name), type, ageStart, ageEnd, description: us(description), evidence: evidence.map(us), prompt: us(prompt), standards: standards.filter(usStandard), centrality });
+      }
+      for (const [topic, need, hard, reason0] of data.deps) {
+        const reason = us(reason0);
         (pre.get(topic) || pre.set(topic, []).get(topic)).push({ id: need, hard: !!hard, reason });
         (post.get(need) || post.set(need, []).get(need)).push({ id: topic, hard: !!hard, reason });
       }
@@ -36,7 +82,12 @@
   const SUBJECTS = Object.keys(SLUGS);
   async function loadIndex() {
     if (!window.MARBLE_INDEX) await (loading.get("index") || loading.set("index", script(new URL("index.js", base))).get("index"));
-    return window.MARBLE_INDEX;
+    const index = window.MARBLE_INDEX;
+    if (!index.us) {
+      index.clusters = index.clusters.map(([s, d, a, summary]) => [s, d, a, us(summary)]);
+      index.us = true;
+    }
+    return index;
   }
   // Load the skills of some subjects (all by default). Safe to call many times.
   async function load(subjects = SUBJECTS) {
@@ -211,5 +262,5 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => mountSummaries());
   else setTimeout(() => mountSummaries());
 
-  window.SKILLS = { mountSummaries, load, loadIndex, topics, pre, post, SUBJECTS, learner, ageOf, checks, check, statusMap, known, isReady, next, practice, prompt, summaries, onChange: (fn) => listeners.add(fn) };
+  window.SKILLS = { us, mountSummaries, load, loadIndex, topics, pre, post, SUBJECTS, learner, ageOf, checks, check, statusMap, known, isReady, next, practice, prompt, summaries, onChange: (fn) => listeners.add(fn) };
 })();
