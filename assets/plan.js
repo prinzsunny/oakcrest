@@ -7,7 +7,7 @@
       days: [
         [["math/soroban/", "Soroban: play the next 2 levels", 10], ["math/place/", "Place Value: See it, then build numbers", 15], ["tech/code/", "Code the Robot: See it, then First steps", 15], ["music/theory/", "Music Theory: treble clef notes", 10]],
         [["math/soroban/", "Soroban: next level", 10], ["math/place/", "Place Value: expanded form and rounding", 15], ["tech/code/", "Code the Robot: Sequences", 15], ["music/rhythm/", "Rhythm Studio: See it, keep the beat", 10]],
-        [["math/addsub/", "Add & Subtract: See it, then column adding", 15], ["arts/colours/", "Colour Mixing: See it, mix paints", 15], ["music/orchestra/", "Orchestra & Sound: See it, meet the families", 15]],
+        [["math/addsub/", "Add & Subtract: See it, then column adding", 15], ["arts/colours/", "Color Mixing: See it, mix paints", 15], ["music/orchestra/", "Orchestra & Sound: See it, meet the families", 15]],
         [["math/patterns/", "Patterns & Puzzles: See it, finish the pattern", 15], ["arts/artists/", "Famous Artists: See it, then Mondrian", 20], ["music/ear/", "Ear Training: higher or lower", 10]],
       ],
     },
@@ -42,12 +42,12 @@
 
   const LITTLE = [
     {
-      theme: "Counting and colours",
+      theme: "Counting and colors",
       days: [
-        [["math/numbers/", "Number Fun: See it, count to 20", 10], ["music/little/", "Little Musicians: See it, colours", 10], ["tech/code/", "Code the Robot: First steps, with a grown-up", 10]],
-        [["math/place/", "Place Value: See it, ones and tens", 10], ["music/little/", "Little Musicians: loud or soft", 10], ["arts/colours/", "Colour Mixing: mix paints", 10]],
+        [["math/numbers/", "Number Fun: See it, count to 20", 10], ["music/little/", "Little Musicians: See it, colors", 10], ["tech/code/", "Code the Robot: First steps, with a grown-up", 10]],
+        [["math/place/", "Place Value: See it, ones and tens", 10], ["music/little/", "Little Musicians: loud or soft", 10], ["arts/colours/", "Color Mixing: mix paints", 10]],
         [["math/shapes/", "Shapes & Angles: See it, shape hunt", 10], ["music/rhythm/", "Rhythm Studio: See it, keep the beat", 10], ["arts/drawing/", "Drawing Lab: trace the lines", 10]],
-        [["math/patterns/", "Patterns & Puzzles: colour patterns", 10], ["music/orchestra/", "Orchestra & Sound: See it", 10], ["arts/artists/", "Famous Artists: dot painting", 10]],
+        [["math/patterns/", "Patterns & Puzzles: color patterns", 10], ["music/orchestra/", "Orchestra & Sound: See it", 10], ["arts/artists/", "Famous Artists: dot painting", 10]],
       ],
     },
     {
@@ -63,7 +63,7 @@
       theme: "Clocks and beats",
       days: [
         [["math/timemoney/", "Clocks & Coins: See it, o'clock", 10], ["music/little/", "Little Musicians: copy me", 10], ["tech/code/", "Code the Robot: First steps", 10]],
-        [["math/numbers/", "Number Fun: frog jumps", 10], ["music/little/", "Little Musicians: clap the beat", 10], ["arts/colours/", "Colour Mixing: colour wheel", 10]],
+        [["math/numbers/", "Number Fun: frog jumps", 10], ["music/little/", "Little Musicians: clap the beat", 10], ["arts/colours/", "Color Mixing: color wheel", 10]],
         [["math/patterns/", "Patterns & Puzzles: odd or even socks", 10], ["music/rhythm/", "Rhythm Studio: make a beat", 10], ["arts/drawing/", "Drawing Lab: draw with shapes", 10]],
         [["math/timemoney/", "Clocks & Coins: count the coins", 10], ["music/orchestra/", "Orchestra & Sound: meet the families", 10], ["arts/artists/", "Famous Artists: Mondrian", 10]],
       ],

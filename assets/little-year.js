@@ -11,7 +11,7 @@
   const LANES = [
     ["sound", "Letter sounds", "🔤", 10, 0, "Reading & Writing"],
     ["number", "Numbers", "🔢", 10, 0, "Math"],
-    ["shapes", "Shapes, colours and patterns", "🔺", 10, 2, "Math"],
+    ["shapes", "Shapes, colors and patterns", "🔺", 10, 2, "Math"],
     ["readAloud", "Picture books", "📖", 20, 0, "Reading & Writing"],
     ["rhyme", "Rhyme of the week", "🎵", 5, 0, "Reading & Writing"],
     ["story", "Bible story", "🙏", 10, 2, "Life Skills"],
@@ -24,7 +24,7 @@
   ];
   // How often each subject's site practice comes up in a week (10 minutes, with a grown-up).
   const SITE_TIMES = { sound: 3, number: 2 };
-  const NAMES = { "reading/little/": "Little Letters", "math/numbers/": "Number Fun", "math/addsub/": "Add & Subtract", "math/patterns/": "Patterns & Puzzles", "math/measure/": "Measure & Graphs", "math/shapes/": "Shapes & Angles", "math/timemoney/": "Clocks & Coins", "arts/colours/": "Colour Mixing", "arts/symmetry/": "Symmetry Studio", "arts/drawing/": "Drawing Lab", "music/little/": "Little Musicians", "music/rhythm/": "Rhythm Studio", "music/orchestra/": "Orchestra & Sound", "character/bible/": "Bible Stories" };
+  const NAMES = { "reading/little/": "Little Letters", "math/numbers/": "Number Fun", "math/addsub/": "Add & Subtract", "math/patterns/": "Patterns & Puzzles", "math/measure/": "Measure & Graphs", "math/shapes/": "Shapes & Angles", "math/timemoney/": "Clocks & Coins", "arts/colours/": "Color Mixing", "arts/symmetry/": "Symmetry Studio", "arts/drawing/": "Drawing Lab", "music/little/": "Little Musicians", "music/rhythm/": "Rhythm Studio", "music/orchestra/": "Orchestra & Sound", "character/bible/": "Bible Stories" };
   const BUILT = new Set(window.OCAPPS || []);
   const built = (path) => !BUILT.size || BUILT.has(path.replace(/\/$/, ""));
 

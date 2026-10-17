@@ -22,7 +22,7 @@
     ["balance", "A balance scale", "A beam on a pivot shows which side is heavier, like an equation.", "⚖️"],
     ["submarine", "A submarine", "Tanks fill with water to sink and with air to rise: density in action.", "🚢"],
     ["piano", "A piano", "A key lifts a felt hammer that strikes a string and then falls away.", "🎹"],
-    ["compass", "A compass", "A magnetised needle turns to line up with the Earth's magnetic field.", "🧭"],
+    ["compass", "A compass", "A magnetized needle turns to line up with the Earth's magnetic field.", "🧭"],
     ["archimedes-screw", "An Archimedes screw", "Turning a spiral inside a tube carries water uphill.", "🌀"],
     ["lock-key", "A lock and key", "Pins of different heights line up only for the right key.", "🗝️"],
     ["windmill", "A windmill", "Wind turns the sails, and gears turn a millstone or a generator.", "🌬️"],
