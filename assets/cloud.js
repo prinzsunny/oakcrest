@@ -4,7 +4,7 @@
 // With no Firebase config (window.OC_FIREBASE unset) everything stays on this device.
 (() => {
   const SDK = "https://www.gstatic.com/firebasejs/10.12.2/";
-  const SYNCED = ["oc-learners", "oc-profiles", "oc-music", "oc-log", "oc-plan-done", "oc-plan-start", "oc-plan-track", "oc-year", "oc-soroban-adv", "oc-log-removed"];
+  const SYNCED = ["oc-learners", "oc-profiles", "oc-music", "oc-log", "oc-plan-done", "oc-plan-start", "oc-plan-track", "oc-year", "oc-soroban-adv", "oc-log-removed", "oc-skills"];
   const META = "oc-sync-meta"; // { key: last local change time }
   const raw = Storage.prototype.setItem;
   const readJson = (key, fallback) => {
@@ -35,7 +35,7 @@
       const removed = new Set([...(readJson("oc-log-removed", []) || [])]);
       return [...byId.values()].filter((entry) => !removed.has(entry.id)).sort((a, b) => (a.date + a.time < b.date + b.time ? -1 : 1));
     }
-    if (key === "oc-music" || key === "oc-plan-done" || key === "oc-year" || key === "oc-profiles") {
+    if (key === "oc-music" || key === "oc-plan-done" || key === "oc-year" || key === "oc-profiles" || key === "oc-skills") {
       const out = { ...remote };
       for (const [who, mine] of Object.entries(local)) {
         if (typeof mine !== "object" || mine === null || Array.isArray(mine)) {

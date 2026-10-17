@@ -11,7 +11,7 @@
 <script src="../assets/oc.js"></script>
 <script src="../assets/firebase-config.js"></script>
 <script src="../assets/cloud.js"></script>
-<script src="../assets/plan.js"></script><script src="../assets/year-data.js"></script><script src="../assets/how-data.js"></script><script src="../assets/how-built.js"></script><script src="../assets/courses.js"></script><script src="../assets/memory-data.js"></script><script src="../assets/year.js"></script><script src="../assets/little-year-data.js"></script><script src="../assets/little-year.js"></script></head>
+<script src="../assets/plan.js"></script><script src="../assets/year-data.js"></script><script src="../assets/how-data.js"></script><script src="../assets/how-built.js"></script><script src="../assets/courses.js"></script><script src="../assets/memory-data.js"></script><script src="../assets/year.js"></script><script src="../assets/little-year-data.js"></script><script src="../assets/little-year.js"></script><script src="../assets/skill-tags.js"></script><script src="../assets/skills.js"></script></head>
 <body>
 <div class="oc-wrap pl">
   <header class="oc-top"><a class="oc-brand" href="../"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 3 42 9v13c0 11.5-7.6 19.6-18 23C13.6 41.6 6 33.5 6 22V9Z" fill="#7a4520"/><path d="M24 6.4 39 11.4V22c0 9.7-6.3 16.6-15 19.7C15.3 38.6 9 31.7 9 22V11.4Z" fill="#fffcf6"/><path d="M24 14.5c-4.6 0-7.6 2.4-7.9 5.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z" fill="#7a4520"/><path d="M17 21.3h14c-.2 6.3-3.1 10.7-7 12.6-3.9-1.9-6.8-6.3-7-12.6Z" fill="#c98c58"/><path d="M24 14.5v-3.2" stroke="#7a4520" stroke-width="2" stroke-linecap="round"/><path d="M19.4 17.3c1.5-1 3-1.4 4.6-1.4M28.6 17.3c-1.5-1-3-1.4-4.6-1.4" stroke="#c98c58" stroke-width="1.2" stroke-linecap="round" fill="none"/></svg><span><b>OakCrest Academy</b><small>Learning at home</small></span></a><span data-chip data-home="../"></span></header>
@@ -137,6 +137,7 @@ function renderYear() {
         <textarea class="oc-input yr-note" data-note rows="2" placeholder="Notes for this week: what went well, what to revisit…">${esc(check.note || "")}</textarea>
         ${check.status === "notyet" ? `<p class="oc-note">Not yet is fine. The family plan says: slow down before moving on. Repeat the hardest part next week, or use the review week.</p>` : ""}
       </div>
+      <div class="yr-skills" data-skillcheck></div>
       <p class="pl-meter"><span class="oc-meter"><span style="width:${total ? Math.round((done / total) * 100) : 0}%"></span></span>${done} of ${total} lessons ticked this week</p>
     </div>`;
 
@@ -186,6 +187,7 @@ function renderYear() {
   })()}${E.QUESTIONS ? `<tr><th>💭 Big question</th><td>${esc(E.QUESTIONS[w % E.QUESTIONS.length])}</td></tr>` : ""}</tbody></table>`;
 
   $("[data-report]").innerHTML = renderReport(w);
+  fillSkillChecks(w);
 
   // The whole year map.
   $("[data-map]").innerHTML = E.DATA.weeks
@@ -286,9 +288,68 @@ function renderReport(w) {
     }
     <h3>Time on OakCrest</h3>${site.size ? `<p>${[...site].map(([k, m]) => `${esc(k)}: ${Math.round(m)} min`).join(" · ")}</p>` : `<p class="oc-note">No app time logged this week on this device.</p>`}
     <h3>Your check</h3><p>${esc(week.check)}<br><b>${status}</b>${check.note ? ` · ${esc(check.note)}` : ""}</p>
+    <div data-report-skills></div>
     ${memory ? `<h3>${E.kind === "little" ? "Rhyme to learn" : "Memory work"}</h3><p>${esc(memory.title)} (${esc(memory.author)})${w === memory.to ? ": recite it in full this week." : ""}</p>` : ""}
     ${next ? `<h3>Next week</h3><p><b>${esc(next.theme)}.</b> ${esc(next.check || "")}</p>` : ""}`;
 }
+
+// ───────────── Skill checks: the week's skills from the Marble skill map ─────────────
+// A week's skills are the ones tagged on the week itself and on its course lessons (assets/skill-tags.js).
+function weekSkills(w) {
+  const kind = E.kind === "little" ? "little" : "year";
+  const tags = window.SKILL_TAGS || {};
+  const ids = [...(tags.weeks?.[kind]?.[w] || [])];
+  if (kind === "year") for (const l of E.lessonsOf(w)) ids.push(...(tags.courses?.[l.id]?.[l.n - 1] || []));
+  return [...new Set(ids)];
+}
+const SKILL_LABEL = { yes: "✅ Got it", almost: "🟡 Almost", notyet: "⏳ Not yet", learning: "practising", assumed: "probably known", new: "not checked yet" };
+async function fillSkillChecks(w) {
+  const box = $("[data-skillcheck]");
+  const rep = $("[data-report-skills]");
+  const ids = weekSkills(w);
+  if (!box) return;
+  if (!ids.length || ["break", "summer"].includes(E.DATA.weeks[w].type)) {
+    box.innerHTML = "";
+    if (rep) rep.innerHTML = "";
+    return;
+  }
+  if (!SKILLS.topics.size) box.innerHTML = `<p class="oc-note">Loading this week's skill checks…</p>`;
+  await SKILLS.load();
+  if (shownWeek !== w) return;
+  const who = learner();
+  const name = who === "Learner" ? "your child" : who;
+  const status = SKILLS.statusMap(who);
+  // Up to four: skills not yet known come first.
+  const list = ids
+    .map((id) => SKILLS.topics.get(id))
+    .filter(Boolean)
+    .sort((a, b) => SKILLS.known(status.get(a.id)) - SKILLS.known(status.get(b.id)))
+    .slice(0, 4);
+  box.innerHTML = list.length
+    ? `<h3>🧭 Skill checks this week</h3><p class="oc-note">Watch ${esc(name)} at work, then answer each question. Your answers fill in the <a href="../skills/">skill map</a>.</p>${list
+        .map((t) => {
+          const s = SKILLS.checks(who)[t.id]?.s;
+          return `<div class="yr-skill"><p class="yr-skill-name"><b>${esc(t.name)}</b> <small>${esc(t.subject)} · ${esc(t.domain)}</small></p><p>${esc(SKILLS.prompt(t, who))}</p>${t.evidence?.length ? `<details><summary>What to look for</summary><ul>${t.evidence.map((e) => `<li>${esc(e)}</li>`).join("")}</ul></details>` : ""}<div class="yr-check-row" role="group" aria-label="${esc(t.name)}">${[["yes", "✅ Got it"], ["almost", "🟡 Almost"], ["notyet", "⏳ Not yet"]].map(([k, l]) => `<button type="button" data-skill="${t.id}" data-s="${k}" aria-pressed="${s === k}">${l}</button>`).join("")}</div></div>`;
+        })
+        .join("")}`
+    : "";
+  if (!rep) return;
+  const domains = new Set(list.map((t) => t.domain));
+  const summaries = (await SKILLS.summaries([...new Set(list.map((t) => t.subject))], who)).filter((c) => domains.has(c.domain));
+  if (shownWeek !== w) return;
+  rep.innerHTML = list.length
+    ? `<h3>Skill checks</h3><ul class="yr-courses">${list.map((t) => `<li>${esc(t.name)} <small>${esc(t.subject)}</small>: <b>${SKILL_LABEL[status.get(t.id)] || ""}</b></li>`).join("")}</ul>${
+        summaries.length ? `<h3>What ${esc(name)} is learning</h3>${summaries.map((c) => `<p><b>${esc(c.domain)}.</b> ${esc(c.summary.replace(/^Your child/, name === "your child" ? "Your child" : name))}</p>`).join("")}` : ""
+      }<p class="oc-note">Skills and summaries: Marble Skill Taxonomy (ODbL 1.0, CC BY-SA 4.0). <a href="../credits/">Credits</a></p>`
+    : "";
+}
+document.addEventListener("click", (event) => {
+  const b = event.target.closest("[data-skill]");
+  if (!b) return;
+  const was = b.getAttribute("aria-pressed") === "true";
+  SKILLS.check(b.dataset.skill, was ? null : b.dataset.s);
+  fillSkillChecks(shownWeek);
+});
 
 // ───────────── Little learner (the 4-week rotation) ─────────────
 const row = (day, item, i, done) => {

@@ -56,7 +56,7 @@
     // Renaming moves the child's profile, progress, plans and log entries to the new name.
     renameLearner(from, to) {
       if (!from || !to || from === to) return;
-      for (const key of ["oc-profiles", "oc-music", "oc-plan-done", "oc-plan-track", "oc-year"]) {
+      for (const key of ["oc-profiles", "oc-music", "oc-plan-done", "oc-plan-track", "oc-year", "oc-skills"]) {
         const all = read(key, {});
         if (all && all[from] !== undefined) {
           all[to] = all[from];
