@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Soroban · OakCrest Academy</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap"><link rel="stylesheet" href="../../assets/oc.css"><script src="../../assets/oc.js"></script><script src="../../assets/firebase-config.js"></script><script src="../../assets/cloud.js"></script><style>html,body{background:var(--anatomy-page)}.sb-home{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:var(--anatomy-card);box-shadow:0 0 0 1px var(--anatomy-lo);text-decoration:none;font-size:18px;flex:none}.sb-learner .oc-chip{min-height:42px;border-radius:12px;font-size:14px;padding:0 8px}.sb-learner .oc-chip select{max-width:110px}@media (max-width:620px){.sb-learner .oc-chip select{max-width:80px}}</style><style>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Soroban · OakCrest Academy</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap"><link rel="stylesheet" href="../../assets/oc.css"><script src="../../assets/oc.js"></script><script src="../../assets/firebase-config.js"></script><script src="../../assets/cloud.js"></script><script src="../../assets/kit.js"></script><style>html,body{background:var(--anatomy-page)}.sb-home{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:var(--anatomy-card);box-shadow:0 0 0 1px var(--anatomy-lo);text-decoration:none;font-size:18px;flex:none}.sb-learner .oc-chip{min-height:42px;border-radius:12px;font-size:14px;padding:0 8px}.sb-learner .oc-chip select{max-width:110px}@media (max-width:620px){.sb-learner .oc-chip select{max-width:80px}}</style><style>
 .iso{
   --anatomy-page:#0b0b0b;--anatomy-card:#131313;--anatomy-text:#a3a3a3;--anatomy-strong:#e6e6e6;--anatomy-muted:#6e6e6e;
   --anatomy-paper:#131313;--anatomy-face:#1b1b1b;--anatomy-top:#1c1c1c;
@@ -135,6 +135,11 @@ html,body{height:100%;overflow:hidden}
 .sb-board{height:auto;max-height:calc((100vw - 32px) / 2.483 + 40px);display:flex;flex-direction:column;min-height:0;border-radius:16px;background:var(--anatomy-card);box-shadow:0 0 0 1px var(--anatomy-lo);--anatomy-paper:var(--anatomy-card);overflow:hidden}
 .sb-stage{position:relative;flex:1 1 auto;min-height:0;cursor:pointer;touch-action:manipulation;outline:none;-webkit-tap-highlight-color:transparent;padding:6px}
 .sb-stage .iso-svg{width:100%;height:100%;overflow:hidden}
+.sb-spark{position:absolute;width:0;height:0;pointer-events:none;z-index:3}
+.sb-spark i{position:absolute;left:-7px;top:-9px;font:900 15px/1 sans-serif;font-style:normal;text-shadow:0 0 4px rgba(255,255,255,.7);animation:sb-spark .65s ease-out forwards}
+@keyframes sb-spark{0%{opacity:1;transform:rotate(var(--a)) translateX(4px) scale(.5)}100%{opacity:0;transform:rotate(var(--a)) translateX(46px) scale(1.15)}}
+.sb-combo{display:inline-block;margin-left:6px;padding:2px 10px;border-radius:999px;background:hsl(calc(40 - var(--heat) * 6) 95% 55%);color:#fff;font-weight:900;animation:sb-combo .5s cubic-bezier(.3,1.6,.5,1)}
+@keyframes sb-combo{0%{transform:scale(.4)}100%{transform:scale(1)}}
 .sb-foot{display:flex;justify-content:space-between;padding:0 14px 10px;color:var(--anatomy-muted);font:11px/1 var(--anatomy-mono);letter-spacing:.08em;text-transform:uppercase}
 .sb-foot [data-readout]{color:var(--anatomy-strong);font-size:15px;letter-spacing:.02em;font-variant-numeric:tabular-nums}
 .sb-side{min-height:0;min-width:0;max-height:66vh;overflow-y:auto;display:flex;flex-direction:column;justify-content:center;padding:2px 4px}
@@ -1706,6 +1711,7 @@ function tick(now) {
       bead.y = bead.target;
       bead.el.removeAttribute("data-lit");
       arrived += 1;
+      if (cause === "tap") beadSpark(bead);
     } else moving = true;
   }
   if (arrived) clack(Math.min(1, 0.55 + arrived * 0.1));
@@ -1734,6 +1740,30 @@ function tick(now) {
   if (script) scriptTick(dt, busy);
   const fading = finger.opacity !== (finger.active ? 1 : 0);
   frame = visible && (busy || press > 0 || script || pending || finger.active || fading) ? requestAnimationFrame(tick) : 0;
+}
+
+// A tapped bead lands with a little burst in its own colour; the treasure bead sets throw their own shapes.
+const SPARKS = { galaxy: "✦★", diamond: "◆✧", frost: "❄✻", gold: "★✦", aurora: "✦✧", rainbow: "★●", pearl: "●○", amethyst: "◆✦", ruby: "◆♦", sapphire: "◆✦", emerald: "◆✦", jade: "●✦" };
+function beadSpark(bead) {
+  if (still.matches) return;
+  const s = stage.getBoundingClientRect();
+  const b = bead.el.getBoundingClientRect();
+  const set = document.body.dataset.beads || "walnut";
+  const shapes = SPARKS[set] || "●";
+  const color = getComputedStyle(bead.el).getPropertyValue("--bead-top").trim() || "#f3cf98";
+  const box = document.createElement("div");
+  box.className = "sb-spark";
+  box.style.left = `${b.left - s.left + b.width / 2}px`;
+  box.style.top = `${b.top - s.top + b.height / 2}px`;
+  for (let i = 0; i < 8; i++) {
+    const p = document.createElement("i");
+    p.textContent = shapes[i % shapes.length];
+    p.style.color = set === "rainbow" ? `hsl(${i * 45} 85% 55%)` : color;
+    p.style.setProperty("--a", `${i * 45 + Math.random() * 20}deg`);
+    box.appendChild(p);
+  }
+  stage.appendChild(box);
+  setTimeout(() => box.remove(), 700);
 }
 
 function kick() {
@@ -3480,7 +3510,7 @@ function startLevel() {
   const spec = WORLDS[lv.world].levels[lv.pick];
   lv.view = "play";
   lv.token += 1;
-  lv.round = { spec, n: 0, count: spec.count || 5, helped: 0, mistakes: 0, started: performance.now(), problem: null, stage: 0, token: lv.token };
+  lv.round = { spec, n: 0, count: spec.count || 5, helped: 0, mistakes: 0, combo: 0, mark: [0, 0], started: performance.now(), problem: null, stage: 0, token: lv.token };
   hideOverlay();
   $("[data-lv-box]").hidden = false;
   $("[data-lv-title]").textContent = `${WORLDS[lv.world].icon} Level ${levelNo(lv.world, lv.pick)}: ${spec.name}`;
@@ -3499,6 +3529,7 @@ function nextLevelProblem() {
   const r = lv.round;
   r.problem = r.spec.gen();
   r.stage = 0;
+  r.mark = [r.mistakes, r.helped];
   clearAll();
   $("[data-lv-problem]").innerHTML = columnHtml(r.problem, { now: 0, done: -1 });
   lvDots();
@@ -3538,10 +3569,15 @@ function lvStageDone() {
     return;
   }
   r.n += 1;
+  // Bead combo: answers in a row with no mistakes and no hints set the beads on fire.
+  const clean = r.mistakes === r.mark[0] && r.helped === r.mark[1];
+  r.combo = clean ? r.combo + 1 : 0;
   lvDots();
   record?.count("level problems");
   if (r.n < r.count) {
-    say("levels", `<span class="sb-cheer">✓</span> ${pickOne(["Correct!", "Yes!", "Great!", "Nice one!"])}`, { voice: !r.spec.time });
+    const fire = r.combo >= 2 ? ` <span class="sb-combo" style="--heat:${Math.min(r.combo, 6)}">🔥 ${r.combo} in a row${r.combo >= 5 ? ": bead blaze!" : r.combo >= 3 ? ": on fire!" : ""}</span>` : "";
+    if (r.combo === 3 || r.combo === 5 || r.combo === 8) window.KIT?.surprise(null, stage);
+    say("levels", `<span class="sb-cheer">✓</span> ${pickOne(["Correct!", "Yes!", "Great!", "Nice one!"])}${fire}`, { voice: !r.spec.time });
     const my = r.token;
     later(() => my === lv.token && nextLevelProblem(), r.spec.time ? 500 : 1100);
     return;
@@ -3585,6 +3621,7 @@ function finishLevel() {
   if (rewards.length) record?.count("stickers", rewards.length);
   chime();
   confetti();
+  if (stars === 3) later(() => window.KIT?.surprise(null, overlay), 900);
   const nextExists = lv.pick < 4;
   const rewardHtml = rewards.length
     ? rewards.map((reward, i) => `<div class="lv-reveal" style="animation-delay:${0.35 + i * 0.5}s">${stickerHtml(reward.sticker, { bonus: reward.kind === "bonus", tilt: i ? 4 : -3 })}<p>${reward.kind === "bonus" ? "✨ Mystery sticker!" : "New sticker!"}</p></div>`).join("")

@@ -95,16 +95,67 @@
     box.appendChild(span);
     return span;
   };
+  // Blobs thrown up in an arc from a point (lava, splashes): --x is the sideways throw, --h the height.
+  const throwBlobs = (box, n, colors, delay, spread = 0) => {
+    for (let i = 0; i < n; i++) {
+      const b = document.createElement("i");
+      const size = 9 + Math.random() * 16;
+      Object.assign(b.style, { width: `${size}px`, height: `${size}px`, background: pick(colors), animationDelay: `${delay + Math.random() * spread}s` });
+      b.style.setProperty("--x", `${Math.random() * 340 - 170}px`);
+      b.style.setProperty("--h", `${120 + Math.random() * 200}px`);
+      box.appendChild(b);
+    }
+  };
+  // Real star pictures, drawn dot to dot: [name, stars (x, y out of 100), lines joining them].
+  const SKY = [
+    ["The Big Dipper", [[6, 30], [20, 26], [33, 32], [46, 42], [50, 64], [74, 70], [80, 46]], [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 3]]],
+    ["Cassiopeia, the Queen", [[8, 36], [28, 64], [50, 40], [70, 66], [92, 32]], [[0, 1], [1, 2], [2, 3], [3, 4]]],
+    ["Orion, the Hunter", [[28, 12], [72, 18], [42, 50], [50, 47], [58, 44], [30, 88], [72, 84]], [[0, 1], [0, 2], [1, 4], [2, 3], [3, 4], [2, 5], [4, 6]]],
+    ["The Southern Cross", [[50, 8], [52, 90], [24, 46], [78, 54], [64, 66]], [[0, 1], [2, 3]]],
+  ];
   const SURPRISES = {
-    rainbow(host) {
-      const box = layer(host, "rainbow", 3600);
-      box.innerHTML = `<svg viewBox="0 0 400 220">${RAINBOW.map((c, i) => `<path d="M${40 + i * 14} 210 A${160 - i * 14} ${160 - i * 14} 0 0 1 ${360 - i * 14} 210" stroke="${c}" stroke-width="15" fill="none" stroke-linecap="round" pathLength="100" style="animation-delay:${i * 0.08}s"/>`).join("")}<g class="kt-cloud"><circle cx="40" cy="206" r="26"/><circle cx="70" cy="200" r="30"/><circle cx="20" cy="214" r="18"/></g><g class="kt-cloud"><circle cx="330" cy="200" r="30"/><circle cx="360" cy="206" r="26"/><circle cx="382" cy="214" r="18"/></g></svg>`;
-      for (let i = 0; i < 12; i++) glyph(box, "✨", { left: `${10 + Math.random() * 80}%`, top: `${8 + Math.random() * 50}%`, animationDelay: `${0.6 + Math.random() * 1.2}s` });
+    rocket(host) {
+      const box = layer(host, "rocket", 3800);
+      [3, 2, 1].forEach((n, i) => (glyph(box, n, { animationDelay: `${i * 0.32}s` }).className = "kt-count"));
+      for (let i = 0; i < 16; i++) {
+        const puff = document.createElement("i");
+        puff.style.setProperty("--dx", `${(i % 2 ? 1 : -1) * (20 + Math.random() * 130)}px`);
+        puff.style.animationDelay = `${0.9 + Math.random() * 0.5}s`;
+        box.appendChild(puff);
+      }
+      glyph(box, "🚀").className = "kt-ship";
     },
-    unicorn(host) {
-      const box = layer(host, "unicorn", 3400);
-      box.innerHTML = `<div class="kt-trail">${RAINBOW.map((c) => `<i style="background:${c}"></i>`).join("")}</div>`;
-      glyph(box, "🦄").className = "kt-runner";
+    constellation(host) {
+      const box = layer(host, "sky", 4600);
+      const [name, stars, lines] = pick(SKY);
+      const specks = Array.from({ length: 40 }, () => `<i style="left:${Math.random() * 100}%;top:${Math.random() * 100}%"></i>`).join("");
+      const join = lines.map(([a, b], i) => `<line x1="${stars[a][0]}" y1="${stars[a][1]}" x2="${stars[b][0]}" y2="${stars[b][1]}" pathLength="100" style="animation-delay:${0.8 + i * 0.25}s"/>`).join("");
+      const dots = stars.map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="2.2" style="animation-delay:${0.3 + i * 0.1}s"/>`).join("");
+      box.innerHTML = `${specks}<svg viewBox="0 0 100 100">${join}${dots}</svg><b style="animation-delay:${1 + lines.length * 0.25}s">✨ ${name}</b>`;
+    },
+    volcano(host) {
+      const box = layer(host, "volcano", 4000);
+      box.innerHTML = `<div class="kt-mount"><svg viewBox="0 0 200 100"><path d="M0 100 L76 20 Q100 6 124 20 L200 100Z"/><path class="kt-glow" d="M80 18 Q100 8 120 18 L113 34 Q105 25 100 42 Q94 27 87 34Z"/></svg><div class="kt-crater"></div></div>`;
+      throwBlobs($(".kt-crater", box), 28, ["#ff5722", "#ff9800", "#ffc107", "#e53935"], 0.6, 1.4);
+    },
+    whale(host) {
+      const box = layer(host, "whale", 3800);
+      box.style.setProperty("--run", `${-host.clientWidth * 0.42}px`);
+      box.innerHTML = `<div class="kt-sea"></div><div class="kt-splash"></div>`;
+      glyph(box, "🐳").className = "kt-jumper";
+      throwBlobs($(".kt-splash", box), 18, ["#b3e5fc", "#4fc3f7", "#ffffff"], 1.55, 0.2);
+    },
+    dino(host) {
+      const box = layer(host, "dino", 3800);
+      for (let i = 0; i < 7; i++) glyph(box, "🐾", { left: `${4 + i * 14}%`, animationDelay: `${0.3 + i * 0.3}s` }).className = "kt-print";
+      glyph(box, "ROAR!").className = "kt-roar";
+      glyph(box, "🦖").className = "kt-stomper";
+    },
+    magic(host) {
+      const box = layer(host, "magic", 3900);
+      glyph(box, pick(["🐇", "🕊️", "🐉", "🦉", "🐢", "🦊", "🐙", "🦕"])).className = "kt-popper";
+      glyph(box, "🎩").className = "kt-hat";
+      for (let i = 0; i < 12; i++) glyph(box, i % 2 ? "✦" : "★", { color: RAINBOW[i % RAINBOW.length] }).style.setProperty("--a", `${i * 30}deg`);
     },
     balloons(host) {
       const box = layer(host, "balloons", 4200);
@@ -378,13 +429,44 @@
 .kt-step-dots small{margin-left:6px;color:var(--muted);font:800 13px var(--sans)}
 @media (max-height:460px){.kt-step-btn{min-height:42px;font-size:17px}}
 .kt-surprise{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:7}
-.kt-rainbow svg{position:absolute;left:50%;top:50%;width:min(92%,640px);transform:translate(-50%,-55%);animation:kt-fadeout 3.6s ease forwards}
-.kt-rainbow path{stroke-dasharray:100;stroke-dashoffset:100;animation:kt-draw .9s cubic-bezier(.3,.7,.3,1) forwards}
-.kt-rainbow .kt-cloud{fill:#fff;filter:drop-shadow(0 3px 4px rgba(0,0,0,.12));opacity:0;animation:kt-in .4s .7s forwards}
-.kt-rainbow span{position:absolute;font-size:28px;opacity:0;animation:kt-twink 1.2s ease-in-out forwards}
-.kt-trail{position:absolute;left:0;top:44%;height:72px;width:0;display:flex;flex-direction:column;border-radius:0 40px 40px 0;overflow:hidden;animation:kt-trail 2.4s cubic-bezier(.4,.1,.4,1) forwards,kt-fadeout 3.4s ease forwards}
-.kt-trail i{flex:1}
-.kt-runner{position:absolute;left:-90px;top:calc(44% - 36px);font-size:84px;line-height:1;transform:scaleX(-1);animation:kt-run 2.4s cubic-bezier(.4,.1,.4,1) forwards}
+.kt-count{position:absolute;left:50%;top:40%;color:#ff7043;font:900 128px/1 var(--sans);text-shadow:0 6px 0 rgba(0,0,0,.15);opacity:0;animation:kt-count .32s ease-out forwards}
+.kt-ship{position:absolute;left:50%;bottom:-6px;margin-left:-42px;font-size:84px;line-height:1;transform:rotate(-45deg);animation:kt-shake .12s linear .5s 4,kt-launch 1.7s cubic-bezier(.55,0,.85,.35) .98s forwards}
+.kt-rocket i{position:absolute;left:50%;bottom:-30px;width:70px;height:70px;margin-left:-35px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,#ddd5ca);opacity:0;animation:kt-puff 1.6s ease-out forwards}
+.kt-sky{background:radial-gradient(ellipse at 50% 40%,#24366f,#0a1030 75%);animation:kt-night 4.6s ease forwards}
+.kt-sky>i{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;opacity:.55}
+.kt-sky svg{position:absolute;left:50%;top:46%;width:min(80%,440px);max-height:70%;transform:translate(-50%,-50%);overflow:visible}
+.kt-sky circle{fill:#fff8d6;opacity:0;transform-box:fill-box;transform-origin:center;animation:kt-star .5s ease-out forwards}
+.kt-sky line{stroke:#9fc2ff;stroke-width:.8;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;animation:kt-draw .4s ease-out forwards}
+.kt-sky b{position:absolute;left:0;right:0;bottom:7%;text-align:center;color:#fff;font:900 clamp(22px,4vw,34px)/1.2 var(--sans);opacity:0;animation:kt-in .5s ease forwards}
+.kt-mount{position:absolute;left:50%;bottom:0;width:min(60%,360px);aspect-ratio:2/1;transform:translate(-50%,100%);animation:kt-mount 4s ease forwards}
+.kt-mount svg{position:absolute;inset:0;width:100%;height:100%}
+.kt-mount path{fill:#795548;stroke:#4e342e;stroke-width:2}
+.kt-mount .kt-glow{fill:#ff7043;stroke:none}
+.kt-crater{position:absolute;left:50%;top:12%}
+.kt-crater i,.kt-splash i{position:absolute;left:-8px;top:-8px;border-radius:50%;opacity:0;animation:kt-arc 1.4s linear forwards}
+.kt-sea{position:absolute;left:0;right:0;bottom:0;z-index:2;height:80px;background:linear-gradient(#4fc3f7,#0277bd);border-radius:50% 50% 0 0/24px 24px 0 0;transform:translateY(100%);animation:kt-sea 3.8s ease forwards}
+.kt-jumper{position:absolute;right:16%;bottom:10px;z-index:1;font-size:90px;line-height:1;animation:kt-jump 1.6s .4s ease-in-out both}
+.kt-splash{position:absolute;right:58%;bottom:60px;z-index:3}
+.kt-stomper{position:absolute;left:-100px;bottom:6%;font-size:96px;line-height:1;transform:scaleX(-1);animation:kt-run 2.8s linear forwards,kt-bob .35s ease-in-out infinite}
+.kt-print{position:absolute;bottom:4%;font-size:30px;opacity:0;animation:kt-print 3.2s ease forwards}
+.kt-roar{position:absolute;left:50%;top:22%;color:#2e7d32;font:900 clamp(40px,8vw,72px)/1 var(--sans);transform:translateX(-50%);opacity:0;animation:kt-roar 1.4s 1.1s ease-out forwards}
+.kt-popper{position:absolute;left:50%;bottom:calc(8% + 30px);font-size:80px;line-height:1;opacity:0;animation:kt-pop 2.6s 1.2s ease-out forwards}
+.kt-hat{position:absolute;left:50%;bottom:8%;font-size:100px;line-height:1;opacity:0;animation:kt-hat 3.9s ease forwards}
+.kt-magic>span:not([class]){position:absolute;left:50%;bottom:calc(8% + 90px);font:900 24px/1 sans-serif;opacity:0;animation:kt-spark 1s 1.2s ease-out forwards}
+@keyframes kt-count{0%{opacity:0;transform:translate(-50%,-50%) scale(1.8)}30%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(.7)}}
+@keyframes kt-shake{0%,100%{transform:rotate(-45deg) translate(0,0)}50%{transform:rotate(-45deg) translate(3px,-3px)}}
+@keyframes kt-launch{from{transform:translate(0,0) rotate(-45deg)}to{transform:translate(0,-140vh) rotate(-45deg)}}
+@keyframes kt-puff{0%{opacity:.95;transform:translate(0,0) scale(.3)}100%{opacity:0;transform:translate(var(--dx),-70px) scale(1.9)}}
+@keyframes kt-night{0%{opacity:0}12%,82%{opacity:.95}100%{opacity:0}}
+@keyframes kt-star{0%{opacity:0;transform:scale(0)}60%{opacity:1;transform:scale(1.9)}100%{opacity:1;transform:scale(1)}}
+@keyframes kt-mount{0%{transform:translate(-50%,100%)}12%,85%{transform:translate(-50%,0)}100%{transform:translate(-50%,100%)}}
+@keyframes kt-arc{0%{opacity:1;transform:translate(0,0)}25%{transform:translate(calc(var(--x)*.25),calc(var(--h)*-.75))}50%{transform:translate(calc(var(--x)*.5),calc(var(--h)*-1))}75%{transform:translate(calc(var(--x)*.75),calc(var(--h)*-.75))}100%{opacity:.8;transform:translate(var(--x),calc(var(--h)*.3))}}
+@keyframes kt-jump{0%{transform:translate(0,40px) rotate(30deg)}25%{transform:translate(calc(var(--run)*.25),-170px) rotate(18deg)}50%{transform:translate(calc(var(--run)*.5),-230px) rotate(0)}75%{transform:translate(calc(var(--run)*.75),-170px) rotate(-18deg)}100%{transform:translate(var(--run),60px) rotate(-35deg)}}
+@keyframes kt-bob{0%,100%{margin-bottom:0}50%{margin-bottom:16px}}
+@keyframes kt-print{0%{opacity:0;transform:scale(.4)}10%,80%{opacity:.75;transform:scale(1)}100%{opacity:0}}
+@keyframes kt-roar{0%{opacity:0;transform:translateX(-50%) scale(.3) rotate(-8deg)}35%{opacity:1;transform:translateX(-50%) scale(1.25) rotate(4deg)}70%{opacity:1;transform:translateX(-50%) scale(1) rotate(-2deg)}100%{opacity:0;transform:translateX(-50%) scale(1.1)}}
+@keyframes kt-hat{0%{opacity:0;transform:translateX(-50%) scale(.3)}10%{opacity:1;transform:translateX(-50%) scale(1)}16%,24%{transform:translateX(-50%) rotate(-10deg)}20%,28%{transform:translateX(-50%) rotate(10deg)}32%,85%{opacity:1;transform:translateX(-50%) rotate(0)}100%{opacity:0;transform:translateX(-50%)}}
+@keyframes kt-pop{0%{opacity:0;transform:translate(-50%,0) scale(.4)}30%{opacity:1;transform:translate(-50%,-170px) scale(1.3)}45%,85%{opacity:1;transform:translate(-50%,-150px) scale(1)}100%{opacity:0;transform:translate(-50%,-150px) scale(1)}}
 .kt-balloons i{position:absolute;bottom:-120px;width:56px;height:70px;border-radius:50% 50% 48% 48%;box-shadow:inset -8px -10px 0 rgba(0,0,0,.12),inset 8px 8px 0 rgba(255,255,255,.35);animation:kt-rise linear forwards}
 .kt-balloons i::after{content:"";position:absolute;left:50%;top:100%;width:2px;height:60px;background:rgba(0,0,0,.25)}
 .kt-burst{position:absolute;width:0;height:0}
@@ -400,7 +482,7 @@
 @keyframes kt-in{to{opacity:1}}
 @keyframes kt-fadeout{0%,75%{opacity:1}100%{opacity:0}}
 @keyframes kt-twink{0%{opacity:0;transform:scale(.3) rotate(0)}40%{opacity:1;transform:scale(1.2) rotate(20deg)}100%{opacity:0;transform:scale(.6) rotate(40deg)}}
-@keyframes kt-trail{to{width:100%}}
+@keyframes kt-sea{0%{transform:translateY(100%)}12%,85%{transform:none}100%{transform:translateY(100%)}}
 @keyframes kt-run{to{left:calc(100% + 10px)}}
 @keyframes kt-rise{0%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-55vh) rotate(5deg)}100%{transform:translateY(-115vh) rotate(-4deg)}}
 @keyframes kt-boom{0%{opacity:1;transform:rotate(var(--a)) translateX(0) scale(1.2)}100%{opacity:0;transform:rotate(var(--a)) translateX(110px) scale(.4)}}
