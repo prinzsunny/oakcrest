@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Soroban · OakCrest Academy</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&family=Nunito:wght@600;700;800;900&display=swap"><link rel="stylesheet" href="../../assets/oc.css"><script src="../../assets/oc.js"></script><script src="../../assets/firebase-config.js"></script><script src="../../assets/cloud.js"></script><script src="../../assets/kit.js"></script><style>html,body{background:var(--anatomy-page)}.sb-home{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:var(--anatomy-card);box-shadow:0 0 0 1px var(--anatomy-lo);text-decoration:none;font-size:18px;flex:none}.sb-learner .oc-chip{min-height:42px;border-radius:12px;font-size:14px;padding:0 8px}.sb-learner .oc-chip select{max-width:110px}@media (max-width:620px){.sb-learner .oc-chip select{max-width:80px}}</style><style>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Soroban · OakCrest Academy</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&family=Nunito:wght@600;700;800;900&display=swap"><link rel="stylesheet" href="../../assets/oc.css"><script src="../../assets/oc.js"></script><script src="../../assets/firebase-config.js"></script><script src="../../assets/cloud.js"></script><script src="../../assets/kit.js"></script><script src="../../assets/stickers.js"></script><style>html,body{background:var(--anatomy-page)}.sb-home{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:var(--anatomy-card);box-shadow:0 0 0 1px var(--anatomy-lo);text-decoration:none;font-size:18px;flex:none}.sb-learner .oc-chip{min-height:42px;border-radius:12px;font-size:14px;padding:0 8px}.sb-learner .oc-chip select{max-width:110px}@media (max-width:620px){.sb-learner .oc-chip select{max-width:80px}}</style><style>
 .iso{
   --anatomy-page:#0b0b0b;--anatomy-card:#131313;--anatomy-text:#a3a3a3;--anatomy-strong:#e6e6e6;--anatomy-muted:#6e6e6e;
   --anatomy-paper:#131313;--anatomy-face:#1b1b1b;--anatomy-top:#1c1c1c;
@@ -292,6 +292,9 @@ body .sb-bead[data-lit]{--bead-paper:#b8783e;--bead-top:#f3cf98;--bead-s0:#8f552
 .lv-overlay{position:absolute;inset:0;z-index:3;border-radius:16px;overflow:hidden;background:var(--anatomy-card)}
 .lv-overlay[hidden]{display:none}
 .lv-map{position:absolute;inset:0}
+.lv-gate{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);z-index:2;width:min(340px,80%);padding:14px 16px;border-radius:20px;background:rgba(255,252,246,.95);box-shadow:0 6px 18px rgba(0,0,0,.18);text-align:center;color:#5a4130;font-weight:700}
+.lv-gate b{display:block;font-size:clamp(30px,5vw,44px);line-height:1.2}
+.lv-gate p{margin:4px 0 0}
 .lv-head{position:absolute;top:10px;left:10px;right:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;z-index:2}
 .lv-head span{display:flex;flex-direction:column;align-items:center;text-align:center}
 .lv-head b{color:#2b1d12;font:700 clamp(17px,2.6vw,24px)/1.15 Georgia,serif}
@@ -3384,7 +3387,11 @@ const levelId = (w, k) => `w${w}l${k}`;
 const levelNo = (w, k) => w * 5 + k + 1;
 const LEVEL_COUNT = () => WORLDS.length * 5;
 const cleared = (data, w, k) => (data.levels[levelId(w, k)]?.stars || 0) > 0;
-const unlocked = (data, w, k) => k === 0 || cleared(data, w, k - 1);
+// A new world costs sticker keys from quests in other subjects (see assets/stickers.js).
+// World 1, worlds opened with keys and worlds already played in stay open.
+const worldOpen = (data, w) => !window.STICKERS || w === 0 || (data.opened || []).includes(w) || WORLDS[w].levels.some((_, k) => cleared(data, w, k));
+const keysLeft = () => (window.STICKERS ? STICKERS.keys(who()).left : 0);
+const unlocked = (data, w, k) => worldOpen(data, w) && (k === 0 || cleared(data, w, k - 1));
 const starsIn = (data, w) => WORLDS[w].levels.reduce((sum, _, k) => sum + (data.levels[levelId(w, k)]?.stars || 0), 0);
 const allStars = (data) => WORLDS.reduce((sum, _, w) => sum + starsIn(data, w), 0);
 const starText = (n, of = 3) => "★".repeat(n) + "☆".repeat(of - n);
@@ -3460,12 +3467,21 @@ function showMap() {
     <div class="lv-head"><button type="button" data-world="-1" aria-label="Previous world"${lv.world === 0 ? " disabled" : ""}>◀</button><span><b>${world.icon} World ${lv.world + 1} of ${WORLDS.length} · ${world.name}</b><small>Levels ${levelNo(lv.world, 0)}–${levelNo(lv.world, 4)} · ⭐ ${starsIn(data, lv.world)} of 15</small></span><button type="button" data-world="1" aria-label="Next world"${lv.world === WORLDS.length - 1 ? " disabled" : ""}>▶</button></div>
     <svg class="lv-path" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="${path}"/></svg>
     ${nodes}
+    ${worldOpen(data, lv.world) ? "" : `<div class="lv-gate"><b>🔒🔑</b><p>Use ${STICKERS.WORLD_COST} keys to open ${world.name}!</p><p>You have 🔑 ${keysLeft()}. Win stickers in quests to get more.</p></div>`}
     <button type="button" class="lv-node chest${chestOpen ? " done" : ""}" style="left:${xs[5]}%;top:${ys[5]}%" data-node="chest" aria-label="Treasure chest"><b>${chestOpen ? world.golden[0] : "🎁"}</b><i>${chestOpen ? "opened" : "finish 5"}</i></button>
   </div>`);
   const level = world.levels[lv.pick];
   $("[data-lv-title]").textContent = `${world.icon} ${world.name}`;
-  $("[data-lv-stars]").textContent = `⭐ ${allStars(data)} · 🧩 ${data.stickers.length}`;
+  $("[data-lv-stars]").textContent = `⭐ ${allStars(data)} · 🧩 ${data.stickers.length}${window.STICKERS ? ` · 🔑 ${keysLeft()}` : ""}`;
   $("[data-lv-box]").hidden = true;
+  if (!worldOpen(data, lv.world)) {
+    $("[data-lv-dots]").textContent = "";
+    const left = keysLeft();
+    const cost = STICKERS.WORLD_COST;
+    say("levels", left >= cost ? `<b>You have ${left} keys!</b><br><small>Use ${cost} of them to open ${world.name}.</small>` : `<b>${world.name} is locked.</b><br><small>Win ${cost - left} more ${cost - left === 1 ? "sticker" : "stickers"} in quests (reading, science, history…) to get the keys.</small>`, { voice: false });
+    lvButtons(`${left >= cost ? `<button type="button" class="primary" data-lv="openworld" data-pulse>🔑 Open with ${cost} keys</button>` : `<button type="button" class="primary" data-lv="quests">🗺️ Win keys in quests</button>`}<button type="button" data-lv="album">📒 Album</button><button type="button" data-lv="book">🧩 Stickers</button>`);
+    return;
+  }
   $("[data-lv-dots]").textContent = "";
   say("levels", `<b>Level ${levelNo(lv.world, lv.pick)} of ${LEVEL_COUNT()}: ${level.name}</b><br><small>${world.text}${level.time ? ` Finish 8 in ${level.time[0]} seconds for 3 stars.` : ""}</small>`, { voice: false });
   lvButtons(`<button type="button" class="primary" data-lv="play">▶ Play level ${levelNo(lv.world, lv.pick)}</button><button type="button" data-lv="book">📒 Stickers</button>${data.beads.length > 1 ? `<button type="button" data-lv="beads">🎨 Beads</button>` : ""}`);
@@ -3688,7 +3704,7 @@ overlay.addEventListener("click", (event) => {
     }
     const k = Number(node.dataset.node);
     if (!unlocked(data, lv.world, k)) {
-      say("levels", `Finish level ${levelNo(lv.world, k - 1)} first to unlock this one!`);
+      say("levels", worldOpen(data, lv.world) ? `Finish level ${levelNo(lv.world, k - 1)} first to unlock this one!` : `Use ${STICKERS.WORLD_COST} keys to open this world first!`);
       return;
     }
     lv.pick = k;
@@ -3736,6 +3752,19 @@ $("[data-lv-buttons]").addEventListener("click", (event) => {
   }
   if (what === "book") showBook();
   if (what === "beads") showBeads();
+  if (what === "quests") location.href = "../../skills/";
+  if (what === "album") location.href = "../../album/";
+  if (what === "openworld") {
+    const data = adv();
+    if (worldOpen(data, lv.world) || keysLeft() < STICKERS.WORLD_COST) return showMap();
+    data.opened = [...(data.opened || []), lv.world];
+    saveAdv(data);
+    chime();
+    confetti();
+    lv.pick = null;
+    showMap();
+    say("levels", `🔓 ${WORLDS[lv.world].name} is open! Let's play!`);
+  }
   if (what === "chest") openChest();
   if (what === "nextworld") {
     lv.world = Math.min(lv.world + 1, WORLDS.length - 1);

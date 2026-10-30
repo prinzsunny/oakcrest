@@ -328,13 +328,23 @@
       if (window.SKILLS && (!mine?.s || mine.src === "quest")) SKILLS.check(topic.id, status, { src: "quest", note: `${right}/${scored}` });
       const stars = "⭐".repeat(right) + `<span class="qz-dim">${"☆".repeat(Math.max(0, scored - right))}</span>`;
       const line = pct === 1 ? "Perfect! Every one on the first try!" : pct >= 0.8 ? "Amazing work! Ask a grown-up to check it for your big star." : pct >= 0.5 ? "Good going! Play again to grow this skill." : "That was tricky. Every try makes your brain stronger. Want another go?";
+      // Half or more right wins this skill's sticker (once), and every sticker is a soroban key.
+      const S = window.STICKERS;
+      const won = S && pct >= 0.5 ? S.earn(topic) : null;
+      let prize = "";
+      let prizeSay = "";
+      if (won) {
+        prize = `<div class="st-reveal"><div style="animation-delay:.3s">${S.html(won.sticker, { tilt: -3 })}<p>New sticker! +1 🔑</p></div>${won.golden ? `<div style="animation-delay:.9s">${S.html(won.golden, { golden: true, tilt: 3 })}<p>✨ Page full: golden sticker!</p></div>` : ""}</div>
+          <p class="qz-n">🔑 ${won.keys.left} ${won.keys.left === 1 ? "key" : "keys"} · ${won.keys.left >= S.WORLD_COST ? "enough to open a new soroban world!" : `${S.WORLD_COST - won.keys.left} more to open a new soroban world`}</p>`;
+        prizeSay = ` You won the ${won.sticker[1]} sticker${won.golden ? `, and the golden ${won.golden[1]}` : ""}!`;
+      } else if (S && pct < 0.5 && !S.has(topic.id)) prize = `<p class="qz-n">Get ${Math.ceil(scored / 2)} right to win this quest's sticker and a 🔑!</p>`;
       host.innerHTML = `<div class="qz qz-hello" style="--tint:${opts.tint || "#3b5bdb"}">
-        <div class="qz-big">${pct >= 0.8 ? "🏆" : "🌱"}</div><h3>${right} out of ${scored}!</h3><p class="qz-stars">${stars}</p><p>${line}</p>
+        <div class="qz-big">${pct >= 0.8 ? "🏆" : "🌱"}</div><h3>${right} out of ${scored}!</h3><p class="qz-stars">${stars}</p>${prize}<p>${line}</p>
         <div class="qz-row"><button type="button" class="kq-btn" data-again>↺ Play again</button><button type="button" class="kq-btn go" data-qz-close>Done ✓</button></div></div>`;
       host.querySelector("[data-again]").onclick = () => play(topic, host, opts);
       host.querySelector("[data-qz-close]").onclick = () => opts.onClose?.();
-      speak(`${right} out of ${scored}! ${line}`);
-      if (pct >= 0.8) opts.onWin?.();
+      speak(`${right} out of ${scored}!${prizeSay} ${line}`);
+      if (pct >= 0.8 || won) opts.onWin?.();
       opts.onSaved?.(status);
     }
     intro();

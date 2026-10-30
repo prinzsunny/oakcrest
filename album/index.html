@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffe8cc">
+<title>Sticker Album · OakCrest Academy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap">
+<link rel="stylesheet" href="../assets/oc.css">
+<script src="../assets/oc.js"></script>
+<script src="../assets/firebase-config.js"></script>
+<script src="../assets/cloud.js"></script>
+<script src="../assets/stickers.js"></script>
+<style>
+:root{--ink:#2b1d12;--soft:#7a6a58;--card:#fffdf8;--line:#eadfce;--sans:"Nunito",ui-rounded,system-ui,sans-serif}
+html,body{margin:0;min-height:100%;background:linear-gradient(180deg,#ffe8cc 0,#fff4e3 420px) fixed;color:var(--ink);font:16px/1.45 var(--sans);-webkit-font-smoothing:antialiased}
+.al{width:min(980px,100% - 32px);margin:0 auto;padding:14px 0 60px}
+.al-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.al-spacer{flex:1}
+.al-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:0 16px;border:0;border-radius:23px;background:#fff;box-shadow:0 4px 0 #d9cbb6;color:var(--ink);font:800 15px var(--sans);text-decoration:none;cursor:pointer;touch-action:manipulation}
+.al-btn.go{background:var(--tint,#7a4520);color:#fff;box-shadow:0 4px 0 rgba(0,0,0,.25)}
+h1{margin:18px 0 2px;font:900 clamp(28px,5vw,40px)/1.1 var(--sans)}
+.al-sub{margin:0 0 14px;color:var(--soft);font-weight:700}
+.al-keys{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 16px;border-radius:22px;background:var(--card);box-shadow:0 0 0 2px var(--line)}
+.al-keys b{font-size:30px;line-height:1}
+.al-keys p{flex:1;min-width:200px;margin:0;font-weight:700;color:var(--soft)}
+.al-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 10px}
+.al-tabs button{display:inline-flex;align-items:center;gap:6px;min-height:46px;padding:0 14px;border:0;border-radius:16px;background:#fff;box-shadow:0 3px 0 #d9cbb6;font:800 15px var(--sans);color:var(--ink);cursor:pointer}
+.al-tabs button[aria-pressed="true"]{background:var(--tint);color:#fff;box-shadow:0 3px 0 rgba(0,0,0,.25)}
+.al-tabs i{font-style:normal;font-size:20px}
+.al-page{padding:18px;border-radius:26px;background:var(--card);box-shadow:0 0 0 3px var(--tint),0 8px 24px rgba(60,35,15,.12)}
+.al-page h2{margin:0 0 4px;font:900 24px/1.2 var(--sans);color:var(--tint)}
+.al-page h3{margin:16px 0 8px;font:900 16px var(--sans);color:var(--soft)}
+.al-slots{display:flex;flex-wrap:wrap;gap:14px}
+.al-page .al-btn{margin-top:16px}
+@media (max-width:480px){.al-slots{gap:10px}.al-slots .st-sticker{min-width:72px;padding:6px 6px 4px}.al-slots .st-emoji{font-size:30px}}
+</style>
+</head>
+<body>
+<div class="al">
+  <header class="al-top">
+    <a class="al-btn" href="../" aria-label="Home">🏠</a>
+    <a class="al-btn" href="../skills/">🗺️ Quests</a>
+    <a class="al-btn" href="../math/soroban/">🧮 Soroban</a>
+    <span class="al-spacer"></span>
+    <span data-chip data-home="../"></span>
+  </header>
+  <h1>📒 <span data-title>My sticker album</span></h1>
+  <p class="al-sub" data-sub></p>
+  <section class="al-keys"><b data-keys>🔑 0</b><p data-keys-text></p></section>
+  <nav class="al-tabs" data-tabs aria-label="Islands"></nav>
+  <section class="al-page" data-page></section>
+</div>
+<script>
+const $ = (s) => document.querySelector(s);
+const S = STICKERS;
+// Open on the island picked last, or else the one with the newest sticker.
+const newest = () => Object.values(S.mine()).sort((a, b) => b.at - a.at)[0]?.subject;
+let tab = 0;
+try {
+  tab = Math.max(0, S.PAGES.findIndex((p) => p.subject === (sessionStorage.getItem("oc-album-tab") || newest())));
+} catch {}
+
+function render() {
+  const who = OC.current();
+  $("[data-title]").textContent = who ? `${who}'s sticker album` : "My sticker album";
+  const total = S.count();
+  $("[data-sub]").textContent = `${total} ${total === 1 ? "sticker" : "stickers"} · win a quest on any island to get its sticker.`;
+  const k = S.keys();
+  $("[data-keys]").textContent = `🔑 ${k.left}`;
+  $("[data-keys-text]").textContent = `Every sticker is a key. ${k.cost} keys open a new soroban world${k.left >= k.cost ? ": you have enough, go open one!" : `: ${k.cost - k.left} more to go!`}`;
+  $("[data-tabs]").innerHTML = S.PAGES.map((p, i) => `<button type="button" data-tab="${i}" style="--tint:${p.tint}" aria-pressed="${i === tab}"><i>${p.icon}</i>${S.onPage(p.subject).length}</button>`).join("");
+  const page = S.PAGES[tab];
+  const have = S.onPage(page.subject);
+  // Show every page so far, plus the next one to fill.
+  const pages = Math.floor(have.length / S.PER_PAGE) + 1;
+  let body = "";
+  for (let n = 0; n < pages; n++) {
+    const slots = [];
+    for (let i = 0; i < S.PER_PAGE; i++) {
+      const got = have[n * S.PER_PAGE + i];
+      slots.push(got ? S.html(got.sticker, { tilt: (i % 3) * 3 - 3 }) : S.empty(n ? "Sparkly" : "Win me!"));
+    }
+    const full = have.length >= (n + 1) * S.PER_PAGE;
+    slots.push(full ? S.html(page.golden, { golden: true, tilt: 2 }) : S.empty("Golden", true));
+    body += `${pages > 1 ? `<h3>Page ${n + 1}</h3>` : ""}<div class="al-slots">${slots.join("")}</div>`;
+  }
+  const page$ = $("[data-page]");
+  page$.style.setProperty("--tint", page.tint);
+  page$.innerHTML = `<h2>${page.icon} ${page.name}</h2><p class="al-sub">Fill all ${S.PER_PAGE} spaces for a golden ${page.golden[1]}!</p>${body}<a class="al-btn go" href="../skills/">▶ Play a ${page.name} quest</a>`;
+}
+
+$("[data-tabs]").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-tab]");
+  if (!button) return;
+  tab = Number(button.dataset.tab);
+  try {
+    sessionStorage.setItem("oc-album-tab", S.PAGES[tab].subject);
+  } catch {}
+  render();
+});
+OC.chip($("[data-chip]"), { onSwitch: render });
+OC.onChange(render);
+render();
+</script>
+</body>
