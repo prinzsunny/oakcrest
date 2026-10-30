@@ -266,7 +266,7 @@
       const rows = await summaries(box.dataset.learning.split("|"), who);
       if (!rows.length) continue;
       const line = (c) => `<p><b>${esc(c.domain)}.</b> ${esc(c.summary.replace(/^Your child/, name === "your child" ? "Your child" : name))}</p>`;
-      box.innerHTML = `<h2>🧭 What ${esc(name)} is learning</h2><p class="oc-note">Around age ${ageOf(who)}, from the open Marble skill map. <a href="${box.dataset.skills || "../skills/"}">See ${esc(name)}'s skill map →</a></p>${rows.slice(0, 3).map(line).join("")}${rows.length > 3 ? `<details><summary>${rows.length - 3} more areas</summary>${rows.slice(3).map(line).join("")}</details>` : ""}`;
+      box.innerHTML = `<details class="oc-grown"><summary>👪 For grown-ups: what ${esc(name)} is learning</summary><p class="oc-note">Around age ${ageOf(who)}, from the open Marble skill map. <a href="${box.dataset.skills || "../skills/"}">See ${esc(name)}'s skill map →</a></p>${rows.slice(0, 3).map(line).join("")}${rows.length > 3 ? `<details><summary>${rows.length - 3} more areas</summary>${rows.slice(3).map(line).join("")}</details>` : ""}</details>`;
       box.hidden = false;
     }
   }
