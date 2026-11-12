@@ -197,4 +197,135 @@
   addEventListener("storage", () => listeners.forEach((fn) => fn()));
 
   window.OC = OC;
+
+  // ---------- Plan first ----------
+  // The home page writes today's steps to "oc-daily". Here, on every page: time spent on the current step's page
+  // ticks it off; later steps stay locked until the steps before them are done; Soroban gets a 5-minute warm-up and
+  // then waits for the plan. A grown-up can unlock today, or switch this off on the plan page.
+  const ROOT = (() => {
+    try {
+      return new URL("..", document.currentScript.src).pathname;
+    } catch {
+      return "/";
+    }
+  })();
+  const here = () => decodeURIComponent(location.pathname).slice(ROOT.length).replace(/index\.html$/, "");
+  const onPath = (p) => !!p && here().startsWith(p);
+  const SOROBAN = "math/soroban/";
+  const WARMUP = 5;
+  let lastPoke = Date.now();
+  addEventListener("pointerdown", () => (lastPoke = Date.now()), { capture: true, passive: true });
+  addEventListener("keydown", () => (lastPoke = Date.now()), { capture: true });
+  const timeKey = "oc-daily-time";
+  const minutesOn = (who, path) => {
+    const t = read(timeKey, {});
+    if (t.date !== dayOf(new Date())) return 0;
+    return Object.entries(t[who] || {}).reduce((m, [p, sec]) => (p.startsWith(path) ? m + sec / 60 : m), 0);
+  };
+  function planState() {
+    const who = OC.current();
+    const today = dayOf(new Date());
+    const d = who && read("oc-daily", {})[who];
+    if (!d || d.date !== today || !d.steps?.length) return null;
+    const mine = read("oc-year", {})[who] || {};
+    if (mine.settings?.planFirst === false) return null;
+    const steps = d.steps.map((st) => ({ ...st, done: !!mine[st.tick]?.done }));
+    return { who, steps, at: steps.findIndex((st) => !st.done), unlock: mine.settings?.unlockDay === today };
+  }
+  const css = `#oc-pf{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;padding:16px;background:linear-gradient(160deg,#fff6e0,#e8f1ff);font:18px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:#23324a;text-align:center}
+#oc-pf .c{max-width:420px;width:100%;background:#fff;border-radius:24px;padding:26px 22px;box-shadow:0 10px 30px #23324a22}
+#oc-pf .big{font-size:64px;line-height:1;display:inline-block;animation:ocpf-w 1.4s ease-in-out infinite}
+#oc-pf h2{margin:10px 0 6px;font-size:24px}#oc-pf p{margin:0 0 16px;color:#4b5a73}
+#oc-pf a,#oc-pf button{display:block;width:100%;box-sizing:border-box;margin:8px 0 0;padding:14px;border:0;border-radius:16px;font:inherit;font-weight:800;text-decoration:none;cursor:pointer}
+#oc-pf .go{background:#2f6fdf;color:#fff}#oc-pf .home{background:#eef4ff;color:#2f6fdf}#oc-pf .gu{background:none;color:#8a96ab;font-size:14px;font-weight:600;padding:8px}
+#oc-pf-toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:2147483000;max-width:calc(100% - 32px);background:#16a34a;color:#fff;border-radius:18px;padding:12px 16px;font:700 17px/1.35 system-ui,sans-serif;box-shadow:0 8px 24px #0003;display:flex;gap:12px;align-items:center}
+#oc-pf-toast a{background:#fff;color:#16a34a;border-radius:12px;padding:8px 12px;text-decoration:none;white-space:nowrap}
+@keyframes ocpf-w{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg) scale(1.08)}}
+@media (prefers-reduced-motion:reduce){#oc-pf .big{animation:none}}
+@media (prefers-color-scheme:dark){#oc-pf{background:linear-gradient(160deg,#1d2433,#14202e);color:#e8edf6}#oc-pf .c{background:#232c3d}#oc-pf p{color:#b6c0d3}#oc-pf .home{background:#2b3a55;color:#cfe0ff}}`;
+  const addCss = () => {
+    if (document.getElementById("oc-pf-css")) return;
+    const el = document.createElement("style");
+    el.id = "oc-pf-css";
+    el.textContent = css;
+    document.head.appendChild(el);
+  };
+  const stepLink = (st) => ROOT + (st.path || "");
+  function grownUp() {
+    const a = 12 + Math.floor(Math.random() * 8), b = 13 + Math.floor(Math.random() * 7);
+    const got = prompt(`Grown-up check: what is ${a} × ${b}?`);
+    return got !== null && Number(got.trim()) === a * b;
+  }
+  function block(st, why) {
+    if (document.getElementById("oc-pf") || !document.body) return;
+    addCss();
+    const cur = st.steps[st.at];
+    const left = st.steps.length - st.at;
+    const box = document.createElement("div");
+    box.id = "oc-pf";
+    box.setAttribute("role", "dialog");
+    box.setAttribute("aria-modal", "true");
+    box.innerHTML = `<div class="c"><div class="big" aria-hidden="true">${why === "soroban" ? "🧮" : "🔒"}</div><h2>${why === "soroban" ? "Great warm-up!" : "Not yet!"}</h2>` +
+      `<p>${why === "soroban" ? "Soroban opens again when today's plan is finished." : "Do the steps in order."} First: <b>${escapeHtml(cur.icon || "")} ${escapeHtml(cur.label)}</b>. ${left === 1 ? "That's the last one!" : `${left} steps to go.`}</p>` +
+      `<a class="go" href="${escapeHtml(cur.path ? stepLink(cur) : ROOT + "#today")}">${cur.path ? "Let's go! 🚀" : "Show me today's plan"}</a><a class="home" href="${escapeHtml(ROOT)}">🏠 Home</a><button type="button" class="gu">Grown-up: unlock for today</button></div>`;
+    box.querySelector(".gu").addEventListener("click", () => {
+      if (!grownUp()) return;
+      const all = read("oc-year", {});
+      const mine = (all[st.who] ||= {});
+      mine.settings = { ...(mine.settings || {}), unlockDay: dayOf(new Date()), at: Date.now() };
+      write("oc-year", all);
+      box.remove();
+    });
+    document.body.appendChild(box);
+    document.querySelectorAll("audio,video").forEach((m) => m.pause?.());
+  }
+  function toast(st) {
+    if (!document.body) return;
+    addCss();
+    document.getElementById("oc-pf-toast")?.remove();
+    const next = st.steps[st.at];
+    const el = document.createElement("div");
+    el.id = "oc-pf-toast";
+    el.setAttribute("role", "status");
+    el.innerHTML = next
+      ? `<span>⭐ Step done! Next: ${escapeHtml(next.icon || "")} ${escapeHtml(next.label)}</span><a href="${escapeHtml(next.path ? stepLink(next) : ROOT + "#today")}">Next ➜</a>`
+      : `<span>🏆 You finished today's plan! Soroban and everything else are open.</span><a href="${escapeHtml(ROOT)}">Yay!</a>`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 9000);
+  }
+  function planCheck() {
+    const st = planState();
+    if (!st || st.at < 0) return;
+    const cur = st.steps[st.at];
+    if (cur.path && onPath(cur.path)) {
+      const need = Math.max(3, Math.round(0.6 * (cur.minutes || 8)));
+      if (minutesOn(st.who, cur.path) >= need) {
+        const all = read("oc-year", {});
+        (all[st.who] ||= {})[cur.tick] = { done: true, auto: true, at: Date.now() };
+        write("oc-year", all);
+        listeners.forEach((fn) => fn());
+        toast(planState() || { steps: [], at: -1 });
+      }
+      return;
+    }
+    if (st.unlock) return;
+    if (onPath(SOROBAN)) return minutesOn(st.who, SOROBAN) >= WARMUP ? block(st, "soroban") : undefined;
+    if (st.steps.slice(st.at + 1).some((x) => onPath(x.path)) && !st.steps.slice(0, st.at).some((x) => onPath(x.path))) block(st, "later");
+  }
+  // Count active time (a tap or key in the last 2 minutes, page visible) on this page, for today.
+  setInterval(() => {
+    if (document.hidden || Date.now() - lastPoke > IDLE) return;
+    const who = OC.current();
+    if (!who || !here()) return;
+    const t = read(timeKey, {});
+    const today = dayOf(new Date());
+    const fresh = t.date === today ? t : { date: today };
+    const mine = (fresh[who] ||= {});
+    mine[here()] = (mine[here()] || 0) + 10;
+    write(timeKey, fresh);
+    planCheck();
+  }, 10000);
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", planCheck, { once: true });
+  else planCheck();
+  OC.planCheck = planCheck;
 })();

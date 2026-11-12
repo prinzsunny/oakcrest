@@ -127,7 +127,7 @@
     const s = read("oc-year", {})[learner]?.settings || {};
     // Screen time is 60 minutes on lesson days unless the parent has chosen another figure in settings
     // (an older saved default of 30 does not count as a choice).
-    return { start: s.start || DATA.start, days: s.days || [2, 4, 6, 0], screen: s.screenSet ? s.screen ?? 60 : 60, screenSet: !!s.screenSet, soroban: s.soroban ?? true };
+    return { start: s.start || DATA.start, days: s.days || [2, 4, 6, 0], screen: s.screenSet ? s.screen ?? 60 : 60, screenSet: !!s.screenSet, soroban: s.soroban ?? true, planFirst: s.planFirst ?? true, planSince: s.planSince || "", unlockDay: s.unlockDay || "" };
   };
   const setSettings = (learner, patch) => {
     const all = read("oc-year", {});

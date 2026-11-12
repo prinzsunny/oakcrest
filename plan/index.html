@@ -214,6 +214,7 @@ function renderYear() {
     <div class="oc-field">School days<div class="yr-daypick">${[1, 2, 3, 4, 5, 6, 0].map((d) => `<button type="button" data-dayset="${d}" aria-pressed="${s.days.includes(d)}">${DAYNAMES[d]}</button>`).join("")}</div></div>
     <label class="oc-field">Screen time on lesson days (minutes)<input type="number" min="0" max="90" step="5" class="oc-input" data-set="screen" value="${s.screen}"></label>
     ${E.kind === "little" ? "" : `<label class="oc-field yr-check-line"><input type="checkbox" data-set="soroban" ${s.soroban ? "checked" : ""}> Include soroban practice (3 times a week)</label>`}
+    <label class="oc-field yr-check-line"><input type="checkbox" data-set="planFirst" ${s.planFirst ? "checked" : ""}> Plan first: steps open one at a time, the plan waits on an unfinished day, and Soroban has a 5-minute warm-up until the day's plan is done</label>
     ${(() => {
       const need = E.lessonsOf(w).length * 15;
       const have = days.length * s.screen;
@@ -458,12 +459,12 @@ document.addEventListener("change", (event) => {
   const set = event.target.closest("[data-set]");
   if (set) {
     const k = set.dataset.set;
-    const value = k === "soroban" ? set.checked : k === "screen" ? Math.max(0, Number(set.value) || 0) : set.value;
+    const value = k === "soroban" || k === "planFirst" ? set.checked : k === "screen" ? Math.max(0, Number(set.value) || 0) : set.value;
     if (k === "start" && value) {
       const d = new Date(`${value}T00:00:00`);
       d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // snap to Monday
       E.setSettings(who, { start: E.iso(d) });
-    } else if (k !== "start") E.setSettings(who, k === "screen" ? { screen: value, screenSet: true } : { [k]: value });
+    } else if (k !== "start") E.setSettings(who, k === "screen" ? { screen: value, screenSet: true } : k === "planFirst" ? { planFirst: value, planSince: value ? E.iso(new Date()) : "" } : { [k]: value });
     shownWeek = null;
     return render();
   }

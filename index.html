@@ -202,17 +202,61 @@ function streakOf(days, planned) {
   }
   return streak;
 }
+// The plan is sequential: it stays on the earliest unfinished lesson day (counting from the day "plan first"
+// was switched on), and inside a day the steps unlock one at a time.
 function questOf(who, E) {
   if (!E) return null;
+  const s = E.settings(who);
+  const todayIso = E.iso(new Date());
   const w = E.weekIndexOf(who);
   if (w < 0 || w > 51) return null;
-  const today = E.iso(new Date());
-  const day = E.daysOf(who, w).find((d) => d.iso === today);
-  if (!day) return { items: [] };
   const t = E.ticks(who);
-  const items = day.items.filter((it) => !it.optional && !it.after).map((it) => ({ ...it, done: !!t[E.tickKey(w, today, it)]?.done }));
-  return { items, next: items.find((it) => !it.done) };
+  const stepsOf = (wk, day) =>
+    day.items.filter((it) => !it.optional && !it.after).map((it) => {
+      const tick = E.tickKey(wk, day.iso, it);
+      return { ...it, tick, done: !!t[tick]?.done };
+    });
+  let found = null;
+  if (s.planFirst) {
+    if (!s.planSince) E.setSettings(who, { planSince: todayIso });
+    const since = s.planSince || todayIso;
+    for (let wk = Math.max(0, E.weekIndexOf(who, new Date(`${since}T00:00:00`))); wk <= w && !found; wk++)
+      for (const day of E.daysOf(who, wk)) {
+        if (day.iso < since || day.iso >= todayIso) continue;
+        const items = stepsOf(wk, day);
+        if (items.some((it) => !it.done)) { found = { day, items }; break; }
+      }
+  }
+  if (!found) {
+    const day = E.daysOf(who, w).find((d) => d.iso === todayIso);
+    found = day ? { day, items: stepsOf(w, day) } : { day: null, items: [] };
+  }
+  const items = found.items;
+  const q = { items, next: items.find((it) => !it.done), iso: found.day?.iso, carried: !!found.day && found.day.iso !== todayIso, date: found.day?.date };
+  // Every page reads this to know which step is open now (assets/oc.js).
+  try {
+    const all = JSON.parse(localStorage.getItem("oc-daily") || "{}");
+    all[who] = { date: todayIso, on: s.planFirst, unlock: s.unlockDay === todayIso, steps: items.map((it) => ({ tick: it.tick, path: it.path || "", label: it.label, icon: it.icon, minutes: it.minutes || 0 })) };
+    localStorage.setItem("oc-daily", JSON.stringify(all));
+  } catch {}
+  return q;
 }
+// A quick grown-up check before ticking an off-screen step (a 5-year-old can't multiply two-digit numbers yet).
+function grownUp() {
+  const a = 12 + Math.floor(Math.random() * 8), b = 13 + Math.floor(Math.random() * 7);
+  const got = prompt(`Grown-up check: what is ${a} × ${b}?`);
+  return got !== null && Number(got.trim()) === a * b;
+}
+document.addEventListener("click", (event) => {
+  const btn = event.target.closest("[data-q-tick]");
+  if (!btn) return;
+  event.preventDefault();
+  const who = OC.current();
+  const E = yearOf(who);
+  if (!E || !grownUp()) return;
+  E.setTick(who, btn.dataset.qTick, true);
+  renderQuest();
+});
 function renderQuest() {
   const who = OC.current();
   quest.hidden = !who;
@@ -239,7 +283,8 @@ function renderQuest() {
   };
   if (q?.next) {
     const left = q.items.filter((it) => !it.done).length;
-    set(q.next.icon, `Up next for you · ${left} to go`, q.next.label, q.next.what, q.next.path || "plan/");
+    const from = q.carried ? `Finishing ${q.date.toLocaleDateString(undefined, { weekday: "long" })}'s plan · ` : "Up next for you · ";
+    set(q.next.icon, `${from}${left} to go`, q.next.label, q.next.path ? q.next.what : `${q.next.what} When it's done, a grown-up taps ✓ in the list below.`, q.next.path || "#today");
   } else if (q?.items.length) set("🏆", "All done for today!", "You finished today's plan!", "Bonus: explore a new skill island.", "skills/");
   else set("🗺️", "No lessons today", "Free explore", "Pick an island on your Learning Adventure.", "skills/");
   go.classList.toggle("done", !!q?.items.length && !q.next);
@@ -248,8 +293,14 @@ function renderQuest() {
   const date = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
   $q("sub").textContent = all.length ? `${date} · ${doneN} of ${all.length} steps done today` : `${date} · no lessons planned today`;
   $q("bar").innerHTML = all.map((it) => `<i class="${it.done ? "done" : it === q.next ? "now" : ""}"></i>`).join("");
+  const nextAt = q?.next ? all.indexOf(q.next) : -1;
   $q("steps").innerHTML = (q?.items || [])
-    .map((it) => `<li class="${it.done ? "done" : it === q.next ? "now" : ""}"><a href="${OC.escapeHtml(it.path || "plan/")}"><i class="ka-sq" aria-hidden="true"></i><span class="ka-step-icon" aria-hidden="true">${it.icon}</span><span class="ka-step-name">${OC.escapeHtml(it.label)}${it.done ? '<span class="oc-hide"> (done)</span>' : ""}</span><small>${it.minutes ? it.minutes + " min" : ""}</small></a></li>`)
+    .map((it, i) => {
+      const locked = nextAt >= 0 && i > nextAt;
+      const inner = `<i class="ka-sq" aria-hidden="true"></i><span class="ka-step-icon" aria-hidden="true">${locked ? "🔒" : it.icon}</span><span class="ka-step-name">${OC.escapeHtml(it.label)}${it.done ? '<span class="oc-hide"> (done)</span>' : locked ? '<span class="oc-hide"> (locked until the step before is done)</span>' : ""}</span><small>${it.minutes ? it.minutes + " min" : ""}</small>`;
+      const tick = i === nextAt ? `<button type="button" class="ka-tick" data-q-tick="${OC.escapeHtml(it.tick)}" aria-label="Grown-up: mark ${OC.escapeHtml(it.label)} done">✓ Done</button>` : "";
+      return `<li class="${it.done ? "done" : i === nextAt ? "now" : locked ? "locked" : ""}">${locked ? `<span class="ka-step-lock">${inner}</span>` : `<a href="${OC.escapeHtml(it.path || "plan/")}">${inner}</a>`}${tick}</li>`;
+    })
     .join("");
   const monday = new Date();
   monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
