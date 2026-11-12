@@ -90,6 +90,7 @@ const SAMPLE = {
     if (!/Bead Garden/.test(body)) errors.push("portfolio: completed world missing");
     if (!/Explained why 9\+6/.test(body.replace(/<\/?b>/g, ""))) errors.push("portfolio: note missing");
     if (await page.$(".pf-table b b")) errors.push("portfolio: note HTML was not escaped");
+    await page.waitForFunction(() => /Two-Step Equations/.test(document.querySelector("[data-good]").innerText) && /Soroban/.test(document.querySelector("[data-work]").innerText) && document.querySelectorAll("[data-next] a, [data-next] b").length, { timeout: 8000 }).catch(() => errors.push("portfolio: progress report incomplete"));
     if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT, fullPage: true });
     if (errors.length) problems.push(["portfolio (sample data)", errors]);
     await page.close();

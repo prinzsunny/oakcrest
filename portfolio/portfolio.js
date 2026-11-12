@@ -135,6 +135,92 @@
     return { total, days, first: entries[0]?.date };
   }
 
+  // ---------- progress report: doing well, needs work, next steps ----------
+  const yearOf = (name) => (OC.levelOf?.(name) === "Foundations" ? window.LYEAR : window.YEAR);
+  // Planned steps over the last 4 weeks (before today), and how many were ticked done, by subject group and by step.
+  function planReport(name) {
+    const E = yearOf(name);
+    if (!E) return null;
+    const t = E.ticks(name);
+    const today = E.iso(new Date());
+    const from = new Date();
+    from.setDate(from.getDate() - 28);
+    const fromIso = E.iso(from);
+    const now = E.weekIndexOf(name);
+    const groups = {}, steps = {};
+    let planned = 0, done = 0, days = 0, fullDays = 0;
+    for (let w = Math.max(0, E.weekIndexOf(name, from)); w <= Math.min(51, now); w++)
+      for (const day of E.daysOf(name, w)) {
+        if (day.iso < fromIso || day.iso >= today) continue;
+        const items = day.items.filter((it) => !it.optional && !it.after);
+        if (!items.length) continue;
+        days += 1;
+        let got = 0;
+        for (const it of items) {
+          const ok = !!t[E.tickKey(w, day.iso, it)]?.done;
+          const g = (groups[it.group || "Other"] ||= { planned: 0, done: 0 });
+          const s = (steps[it.label.split(":")[0]] ||= { planned: 0, done: 0, icon: it.icon });
+          g.planned += 1; s.planned += 1; planned += 1;
+          if (ok) { g.done += 1; s.done += 1; done += 1; got += 1; }
+        }
+        if (got === items.length) fullDays += 1;
+      }
+    return { planned, done, days, fullDays, groups, steps };
+  }
+  const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+  const meter = (p) => `<span class="pf-meter" aria-hidden="true"><b class="${p < 60 ? "low" : ""}" style="width:${p}%"></b></span>`;
+  function renderReport(name, rows, age) {
+    const good = [], work = [];
+    const loaded = SKILLS.topics.size > 0;
+    if (rows.length) {
+      const by = {};
+      for (const r of rows) by[r.t.subject] = (by[r.t.subject] || 0) + 1;
+      const top = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 2);
+      good.push(`Most skills shown in <b>${top.map(([s, n]) => `${esc(s)} (${n})`).join("</b> and <b>")}</b>`);
+      const ahead = rows.filter((r) => r.ahead);
+      if (ahead.length) good.push(`${ahead.length} ${ahead.length === 1 ? "skill" : "skills"} ahead of age, such as <b>${ahead.slice(0, 3).map((r) => esc(r.t.name)).join(", ")}</b>`);
+    }
+    // Grown-up checks that said "almost" or "not yet", and skills started but not yet secure.
+    if (loaded) {
+      const status = SKILLS.statusMap(name);
+      const by = { almost: [], notyet: [], learning: [] };
+      for (const [id, s] of status) if (by[s]) { const tp = SKILLS.topics.get(id); if (tp) by[s].push(tp.name); }
+      const more = (list) => (list.length > 4 ? ` and ${list.length - 4} more` : "");
+      if (by.notyet.length) work.push(`Not yet, from grown-up checks: <b>${by.notyet.slice(0, 4).map(esc).join(", ")}</b>${more(by.notyet)}`);
+      if (by.almost.length) work.push(`Almost there: <b>${by.almost.slice(0, 4).map(esc).join(", ")}</b>${more(by.almost)}`);
+      if (by.learning.length) work.push(`Started but not yet secure: ${by.learning.slice(0, 4).map(esc).join(", ")}${more(by.learning)}`);
+    }
+    const sk = (read("oc-soroban-adv", {})[name] || {}).skills || {};
+    const strong = Object.entries(sk).filter(([k, s]) => SORO_SKILLS[k] && s.n >= 5 && !s.weak && s.err < 0.15).map(([k]) => SORO_SKILLS[k]);
+    const weak = Object.entries(sk).filter(([k, s]) => SORO_SKILLS[k] && (s.weak || (s.n >= 5 && s.err >= 0.3))).map(([k, s]) => `${esc(SORO_SKILLS[k])} <small>(${Math.round((1 - s.err) * 100)}% right)</small>`);
+    if (strong.length) good.push(`Soroban: accurate at ${strong.slice(0, 3).map(esc).join(", ")}`);
+    if (weak.length) work.push(`Soroban: ${weak.slice(0, 3).join(", ")}`);
+    const plan = planReport(name);
+    let planHtml = `<p class="pf-empty">No plan days in the last 4 weeks.</p>`;
+    if (plan && plan.planned) {
+      const overall = pct(plan.done, plan.planned);
+      if (overall >= 80) good.push(`Finishes the daily plan: ${overall}% of steps done over the last 4 weeks`);
+      else if (overall < 60) work.push(`Daily plan: only ${overall}% of steps done over the last 4 weeks (${plan.fullDays} of ${plan.days} days fully finished)`);
+      const groups = Object.entries(plan.groups).map(([g, v]) => [g, pct(v.done, v.planned), v]).sort((a, b) => a[1] - b[1]);
+      const skipped = Object.entries(plan.steps).filter(([, v]) => v.planned >= 2 && pct(v.done, v.planned) < 50).sort((a, b) => pct(a[1].done, a[1].planned) - pct(b[1].done, b[1].planned)).slice(0, 4);
+      if (skipped.length) work.push(`Plan steps most often skipped: ${skipped.map(([l, v]) => `<b>${esc(v.icon || "")} ${esc(l)}</b> (${v.done} of ${v.planned})`).join(", ")}`);
+      const best = groups.filter(([, p, v]) => p >= 85 && v.planned >= 3).slice(-2);
+      if (best.length) good.push(`Keeps up with ${best.map(([g, p]) => `<b>${esc(g)}</b> (${p}%)`).join(" and ")} in the plan`);
+      planHtml = `<p class="pf-note">${plan.done} of ${plan.planned} steps done (${overall}%), ${plan.fullDays} of ${plan.days} lesson days fully finished.</p><table class="pf-table"><thead><tr><th>Subject</th><th>Done</th><th class="num">Steps</th></tr></thead><tbody>${groups
+        .map(([g, p, v]) => `<tr><td>${esc(g)}</td><td>${meter(p)}${p}%</td><td class="num">${v.done} / ${v.planned}</td></tr>`)
+        .join("")}</tbody></table>`;
+    }
+    $("[data-plan-report]").innerHTML = planHtml;
+    $("[data-good]").innerHTML = (good.length ? good : ["Not enough records yet. Finish lessons, Soroban levels and plan steps to build this up."]).map((x) => `<li>${x}</li>`).join("");
+    $("[data-work]").innerHTML = (work.length ? work : [loaded ? "Nothing flagged. Keep going!" : "Loading skills…"]).map((x) => `<li>${x}</li>`).join("");
+    // Next steps: skills she is ready for (prerequisites known), with where to practice them on the site.
+    const next = loaded && age !== null && age !== undefined ? SKILLS.next({ name, count: 6 }) : [];
+    $("[data-next]").innerHTML = next.length
+      ? next.map((tp) => { const where = SKILLS.practice(tp.id)[0]; return `<li><b>${esc(tp.name)}</b> <small>(${esc(tp.subject)}, age ${band(tp)})</small>${where ? ` · practice: <a href="../${esc(where.href)}">${esc(where.label)}</a>` : ""}</li>`; }).join("")
+      : `<li>${loaded ? "Add a birthday on the learner's profile to get suggestions." : "Loading…"}</li>`;
+    $("[data-report-note]").textContent = `Written from the site's records on ${fmt(Date.now())}: skills shown in lessons, apps and grown-up checks, Soroban accuracy, and which daily-plan steps were ticked done.`;
+  }
+
   // ---------- notes ----------
   const allNotes = () => read(NOTES, {});
   const notesOf = (name) =>
@@ -171,6 +257,7 @@
     const { rows, age: skillAge } = skillRows(name);
     renderAhead(rows, age ?? skillAge);
     renderSubjects(rows);
+    renderReport(name, rows, age ?? skillAge);
     const soro = renderSoroban(name);
     $("[data-soroban]").innerHTML = soro.html;
     const time = renderTime(name);
