@@ -171,6 +171,7 @@ body[data-theme="dark"] .sb-sheetbox{background:var(--anatomy-card);box-shadow:0
 .sb-column{display:grid;justify-items:end;gap:1px;min-width:3.4em;color:var(--anatomy-strong);font:700 clamp(22px,3.6vw,32px)/1.12 ui-monospace,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums}
 .sb-column .sb-row{display:flex;align-items:center;gap:8px;padding:0 6px;border-radius:8px}
 .sb-column .sb-row[data-now]{background:#f3e3cc;color:#5a2f0f}
+.sb-column .sb-head{justify-content:center;font-weight:800;color:#1f6f6a;border-bottom:2px dashed #bfe6e0;border-radius:0;margin-bottom:4px}
 body[data-theme="dark"] .sb-column .sb-row[data-now]{background:#4a3020;color:#fff}
 .sb-column .sb-row[data-did]{opacity:.42}
 .sb-column .sb-row[data-did]::after{content:"✓";font-size:.55em;color:#30a46c}
@@ -2387,15 +2388,16 @@ function makeProblem(level, sampleIndex = -1) {
 const totalOf = (terms, upto = terms.length - 1) => terms.slice(0, upto + 1).reduce((sum, term) => sum + term, 0);
 
 // `mask(index)` can hide a row's number (flash and listening levels): it returns what to show instead, or null.
-function columnHtml(terms, { now = -1, done = -1, answer = null, mask = null } = {}) {
+function columnHtml(terms, { now = -1, done = -1, answer = null, mask = null, head = null, labels = null } = {}) {
   const hide = (index, text) => mask?.(index) ?? text;
-  if (terms.length === 1) return `<div class="sb-row"${now === 0 ? " data-now" : ""}><span>Show ${hide(0, terms[0])}</span></div>`;
+  const top = head ? `<div class="sb-row sb-head"><span>${head}</span></div>` : "";
+  if (terms.length === 1) return top + `<div class="sb-row"${now === 0 ? " data-now" : ""}><span>${labels?.[0] ?? `Show ${hide(0, terms[0])}`}</span></div>`;
   const rows = terms.map((term, index) => {
-    const text = hide(index, index === 0 ? String(term) : `${term < 0 ? "−" : "+"}${Math.abs(term)}`);
+    const text = labels?.[index] ?? hide(index, index === 0 ? String(term) : `${term < 0 ? "−" : "+"}${Math.abs(term)}`);
     const flag = index <= done ? " data-did" : index === now ? " data-now" : "";
     return `<div class="sb-row"${flag}><span>${text}</span></div>`;
   });
-  return rows.join("") + `<div class="sb-rule"></div><div class="sb-row sb-ans"><span>${answer === null ? "" : answer}</span></div>`;
+  return top + rows.join("") + `<div class="sb-rule"></div><div class="sb-row sb-ans"><span>${answer === null ? "" : answer}</span></div>`;
 }
 
 const tutor = { level: 0, problem: null, stage: 0, helped: false, stars: 0, streak: 0, struggles: 0, solved: 0, samples: Array(LEVELS.length).fill(0), help: true, token: 0 };
@@ -3458,223 +3460,266 @@ const MORE_WORLDS = [
     name: "Zero Zoo", icon: "🦓", tint: "#4f5d6b", wash: "linear-gradient(160deg,#eef0f3,#d5dbe2)", decor: "🦓🐘🦒🐒🦓", beads: "coral",
     text: "Numbers with zeros inside. A zero rod stays empty!",
     levels: [
-      { name: "Show numbers with zeros", help: true, gen: () => [zeroy(pickInt(4, 6))] },
-      { name: "Add with zeros", help: false, gen: huge(() => [zeroy(4), zeroy(4)]) },
-      { name: "Take away with zeros", help: false, gen: huge(() => [zeroy(5), -zeroy(4)]) },
-      { name: "Jump to a round number", help: false, gen: () => { const a = pickInt(1, 8) * 1000 + pickInt(1, 999); return [a, toRound(a, 3)]; } },
-      { name: "Back from a round number", help: false, gen: () => (coin() ? [pickInt(2, 9) * 1000, -pickInt(1, 999)] : [pickInt(2, 9) * 10000, -pickInt(1, 9999)]) },
+      { name: "Seven-digit zeros", help: false, gen: () => [zeroy(pickInt(7, 9))] },
+      { name: "Add three zero numbers", help: false, gen: huge(() => [zeroy(6), zeroy(6), zeroy(5)]) },
+      { name: "Take away with zeros", help: false, gen: () => walk(zeroy(7), 4, () => zeroy(pickInt(4, 6)), 0.35) },
+      { name: "Jump to a round number", help: false, gen: () => { const a = digitsNum(6); return [a, toRound(a, pickInt(3, 5)), -digitsNum(3)]; } },
+      { name: "Back from a million", help: false, gen: () => [pickInt(2, 9) * 10 ** 6, -digitsNum(6), digitsNum(4)] },
     ],
   },
   {
     name: "Carry Canyon", icon: "🏜️", tint: "#b0602a", wash: "linear-gradient(160deg,#fbeadb,#f0cfae)", decor: "🌵🦎🏜️🐪🌵", beads: "mint",
     text: "Carries that ripple across many rods, like falling dominoes.",
     levels: [
-      { name: "Ripple carry", help: true, gen: () => rippleCarry(pickInt(3, 4)) },
-      { name: "Ripple borrow", help: false, gen: () => rippleBorrow(pickInt(3, 4)) },
-      { name: "Big ripple", help: false, gen: () => { const c = pickInt(1, 99); const a = pickInt(1, 8) * 10000 + 10000 - c; return [a, pickInt(c, 99)]; } },
-      { name: "There and back", help: false, gen: () => { const [a, b] = rippleCarry(pickInt(4, 5)); const c = a + b; return [a, b, -pickInt((c % 10) + 1, 9)]; } },
-      { name: "Canyon mix", help: false, gen: () => walk(digitsNum(5), 5, () => pickInt(100, 9999), 0.55) },
+      { name: "Ripple carry", help: false, gen: () => rippleCarry(pickInt(5, 7)) },
+      { name: "Ripple borrow", help: false, gen: () => rippleBorrow(pickInt(5, 7)) },
+      { name: "Ripple there and back", help: false, gen: () => { const [a, b] = rippleCarry(pickInt(6, 8)); const c = a + b; return [a, b, -pickInt((c % 10) + 1, 9)]; } },
+      { name: "Double ripple", help: false, gen: () => { const [a, b] = rippleCarry(pickInt(5, 7)); const c = a + b; return [a, b, toRound(c, pickInt(3, 5))]; } },
+      { name: "Canyon mix", help: false, gen: () => walk(digitsNum(7), 7, () => digitsNum(pickInt(3, 6)), 0.55) },
     ],
   },
   {
     name: "Hop Hill", icon: "🐸", tint: "#3f8a3a", wash: "linear-gradient(160deg,#e6f5dc,#c7e7b4)", decor: "🐸🪷🐞🌿🐸", beads: "lavender",
     text: "Hop by the same number again and again. That's how times tables begin!",
     levels: [
-      { name: "Hop by 2s, 5s and 10s", help: true, gen: () => hops(pickOne([2, 5, 10]), pickInt(5, 8)) },
-      { name: "Hop by 3s and 4s", help: false, gen: () => hops(pickOne([3, 4]), pickInt(6, 8)) },
-      { name: "Hop by 6s, 7s, 8s and 9s", help: false, gen: () => hops(pickInt(6, 9), pickInt(5, 7)) },
-      { name: "Hop by 11s, 12s and 25s", help: false, gen: () => hops(pickOne([11, 12, 25]), pickInt(5, 7)) },
-      { name: "Hop back down", help: false, gen: () => { const n = pickInt(3, 9); const k = pickInt(4, 6); return [n * k + pickInt(1, 20), ...hops(-n, k)]; } },
+      { name: "Hop by 6s, 7s, 8s and 9s", help: false, gen: () => hops(pickInt(6, 9), pickInt(8, 10)) },
+      { name: "Hop by 13s to 19s", help: false, gen: () => hops(pickInt(13, 19), 8) },
+      { name: "Hop by 25s, 75s and 125s", help: false, gen: () => hops(pickOne([25, 75, 125, 250]), 8) },
+      { name: "Hop by three digits", help: false, gen: () => hops(digitsNum(3), 7) },
+      { name: "Hop back down", help: false, gen: () => { const n = pickInt(13, 99); const k = 8; return [n * k + pickInt(1, 99), ...hops(-n, k)]; } },
     ],
   },
   {
     name: "Flash Falls", icon: "💦", tint: "#1d7fa8", wash: "linear-gradient(160deg,#dcf1fa,#b5def0)", decor: "💦🌈🪨🐟💦", beads: "peach",
     text: "Numbers vanish fast! Look, remember, then move the beads.",
     levels: [
-      { name: "Flash and show", flash: 3000, gen: () => [digitsNum(3)] },
-      { name: "Flash three", flash: 3000, gen: () => walk(pickInt(1, 9), 3, () => pickInt(1, 9), 0.7) },
-      { name: "Flash four", flash: 2500, gen: () => walk(pickInt(1, 9), 4, () => pickInt(1, 9), 0.65) },
-      { name: "Flash two digits", flash: 3000, gen: rowsOf(3, 2) },
-      { name: "Waterfall flash", flash: 2500, gen: rowsOf(4, 2) },
+      { name: "Flash six digits", flash: 2500, gen: () => [digitsNum(6)] },
+      { name: "Flash five", flash: 1500, gen: () => walk(pickInt(1, 9), 5, () => pickInt(1, 9), 0.65) },
+      { name: "Flash two digits", flash: 2000, gen: rowsOf(5, 2) },
+      { name: "Flash three digits", flash: 2500, gen: rowsOf(4, 3) },
+      { name: "Waterfall flash", flash: 1800, gen: rowsOf(8, 2) },
     ],
   },
   {
     name: "Echo Valley", icon: "🦜", tint: "#2f8c6e", wash: "linear-gradient(160deg,#dff4ec,#bfe6d6)", decor: "🦜⛰️🌲🎶🦜", beads: "berry",
     text: "Listen carefully: these numbers are only spoken, not written!",
     levels: [
-      { name: "Hear and show", listen: true, gen: () => [digitsNum(3)] },
-      { name: "Hear three", listen: true, gen: () => walk(pickInt(1, 9), 3, () => pickInt(1, 9), 0.7) },
-      { name: "Hear two digits", listen: true, gen: rowsOf(3, 2) },
-      { name: "Hear three digits", listen: true, gen: rowsOf(2, 3) },
-      { name: "Echo marathon", listen: true, gen: rowsOf(5, 2) },
+      { name: "Hear six digits", listen: true, gen: () => [digitsNum(6)] },
+      { name: "Hear five two-digit rows", listen: true, gen: rowsOf(5, 2) },
+      { name: "Hear three digits", listen: true, gen: rowsOf(4, 3) },
+      { name: "Hear four digits", listen: true, gen: rowsOf(3, 4) },
+      { name: "Echo marathon", listen: true, gen: rowsOf(8, 2) },
     ],
   },
   {
     name: "Double Dome", icon: "🪞", tint: "#6b4fa0", wash: "linear-gradient(160deg,#efe8f8,#d9cdee)", decor: "🪞✨🔮💜🪞", beads: "teal",
     text: "Doubles and halves: add a number to itself, or take half away.",
     levels: [
-      { name: "Double it", help: true, gen: () => { const n = digitsNum(2); return [n, n]; } },
-      { name: "Double three digits", help: false, gen: () => { const n = digitsNum(3); return [n, n]; } },
-      { name: "Take half away", help: false, gen: () => { const n = pickInt(50, 499) * 2; return [n, -n / 2]; } },
-      { name: "Double, double", help: false, gen: () => { const n = digitsNum(2); return [n, n, 2 * n]; } },
-      { name: "Double five digits", help: false, gen: () => { const n = digitsNum(5); return [n, n]; } },
+      { name: "Double, double", help: false, gen: () => { const n = digitsNum(3); return [n, n, 2 * n]; } },
+      { name: "Double five digits", help: false, gen: () => { const n = digitsNum(5); return [n, n, 2 * n]; } },
+      { name: "Take half away", help: false, gen: () => { const n = digitsNum(5) * 2; return [n, -n / 2]; } },
+      { name: "Double four times", help: false, gen: () => { const n = digitsNum(3); return [n, n, 2 * n, 4 * n]; } },
+      { name: "Double seven digits", help: false, gen: () => { const n = digitsNum(7); return [n, n, 2 * n]; } },
     ],
   },
   {
     name: "Ten-Million Sea", icon: "🐋", tint: "#1f5c8f", wash: "linear-gradient(160deg,#dde9f6,#b9d1ec)", decor: "🐋🌊🐚🐡🐋", beads: "cocoa",
     text: "Eight-digit numbers: tens of millions!",
     levels: [
-      { name: "Show eight digits", help: false, gen: () => [digitsNum(8)] },
-      { name: "Eight ± five digits", help: false, gen: huge(() => [digitsNum(8), sign(0.6) * digitsNum(5)]) },
-      { name: "Eight ± seven digits", help: false, gen: huge(() => [digitsNum(8), sign(0.6) * digitsNum(7)]) },
+      { name: "Add eight digits", help: false, gen: huge(() => [digitsNum(8), digitsNum(8)]) },
+      { name: "Eight ± seven digits", help: false, gen: () => walk(digitsNum(8), 4, () => digitsNum(7)) },
+      { name: "Three eight-digit rows", help: false, gen: huge(() => [digitsNum(8), digitsNum(8), digitsNum(8)]) },
       { name: "Eight ± eight digits", help: false, gen: huge(() => [pickInt(40000000, 99999999), sign(0.5) * pickInt(10000000, 39999999)]) },
-      { name: "Deep sea mix", help: false, gen: () => walk(digitsNum(8), 4, () => digitsNum(pickInt(4, 7))) },
+      { name: "Deep sea mix", help: false, gen: () => walk(digitsNum(8), 6, () => digitsNum(pickInt(4, 8))) },
     ],
   },
   {
     name: "Take-Away Swamp", icon: "🐊", tint: "#4d6b2a", wash: "linear-gradient(160deg,#e9efd9,#cfdcae)", decor: "🐊🪷🐸🌾🐊", beads: "lemon",
     text: "Mostly taking away: start big and climb down carefully.",
     levels: [
-      { name: "Down the ladder", help: false, gen: () => walk(pickInt(80, 99), 6, () => pickInt(1, 9), 0.15) },
-      { name: "Two-digit drops", help: false, gen: () => walk(pickInt(500, 999), 6, () => pickInt(10, 99), 0.15) },
-      { name: "Three-digit drops", help: false, gen: () => walk(pickInt(5000, 9999), 5, () => pickInt(100, 999), 0.15) },
-      { name: "Gator gulps", help: false, gen: () => walk(digitsNum(6), 5, () => digitsNum(pickInt(3, 5)), 0.2) },
-      { name: "Swamp escape", help: false, gen: () => walk(pickInt(1000, 9999), 8, () => pickInt(10, 999), 0.3) },
+      { name: "Two-digit drops", help: false, gen: () => walk(pickInt(800, 999), 8, () => pickInt(10, 99), 0.15) },
+      { name: "Three-digit drops", help: false, gen: () => walk(pickInt(50000, 99999), 7, () => digitsNum(3), 0.15) },
+      { name: "Four-digit drops", help: false, gen: () => walk(digitsNum(6), 6, () => digitsNum(4), 0.15) },
+      { name: "Gator gulps", help: false, gen: () => walk(digitsNum(8), 6, () => digitsNum(pickInt(4, 7)), 0.2) },
+      { name: "Swamp escape", help: false, gen: () => walk(digitsNum(5), 12, () => digitsNum(pickInt(2, 4)), 0.3) },
     ],
   },
   {
     name: "Row Tower", icon: "🗼", tint: "#8a3d5c", wash: "linear-gradient(160deg,#f7e4ec,#ebc4d4)", decor: "🗼☁️🕊️🌤️🗼", beads: "sky",
-    text: "Twelve rows tall! Keep your place, one row at a time.",
+    text: "Fifteen to twenty rows tall! Keep your place, one row at a time.",
     levels: [
-      { name: "Twelve one-digit rows", help: false, gen: rowsOf(12, 1, 0.65) },
-      { name: "Twelve two-digit rows", help: false, gen: rowsOf(12, 2) },
-      { name: "Ten three-digit rows", help: false, gen: rowsOf(10, 3) },
-      { name: "Twelve mixed rows", help: false, gen: () => walk(digitsNum(3), 12, () => digitsNum(pickInt(1, 3))) },
       { name: "Fifteen two-digit rows", help: false, gen: rowsOf(15, 2) },
+      { name: "Twelve three-digit rows", help: false, gen: rowsOf(12, 3) },
+      { name: "Ten four-digit rows", help: false, gen: rowsOf(10, 4) },
+      { name: "Fifteen mixed rows", help: false, gen: () => walk(digitsNum(4), 15, () => digitsNum(pickInt(1, 4))) },
+      { name: "Twenty two-digit rows", help: false, gen: rowsOf(20, 2) },
     ],
   },
   {
     name: "Thunder Flash", icon: "⚡", tint: "#6a5a12", wash: "linear-gradient(160deg,#f6f1d6,#e6dba0)", decor: "⚡🌩️☁️⚡🌩️", beads: "plum",
     text: "Flash numbers and a ticking clock! Rounds of 8.",
     levels: [
-      { name: "Flash sprint", count: 8, flash: 2000, time: [150, 220], gen: () => walk(pickInt(1, 9), 3, () => pickInt(1, 9), 0.7) },
-      { name: "Two-digit flash sprint", count: 8, flash: 2500, time: [200, 300], gen: rowsOf(3, 2) },
-      { name: "Five flash", count: 8, flash: 1800, time: [220, 330], gen: () => walk(pickInt(1, 9), 5, () => pickInt(1, 9), 0.65) },
-      { name: "Thunder", count: 8, flash: 2200, time: [260, 390], gen: rowsOf(4, 2) },
-      { name: "Lightning bolt", count: 8, flash: 3000, time: [320, 480], gen: rowsOf(3, 3) },
+      { name: "Flash sprint", count: 8, flash: 1500, time: [200, 300], gen: rowsOf(4, 2) },
+      { name: "Three-digit flash sprint", count: 8, flash: 1800, time: [260, 390], gen: rowsOf(4, 3) },
+      { name: "Seven flash", count: 8, flash: 1200, time: [240, 360], gen: () => walk(pickInt(1, 9), 7, () => pickInt(1, 9), 0.65) },
+      { name: "Thunder", count: 8, flash: 1800, time: [300, 450], gen: rowsOf(6, 2) },
+      { name: "Lightning bolt", count: 8, flash: 2500, time: [360, 540], gen: rowsOf(4, 4) },
     ],
   },
   {
     name: "Billion Bay", icon: "🛳️", tint: "#264f7a", wash: "linear-gradient(160deg,#e1e9f3,#bfd0e6)", decor: "🛳️⚓🌊🐬🛳️", beads: "copper",
-    text: "Nine and ten digits: billions!",
+    text: "Ten to twelve digits: billions!",
     levels: [
-      { name: "Show nine digits", help: false, gen: () => [digitsNum(9)] },
-      { name: "Show ten digits", help: false, gen: () => [digitsNum(10)] },
-      { name: "Nine ± six digits", help: false, gen: huge(() => [digitsNum(9), sign(0.6) * digitsNum(6)]) },
-      { name: "Ten ± nine digits", help: false, gen: huge(() => [digitsNum(10), sign(0.6) * digitsNum(9)]) },
-      { name: "Billion mix", help: false, gen: () => walk(digitsNum(10), 4, () => digitsNum(pickInt(5, 9))) },
+      { name: "Ten + ten + nine digits", help: false, gen: huge(() => [digitsNum(10), digitsNum(10), digitsNum(9)]) },
+      { name: "Ten ± nine digits", help: false, gen: () => walk(digitsNum(10), 4, () => digitsNum(9)) },
+      { name: "Show twelve digits", help: false, gen: () => [digitsNum(12)] },
+      { name: "Ten ± ten digits", help: false, gen: huge(() => [pickInt(5000000000, 9999999999), sign(0.5) * pickInt(1000000000, 4999999999)]) },
+      { name: "Billion mix", help: false, gen: () => walk(digitsNum(10), 6, () => digitsNum(pickInt(6, 10))) },
     ],
   },
   {
     name: "Palindrome Palace", icon: "🏰", tint: "#a0447a", wash: "linear-gradient(160deg,#fbe6f2,#f0c6df)", decor: "🏰👸🪄🌸🏰", beads: "bubblegum",
     text: "Flip a number and add it: 123 + 321. Some make mirror numbers!",
     levels: [
-      { name: "Flip and add", help: false, gen: () => { const n = noEndZero(2); return [n, flipNum(n)]; } },
-      { name: "Flip three digits", help: false, gen: () => { const n = noEndZero(3); return [n, flipNum(n)]; } },
-      { name: "Flip and take away", help: false, gen: () => { let n; do n = noEndZero(3); while (n === flipNum(n)); const f = flipNum(n); return [Math.max(n, f), -Math.min(n, f)]; } },
-      { name: "Flip twice", help: false, gen: () => { const n = noEndZero(2); const s = n + flipNum(n); return [n, flipNum(n), flipNum(s)]; } },
       { name: "Flip four digits", help: false, gen: () => { const n = noEndZero(4); return [n, flipNum(n)]; } },
+      { name: "Flip and take away", help: false, gen: () => { let n; do n = noEndZero(4); while (n === flipNum(n)); const f = flipNum(n); return [Math.max(n, f), -Math.min(n, f)]; } },
+      { name: "Flip twice", help: false, gen: () => { const n = noEndZero(3); const s = n + flipNum(n); return [n, flipNum(n), flipNum(s)]; } },
+      { name: "Flip six digits", help: false, gen: () => { const n = noEndZero(6); return [n, flipNum(n)]; } },
+      { name: "Flip three times", help: false, gen: () => { const n = noEndZero(3); const a = n + flipNum(n); const b = a + flipNum(a); return [n, flipNum(n), flipNum(a), flipNum(b)]; } },
     ],
   },
   {
     name: "Moon Maze", icon: "🌙", tint: "#3d3f8a", wash: "linear-gradient(160deg,#e3e4f6,#c3c5ea)", decor: "🌙⭐🌌✨🌙", beads: "forest",
     text: "Flash numbers that add and take away. Remember each one!",
     levels: [
-      { name: "Flash plus and minus", flash: 2500, gen: rowsOf(4, 2, 0.5) },
-      { name: "Flash three digits", flash: 3500, gen: rowsOf(3, 3) },
-      { name: "Five quick flashes", flash: 1500, gen: () => walk(pickInt(1, 9), 5, () => pickInt(1, 9), 0.6) },
-      { name: "Flash with zeros", flash: 3000, gen: huge(() => [zeroy(4), sign(0.6) * zeroy(3)]) },
-      { name: "Moon walk", flash: 2000, gen: rowsOf(5, 2) },
+      { name: "Flash plus and minus", flash: 1800, gen: rowsOf(5, 2, 0.5) },
+      { name: "Flash three digits", flash: 2500, gen: rowsOf(4, 3, 0.5) },
+      { name: "Seven quick flashes", flash: 1200, gen: () => walk(pickInt(1, 9), 7, () => pickInt(1, 9), 0.6) },
+      { name: "Flash with zeros", flash: 2500, gen: () => walk(zeroy(6), 4, () => zeroy(4), 0.6) },
+      { name: "Moon walk", flash: 1500, gen: rowsOf(7, 2) },
     ],
   },
   {
     name: "Echo Storm", icon: "🌪️", tint: "#4a5868", wash: "linear-gradient(160deg,#e6eaee,#c9d1da)", decor: "🌪️☁️🌧️🦜🌪️", beads: "sunset",
     text: "Bigger spoken numbers. Listen hard!",
     levels: [
-      { name: "Hear four digits", listen: true, gen: () => [digitsNum(4)] },
-      { name: "Hear three rows of three", listen: true, gen: rowsOf(3, 3) },
-      { name: "Hear plus and minus", listen: true, gen: rowsOf(4, 2, 0.5) },
-      { name: "Hear five digits", listen: true, gen: rowsOf(2, 5) },
-      { name: "Storm of six", listen: true, gen: rowsOf(6, 2) },
+      { name: "Hear eight digits", listen: true, gen: () => [digitsNum(8)] },
+      { name: "Hear five rows of three", listen: true, gen: rowsOf(5, 3) },
+      { name: "Hear plus and minus", listen: true, gen: rowsOf(6, 2, 0.5) },
+      { name: "Hear six digits", listen: true, gen: rowsOf(3, 6) },
+      { name: "Storm of ten", listen: true, gen: rowsOf(10, 2) },
     ],
   },
   {
     name: "Rocket Relay", icon: "🚀", tint: "#7a2f2f", wash: "linear-gradient(160deg,#f6e2df,#e8bfb8)", decor: "🚀🛰️🌍☄️🚀", beads: "glacier",
     text: "Race the clock with big numbers! Rounds of 8.",
     levels: [
-      { name: "Countdown", count: 8, time: [260, 390], gen: rowsOf(4, 3) },
-      { name: "Booster", count: 8, time: [280, 420], gen: rowsOf(3, 4) },
-      { name: "Orbit", count: 8, time: [260, 390], gen: rowsOf(6, 2) },
-      { name: "Hyperspace", count: 8, time: [220, 330], gen: rowsOf(2, 6) },
-      { name: "Moon landing", count: 10, time: [450, 650], gen: rowsOf(5, 3) },
+      { name: "Countdown", count: 8, time: [300, 450], gen: rowsOf(5, 3) },
+      { name: "Booster", count: 8, time: [320, 480], gen: rowsOf(4, 4) },
+      { name: "Orbit", count: 8, time: [300, 450], gen: rowsOf(8, 2) },
+      { name: "Hyperspace", count: 8, time: [260, 390], gen: rowsOf(3, 7) },
+      { name: "Moon landing", count: 10, time: [520, 780], gen: rowsOf(6, 3) },
     ],
   },
   {
     name: "Puzzle Pyramid", icon: "🔺", tint: "#a07020", wash: "linear-gradient(160deg,#fbf0d9,#efd9a8)", decor: "🔺🐫☀️🏺🔺", beads: "lilac",
     text: "Everything mixed: zeros, ripples, hops and flips.",
     levels: [
-      { name: "Zero ripple", help: false, gen: () => { const a = zeroy(5); return [a, toRound(a, pickInt(2, 3))]; } },
-      { name: "Double the flip", help: false, gen: () => { const n = noEndZero(2); return [n, flipNum(n), n + flipNum(n)]; } },
-      { name: "Hop with zeros", help: false, gen: () => hops(pickOne([101, 202, 303, 505, 1001, 2002]), pickInt(4, 6)) },
-      { name: "Ripple ladder", help: false, gen: () => walk(10 ** 5 * pickInt(1, 9), 6, () => pickInt(1, 99), 0.3) },
-      { name: "Pyramid peak", help: false, gen: () => walk(zeroy(6), 6, () => zeroy(pickInt(3, 5)), 0.55) },
+      { name: "Zero ripple", help: false, gen: () => { const a = zeroy(8); return [a, toRound(a, pickInt(4, 6))]; } },
+      { name: "Double the flip", help: false, gen: () => { const n = noEndZero(3); return [n, flipNum(n), n + flipNum(n)]; } },
+      { name: "Hop with zeros", help: false, gen: () => hops(pickOne([1001, 2002, 3003, 10101, 20202, 50505]), 8) },
+      { name: "Ripple ladder", help: false, gen: () => walk(10 ** 7 * pickInt(1, 9), 8, () => digitsNum(pickInt(2, 3)), 0.3) },
+      { name: "Pyramid peak", help: false, gen: () => walk(zeroy(8), 8, () => zeroy(pickInt(4, 6)), 0.55) },
     ],
   },
   {
     name: "Giant Glacier", icon: "🐧", tint: "#2f6f8f", wash: "linear-gradient(160deg,#e6f4fa,#c4e3f1)", decor: "🐧🧊❄️🐻‍❄️🐧", beads: "tangerine",
-    text: "Eleven-digit giants: hundreds of billions!",
+    text: "Eleven to thirteen digits: every rod on the soroban!",
     levels: [
-      { name: "Show eleven digits", help: false, gen: () => [digitsNum(11)] },
-      { name: "Eleven ± eight digits", help: false, gen: huge(() => [digitsNum(11), sign(0.6) * digitsNum(8)]) },
-      { name: "Eleven ± ten digits", help: false, gen: huge(() => [digitsNum(11), sign(0.6) * digitsNum(10)]) },
+      { name: "Show thirteen digits", help: false, gen: () => [digitsNum(13)] },
+      { name: "Eleven ± ten digits", help: false, gen: () => walk(digitsNum(11), 3, () => digitsNum(10)) },
       { name: "Eleven ± eleven digits", help: false, gen: huge(() => [pickInt(50000000000, 99999999999), sign(0.5) * pickInt(10000000000, 49999999999)]) },
-      { name: "Glacier mix", help: false, gen: () => walk(digitsNum(11), 4, () => digitsNum(pickInt(6, 10))) },
+      { name: "Twelve ± eleven digits", help: false, gen: huge(() => [digitsNum(12), sign(0.6) * digitsNum(11)]) },
+      { name: "Glacier mix", help: false, gen: () => walk(digitsNum(11), 6, () => digitsNum(pickInt(6, 10))) },
     ],
   },
   {
     name: "Phoenix Peak", icon: "🔥", tint: "#b8461b", wash: "linear-gradient(160deg,#fde6d8,#f5c2a2)", decor: "🔥🪶🌋✨🔥", beads: "navy",
-    text: "A real soroban marathon: fifteen to twenty rows!",
+    text: "A real soroban marathon: twenty rows and more!",
     levels: [
-      { name: "Fifteen one-digit rows", help: false, gen: rowsOf(15, 1, 0.65) },
-      { name: "Fifteen two-digit rows", help: false, gen: rowsOf(15, 2) },
-      { name: "Twelve three-digit rows", help: false, gen: rowsOf(12, 3) },
-      { name: "Twenty one-digit rows", help: false, gen: rowsOf(20, 1, 0.65) },
-      { name: "Phoenix flight", help: false, gen: () => walk(digitsNum(3), 15, () => digitsNum(pickInt(1, 3))) },
+      { name: "Twenty two-digit rows", help: false, gen: rowsOf(20, 2) },
+      { name: "Fifteen three-digit rows", help: false, gen: rowsOf(15, 3) },
+      { name: "Twelve four-digit rows", help: false, gen: rowsOf(12, 4) },
+      { name: "Twenty-five two-digit rows", help: false, gen: rowsOf(25, 2) },
+      { name: "Phoenix flight", help: false, gen: () => walk(digitsNum(4), 20, () => digitsNum(pickInt(2, 4))) },
     ],
   },
   {
     name: "Super Flash Stadium", icon: "🏟️", tint: "#2d6a3a", wash: "linear-gradient(160deg,#e1f2e3,#bde0c2)", decor: "🏟️📣🎉🏅🏟️", beads: "candy",
     text: "The fastest flashes of all. Blink and you miss it!",
     levels: [
-      { name: "Super flash five", flash: 1500, gen: () => walk(pickInt(1, 9), 5, () => pickInt(1, 9), 0.6) },
-      { name: "Super flash two digits", flash: 1800, gen: rowsOf(4, 2) },
-      { name: "Super flash three digits", flash: 2500, gen: rowsOf(3, 3) },
-      { name: "Six blinks", flash: 1200, gen: () => walk(pickInt(1, 9), 6, () => pickInt(1, 9), 0.6) },
-      { name: "Stadium final", flash: 1500, gen: rowsOf(5, 2) },
+      { name: "Super flash six", flash: 1000, gen: () => walk(pickInt(1, 9), 6, () => pickInt(1, 9), 0.6) },
+      { name: "Super flash two digits", flash: 1200, gen: rowsOf(5, 2) },
+      { name: "Super flash three digits", flash: 1800, gen: rowsOf(4, 3) },
+      { name: "Eight blinks", flash: 800, gen: () => walk(pickInt(1, 9), 8, () => pickInt(1, 9), 0.6) },
+      { name: "Stadium final", flash: 1000, gen: rowsOf(8, 2) },
     ],
   },
   {
     name: "Legend Castle", icon: "🐉", tint: "#5a2a7a", wash: "linear-gradient(160deg,#f0e4f7,#d9c1ea)", decor: "🐉🏰⚔️🛡️🐉", beads: "starlight",
     text: "The legend's last climb. Level 200 awaits!",
     levels: [
-      { name: "Legend flash", flash: 3000, gen: rowsOf(4, 3) },
-      { name: "Legend echo", listen: true, gen: rowsOf(4, 3) },
-      { name: "Legend ripple", help: false, gen: () => { const [a, b] = rippleCarry(6); const c = a + b; const x = pickInt((c % 10) + 1, 9); return [a, b, -x, toRound(c - x, 6)]; } },
-      { name: "Legend tower", help: false, gen: () => walk(digitsNum(3), 15, () => digitsNum(pickInt(2, 3))) },
-      { name: "Level 200: the Legend", help: false, gen: () => walk(digitsNum(8), 8, () => digitsNum(pickInt(2, 7))) },
+      { name: "Legend flash", flash: 2000, gen: rowsOf(5, 3) },
+      { name: "Legend echo", listen: true, gen: rowsOf(5, 4) },
+      { name: "Legend ripple", help: false, gen: () => { const [a, b] = rippleCarry(8); const c = a + b; const x = pickInt((c % 10) + 1, 9); return [a, b, -x, toRound(c - x, 8)]; } },
+      { name: "Legend tower", help: false, gen: () => walk(digitsNum(4), 20, () => digitsNum(pickInt(3, 4))) },
+      { name: "Level 200: the Legend", help: false, gen: () => walk(digitsNum(10), 10, () => digitsNum(pickInt(3, 9))) },
     ],
   },
 ];
+
+// ---------- World 41 (levels 201–205): multiplication on the soroban ----------
+// A problem can carry a heading (23 × 4), row labels, spoken asks and a fact to cheer at the end.
+const dress = (terms, extra) => Object.assign(terms, extra);
+const tableNum = () => pickOne([2, 3, 4, 5, 6, 6, 7, 7, 8, 8, 9, 9]);
+function tableHops() {
+  const a = pickInt(3, 9);
+  const b = pickInt(4, 9);
+  return dress(Array(b).fill(a), { head: `${a} × ${b}`, fact: `${a} times ${b} is ${a * b}!` });
+}
+function quickTable() {
+  const a = tableNum();
+  const b = tableNum();
+  return dress([a * b], { labels: [`${a} × ${b} = ?`], asks: [`What is ${a} times ${b}? Show it on the beads!`], fact: `${a} times ${b} is ${a * b}!` });
+}
+// The soroban way: multiply each digit, biggest place first, and add the pieces. 23 × 4 = 4 × 20 + 4 × 3.
+function partials(n, m) {
+  const parts = String(n)
+    .split("")
+    .map((d, i, all) => Number(d) * 10 ** (all.length - 1 - i))
+    .filter(Boolean);
+  return dress(
+    parts.map((part) => part * m),
+    {
+      head: `${n} × ${m}`,
+      labels: parts.map((part, i) => `${i ? "+ " : ""}${m} × ${part}`),
+      asks: parts.map((part, i) => (i ? `Now add ${m} times ${part}.` : `What is ${m} times ${part}? Show it!`)),
+      fact: `${n} times ${m} is ${n * m}!`,
+    },
+  );
+}
+const twoByOne = () => partials(pickInt(1, 9) * 10 + pickInt(1, 9), pickInt(3, 9));
+MORE_WORLDS.push({
+  name: "Times Table Tower", icon: "✖️", tint: "#1f6f6a", wash: "linear-gradient(160deg,#e0f5f2,#bfe6e0)", decor: "✖️🔢🏰⭐✖️", beads: "times",
+  text: "Multiply on the soroban: times tables, then big numbers the soroban way!",
+  levels: [
+    { name: "Times tables as hops", help: false, gen: tableHops },
+    { name: "Quick tables", help: false, gen: quickTable },
+    { name: "Two digits × one digit", help: false, gen: twoByOne },
+    { name: "Three digits × one digit", help: false, gen: () => partials(digitsNum(3), pickInt(3, 9)) },
+    { name: "Times table race", count: 8, time: [180, 270], gen: () => (coin() ? quickTable() : twoByOne()) },
+  ],
+});
 for (const world of MORE_WORLDS) world.show = true;
 WORLDS.push(...MORE_WORLDS);
 
@@ -3721,6 +3766,7 @@ const BEADS = {
   navy: "Zebra",
   candy: "Gumballs",
   starlight: "Magic Glitter",
+  times: "Times Sparkle",
 };
 // Beads won in worlds 8–40, made from a hue, saturation and lightness so each set shades like the wooden ones.
 const NEW_BEADS = { pearl: [40, 25, 82], amethyst: [275, 45, 50], ruby: [350, 70, 42], silver: [210, 8, 66], jade: [158, 45, 40], aurora: [190, 60, 48], amber: [36, 85, 50], sapphire: [222, 65, 42], lime: [85, 60, 45], frost: [195, 45, 72], emerald: [140, 60, 34], rose: [335, 60, 62], diamond: [200, 30, 86] };
@@ -3775,6 +3821,7 @@ const NEW_BEADS = { pearl: [40, 25, 82], amethyst: [275, 45, 50], ruby: [350, 70
     tangerine: [18, 96, 50, pat("tangerine", 6, 8, `<path d="M3 8Q.4 5 3 .6Q5.6 5 3 8Z" fill="#ffe14d" opacity=".9"/><path d="M3 7.6Q1.8 6 3 4Q4.2 6 3 7.6Z" fill="#fff6c2"/>` + drift("0 -8", 1)), "radial-gradient(ellipse 3px 6px at 50% 70%,#fff6c2 30%,#ffe14d 60%,transparent 70%) 0 0/9px 12px,linear-gradient(#ff3d00,#ff9800)", { glow: true }],
     navy: [0, 0, 95, pat("navy", 7, 10, stripe("#111"), "rotate(105)"), "repeating-linear-gradient(105deg,#f4f4f4 0 4px,#111 4px 7px)", { edge: "#111" }],
     candy: [0, 80, 60, "", "radial-gradient(circle,#ff5252 30%,transparent 33%) 0 0/12px 12px,radial-gradient(circle,#ffd740 30%,transparent 33%) 6px 0/12px 12px,radial-gradient(circle,#40c4ff 30%,transparent 33%) 0 6px/12px 12px,radial-gradient(circle,#69f0ae 30%,transparent 33%) 6px 6px/12px 12px,#fff", { mix: [[0, 85, 58], [45, 100, 55], [200, 90, 55], [140, 70, 48], [285, 70, 58], [25, 100, 55], [330, 85, 62]] }],
+    times: [0, 0, 92, pat("times", 7, 7, `<g fill="#fff"><rect x="1.4" y="3" width="4.2" height="1" rx=".5" transform="rotate(45 3.5 3.5)"/><rect x="1.4" y="3" width="4.2" height="1" rx=".5" transform="rotate(-45 3.5 3.5)"/></g>`), "radial-gradient(circle,transparent 30%,#0000 31%),repeating-conic-gradient(#ff5252 0 60deg,#ffd740 0 120deg,#40c4ff 0 180deg,#69f0ae 0 240deg,#b388ff 0 300deg,#ff80ab 0 360deg)", { mix: [[0, 85, 58], [45, 100, 52], [200, 90, 52], [140, 70, 45], [265, 75, 62], [330, 85, 62]] }],
     starlight: [45, 92, 56, pat("starlight", 5, 5, `<circle cx="1" cy="1.2" r=".8" fill="#fff">${twinkle(1.2)}</circle><circle cx="3.6" cy="2.6" r=".6" fill="#fff8d6">${twinkle(0.9, 0.4)}</circle><circle cx="1.8" cy="4.2" r=".7" fill="#fff">${twinkle(1.5, 0.7)}</circle>`), "radial-gradient(circle,#fff 14%,transparent 18%) 0 0/6px 6px,radial-gradient(circle,#fff8 10%,transparent 14%) 3px 3px/6px 6px,radial-gradient(circle at 35% 30%,#fff3b0,#f2b705 60%,#a87800)", { glow: true }],
   };
 
@@ -3988,7 +4035,7 @@ const canTalk = () => voice.on && voice.ready;
 const hidesNumbers = (spec) => !!spec.flash || (!!spec.listen && canTalk());
 function lvColumn(answer = null) {
   const r = lv.round;
-  const opts = { now: r.stage, done: r.stage - 1, answer };
+  const opts = { now: r.stage, done: r.stage - 1, answer, head: r.problem.head, labels: r.problem.labels };
   if (hidesNumbers(r.spec)) opts.mask = (i) => (r.peek === "all" || i === r.peek ? null : r.spec.flash ? "?" : "🔊");
   $("[data-lv-problem]").innerHTML = columnHtml(r.problem, opts);
 }
@@ -4074,7 +4121,7 @@ function lvStage(lead = "") {
     say("levels", `${lead}👀 Look quick! ${word} it.`, { voice: !r.spec.time || r.n === 0, spoken: `${lead} Look quick!` });
     return;
   }
-  const ask = r.stage === 0 ? (r.problem.length === 1 ? `Show ${term}.` : `First, show ${term}.`) : `Now ${term < 0 ? "take away" : "add"} ${Math.abs(term)}.`;
+  const ask = r.problem.asks?.[r.stage] ?? (r.stage === 0 ? (r.problem.length === 1 ? `Show ${term}.` : `First, show ${term}.`) : `Now ${term < 0 ? "take away" : "add"} ${Math.abs(term)}.`);
   say("levels", lead + ask + (r.spec.help ? ` ${describe(nextMove(start))}` : ""), { voice: !r.spec.time || r.n === 0 });
   if (r.spec.help && r.n === 0 && r.stage === 0) pointAt(nextMove(start));
 }
@@ -4100,7 +4147,7 @@ function lvStageDone() {
     const fire = r.combo >= 2 ? ` <span class="sb-combo" style="--heat:${Math.min(r.combo, 6)}">🔥 ${r.combo} in a row${r.combo >= 5 ? ": bead blaze!" : r.combo >= 3 ? ": on fire!" : ""}</span>` : "";
     if (r.combo === 3 || r.combo === 5 || r.combo === 8) window.KIT?.surprise(null, stage);
     const line = r.spec.time ? pickOne(["Correct!", "Yes!", "Great!", "Nice one!"]) : clean ? cheerLine() : cheerLine(KEPT_TRYING);
-    say("levels", `<span class="sb-cheer">✓</span> ${line}${fire}`, { voice: !r.spec.time, cheer: true });
+    say("levels", `<span class="sb-cheer">✓</span> ${r.problem.fact ? `${r.problem.fact} ` : ""}${line}${fire}`, { voice: !r.spec.time, cheer: true });
     const my = r.token;
     later(() => my === lv.token && nextLevelProblem(), r.spec.time ? 500 : 2000);
     return;
@@ -4427,7 +4474,7 @@ function showLevelWin(r, stars, secs, kind, chest) {
   const show = SHOWS[kind];
   chime();
   confetti();
-  showOverlay(`<div class="lv-win"><h2>${n === LEVEL_COUNT() ? "🐉 Level 200! Soroban Legend!" : `Level ${n} cleared!`}</h2>${bigStars(stars)}<div class="lv-rewards"><div class="lv-reveal"><span class="lv-show-badge">${show.icon}</span><p>You won the ${show.title}!</p></div></div></div>`);
+  showOverlay(`<div class="lv-win"><h2>${n === LEVEL_COUNT() ? "✖️ Times Table Champion!" : n === 200 ? "🐉 Level 200! Soroban Legend!" : `Level ${n} cleared!`}</h2>${bigStars(stars)}<div class="lv-rewards"><div class="lv-reveal"><span class="lv-show-badge">${show.icon}</span><p>You won the ${show.title}!</p></div></div></div>`);
   const praise = stars === 3 ? "Perfect round!" : stars === 2 ? "Great work!" : "You did it!";
   const onward = chest ? " You finished the whole world! Open your giant surprise!" : lv.pick < 4 ? ` Ready for level ${n + 1}?` : "";
   say("levels", `🎉 ${praise} ${starText(stars)}${r.spec.time ? ` in ${secs} seconds` : ""}.${onward}`, { cheer: true });
