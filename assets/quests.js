@@ -131,7 +131,7 @@
 
     const VIEWS = {
       pick(i) {
-        const opts = i.t === "tf" ? [["👍 True", true], ["👎 False", false]] : mixed(i.opts).map((o) => [o, o === i.opts[0]]);
+        const opts = i.t === "tf" ? [["👍 True", i.a === true], ["👎 False", i.a === false]] : mixed(i.opts).map((o) => [o, o === i.opts[0]]);
         shell(`${head(i)}<div class="qz-opts ${i.t === "tf" ? "two" : ""}">${opts.map(([o], k) => `<button type="button" class="qz-opt" data-k="${k}">${esc(o)}</button>`).join("")}</div>`);
         host.querySelectorAll(".qz-opt").forEach((b) =>
           b.addEventListener("click", () => {

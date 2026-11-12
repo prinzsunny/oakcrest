@@ -199,5 +199,69 @@
     flush,
     merge,
   };
+  // Sign-in gate: with cloud sign-in set up, pages stay hidden until a parent is signed in.
+  // This only hides the page in the browser; the files themselves are still public on the web.
+  const gated = !!(window.OC_FIREBASE || window.__ocFakeBackend) && window.top === window.self;
+  if (gated) {
+    document.documentElement.classList.add("oc-locked");
+    const css = document.createElement("style");
+    css.textContent = `html.oc-locked body > *:not(#oc-gate){display:none!important}
+#oc-gate{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:16px;background:linear-gradient(160deg,#fff6e0,#e3f1ff);font:17px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#23324a}
+#oc-gate .card{max-width:420px;width:100%;background:#fff;border-radius:24px;padding:32px 28px;text-align:center;box-shadow:0 12px 40px #23324a22}
+#oc-gate .logo{font-size:56px;line-height:1}
+#oc-gate h1{margin:12px 0 6px;font-size:28px}
+#oc-gate p{margin:0 0 20px;color:#4a5872}
+#oc-gate button{display:inline-flex;align-items:center;gap:10px;border:0;border-radius:999px;padding:14px 26px;font:inherit;font-weight:700;background:#2f6fdf;color:#fff;cursor:pointer}
+#oc-gate button:disabled{opacity:.6;cursor:wait}
+#oc-gate .g{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#fff;color:#2f6fdf;font-weight:800}
+#oc-gate .err{margin:16px 0 0;color:#b3261e;font-size:15px}
+#oc-gate small{display:block;margin-top:18px;color:#6b7891;font-size:14px}
+@media (prefers-color-scheme:dark){#oc-gate{background:linear-gradient(160deg,#1d2433,#14202e);color:#e8edf6}#oc-gate .card{background:#232c3d}#oc-gate p,#oc-gate small{color:#b6c0d3}}`;
+    document.head.appendChild(css);
+    let box = null;
+    const showGate = (cloud) => {
+      if (!document.body) return document.addEventListener("DOMContentLoaded", () => showGate(state), { once: true });
+      if (cloud.ready && cloud.user) {
+        document.documentElement.classList.remove("oc-locked");
+        box?.remove();
+        box = null;
+        return;
+      }
+      document.documentElement.classList.add("oc-locked");
+      if (!box) {
+        box = document.createElement("div");
+        box.id = "oc-gate";
+        box.setAttribute("role", "dialog");
+        box.setAttribute("aria-modal", "true");
+        box.setAttribute("aria-labelledby", "oc-gate-title");
+        document.body.appendChild(box);
+        box.addEventListener("click", async (event) => {
+          const button = event.target.closest("button");
+          if (!button) return;
+          if (button.dataset.retry !== undefined) return location.reload();
+          button.disabled = true;
+          try {
+            await window.OCLOUD.signIn();
+          } catch (error) {
+            if (!/popup-closed|cancelled-popup/.test(error?.code || "")) state.error = "Sign-in did not finish. Please try again.";
+            button.disabled = false;
+            showGate(state);
+          }
+        });
+      }
+      const failed = cloud.ready && !cloud.backend;
+      box.innerHTML = `<div class="card"><div class="logo" aria-hidden="true">🌳</div><h1 id="oc-gate-title">OakCrest Academy</h1>` +
+        (!cloud.ready
+          ? `<p>Loading…</p>`
+          : failed
+          ? `<p>Sign-in could not load. Check the internet connection and try again.</p><button type="button" data-retry>Try again</button>`
+          : `<p>Parents, please sign in to open your family's lessons and progress.</p><button type="button"><span class="g" aria-hidden="true">G</span> Sign in with Google</button>`) +
+        (cloud.error && !failed ? `<p class="err">${cloud.error}</p>` : "") +
+        `<small>Children do not need an email. A grown-up signs in once on each device.</small></div>`;
+    };
+    state.listeners.add(showGate);
+    showGate(state);
+  }
+
   start();
 })();
