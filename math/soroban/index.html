@@ -315,6 +315,12 @@ body .sb-bead[data-lit]{--bead-paper:#b8783e;--bead-top:#f3cf98;--bead-s0:#8f552
 .lv-decor{position:absolute;transform:translate(-50%,-50%);font-size:clamp(22px,4.2vw,42px);opacity:.38;pointer-events:none}
 .lv-book{position:absolute;inset:0;padding:12px 14px;display:flex;flex-direction:column;gap:8px;background:linear-gradient(160deg,#fbf3e4,#f1e2cc)}
 .lv-book .lv-head{position:static}
+.lv-skills{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:4px 2px}
+.lv-skill{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) auto;align-items:center;gap:10px;background:#fffcf6;border-radius:12px;padding:8px 12px;box-shadow:0 0 0 1px #e3d6bd;font:600 15px system-ui,sans-serif;color:#2b1d12}
+.lv-skill i{height:12px;border-radius:6px;background:#efe3cf;overflow:hidden}
+.lv-skill i b{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#f2a43a,#43a047)}
+.lv-skill small{font-size:13px;white-space:nowrap}
+.lv-warm-streak{font:800 20px system-ui,sans-serif;color:#b8461b;margin:0}
 .lv-tabs{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
 .lv-tabs button{width:44px;height:40px;border:0;border-radius:12px;background:#fffcf6;box-shadow:0 0 0 1px #d9cdb5;font-size:21px;cursor:pointer}
 .lv-tabs button[aria-pressed="true"]{box-shadow:0 0 0 3px #7a4520}
@@ -3687,10 +3693,8 @@ function tableHops() {
   const b = pickInt(4, 9);
   return dress(Array(b).fill(a), { head: `${a} × ${b}`, fact: `${a} times ${b} is ${a * b}!` });
 }
-function quickTable() {
-  const a = tableNum();
-  const b = tableNum();
-  return dress([a * b], { labels: [`${a} × ${b} = ?`], asks: [`What is ${a} times ${b}? Show it on the beads!`], fact: `${a} times ${b} is ${a * b}!` });
+function quickTable(a = tableNum(), b = tableNum()) {
+  return dress([a * b], { tables: [...new Set([a, b])].filter((t) => t > 1), labels: [`${a} × ${b} = ?`], asks: [`What is ${a} times ${b}? Show it on the beads!`], fact: `${a} times ${b} is ${a * b}!` });
 }
 // The soroban way: multiply each digit, biggest place first, and add the pieces. 23 × 4 = 4 × 20 + 4 × 3.
 function partials(n, m) {
@@ -3705,6 +3709,7 @@ function partials(n, m) {
       labels: parts.map((part, i) => `${i ? "+ " : ""}${m} × ${part}`),
       asks: parts.map((part, i) => (i ? `Now add ${m} times ${part}.` : `What is ${m} times ${part}? Show it!`)),
       fact: `${n} times ${m} is ${n * m}!`,
+      tables: [m],
     },
   );
 }
@@ -3991,7 +3996,7 @@ function showMap() {
   }
   $("[data-lv-dots]").textContent = "";
   say("levels", `<b>Level ${levelNo(lv.world, lv.pick)} of ${LEVEL_COUNT()}: ${level.name}</b><br><small>${world.text}${level.time ? ` Finish 8 in ${level.time[0]} seconds for 3 stars.` : ""}</small>`, { voice: false });
-  lvButtons(`<button type="button" class="primary" data-lv="play">▶ Play level ${levelNo(lv.world, lv.pick)}</button>${world.show ? `<button type="button" data-lv="room">🎭 Surprises</button>` : `<button type="button" data-lv="book">📒 Stickers</button>`}${data.beads.length > 1 ? `<button type="button" data-lv="beads">🎨 Beads</button>` : ""}`);
+  lvButtons(`${warmDone(data) ? "" : `<button type="button" data-lv="warm" data-pulse>☀️ Warm-up</button>`}<button type="button" class="primary" data-lv="play">▶ Play level ${levelNo(lv.world, lv.pick)}</button>${world.show ? `<button type="button" data-lv="room">🎭 Surprises</button>` : `<button type="button" data-lv="book">📒 Stickers</button>`}${data.beads.length > 1 ? `<button type="button" data-lv="beads">🎨 Beads</button>` : ""}<button type="button" data-lv="skills">💪 Skills</button>`);
 }
 
 function showBook(tab = lv.world) {
@@ -4061,14 +4066,181 @@ function cheerLine(list = CHEERS) {
   return name !== "Learner" && coin(0.35) ? `${line.replace(/!$/, "")}, ${name}!` : line;
 }
 
-function startLevel() {
-  const spec = WORLDS[lv.world].levels[lv.pick];
+// ---------- Skills: every bead move is tagged with the trick it needs, and the page learns which ones she finds hard ----------
+const SKILLS = {
+  "five+": "Five-friends adding",
+  "five-": "Five-friends taking away",
+  "ten+": "Carrying with ten-friends",
+  "ten-": "Borrowing with ten-friends",
+  "combo+": "Both friends adding",
+  "combo-": "Both friends taking away",
+  "ripple+": "Domino carries",
+  "ripple-": "Domino borrows",
+};
+for (let t = 2; t <= 9; t++) SKILLS[`x${t}`] = `The ${t} times table`;
+// Which skills one row of a problem uses, starting from the beads as they are.
+function skillsOf(problem, stage, start) {
+  const out = new Set((problem.tables || []).map((t) => `x${t}`));
+  if (stage === 0) return [...out];
+  const term = problem[stage];
+  const res = planNumber(start, term);
+  if (!res) return [...out];
+  const s = term > 0 ? "+" : "-";
+  for (const k of res.kinds) {
+    const base = k.slice(0, -1);
+    if (base === "little") out.add("five" + s);
+    if (base === "big") out.add("ten" + s);
+    if (base === "mixed") out.add("combo" + s);
+  }
+  // A carry that reaches two or more rods past the number's top digit is a domino ripple.
+  const first = res.end.findIndex((d, i) => d !== start[i]);
+  if (first >= 0 && first < ONES - String(Math.abs(term)).length) out.add("ripple" + s);
+  return [...out];
+}
+// Each skill keeps a running "slip rate". Three slips make it a practice skill; a run of clean answers makes it strong again.
+function noteSkills(keys, missed) {
+  if (!keys.length) return [];
+  const data = adv();
+  data.skills = data.skills || {};
+  const grew = [];
+  for (const k of keys) {
+    const sk = data.skills[k] || { n: 0, err: 0.2 };
+    sk.n += 1;
+    sk.err = sk.err * 0.75 + (missed ? 0.25 : 0);
+    if (sk.n >= 3 && sk.err >= 0.3) sk.weak = true;
+    else if (sk.weak && sk.err < 0.12) {
+      sk.weak = false;
+      grew.push(k);
+    }
+    data.skills[k] = sk;
+  }
+  saveAdv(data);
+  return grew;
+}
+const weakSkills = (data) =>
+  Object.entries(data.skills || {})
+    .filter(([k, sk]) => SKILLS[k] && (sk.weak || (sk.n >= 3 && sk.err >= 0.3)))
+    .sort((a, b) => b[1].err - a[1].err)
+    .map(([k]) => k);
+// A problem made to need one skill.
+function drill(skill) {
+  if (skill[0] === "x") {
+    const t = Number(skill.slice(1));
+    return coin() ? quickTable(t, tableNum()) : quickTable(tableNum(), t);
+  }
+  const s = skill.endsWith("+") ? 1 : -1;
+  if (skill.startsWith("ripple")) return s > 0 ? rippleCarry(pickInt(2, 4)) : rippleBorrow(pickInt(2, 4));
+  for (let t = 0; t < 400; t++) {
+    const d = pickInt(1, 3);
+    const a = digitsNum(pickInt(d, d + 1));
+    const b = digitsNum(d);
+    if (s < 0 && b >= a) continue;
+    if (!skillsOf([a, s * b], 1, digitsOf(a)).includes(skill)) continue;
+    // Sometimes a third row that needs the same trick again.
+    const c = digitsNum(d);
+    const total = a + s * b;
+    if (coin() && (s > 0 || c < total) && skillsOf([a, s * b, s * c], 2, digitsOf(total)).includes(skill)) return [a, s * b, s * c];
+    return [a, s * b];
+  }
+  return walk(digitsNum(2), 3, () => pickInt(1, 9));
+}
+
+// ---------- Daily warm-up: practice the tricky skills, then review old levels so they don't fade ----------
+const dayNo = () => Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / 86400000);
+const warmDone = (data) => (data.warm?.last ?? -1) === dayNo();
+function warmPlan(data) {
+  const weak = weakSkills(data).slice(0, 3);
+  const drills = weak.length ? Array.from({ length: 3 }, (_, i) => weak[i % weak.length]) : [];
+  // Spaced review: levels she has beaten, favouring ones not seen for a while, ones without 3 stars and later worlds.
+  const seen = data.review || {};
+  const today = dayNo();
+  const pool = [];
+  WORLDS.forEach((w, wi) =>
+    w.levels.forEach((_, li) => {
+      const id = levelId(wi, li);
+      const stars = data.levels[id]?.stars;
+      if (stars) pool.push({ wi, li, id, weight: Math.min(today - (seen[id] ?? today - 30), 30) + (3 - stars) * 4 + wi + 1 });
+    }),
+  );
+  const reviews = [];
+  while (reviews.length < 6 - drills.length && pool.length) {
+    let roll = Math.random() * pool.reduce((sum, x) => sum + x.weight, 0);
+    const i = pool.findIndex((x) => (roll -= x.weight) <= 0);
+    reviews.push(...pool.splice(i < 0 ? 0 : i, 1));
+  }
+  while (drills.length + reviews.length < 6) drills.push(pickOne(["five+", "five-", "ten+", "ten-"]));
+  const problems = [
+    ...drills.map((k) => ({ terms: drill(k), skill: k })),
+    ...reviews.map((x) => {
+      let terms = WORLDS[x.wi].levels[x.li].gen();
+      if (terms.length > 6 && !terms.head && !terms.labels) terms = terms.slice(0, 6);
+      return { terms, id: x.id, from: `Level ${levelNo(x.wi, x.li)}` };
+    }),
+  ];
+  // Mix them up so practice and review take turns.
+  for (let i = problems.length - 1; i > 0; i--) {
+    const j = pickInt(0, i);
+    [problems[i], problems[j]] = [problems[j], problems[i]];
+  }
+  return { problems, weak };
+}
+function startWarm() {
+  const plan = warmPlan(adv());
+  startLevel({ name: "Daily warm-up", warm: true, help: false, count: plan.problems.length, plan, gen: () => plan.problems[lv.round.n].terms });
+}
+function finishWarm(r) {
+  const data = adv();
+  const day = dayNo();
+  data.review = data.review || {};
+  for (const x of r.spec.plan.problems) if (x.id) data.review[x.id] = day;
+  const w = data.warm || { last: -1, days: 0, best: 0 };
+  if (w.last !== day) {
+    w.days = w.last === day - 1 ? w.days + 1 : 1;
+    w.last = day;
+    w.best = Math.max(w.best || 0, w.days);
+  }
+  data.warm = w;
+  saveAdv(data);
+  record?.count("warm-ups");
+  lv.view = "show";
+  bigShow(nextShowKind([]), () => warmWin(r, w));
+}
+function warmWin(r, w) {
+  lv.view = "win";
+  chime();
+  confetti();
+  const weak = r.spec.plan.weak.map((k) => SKILLS[k]);
+  const clean = r.mistakes === 0 && r.helped === 0;
+  showOverlay(`<div class="lv-win"><h2>☀️ Warm-up done!</h2><div class="lv-big-stars"><span class="on">🔥</span></div><p class="lv-warm-streak">${w.days} ${w.days === 1 ? "day" : "days"} in a row${w.best > w.days ? ` · best ${w.best}` : ""}</p>${weak.length ? `<p>You practised: <b>${weak.join(", ")}</b></p>` : "<p>Old levels reviewed. Your brain remembers!</p>"}</div>`);
+  const line = clean ? "Perfect warm-up!" : "Great warm-up! Practice makes your brain stronger.";
+  say("levels", `${line} ${w.days > 1 ? `That's ${w.days} days in a row!` : "Come back tomorrow to start a streak!"}`, { cheer: true });
+  lvButtons(`<button type="button" class="primary" data-lv="play" data-pulse>▶ Play level ${levelNo(lv.world, lv.pick ?? 0)}</button><button type="button" data-lv="skills">💪 Skills</button><button type="button" data-lv="map">🗺️ Map</button>`);
+}
+function showSkills() {
+  lv.view = "skills";
+  const data = adv();
+  const rows = Object.keys(SKILLS)
+    .map((k) => [k, data.skills?.[k]])
+    .filter(([, sk]) => sk)
+    .map(([k, sk]) => {
+      const pct = Math.round((1 - Math.min(sk.err * 1.6, 1)) * 100);
+      const tag = sk.n < 3 ? "🌱 New" : sk.weak ? "🛠️ Practising" : sk.err < 0.12 && sk.n >= 5 ? "💪 Strong" : "👍 Good";
+      return `<div class="lv-skill"><span>${SKILLS[k]}</span><i><b style="width:${pct}%"></b></i><small>${tag}</small></div>`;
+    })
+    .join("");
+  const w = data.warm;
+  showOverlay(`<div class="lv-book"><div class="lv-head"><span><b>💪 My soroban skills</b><small>${w ? `☀️ Warm-ups: ${w.days} ${w.days === 1 ? "day" : "days"} in a row · best ${w.best}` : "Do a daily warm-up to start a streak"}</small></span><button type="button" data-lv="map" aria-label="Close">✕</button></div><div class="lv-skills">${rows || "<p>Play some levels and your skills will show up here!</p>"}</div></div>`);
+  say("levels", weakSkills(data).length ? `The warm-up will help with: <b>${weakSkills(data).slice(0, 3).map((k) => SKILLS[k]).join(", ")}</b>.` : "All your skills look great!", { voice: false });
+  lvButtons(`<button type="button" class="primary" data-lv="warm">☀️ Warm-up</button><button type="button" data-lv="map">🗺️ Back to map</button>`);
+}
+
+function startLevel(spec = WORLDS[lv.world].levels[lv.pick]) {
   lv.view = "play";
   lv.token += 1;
   lv.round = { spec, n: 0, count: spec.count || 5, helped: 0, mistakes: 0, peeks: 0, peek: -1, combo: 0, mark: [0, 0], started: performance.now(), problem: null, stage: 0, token: lv.token };
   hideOverlay();
   $("[data-lv-box]").hidden = false;
-  $("[data-lv-title]").textContent = `${WORLDS[lv.world].icon} Level ${levelNo(lv.world, lv.pick)}: ${spec.name}`;
+  $("[data-lv-title]").textContent = spec.warm ? "☀️ Daily warm-up" : `${WORLDS[lv.world].icon} Level ${levelNo(lv.world, lv.pick)}: ${spec.name}`;
   const hint = hidesNumbers(spec) ? (spec.flash ? "👀 Peek" : "🔊 Hear again") : "Hint";
   lvButtons(`<button type="button" data-lv="hint">${hint}</button><button type="button" data-lv="step">Show a step</button><button type="button" data-lv="map">🗺️ Map</button>`);
   record?.note("level", `${WORLDS[lv.world].name} ${lv.pick + 1}`);
@@ -4100,6 +4272,8 @@ function lvStage(lead = "") {
   const start = digits.slice();
   const result = r.stage === 0 ? null : planNumber(start, term);
   const steps = result ? result.steps : stepsTo(start, digitsOf(term));
+  r.skillKeys = skillsOf(r.problem, r.stage, start);
+  r.helpMark = r.helped;
   coachBegin({
     start,
     steps,
@@ -4130,6 +4304,7 @@ function lvStageDone() {
   const r = lv.round;
   if (!r || r.token !== lv.token) return;
   r.mistakes += coach.mistakes || 0;
+  r.grew = [...(r.grew || []), ...noteSkills(r.skillKeys || [], (coach.mistakes || 0) > 0 || r.helped > (r.helpMark ?? r.helped))];
   r.stage += 1;
   if (r.stage >= r.problem.length) r.peek = "all";
   lvColumn(r.stage >= r.problem.length && r.problem.length > 1 ? totalOf(r.problem) : null);
@@ -4147,7 +4322,10 @@ function lvStageDone() {
     const fire = r.combo >= 2 ? ` <span class="sb-combo" style="--heat:${Math.min(r.combo, 6)}">🔥 ${r.combo} in a row${r.combo >= 5 ? ": bead blaze!" : r.combo >= 3 ? ": on fire!" : ""}</span>` : "";
     if (r.combo === 3 || r.combo === 5 || r.combo === 8) window.KIT?.surprise(null, stage);
     const line = r.spec.time ? pickOne(["Correct!", "Yes!", "Great!", "Nice one!"]) : clean ? cheerLine() : cheerLine(KEPT_TRYING);
-    say("levels", `<span class="sb-cheer">✓</span> ${r.problem.fact ? `${r.problem.fact} ` : ""}${line}${fire}`, { voice: !r.spec.time, cheer: true });
+    const grew = r.grew?.length ? ` 💪 ${r.grew.map((k) => SKILLS[k]).join(" and ")} just got strong!` : "";
+    if (grew) window.KIT?.surprise(null, stage);
+    r.grew = [];
+    say("levels", `<span class="sb-cheer">✓</span>${grew} ${r.problem.fact ? `${r.problem.fact} ` : ""}${line}${fire}`, { voice: !r.spec.time, cheer: true });
     const my = r.token;
     later(() => my === lv.token && nextLevelProblem(), r.spec.time ? 500 : 2000);
     return;
@@ -4157,6 +4335,7 @@ function lvStageDone() {
 
 function finishLevel() {
   const r = lv.round;
+  if (r.spec.warm) return finishWarm(r);
   const secs = Math.round((performance.now() - r.started) / 1000);
   let stars;
   if (r.spec.time) stars = Math.max(1, (secs <= r.spec.time[0] ? 3 : secs <= r.spec.time[1] ? 2 : 1) - (r.helped ? 1 : 0));
@@ -4611,6 +4790,8 @@ $("[data-lv-buttons]").addEventListener("click", (event) => {
   if (what === "chest") openChest();
   if (what === "skipshow") endShow();
   if (what === "room") showRoom();
+  if (what === "warm") startWarm();
+  if (what === "skills") showSkills();
   if (what === "nextworld") {
     lv.world = Math.min(lv.world + 1, WORLDS.length - 1);
     lv.pick = null;
