@@ -127,7 +127,7 @@
     const s = read("oc-year", {})[learner]?.settings || {};
     // Screen time is 60 minutes on lesson days unless the parent has chosen another figure in settings
     // (an older saved default of 30 does not count as a choice).
-    return { start: s.start || DATA.start, days: s.days || [2, 4, 6, 0], screen: s.screenSet ? s.screen ?? 60 : 60, screenSet: !!s.screenSet, soroban: s.soroban ?? true, planFirst: s.planFirst ?? true, planSince: s.planSince || "", unlockDay: s.unlockDay || "" };
+    return { start: s.start || DATA.start, days: s.days || [2, 4, 6, 0], screen: s.screenSet ? s.screen ?? 60 : 60, screenSet: !!s.screenSet, soroban: s.soroban ?? true, planFirst: s.planFirst ?? true, planSince: s.planSince || "", unlockDay: s.unlockDay || "", lockAll: !!s.lockAll, teaser: s.teaser ?? true };
   };
   const setSettings = (learner, patch) => {
     const all = read("oc-year", {});
@@ -184,6 +184,7 @@
     if (memory && !quiet) push({ key: "memory", lane: "readAloud", icon: "🧠", label: `Memory work: ${memory.title}`, what: `${memory.title} (${memory.author}). Say the lines learned so far, then add one or two more. ${w === memory.to ? "Recite the whole piece this week." : ""}`.trim(), minutes: 5, times: 0, group: "Reading & Writing", memory });
     if (!quiet) {
       if (w >= 4) push({ key: "zaccaro", lane: "math", icon: "🏔️", label: "Challenge problems", what: "Primary Grade Challenge Math (Zaccaro): 2–3 challenge problems on this week's topic. Struggle first; write the best one in the Solution Notebook.", minutes: 20, times: 1, group: "Math" });
+      if (settings(learner).teaser) push({ key: "teaser", lane: "math", icon: "🧩", label: "Brain teaser", what: "5 picture puzzles on OakCrest: patterns, odd one out, analogies and turning shapes (about 5 minutes).", minutes: 5, times: 0, group: "Math", path: "math/teaser/" });
       if (settings(learner).soroban) push({ key: "soroban", lane: "math", icon: "🧮", label: "Soroban", what: "Soroban practice for her class: the next level (10 minutes).", minutes: 10, times: 3, group: "Math", path: "math/soroban/", screen: true });
       push({ key: "think", lane: "character", icon: "💭", label: "Big question", what: `Talk it through together: “${QUESTIONS[w % QUESTIONS.length]}” She answers with “I think… because…”, then considers another view.`, minutes: 15, times: 1, group: "Life Skills", path: "character/think/" });
       // Weekly habits from the family plan (master guide and year-by-year guide).
@@ -254,7 +255,8 @@
     const days = dates.map((date) => ({ date, iso: iso(date), items: [], minutes: 0, screen: 0 }));
     if (!days.length) return days;
     const all = itemsOf(learner, w);
-    for (const it of all.filter((i) => i.times === 0)) for (const d of days) d.items.push(it);
+    // The brain teaser started on 2026-11-12; earlier days don't count it as skipped.
+    for (const it of all.filter((i) => i.times === 0)) for (const d of days) if (it.key !== "teaser" || d.iso >= "2026-11-12") d.items.push(it);
     // Spread the rest: most frequent first, each copy to the least-loaded day that doesn't have it yet.
     // Screen items are placed after the rest, in priority order, so the most important ones fit the budget first.
     const rest = all.filter((i) => i.times > 0).sort((a, b) => a.screen - b.screen || (a.screen ? rank(a) - rank(b) : b.times - a.times || b.minutes - a.minutes));

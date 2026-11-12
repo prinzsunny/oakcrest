@@ -4415,8 +4415,24 @@ function openChest() {
     confetti();
     showOverlay(`<div class="lv-win"><h2>✨ Golden sticker!</h2><div class="lv-rewards"><div class="lv-reveal">${stickerHtml(chest.sticker, { golden: true, tilt: -2 })}<p>${chest.sticker[1]}</p></div><div class="lv-reveal" style="animation-delay:.6s"><span class="lv-swatch big" data-swatch="${chest.beads}"></span><p>New beads: ${BEADS[chest.beads]}!</p></div></div></div>`);
     say("levels", `You found the golden ${chest.sticker[1]}, and new ${BEADS[chest.beads]} beads for your soroban!`);
-    lvButtons(`<button type="button" class="primary" data-lv="wear" data-bead="${chest.beads}">🎨 Use ${BEADS[chest.beads]} beads</button><button type="button" data-lv="map">🗺️ Map</button>${lv.world < WORLDS.length - 1 ? `<button type="button" data-lv="nextworld">Next world ▶</button>` : ""}`);
+    lvButtons(`<button type="button" class="primary" data-lv="wear" data-bead="${chest.beads}">🎨 Use ${BEADS[chest.beads]} beads</button><button type="button" data-lv="explain">🗣️ Explain it to a grown-up</button><button type="button" data-lv="map">🗺️ Map</button>${lv.world < WORLDS.length - 1 ? `<button type="button" data-lv="nextworld">Next world ▶</button>` : ""}`);
   }, still.matches ? 200 : 1800);
+}
+
+// "Explain it": she tells a grown-up how the world's trick works; the grown-up writes it into the portfolio.
+async function explainIt() {
+  const world = WORLDS[lv.world];
+  say("levels", `Tell a grown-up how you solved ${world.name}. What did your fingers do?`, { voice: true });
+  if (!(await window.OC?.parent?.("Write down how she explained it."))) return;
+  const who = OC.current() || "Learner";
+  const text = (prompt(`How did ${who} explain ${world.name}? Write what she said, in her words.`) || "").trim();
+  if (!text) return;
+  let all = {};
+  try { all = JSON.parse(localStorage.getItem("oc-portfolio") || "{}"); } catch {}
+  const at = Date.now();
+  all[who] = { ...(all[who] || {}), [`sx${at}`]: { at, date: OC.dayOf(new Date()), subject: "Math", text: `Soroban, ${world.name}: “${text}”` } };
+  localStorage.setItem("oc-portfolio", JSON.stringify(all));
+  say("levels", "Saved to your portfolio! ⭐");
 }
 
 // ---------- Big surprise shows: worlds 21–40 win a full-screen show instead of a sticker ----------
@@ -4811,6 +4827,7 @@ $("[data-lv-buttons]").addEventListener("click", (event) => {
     say("levels", `🔓 ${WORLDS[lv.world].name} is open! Let's play!`);
   }
   if (what === "chest") openChest();
+  if (what === "explain") explainIt();
   if (what === "skipshow") endShow();
   if (what === "room") showRoom();
   if (what === "warm") startWarm();

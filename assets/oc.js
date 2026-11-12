@@ -230,7 +230,7 @@
     const mine = read("oc-year", {})[who] || {};
     if (mine.settings?.planFirst === false) return null;
     const steps = d.steps.map((st) => ({ ...st, done: !!mine[st.tick]?.done }));
-    return { who, steps, at: steps.findIndex((st) => !st.done), unlock: mine.settings?.unlockDay === today };
+    return { who, steps, at: steps.findIndex((st) => !st.done), unlock: mine.settings?.unlockDay === today, lockAll: !!mine.settings?.lockAll };
   }
   const css = `#oc-pf{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;padding:16px;background:linear-gradient(160deg,#fff6e0,#e8f1ff);font:18px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:#23324a;text-align:center}
 #oc-pf .c{max-width:420px;width:100%;background:#fff;border-radius:24px;padding:26px 22px;box-shadow:0 10px 30px #23324a22}
@@ -251,11 +251,89 @@
     document.head.appendChild(el);
   };
   const stepLink = (st) => ROOT + (st.path || "");
-  function grownUp() {
-    const a = 12 + Math.floor(Math.random() * 8), b = 13 + Math.floor(Math.random() * 7);
-    const got = prompt(`Grown-up check: what is ${a} × ${b}?`);
-    return got !== null && Number(got.trim()) === a * b;
-  }
+  // ---------- Parent PIN ----------
+  // A 4-digit PIN (stored hashed in "oc-parent", synced with the family account) guards unlocks, plan ticks and
+  // plan settings. Once entered it is remembered in this tab for 10 minutes.
+  const PIN_KEY = "oc-parent";
+  const hashPin = async (pin) => {
+    const data = new TextEncoder().encode(`oakcrest:${pin}`);
+    const buf = await crypto.subtle.digest("SHA-256", data);
+    return [...new Uint8Array(buf)].map((x) => x.toString(16).padStart(2, "0")).join("");
+  };
+  const pinCss = `#oc-pin{position:fixed;inset:0;z-index:2147483600;display:grid;place-items:center;padding:16px;background:#0008;font:17px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+#oc-pin form{width:100%;max-width:340px;background:#fff;color:#23324a;border-radius:20px;padding:22px;box-shadow:0 12px 40px #0004;text-align:center}
+#oc-pin h2{margin:0 0 4px;font-size:21px}#oc-pin p{margin:0 0 12px;color:#5b6880;font-size:15px}
+#oc-pin input{width:100%;box-sizing:border-box;font:700 28px/1 system-ui,sans-serif;letter-spacing:10px;text-align:center;padding:10px;border:2px solid #cfd8e6;border-radius:14px;margin:6px 0}
+#oc-pin .row{display:flex;gap:8px;margin-top:10px}#oc-pin button{flex:1;padding:12px;border:0;border-radius:14px;font:inherit;font-weight:800;cursor:pointer}
+#oc-pin .ok{background:#2f6fdf;color:#fff}#oc-pin .no{background:#eef1f6;color:#23324a}#oc-pin .err{color:#b3261e;min-height:1.3em;margin:4px 0 0}
+#oc-pin .forgot{background:none;color:#7a879c;font-size:13px;font-weight:600;padding:8px 0 0;flex:none;width:100%}
+@media (prefers-color-scheme:dark){#oc-pin form{background:#232c3d;color:#e8edf6}#oc-pin p{color:#b6c0d3}#oc-pin input{background:#1b2230;color:#fff;border-color:#3b4760}#oc-pin .no{background:#2f3a50;color:#e8edf6}}`;
+  OC.parent = (why = "") =>
+    new Promise((resolve) => {
+      try {
+        if (Date.now() - Number(sessionStorage.getItem("oc-parent-ok") || 0) < 600000) return resolve(true);
+      } catch {}
+      if (!document.getElementById("oc-pin-css")) {
+        const st = document.createElement("style");
+        st.id = "oc-pin-css";
+        st.textContent = pinCss;
+        document.head.appendChild(st);
+      }
+      document.getElementById("oc-pin")?.remove();
+      const saved = read(PIN_KEY, {}).pin;
+      const box = document.createElement("div");
+      box.id = "oc-pin";
+      box.innerHTML = `<form role="dialog" aria-modal="true" aria-labelledby="oc-pin-h"><h2 id="oc-pin-h">🔐 ${saved ? "Grown-ups only" : "Make a parent PIN"}</h2><p>${saved ? escapeHtml(why || "Enter the parent PIN.") : "Choose 4 digits only grown-ups know. You'll use it to unlock games, tick plan steps and change the plan."}</p>` +
+        `<input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" aria-label="PIN" data-a>${saved ? "" : `<input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" aria-label="PIN again" placeholder="again" data-b>`}` +
+        `<p class="err" data-err></p><div class="row"><button type="button" class="no">Cancel</button><button class="ok">${saved ? "OK" : "Save PIN"}</button></div>${saved && window.OCLOUD?.enabled?.() ? `<button type="button" class="forgot">Forgot the PIN? Reset it with the parent Google sign-in</button>` : ""}</form>`;
+      document.body.appendChild(box);
+      const $ = (q) => box.querySelector(q);
+      const done = (ok) => {
+        box.remove();
+        if (ok) try { sessionStorage.setItem("oc-parent-ok", String(Date.now())); } catch {}
+        resolve(ok);
+      };
+      $("[data-a]").focus();
+      $(".no").addEventListener("click", () => done(false));
+      $(".forgot")?.addEventListener("click", async () => {
+        try {
+          await window.OCLOUD.signIn();
+          write(PIN_KEY, { pin: "", at: Date.now() });
+          box.remove();
+          resolve(OC.parent(why));
+        } catch {
+          $("[data-err]").textContent = "Sign-in did not finish.";
+        }
+      });
+      $("form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const a = $("[data-a]").value.trim();
+        if (!/^\d{4,6}$/.test(a)) return ($("[data-err]").textContent = "Use 4 to 6 digits.");
+        if (!saved) {
+          if (a !== $("[data-b]").value.trim()) return ($("[data-err]").textContent = "The two PINs don't match.");
+          write(PIN_KEY, { pin: await hashPin(a), at: Date.now() });
+          listeners.forEach((fn) => fn());
+          return done(true);
+        }
+        if ((await hashPin(a)) === saved) return done(true);
+        $("[data-err]").textContent = "That's not it. Try again.";
+        $("[data-a]").value = "";
+      });
+    });
+  // A page can say "this plan step is finished" (for example after today's brain teasers).
+  OC.planDone = (path) => {
+    const st = planState();
+    const cur = st && st.at >= 0 ? st.steps[st.at] : null;
+    if (!cur || !cur.path || !path.startsWith(cur.path)) return false;
+    const all = read("oc-year", {});
+    (all[st.who] ||= {})[cur.tick] = { done: true, auto: true, at: Date.now() };
+    write("oc-year", all);
+    listeners.forEach((fn) => fn());
+    toast(planState() || { steps: [], at: -1 });
+    return true;
+  };
+  // Pages that never lock: home, the plan, the log, the portfolio and the sticker album.
+  const FREE = ["plan/", "log/", "portfolio/", "album/", "skills/"];
   function block(st, why) {
     if (document.getElementById("oc-pf") || !document.body) return;
     addCss();
@@ -265,11 +343,11 @@
     box.id = "oc-pf";
     box.setAttribute("role", "dialog");
     box.setAttribute("aria-modal", "true");
-    box.innerHTML = `<div class="c"><div class="big" aria-hidden="true">${why === "soroban" ? "🧮" : "🔒"}</div><h2>${why === "soroban" ? "Great warm-up!" : "Not yet!"}</h2>` +
-      `<p>${why === "soroban" ? "Soroban opens again when today's plan is finished." : "Do the steps in order."} First: <b>${escapeHtml(cur.icon || "")} ${escapeHtml(cur.label)}</b>. ${left === 1 ? "That's the last one!" : `${left} steps to go.`}</p>` +
+    box.innerHTML = `<div class="c"><div class="big" aria-hidden="true">${why === "soroban" ? "🧮" : "🔒"}</div><h2>${why === "soroban" ? "Great warm-up!" : why === "all" ? "Plan first!" : "Not yet!"}</h2>` +
+      `<p>${why === "soroban" ? "Soroban opens again when today's plan is finished." : why === "all" ? "Games open when today's plan is finished." : "Do the steps in order."} First: <b>${escapeHtml(cur.icon || "")} ${escapeHtml(cur.label)}</b>. ${left === 1 ? "That's the last one!" : `${left} steps to go.`}</p>` +
       `<a class="go" href="${escapeHtml(cur.path ? stepLink(cur) : ROOT + "#today")}">${cur.path ? "Let's go! 🚀" : "Show me today's plan"}</a><a class="home" href="${escapeHtml(ROOT)}">🏠 Home</a><button type="button" class="gu">Grown-up: unlock for today</button></div>`;
-    box.querySelector(".gu").addEventListener("click", () => {
-      if (!grownUp()) return;
+    box.querySelector(".gu").addEventListener("click", async () => {
+      if (!(await OC.parent("Unlock everything for today?"))) return;
       const all = read("oc-year", {});
       const mine = (all[st.who] ||= {});
       mine.settings = { ...(mine.settings || {}), unlockDay: dayOf(new Date()), at: Date.now() };
@@ -310,7 +388,9 @@
     }
     if (st.unlock) return;
     if (onPath(SOROBAN)) return minutesOn(st.who, SOROBAN) >= WARMUP ? block(st, "soroban") : undefined;
-    if (st.steps.slice(st.at + 1).some((x) => onPath(x.path)) && !st.steps.slice(0, st.at).some((x) => onPath(x.path))) block(st, "later");
+    if (st.steps.slice(st.at + 1).some((x) => onPath(x.path)) && !st.steps.slice(0, st.at).some((x) => onPath(x.path))) return block(st, "later");
+    // "Lock other games too": everything except finished steps and the free pages waits for the plan.
+    if (st.lockAll && here() && !FREE.some((p) => here().startsWith(p)) && !st.steps.some((x) => x.done && onPath(x.path))) block(st, "all");
   }
   // Count active time (a tap or key in the last 2 minutes, page visible) on this page, for today.
   setInterval(() => {

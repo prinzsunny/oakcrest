@@ -138,13 +138,13 @@
   // ---------- progress report: doing well, needs work, next steps ----------
   const yearOf = (name) => (OC.levelOf?.(name) === "Foundations" ? window.LYEAR : window.YEAR);
   // Planned steps over the last 4 weeks (before today), and how many were ticked done, by subject group and by step.
-  function planReport(name) {
+  function planReport(name, back = 28) {
     const E = yearOf(name);
     if (!E) return null;
     const t = E.ticks(name);
     const today = E.iso(new Date());
     const from = new Date();
-    from.setDate(from.getDate() - 28);
+    from.setDate(from.getDate() - back);
     const fromIso = E.iso(from);
     const now = E.weekIndexOf(name);
     const groups = {}, steps = {};
@@ -295,6 +295,119 @@
   $("[data-print]").addEventListener("click", () => print());
   OC.onChange(() => { fillLearners(); render(); });
   window.OCLOUD?.onChange?.(render);
+  // ---------- work samples: photos and voice clips, in IndexedDB on this device (too big for the cloud) ----------
+  const db = () => new Promise((ok, no) => {
+    const r = indexedDB.open("oakcrest-samples", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("samples", { keyPath: "id" });
+    r.onsuccess = () => ok(r.result);
+    r.onerror = () => no(r.error);
+  });
+  const store = async (mode, fn) => { const d = await db(); return new Promise((ok, no) => { const tx = d.transaction("samples", mode); const req = fn(tx.objectStore("samples")); tx.oncomplete = () => ok(req?.result); tx.onerror = () => no(tx.error); }); };
+  const urls = [];
+  async function renderSamples() {
+    const name = learner();
+    let list = [];
+    try { list = ((await store("readonly", (s) => s.getAll())) || []).filter((x) => x.learner === name).sort((a, b) => b.at - a.at); } catch {}
+    urls.splice(0).forEach((u) => URL.revokeObjectURL(u));
+    const url = (blob) => { const u = URL.createObjectURL(blob); urls.push(u); return u; };
+    $("[data-samples]").innerHTML = list.length
+      ? list.map((x) => `<figure>${x.kind === "photo" ? `<img src="${url(x.blob)}" alt="${esc(x.caption || "Work sample")}">` : `<div style="font-size:40px;text-align:center">🎙️</div><audio controls src="${url(x.blob)}"></audio>`}<figcaption><b>${esc(x.date)}</b>${x.age != null ? ` · age ${esc(String(x.age))}` : ""} · ${esc(x.subject || "")}${x.kind === "voice" ? " · voice clip" : ""}<br>${esc(x.caption || "")}</figcaption><button type="button" class="pf-del no-print" data-sdel="${esc(x.id)}" aria-label="Remove sample">✕</button></figure>`).join("")
+      : `<p class="pf-empty">No samples yet.</p>`;
+  }
+  async function addSample(kind, blob) {
+    const f = $("[data-sample-form]");
+    const name = learner();
+    const age = OC.ageOf(name);
+    await store("readwrite", (s) => s.put({ id: `s${Date.now().toString(36)}`, learner: name, kind, blob, at: Date.now(), date: OC.dayOf(new Date()), age, subject: f.subject.value, caption: f.caption.value.trim() }));
+    f.caption.value = "";
+    renderSamples();
+  }
+  // Photos are shrunk to 1000 px JPEG so a year of samples stays small.
+  const shrink = (file) => new Promise((ok, no) => {
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 1000 / Math.max(img.width, img.height));
+      const c = Object.assign(document.createElement("canvas"), { width: Math.round(img.width * k), height: Math.round(img.height * k) });
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(img.src);
+      c.toBlob((b) => (b ? ok(b) : no(new Error("photo"))), "image/jpeg", 0.75);
+    };
+    img.onerror = no;
+    img.src = URL.createObjectURL(file);
+  });
+  const sform = $("[data-sample-form]");
+  sform.subject.innerHTML = OC.SUBJECTS.map((x) => `<option>${esc(x)}</option>`).join("");
+  sform.addEventListener("submit", (e) => e.preventDefault());
+  $("[data-photo]").addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try { await addSample("photo", await shrink(file)); } catch { alert("That photo couldn't be added. Try another one."); }
+  });
+  let rec = null;
+  $("[data-rec]").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    if (rec) return rec.stop();
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) return alert("This browser can't record sound.");
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { return alert("Allow the microphone to record a voice clip."); }
+    const parts = [];
+    rec = new MediaRecorder(stream);
+    rec.ondataavailable = (ev) => ev.data.size && parts.push(ev.data);
+    rec.onstop = () => {
+      stream.getTracks().forEach((t) => t.stop());
+      clearTimeout(rec.limit);
+      rec = null;
+      btn.classList.remove("on");
+      btn.textContent = "🎙️ Record voice";
+      if (parts.length) addSample("voice", new Blob(parts, { type: parts[0].type || "audio/webm" }));
+    };
+    rec.start();
+    rec.limit = setTimeout(() => rec?.stop(), 120000); // 2 minutes at most
+    btn.classList.add("on");
+    btn.textContent = "⏹ Stop recording";
+  });
+  $("[data-samples]").addEventListener("click", async (e) => {
+    const id = e.target.closest("[data-sdel]")?.dataset.sdel;
+    if (!id || !confirm("Remove this sample?")) return;
+    await store("readwrite", (s) => s.delete(id));
+    renderSamples();
+  });
+  $("[data-learner]").addEventListener("change", renderSamples);
+  renderSamples();
+
+  // ---------- weekly summary by email (opens the parent's mail app; nothing is sent by the site) ----------
+  function weekly(name) {
+    const since = new Date(); since.setDate(since.getDate() - 7);
+    const sinceIso = OC.dayOf(since);
+    const log = OC.log().filter((e) => (e.learner || "Learner") === name && e.date >= sinceIso);
+    const by = {};
+    for (const e of log) by[e.subject || "Other"] = (by[e.subject || "Other"] || 0) + (Number(e.minutes) || 0);
+    const total = Object.values(by).reduce((a, b) => a + b, 0);
+    const plan = planReport(name, 7);
+    const skills = Object.entries(SKILLS.checks(name)).filter(([, c]) => c?.s === "yes" && c.at >= since.getTime()).map(([id]) => SKILLS.topics.get(id)?.name).filter(Boolean);
+    const notes = notesOf(name).filter((n) => n.date >= sinceIso);
+    const items = (sel) => [...document.querySelectorAll(`${sel} li`)].slice(0, 5).map((li) => `  - ${li.innerText.replace(/\s+/g, " ").trim()}`);
+    const lines = [
+      `${name}'s OakCrest week (${sinceIso} to ${OC.dayOf(new Date())})`, "",
+      `Learning time: ${hours(total)} over ${new Set(log.map((e) => e.date)).size} days`,
+      ...Object.entries(by).sort((a, b) => b[1] - a[1]).map(([k, v]) => `  - ${k}: ${hours(v)}`),
+      plan?.planned ? `Daily plan: ${plan.done} of ${plan.planned} steps (${pct(plan.done, plan.planned)}%), ${plan.fullDays} of ${plan.days} days fully done` : "",
+      "", `New skills shown (${skills.length}):`, ...(skills.length ? skills.slice(0, 12).map((x) => `  - ${x}`) : ["  - none this week"]),
+      "", "Doing well:", ...items("[data-good]"),
+      "", "Needs more work:", ...items("[data-work]"),
+      "", "Next steps:", ...items("[data-next]"),
+      ...(notes.length ? ["", "Notes this week:", ...notes.slice(0, 6).map((n) => `  - ${n.date} (${n.subject}): ${n.text}`)] : []),
+      "", `Full portfolio: ${new URL("./", location.href).href}`,
+    ];
+    return lines.filter((l, i, a) => l !== "" || a[i - 1] !== "").join("\n");
+  }
+  $("[data-email]").addEventListener("click", () => {
+    const name = learner();
+    location.href = `mailto:?subject=${encodeURIComponent(`${name}'s OakCrest week`)}&body=${encodeURIComponent(weekly(name))}`;
+  });
+  window.__pfWeekly = weekly;
+
   render(); // soroban, log and notes show at once; skills fill in once the taxonomy has loaded
   SKILLS.load().then(render, () => ($("[data-ahead]").innerHTML = `<p class="pf-empty">Skills couldn't load. Check the connection and reload.</p>`));
 })();

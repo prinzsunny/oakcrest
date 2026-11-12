@@ -4,7 +4,7 @@
 // With no Firebase config (window.OC_FIREBASE unset) everything stays on this device.
 (() => {
   const SDK = "https://www.gstatic.com/firebasejs/10.12.2/";
-  const SYNCED = ["oc-learners", "oc-profiles", "oc-music", "oc-log", "oc-plan-done", "oc-plan-start", "oc-plan-track", "oc-year", "oc-soroban-adv", "oc-log-removed", "oc-skills", "oc-stickers", "oc-portfolio"];
+  const SYNCED = ["oc-learners", "oc-profiles", "oc-music", "oc-log", "oc-plan-done", "oc-plan-start", "oc-plan-track", "oc-year", "oc-soroban-adv", "oc-log-removed", "oc-skills", "oc-stickers", "oc-portfolio", "oc-parent"];
   const META = "oc-sync-meta"; // { key: last local change time }
   const raw = Storage.prototype.setItem;
   const readJson = (key, fallback) => {
