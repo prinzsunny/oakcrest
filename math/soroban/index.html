@@ -3900,7 +3900,9 @@ const cleared = (data, w, k) => (data.levels[levelId(w, k)]?.stars || 0) > 0;
 // World 1, worlds opened with keys and worlds already played in stay open.
 const worldOpen = (data, w) => !window.STICKERS || w === 0 || (data.opened || []).includes(w) || WORLDS[w].levels.some((_, k) => cleared(data, w, k));
 const keysLeft = () => (window.STICKERS ? STICKERS.keys(who()).left : 0);
-const unlocked = (data, w, k) => worldOpen(data, w) && (k === 0 || cleared(data, w, k - 1));
+// A level skipped with "Skip ahead" counts as passed for unlocking, but stays on the map to come back to.
+const passed = (data, w, k) => cleared(data, w, k) || !!data.levels[levelId(w, k)]?.skipped;
+const unlocked = (data, w, k) => worldOpen(data, w) && (k === 0 || passed(data, w, k - 1));
 const starsIn = (data, w) => WORLDS[w].levels.reduce((sum, _, k) => sum + (data.levels[levelId(w, k)]?.stars || 0), 0);
 const allStars = (data) => WORLDS.reduce((sum, _, w) => sum + starsIn(data, w), 0);
 const starText = (n, of = 3) => "★".repeat(n) + "☆".repeat(of - n);
@@ -4344,8 +4346,9 @@ function finishLevel() {
   const data = adv();
   const id = levelId(lv.world, lv.pick);
   const prev = data.levels[id];
-  const firstClear = !prev;
-  data.levels[id] = { stars: Math.max(stars, prev?.stars || 0), best: r.spec.time ? Math.min(secs, prev?.best || Infinity) : undefined };
+  const firstClear = !prev?.stars;
+  // "at" is the day the level was first beaten (kept for the portfolio); "s3" the day it first got 3 stars.
+  data.levels[id] = { stars: Math.max(stars, prev?.stars || 0), best: r.spec.time ? Math.min(secs, prev?.best || Infinity) : undefined, at: prev?.at || Date.now(), ...(prev?.s3 || stars === 3 ? { s3: prev?.s3 || Date.now() } : {}) };
   if (WORLDS[lv.world].show) return finishShowLevel(r, stars, secs, data);
   const rewards = [];
   const sticker = `s${lv.world}-${lv.pick}`;
@@ -4366,6 +4369,11 @@ function finishLevel() {
     if (!data.beads.includes(beads)) data.beads.push(beads);
     chest = { sticker: WORLDS[lv.world].golden, beads };
   }
+  // Adaptive pace: two perfect first tries in a row offer a jump over the next level;
+  // a hard round (one star with lots of slips or help) offers the level before it for practice.
+  data.hot = firstClear && stars === 3 ? (data.hot || 0) + 1 : 0;
+  const canSkip = !chest && data.hot >= 2 && lv.pick <= 2 && !cleared(data, lv.world, lv.pick + 1);
+  const easier = !chest && stars === 1 && (r.mistakes >= 5 || r.helped >= 2) && lv.pick > 0;
   saveAdv(data);
   $("[data-lv-stars]").textContent = `⭐ ${allStars(data)} · 🧩 ${data.stickers.length}`;
   record?.count("levels cleared");
@@ -4383,11 +4391,12 @@ function finishLevel() {
     .join("")}</div><div class="lv-rewards">${rewardHtml}</div></div>`);
   const praise = stars === 3 ? "Perfect round!" : stars === 2 ? "Great work!" : "You did it!";
   const names = rewards.map((reward) => reward.sticker[1]).join(" and ");
-  say("levels", `🎉 ${praise} ${starText(stars)}${r.spec.time ? ` in ${secs} seconds` : ""}.${names ? ` You got a sticker: ${names}!` : ""}`);
+  const pace = canSkip ? " You're flying! Want to skip ahead?" : easier ? " That one was tricky! Practice the level before it, then come back." : "";
+  say("levels", `🎉 ${praise} ${starText(stars)}${r.spec.time ? ` in ${secs} seconds` : ""}.${names ? ` You got a sticker: ${names}!` : ""}${pace}`);
   lvButtons(
     chest
       ? `<button type="button" class="primary" data-lv="chest" data-pulse>🎁 Open the treasure chest!</button>`
-      : `${nextExists ? `<button type="button" class="primary" data-lv="next">▶ Next level</button>` : ""}<button type="button" data-lv="again">↺ Play again</button><button type="button" data-lv="map">🗺️ Map</button>`,
+      : `${canSkip ? `<button type="button" class="primary" data-lv="skip" data-pulse>⏩ Skip to level ${levelNo(lv.world, lv.pick + 2)}</button>` : ""}${easier ? `<button type="button" class="primary" data-lv="easier">↩ Practice level ${levelNo(lv.world, lv.pick - 1)}</button>` : ""}${nextExists ? `<button type="button"${canSkip || easier ? "" : ' class="primary"'} data-lv="next">▶ Next level</button>` : ""}<button type="button" data-lv="again">↺ Play again</button><button type="button" data-lv="map">🗺️ Map</button>`,
   );
   lv.chest = chest;
   lv.view = "win";
@@ -4765,6 +4774,20 @@ $("[data-lv-buttons]").addEventListener("click", (event) => {
   if (what === "play" || what === "again") startLevel();
   if (what === "next") {
     lv.pick = Math.min(lv.pick + 1, 4);
+    startLevel();
+  }
+  if (what === "skip" && lv.pick <= 2) {
+    const data = adv();
+    const id = levelId(lv.world, lv.pick + 1);
+    if (!data.levels[id]?.stars) data.levels[id] = { ...(data.levels[id] || {}), stars: 0, skipped: Date.now() };
+    data.hot = 0;
+    saveAdv(data);
+    record?.count("levels skipped ahead");
+    lv.pick += 2;
+    startLevel();
+  }
+  if (what === "easier" && lv.pick > 0) {
+    lv.pick -= 1;
     startLevel();
   }
   if (what === "map") {

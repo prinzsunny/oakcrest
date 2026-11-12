@@ -262,10 +262,28 @@ $("[data-csv]").addEventListener("click", () => {
 
 $("[data-print]").addEventListener("click", () => print());
 
+// A backup holds every OakCrest key on this device (learners, log, soroban, skills, stickers, music, plans, drawings),
+// so a lost tablet or cleared browser can be put back exactly. Version 1 files (learners + log only) still restore.
+const SKIP = new Set(["oc-sync-meta", "oc-current", "oc-locked", "oc-gate"]);
+const allKeys = () => {
+  const out = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith("oc-") && !SKIP.has(key)) out[key] = localStorage.getItem(key);
+  }
+  return out;
+};
 $("[data-backup]").addEventListener("click", () => {
-  download(`oakcrest-backup-${OC.dayOf(new Date())}.json`, "application/json", JSON.stringify({ app: "oakcrest", version: 1, learners: OC.learners(), log: OC.log() }, null, 1));
+  const keys = allKeys();
+  download(`oakcrest-backup-${OC.dayOf(new Date())}.json`, "application/json", JSON.stringify({ app: "oakcrest", version: 2, savedAt: new Date().toISOString(), learners: OC.learners(), log: OC.log(), keys }));
 });
 
+const mergeLog = (entries) => {
+  const have = new Set(OC.log().map((entry) => entry.id));
+  const added = (entries || []).filter((entry) => entry && entry.id && !have.has(entry.id));
+  OC.saveLog([...OC.log(), ...added]);
+  return added.length;
+};
 $("[data-restore]").addEventListener("change", async (event) => {
   const file = event.target.files[0];
   event.target.value = "";
@@ -273,11 +291,23 @@ $("[data-restore]").addEventListener("change", async (event) => {
   try {
     const data = JSON.parse(await file.text());
     if (data.app !== "oakcrest" || !Array.isArray(data.log)) throw new Error("not an OakCrest backup");
-    const have = new Set(OC.log().map((entry) => entry.id));
-    const added = data.log.filter((entry) => entry && entry.id && !have.has(entry.id));
-    OC.saveLog([...OC.log(), ...added]);
+    const added = mergeLog(data.log);
     OC.saveLearners([...new Set([...OC.learners(), ...(data.learners || [])])]);
-    alert(`Restored ${added.length} entr${added.length === 1 ? "y" : "ies"}.`);
+    let restored = 0;
+    const keys = data.version >= 2 && data.keys && typeof data.keys === "object" ? data.keys : {};
+    const progressKeys = Object.keys(keys).filter((key) => key.startsWith("oc-") && !SKIP.has(key) && key !== "oc-log" && key !== "oc-learners" && typeof keys[key] === "string");
+    if (progressKeys.length) {
+      const when = data.savedAt ? new Date(data.savedAt).toLocaleDateString() : "the backup";
+      if (confirm(`Put back levels, skills, stickers and other progress from ${when}?\n\nThis replaces that progress on this device (the log is merged, not replaced).`)) {
+        for (const key of progressKeys) {
+          JSON.parse(keys[key]); // only valid JSON goes back in
+          localStorage.setItem(key, keys[key]);
+          restored++;
+        }
+      }
+    }
+    alert(`Restored ${added} log entr${added === 1 ? "y" : "ies"}${restored ? ` and ${restored} kinds of progress` : ""}.${restored ? " Reload any open lessons to see it." : ""}`);
+    render();
   } catch (error) {
     alert(`That file couldn't be restored (${error.message}).`);
   }
