@@ -31,7 +31,7 @@
   const listeners = new Set();
 
   const OC = {
-    SUBJECTS: ["Math", "Music", "Arts", "Science", "Tech", "Reading & Writing", "Languages", "History & Social Studies", "PE & Movement", "Life Skills", "Other"],
+    SUBJECTS: ["Math", "Music", "Arts", "Science", "Tech", "Reading & Writing", "Languages", "History & Social Studies", "PE & Movement", "Life Skills", "Thinking Skills", "Other"],
     escapeHtml,
     dayOf,
     log: () => read(KEY_LOG, []),

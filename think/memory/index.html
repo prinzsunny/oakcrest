@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Memory Gym · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="think">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../" aria-label="Thinking Skills" title="Thinking Skills">🏠</a>
+  <div class="ap-title"><b>Memory Gym</b><small>Thinking Skills · memory and speed</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, panel, say, sayAsync, pick, pickInt, wait, confetti, PRAISE, KIND, shuffle, still } = KIT;
+const stage = $("[data-stage]");
+let token = 0;
+let timerId = 0;
+const LV = { spot: 6, pairs: 4 };
+
+const UNITS = [
+  { id: "mg0", label: "1. Picture parade", icon: "🦊" },
+  { id: "mg1", label: "2. Hiding spots", icon: "🥤" },
+  { id: "mg2", label: "3. Number echo", icon: "🔢" },
+  { id: "mg3", label: "4. Speedy spotter", icon: "🔎" },
+  { id: "mg4", label: "5. Code match", icon: "🔑" },
+];
+
+const css = document.createElement("style");
+css.textContent = `
+.tk{width:100%;height:100%;overflow:auto;display:flex;align-items:center;justify-content:center;padding:10px;box-sizing:border-box;color:var(--ink);font-family:var(--sans)}
+.tk-col{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:760px}
+.tk-card{display:grid;place-items:center;width:clamp(110px,24vw,190px);height:clamp(110px,24vw,190px);border-radius:28px;background:var(--accent-soft);box-shadow:0 0 0 4px var(--accent);font-size:clamp(64px,15vw,120px);line-height:1}
+.tk-card.pop{animation:tk-pop .35s ease}
+.tk-slots{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;min-height:56px}
+.tk-slots span{display:grid;place-items:center;width:clamp(44px,9vw,60px);height:clamp(44px,9vw,60px);border-radius:14px;background:#fff;box-shadow:inset 0 0 0 3px #e2d6c4;font-size:clamp(26px,6vw,38px)}
+.tk-slots span.on{box-shadow:inset 0 0 0 3px var(--accent)}
+.tk-grid{display:grid;gap:10px;justify-content:center}
+.tk-grid button,.tk-opt{display:grid;place-items:center;min-width:64px;min-height:64px;border:0;border-radius:18px;background:#fff;box-shadow:0 4px 0 #e2d6c4,0 0 0 2px #efe6d8;color:var(--ink);font:900 clamp(30px,7vw,46px)/1 var(--sans);cursor:pointer;touch-action:manipulation}
+.tk-grid button:active{transform:translateY(2px)}
+.tk-grid button:disabled{opacity:.35;cursor:default}
+.tk-grid button.good{background:#d8f3e0;box-shadow:0 4px 0 #22a05a}
+.tk-grid button.bad{background:#f6dcd4;box-shadow:0 4px 0 #d9822b}
+.tk-cup{position:relative;width:clamp(72px,16vw,108px);height:clamp(72px,16vw,108px);padding:0}
+.tk-cup .lid{position:absolute;inset:0;display:grid;place-items:center;border-radius:18px;background:var(--accent);font-size:clamp(36px,8vw,54px);transition:transform .3s}
+.tk-cup.up .lid{transform:translateY(-62%) rotate(-12deg);opacity:.35}
+.tk-cup .pet{font-size:clamp(34px,8vw,52px)}
+.tk-keys{display:grid;grid-template-columns:repeat(3,clamp(70px,18vw,104px));gap:10px}
+.tk-keys button{min-height:clamp(60px,12vw,84px);border:0;border-radius:20px;background:#fff;box-shadow:0 5px 0 #e2d6c4,0 0 0 2px #efe6d8;color:var(--ink);font:900 clamp(32px,7vw,48px)/1 var(--sans);cursor:pointer;touch-action:manipulation}
+.tk-keys button:active{transform:translateY(3px)}
+.tk-keys button:disabled{opacity:.4}
+.tk-ear{display:grid;place-items:center;width:clamp(110px,24vw,170px);height:clamp(110px,24vw,170px);border-radius:50%;background:var(--accent-soft);box-shadow:0 0 0 4px var(--accent);font:900 clamp(54px,13vw,90px)/1 var(--sans)}
+.tk-ear.pop{animation:tk-pop .35s ease}
+.tk-stat{font:900 clamp(16px,2.6vw,20px)/1.2 var(--sans);color:var(--ink);min-height:1.3em}
+.tk-bar{width:100%;max-width:560px;height:14px;border-radius:7px;background:#efe6d8;overflow:hidden}
+.tk-bar i{display:block;height:100%;width:100%;background:var(--accent);transition:width .25s linear}
+.tk-big{min-height:64px;padding:0 30px;border:0;border-radius:22px;background:var(--accent);color:#fff;font:900 24px/1 var(--sans);cursor:pointer;box-shadow:0 5px 0 var(--accent-dark)}
+.tk-row{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;animation:tk-in .3s ease}
+.tk-row button{width:clamp(54px,10vw,76px);height:clamp(54px,10vw,76px);border:0;border-radius:16px;background:#fff;box-shadow:0 4px 0 #e2d6c4,0 0 0 2px #efe6d8;font-size:clamp(28px,6vw,42px);line-height:1;cursor:pointer;touch-action:manipulation}
+.tk-row button.good{background:#d8f3e0;box-shadow:0 4px 0 #22a05a}
+.tk-row button.bad{background:#f6dcd4;animation:tk-shake .3s}
+.tk-key{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;padding:8px;border-radius:16px;background:var(--accent-soft)}
+.tk-key div{display:flex;flex-direction:column;align-items:center;width:clamp(40px,8vw,54px);border-radius:10px;background:#fff;font-size:clamp(20px,4.6vw,28px);line-height:1.3}
+.tk-key div b{border-top:2px solid #e2d6c4;width:100%;text-align:center;font-weight:900;color:var(--accent-dark)}
+.tk-sheet{display:grid;grid-template-columns:repeat(6,clamp(44px,9vw,64px));gap:6px}
+.tk-sheet div{display:flex;flex-direction:column;align-items:center;border-radius:12px;background:#fff;box-shadow:inset 0 0 0 2px #efe6d8;font-size:clamp(22px,5vw,32px);line-height:1.3}
+.tk-sheet div b{width:100%;min-height:1.3em;border-top:2px solid #e2d6c4;text-align:center;font-weight:900;color:var(--accent-dark)}
+.tk-sheet div.now{box-shadow:inset 0 0 0 3px var(--accent)}
+.tk-pal{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.tk-pal button{width:clamp(48px,9vw,64px);height:clamp(52px,10vw,68px);border:0;border-radius:16px;background:#fff;box-shadow:0 4px 0 #e2d6c4,0 0 0 2px #efe6d8;color:var(--ink);font:900 clamp(24px,5vw,34px)/1 var(--sans);cursor:pointer;touch-action:manipulation}
+.tk-pal button.bad{background:#f6dcd4;animation:tk-shake .3s}
+@keyframes tk-pop{0%{transform:scale(.5);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+@keyframes tk-in{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
+@keyframes tk-shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+@media (prefers-reduced-motion:reduce){.tk-card.pop,.tk-ear.pop,.tk-row,.tk-row button.bad,.tk-pal button.bad{animation:none}.tk-cup .lid,.tk-bar i{transition:none}}
+`;
+document.head.appendChild(css);
+
+const fresh = (html = "") => {
+  stage.innerHTML = "";
+  const d = document.createElement("div");
+  d.className = "tk";
+  d.innerHTML = html;
+  stage.appendChild(d);
+  return d;
+};
+const status = (s) => {
+  const b = $("[data-status]");
+  if (b) b.textContent = s;
+};
+const NOTES = [72, 74, 76, 77, 79, 81, 83, 84, 86, 88, 89, 91];
+const note = (i, gain = 0.4) => MUSIC.play("xylophone", NOTES[Math.min(NOTES.length - 1, Math.max(0, i))], { gain });
+const span = (n, min, max) => ({
+  n, min, max, miss: 0,
+  up() { this.n = Math.min(max, this.n + 1); this.miss = 0; },
+  down() { if (++this.miss >= 2) { this.n = Math.max(min, this.n - 1); this.miss = 0; } },
+});
+const ANIMALS = ["🐶", "🐱", "🐰", "🦊", "🐻", "🐼", "🐸", "🐵", "🦁", "🐯", "🐮", "🐷"];
+const young = () => {
+  try {
+    const a = window.OC?.ageOf?.(OC.current());
+    return a != null && a < 5;
+  } catch {
+    return false;
+  }
+};
+const NAMES = { "🐶": "dog", "🐱": "cat", "🐰": "bunny", "🦊": "fox", "🐻": "bear", "🐼": "panda", "🐸": "frog", "🐵": "monkey", "🦁": "lion", "🐯": "tiger", "🐮": "cow", "🐷": "pig" };
+const hold = (ms) => wait(still.matches ? Math.min(ms, 400) : ms);
+
+// Tap things one by one; resolves true when the whole list is right, false on the first mistake.
+const collect = (host, want, onHit, onMiss) =>
+  new Promise((resolve) => {
+    let i = 0;
+    host.onclick = (event) => {
+      const b = event.target.closest("[data-k]");
+      if (!b || b.disabled) return;
+      window.OC?.touch();
+      if (b.dataset.k === String(want[i])) {
+        onHit?.(b, i);
+        i += 1;
+        if (i >= want.length) {
+          host.onclick = null;
+          resolve(true);
+        }
+      } else {
+        host.onclick = null;
+        onMiss?.(b, i);
+        resolve(false);
+      }
+    };
+  });
+
+async function finish(my, id, right, total, what) {
+  MUSIC.chime();
+  confetti();
+  window.OC?.count("games finished");
+  if (right >= Math.ceil(total * 0.6)) shell.mark(id, { done: true });
+  say(`🎉 All ${total} done! You got ${right} right. ${right >= total - 2 ? `Super ${what}!` : "Let's play again!"}`);
+  await wait(3200);
+  return my === token;
+}
+
+// Runs `total` trials; each trial returns true when the child got it right.
+async function run(my, id, what, total, trial) {
+  let right = 0;
+  while (true) {
+    for (let i = 0; i < total; i++) {
+      status(`Try ${i + 1} of ${total}`);
+      const ok = await trial(i);
+      if (my !== token) return;
+      if (ok) right += 1;
+      await wait(1500);
+      if (my !== token) return;
+    }
+    if (!(await finish(my, id, right, total, what))) return;
+    right = 0;
+  }
+}
+const feedback = (ok, extra = "") => {
+  if (ok) {
+    MUSIC.chime();
+    say(`${pick(PRAISE)} ${extra}`);
+  } else {
+    MUSIC.oops();
+    say(`${pick(KIND)} ${extra}`);
+  }
+};
+
+// Ages 3-4: no timer, no reading. Tap every picture that matches.
+function calm(my, id, pool, name, plural) {
+  const target = pool[0];
+  panel(`<div class="tk-stat" data-status></div>`);
+  let round = 0;
+  const TOTAL = 5;
+  const next = () => {
+    if (my !== token) return;
+    const n = Math.min(12, 6 + round * 2);
+    const found = round > 1 ? 3 : 2;
+    const hit = new Set(shuffle([...Array(n).keys()]).slice(0, found));
+    const row = [...Array(n).keys()].map((c) => (hit.has(c) ? target : pick(pool.slice(1))));
+    const d = fresh(`<div class="tk-col"><div class="tk-card" style="width:clamp(70px,16vw,110px);height:clamp(70px,16vw,110px);font-size:clamp(44px,10vw,70px)">${target}</div><div class="tk-row">${row.map((g) => `<button type="button" data-t="${g === target ? 1 : 0}" aria-label="picture">${g}</button>`).join("")}</div></div>`);
+    status(`${round + 1} of ${TOTAL}`);
+    say(`Tap all the ${plural}!`);
+    let left = found;
+    d.onclick = async (event) => {
+      const b = event.target.closest("button[data-t]");
+      if (!b || b.disabled) return;
+      window.OC?.touch();
+      if (b.dataset.t === "1") {
+        b.disabled = true;
+        b.classList.add("good");
+        left -= 1;
+        note(found - left + 3);
+        if (left === 0) {
+          d.onclick = null;
+          round += 1;
+          if (round >= TOTAL) {
+            if (!(await finish(my, id, TOTAL, TOTAL, "looking"))) return;
+            round = 0;
+          } else {
+            MUSIC.chime();
+            say(`${pick(PRAISE)} You found all the ${plural}!`);
+            await wait(1800);
+          }
+          next();
+        }
+      } else {
+        b.classList.add("bad");
+        MUSIC.oops();
+        say(`Hmm, that is not a ${name}. Look for the ${plural}!`);
+      }
+    };
+  };
+  next();
+}
+
+const units = {
+  // ---------- 1. Picture parade ----------
+  mg0() {
+    const my = token;
+    panel(`<div class="tk-stat" data-status></div>`);
+    const yg = young();
+    const fw = span(yg ? 1 : 2, 1, yg ? 4 : 7);
+    const rv = span(2, 2, 6);
+    run(my, "mg0", "memory", yg ? 6 : 8, async (i) => {
+      const reverse = !yg && i >= 4;
+      const sp = reverse ? rv : fw;
+      if (reverse && i === 4) rv.n = Math.max(2, fw.n - 1);
+      const n = sp.n;
+      const seq = shuffle(ANIMALS).slice(0, n);
+      const want = reverse ? [...seq].reverse() : seq;
+      const rest = shuffle(ANIMALS.filter((a) => !seq.includes(a))).slice(0, Math.max(2, 6 - n));
+      const d = fresh(`<div class="tk-col"><div class="tk-card" data-show></div><div class="tk-slots" data-slots></div><div class="tk-grid" data-tray style="grid-template-columns:repeat(${n + rest.length > 6 ? 4 : 3},auto)"></div></div>`);
+      const show = $("[data-show]", d);
+      const slots = $("[data-slots]", d);
+      const tray = $("[data-tray]", d);
+      slots.innerHTML = want.map(() => "<span></span>").join("");
+      await sayAsync(reverse ? "Watch the pictures. Then tap them <b>backwards</b>: the last one first!" : "Watch the pictures. Remember the order!");
+      if (my !== token) return;
+      await wait(400);
+      for (let k = 0; k < seq.length; k++) {
+        if (my !== token) return;
+        show.textContent = seq[k];
+        show.classList.remove("pop");
+        void show.offsetWidth;
+        show.classList.add("pop");
+        note(k, 0.35);
+        await hold(1000);
+        show.textContent = "";
+        await hold(250);
+      }
+      if (my !== token) return;
+      show.textContent = "❓";
+      tray.innerHTML = shuffle([...seq, ...rest]).map((a) => `<button type="button" data-k="${a}" aria-label="picture">${a}</button>`).join("");
+      say(reverse ? `Your turn! Tap them backwards. Start with the last one!` : `Your turn! Tap them in the same order.`);
+      const ok = await collect(tray, want, (b, k) => {
+        b.disabled = true;
+        b.classList.add("good");
+        slots.children[k].textContent = b.dataset.k;
+        note(k + 2);
+      }, (b) => b.classList.add("bad"));
+      if (my !== token) return;
+      tray.querySelectorAll("button").forEach((b) => (b.disabled = true));
+      if (ok) sp.up();
+      else sp.down();
+      feedback(ok, ok ? `You remembered ${n}${reverse ? " backwards" : ""}!` : `The order was ${want.join(" ")}. Let's try another.`);
+      if (!ok) want.forEach((a, k) => (slots.children[k].textContent = a));
+      return ok;
+    });
+  },
+
+  // ---------- 2. Hiding spots ----------
+  mg1() {
+    const my = token;
+    panel(`<div class="tk-stat" data-status></div>`);
+    const yg = young();
+    const fw = span(yg ? 1 : 2, 1, yg ? 2 : 8);
+    const rv = span(2, 2, 6);
+    run(my, "mg1", "memory", yg ? 6 : 8, async (i) => {
+      const reverse = !yg && i >= 6;
+      const sp = reverse ? rv : fw;
+      if (reverse && i === 6) rv.n = Math.max(2, fw.n - 2);
+      const n = sp.n;
+      const cols = yg ? 2 : n <= 4 ? 3 : 4;
+      const rows = yg ? 2 : n <= 6 ? 3 : 4;
+      const cells = shuffle([...Array(cols * rows).keys()]).slice(0, n);
+      const pets = shuffle(ANIMALS).slice(0, n);
+      const want = reverse ? [...cells].reverse() : cells;
+      const d = fresh(`<div class="tk-col"><div class="tk-grid" data-cups style="grid-template-columns:repeat(${cols},auto)">${[...Array(cols * rows).keys()]
+        .map((c) => `<button type="button" class="tk-cup" data-k="${c}" aria-label="cup ${c + 1}" disabled><span class="pet"></span><span class="lid">🥤</span></button>`).join("")}</div></div>`);
+      const cups = $("[data-cups]", d);
+      const cup = (c) => cups.children[c];
+      await sayAsync(reverse ? "Animals hide under the cups. Watch where they go. Then tap the cups <b>backwards</b>!" : "Animals hide under the cups. Watch where each one hides. Then tap the cups in the same order!");
+      if (my !== token) return;
+      await wait(300);
+      for (let k = 0; k < n; k++) {
+        if (my !== token) return;
+        const c = cup(cells[k]);
+        c.querySelector(".pet").textContent = pets[k];
+        c.classList.add("up");
+        note(k, 0.35);
+        await hold(950);
+        c.classList.remove("up");
+        await hold(450);
+        c.querySelector(".pet").textContent = "";
+      }
+      if (my !== token) return;
+      cups.querySelectorAll("button").forEach((b) => (b.disabled = false));
+      say(reverse ? "Your turn! Where did the last animal hide? Tap backwards." : "Your turn! Tap where they hid, in order.");
+      const ok = await collect(cups, want, (b, k) => {
+        const pet = pets[reverse ? n - 1 - k : k];
+        b.querySelector(".pet").textContent = pet;
+        b.classList.add("up", "good");
+        b.disabled = true;
+        note(k + 2);
+      }, (b) => b.classList.add("bad"));
+      if (my !== token) return;
+      cups.querySelectorAll("button").forEach((b) => (b.disabled = true));
+      if (ok) sp.up();
+      else sp.down();
+      if (!ok) want.forEach((c, k) => { const b = cup(c); b.classList.add("up"); b.querySelector(".pet").textContent = pets[reverse ? n - 1 - k : k]; });
+      feedback(ok, ok ? `You kept ${n} hiding spots in mind!` : `Here is where they hid. Let's try another.`);
+      return ok;
+    });
+  },
+
+  // ---------- 3. Number echo ----------
+  mg2() {
+    const my = token;
+    panel(`<div class="tk-stat" data-status></div>`);
+    const yg = young();
+    const fw = span(yg ? 1 : 2, 1, yg ? 3 : 8);
+    const rv = span(2, 2, 6);
+    const pics = ["🐶", "🐱", "🐰", "🐸"];
+    run(my, "mg2", "listening", yg ? 6 : 8, async (i) => {
+      const reverse = !yg && i >= 4;
+      const sp = reverse ? rv : fw;
+      if (reverse && i === 4) rv.n = Math.max(2, fw.n - 1);
+      const n = sp.n;
+      const digits = [];
+      while (digits.length < n) {
+        const x = yg ? pick(pics) : pickInt(1, 9);
+        if (digits[digits.length - 1] !== x) digits.push(x);
+      }
+      const want = reverse ? [...digits].reverse() : digits;
+      const d = fresh(`<div class="tk-col"><div class="tk-ear" data-ear>👂</div><div class="tk-slots" data-slots></div><div class="tk-keys" data-keys>${(yg ? pics : [1, 2, 3, 4, 5, 6, 7, 8, 9])
+        .map((k) => `<button type="button" data-k="${k}" disabled>${k}</button>`).join("")}</div></div>`);
+      if (yg) $("[data-keys]", d).style.gridTemplateColumns = "repeat(2,clamp(80px,22vw,120px))";
+      const ear = $("[data-ear]", d);
+      const slots = $("[data-slots]", d);
+      slots.innerHTML = want.map(() => "<span></span>").join("");
+      await sayAsync(yg ? "Listen to the animals. Then tap them in the same order!" : reverse ? "Listen to the numbers. Then tap them <b>backwards</b>: the last one first!" : "Listen to the numbers. Then tap them in the same order!");
+      if (my !== token) return;
+      await wait(500);
+      const sees = !VOICE.state.on;
+      for (let k = 0; k < n; k++) {
+        if (my !== token) return;
+        ear.textContent = sees || yg ? digits[k] : "🔊";
+        ear.classList.remove("pop");
+        void ear.offsetWidth;
+        ear.classList.add("pop");
+        if (!sees) await VOICE.speakAsync(yg ? NAMES[digits[k]] : String(digits[k]));
+        else await hold(900);
+        if (my !== token) return;
+        ear.textContent = "👂";
+        await hold(still.matches ? 200 : 450);
+      }
+      if (my !== token) return;
+      const keys = $("[data-keys]", d);
+      keys.querySelectorAll("button").forEach((b) => (b.disabled = false));
+      say(reverse ? "Your turn! Tap the numbers backwards." : "Your turn! Tap the numbers in order.");
+      const ok = await collect(keys, want, (b, k) => {
+        slots.children[k].textContent = b.dataset.k;
+        note(yg ? k : Number(b.dataset.k) - 1);
+      }, (b) => b.classList.add("bad"));
+      if (my !== token) return;
+      keys.querySelectorAll("button").forEach((b) => (b.disabled = true));
+      if (ok) sp.up();
+      else sp.down();
+      if (!ok) want.forEach((x, k) => (slots.children[k].textContent = x));
+      feedback(ok, ok ? `You held ${n} numbers${reverse ? " and turned them around" : ""}!` : `It was ${want.join(", ")}. Let's try another.`);
+      return ok;
+    });
+  },
+
+  // ---------- 4. Speedy spotter ----------
+  mg3() {
+    const my = token;
+    if (young()) return calm(my, "mg3", ["🐱", "🐶", "🐰", "🐸", "🐵", "🐷"], "cat", "cats");
+    const SECS = 60;
+    const POOL = ["⭐", "🌙", "❤️", "🔷", "🔶", "🟢", "🔺", "🟣", "⬛", "☀️", "🍀", "💧"];
+    panel(`<div class="tk-stat" data-status></div><button type="button" class="tk-big" data-do="skip" hidden>Next row ▶</button>`);
+    const intro = () => {
+      const t = pick(POOL);
+      const d = fresh(`<div class="tk-col"><div class="tk-card">${t}</div><button type="button" class="tk-big" data-go>Ready, go!</button></div>`);
+      status("");
+      say(`In one minute, tap every <b>${t}</b> you can find. Go fast, but be careful: wrong taps count against you!`);
+      $("[data-go]", d).onclick = () => play(t);
+    };
+    const play = (target) => {
+      VOICE.hush();
+      let len = LV.spot;
+      let found = 0, wrong = 0, missed = 0, rows = 0, left = 0;
+      const t0 = performance.now();
+      const d = fresh(`<div class="tk-col"><div class="tk-bar"><i data-bar></i></div><div class="tk-stat" style="font-size:clamp(20px,4vw,30px)">Find every ${target}</div><div data-row></div></div>`);
+      const skip = $("[data-do=skip]");
+      skip.hidden = false;
+      const acc = () => (found + wrong + missed ? Math.round((100 * found) / (found + wrong + missed)) : 100);
+      const upd = () => {
+        const s = Math.max(0, Math.ceil(SECS - (performance.now() - t0) / 1000));
+        status(`⏱ ${s} s · found ${found} · care ${acc()}%`);
+        $("[data-bar]", d).style.width = `${(100 * s) / SECS}%`;
+        return s;
+      };
+      const newRow = () => {
+        const targets = pickInt(1, Math.min(3, 1 + Math.floor(len / 5)));
+        const others = POOL.filter((x) => x !== target);
+        const cells = shuffle([...Array(len).keys()]);
+        const tset = new Set(cells.slice(0, targets));
+        const row = [...Array(len).keys()].map((c) => (tset.has(c) ? target : pick(others)));
+        left = targets;
+        rows += 1;
+        const host = $("[data-row]", d);
+        host.innerHTML = `<div class="tk-row">${row.map((g) => `<button type="button" data-t="${g === target ? 1 : 0}" aria-label="symbol">${g}</button>`).join("")}</div>`;
+        let errs = 0;
+        host.onclick = (event) => {
+          const b = event.target.closest("button[data-t]");
+          if (!b || b.disabled || ended) return;
+          window.OC?.touch();
+          b.disabled = true;
+          if (b.dataset.t === "1") {
+            found += 1;
+            left -= 1;
+            b.classList.add("good");
+            note(Math.min(9, found % 10), 0.3);
+            if (left === 0) {
+              if (!errs) len = Math.min(12, len + 1);
+              setTimeout(() => !ended && newRow(), 220);
+            }
+          } else {
+            wrong += 1;
+            errs += 1;
+            b.classList.add("bad");
+            MUSIC.oops();
+          }
+          upd();
+        };
+        skip.onclick = () => {
+          if (ended) return;
+          missed += left;
+          len = Math.max(5, len - 1);
+          newRow();
+          upd();
+        };
+      };
+      let ended = false;
+      newRow();
+      upd();
+      clearInterval(timerId);
+      timerId = setInterval(() => {
+        if (my !== token) return clearInterval(timerId);
+        if (upd() > 0) return;
+        clearInterval(timerId);
+        ended = true;
+        skip.hidden = true;
+        LV.spot = Math.max(5, Math.min(12, len));
+        const care = acc();
+        const ok = care >= 85 && found >= 8;
+        if (ok) shell.mark("mg3", { done: true });
+        window.OC?.count("speed rounds");
+        MUSIC.chime();
+        if (ok) confetti();
+        fresh(`<div class="tk-col"><div class="tk-card" style="font-size:clamp(40px,9vw,64px)">${found}</div><div class="tk-stat" style="font-size:24px">found · care ${care}%</div><button type="button" class="tk-big" data-go>Play again</button></div>`);
+        say(care < 85 ? `Time! You found ${found}, with ${care} percent care. Next time slow down a little: careful beats fast.` : `${pick(PRAISE)} You found ${found} with ${care} percent care. Fast and careful!`);
+        $("[data-go]").onclick = intro;
+      }, 250);
+    };
+    intro();
+  },
+
+  // ---------- 5. Code match ----------
+  mg4() {
+    const my = token;
+    if (young()) return calm(my, "mg4", ["⭐", "🔴", "🔷", "🟩", "🌙", "🔺"], "star", "stars");
+    const SECS = 60;
+    const SHAPES = ["🔴", "⭐", "🔺", "🔷", "🟩", "🌙", "🍀", "💧", "🟣"];
+    const MARKS = ["+", "=", "○", "∨", "/", "✕", "▷", "~", "#"];
+    panel(`<div class="tk-stat" data-status></div>`);
+    const intro = () => {
+      const n = LV.pairs;
+      const shapes = SHAPES.slice(0, n);
+      const marks = shuffle(MARKS.slice(0, n));
+      const d = fresh(`<div class="tk-col"><div class="tk-key">${shapes.map((s, i) => `<div>${s}<b>${marks[i]}</b></div>`).join("")}</div><button type="button" class="tk-big" data-go>Ready, go!</button></div>`);
+      status("");
+      say(`Each shape has its own mark. Look at the key. In one minute, fill in as many marks as you can. Go fast, but be careful!`);
+      $("[data-go]", d).onclick = () => play(shapes, marks);
+    };
+    const play = (shapes, marks) => {
+      VOICE.hush();
+      const n = shapes.length;
+      let done = 0, errs = 0, ended = false, cur = 0, sheet = [];
+      const t0 = performance.now();
+      const d = fresh(`<div class="tk-col"><div class="tk-bar"><i data-bar></i></div><div class="tk-key">${shapes.map((s, i) => `<div>${s}<b>${marks[i]}</b></div>`).join("")}</div><div class="tk-sheet" data-sheet></div><div class="tk-pal" data-pal>${marks.map((m, i) => `<button type="button" data-m="${i}" aria-label="mark ${m}">${m}</button>`).join("")}</div></div>`);
+      const host = $("[data-sheet]", d);
+      const acc = () => (done + errs ? Math.round((100 * done) / (done + errs)) : 100);
+      const upd = () => {
+        const s = Math.max(0, Math.ceil(SECS - (performance.now() - t0) / 1000));
+        status(`⏱ ${s} s · done ${done} · care ${acc()}%`);
+        $("[data-bar]", d).style.width = `${(100 * s) / SECS}%`;
+        return s;
+      };
+      const newSheet = () => {
+        sheet = [];
+        while (sheet.length < 12) {
+          const x = pickInt(0, n - 1);
+          if (sheet[sheet.length - 1] !== x) sheet.push(x);
+        }
+        cur = 0;
+        host.innerHTML = sheet.map((x, i) => `<div${i === 0 ? ' class="now"' : ""}>${shapes[x]}<b></b></div>`).join("");
+      };
+      newSheet();
+      upd();
+      $("[data-pal]", d).onclick = (event) => {
+        const b = event.target.closest("[data-m]");
+        if (!b || ended) return;
+        window.OC?.touch();
+        const m = Number(b.dataset.m);
+        if (m === sheet[cur]) {
+          host.children[cur].querySelector("b").textContent = marks[m];
+          host.children[cur].classList.remove("now");
+          done += 1;
+          cur += 1;
+          note(cur % 8, 0.3);
+          if (cur >= sheet.length) newSheet();
+          else host.children[cur].classList.add("now");
+        } else {
+          errs += 1;
+          MUSIC.oops();
+          b.classList.remove("bad");
+          void b.offsetWidth;
+          b.classList.add("bad");
+        }
+        upd();
+      };
+      clearInterval(timerId);
+      timerId = setInterval(() => {
+        if (my !== token) return clearInterval(timerId);
+        if (upd() > 0) return;
+        clearInterval(timerId);
+        ended = true;
+        const care = acc();
+        const ok = care >= 85 && done >= 10;
+        if (care >= 90 && done >= 16) LV.pairs = Math.min(9, LV.pairs + 1);
+        else if (care < 75) LV.pairs = Math.max(4, LV.pairs - 1);
+        if (ok) shell.mark("mg4", { done: true });
+        window.OC?.count("speed rounds");
+        MUSIC.chime();
+        if (ok) confetti();
+        fresh(`<div class="tk-col"><div class="tk-card" style="font-size:clamp(40px,9vw,64px)">${done}</div><div class="tk-stat" style="font-size:24px">marks · care ${care}%</div><button type="button" class="tk-big" data-go>Play again</button></div>`);
+        say(care < 85 ? `Time! You filled ${done} marks, with ${care} percent care. Next time slow down a little: careful beats fast.` : `${pick(PRAISE)} You filled ${done} marks with ${care} percent care.${LV.pairs > shapes.length ? " Next time the key gets bigger!" : ""}`);
+        $("[data-go]").onclick = intro;
+      }, 250);
+    };
+    intro();
+  },
+};
+
+const stopAll = () => {
+  token += 1;
+  clearInterval(timerId);
+  VOICE.hush();
+  const skip = $("[data-do=skip]");
+  if (skip) skip.onclick = null;
+};
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    mg0: { icon: "🦊", title: "Picture parade", steps: ["Watch the pictures, one at a time.", "Tap them in the same order.", "Later: tap them backwards!"] },
+    mg1: { icon: "🥤", title: "Hiding spots", steps: ["Animals hide under cups.", "Remember where each one hid.", "Tap the cups in order."] },
+    mg2: { icon: "🔢", title: "Number echo", steps: ["Listen to the numbers.", "Tap them on the keypad in order.", "Later: tap them backwards!"] },
+    mg3: { icon: "🔎", title: "Speedy spotter", steps: ["Find the picture shown at the start.", "Tap every one in the row. You have one minute.", "Wrong taps cost you, so be fast AND careful."] },
+    mg4: { icon: "🔑", title: "Code match", steps: ["Each shape has its own mark in the key.", "Tap the right mark for each shape.", "Fill as many as you can in one minute."] },
+  },
+  start: "mg0",
+  onStop() {
+    stopAll();
+  },
+  subject: "Thinking Skills",
+  activity: "Memory Gym",
+  onUnit(id) {
+    stopAll();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", NOTES);
+
+</script>
+</body>
+</html>

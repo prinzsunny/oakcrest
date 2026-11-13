@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word Wizard · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="think">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../" aria-label="Thinking Skills" title="Thinking Skills">🏠</a>
+  <div class="ap-title"><b>Word Wizard</b><small>Thinking Skills · words</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, el, svg: makeSvg, text, panel, say, sayAsync, pick, pickInt, wait, confetti, PRAISE, KIND } = KIT;
+const stage = $("[data-stage]");
+let token = 0;
+const TOTAL = 8;
+const LEVEL_ICON = ["🌱", "🌿", "🌳"];
+
+const UNITS = [
+  { id: "vb1", label: "1. Goes together", icon: "🔗" },
+  { id: "vb2", label: "2. Alike", icon: "🤝" },
+  { id: "vb3", label: "3. Word meanings", icon: "🔤" },
+  { id: "vb4", label: "4. Riddles", icon: "🕵️" },
+  { id: "vb5", label: "5. Opposites & groups", icon: "↔️" },
+  { id: "vb6", label: "6. What would you do?", icon: "🤔" },
+];
+
+const css = document.createElement("style");
+css.textContent = `
+.vw{width:100%;height:100%;box-sizing:border-box;background:var(--card);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(8px,2.5vmin,22px);padding:clamp(8px,2vmin,18px);overflow-y:auto;font-family:var(--sans)}
+.vw-show{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:clamp(6px,1.6vmin,16px);max-width:100%}
+.vw-card{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:clamp(64px,13vmin,120px);padding:clamp(4px,1.2vmin,10px) clamp(8px,1.6vmin,16px);border-radius:20px;background:var(--accent-soft);border:3px solid var(--line);text-align:center}
+.vw-card .vw-big{font-size:clamp(36px,10vmin,84px);line-height:1.1}
+.vw-card b{font-size:clamp(15px,3.2vmin,26px);font-weight:900;color:var(--ink)}
+.vw-card.q{border-style:dashed;border-color:var(--accent);font-size:clamp(36px,10vmin,80px)}
+.vw-card.txt b{font-size:clamp(20px,5vmin,40px)}
+.vw-arr,.vw-sep{font-size:clamp(22px,5vmin,40px);font-weight:900;color:var(--accent-dark)}
+.vw-sep{font-size:clamp(16px,3.4vmin,26px);padding:0 4px}
+.vw-clue{margin:0;max-width:30em;font-size:clamp(20px,4.4vmin,34px);font-weight:900;line-height:1.3;text-align:center}
+.vw-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(clamp(120px,24vmin,190px),1fr));gap:clamp(8px,1.8vmin,16px);width:100%;max-width:880px}
+.vw-opts.wide{grid-template-columns:repeat(auto-fit,minmax(clamp(200px,40vmin,300px),1fr))}
+.vw-opt{min-height:clamp(64px,15vmin,120px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px 10px;border-radius:22px;border:3px solid var(--line);background:var(--card);color:var(--ink);font:inherit;cursor:pointer;box-shadow:0 4px 0 var(--line);touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.vw-opt:active{transform:translateY(2px);box-shadow:0 2px 0 var(--line)}
+.vw-opt .vw-e{font-size:clamp(34px,9vmin,70px);line-height:1.1}
+.vw-opt .vw-t{font-size:clamp(16px,3.4vmin,26px);font-weight:900;line-height:1.2}
+.vw-opt.right{background:#22a05a;border-color:#157a40;color:#fff;box-shadow:0 4px 0 #157a40}
+.vw-opt.wrong{background:#f6dcd4;border-color:#d9822b;color:#5a2a12;opacity:.8}
+.vw-opt:disabled{cursor:default}
+.vw-ctl{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.vw-btn{min-height:48px;padding:0 20px;border-radius:999px;border:0;background:var(--accent);color:#fff;font:900 18px var(--sans);cursor:pointer;touch-action:manipulation}
+.vw-btn.soft{background:var(--accent-soft);color:var(--accent-dark)}
+.vw-pop{animation:vwpop .35s ease-out}
+@keyframes vwpop{from{transform:scale(.92);opacity:.4}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.vw-pop{animation:none}.vw-opt:active{transform:none}}
+`;
+document.head.appendChild(css);
+
+// ---------- helpers ----------
+const shuf = (list) => {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+};
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const plain = (s) => String(s).replace(/_/g, " ");
+// "🧦sock" -> { e: "🧦", t: "sock" }; "hot" -> { e: "", t: "hot" }
+const tok = (s) => {
+  const m = String(s).match(/^([^\p{L}\p{N}]*)(.*)$/u);
+  return { e: m[1], t: plain(m[2]) };
+};
+const deck = (arr) => {
+  let queue = [];
+  return () => {
+    if (!queue.length) queue = shuf(arr);
+    return queue.pop();
+  };
+};
+const card = (s, cls = "") => {
+  const k = typeof s === "string" ? tok(s) : s;
+  return `<div class="vw-card ${k.e ? "" : "txt"} ${cls}">${k.e ? `<span class="vw-big">${k.e}</span>` : ""}<b>${esc(k.t)}</b></div>`;
+};
+const QCARD = `<div class="vw-card q" aria-label="question">❓</div>`;
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// A built item: { say, show, opts:[{e,t,ok}], after, hideLabel }
+function mk({ say: sayText, show, ok, bad, after = "", hideLabel = false }) {
+  const opts = shuf([ok, ...bad].map((t, i) => ({ ...tok(t), ok: i === 0 })));
+  return { say: sayText, show, opts, after, hideLabel };
+}
+const rows = (str) => str.trim().split("\n").map((l) => l.trim().split(/\s+/)).filter((r) => r[0]);
+const bars = (str) => str.trim().split("\n").map((l) => l.trim().split("|")).filter((r) => r[0]);
+
+// ---------- 1. Goes together (analogies) ----------
+const G1_PIC0 = rows(`
+🧦sock 🦶foot 🧤glove 🖐️hand 👃nose 👂ear
+🐦bird 🕊️fly 🐟fish 🏊swim 🚶walk 🐇hop
+🐄cow 🥛milk 🐔hen 🥚egg 🧶wool 🍯honey
+☀️sun 🌅day 🌙moon 🌃night 🌧️rain 🌨️snow
+👁️eye 👀see 👂ear 🦻hear 😋taste 🌸smell
+🎩hat 🙂head 👟shoe 🦶foot 🖐️hand 🦵knee
+🐱cat 😺meow 🐶dog 🗣️bark 🦆quack 🐄moo
+🛏️bed 😴sleep 🪑chair 💺sit 🏃run 🏊swim
+✏️pencil 📝write 🧼soap 🫧wash 🎵sing 🍳cook
+🧊ice 🥶cold 🔥fire 🥵hot 💧wet 🧸soft
+🪥toothbrush 🦷teeth 🪮comb 💇hair 🦶feet 🖐️hands
+🚗car 🛣️road 🚢ship 🌊water ☁️sky 🌱grass
+🦁lion 🔊roar 🐁mouse 🐭squeak 🐶bark 🐄moo
+❄️snow ⬜white 🌱grass 🟩green 🟥red 🟦blue
+🌧️rain ☂️umbrella ☀️sun 🕶️sunglasses 🧤gloves 👢boots
+🐷pig 🔊oink 🐑sheep 🔊baa 🐱meow 🐍hiss
+`);
+const G1_PIC1 = rows(`
+☝️finger 🖐️hand 🦶toe 🦶foot 💪arm 🦵leg
+🌸petal 🌻flower 🍃leaf 🌳tree 🪨rock 🏖️sand
+🐱kitten 🐈cat 🐶puppy 🐕dog 🐟fish 🐦bird
+🐥chick 🐔hen 🐮calf 🐄cow 🐴horse 🐷pig
+🐛caterpillar 🦋butterfly tadpole 🐸frog 🐠fish 🐦bird
+🌱seed 🌻plant 🥚egg 🐥chick 🪺nest 🐛worm
+❄️cold 🧥coat ☀️hot 🩳shorts 🧣scarf 🥾boots
+🖐️hand 🧤glove 🦶foot 🧦sock 🎩hat 💍ring
+🧑‍🏫teacher 🏫school 🧑‍⚕️doctor 🏥hospital 🌾farm 🛒shop
+🐑sheep 🧶wool 🐝bee 🍯honey 🥛milk 🥚egg
+😢cry 😞sad 😀smile 😊happy 🥶cold 😴tired
+🚲bicycle 🦶pedal ⛵boat 🛶oar 🛞wheel 🪽wing
+👕shirt 🧍wear 📖book 👀read 🍽️eat 🧼wash
+🦷tooth 🪥brush 💇hair 🪮comb 🧦sock 👟shoe
+🐟fish 🫧fin 🐦bird 🪽wing 🌳tree 🐾paw
+🌅day 🌃night ☀️sun 🌙moon ⭐star 🌈rainbow
+`);
+const G1_WORD = rows(`
+hot cold up down high small
+big small tall short long thin
+day night awake asleep tired bed
+fast slow loud quiet noisy big
+wet dry full empty heavy food
+happy sad laugh cry joke smile
+cub bear calf cow bull farm
+bird flock fish school pond swim
+second minute minute hour clock day
+letter word word sentence story page
+north south east west sun left
+thirsty drink tired sleep bed run
+cold winter hot summer sun spring
+buy sell give take share gift
+open close start finish begin go
+author book painter painting brush color
+teacher student doctor patient nurse medicine
+narrow wide short tall small low
+`);
+const analogy = ([a, b, c, ok, d1, d2]) => {
+  const A = tok(a), B = tok(b), C = tok(c);
+  return mk({
+    say: `${cap(A.t)} is to ${B.t}, as ${C.t} is to what?`,
+    show: `${card(A)}<span class="vw-arr">→</span>${card(B)}<span class="vw-sep">as</span>${card(C)}<span class="vw-arr">→</span>${QCARD}`,
+    ok, bad: [d1, d2],
+    after: `${cap(C.t)} is to ${tok(ok).t}, just like ${A.t} is to ${B.t}.`,
+  });
+};
+
+// ---------- 2. Alike ----------
+const G2_PAIR0 = bars(`
+🐱cat|🐶dog|they_are_both_animals|they_both_live_in_the_sea|they_are_both_toys
+🍎apple|🍌banana|they_are_both_fruit|they_are_both_animals|they_are_both_clothes
+🚗car|🚌bus|they_are_both_vehicles_you_ride_in|they_are_both_food|they_are_both_flowers
+👕shirt|👖pants|you_wear_them|you_eat_them|you_drink_them
+🌹rose|🌷tulip|they_are_both_flowers|they_are_both_birds|they_are_both_cars
+🐟fish|🐳whale|they_both_live_in_water|they_both_live_in_trees|they_both_have_feathers
+🪑chair|🛏️bed|they_are_both_furniture_for_a_home|they_are_both_animals|they_are_both_fruit
+✏️pencil|🖍️crayon|you_draw_or_write_with_them|you_eat_them|you_ride_them
+🥛milk|🧃juice|you_drink_them|you_wear_them|you_sit_on_them
+🐦bird|🦋butterfly|they_can_both_fly|they_both_live_underground|they_both_bark
+🍪cookie|🍰cake|they_are_both_sweet_treats|they_are_both_vegetables|they_are_both_tools
+🎹piano|🥁drum|they_both_make_music|they_both_give_milk|they_are_both_shoes
+☀️sun|⭐star|they_both_shine|they_both_swim|they_both_bark
+🚪door|🪟window|you_can_open_them|you_can_eat_them|they_can_both_fly
+🥕carrot|🥦broccoli|they_are_both_vegetables|they_are_both_animals|they_are_both_toys
+`);
+const G2_PAIR1 = bars(`
+🐘elephant|🐭mouse|they_both_have_four_legs|they_both_have_wings|they_both_live_in_the_sea
+🚲bicycle|🛴scooter|they_both_have_two_wheels|they_both_have_wings|they_both_use_gas
+🥁drum|🔔bell|you_hit_them_to_make_a_sound|you_can_eat_them|you_sleep_on_them
+🧊ice|🍦ice_cream|they_are_both_cold|they_are_both_hot|they_are_both_alive
+🔥fire|☀️sun|they_are_both_hot_and_give_light|they_are_both_cold|they_are_both_wet
+🐸frog|🦆duck|they_can_both_swim|they_both_have_fur|they_both_live_underground
+📖book|📰newspaper|you_read_them|you_wear_them|you_eat_them
+🌳tree|🌻sunflower|they_are_both_plants|they_are_both_animals|they_are_both_machines
+🕐clock|📅calendar|they_both_tell_us_about_time|they_are_both_food|they_are_both_shoes
+🧸teddy_bear|🎲dice|you_play_with_them|you_cook_with_them|you_wear_them
+🚒fire_truck|🚑ambulance|they_both_help_people_in_an_emergency|they_are_both_boats|they_are_both_animals
+🌧️rain|❄️snow|they_are_both_kinds_of_weather|they_are_both_animals|they_are_both_toys
+🐝bee|🦋butterfly|they_are_both_insects|they_both_live_in_the_sea|they_are_both_birds
+🦁lion|🐯tiger|they_are_both_big_cats|they_are_both_birds|they_are_both_fish
+🧣scarf|🧤gloves|they_both_keep_you_warm|they_both_keep_you_cool|they_are_both_food
+🐧penguin|🦆duck|they_are_both_birds_that_swim|they_are_both_fish|they_both_have_fur
+⛵boat|✈️plane|they_both_carry_people_from_place_to_place|they_are_both_food|they_are_both_animals
+`);
+const G2_PAIR2 = bars(`
+clock|ruler|they_both_measure_things|they_are_both_alive|they_are_both_made_of_water
+map|sign|they_both_show_us_where_to_go|they_are_both_soft|they_are_both_food
+river|road|they_both_go_from_one_place_to_another|they_are_both_made_of_ice|they_are_both_animals
+book|television|they_can_both_tell_us_stories|they_are_both_fruit|they_are_both_cold
+bridge|ladder|they_both_help_you_reach_a_place|they_both_sing|they_are_both_juicy
+poem|song|they_both_use_words_and_rhythm|they_both_have_wheels|they_are_both_hot
+`);
+const G2_ODD = rows(`
+apple banana grape orange carrot bread
+cat dog rabbit hamster carrot tree
+red blue green yellow square happy
+hammer saw drill wrench banana pillow
+spoon fork knife ladle pillow soap
+Monday Tuesday Friday Sunday January morning
+circle square triangle rectangle red ball
+rose daisy tulip lily oak grass
+sad angry scared worried table pencil
+violin flute drum trumpet spoon crayon
+shirt dress coat skirt spoon sofa
+ant beetle ladybug grasshopper goldfish sparrow
+bus train truck taxi spoon bird
+winter summer autumn spring Monday cold
+mother father sister brother doctor neighbour
+pencil pen marker crayon spoon cup
+shark whale dolphin octopus eagle camel
+cheese butter yogurt cream bread apple
+`);
+const pairItem = ([a, b, ok, w1, w2]) => {
+  const A = tok(a), B = tok(b);
+  return mk({
+    say: `How are ${/^[aeiou]/i.test(A.t) ? "an" : "a"} ${A.t} and ${/^[aeiou]/i.test(B.t) ? "an" : "a"} ${B.t} alike? Pick the best answer.`,
+    show: `${card(A)}<span class="vw-sep">and</span>${card(B)}`,
+    ok, bad: [w1, w2], after: `Yes, ${plain(ok)}.`,
+  });
+};
+const oddItem = ([w1, w2, w3, ok, d1, d2]) =>
+  mk({
+    say: `Which word belongs with ${w1}, ${w2} and ${w3}?`,
+    show: `${card(w1)}${card(w2)}${card(w3)}<span class="vw-sep">and</span>${QCARD}`,
+    ok, bad: [d1, d2], after: `${cap(ok)} belongs with ${w1}, ${w2} and ${w3}. They are all the same kind of thing.`,
+  });
+
+// ---------- 3. Word meanings ----------
+const G3_POOL = rows(`
+🦒giraffe ☂️umbrella 🌉bridge 🎃pumpkin 🪜ladder 🌵cactus 🚀rocket 🌋volcano ⚓anchor 🔭telescope 🧲magnet
+🧭compass 🔬microscope 🎺trumpet 🪁kite 🚜tractor 🔨hammer 🚁helicopter ✂️scissors 🦜parrot 🐙octopus 🦔hedgehog 🦉owl
+`).flat();
+const G3_PIC1 = bars(`
+enormous|very very big|🐘elephant|🐜ant|🍓strawberry
+tiny|very very small|🐜ant|🐘elephant|🏠house
+fragile|easy to break|🥚egg|🪨rock|🧱brick
+sturdy|strong and hard to break|🧱brick|🫧bubble|🥚egg
+gather|to bring things together in one place|🧺collecting_eggs_in_a_basket|💤sleeping_in_bed|🏃running_away
+scatter|to throw things all around|🌾tossing_seeds_all_over_the_ground|🧺putting_eggs_in_a_basket|🛏️making_a_bed
+delicious|tasting very good|🍰yummy_cake|🪨hard_rock|🧽dry_sponge
+shiny|bright and sparkly|💎diamond|🪨dull_rock|🧱brick
+slippery|so smooth and wet that you slide|🧼wet_soap|🪵log|🧱brick
+exhausted|very very tired|😴worn_out_child|🤩excited_child|😠angry_child
+delighted|very very happy|🥳cheering|😢crying|😠frowning
+frightened|very scared|😱shaking_with_fear|😄laughing|😴sleeping
+whisper|to talk very softly|🤫soft_quiet_voice|📢loud_shout|🥁banging_drum
+sprint|to run very fast|🏃running_very_fast|🚶walking_slowly|🧍standing_still
+melt|to turn from hard to liquid with heat|🍦ice_cream_in_the_sun|🧊ice_in_a_freezer|🪨rock_on_the_ground
+chilly|a little bit cold|🥶shivering_in_the_wind|🥵sweating_in_the_sun|😴sleeping
+curious|wanting to find out more|🔍looking_closely_at_a_bug|😴sleeping_soundly|🙈covering_eyes
+`);
+const G3_SYN = bars(`
+big|large|small|cold
+glad|happy|sad|angry
+quick|fast|slow|loud
+start|begin|end|stop
+shut|close|open|push
+tidy|neat|messy|noisy
+silent|quiet|noisy|slow
+clever|smart|silly|sleepy
+tired|sleepy|hungry|brave
+ill|sick|healthy|strong
+huge|enormous|tiny|quiet
+buy|purchase|sell|borrow
+help|assist|hurt|hide
+shout|yell|whisper|sing
+gather|collect|scatter|drop
+fragile|delicate|sturdy|heavy
+freezing|frigid|boiling|damp
+ancient|very old|brand new|tiny
+leap|jump|crawl|sleep
+unhappy|sad|joyful|loud
+angry|furious|calm|sleepy
+scared|frightened|brave|silly
+rapid|quick|slow|late
+`);
+
+// ---------- 4. Riddles ----------
+const G4_L0 = bars(`
+I have four legs and you sit on me. What am I?|🪑chair|🍎apple|🐟fish
+I am yellow and bright. I shine in the sky in the daytime. What am I?|☀️sun|🌙moon|🌧️rain
+I say moo and I give milk. What am I?|🐄cow|🐑sheep|🐔hen
+You wear me on your feet. I keep them clean when you walk. What am I?|👟shoes|🧢cap|🕶️sunglasses
+I am round and red. I grow on a tree and you can bite me. What am I?|🍎apple|🍌banana|🥕carrot
+I tell you the time. I have a face and two hands. What am I?|⏰clock|📖book|🔔bell
+I have wings and feathers. I can sing and fly. What am I?|🐦bird|🐟fish|🐕dog
+You use me to clean your teeth. What am I?|🪥toothbrush|🧹broom|🍴fork
+I am cold and white. You can make a snowman with me. What am I?|❄️snow|🔥fire|🌵cactus
+I live in water and I have fins. What am I?|🐟fish|🐄cow|🦁lion
+I have pages and a story. You read me. What am I?|📖book|🍎apple|🧦sock
+I keep you dry when it rains. What am I?|☂️umbrella|🕶️sunglasses|🧣scarf
+You sleep in me at night. I have a pillow. What am I?|🛏️bed|🚗car|🍳pan
+I come out at night and I glow in the sky. Some nights I look like a smile. What am I?|🌙moon|☀️sun|🌈rainbow
+I am long and yellow. Monkeys love to eat me. What am I?|🍌banana|🚗car|🐟fish
+`);
+const G4_L1 = bars(`
+I am an animal. I live on a farm. I say oink. What am I?|🐖pig|🐄cow|🐴horse
+I am a vegetable. I am orange. Rabbits love to eat me. What am I?|🥕carrot|🍊orange|🍅tomato
+I have a trunk, big ears and gray skin. What am I?|🐘elephant|🦏rhinoceros|🐭mouse
+I have wheels and a handle. You push me in a shop and fill me with food. What am I?|🛒cart|🚲bicycle|🛷sled
+I have eight legs and I spin a web. What am I?|🕷️spider|🐜ant|🐝bee
+I have a very long neck and spots. What am I?|🦒giraffe|🐆leopard|🦓zebra
+I am black and white and I have stripes. I look like a horse. What am I?|🦓zebra|🐼panda|🐆leopard
+I have black and white keys. You press them to make music. What am I?|🎹piano|🚪door|🔑key
+You blow out my little flame on your birthday cake. What am I?|🕯️candle|🎈balloon|🎁present
+I have a hard shell. I walk very slowly and I carry my home. What am I?|🐢turtle|🐇rabbit|🦅eagle
+I fall from the clouds and make puddles. What am I?|🌧️rain|☀️sun|🌈rainbow
+I have four wheels and a driver. I carry many children to school. What am I?|🚌bus|🚲bicycle|🚁helicopter
+A doctor uses me to listen to your heart. What am I?|🩺stethoscope|🔭telescope|🔨hammer
+I am round. You kick me into a goal. What am I?|⚽ball|📖book|🥄spoon
+I live in a hive and I make honey. What am I?|🐝bee|🐜ant|🦋butterfly
+I am a green color. Grass and frogs are the same color as me. What am I?|🟢green|🔴red|🔵blue
+I hang on a wall and show you the days and months. What am I?|📅calendar|🪞mirror|🖼️picture
+`);
+const G4_L2 = bars(`
+I live in the sea. I have eight arms and I can squirt ink. What am I?|🐙octopus|🦑squid|🦀crab
+I am a season. Leaves fall from the trees when I come. What am I?|🍂autumn|☃️winter|🌸spring
+I am a shape with three sides. What am I?|🔺triangle|🟦square|⚪circle
+I am a job. I put out fires. What am I?|🧑‍🚒firefighter|🧑‍🍳chef|🧑‍🏫teacher
+I help sick animals get better. What am I?|🧑‍⚕️vet|🧑‍🌾farmer|🧑‍🍳chef
+I am a planet where people live. What am I?|🌍Earth|🌕Moon|☀️Sun
+I am a kind of weather. I am a cloud that sits on the ground so you cannot see far. What am I?|🌫️fog|☀️sunshine|🌈rainbow
+I am made from cream. I am yellow and soft and you spread me on toast. What am I?|🧈butter|🍞bread|🥚egg
+You look through me to see faraway stars. What am I?|🔭telescope|🔬microscope|🔦flashlight
+I am a building full of books that you can borrow. What am I?|📚library|🏪shop|🏥hospital
+I stand in a forest and I have a trunk, but I am not an animal. What am I?|🌳tree|🐘elephant|🧳suitcase
+I measure how hot or cold it is. What am I?|🌡️thermometer|⏰clock|⚖️scale
+I come after Tuesday and before Thursday. What am I?|Wednesday|Monday|Friday
+I am a number. I am bigger than 5 and smaller than 7. What am I?|6|5|8
+I am an even number. I am bigger than 7 and smaller than 10. What am I?|8|9|7
+I have two wheels and pedals. You steer me with handlebars. What am I?|🚲bicycle|🛹skateboard|🛴scooter
+I am the part of a plant that grows underground and drinks water. What am I?|roots|leaves|petals
+You use me to find your way. My needle always points north. What am I?|🧭compass|⏰clock|🔭telescope
+I am the opposite of a question. I tell you what you wanted to know. What am I?|answer|story|song
+I am the meal you eat when you wake up in the morning. What am I?|🥞breakfast|🍝dinner|🍪snack
+`);
+const riddle = ([clue, ok, d1, d2]) =>
+  mk({
+    say: clue,
+    show: `<p class="vw-clue">${esc(clue)}</p>`,
+    ok, bad: [d1, d2], after: `The answer is ${tok(ok).t}.`,
+  });
+
+// ---------- 5. Opposites & groups ----------
+const G5_OPP0 = bars(`
+🔥hot|❄️cold|🌤️warm|🍲soup
+⬆️up|⬇️down|🔝top|🪁kite
+😀happy|😢sad|😴sleepy|😄glad
+🐘big|🐜small|🦒tall|🐘huge
+☀️day|🌙night|🌅morning|⭐star
+🚪open|🔒closed|🗝️key|🏠house
+🐢slow|🐇fast|🐌snail|🚶walk
+😴asleep|😃awake|🛏️bed|🌙night
+🍽️full|🫙empty|🍎food|😋yum
+🤲give|🙌take|🎁gift|🤝share
+👍good|👎bad|⭐best|😀nice
+🏃go|🛑stop|🚦light|🚗car
+🔊loud|🤫quiet|🎺trumpet|🎵music
+💧wet|🏜️dry|🌧️rain|🛁bath
+🧓old|👶young|👴grandpa|🎂birthday
+🧱hard|🧸soft|🪨rock|🪵wood
+`);
+const G5_OPP1 = bars(`
+heavy|light|big|strong
+rough|smooth|bumpy|hot
+inside|outside|under|around
+front|back|top|side
+near|far|close|here
+first|last|second|early
+always|never|often|sometimes
+begin|end|start|middle
+thick|thin|fat|wide
+clean|dirty|shiny|neat
+rich|poor|happy|kind
+shallow|deep|wide|wet
+lost|found|missing|hidden
+sweet|sour|sugary|tasty
+sharp|dull|pointy|thin
+early|late|first|soon
+kind|mean|nice|friendly
+`);
+const G5_OPP2 = bars(`
+generous|selfish|kind|rich
+expand|shrink|grow|stretch
+victory|defeat|prize|game
+brave|cowardly|strong|bold
+ancient|modern|old|ruined
+increase|decrease|add|grow
+accept|refuse|take|agree
+arrive|depart|come|stay
+include|exclude|add|invite
+create|destroy|make|build
+visible|invisible|clear|bright
+permit|forbid|allow|ask
+temporary|permanent|short|quick
+reveal|conceal|show|tell
+fragile|sturdy|delicate|light
+ascend|descend|climb|rise
+scarce|plentiful|rare|few
+humble|boastful|shy|poor
+`);
+const G5_GROUPS = [
+  // level 0: big groups
+  [0, "🐾animals", "🐶dog 🐱cat 🐴horse 🐘elephant 🦁lion 🐰rabbit 🐮cow 🐒monkey"],
+  [0, "🍽️food", "🍎apple 🍞bread 🧀cheese 🍕pizza 🍌banana 🥕carrot 🥚egg 🍪cookie"],
+  [0, "👕clothes", "👕shirt 👖pants 🧦socks 🧢cap 👗dress 🧥coat 👟shoes 🧤gloves"],
+  [0, "🚗vehicles", "🚗car 🚌bus 🚲bicycle 🚂train ✈️plane ⛵boat 🚁helicopter 🚒fire_truck"],
+  [0, "🛋️furniture", "🪑chair 🛏️bed 🛋️sofa 🗄️drawers 📚bookshelf 🪞mirror"],
+  [0, "🧸toys", "🧸teddy_bear 🎲dice 🪁kite ⚽ball 🧩puzzle 🪆doll"],
+  // level 1: finer groups
+  [1, "🍎fruits", "🍎apple 🍌banana 🍇grapes 🍓strawberry 🍊orange 🍉watermelon 🍑peach 🍍pineapple"],
+  [1, "🥕vegetables", "🥕carrot 🥦broccoli 🌽corn 🥔potato 🧅onion 🥒cucumber 🫑pepper 🥬lettuce"],
+  [1, "🐦birds", "🦆duck 🦉owl 🦅eagle 🦜parrot 🐧penguin 🦢swan 🕊️dove 🦚peacock"],
+  [1, "🐠sea_animals", "🐠fish 🐙octopus 🦀crab 🐳whale 🐬dolphin 🦈shark 🦑squid 🐡pufferfish"],
+  [1, "🐛insects", "🐝bee 🦋butterfly 🐞ladybug 🐜ant 🦗cricket 🪲beetle 🦟mosquito 🪰fly"],
+  [1, "🐄farm_animals", "🐄cow 🐖pig 🐑sheep 🐐goat 🐴horse 🐓rooster"],
+  // level 2: tools of a kind
+  [2, "🔨tools", "🔨hammer 🪚saw 🔧wrench 🪛screwdriver 🪓axe"],
+  [2, "🎻musical_instruments", "🎻violin 🎺trumpet 🥁drum 🎹piano 🎷saxophone 🎸guitar"],
+  [2, "🍳kitchen_things", "🍳frying_pan 🥄spoon 🍴fork 🔪knife 🥣bowl"],
+  [2, "🎒school_things", "✏️pencil 📏ruler 📒notebook 🎒backpack 🖍️crayon"],
+  [2, "🌦️weather", "☔rain ⛈️storm 🌈rainbow ❄️snow 🌬️wind ☀️sunshine"],
+  [2, "🧍body_parts", "👂ear 👃nose 🦵leg 👁️eye 🦷tooth 👄mouth"],
+].map(([level, name, items]) => ({ level, name, items: items.split(" ") }));
+const oppItem = ([w, ok, d1, d2]) => {
+  const W = tok(w);
+  return mk({
+    say: `What is the opposite of ${W.t}?`,
+    show: card(W),
+    ok, bad: [d1, d2], after: `The opposite of ${W.t} is ${tok(ok).t}.`,
+  });
+};
+const groupItem = (level) => {
+  const pool = G5_GROUPS.filter((g) => g.level === level);
+  const g = pick(pool);
+  const it = tok(pick(g.items));
+  const others = shuf(pool.filter((x) => x !== g)).slice(0, 2);
+  return mk({
+    say: `Which group does the ${it.t} belong in?`,
+    show: `${card(it)}<span class="vw-arr">→</span>${QCARD}`,
+    ok: g.name, bad: others.map((x) => x.name), after: `Yes, a ${it.t} belongs with the ${tok(g.name).t}.`,
+  });
+};
+
+// ---------- 6. What would you do? ----------
+const G6_L0 = bars(`
+You are cold and it is snowing outside. What would you do?|🧥put_on_a_coat|🩳put_on_shorts|🏊go_swimming
+You are thirsty. What would you do?|🥤drink_some_water|😴go_to_sleep|🧹sweep_the_floor
+You spill your milk on the table. What would you do?|🧻wipe_it_up|🥛pour_more_on_the_floor|📺leave_it_there
+It is raining and you want to go outside. What would you do?|☂️take_an_umbrella|🕶️wear_sunglasses|🩴wear_sandals
+You feel very sleepy at night. What would you do?|🛏️go_to_bed|🍕eat_a_pizza|⚽play_ball
+Your hands are dirty after playing. What would you do?|🧼wash_them_with_soap|👕wipe_them_on_your_shirt|🍎eat_an_apple
+You want to cross a busy road. What would you do?|👀stop_look_and_hold_a_grown_up's_hand|🏃run_across_fast|🎈play_in_the_road
+You see a hot stove. What would you do?|🚫do_not_touch_it|🖐️touch_it|🧸put_your_toy_on_it
+You are lost in a store. What would you do?|🙋ask_a_worker_or_a_grown_up_for_help|🚶walk_out_the_door|🙈hide_in_a_corner
+You feel hot on a summer day. What would you do?|🥤drink_water_and_sit_in_the_shade|🧥put_on_a_big_coat|🔥sit_by_the_fire
+You are hungry at lunch time. What would you do?|🥪eat_your_lunch|🚿take_a_shower|📚read_a_map
+Your shoelace is untied. What would you do?|👟tie_it_or_ask_for_help|🏃keep_running_fast|🗑️throw_the_shoe_away
+The room is dark and you want to see. What would you do?|💡turn_on_the_light|🕶️put_on_sunglasses|🛁take_a_bath
+You have a cut on your knee. What would you do?|🩹tell_a_grown_up_to_clean_it_and_put_on_a_bandage|🙈ignore_it|🧂put_salt_on_it
+You find a button that is not yours on the floor. What would you do?|🙋ask_a_grown_up_whose_it_is|🍽️eat_it|🚽flush_it
+`);
+const G6_L1 = bars(`
+A friend falls down and cries. What would you do?|🤝ask_if_they_are_okay_and_help|😂laugh_at_them|🚶walk_away
+You want a toy that another child is using. What would you do?|🙋ask_for_a_turn_later|🤏grab_it|😤shout_at_them
+You break a cup by accident. What would you do?|🗣️tell_a_grown_up_the_truth|🙈hide_the_pieces|👉say_someone_else_did_it
+A new child at school has no one to play with. What would you do?|👋invite_them_to_play|🚪ignore_them|😛make_fun_of_them
+You get a present you do not like. What would you do?|🙏say_thank_you_kindly|😠say_it_is_ugly|🗑️throw_it_away
+Your little brother is sad. What would you do?|🤗give_him_a_hug|📺turn_the_TV_up_loud|🚪close_the_door
+You are playing a game and you lose. What would you do?|👏say_good_game|😭throw_the_pieces|🏃quit_and_leave
+Another child says something mean to you. What would you do?|🗣️say_stop_calmly_and_tell_a_grown_up|👊hit_them|🤐keep_it_secret_forever
+You see someone drop their money. What would you do?|💰give_it_back_to_them|👛keep_it|🙈pretend_not_to_see
+You borrowed a book from a friend. What would you do?|📚give_it_back_on_time|🏠keep_it_forever|✂️cut_the_pages
+Your friend is shy at a party. What would you do?|👋say_hello_gently|📣shout_at_them|🚶leave_them_alone_all_day
+Your baby sister is sleeping. What would you do?|🤫play_quietly|📢sing_loudly|🥁bang_a_drum
+You made a mess in the living room. What would you do?|🧹clean_it_up|📺watch_TV|🛏️hide_in_bed
+You bump into someone by accident. What would you do?|🙏say_sorry|🙄walk_on|😠blame_them
+A friend shares a snack with you. What would you do?|😊say_thank_you|🙄say_nothing|🍪take_it_all
+You feel very angry. What would you do?|🌬️take_a_deep_breath|💥shout_and_throw_things|👊hit_a_friend
+You want to ask the teacher a question and she is talking. What would you do?|🙋raise_your_hand_and_wait|📣shout_over_her|🚪walk_away
+`);
+const G6_L2 = bars(`
+You planted a seed. What does it need to grow?|💧water_and_sunlight|🍬candy_and_a_blanket|📺television_and_toys
+The picnic is tomorrow but the weather report says heavy rain. What is a good plan?|🏠have_the_picnic_indoors_or_pick_another_day|🌧️go_anyway_with_no_cover|🙈ignore_the_report
+You want to know how tall your plant is. What would you do?|📏measure_it_with_a_ruler|🍌ask_a_banana|🙈guess_with_your_eyes_closed
+Your block tower keeps falling down. What would help?|🧱build_a_wider_stronger_bottom|🧱add_more_on_top_quickly|🏃run_past_it_fast
+Your ice cream is melting in your hand. What could you do?|🍦eat_it_quickly_or_put_it_in_a_bowl|🔥hold_it_near_the_fire|☀️put_it_in_the_sun
+You cannot find your shoe before school. What is a smart first step?|🔍think_where_you_last_had_it_and_look_there|😭cry_and_stay_home|🧤put_on_a_mitten
+Why do we wear seat belts in cars?|🛡️to_keep_us_safe|🎨to_look_pretty|🎵to_make_music
+Why do we brush our teeth?|🦷to_keep_them_clean_and_healthy|🍬to_taste_candy|🎁to_win_a_prize
+Why do we sleep at night?|🛌so_our_body_can_rest_and_grow|🎮so_games_can_rest|🍕so_pizza_can_cook
+Why do we put on sunscreen?|☀️to_protect_our_skin_from_sunburn|🎈to_float_away|👟to_run_faster
+You and your friend want to play different games. What is a fair idea?|🤝take_turns_choosing|😤fight_about_it|🚶never_play_together_again
+You are packing for a snowy trip. What do you pack?|🧤warm_gloves_and_boots|🩱only_swimsuits|🩴only_sandals
+Why do we keep milk in the fridge?|🧊to_keep_it_cold_so_it_stays_fresh|🎵to_hear_it_sing|🚗to_make_it_drive
+Your soup is too hot to eat. What is the best thing to do?|⏳wait_and_blow_on_it|🔥put_it_back_on_the_fire|🙌eat_it_right_away
+You cannot reach the top shelf. What is the safe thing to do?|🪜ask_a_grown_up_for_help|🧗climb_the_shelves|🦘jump_and_grab
+The recipe needs two eggs but you only have one. What could you do?|🛒get_one_more_egg_or_change_the_recipe|🙈ignore_the_recipe|🔨crack_the_egg_harder
+Your toy stopped working and it uses batteries. What should you try first?|🔋ask_for_new_batteries|🔨hit_it|🛁put_it_in_the_bath
+Why do we read a map?|🗺️to_find_the_way_to_a_place|🍽️to_eat_it|🎶to_sing_it
+Why do birds build nests?|🪺to_keep_their_eggs_and_babies_safe|🛒to_go_shopping|📺to_watch_TV
+You see a friend drawing and you want to join in. What is polite?|🙋ask_if_you_can_join|🖍️take_their_crayons|🚶stand_and_stare_silently
+`);
+const sceneItem = ([q, ok, d1, d2]) =>
+  mk({
+    say: q,
+    show: `<div class="vw-card q">🤔</div><p class="vw-clue">${esc(q)}</p>`,
+    ok, bad: [d1, d2], after: "That is a wise choice.",
+  });
+
+// ---------- item banks by step (0 = about age 5, 1 = about 6-7, 2 = about 8) ----------
+const D = (arr, f) => {
+  const next = deck(arr);
+  return () => f(next());
+};
+const mixer = (a, b, p) => () => (Math.random() < p ? a() : b());
+const picItem = ([word, meaning, ok, d1, d2]) =>
+  mk({
+    say: `Which one shows "${word}"?`,
+    show: card({ e: "🔤", t: word }),
+    ok, bad: [d1, d2], after: `${cap(word)} means ${meaning}.`,
+  });
+const synItem = ([w, ok, d1, d2]) =>
+  mk({
+    say: `Which word means the same as ${w}?`,
+    show: `${card(w)}<span class="vw-sep">means the same as</span>${QCARD}`,
+    ok, bad: [d1, d2], after: `${cap(ok)} means the same as ${w}.`,
+  });
+const nextPool = deck(G3_POOL);
+const wordPic0 = () => {
+  const raw = nextPool();
+  const w = tok(raw);
+  return mk({
+    say: `Tap the picture of the ${w.t}.`,
+    show: card({ e: "🔊", t: w.t }),
+    ok: raw, bad: shuf(G3_POOL.filter((x) => x !== raw)).slice(0, 2), hideLabel: true,
+    after: `That is a ${w.t}.`,
+  });
+};
+const GEN = {
+  vb1: [D(G1_PIC0, analogy), D(G1_PIC1, analogy), D(G1_WORD, analogy)],
+  vb2: [D(G2_PAIR0, pairItem), D(G2_PAIR1, pairItem), mixer(D(G2_ODD, oddItem), D(G2_PAIR2, pairItem), 0.65)],
+  vb3: [wordPic0, D(G3_PIC1, picItem), D(G3_SYN, synItem)],
+  vb4: [D(G4_L0, riddle), D(G4_L1, riddle), D(G4_L2, riddle)],
+  vb5: [mixer(D(G5_OPP0, oppItem), () => groupItem(0), 0.6), mixer(D(G5_OPP1, oppItem), () => groupItem(1), 0.5), mixer(D(G5_OPP2, oppItem), () => groupItem(2), 0.55)],
+  vb6: [D(G6_L0, sceneItem), D(G6_L1, sceneItem), D(G6_L2, sceneItem)],
+};
+
+
+// ---------- easiest step for ages 3-4: 2-3 picture choices, very common words, no reading needed ----------
+const Y_PAIR = bars(`
+🧦sock|👟shoe|🍎apple|🚗car
+🪥toothbrush|🦷teeth|🐶dog|🚗car
+🐄cow|🥛milk|🚗car|🌳tree
+☂️umbrella|🌧️rain|🍌banana|🛏️bed
+🐶dog|🦴bone|🐟fish|🍞bread
+🐦bird|🪺nest|🐟fish|🚗car
+🧤glove|🖐️hand|🦶foot|👀eyes
+🐝bee|🍯honey|🥛milk|🍎apple
+`);
+const Y_USE = bars(`
+eat with|🥄spoon|👟shoe|🛏️bed
+sleep in|🛏️bed|🚗car|🥄spoon
+drink from|🥤cup|👟shoe|🪑chair
+wear on your feet|👟shoes|🧢hat|🍎apple
+write with|✏️pencil|🍌banana|🚗car
+ride in|🚗car|🛏️bed|🥄spoon
+brush your teeth with|🪥toothbrush|🍎apple|🪑chair
+read|📖book|⚽ball|🥄spoon
+sit on|🪑chair|🍞bread|🛏️bed
+`);
+const Y_KIND = bars(`
+an animal|🐶dog|🍎apple|👟shoe
+something you can eat|🍎apple|🪑chair|🚗car
+something you wear|👕shirt|🍌banana|🐱cat
+something that goes on the road|🚗car|🐟fish|🥛milk
+a fruit|🍌banana|🐶dog|👟shoe
+something that swims|🐟fish|🪑chair|🚗car
+`);
+const Y_NAME = bars(`
+🐶dog|🐱cat|🍎apple
+🐱cat|🐶dog|🚗car
+🍎apple|🍌banana|🐟fish
+🚗car|🏠house|🐶dog
+☀️sun|🌳tree|🐟fish
+🐟fish|🐸frog|🍎apple
+🏠house|🚗car|🌳tree
+🌳tree|🐦bird|🏠house
+🍌banana|🍎apple|🛏️bed
+⚽ball|🧸teddy|🐱cat
+🐦bird|🐟fish|🌳tree
+🥛milk|🍞bread|🛏️bed
+`);
+const Y_OPP = bars(`
+big|🐘elephant|🐜ant
+little|🐜ant|🐘elephant
+hot|🔥fire|🧊ice
+cold|🧊ice|🔥fire
+happy|😀happy_face|😢sad_face
+sad|😢sad_face|😀happy_face
+tall|🦒giraffe|🐭mouse
+fast|🐇rabbit|🐢turtle
+slow|🐢turtle|🐇rabbit
+wet|💧water|🏜️sand
+`);
+const Y_DO = bars(`
+You are thirsty. What do you do?|🥤drink_water|🛏️go_to_bed
+You are sleepy. What do you do?|🛏️go_to_bed|🥤drink_water
+You are cold. What do you do?|🧥put_on_a_coat|🩳put_on_shorts
+Your hands are dirty. What do you do?|🧼wash_your_hands|🍎eat_an_apple
+You are hungry. What do you do?|🍎eat_a_snack|🧸hug_a_teddy
+It is raining. What do you take?|☂️umbrella|🕶️sunglasses
+It is dark. What do you turn on?|💡the_light|🍌a_banana
+`);
+const yEasy = (sayText, show, ok, bad, after) => mk({ say: sayText, show, ok, bad, after, hideLabel: false });
+const GEN_YOUNG = {
+  vb1: D(Y_PAIR, ([a, ok, d1, d2]) => yEasy(`What goes with the ${tok(a).t}?`, card(a), ok, [d1, d2], `Yes! The ${tok(a).t} goes with the ${tok(ok).t}.`)),
+  vb2: D(Y_KIND, ([q, ok, d1, d2]) => yEasy(`Which one is ${q}?`, `<div class="vw-card q">👆</div>`, ok, [d1, d2], `Yes! The ${tok(ok).t}.`)),
+  vb3: D(Y_NAME, ([ok, d1, d2]) => mk({ say: `Show me the ${tok(ok).t}.`, show: card({ e: "🔊", t: tok(ok).t }), ok, bad: [d1, d2], hideLabel: true, after: `That is the ${tok(ok).t}.` })),
+  vb4: D(Y_USE, ([q, ok, d1, d2]) => yEasy(`Show me the one you ${q}.`, `<div class="vw-card q">👆</div>`, ok, [d1, d2], `Yes! You ${q} the ${tok(ok).t}.`)),
+  vb5: D(Y_OPP, ([w, ok, d]) => yEasy(`Which one is ${w}?`, card({ e: "👆", t: w }), ok, [d], `Yes! That one is ${w}.`)),
+  vb6: D(Y_DO, ([q, ok, d]) => yEasy(q, `<div class="vw-card q">🤔</div>`, ok, [d], "Good thinking!")),
+};
+const isYoung = () => {
+  try {
+    const a = window.OC && OC.ageOf(OC.current());
+    return a != null && a < 5;
+  } catch (e) {
+    return false;
+  }
+};
+
+// ---------- the question loop (adaptive) ----------
+const lvKey = (gid) => `oc-vb-${shell.learner()}-${gid}`;
+const loadLv = (gid) => {
+  try {
+    const n = Number(localStorage.getItem(lvKey(gid)));
+    return n >= 0 && n <= 2 ? n : 0;
+  } catch (e) {
+    return 0;
+  }
+};
+const saveLv = (gid, n) => {
+  try {
+    localStorage.setItem(lvKey(gid), String(n));
+  } catch (e) {}
+};
+const status = (s) => {
+  const b = $("[data-status]");
+  if (b) b.textContent = s;
+};
+
+function play(gid) {
+  const my = token;
+  const young = isYoung();
+  const total = young ? 5 : TOTAL;
+  let level = young ? 0 : loadLv(gid);
+  let round = 0;
+  let right = 0;
+  let streak = 0;
+  let item = null;
+  let busy = false;
+  let missed = false;
+  panel(`<p class="ap-status" data-status></p><div class="vw-ctl"><button type="button" class="vw-btn soft" data-hear>🔊 Hear it again</button></div>`);
+  $("[data-hear]").onclick = () => {
+    if (!item) return;
+    const names = item.hideLabel ? "" : ` The choices are: ${item.opts.map((o) => o.t).join(". Or. ")}.`;
+    VOICE.speak(item.say + names);
+  };
+  const alive = () => my === token;
+  const ask = () => {
+    if (!alive()) return;
+    if (round >= total) return finish();
+    busy = false;
+    missed = false;
+    item = young ? GEN_YOUNG[gid]() : GEN[gid][level]();
+    const long = item.opts.some((o) => o.t.length > 28);
+    stage.innerHTML = `<div class="vw vw-pop"><div class="vw-show">${item.show}</div><div class="vw-opts${long ? " wide" : ""}" role="group" aria-label="Answers">${item.opts
+      .map((o, i) => `<button type="button" class="vw-opt" data-i="${i}" aria-label="${esc(o.t)}">${o.e ? `<span class="vw-e" aria-hidden="true">${o.e}</span>` : ""}${item.hideLabel && o.e ? "" : `<span class="vw-t">${esc(o.t)}</span>`}</button>`)
+      .join("")}</div></div>`;
+    status(`Question ${round + 1} of ${total} · Step ${young ? "🌼" : LEVEL_ICON[level]}`);
+    say(esc(item.say));
+  };
+  stage.onclick = async (event) => {
+    const b = event.target.closest(".vw-opt");
+    if (!b || busy || b.disabled || !alive()) return;
+    window.OC?.touch();
+    const o = item.opts[Number(b.dataset.i)];
+    if (!o.ok) {
+      missed = true;
+      b.classList.add("wrong");
+      b.disabled = true;
+      MUSIC.oops();
+      say(young ? "Try another one. You can do it!" : `${pick(KIND)} Try another one.`);
+      return;
+    }
+    busy = true;
+    b.classList.add("right");
+    stage.querySelectorAll(".vw-opt").forEach((x) => (x.disabled = true));
+    MUSIC.chime();
+    round += 1;
+    if (!missed) {
+      right += 1;
+      streak += 1;
+    } else streak = 0;
+    let moved = "";
+    if (young) {
+      moved = "";
+    } else if (!missed && streak >= 2 && level < 2) {
+      level += 1;
+      streak = 0;
+      moved = " Now it gets a little trickier!";
+    } else if (missed && level > 0) {
+      level -= 1;
+      moved = " Let's try a slightly easier one.";
+    }
+    if (!young) saveLv(gid, level);
+    const line = `${missed ? "That's it! You found it!" : `${pick(PRAISE)} ${pick(["Great job!", "You are so clever!", "Hooray!"])}`} ${item.after}${moved}`;
+    await Promise.race([Promise.all([sayAsync(esc(line)), wait(1400)]), wait(9000)]);
+    if (alive()) ask();
+  };
+  const finish = async () => {
+    stage.onclick = null;
+    MUSIC.chime();
+    confetti();
+    window.OC?.count("games finished");
+    if (right >= Math.ceil(total * 0.6)) shell.mark(gid, { done: true });
+    stage.innerHTML = `<div class="vw"><div class="vw-show"><div class="vw-card q">🎉</div></div><p class="vw-clue">You got ${right} of ${total} right the first time!</p></div>`;
+    panel(`<div class="vw-ctl"><button type="button" class="vw-btn" data-again>▶ Play again</button></div>`);
+    $("[data-again]").onclick = () => units[gid]();
+    say(`🎉 All ${total} done! You got ${right} right first time. ${right >= total - 1 ? "Super word wizard!" : "Let's play again!"}`);
+  };
+  ask();
+}
+
+const units = {};
+UNITS.forEach((u) => (units[u.id] = () => play(u.id)));
+
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    vb1: { icon: "🔗", title: "Goes together", steps: ["Look at the first pair. See how they go together.", "Find what goes with the next picture in the same way.", "Tap your answer. Press 🔊 to hear it again."] },
+    vb2: { icon: "🤝", title: "Alike", steps: ["Listen to the question.", "Think about how the things are the same.", "Tap the best answer."] },
+    vb3: { icon: "🔤", title: "Word meanings", steps: ["Listen to the word.", "Tap the picture or word that matches.", "New words are explained after each one."] },
+    vb4: { icon: "🕵️", title: "Riddles", steps: ["Listen to the clues.", "Think about what the clues have in common.", "Tap who or what you think it is."] },
+    vb5: { icon: "↔️", title: "Opposites & groups", steps: ["Opposites are very different, like hot and cold.", "Groups are things that go together, like dogs and cats.", "Tap your answer."] },
+    vb6: { icon: "🤔", title: "What would you do?", steps: ["Listen to what is happening.", "Think about the safest, kindest or smartest thing to do.", "Tap your choice."] },
+  },
+  start: "vb1",
+  onStop() {
+    token += 1;
+    stage.onclick = null;
+  },
+  subject: "Thinking Skills",
+  activity: "Word Wizard",
+  onUnit(id) {
+    token += 1;
+    VOICE.hush();
+    stage.onclick = null;
+    units[id]();
+  },
+});
+</script>
+</body>
+</html>

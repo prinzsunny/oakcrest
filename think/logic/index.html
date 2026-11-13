@@ -1,0 +1,922 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logic Lab · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+</head>
+<body data-subject="think">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../" aria-label="Thinking Skills" title="Thinking Skills">🏠</a>
+  <div class="ap-title"><b>Logic Lab</b><small>Thinking Skills · logic</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>const { $, panel, say, sayAsync, pick, pickInt, wait, confetti, PRAISE, KIND, shuffle, still } = KIT;
+const stage = $("[data-stage]");
+let token = 0;
+let on = {};
+
+const UNITS = [
+  { id: "lg0", label: "1. Chess pieces", icon: "♞" },
+  { id: "lg1", label: "2. Mini sudoku", icon: "🔢" },
+  { id: "lg2", label: "3. Who's who", icon: "🕵️" },
+  { id: "lg3", label: "4. If–then", icon: "📦" },
+  { id: "lg4", label: "5. Balance logic", icon: "⚖️" },
+];
+
+//#logic
+const rnd = (n) => Math.floor(Math.random() * n);
+const shuf = (list) => {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = rnd(i + 1);
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+};
+const K = (r, c) => `${r},${c}`;
+
+// ----- chess: r = 0 is the top row; pawns walk up -----
+const KN = [[1, 2], [2, 1], [-1, 2], [-2, 1], [1, -2], [2, -1], [-1, -2], [-2, -1]];
+const SLIDE = { rook: [[1, 0], [-1, 0], [0, 1], [0, -1]], bishop: [[1, 1], [1, -1], [-1, 1], [-1, -1]] };
+function reach(piece, r, c, size, trees, bugs) {
+  const out = [];
+  const inb = (a, b) => a >= 0 && b >= 0 && a < size && b < size;
+  if (piece === "king" || piece === "knight") {
+    const steps = piece === "knight" ? KN : [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+    for (const [dr, dc] of steps) if (inb(r + dr, c + dc) && !trees.has(K(r + dr, c + dc))) out.push([r + dr, c + dc]);
+  } else if (piece === "pawn") {
+    if (inb(r - 1, c) && !trees.has(K(r - 1, c)) && !bugs.has(K(r - 1, c))) out.push([r - 1, c]);
+    for (const dc of [-1, 1]) if (inb(r - 1, c + dc) && bugs.has(K(r - 1, c + dc))) out.push([r - 1, c + dc]);
+  } else {
+    for (const [dr, dc] of SLIDE[piece]) {
+      let a = r + dr, b = c + dc;
+      while (inb(a, b) && !trees.has(K(a, b))) {
+        out.push([a, b]);
+        if (bugs.has(K(a, b))) break;
+        a += dr;
+        b += dc;
+      }
+    }
+  }
+  return out;
+}
+// Shortest capture path (array of squares) of at most `max` moves, or null.
+function bestPath(piece, r, c, size, trees, star, max = 2) {
+  const goal = new Set([K(star[0], star[1])]);
+  let frontier = [{ r, c, path: [] }];
+  const seen = new Set([K(r, c)]);
+  for (let d = 1; d <= max; d++) {
+    const next = [];
+    for (const s of frontier) {
+      for (const [a, b] of reach(piece, s.r, s.c, size, trees, goal)) {
+        const path = [...s.path, [a, b]];
+        if (a === star[0] && b === star[1]) return path;
+        if (!seen.has(K(a, b))) {
+          seen.add(K(a, b));
+          next.push({ r: a, c: b, path });
+        }
+      }
+    }
+    frontier = next;
+  }
+  return null;
+}
+function genPuzzle(size, moves) {
+  const pieces = ["king", "rook", "bishop", "knight", "pawn"];
+  for (let i = 0; i < 6000; i++) {
+    const piece = pieces[rnd(5)];
+    const r = rnd(size), c = rnd(size), sr = rnd(size), sc = rnd(size);
+    if (r === sr && c === sc) continue;
+    const trees = new Set();
+    const nt = size <= 5 ? rnd(2) : rnd(3) + (size >= 7 ? 1 : 0);
+    for (let t = 0; t < nt; t++) {
+      const tr = rnd(size), tc = rnd(size);
+      if (!(tr === r && tc === c) && !(tr === sr && tc === sc)) trees.add(K(tr, tc));
+    }
+    const p = bestPath(piece, r, c, size, trees, [sr, sc], 2);
+    if (p && p.length === moves) return { piece, r, c, star: [sr, sc], trees, moves, size };
+  }
+  const trees = new Set();
+  return { piece: "king", r: 0, c: 0, star: [moves === 1 ? 1 : 2, 1], trees, moves, size };
+}
+
+// ----- mini sudoku -----
+function solveCount(g, n, br, bc, limit) {
+  let count = 0;
+  const ok = (i, v) => {
+    const r = Math.floor(i / n), c = i % n;
+    for (let k = 0; k < n; k++) if (g[r * n + k] === v || g[k * n + c] === v) return false;
+    const r0 = r - (r % br), c0 = c - (c % bc);
+    for (let a = 0; a < br; a++) for (let b = 0; b < bc; b++) if (g[(r0 + a) * n + c0 + b] === v) return false;
+    return true;
+  };
+  const rec = () => {
+    const i = g.indexOf(0);
+    if (i < 0) {
+      count += 1;
+      return count >= limit;
+    }
+    for (let v = 1; v <= n; v++) {
+      if (ok(i, v)) {
+        g[i] = v;
+        if (rec()) {
+          g[i] = 0;
+          return true;
+        }
+        g[i] = 0;
+      }
+    }
+    return false;
+  };
+  rec();
+  return count;
+}
+function genSolved(n, br, bc) {
+  const g = Array(n * n).fill(0);
+  const ok = (i, v) => {
+    const r = Math.floor(i / n), c = i % n;
+    for (let k = 0; k < n; k++) if (g[r * n + k] === v || g[k * n + c] === v) return false;
+    const r0 = r - (r % br), c0 = c - (c % bc);
+    for (let a = 0; a < br; a++) for (let b = 0; b < bc; b++) if (g[(r0 + a) * n + c0 + b] === v) return false;
+    return true;
+  };
+  const fill = (i) => {
+    if (i === n * n) return true;
+    for (const v of shuf([...Array(n).keys()].map((x) => x + 1))) {
+      if (ok(i, v)) {
+        g[i] = v;
+        if (fill(i + 1)) return true;
+        g[i] = 0;
+      }
+    }
+    return false;
+  };
+  fill(0);
+  return g;
+}
+function makeSudoku(n, br, bc, blanks) {
+  const sol = genSolved(n, br, bc);
+  const puz = [...sol];
+  let removed = 0;
+  for (const i of shuf([...Array(n * n).keys()])) {
+    if (removed >= blanks) break;
+    const keep = puz[i];
+    puz[i] = 0;
+    if (solveCount([...puz], n, br, bc, 2) === 1) removed += 1;
+    else puz[i] = keep;
+  }
+  return { puz, sol, blanks: removed };
+}
+
+// ----- who's who -----
+const PERMS = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]];
+const sat = (perm, cl) => (cl.t === "pos" ? perm[cl.k] === cl.p : perm[cl.k] !== cl.p);
+const uniq = (cls) => PERMS.filter((p) => cls.every((c) => sat(p, c))).length === 1;
+function genWho(level) {
+  const sol = PERMS[rnd(6)];
+  const all = [];
+  for (let k = 0; k < 3; k++) for (let p = 0; p < 3; p++) all.push({ t: sol[k] === p ? "pos" : "neg", k, p });
+  const sets = [];
+  const minimal = (s) => s.every((_, i) => !uniq(s.filter((__, j) => j !== i)));
+  for (let a = 0; a < all.length; a++)
+    for (let b = a + 1; b < all.length; b++) {
+      const two = [all[a], all[b]];
+      if (uniq(two) && minimal(two)) sets.push(two);
+      for (let c = b + 1; c < all.length; c++) {
+        const three = [all[a], all[b], all[c]];
+        if (uniq(three) && minimal(three)) sets.push(three);
+      }
+    }
+  const pos = (s) => s.filter((c) => c.t === "pos").length;
+  let pool = sets.filter((s) => (level === 0 ? s.length === 2 && pos(s) >= 1 : level === 1 ? s.length === 3 && pos(s) === 1 : s.length === 3 && pos(s) === 0));
+  if (!pool.length) pool = sets.filter((s) => s.length === 3);
+  return { sol, clues: shuf(pool[rnd(pool.length)]) };
+}
+
+// ----- balance logic -----
+function genBal(k, m, q) {
+  for (let i = 0; i < 4000; i++) {
+    const w = shuf([...Array(k).keys()]);
+    const pairs = new Set();
+    while (pairs.size < m) {
+      const a = rnd(k), b = rnd(k);
+      if (a !== b) pairs.add(a < b ? `${a},${b}` : `${b},${a}`);
+    }
+    const cmp = [...pairs].map((s) => s.split(",").map(Number)).map(([a, b]) => (w[a] > w[b] ? [a, b] : [b, a]));
+    const beats = Array.from({ length: k }, () => Array(k).fill(false));
+    cmp.forEach(([h, l]) => (beats[h][l] = true));
+    for (let x = 0; x < k; x++) for (let a = 0; a < k; a++) for (let b = 0; b < k; b++) if (beats[a][x] && beats[x][b]) beats[a][b] = true;
+    const heavy = [...Array(k).keys()].filter((a) => [...Array(k).keys()].every((b) => a === b || beats[a][b]));
+    const light = [...Array(k).keys()].filter((a) => [...Array(k).keys()].every((b) => a === b || beats[b][a]));
+    const list = q === "heaviest" ? heavy : light;
+    if (list.length === 1) return { k, cmp, q, ans: list[0], w };
+  }
+  return null;
+}
+//#end
+
+const css = document.createElement("style");
+css.textContent = `
+.tk{width:100%;height:100%;overflow:auto;display:flex;align-items:center;justify-content:center;padding:10px;box-sizing:border-box;color:var(--ink);font-family:var(--sans)}
+.tk-col{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;max-width:820px;margin:auto}
+.tk-stat{font:900 clamp(16px,2.6vw,20px)/1.2 var(--sans);color:var(--ink);min-height:1.3em}
+.lg-board{display:grid;grid-template-columns:repeat(var(--n),var(--cs));border-radius:12px;overflow:hidden;box-shadow:0 0 0 4px #7a4a24;--cs:min(calc(84vw / var(--n)),calc(46vh / var(--n)),74px)}
+.lg-board .sq{position:relative;display:grid;place-items:center;width:var(--cs);height:var(--cs);padding:0;border:0;border-radius:0;font-size:calc(var(--cs) * .62);line-height:1;cursor:pointer;touch-action:manipulation;color:#3a2412}
+.lg-board .lt{background:#f6e7c8}.lg-board .dk{background:#d6b183}
+.lg-board .pc{font-size:calc(var(--cs) * .78);color:#5b2a8c;text-shadow:0 2px 0 rgba(255,255,255,.6)}
+.lg-board .dot{position:absolute;width:34%;height:34%;border-radius:50%;background:rgba(34,160,90,.7)}
+.lg-board .sel{box-shadow:inset 0 0 0 4px var(--accent);background:#cfe9ff}
+.lg-board .bad{box-shadow:inset 0 0 0 4px #d9822b;background:#f6dcd4}
+.lg-board .hint{box-shadow:inset 0 0 0 4px #22a05a}
+.lg-board .dim{cursor:default}
+.lg-btns{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.lg-btn{min-height:52px;padding:0 22px;border:0;border-radius:18px;background:var(--accent);color:#fff;font:900 19px/1 var(--sans);cursor:pointer;box-shadow:0 4px 0 var(--accent-dark);touch-action:manipulation}
+.lg-btn.alt{background:#fff;color:var(--ink);box-shadow:0 4px 0 #e2d6c4,0 0 0 2px #efe6d8}
+.lg-sud{display:grid;gap:0;border-radius:10px;overflow:hidden;box-shadow:0 0 0 4px #7a4a24;background:#fff}
+.lg-sud button{width:var(--cs);height:var(--cs);padding:0;border:0;border-right:2px solid #e2d6c4;border-bottom:2px solid #e2d6c4;background:#fff;color:var(--ink);font:900 calc(var(--cs) * .56)/1 var(--sans);cursor:pointer;touch-action:manipulation}
+.lg-sud button.g{background:#f3ead9}
+.lg-sud button.sel{background:#cfe9ff;box-shadow:inset 0 0 0 4px var(--accent)}
+.lg-sud button.cf{background:#f6dcd4;color:#c0392b}
+.lg-sud button.br{border-right:5px solid #7a4a24}.lg-sud button.bb{border-bottom:5px solid #7a4a24}
+.lg-pal{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.lg-pal button{width:clamp(52px,11vw,70px);height:clamp(52px,11vw,70px);border:0;border-radius:16px;background:#fff;box-shadow:0 4px 0 #e2d6c4,0 0 0 2px #efe6d8;color:var(--ink);font:900 clamp(26px,6vw,38px)/1 var(--sans);cursor:pointer;touch-action:manipulation}
+.lg-clues{display:flex;flex-direction:column;gap:8px;width:100%}
+.lg-clue{display:flex;align-items:center;gap:10px;padding:10px 14px;border:0;border-radius:16px;background:var(--accent-soft);color:var(--ink);font:800 clamp(17px,3vw,22px)/1.25 var(--sans);text-align:left;cursor:pointer}
+.lg-clue.flag{box-shadow:0 0 0 4px #d9822b}
+.lg-clue b{display:grid;place-items:center;min-width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff}
+.lg-grid{display:grid;grid-template-columns:auto repeat(3,clamp(64px,16vw,96px));gap:6px;align-items:center;justify-items:center}
+.lg-grid .h{font-size:clamp(34px,8vw,52px);line-height:1}
+.lg-grid .k{font:900 clamp(15px,3vw,20px)/1.1 var(--sans);text-align:center}
+.lg-grid .k span{display:block;font-size:clamp(30px,7vw,44px)}
+.lg-grid button{width:clamp(64px,16vw,96px);height:clamp(64px,16vw,96px);border:0;border-radius:18px;background:#fff;box-shadow:0 4px 0 #e2d6c4,0 0 0 2px #efe6d8;font:900 clamp(32px,8vw,52px)/1 var(--sans);cursor:pointer;touch-action:manipulation}
+.lg-grid button.y{background:#d8f3e0;color:#157a40}.lg-grid button.n{background:#f2f2f2;color:#999}
+.lg-rule{max-width:720px;padding:12px 16px;border-radius:18px;background:var(--accent-soft);box-shadow:0 0 0 3px var(--accent);font:800 clamp(17px,3vw,22px)/1.3 var(--sans);text-align:center}
+.lg-item{width:clamp(96px,22vw,150px);height:clamp(96px,22vw,150px)}
+.lg-item.pop{animation:lg-pop .3s ease}
+.lg-dests{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+.lg-dests button{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:clamp(100px,24vw,150px);min-height:clamp(84px,16vw,110px);padding:8px 12px;border:0;border-radius:20px;background:#fff;box-shadow:0 5px 0 #e2d6c4,0 0 0 2px #efe6d8;color:var(--ink);font:900 clamp(16px,3vw,20px)/1.1 var(--sans);cursor:pointer;touch-action:manipulation}
+.lg-dests button span{font-size:clamp(34px,8vw,50px);line-height:1.1}
+.lg-dests button:active{transform:translateY(3px)}
+.lg-seesaws{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+.lg-seesaws svg{width:clamp(150px,30vw,230px);height:auto}
+.lg-ans{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+.lg-ans button{width:clamp(68px,15vw,92px);height:clamp(68px,15vw,92px);border:0;border-radius:20px;background:#fff;box-shadow:0 5px 0 #e2d6c4,0 0 0 2px #efe6d8;font-size:clamp(36px,8vw,52px);line-height:1;cursor:pointer;touch-action:manipulation}
+.lg-ans button.bad{background:#f6dcd4}.lg-ans button.good{background:#d8f3e0;box-shadow:0 5px 0 #22a05a}
+@keyframes lg-pop{0%{transform:scale(.5);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+@media (prefers-reduced-motion:reduce){.lg-item.pop{animation:none}}
+`;
+document.head.appendChild(css);
+
+const fresh = (html = "") => {
+  stage.innerHTML = "";
+  const d = document.createElement("div");
+  d.className = "tk";
+  d.innerHTML = html;
+  stage.appendChild(d);
+  return d;
+};
+const status = (s) => {
+  const b = $("[data-status]");
+  if (b) b.textContent = s;
+};
+const bindPanel = () => {
+  $("[data-panel]").onclick = (event) => {
+    const what = event.target.closest("[data-do]")?.dataset.do;
+    if (what && on[what]) on[what]();
+  };
+};
+const setPanel = (btns = []) => {
+  panel(`<div class="tk-stat" data-status></div><div class="lg-btns">${btns.map(([k, l, alt]) => `<button type="button" class="lg-btn${alt ? " alt" : ""}" data-do="${k}">${l}</button>`).join("")}</div>`);
+  bindPanel();
+};
+const NOTES = [72, 74, 76, 77, 79, 81, 83, 84, 86, 88, 89, 91];
+const note = (i, gain = 0.4) => MUSIC.play("xylophone", NOTES[Math.min(NOTES.length - 1, Math.max(0, i))], { gain });
+const span = (n, min, max) => ({
+  n, min, max, miss: 0,
+  up() { this.n = Math.min(max, this.n + 1); this.miss = 0; },
+  down() { if (++this.miss >= 2) { this.n = Math.max(min, this.n - 1); this.miss = 0; } },
+});
+const ANIMALS = ["🐶", "🐱", "🐰", "🦊", "🐻", "🐼", "🐸", "🐵"];
+const hold = (ms) => wait(still.matches ? Math.min(ms, 400) : ms);
+const feedback = (ok, extra = "") => {
+  if (ok) {
+    MUSIC.chime();
+    say(`${pick(PRAISE)} ${extra}`);
+  } else {
+    MUSIC.oops();
+    say(`${pick(KIND)} ${extra}`);
+  }
+};
+async function finish(my, id, right, total, what) {
+  MUSIC.chime();
+  confetti();
+  window.OC?.count("games finished");
+  if (right >= Math.ceil(total * 0.6)) shell.mark(id, { done: true });
+  say(`🎉 All ${total} done! You got ${right} right first time. ${right >= total - 2 ? `Super ${what}!` : "Let's play again!"}`);
+  await wait(3400);
+  return my === token;
+}
+async function run(my, id, what, total, trial) {
+  let right = 0;
+  while (true) {
+    for (let i = 0; i < total; i++) {
+      status(`Puzzle ${i + 1} of ${total}`);
+      const ok = await trial(i);
+      if (my !== token) return;
+      if (ok) right += 1;
+      await wait(1600);
+      if (my !== token) return;
+    }
+    if (!(await finish(my, id, right, total, what))) return;
+    right = 0;
+  }
+}
+const ask = (key) => new Promise((resolve) => (on[key] = () => { on[key] = null; resolve(); }));
+
+// ---------- chess ----------
+const PIECES = {
+  king: ["King", "♚︎", "The king takes <b>one step</b> in any direction: up, down, sideways, or corner to corner."],
+  rook: ["Rook", "♜︎", "The rook <b>slides straight</b> as far as it likes: up, down, left or right. It cannot go through things in its way."],
+  bishop: ["Bishop", "♝︎", "The bishop <b>slides corner to corner</b>, along diagonals, as far as it likes. It cannot go through things in its way."],
+  knight: ["Knight", "♞︎", "The knight <b>jumps in an L</b>: two squares one way, then one square to the side. It can jump over things!"],
+  pawn: ["Pawn", "♟︎", "The pawn <b>walks one step forward</b>. It only catches a 🐛 one step forward and to the corner. It cannot walk into a 🐛 straight ahead."],
+};
+function drawBoard(host, size, st) {
+  let h = `<div class="lg-board" style="--n:${size}">`;
+  for (let r = 0; r < size; r++)
+    for (let c = 0; c < size; c++) {
+      const k = K(r, c);
+      const cls = [(r + c) % 2 ? "dk" : "lt", st.sel?.has(k) && "sel", st.bad?.has(k) && "bad", st.hint?.has(k) && "hint", st.dim && "dim"].filter(Boolean).join(" ");
+      let inner = "";
+      if (st.piece && st.piece[0] === r && st.piece[1] === c) inner = `<span class="pc">${PIECES[st.kind][1]}</span>`;
+      else if (st.trees?.has(k)) inner = "🌳";
+      else if (st.bugs?.has(k)) inner = "🐛";
+      else if (st.star && st.star[0] === r && st.star[1] === c) inner = "⭐";
+      else if (st.dots?.has(k)) inner = '<i class="dot"></i>';
+      h += `<button type="button" class="sq ${cls}" data-r="${r}" data-c="${c}" aria-label="row ${r + 1}, column ${c + 1}">${inner}</button>`;
+    }
+  host.innerHTML = `${h}</div>`;
+}
+const setOf = (list) => new Set(list.map(([r, c]) => K(r, c)));
+const SQ = (event) => {
+  const b = event.target.closest(".sq");
+  return b && [Number(b.dataset.r), Number(b.dataset.c)];
+};
+
+async function learnPiece(my, kind) {
+  const size = 5;
+  const [name, , words] = PIECES[kind];
+  const pos = kind === "pawn" ? [3, 2] : [2, 2];
+  const trees = new Set(kind === "rook" ? [K(2, 4)] : kind === "bishop" ? [K(0, 0)] : []);
+  const bugs = new Set(kind === "pawn" ? [K(2, 3)] : []);
+  const dots = setOf(reach(kind, pos[0], pos[1], size, trees, bugs));
+  const d = fresh(`<div class="tk-col"><div data-b></div></div>`);
+  drawBoard($("[data-b]", d), size, { kind, piece: pos, trees, bugs, dots, dim: true });
+  setPanel([["hear", "🔊 Hear it again", true], ["go", "My turn ▶"]]);
+  status(`The ${name}`);
+  on.hear = () => say(`The ${name}. ${words}`);
+  say(`The ${name}. ${words} The green dots show where it can go.`);
+  await ask("go");
+  on.hear = null;
+  return my === token;
+}
+async function reachTrial(my, kind) {
+  const size = 5;
+  const [name] = PIECES[kind];
+  let r = rnd(size), c = rnd(size);
+  const trees = new Set();
+  const bugs = new Set();
+  if (kind === "pawn") {
+    r = pickInt(2, 4);
+    c = rnd(size);
+    if (rnd(2)) bugs.add(K(r - 1, c));
+    for (const dc of shuf([-1, 1])) if (c + dc >= 0 && c + dc < size && bugs.size < 2) bugs.add(K(r - 1, c + dc));
+    if (rnd(2)) bugs.add(K(r - 1, c + (c > 1 ? -1 : 1)));
+    bugs.add(K(pickInt(0, 1), rnd(size)));
+  } else if (kind === "rook" || kind === "bishop") {
+    for (let t = 0; t < 2; t++) {
+      const tr = rnd(size), tc = rnd(size);
+      if (!(tr === r && tc === c)) trees.add(K(tr, tc));
+    }
+  }
+  for (const k of [...bugs]) if (k === K(r, c)) bugs.delete(k);
+  const want = setOf(reach(kind, r, c, size, trees, bugs));
+  const d = fresh(`<div class="tk-col"><div data-b></div></div>`);
+  const host = $("[data-b]", d);
+  const sel = new Set();
+  const paint = (extra = {}) => drawBoard(host, size, { kind, piece: [r, c], trees, bugs, sel, ...extra });
+  paint();
+  setPanel([["check", "Check ✓"], ["clear", "Start over", true]]);
+  status(`${name}: tap every square it can reach`);
+  say(`Tap every square the ${name} can reach in one move. Then press Check.${kind === "pawn" ? " The bugs are what it can catch." : ""}${trees.size ? " Trees are in the way." : ""}`);
+  let tries = 0;
+  return new Promise((resolve) => {
+    host.onclick = (event) => {
+      const p = SQ(event);
+      if (!p) return;
+      window.OC?.touch();
+      const k = K(p[0], p[1]);
+      if (sel.has(k)) sel.delete(k);
+      else sel.add(k);
+      note(sel.size);
+      paint();
+    };
+    on.clear = () => {
+      sel.clear();
+      paint();
+    };
+    on.check = () => {
+      const missing = [...want].filter((k) => !sel.has(k));
+      const extra = [...sel].filter((k) => !want.has(k));
+      if (!missing.length && !extra.length) {
+        host.onclick = on.check = on.clear = null;
+        feedback(true, `That is every square the ${name} can reach!`);
+        return resolve(tries === 0);
+      }
+      tries += 1;
+      if (tries >= 2) {
+        host.onclick = on.check = on.clear = null;
+        paint({ dots: want, sel: new Set() });
+        feedback(false, `The green dots show where it can go. We will practise again.`);
+        return resolve(false);
+      }
+      MUSIC.oops();
+      paint({ bad: new Set(extra) });
+      say(`${pick(KIND)} ${extra.length ? `${extra.length} of your squares ${extra.length > 1 ? "are" : "is"} not right (orange). ` : ""}${missing.length ? `You are missing ${missing.length}.` : ""} Fix it and press Check.`);
+    };
+  });
+}
+const PZ = [[5, 1], [5, 2], [6, 2], [7, 2], [8, 2]];
+async function puzzleTrial(my, sp) {
+  const [size, moves] = PZ[sp.n];
+  const P = genPuzzle(size, moves);
+  const [name] = PIECES[P.piece];
+  const d = fresh(`<div class="tk-col"><div data-b></div></div>`);
+  const host = $("[data-b]", d);
+  const goal = new Set([K(P.star[0], P.star[1])]);
+  setPanel();
+  let attempt = 0;
+  while (attempt < 2) {
+    let pos = [P.r, P.c];
+    let left = moves;
+    const paint = (extra = {}) => drawBoard(host, size, { kind: P.piece, piece: pos, trees: P.trees, star: P.star, ...extra });
+    paint();
+    status(`${name} · capture the ⭐ in ${moves} move${moves > 1 ? "s" : ""}`);
+    say(attempt ? `Try again. Use the ${name} to capture the star in ${moves} move${moves > 1 ? "s" : ""}.` : `Use the ${name} to capture the ⭐ in <b>${moves} move${moves > 1 ? "s" : ""}</b>. Tap where it should go.${moves > 1 ? " Think about where to stop first." : ""}`);
+    const result = await new Promise((resolve) => {
+      host.onclick = (event) => {
+        const p = SQ(event);
+        if (!p) return;
+        window.OC?.touch();
+        const legal = reach(P.piece, pos[0], pos[1], size, P.trees, goal).some(([a, b]) => a === p[0] && b === p[1]);
+        if (!legal) {
+          MUSIC.oops();
+          say(`The ${name} cannot go there. ${PIECES[P.piece][2]}`);
+          return;
+        }
+        pos = p;
+        left -= 1;
+        note(moves - left + 3);
+        if (p[0] === P.star[0] && p[1] === P.star[1]) {
+          host.onclick = null;
+          paint({ star: null });
+          return resolve("win");
+        }
+        paint();
+        if (left === 0) {
+          host.onclick = null;
+          return resolve("none");
+        }
+        if (!bestPath(P.piece, pos[0], pos[1], size, P.trees, P.star, left)) {
+          host.onclick = null;
+          resolve("far");
+        }
+      };
+    });
+    if (my !== token) return false;
+    if (result === "win") {
+      sp.up();
+      feedback(true, `The ${name} captured the star${attempt ? "" : " first try"}!`);
+      return attempt === 0;
+    }
+    attempt += 1;
+    MUSIC.oops();
+    say(`${pick(KIND)} ${result === "far" ? "From there the star is too far away." : "No moves left."} ${attempt < 2 ? "Let's start again." : ""}`);
+    await wait(1800);
+    if (my !== token) return false;
+  }
+  sp.down();
+  const path = bestPath(P.piece, P.r, P.c, size, P.trees, P.star, moves);
+  drawBoard(host, size, { kind: P.piece, piece: [P.r, P.c], trees: P.trees, star: P.star, hint: setOf(path) });
+  say(`Here is one way: the green squares show the ${name}'s path. Let's try another.`);
+  return false;
+}
+
+// ---------- sudoku ----------
+async function sudokuRound(my, spec, sp) {
+  const { n, br, bc, pics } = spec;
+  const blanks = spec.blanks + sp.n;
+  const { puz, sol } = makeSudoku(n, br, bc, blanks);
+  const sym = pics ? shuf(ANIMALS).slice(0, n) : [...Array(n).keys()].map((x) => String(x + 1));
+  const g = [...puz];
+  let sel = -1, conflicts = 0, helped = false;
+  const bad = () => {
+    const s = new Set();
+    for (let i = 0; i < n * n; i++) {
+      if (!g[i]) continue;
+      const r = Math.floor(i / n), c = i % n;
+      for (let j = 0; j < n * n; j++) {
+        if (j === i || g[j] !== g[i]) continue;
+        const r2 = Math.floor(j / n), c2 = j % n;
+        if (r2 === r || c2 === c || (Math.floor(r / br) === Math.floor(r2 / br) && Math.floor(c / bc) === Math.floor(c2 / bc))) s.add(i);
+      }
+    }
+    return s;
+  };
+  const d = fresh(`<div class="tk-col"><div data-g></div><div class="lg-pal" data-pal>${sym.map((s, i) => `<button type="button" data-v="${i + 1}" aria-label="${pics ? "picture" : "number"} ${s}">${s}</button>`).join("")}</div></div>`);
+  const host = $("[data-g]", d);
+  const draw = () => {
+    const cf = bad();
+    host.innerHTML = `<div class="lg-sud" style="grid-template-columns:repeat(${n},var(--cs));--cs:min(calc(86vw / ${n}),calc(40vh / ${n}),84px)">${g
+      .map((v, i) => {
+        const r = Math.floor(i / n), c = i % n;
+        const cls = [puz[i] && "g", i === sel && "sel", cf.has(i) && !puz[i] && "cf", (c + 1) % bc === 0 && c < n - 1 && "br", (r + 1) % br === 0 && r < n - 1 && "bb"].filter(Boolean).join(" ");
+        return `<button type="button" class="${cls}" data-i="${i}" aria-label="row ${r + 1} column ${c + 1}">${v ? sym[v - 1] : ""}</button>`;
+      })
+      .join("")}</div>`;
+    return cf;
+  };
+  draw();
+  const rule = `Fill the grid. Every row, every column and every box must have each ${pics ? "picture" : "number"} <b>once</b>. Tap a square, then tap what goes in it.`;
+  setPanel([["erase", "Erase", true], ["hint", "💡 Hint", true], ["hear", "🔊 Hear the rule", true]]);
+  say(rule);
+  return new Promise((resolve) => {
+    const settle = () => {
+      const cf = draw();
+      if (g.includes(0)) return;
+      if (!cf.size && g.every((v, i) => v === sol[i])) {
+        on.erase = on.hint = on.hear = stage.onclick = $("[data-pal]").onclick = null;
+        const ok = !helped && conflicts <= 1;
+        if (ok) sp.up();
+        else sp.down();
+        feedback(true, helped ? "You finished it! Try one without a hint next." : "Every row, column and box has each one once. Logic!");
+        resolve(ok);
+      } else say(`${pick(KIND)} Some are the same in a row, column or box. Look for the red ones.`);
+    };
+    host.onclick = (event) => {
+      const b = event.target.closest("[data-i]");
+      if (!b) return;
+      window.OC?.touch();
+      const i = Number(b.dataset.i);
+      sel = puz[i] ? -1 : i;
+      note(2);
+      draw();
+    };
+    $("[data-pal]").onclick = (event) => {
+      const b = event.target.closest("[data-v]");
+      if (!b) return;
+      if (sel < 0) return say(`First tap an empty square.`);
+      window.OC?.touch();
+      g[sel] = Number(b.dataset.v);
+      if (bad().has(sel)) {
+        conflicts += 1;
+        MUSIC.oops();
+        say(`Oops: that is already in its row, column or box.`);
+      } else note(4);
+      settle();
+    };
+    on.erase = () => {
+      if (sel >= 0 && !puz[sel]) {
+        g[sel] = 0;
+        draw();
+      }
+    };
+    on.hear = () => say(rule);
+    on.hint = () => {
+      const i = sel >= 0 && !puz[sel] ? sel : g.indexOf(0);
+      if (i < 0) return;
+      helped = true;
+      g[i] = sol[i];
+      sel = -1;
+      note(5);
+      settle();
+    };
+  });
+}
+const SUD = [
+  { n: 4, br: 2, bc: 2, pics: true, blanks: 5 },
+  { n: 4, br: 2, bc: 2, pics: true, blanks: 6 },
+  { n: 4, br: 2, bc: 2, pics: false, blanks: 7 },
+  { n: 4, br: 2, bc: 2, pics: false, blanks: 8 },
+  { n: 6, br: 2, bc: 3, pics: false, blanks: 12 },
+  { n: 6, br: 2, bc: 3, pics: false, blanks: 14 },
+];
+
+// ---------- who's who ----------
+const KIDS = [["Mia", "👧"], ["Leo", "👦"], ["Zoe", "🧒"]];
+const THEMES = [
+  { verb: "has", no: "does not have", items: [["🐶", "dog"], ["🐱", "cat"], ["🐰", "rabbit"], ["🐠", "fish"], ["🐢", "turtle"], ["🐦", "bird"]] },
+  { verb: "is eating", no: "is not eating", items: [["🍎", "apple"], ["🍌", "banana"], ["🍇", "grapes"], ["🍓", "strawberry"], ["🥕", "carrot"], ["🍪", "cookie"]] },
+  { verb: "is holding", no: "is not holding", items: [["⚽", "ball"], ["🪁", "kite"], ["🧸", "teddy"], ["🎈", "balloon"], ["🚂", "toy train"], ["🎨", "paintbrush"]] },
+];
+async function whoRound(my, sp) {
+  const P = genWho(sp.n);
+  const th = pick(THEMES);
+  const things = shuffle(th.items).slice(0, 3);
+  const kids = shuffle(KIDS);
+  const words = (c) => `${kids[c.k][0]} ${c.t === "pos" ? th.verb : th.no} the ${things[c.p][1]}`;
+  const marks = kids.map(() => [0, 0, 0]);
+  const d = fresh(`<div class="tk-col"><div class="lg-clues">${P.clues.map((c, i) => `<button type="button" class="lg-clue" data-c="${i}"><b>${i + 1}</b>${words(c)}.</button>`).join("")}</div><div class="lg-grid" data-grid></div></div>`);
+  const grid = $("[data-grid]", d);
+  const paint = () => {
+    grid.innerHTML = `<span></span>${things.map((t) => `<span class="h" aria-label="${t[1]}">${t[0]}</span>`).join("")}${kids
+      .map((k, f) => `<span class="k"><span>${k[1]}</span>${k[0]}</span>${marks[f].map((v, p) => `<button type="button" data-f="${f}" data-p="${p}" class="${v === 1 ? "y" : v === 2 ? "n" : ""}" aria-label="${k[0]} ${things[p][1]}">${v === 1 ? "✔" : v === 2 ? "✘" : ""}</button>`).join("")}`)
+      .join("")}`;
+  };
+  paint();
+  const read = () => say(`Who is who? ${P.clues.map((c, i) => `Clue ${i + 1}: ${words(c)}.`).join(" ")} Tap a box: a tick means yes, a cross means no.`);
+  setPanel([["hear", "🔊 Hear the clues", true], ["clear", "Start over", true]]);
+  read();
+  return new Promise((resolve) => {
+    let missed = false;
+    const check = () => {
+      const rows = marks.map((row) => row.indexOf(1));
+      if (rows.some((x) => x < 0) || new Set(rows).size < 3) return;
+      const broken = P.clues.findIndex((c) => !sat(rows, c));
+      if (broken < 0 && rows.every((p, f) => p === P.sol[f])) {
+        on.hear = on.clear = grid.onclick = null;
+        if (!missed) sp.up();
+        feedback(true, `${rows.map((p, f) => `${kids[f][0]} ${th.verb} the ${things[p][1]}`).join(", ")}. You used the clues like a detective! 🔎`);
+        resolve(!missed);
+      } else {
+        if (!missed) sp.down();
+        missed = true;
+        MUSIC.oops();
+        if (broken >= 0) {
+          $$flag(d, broken);
+          say(`${pick(KIND)} Look at clue ${broken + 1}: ${words(P.clues[broken])}. Your grid does not match it.`);
+        } else say(`${pick(KIND)} That fits the clues, but check again: each clue must be true.`);
+      }
+    };
+    d.querySelector(".lg-clues").onclick = (event) => {
+      const b = event.target.closest("[data-c]");
+      if (b) say(`Clue ${Number(b.dataset.c) + 1}: ${words(P.clues[Number(b.dataset.c)])}.`);
+    };
+    grid.onclick = (event) => {
+      const b = event.target.closest("[data-f]");
+      if (!b) return;
+      window.OC?.touch();
+      const f = Number(b.dataset.f), p = Number(b.dataset.p);
+      const v = (marks[f][p] + 1) % 3;
+      if (v === 1) {
+        marks[f] = marks[f].map((x) => (x === 1 ? 0 : x));
+        marks.forEach((row) => row[p] === 1 && (row[p] = 0));
+      }
+      marks[f][p] = v;
+      note(v === 1 ? 7 : v === 2 ? 2 : 0, 0.35);
+      paint();
+      check();
+    };
+    on.hear = read;
+    on.clear = () => {
+      marks.forEach((row) => row.fill(0));
+      paint();
+    };
+  });
+}
+const $$flag = (host, i) => host.querySelectorAll(".lg-clue").forEach((b, j) => b.classList.toggle("flag", j === i));
+
+// ---------- if-then ----------
+const COLORS = { red: "#e5533d", blue: "#2f7de1", green: "#2aa65c", yellow: "#f2b705" };
+const SHAPES = {
+  circle: '<circle cx="50" cy="50" r="38"/>',
+  square: '<rect x="14" y="14" width="72" height="72" rx="8"/>',
+  triangle: '<path d="M50 10 92 88H8Z" stroke-linejoin="round"/>',
+  star: '<path d="M50 6 62 38 96 38 69 58 79 92 50 72 21 92 31 58 4 38 38 38Z" stroke-linejoin="round"/>',
+};
+const itemSvg = (it) => `<svg viewBox="0 0 100 100" class="lg-item" role="img" aria-label="${it.color} ${it.shape}" fill="${COLORS[it.color]}" stroke="#3a2412" stroke-width="4">${SHAPES[it.shape]}</svg>`;
+const SHAPE_WORD = { circle: "a circle", square: "a square", triangle: "a triangle", star: "a star" };
+const DEST = { box: ["📦", "the box"], bag: ["👜", "the bag"], basket: ["🧺", "the basket"], table: ["🪑", "the table"] };
+function genRule(level) {
+  const cs = shuffle(Object.keys(COLORS));
+  const ss = shuffle(Object.keys(SHAPES));
+  const byColor = rnd(2) === 0;
+  const dim = byColor ? "color" : "shape";
+  const vals = byColor ? cs : ss;
+  const word = (v) => (byColor ? v : SHAPE_WORD[v]);
+  if (level === 0) {
+    const v = vals[0];
+    return { dests: ["box", "basket"], f: (it) => (it[dim] === v ? "box" : "basket"), text: `If it is <b>${word(v)}</b>, it goes in the box. If not, it goes in the basket.` };
+  }
+  if (level === 1) {
+    const [a, b] = vals;
+    return { dests: ["box", "bag", "table"], f: (it) => (it[dim] === a ? "box" : it[dim] === b ? "bag" : "table"), text: `If it is <b>${word(a)}</b>, it goes in the box. If it is <b>${word(b)}</b>, it goes in the bag. Anything else goes on the table.` };
+  }
+  if (level === 2) {
+    const kind = pick(["and", "or", "not"]);
+    const c = cs[0], s = ss[0];
+    if (kind === "and") return { dests: ["box", "basket"], f: (it) => (it.color === c && it.shape === s ? "box" : "basket"), text: `If it is <b>${c} AND ${SHAPE_WORD[s]}</b>, it goes in the box. Everything else goes in the basket.` };
+    if (kind === "or") return { dests: ["box", "basket"], f: (it) => (it.color === c || it.shape === s ? "box" : "basket"), text: `If it is <b>${c} OR ${SHAPE_WORD[s]}</b>, it goes in the box. Everything else goes in the basket.` };
+    return { dests: ["box", "basket"], f: (it) => (it.color !== c ? "box" : "basket"), text: `If it is <b>NOT ${c}</b>, it goes in the box. ${c[0].toUpperCase() + c.slice(1)} things go in the basket.` };
+  }
+  const c = cs[0], s = ss[0];
+  return { dests: ["box", "bag", "table"], f: (it) => (it.color === c ? "box" : it.shape === s ? "bag" : "table"), text: `Rule 1: if it is <b>${c}</b>, it goes in the box. Rule 2: if it is <b>${SHAPE_WORD[s]}</b>, it goes in the bag. If it fits both, <b>Rule 1 wins</b>. If it fits neither, it goes on the table.` };
+}
+async function ruleRound(my, sp) {
+  const rule = genRule(sp.n);
+  const COUNT = 5;
+  let items;
+  for (let t = 0; t < 300; t++) {
+    items = Array.from({ length: COUNT }, () => ({ color: pick(Object.keys(COLORS)), shape: pick(Object.keys(SHAPES)) }));
+    if (rule.dests.every((k) => items.some((it) => rule.f(it) === k))) break;
+  }
+  const d = fresh(`<div class="tk-col"><div class="lg-rule">${rule.text}</div><div data-item></div><div class="lg-dests" data-dests>${rule.dests.map((k) => `<button type="button" data-k="${k}"><span>${DEST[k][0]}</span>${DEST[k][1].replace("the ", "")}</button>`).join("")}</div></div>`);
+  setPanel([["hear", "🔊 Hear the rule", true]]);
+  on.hear = () => say(rule.text);
+  say(`New rule. ${rule.text} Sort each shape where it belongs.`);
+  await wait(900);
+  let missed = 0;
+  for (let i = 0; i < COUNT; i++) {
+    if (my !== token) return false;
+    const it = items[i];
+    const slot = $("[data-item]", d);
+    slot.innerHTML = itemSvg(it);
+    slot.firstChild.classList.add("pop");
+    status(`Shape ${i + 1} of ${COUNT}`);
+    await new Promise((resolve) => {
+      $("[data-dests]", d).onclick = (event) => {
+        const b = event.target.closest("[data-k]");
+        if (!b) return;
+        window.OC?.touch();
+        if (b.dataset.k === rule.f(it)) {
+          $("[data-dests]", d).onclick = null;
+          note(i + 2);
+          resolve();
+        } else {
+          missed += 1;
+          MUSIC.oops();
+          say(`${pick(KIND)} Read the rule again. This is ${it.color} and ${SHAPE_WORD[it.shape]}.`);
+        }
+      };
+    });
+  }
+  if (my !== token) return false;
+  const ok = missed === 0;
+  if (ok) sp.up();
+  else sp.down();
+  feedback(ok, ok ? "All sorted by the rule!" : "You followed the rule in the end. Let's try a new one.");
+  return ok;
+}
+
+// ---------- balance ----------
+const THINGS = [["🍎", "apple"], ["🍌", "banana"], ["🍇", "grapes"], ["🧸", "teddy"], ["⚽", "ball"], ["🐟", "fish"], ["🥕", "carrot"], ["🍪", "cookie"], ["🚗", "car"], ["🍩", "donut"]];
+const BAL = [[3, 2], [4, 3], [4, 4], [5, 5]];
+function seesaw(a, b, heavyLeft) {
+  const y = (up) => (up ? 62 : 100);
+  const ly = heavyLeft ? 100 : 62;
+  const ry = heavyLeft ? 62 : 100;
+  return `<svg viewBox="0 0 220 150" role="img" aria-label="${heavyLeft ? a : b} is heavier than ${heavyLeft ? b : a}"><path d="M110 98 90 142H130Z" fill="#a0663a"/><line x1="30" y1="${ly}" x2="190" y2="${ry}" stroke="#7a4a24" stroke-width="9" stroke-linecap="round"/><circle cx="110" cy="${(ly + ry) / 2 + 0}" r="9" fill="#ffcf3a" stroke="#b06a14" stroke-width="3"/><text x="40" y="${ly - 12}" font-size="46" text-anchor="middle">${a}</text><text x="180" y="${ry - 12}" font-size="46" text-anchor="middle">${b}</text></svg>`;
+}
+async function balRound(my, sp) {
+  const [k, m] = BAL[sp.n];
+  const q = sp.n === 0 ? "heaviest" : pick(["heaviest", "lightest"]);
+  const P = genBal(k, m, q);
+  const things = shuffle(THINGS).slice(0, k);
+  const d = fresh(`<div class="tk-col"><div class="lg-seesaws">${shuf(P.cmp)
+    .map(([h, l]) => (rnd(2) ? seesaw(things[h][0], things[l][0], true) : seesaw(things[l][0], things[h][0], false)))
+    .join("")}</div><div class="lg-ans" data-ans>${things.map((t, i) => `<button type="button" data-i="${i}" aria-label="${t[1]}">${t[0]}</button>`).join("")}</div></div>`);
+  setPanel([["hear", "🔊 Hear the question", true]]);
+  const qs = `Which one is the <b>${q}</b>? The lower side of a seesaw is heavier. Tap your answer.`;
+  on.hear = () => say(qs);
+  say(`Look at the seesaws. ${qs}`);
+  let missed = 0;
+  return new Promise((resolve) => {
+    $("[data-ans]", d).onclick = (event) => {
+      const b = event.target.closest("[data-i]");
+      if (!b || b.disabled) return;
+      window.OC?.touch();
+      if (Number(b.dataset.i) === P.ans) {
+        $("[data-ans]", d).onclick = null;
+        b.classList.add("good");
+        const ok = missed === 0;
+        if (ok) sp.up();
+        else sp.down();
+        feedback(true, `The ${things[P.ans][1]} ${q === "heaviest" ? "is never on the higher side" : "is never on the lower side"}. You worked it out!`);
+        resolve(ok);
+      } else {
+        missed += 1;
+        b.classList.add("bad");
+        b.disabled = true;
+        MUSIC.oops();
+        say(`${pick(KIND)} ${q === "heaviest" ? "The heaviest one is always on the lower side." : "The lightest one is always on the higher side."} Look again.`);
+        if (missed >= 2) {
+          $("[data-ans]", d).onclick = null;
+          sp.down();
+          d.querySelectorAll("[data-i]")[P.ans].classList.add("good");
+          say(`It was the ${things[P.ans][1]}. Let's try another.`);
+          resolve(false);
+        }
+      }
+    };
+  });
+}
+
+const units = {
+  lg0() {
+    const my = token;
+    const order = ["king", "rook", "bishop", "knight", "pawn"];
+    const sp = span(0, 0, PZ.length - 1);
+    setPanel();
+    run(my, "lg0", "chess thinking", 11, async (i) => {
+      if (i < 5) {
+        if (!(await learnPiece(my, order[i]))) return false;
+        return reachTrial(my, order[i]);
+      }
+      return puzzleTrial(my, sp);
+    });
+  },
+  lg1() {
+    const my = token;
+    const sp = span(0, -2, 3);
+    setPanel();
+    run(my, "lg1", "sudoku", 6, (i) => sudokuRound(my, SUD[i], sp));
+  },
+  lg2() {
+    const my = token;
+    const sp = span(0, 0, 1);
+    setPanel();
+    run(my, "lg2", "detective work", 6, () => whoRound(my, sp));
+  },
+  lg3() {
+    const my = token;
+    const sp = span(0, 0, 3);
+    setPanel();
+    run(my, "lg3", "rule following", 6, () => ruleRound(my, sp));
+  },
+  lg4() {
+    const my = token;
+    const sp = span(0, 0, BAL.length - 1);
+    setPanel();
+    run(my, "lg4", "balance logic", 6, () => balRound(my, sp));
+  },
+};
+
+const stopAll = () => {
+  token += 1;
+  on = {};
+  VOICE.hush();
+  stage.onclick = null;
+  $("[data-panel]").onclick = null;
+};
+const shell = SHELL({
+  units: UNITS,
+  how: {
+    lg0: { icon: "♞", title: "Chess pieces", steps: ["Learn how each chess piece moves.", "Tap every square it can reach.", "Then capture the ⭐ in 1 or 2 moves!"] },
+    lg1: { icon: "🔢", title: "Mini sudoku", steps: ["Tap an empty square.", "Tap the picture or number that fits.", "Each row, column and box needs every one once."] },
+    lg2: { icon: "🕵️", title: "Who's who", steps: ["Listen to the clues.", "Tap a box: ✔ means yes, tap again for ✘.", "Find who goes with what."] },
+    lg3: { icon: "📦", title: "If–then", steps: ["Read the rule card.", "Look at the shape.", "Tap where the rule says it goes."] },
+    lg4: { icon: "⚖️", title: "Balance logic", steps: ["On a seesaw the heavier side goes down.", "Look at all the seesaws together.", "Tap the heaviest (or lightest) one."] },
+  },
+  start: "lg0",
+  onStop() {
+    stopAll();
+  },
+  subject: "Thinking Skills",
+  activity: "Logic Lab",
+  onUnit(id) {
+    stopAll();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", NOTES);
+
+</script>
+</body>
+</html>
