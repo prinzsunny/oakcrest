@@ -42,6 +42,7 @@ const stage = $("[data-stage]");
 let token = 0;
 let timerId = 0;
 let EXP = false;
+let MST = false;
 const LV = { spot: 6, pairs: 4 };
 
 const UNITS = [
@@ -149,6 +150,9 @@ const sflag = (k) => {
     return false;
   }
 };
+const FOODS = ["🍎", "🍌", "🍇", "🍓", "🍕", "🍪", "🍩", "🍉", "🥕", "🧀"];
+// Master unlocks after Expert is done well; it is saved as `${key}m` and drops away after two misses.
+const mflag = (k) => sflag(k + "m");
 const hold = (ms) => wait(still.matches ? Math.min(ms, 400) : ms);
 
 // Tap things one by one; resolves true when the whole list is right, false on the first mistake.
@@ -189,7 +193,7 @@ async function run(my, id, what, total, trial) {
   let right = 0;
   while (true) {
     for (let i = 0; i < total; i++) {
-      status(`${EXP ? "🦉 Expert · " : ""}Try ${i + 1} of ${total}`);
+      status(`${MST ? "🐉 Master · " : EXP ? "🦉 Expert · " : ""}Try ${i + 1} of ${total}`);
       const ok = await trial(i);
       if (my !== token) return;
       if (ok) right += 1;
@@ -222,7 +226,7 @@ function calm(my, id, pool, name, plural) {
     const found = round > 1 ? 3 : 2;
     const hit = new Set(shuffle([...Array(n).keys()]).slice(0, found));
     const row = [...Array(n).keys()].map((c) => (hit.has(c) ? target : pick(pool.slice(1))));
-    const d = fresh(`<div class="tk-col"><div class="tk-card" style="width:clamp(70px,16vw,110px);height:clamp(70px,16vw,110px);font-size:clamp(44px,10vw,70px)">${target}</div><div class="tk-row">${row.map((g) => `<button type="button" data-t="${g === target || g === t2 ? 1 : 0}" aria-label="picture">${g}</button>`).join("")}</div></div>`);
+    const d = fresh(`<div class="tk-col"><div class="tk-card" style="width:clamp(70px,16vw,110px);height:clamp(70px,16vw,110px);font-size:clamp(44px,10vw,70px)">${target}</div><div class="tk-row">${row.map((g) => `<button type="button" data-t="${g === target ? 1 : 0}" aria-label="picture">${g}</button>`).join("")}</div></div>`);
     status(`${round + 1} of ${TOTAL}`);
     say(`Tap all the ${plural}!`);
     let left = found;
@@ -264,24 +268,37 @@ const units = {
     const my = token;
     panel(`<div class="tk-stat" data-status></div>`);
     const yg = young();
-    const fw = span(yg ? 1 : 2, 1, yg ? 4 : 8);
+    let mst = !yg && mflag("mg0");
+    const fw = span(yg ? 1 : 2, 1, yg ? 4 : mst ? 10 : 8);
     if (!yg) sget("mg0", fw);
-    const rv = span(2, 2, 6);
+    const rv = span(2, 2, mst ? 8 : 6);
     run(my, "mg0", "memory", yg ? 6 : 8, async (i) => {
-      const reverse = !yg && i >= 4;
-      const sp = reverse ? rv : fw;
-      if (reverse && i === 4) rv.n = Math.max(2, fw.n - 1);
+      const split = mst && i >= 4;
+      const reverse = !yg && i >= 4 && !split;
+      const sp = reverse || split ? rv : fw;
+      if ((reverse || split) && i === 4) rv.n = Math.max(2, fw.n - (split ? 3 : 1));
       EXP = !yg && fw.n >= 7;
+      MST = mst;
       const n = sp.n;
-      const seq = shuffle(ANIMALS).slice(0, n);
-      const want = reverse ? [...seq].reverse() : seq;
-      const rest = shuffle(ANIMALS.filter((a) => !seq.includes(a))).slice(0, Math.max(2, 6 - n));
+      let seq, want, pool = ANIMALS;
+      if (split) {
+        const a = shuffle(ANIMALS).slice(0, Math.ceil(n / 2));
+        const f = shuffle(FOODS).slice(0, Math.floor(n / 2));
+        seq = [];
+        for (let k = 0; k < n; k++) seq.push(k % 2 ? f[(k - 1) / 2] : a[k / 2]);
+        want = [...a, ...f];
+        pool = [...ANIMALS, ...FOODS];
+      } else {
+        seq = shuffle(ANIMALS).slice(0, n);
+        want = reverse ? [...seq].reverse() : seq;
+      }
+      const rest = shuffle(pool.filter((a) => !seq.includes(a))).slice(0, Math.max(2, 6 - n));
       const d = fresh(`<div class="tk-col"><div class="tk-card" data-show></div><div class="tk-slots" data-slots></div><div class="tk-grid" data-tray style="grid-template-columns:repeat(${n + rest.length > 6 ? 4 : 3},auto)"></div></div>`);
       const show = $("[data-show]", d);
       const slots = $("[data-slots]", d);
       const tray = $("[data-tray]", d);
       slots.innerHTML = want.map(() => "<span></span>").join("");
-      await sayAsync(reverse ? "Watch the pictures. Then tap them <b>backwards</b>: the last one first!" : "Watch the pictures. Remember the order!");
+      await sayAsync(split ? "Watch animals and foods go by. Then tap the <b>animals first</b>, then the <b>foods</b>. Keep each group in the order you saw it!" : reverse ? "Watch the pictures. Then tap them <b>backwards</b>: the last one first!" : "Watch the pictures. Remember the order!");
       if (my !== token) return;
       await wait(400);
       for (let k = 0; k < seq.length; k++) {
@@ -298,7 +315,7 @@ const units = {
       if (my !== token) return;
       show.textContent = "❓";
       tray.innerHTML = shuffle([...seq, ...rest]).map((a) => `<button type="button" data-k="${a}" aria-label="picture">${a}</button>`).join("");
-      say(reverse ? `Your turn! Tap them backwards. Start with the last one!` : `Your turn! Tap them in the same order.`);
+      say(split ? "Your turn! Animals first, then foods, each in the order you saw." : reverse ? `Your turn! Tap them backwards. Start with the last one!` : `Your turn! Tap them in the same order.`);
       const ok = await collect(tray, want, (b, k) => {
         b.disabled = true;
         b.classList.add("good");
@@ -307,10 +324,23 @@ const units = {
       }, (b) => b.classList.add("bad"));
       if (my !== token) return;
       tray.querySelectorAll("button").forEach((b) => (b.disabled = true));
+      const climb = ok && !reverse && !split && fw.n >= 8;
       if (ok) sp.up();
       else sp.down();
-      if (!yg && !reverse) sset("mg0", fw.n);
-      feedback(ok, ok ? `You remembered ${n}${reverse ? " backwards" : ""}!` : `The order was ${want.join(" ")}. Let's try another.`);
+      if (!yg && !reverse && !split) sset("mg0", fw.n);
+      if (!yg && !mst && climb) {
+        mst = true;
+        sset("mg0m", 1);
+        fw.max = 10;
+        rv.max = 8;
+      } else if (mst && !ok && !reverse && !split && fw.n < 8) {
+        mst = false;
+        sset("mg0m", 0);
+        fw.max = 8;
+        rv.max = 6;
+        rv.n = Math.min(rv.n, 6);
+      }
+      feedback(ok, ok ? `You remembered ${n}${split ? " in two groups" : reverse ? " backwards" : ""}!` : `The order was ${want.join(" ")}. Let's try another.`);
       if (!ok) want.forEach((a, k) => (slots.children[k].textContent = a));
       return ok;
     });
@@ -321,13 +351,16 @@ const units = {
     const my = token;
     panel(`<div class="tk-stat" data-status></div>`);
     const yg = young();
-    const fw = span(yg ? 1 : 2, 1, yg ? 2 : 8);
+    let mst = !yg && mflag("mg1");
+    const fw = span(yg ? 1 : 2, 1, yg ? 2 : mst ? 10 : 8);
     if (!yg) sget("mg1", fw);
-    const rv = span(2, 2, 6);
+    const rv = span(2, 2, mst ? 8 : 6);
     run(my, "mg1", "memory", yg ? 6 : 8, async (i) => {
-      const reverse = !yg && i >= 6;
-      const sp = reverse ? rv : fw;
-      if (reverse && i === 6) rv.n = Math.max(2, fw.n - 2);
+      const lines = mst && i >= 6;
+      const reverse = !yg && i >= 6 && !lines;
+      const sp = reverse || lines ? rv : fw;
+      if ((reverse || lines) && i === 6) rv.n = Math.max(2, fw.n - 2);
+      MST = mst;
       const n = sp.n;
       const big = !yg && fw.n >= 7;
       EXP = big;
@@ -335,12 +368,13 @@ const units = {
       const rows = yg ? 2 : big ? 5 : n <= 6 ? 3 : 4;
       const cells = shuffle([...Array(cols * rows).keys()]).slice(0, n);
       const pets = shuffle(ANIMALS).slice(0, n);
-      const want = reverse ? [...cells].reverse() : cells;
+      const want = lines ? [...cells].sort((a, b) => a - b) : reverse ? [...cells].reverse() : cells;
+      const petAt = (c) => pets[cells.indexOf(c)];
       const d = fresh(`<div class="tk-col"><div class="tk-grid" data-cups style="grid-template-columns:repeat(${cols},auto)">${[...Array(cols * rows).keys()]
         .map((c) => `<button type="button" class="tk-cup" data-k="${c}" aria-label="cup ${c + 1}" disabled><span class="pet"></span><span class="lid">🥤</span></button>`).join("")}</div></div>`);
       const cups = $("[data-cups]", d);
       const cup = (c) => cups.children[c];
-      await sayAsync(reverse ? "Animals hide under the cups. Watch where they go. Then tap the cups <b>backwards</b>!" : "Animals hide under the cups. Watch where each one hides. Then tap the cups in the same order!");
+      await sayAsync(lines ? "Animals hide under the cups. Watch where they go. Then tap the cups <b>like reading a page</b>: top row first, left to right, then the next row!" : reverse ? "Animals hide under the cups. Watch where they go. Then tap the cups <b>backwards</b>!" : "Animals hide under the cups. Watch where each one hides. Then tap the cups in the same order!");
       if (my !== token) return;
       await wait(300);
       for (let k = 0; k < n; k++) {
@@ -356,9 +390,9 @@ const units = {
       }
       if (my !== token) return;
       cups.querySelectorAll("button").forEach((b) => (b.disabled = false));
-      say(reverse ? "Your turn! Where did the last animal hide? Tap backwards." : "Your turn! Tap where they hid, in order.");
+      say(lines ? "Your turn! Tap the hiding cups in reading order." : reverse ? "Your turn! Where did the last animal hide? Tap backwards." : "Your turn! Tap where they hid, in order.");
       const ok = await collect(cups, want, (b, k) => {
-        const pet = pets[reverse ? n - 1 - k : k];
+        const pet = petAt(Number(b.dataset.k));
         b.querySelector(".pet").textContent = pet;
         b.classList.add("up", "good");
         b.disabled = true;
@@ -366,11 +400,24 @@ const units = {
       }, (b) => b.classList.add("bad"));
       if (my !== token) return;
       cups.querySelectorAll("button").forEach((b) => (b.disabled = true));
+      const climb = ok && !reverse && !lines && fw.n >= 8;
       if (ok) sp.up();
       else sp.down();
-      if (!yg && !reverse) sset("mg1", fw.n);
-      if (!ok) want.forEach((c, k) => { const b = cup(c); b.classList.add("up"); b.querySelector(".pet").textContent = pets[reverse ? n - 1 - k : k]; });
-      feedback(ok, ok ? `You kept ${n} hiding spots in mind!` : `Here is where they hid. Let's try another.`);
+      if (!yg && !reverse && !lines) sset("mg1", fw.n);
+      if (!yg && !mst && climb) {
+        mst = true;
+        sset("mg1m", 1);
+        fw.max = 10;
+        rv.max = 8;
+      } else if (mst && !ok && !reverse && !lines && fw.n < 8) {
+        mst = false;
+        sset("mg1m", 0);
+        fw.max = 8;
+        rv.max = 6;
+        rv.n = Math.min(rv.n, 6);
+      }
+      if (!ok) want.forEach((c) => { const b = cup(c); b.classList.add("up"); b.querySelector(".pet").textContent = petAt(c); });
+      feedback(ok, ok ? `You kept ${n} hiding spots in mind${lines ? " and read them in order" : ""}!` : `Here is where they hid. Let's try another.`);
       return ok;
     });
   },
@@ -380,48 +427,59 @@ const units = {
     const my = token;
     panel(`<div class="tk-stat" data-status></div>`);
     const yg = young();
-    const fw = span(yg ? 1 : 2, 1, yg ? 3 : 8);
+    let mst = !yg && mflag("mg2");
+    const fw = span(yg ? 1 : 2, 1, yg ? 3 : mst ? 10 : 8);
     if (!yg) sget("mg2", fw);
     const so = span(3, 3, 8);
     const rv = span(2, 2, 6);
+    const mx = span(4, 4, 8);
     const pics = ["🐶", "🐱", "🐰", "🐸"];
     run(my, "mg2", "listening", yg ? 6 : 8, async (i) => {
       const exp = !yg && fw.n >= 6;
       const srt = exp && i >= 4 && i % 2 === 1;
-      const reverse = !yg && i >= 4 && !srt;
+      const mix = mst && i >= 4 && !srt;
+      const reverse = !yg && i >= 4 && !srt && !mix;
       const animals = srt && i === 7;
-      const sp = srt ? so : reverse ? rv : fw;
+      const sp = srt ? so : mix ? mx : reverse ? rv : fw;
       if (reverse && i === 4) rv.n = Math.max(2, fw.n - 1);
+      if (mix && i === 4) mx.n = Math.max(4, fw.n - 2);
       EXP = exp;
+      MST = mst;
       const n = sp.n;
       let digits = [];
-      if (srt) digits = animals ? shuffle(Object.keys(NAMES)).slice(0, n) : shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, n);
+      if (mix) {
+        const nums = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, Math.ceil(n / 2));
+        const ans = shuffle(pics).slice(0, Math.floor(n / 2));
+        for (let k = 0; k < n; k++) digits.push(k % 2 ? ans[(k - 1) / 2] : nums[k / 2]);
+      } else if (srt) digits = animals ? shuffle(Object.keys(NAMES)).slice(0, n) : shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, n);
       else {
         while (digits.length < n) {
           const x = yg ? pick(pics) : pickInt(1, 9);
           if (digits[digits.length - 1] !== x) digits.push(x);
         }
       }
-      const want = srt ? [...digits].sort(animals ? (a, b) => (NAMES[a] < NAMES[b] ? -1 : 1) : (a, b) => a - b) : reverse ? [...digits].reverse() : digits;
-      const pool = yg ? pics : animals ? Object.keys(NAMES) : [1, 2, 3, 4, 5, 6, 7, 8, 9];
+      const want = mix ? [...digits.filter((x) => !pics.includes(x)), ...digits.filter((x) => pics.includes(x))] : srt ? [...digits].sort(animals ? (a, b) => (NAMES[a] < NAMES[b] ? -1 : 1) : (a, b) => a - b) : reverse ? [...digits].reverse() : digits;
+      const pool = mix ? [1, 2, 3, 4, 5, 6, 7, 8, 9, ...pics] : yg ? pics : animals ? Object.keys(NAMES) : [1, 2, 3, 4, 5, 6, 7, 8, 9];
       const d = fresh(`<div class="tk-col"><div class="tk-ear" data-ear>👂</div><div class="tk-slots" data-slots></div><div class="tk-keys" data-keys>${pool
         .map((k) => `<button type="button" data-k="${k}" disabled>${k}</button>`).join("")}</div></div>`);
       if (yg) $("[data-keys]", d).style.gridTemplateColumns = "repeat(2,clamp(80px,22vw,120px))";
       if (animals) $("[data-keys]", d).style.gridTemplateColumns = "repeat(4,clamp(64px,16vw,90px))";
+      if (mix) $("[data-keys]", d).style.gridTemplateColumns = "repeat(5,clamp(54px,14vw,84px))";
       const ear = $("[data-ear]", d);
       const slots = $("[data-slots]", d);
       slots.innerHTML = want.map(() => "<span></span>").join("");
-      await sayAsync(srt ? (animals ? "Sort it! Listen to the animals. Then tap them in <b>A to Z order</b> of their names!" : "Sort it! Listen to the numbers. Then tap them from the <b>smallest to the biggest</b>!") : yg ? "Listen to the animals. Then tap them in the same order!" : reverse ? "Listen to the numbers. Then tap them <b>backwards</b>: the last one first!" : "Listen to the numbers. Then tap them in the same order!");
+      await sayAsync(mix ? "Numbers and animals are mixed up! Listen. Then tap the <b>numbers first</b>, then the <b>animals</b>. Keep each group in the order you heard it!" : srt ? (animals ? "Sort it! Listen to the animals. Then tap them in <b>A to Z order</b> of their names!" : "Sort it! Listen to the numbers. Then tap them from the <b>smallest to the biggest</b>!") : yg ? "Listen to the animals. Then tap them in the same order!" : reverse ? "Listen to the numbers. Then tap them <b>backwards</b>: the last one first!" : "Listen to the numbers. Then tap them in the same order!");
       if (my !== token) return;
       await wait(500);
       const sees = !VOICE.state.on;
       for (let k = 0; k < n; k++) {
         if (my !== token) return;
-        ear.textContent = sees || yg || animals ? digits[k] : "🔊";
+        const isPic = yg || animals || (mix && pics.includes(digits[k]));
+        ear.textContent = sees || isPic ? digits[k] : "🔊";
         ear.classList.remove("pop");
         void ear.offsetWidth;
         ear.classList.add("pop");
-        if (!sees) await VOICE.speakAsync(yg || animals ? NAMES[digits[k]] : String(digits[k]));
+        if (!sees) await VOICE.speakAsync(isPic ? NAMES[digits[k]] : String(digits[k]));
         else await hold(900);
         if (my !== token) return;
         ear.textContent = "👂";
@@ -430,18 +488,28 @@ const units = {
       if (my !== token) return;
       const keys = $("[data-keys]", d);
       keys.querySelectorAll("button").forEach((b) => (b.disabled = false));
-      say(srt ? "Your turn! Tap them in sorted order." : reverse ? "Your turn! Tap the numbers backwards." : "Your turn! Tap the numbers in order.");
+      say(mix ? "Your turn! Numbers first, then animals." : srt ? "Your turn! Tap them in sorted order." : reverse ? "Your turn! Tap the numbers backwards." : "Your turn! Tap the numbers in order.");
       const ok = await collect(keys, want, (b, k) => {
         slots.children[k].textContent = b.dataset.k;
-        note(yg || animals ? k : Number(b.dataset.k) - 1);
+        note(yg || animals || pics.includes(b.dataset.k) ? k : Number(b.dataset.k) - 1);
       }, (b) => b.classList.add("bad"));
       if (my !== token) return;
       keys.querySelectorAll("button").forEach((b) => (b.disabled = true));
+      const climb = ok && !reverse && !srt && !mix && fw.n >= 8;
       if (ok) sp.up();
       else sp.down();
-      if (!yg && !reverse && !srt) sset("mg2", fw.n);
+      if (!yg && !reverse && !srt && !mix) sset("mg2", fw.n);
+      if (!yg && !mst && climb) {
+        mst = true;
+        sset("mg2m", 1);
+        fw.max = 10;
+      } else if (mst && !ok && !reverse && !srt && !mix && fw.n < 8) {
+        mst = false;
+        sset("mg2m", 0);
+        fw.max = 8;
+      }
       if (!ok) want.forEach((x, k) => (slots.children[k].textContent = x));
-      feedback(ok, ok ? `You held ${n} ${animals ? "animals" : "numbers"}${srt ? " and sorted them" : reverse ? " and turned them around" : ""}!` : `It was ${want.map((x) => (animals ? NAMES[x] : x)).join(", ")}. Let's try another.`);
+      feedback(ok, ok ? `You held ${n} ${animals ? "animals" : mix ? "numbers and animals" : "numbers"}${mix ? " in two groups" : srt ? " and sorted them" : reverse ? " and turned them around" : ""}!` : `It was ${want.map((x) => (animals || pics.includes(x) ? NAMES[x] : x)).join(", ")}. Let's try another.`);
       return ok;
     });
   },
@@ -452,35 +520,40 @@ const units = {
     if (young()) return calm(my, "mg3", ["🐱", "🐶", "🐰", "🐸", "🐵", "🐷"], "cat", "cats");
     const SECS = 60;
     LV.spotX = sflag("spotX");
+    LV.spotM = LV.spotX && sflag("spotM");
     const POOL = ["⭐", "🌙", "❤️", "🔷", "🔶", "🟢", "🔺", "🟣", "⬛", "☀️", "🍀", "💧"];
     panel(`<div class="tk-stat" data-status></div><button type="button" class="tk-big" data-do="skip" hidden>Next row ▶</button>`);
     const intro = () => {
       const t = pick(POOL);
       const t2 = LV.spotX ? pick(POOL.filter((x) => x !== t)) : null;
       EXP = !!LV.spotX;
+      MST = !!LV.spotM;
       const d = fresh(`<div class="tk-col"><div class="tk-card">${t}${t2 || ""}</div><button type="button" class="tk-big" data-go>Ready, go!</button></div>`);
-      status(EXP ? "🦉 Expert" : "");
-      say(t2 ? `Expert round! In one minute, tap every <b>${t}</b> AND every <b>${t2}</b>. Rows are longer. Be fast, but careful!` : `In one minute, tap every <b>${t}</b> you can find. Go fast, but be careful: wrong taps count against you!`);
+      status(MST ? "🐉 Master" : EXP ? "🦉 Expert" : "");
+      say(MST ? `Master round! Tap every <b>${t}</b> AND every <b>${t2}</b>. Rows are longer and the care bar is higher. Halfway through, the targets CHANGE to a new pair. Watch the heading!` : t2 ? `Expert round! In one minute, tap every <b>${t}</b> AND every <b>${t2}</b>. Rows are longer. Be fast, but careful!` : `In one minute, tap every <b>${t}</b> you can find. Go fast, but be careful: wrong taps count against you!`);
       $("[data-go]", d).onclick = () => play(t, t2);
     };
     const play = (target, t2) => {
       const X = !!t2;
+      const M = X && !!LV.spotM;
+      const top = M ? 20 : X ? 18 : 12;
+      let switched = false;
       VOICE.hush();
-      let len = X ? Math.max(14, LV.spot) : LV.spot;
+      let len = M ? Math.max(16, LV.spot) : X ? Math.max(14, LV.spot) : LV.spot;
       let found = 0, wrong = 0, missed = 0, rows = 0, left = 0;
       const t0 = performance.now();
-      const d = fresh(`<div class="tk-col"><div class="tk-bar"><i data-bar></i></div><div class="tk-stat" style="font-size:clamp(20px,4vw,30px)">Find every ${target}${t2 ? " and " + t2 : ""}</div><div data-row></div></div>`);
+      const d = fresh(`<div class="tk-col"><div class="tk-bar"><i data-bar></i></div><div class="tk-stat" style="font-size:clamp(20px,4vw,30px)" data-hd>Find every ${target}${t2 ? " and " + t2 : ""}</div><div data-row></div></div>`);
       const skip = $("[data-do=skip]");
       skip.hidden = false;
       const acc = () => (found + wrong + missed ? Math.round((100 * found) / (found + wrong + missed)) : 100);
       const upd = () => {
         const s = Math.max(0, Math.ceil(SECS - (performance.now() - t0) / 1000));
-        status(`${X ? "🦉 " : ""}⏱ ${s} s · found ${found} · care ${acc()}%`);
+        status(`${M ? "🐉 " : X ? "🦉 " : ""}⏱ ${s} s · found ${found} · care ${acc()}%`);
         $("[data-bar]", d).style.width = `${(100 * s) / SECS}%`;
         return s;
       };
       const newRow = () => {
-        const targets = pickInt(X ? 2 : 1, Math.min(X ? 4 : 3, 1 + Math.floor(len / 5)));
+        const targets = pickInt(X ? 2 : 1, Math.min(M ? 5 : X ? 4 : 3, 1 + Math.floor(len / 5)));
         const others = POOL.filter((x) => x !== target && x !== t2);
         let flip = 0;
         const cells = shuffle([...Array(len).keys()]);
@@ -489,7 +562,7 @@ const units = {
         left = targets;
         rows += 1;
         const host = $("[data-row]", d);
-        host.innerHTML = `<div class="tk-row">${row.map((g) => `<button type="button" data-t="${g === target ? 1 : 0}" aria-label="symbol">${g}</button>`).join("")}</div>`;
+        host.innerHTML = `<div class="tk-row">${row.map((g) => `<button type="button" data-t="${g === target || g === t2 ? 1 : 0}" aria-label="symbol">${g}</button>`).join("")}</div>`;
         let errs = 0;
         host.onclick = (event) => {
           const b = event.target.closest("button[data-t]");
@@ -502,7 +575,7 @@ const units = {
             b.classList.add("good");
             note(Math.min(9, found % 10), 0.3);
             if (left === 0) {
-              if (!errs) len = Math.min(X ? 18 : 12, len + 1);
+              if (!errs) len = Math.min(top, len + 1);
               setTimeout(() => !ended && newRow(), 220);
             }
           } else {
@@ -527,13 +600,36 @@ const units = {
       clearInterval(timerId);
       timerId = setInterval(() => {
         if (my !== token) return clearInterval(timerId);
-        if (upd() > 0) return;
+        const s = upd();
+        if (M && !switched && s <= SECS / 2) {
+          switched = true;
+          missed += left;
+          const pair = shuffle(POOL.filter((x) => x !== target && x !== t2)).slice(0, 2);
+          [target, t2] = pair;
+          $("[data-hd]", d).textContent = `NEW targets! Find every ${target} and ${t2}`;
+          say(`The targets changed! Now tap every <b>${target}</b> AND every <b>${t2}</b>.`);
+          MUSIC.chime();
+          newRow();
+          upd();
+        }
+        if (s > 0) return;
         clearInterval(timerId);
         ended = true;
         skip.hidden = true;
-        LV.spot = Math.max(5, Math.min(X ? 18 : 12, len));
+        LV.spot = Math.max(5, Math.min(top, len));
         const care = acc();
-        const ok = care >= 85 && found >= (X ? 12 : 8);
+        const ok = M ? care >= 90 && found >= 14 : care >= 85 && found >= (X ? 12 : 8);
+        if (X && !M && care >= 90 && found >= 14) {
+          LV.spotM = true;
+          sset("spotM", 1);
+        } else if (M && care < 80) {
+          LV.spotMissM = (LV.spotMissM || 0) + 1;
+          if (LV.spotMissM >= 2) {
+            LV.spotM = false;
+            LV.spotMissM = 0;
+            sset("spotM", 0);
+          }
+        } else if (M) LV.spotMissM = 0;
         if (!X && care >= 90 && found >= 12 && len >= 11) {
           LV.spotX = true;
           sset("spotX", 1);
@@ -543,6 +639,8 @@ const units = {
             LV.spotX = false;
             LV.spotMiss = 0;
             sset("spotX", 0);
+            LV.spotM = false;
+            sset("spotM", 0);
           }
         } else if (X) LV.spotMiss = 0;
         if (ok) shell.mark("mg3", { done: true });
@@ -563,17 +661,19 @@ const units = {
     if (young()) return calm(my, "mg4", ["⭐", "🔴", "🔷", "🟩", "🌙", "🔺"], "star", "stars");
     const SECS = 60;
     LV.codeX = sflag("codeX");
+    LV.codeM = LV.codeX && sflag("codeM");
     const SHAPES = ["🔴", "⭐", "🔺", "🔷", "🟩", "🌙", "🍀", "💧", "🟣"];
     const MARKS = ["+", "=", "○", "∨", "/", "✕", "▷", "~", "#"];
     panel(`<div class="tk-stat" data-status></div>`);
     const intro = () => {
       const n = LV.codeX ? 9 : LV.pairs;
       EXP = !!LV.codeX;
+      MST = !!LV.codeM;
       const shapes = SHAPES.slice(0, n);
       const marks = shuffle(MARKS.slice(0, n));
       const d = fresh(`<div class="tk-col"><div class="tk-key">${shapes.map((s, i) => `<div>${s}<b>${marks[i]}</b></div>`).join("")}</div><button type="button" class="tk-big" data-go>Ready, go!</button></div>`);
-      status("");
-      say(`${LV.codeX ? "Expert round! Grey squares have a twist: use the mark of the NEXT shape in the key. " : ""}Each shape has its own mark. Look at the key. In one minute, fill in as many marks as you can. Go fast, but be careful!`);
+      status(MST ? "🐉 Master" : EXP ? "🦉 Expert" : "");
+      say(`${LV.codeM ? "Master round! Grey squares use the mark of the NEXT shape in the key. But halfway through, the rule FLIPS: grey squares then use the PREVIOUS shape's mark. More squares are grey, and the care bar is higher. " : LV.codeX ? "Expert round! Grey squares have a twist: use the mark of the NEXT shape in the key. " : ""}Each shape has its own mark. Look at the key. In one minute, fill in as many marks as you can. Go fast, but be careful!`);
       $("[data-go]", d).onclick = () => play(shapes, marks);
     };
     const play = (shapes, marks) => {
@@ -581,13 +681,15 @@ const units = {
       const n = shapes.length;
       let done = 0, errs = 0, ended = false, cur = 0, sheet = [], shade = [];
       const X = !!LV.codeX;
+      const M = X && !!LV.codeM;
+      let dir = 1;
       const t0 = performance.now();
-      const d = fresh(`<div class="tk-col"><div class="tk-bar"><i data-bar></i></div><div class="tk-key">${shapes.map((s, i) => `<div>${s}<b>${marks[i]}</b></div>`).join("")}</div>${X ? `<div class="tk-stat">Grey square: use the NEXT shape's mark in the key</div>` : ""}<div class="tk-sheet" data-sheet></div><div class="tk-pal" data-pal>${marks.map((m, i) => `<button type="button" data-m="${i}" aria-label="mark ${m}">${m}</button>`).join("")}</div></div>`);
+      const d = fresh(`<div class="tk-col"><div class="tk-bar"><i data-bar></i></div><div class="tk-key">${shapes.map((s, i) => `<div>${s}<b>${marks[i]}</b></div>`).join("")}</div>${X ? `<div class="tk-stat" data-rule>Grey square: use the NEXT shape's mark in the key</div>` : ""}<div class="tk-sheet" data-sheet></div><div class="tk-pal" data-pal>${marks.map((m, i) => `<button type="button" data-m="${i}" aria-label="mark ${m}">${m}</button>`).join("")}</div></div>`);
       const host = $("[data-sheet]", d);
       const acc = () => (done + errs ? Math.round((100 * done) / (done + errs)) : 100);
       const upd = () => {
         const s = Math.max(0, Math.ceil(SECS - (performance.now() - t0) / 1000));
-        status(`${X ? "🦉 " : ""}⏱ ${s} s · done ${done} · care ${acc()}%`);
+        status(`${M ? "🐉 " : X ? "🦉 " : ""}⏱ ${s} s · done ${done} · care ${acc()}%`);
         $("[data-bar]", d).style.width = `${(100 * s) / SECS}%`;
         return s;
       };
@@ -598,7 +700,7 @@ const units = {
           if (sheet[sheet.length - 1] !== x) sheet.push(x);
         }
         cur = 0;
-        shade = sheet.map(() => X && Math.random() < 0.35);
+        shade = sheet.map(() => X && Math.random() < (M ? 0.5 : 0.35));
         host.innerHTML = sheet.map((x, i) => `<div class="${[i === 0 && "now", shade[i] && "sh"].filter(Boolean).join(" ")}">${shapes[x]}<b></b></div>`).join("");
       };
       newSheet();
@@ -608,7 +710,7 @@ const units = {
         if (!b || ended) return;
         window.OC?.touch();
         const m = Number(b.dataset.m);
-        if (m === (sheet[cur] + (shade[cur] ? 1 : 0)) % n) {
+        if (m === (sheet[cur] + (shade[cur] ? dir : 0) + n) % n) {
           host.children[cur].querySelector("b").textContent = marks[m];
           host.children[cur].classList.remove("now");
           done += 1;
@@ -628,11 +730,30 @@ const units = {
       clearInterval(timerId);
       timerId = setInterval(() => {
         if (my !== token) return clearInterval(timerId);
-        if (upd() > 0) return;
+        const s = upd();
+        if (M && dir === 1 && s <= SECS / 2) {
+          dir = -1;
+          $("[data-rule]", d).textContent = "RULE FLIPPED! Grey square: use the PREVIOUS shape's mark";
+          say("The rule flipped! Grey squares now use the <b>previous</b> shape's mark in the key.");
+          MUSIC.chime();
+          newSheet();
+        }
+        if (s > 0) return;
         clearInterval(timerId);
         ended = true;
         const care = acc();
-        const ok = care >= 85 && done >= 10;
+        const ok = care >= (M ? 90 : 85) && done >= (M ? 12 : 10);
+        if (X && !M && care >= 90 && done >= 18) {
+          LV.codeM = true;
+          sset("codeM", 1);
+        } else if (M && care < 80) {
+          LV.codeMissM = (LV.codeMissM || 0) + 1;
+          if (LV.codeMissM >= 2) {
+            LV.codeM = false;
+            LV.codeMissM = 0;
+            sset("codeM", 0);
+          }
+        } else if (M) LV.codeMissM = 0;
         if (!X && LV.pairs >= 9 && care >= 90 && done >= 16) {
           LV.codeX = true;
           sset("codeX", 1);
@@ -642,6 +763,8 @@ const units = {
             LV.codeX = false;
             LV.codeMiss = 0;
             sset("codeX", 0);
+            LV.codeM = false;
+            sset("codeM", 0);
           }
         } else if (X) LV.codeMiss = 0;
         if (care >= 90 && done >= 16) LV.pairs = Math.min(9, LV.pairs + 1);
@@ -662,6 +785,7 @@ const units = {
 const stopAll = () => {
   token += 1;
   EXP = false;
+  MST = false;
   clearInterval(timerId);
   VOICE.hush();
   const skip = $("[data-do=skip]");

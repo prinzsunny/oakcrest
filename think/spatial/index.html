@@ -80,9 +80,10 @@ const LV3 = [
   ["medium", "🦊 Medium"],
   ["hard", "🦁 Hard"],
   ["expert", "🦉 Expert"],
+  ["master", "🐉 Master"],
 ];
-const NEXT = { tiny: "easy", easy: "medium", medium: "hard", hard: "expert" };
-const PREV = { expert: "hard", hard: "medium", medium: "easy", easy: "tiny" };
+const NEXT = { tiny: "easy", easy: "medium", medium: "hard", hard: "expert", expert: "master" };
+const PREV = { master: "expert", expert: "hard", hard: "medium", medium: "easy", easy: "tiny" };
 const littleAge = () => {
   let age = null;
   try {
@@ -91,7 +92,7 @@ const littleAge = () => {
   return age != null && age < 5;
 };
 const startLv = () => (littleAge() ? "tiny" : "easy");
-const chipsHtml = (cur) => `<div class="ap-chips" data-lvls>${LV3.filter(([k]) => k !== "expert" || !littleAge()).map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div>`;
+const chipsHtml = (cur) => `<div class="ap-chips" data-lvls>${LV3.filter(([k]) => k !== "expert" && k !== "master" || !littleAge()).map(([k, l]) => `<button type="button" data-lv="${k}" aria-pressed="${k === cur}">${l}</button>`).join("")}</div>`;
 const bindLevels = (onPick) => {
   const host = $("[data-lvls]");
   host.onclick = (event) => {
@@ -131,7 +132,7 @@ async function finish(my, id, right, total, what, lv) {
   if (right >= Math.ceil(total * 0.6)) shell.mark(id, { done: true });
   const rate = right / total;
   let move = null;
-  if (rate >= 0.8 && NEXT[lv] && !(NEXT[lv] === "expert" && littleAge())) move = NEXT[lv];
+  if (rate >= 0.8 && NEXT[lv] && !((NEXT[lv] === "expert" || NEXT[lv] === "master") && littleAge())) move = NEXT[lv];
   else if (rate <= 0.34 && PREV[lv]) move = PREV[lv];
   const extra = move ? (rate >= 0.8 ? " Ready for a harder one!" : " Let's try some easier ones.") : "";
   say(`🎉 All ${total} done! You got ${right} right first time. ${right >= total - 1 ? `Super ${what}!` : "Let's play again!"}${extra}`);
@@ -286,10 +287,10 @@ function sp1() {
       say(`Copy the colours! Look at the two squares on the left. Tap a square on the right to change its colour until they match.`);
       return;
     }
-    const n = lv === "easy" ? 2 : lv === "medium" || lv === "hard" ? 3 : 4;
+    const n = lv === "easy" ? 2 : lv === "medium" || lv === "hard" ? 3 : lv === "master" ? 5 : 4;
     const pair = shuffle(COLS);
     const target = Array.from({ length: n * n }, (_, i) => {
-      const [a, b] = lv === "hard" ? pair[rnd(2)] : lv === "expert" ? pair[rnd(4)] : pair[0];
+      const [a, b] = lv === "hard" ? pair[rnd(2)] : lv === "expert" || lv === "master" ? pair[rnd(4)] : pair[0];
       return { a, b, o: rnd(4) };
     });
     const cur = target.map((t) => (Math.random() < 0.85 ? (t.o + 1 + rnd(3)) % 4 : rnd(4)));
@@ -494,6 +495,11 @@ function makeMatrix(lv, round) {
         const three = shuffle(["rot", "count", "fill"]);
         rules = [{ a: three[0], kind: pick(["latin", "latin2"]) }, { a: three[1], kind: "row" }, { a: three[2], kind: "col" }];
       }
+      if (lv === "master") {
+        const four = shuffle(["color", "size", "count", "fill", "rot"]).slice(0, 4);
+        const ks = shuffle(["latin", "latin2"]);
+        rules = [{ a: four[0], kind: ks[0] }, { a: four[1], kind: ks[1] }, { a: four[2], kind: "row" }, { a: four[3], kind: "col" }];
+      }
     }
     if (rules.some((r) => r.a === "rot")) base.shape = 3;
     rules = rules.filter((r) => r.a !== "shape" || base.shape !== 3);
@@ -526,7 +532,7 @@ function makeMatrix(lv, round) {
       for (const v of alt(ans, a)) pool.push({ ...ans, [a]: v });
     }
     const pair = shuffle(varying);
-    if (lv === "expert") pool = pool.filter((c) => varying.some((a) => c[a] !== ans[a]) && Object.keys(ATT).filter((a) => c[a] !== ans[a]).length === 1);
+    if (lv === "expert" || lv === "master") pool = pool.filter((c) => varying.some((a) => c[a] !== ans[a]) && Object.keys(ATT).filter((a) => c[a] !== ans[a]).length === 1);
     else if (pair.length > 1) pool.push({ ...ans, [pair[0]]: alt(ans, pair[0])[0], [pair[1]]: alt(ans, pair[1])[0] });
     const seen = new Set([cellKey(ans)]);
     const wrongs = [];
@@ -646,7 +652,7 @@ const unfold = (folds, holes) => {
 };
 const sameSet = (A, B) => A.length === B.length && A.every((a) => B.some((b) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 0.12)) && B.every((b) => A.some((a) => Math.hypot(a[0] - b[0], a[1] - b[1]) < 0.12));
 const mkFold = (type, s, t, c = [0.5, 0.5]) => ({ type, c, n: type === "V" ? [s, 0] : type === "H" ? [0, s] : [s * R2, t * R2], s, t });
-const FOLD_WORDS = { V: "in half, side to side", H: "in half, top to bottom", D: "in half, corner to corner" };
+const FOLD_WORDS = { E: "in half again, along the middle of the triangle", V: "in half, side to side", H: "in half, top to bottom", D: "in half, corner to corner" };
 function makeFold(lv) {
   for (let tries = 0; tries < 400; tries++) {
     const s = pick([-1, 1]);
@@ -654,24 +660,32 @@ function makeFold(lv) {
     let folds;
     if (lv === "easy" || lv === "tiny") folds = [mkFold(pick(["V", "H"]), s, t)];
     else if (lv === "medium") folds = [mkFold(pick(["V", "H", "D", "D"]), s, t)];
-    else if (lv === "expert") {
+    else if (lv === "expert" || lv === "master") {
       const sv = pick([-1, 1]);
       const sh = pick([-1, 1]);
       const v = mkFold("V", sv, 0);
       const h = mkFold("H", sh, 0);
       folds = Math.random() < 0.5 ? [v, h] : [h, v];
-      folds.push(mkFold("D", pick([-1, 1]), pick([-1, 1]), [0.5 - sv * 0.25, 0.5 - sh * 0.25]));
+      const ds = pick([-1, 1]);
+      const dt = pick([-1, 1]);
+      const dc = [0.5 - sv * 0.25, 0.5 - sh * 0.25];
+      folds.push(mkFold("D", ds, dt, dc));
+      if (lv === "master") {
+        const m = pick([-1, 1]);
+        folds.push(mkFold("E", m * dt, -m * ds, dc));
+      }
     } else folds = shuffle([mkFold("V", s, t), mkFold("H", t, s)]);
-    const exp = lv === "expert";
+    const ms = lv === "master";
+    const exp = lv === "expert" || ms;
     const nHoles = lv === "medium" || exp ? 2 : 1;
     const holes = [];
     for (let k = 0; k < 300 && holes.length < nHoles; k++) {
       const p = [0.12 + Math.random() * 0.76, 0.12 + Math.random() * 0.76];
-      if (folds.every((f) => dotN(p, f) <= (exp ? -0.07 : -0.14)) && holes.every((h) => Math.hypot(h[0] - p[0], h[1] - p[1]) > (exp ? 0.17 : 0.28))) holes.push(p);
+      if (folds.every((f) => dotN(p, f) <= (ms ? -0.06 : exp ? -0.07 : -0.14)) && holes.every((h) => Math.hypot(h[0] - p[0], h[1] - p[1]) > (ms ? 0.15 : exp ? 0.17 : 0.28))) holes.push(p);
     }
     if (holes.length < nHoles) continue;
     const correct = unfold(folds, holes);
-    if (exp && correct.some((a, i) => correct.some((b, j) => j > i && Math.hypot(a[0] - b[0], a[1] - b[1]) < 0.11))) continue;
+    if (exp && correct.some((a, i) => correct.some((b, j) => j > i && Math.hypot(a[0] - b[0], a[1] - b[1]) < (ms ? 0.09 : 0.11)))) continue;
     // wrong answers: plausible mistakes
     const altFolds = folds.map((f) => mkFold(f.type === "V" ? "H" : f.type === "H" ? "V" : "V", f.s, f.t));
     const cands = [
@@ -696,7 +710,7 @@ function makeFold(lv) {
       pl = clip(pl, fd, false);
       return before;
     });
-    return { folds, holes, correct, polys, hr: exp ? 0.034 : 0.047, wrongs: wrongs.slice(0, need) };
+    return { folds, holes, correct, polys, hr: ms ? 0.03 : exp ? 0.034 : 0.047, wrongs: wrongs.slice(0, need) };
   }
   return null;
 }
@@ -810,7 +824,7 @@ const sp3cfg = {
       drawQ(g) {
         el("polygon", { points: ptsStr(SQ), fill: PAPER.fill, stroke: PAPER.stroke, "stroke-width": 4, "stroke-linejoin": "round" }, g);
         f.folds.forEach((fd, i) => crease(g, fd, {}, f.polys[i]));
-        text(g, 285, 62, nFolds === 1 ? "This paper will be folded" : nFolds === 2 ? "This paper will be folded twice" : "This paper will be folded three times", { "font-size": 30, fill: INK });
+        text(g, 285, 62, nFolds === 1 ? "This paper will be folded" : nFolds === 2 ? "This paper will be folded twice" : nFolds === 3 ? "This paper will be folded three times" : "This paper will be folded four times", { "font-size": 30, fill: INK });
       },
       after: (g, alive) => foldAnim(g, f, alive, run),
       opts: list.map((h) => ({ draw: paperOpt(h) })),
@@ -944,9 +958,9 @@ function drawCubes(parent, cs, box, maxS, col) {
   });
   return g;
 }
-function cubeRound() {
+function cubeRound(n = 6) {
   for (let tries = 0; tries < 400; tries++) {
-    const target = vgrow(6);
+    const target = vgrow(n);
     const mirror = vmir(target);
     const k = 1 + rnd(3);
     let answer = target;
@@ -998,8 +1012,52 @@ function cubeRound() {
   }
   return null;
 }
-function flippedRound() {
-  const target = growPoly(6, 4, 3, true);
+// Master: a plan of tower heights seen from above; pick the stack as seen from the marked corner.
+function planRound() {
+  const hts = (cs) => {
+    const h = Array.from({ length: 3 }, () => [0, 0, 0]);
+    cs.forEach(([x, y]) => h[y][x]++);
+    return h;
+  };
+  const hk = (cs) => hts(cs).flat().join("");
+  for (let tries = 0; tries < 400; tries++) {
+    const target = vgrow(8);
+    const taken = new Set([hk(target)]);
+    const wrongs = [];
+    for (const c of shuffle([vrot(target), vmir(target), vmutate(target), vmutate(target), vmutate(vmir(target))])) {
+      if (!c || taken.has(hk(c))) continue;
+      taken.add(hk(c));
+      wrongs.push({ cs: c, kind: "other" });
+    }
+    if (wrongs.length < 3) continue;
+    const use = wrongs.slice(0, 3);
+    if (new Set([isoSig(target), ...use.map((w) => isoSig(w.cs))]).size < 4) continue;
+    const col = pick([PAL[0], PAL[1], PAL[3], PAL[4]]);
+    const { list, ans } = withAnswer({ cs: target, kind: "ans" }, use);
+    const h = hts(target);
+    return {
+      say: `The numbers show how many cubes are stacked in each place, seen from above. You are standing at the marked corner. Which picture shows the stack as you see it from there? Tap it.`,
+      drawQ(g) {
+        const x0 = 165;
+        const y0 = 120;
+        text(g, 300, 80, "Seen from above", { "font-size": 34, fill: INK });
+        for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+          el("rect", { x: x0 + c * 90 + 3, y: y0 + r * 90 + 3, width: 84, height: 84, rx: 12, fill: h[r][c] ? "#fff" : "#f1e8d8", stroke: "#d9cdb5", "stroke-width": 3 }, g);
+          text(g, x0 + c * 90 + 45, y0 + r * 90 + 62, String(h[r][c]), { "font-size": 48, fill: h[r][c] ? INK : "#c9bba4" });
+        }
+        el("circle", { cx: x0 + 285, cy: y0 + 285, r: 12, fill: "var(--accent)" }, g);
+        text(g, 300, 470, "You stand at the round dot", { "font-size": 30, fill: "#8a7764" });
+      },
+      opts: list.map((o) => ({ draw: (g) => drawCubes(g, o.cs, 150, 40, col) })),
+      ans,
+      right: () => `Add up the numbers: 8 cubes. From the dot, the tall towers on the left and right edges show up in the right places.`,
+      wrong: () => `Check the numbers against the picture. Which towers are tallest, and are they where you would see them from the dot?`,
+    };
+  }
+  return null;
+}
+function flippedRound(n = 6, mw = 4, mh = 3) {
+  const target = growPoly(n, mw, mh, true);
   const rots = shuffle([0, 1, 2, 3]);
   const turned = (cells, n) => {
     let r = cells;
@@ -1029,6 +1087,7 @@ const sp4cfg = {
   what: "mental turning",
   pause: 4000,
   make(lv, round) {
+    if (lv === "master") return round % 3 === 0 ? cubeRound(9) : round % 3 === 1 ? planRound() : flippedRound(8, 4, 4);
     if (lv === "expert") return round % 2 === 0 ? cubeRound() : flippedRound();
     const cfg = lv === "tiny" ? { n: 4, mw: 3, mh: 2, wrongs: 2 } : lv === "easy" ? { n: 4, mw: 3, mh: 2, wrongs: 2 } : lv === "medium" ? { n: 5, mw: 3, mh: 3, wrongs: 3 } : { n: 6, mw: 4, mh: 3, wrongs: 3 };
     for (;;) {
@@ -1160,7 +1219,7 @@ const sp5cfg = {
   what: "puzzle building",
   pause: 4200,
   make(lv) {
-    const cfg = lv === "expert" ? { n: 11, k: pick([3, 4]), mw: 4, mh: 4, rot: true } : lv === "tiny" ? { n: 5, k: 2, mw: 3, mh: 3, rot: false } : lv === "easy" ? { n: 6, k: 2, mw: 3, mh: 3, rot: false } : lv === "medium" ? { n: 8, k: pick([2, 3]), mw: 4, mh: 3, rot: true } : { n: 9, k: 3, mw: 4, mh: 4, rot: true };
+    const cfg = lv === "master" ? { n: 14, k: pick([4, 5]), mw: 5, mh: 5, rot: true } : lv === "expert" ? { n: 11, k: pick([3, 4]), mw: 4, mh: 4, rot: true } : lv === "tiny" ? { n: 5, k: 2, mw: 3, mh: 3, rot: false } : lv === "easy" ? { n: 6, k: 2, mw: 3, mh: 3, rot: false } : lv === "medium" ? { n: 8, k: pick([2, 3]), mw: 4, mh: 3, rot: true } : { n: 9, k: 3, mw: 4, mh: 4, rot: true };
     for (let tries = 0; tries < 300; tries++) {
       const region = growPoly(cfg.n, cfg.mw, cfg.mh, false);
       const parts = partition(region, cfg.k);
@@ -1277,34 +1336,45 @@ function sp6() {
       q.cells.push(row);
     }
     const line = { stroke: "var(--accent)", "stroke-width": 6, "stroke-dasharray": "16 10", "stroke-linecap": "round" };
-    el("line", { x1: W / 2, y1: gy - 14, x2: W / 2, y2: gy + rows * cs + 14, ...line }, view);
+    if (q.rot) {
+      el("circle", { cx: W / 2, cy: H / 2, r: 20, fill: "#fff", stroke: "var(--accent)", "stroke-width": 5 }, view);
+      text(view, W / 2, H / 2 + 11, "↻", { "font-size": 32, fill: "var(--accent)" });
+    } else el("line", { x1: W / 2, y1: gy - 14, x2: W / 2, y2: gy + rows * cs + 14, ...line }, view);
     if (q.two) el("line", { x1: gx - 14, y1: H / 2, x2: gx + cw * cs + 14, y2: H / 2, ...line }, view);
     paint();
   };
   const ask = () => {
     busy = false;
     missed = false;
-    const two = lv === "expert";
-    const hw = lv === "tiny" ? 2 : lv === "easy" ? 3 : lv === "medium" ? 4 : lv === "hard" ? 5 : 4;
-    const rows = lv === "tiny" ? 3 : lv === "easy" ? 4 : lv === "medium" ? 5 : 6;
-    const gh = two ? rows / 2 : rows;
-    const ncol = lv === "hard" ? 3 : two ? 2 : 1;
+    const rotRound = lv === "master" && round % 2 === 1;
+    const two = lv === "expert" || (lv === "master" && !rotRound);
+    const hw = lv === "tiny" ? 2 : lv === "easy" ? 3 : lv === "medium" ? 4 : lv === "hard" ? 5 : lv === "master" && !rotRound ? 5 : 4;
+    const rows = lv === "tiny" ? 3 : lv === "easy" ? 4 : lv === "medium" ? 5 : lv === "master" ? 8 : 6;
+    const gh = two || rotRound ? rows / 2 : rows;
+    const ncol = lv === "hard" ? 3 : lv === "master" ? (rotRound ? 2 : 3) : two ? 2 : 1;
     let left;
     for (;;) {
       left = Array.from({ length: gh }, () => Array.from({ length: hw }, () => (Math.random() < (lv === "easy" ? 0.38 : 0.45) ? 1 + rnd(ncol) : 0)));
       const count = left.flat().filter(Boolean).length;
       const touching = left.filter((r) => r[hw - 1]).length;
-      const bottom = !two || left[gh - 1].some(Boolean);
+      const bottom = !(two || rotRound) || left[gh - 1].some(Boolean);
       if (count >= hw + 1 && touching >= 1 && bottom && count <= hw * gh * 0.6) break;
     }
     const cw = hw * 2;
-    q = { hw, rows, cw, ncol, two, left, gh };
-    q.given = (r, c) => (two ? r < gh && c < hw : c < hw);
-    q.want = (r, c) => left[two && r >= gh ? rows - 1 - r : r][c < hw ? c : cw - 1 - c];
+    q = { hw, rows, cw, ncol, two, rot: rotRound, left, gh };
+    q.given = (r, c) => (two || rotRound ? r < gh && c < hw : c < hw);
+    q.want = (r, c) => {
+      if (!rotRound) return left[two && r >= gh ? rows - 1 - r : r][c < hw ? c : cw - 1 - c];
+      const n = hw;
+      const a = r % n;
+      const b = c % n;
+      if (r < n) return c < n ? left[r][c] : left[n - 1 - b][a];
+      return c < n ? left[b][n - 1 - a] : left[n - 1 - a][n - 1 - b];
+    };
     q.grid = Array.from({ length: rows }, (_, r) => Array.from({ length: cw }, (_, c) => (q.given(r, c) ? left[r][c] : 0)));
     draw();
     status(`Mirror ${round + 1} of ${TOTAL}`);
-    say(two ? `There are two mirror lines! Copy the squares from the top left into the other three corners, flipping across each line. ${ncol > 1 ? "Tap again to change the colour." : ""}` : `The dotted line is a mirror. Copy the squares on the left onto the right side, the way a mirror would show them. ${ncol > 1 ? "Tap again to change the colour." : ""}`);
+    say(rotRound ? `Turn it! Copy the top-left picture into the other three corners. Turn it a quarter turn clockwise each time: top right, then bottom right, then bottom left.` : two ? `There are two mirror lines! Copy the squares from the top left into the other three corners, flipping across each line. ${ncol > 1 ? "Tap again to change the colour." : ""}` : `The dotted line is a mirror. Copy the squares on the left onto the right side, the way a mirror would show them. ${ncol > 1 ? "Tap again to change the colour." : ""}`);
   };
   const wrong = () => {
     const bad = [];
@@ -1352,7 +1422,7 @@ function sp6() {
   $("[data-panel]").onclick = (event) => {
     const what = event.target.closest("[data-do]")?.dataset.do;
     if (!what || my !== token || !q) return;
-    if (what === "hear") say(q.two ? `There are two mirror lines. Copy the top left into the other corners.` : `The dotted line is a mirror. Copy the squares on the left onto the right side, the way a mirror would show them.`);
+    if (what === "hear") say(q.rot ? `Turn it! Copy the top-left picture into the other three corners. Turn it a quarter turn clockwise each time: top right, then bottom right, then bottom left.` : q.two ? `There are two mirror lines. Copy the top left into the other corners.` : `The dotted line is a mirror. Copy the squares on the left onto the right side, the way a mirror would show them.`);
     if (what === "check") check();
   };
   ask();

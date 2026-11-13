@@ -42,6 +42,9 @@ const stage = $("[data-stage]");
 let token = 0;
 let on = {};
 let EXP = false;
+let MAS = false;
+let PLAYED = 0;
+const MNEED = 4;
 
 const UNITS = [
   { id: "lg0", label: "1. Chess pieces", icon: "♞" },
@@ -129,13 +132,17 @@ function genPuzzle(size, moves) {
 }
 
 // ----- mini sudoku -----
-function solveCount(g, n, br, bc, limit) {
+function solveCount(g, n, br, bc, limit, dg = false) {
   let count = 0;
   const ok = (i, v) => {
     const r = Math.floor(i / n), c = i % n;
     for (let k = 0; k < n; k++) if (g[r * n + k] === v || g[k * n + c] === v) return false;
     const r0 = r - (r % br), c0 = c - (c % bc);
     for (let a = 0; a < br; a++) for (let b = 0; b < bc; b++) if (g[(r0 + a) * n + c0 + b] === v) return false;
+    if (dg) {
+      if (r === c) for (let k = 0; k < n; k++) if (g[k * n + k] === v) return false;
+      if (r + c === n - 1) for (let k = 0; k < n; k++) if (g[k * n + n - 1 - k] === v) return false;
+    }
     return true;
   };
   const rec = () => {
@@ -169,13 +176,17 @@ function solveCount(g, n, br, bc, limit) {
   rec();
   return count;
 }
-function genSolved(n, br, bc) {
+function genSolved(n, br, bc, dg = false) {
   const g = Array(n * n).fill(0);
   const ok = (i, v) => {
     const r = Math.floor(i / n), c = i % n;
     for (let k = 0; k < n; k++) if (g[r * n + k] === v || g[k * n + c] === v) return false;
     const r0 = r - (r % br), c0 = c - (c % bc);
     for (let a = 0; a < br; a++) for (let b = 0; b < bc; b++) if (g[(r0 + a) * n + c0 + b] === v) return false;
+    if (dg) {
+      if (r === c) for (let k = 0; k < n; k++) if (g[k * n + k] === v) return false;
+      if (r + c === n - 1) for (let k = 0; k < n; k++) if (g[k * n + n - 1 - k] === v) return false;
+    }
     return true;
   };
   const fill = (i) => {
@@ -226,15 +237,15 @@ function easySolvable(puz, n, br, bc) {
   }
   return !g.includes(0);
 }
-function makeSudoku(n, br, bc, blanks, easy = false) {
-  const sol = genSolved(n, br, bc);
+function makeSudoku(n, br, bc, blanks, easy = false, dg = false) {
+  const sol = genSolved(n, br, bc, dg);
   const puz = [...sol];
   let removed = 0;
   for (const i of shuf([...Array(n * n).keys()])) {
     if (removed >= blanks) break;
     const keep = puz[i];
     puz[i] = 0;
-    if (solveCount([...puz], n, br, bc, 2) === 1 && (!easy || easySolvable(puz, n, br, bc))) removed += 1;
+    if (solveCount([...puz], n, br, bc, 2, dg) === 1 && (!easy || easySolvable(puz, n, br, bc))) removed += 1;
     else puz[i] = keep;
   }
   return { puz, sol, blanks: removed };
@@ -333,7 +344,7 @@ const win2 = (P) =>
   });
 const mvTxt = (m) => ({ from: [m.p.r, m.p.c], to: [m.r, m.c] });
 function genMate(k) {
-  const SETS = k === 1 ? [["Q"], ["R", "R"], ["Q", "R"], ["R", "B"], ["Q", "N"], ["R", "N"]] : [["Q"], ["R", "R"], ["Q", "R"], ["Q", "B"], ["R", "B", "B"], ["Q", "N"]];
+  const SETS = k === 3 ? [["R", "B"], ["Q", "N"], ["R", "N"], ["Q", "B"], ["R", "R"], ["B", "B", "N"], ["Q"]] : k === 1 ? [["Q"], ["R", "R"], ["Q", "R"], ["R", "B"], ["Q", "N"], ["R", "N"]] : [["Q"], ["R", "R"], ["Q", "R"], ["Q", "B"], ["R", "B", "B"], ["Q", "N"]];
   for (let i = 0; i < 20000; i++) {
     const used = new Set();
     const sq = () => {
@@ -357,6 +368,11 @@ function genMate(k) {
     const m1 = mate1(P);
     if (k === 1) {
       if (m1.length >= 1 && m1.length <= 3) return { pieces: P, k, sol: m1.map(mvTxt) };
+    } else if (k === 3) {
+      if (!m1.length) {
+        const w = win2(P);
+        if (w.length === 1) return { pieces: P, k: 2, sol: w.map(mvTxt), mas: true };
+      }
     } else if (!m1.length) {
       const w = win2(P);
       if (w.length >= 1 && w.length <= 3) return { pieces: P, k, sol: w.map(mvTxt) };
@@ -415,6 +431,111 @@ function genBalChain(q) {
   const cmp = shuf([[o[0], o[1]], [o[1], o[2]], [o[2], o[3]]]);
   return { k: 4, cmp, q, ans: q === "second heaviest" ? o[1] : o[2], order: o };
 }
+
+// ----- master who's who: 5 kids, ages, several negative clues, exactly one answer -----
+const PERMS5 = [];
+(function mk(cur) {
+  if (cur.length === 5) return PERMS5.push(cur);
+  for (let x = 0; x < 5; x++) if (!cur.includes(x)) mk([...cur, x]);
+})([]);
+function genWho5() {
+  for (let i = 0; i < 4000; i++) {
+    const sol = shuf([0, 1, 2, 3, 4]);
+    const ages = shuf([5, 6, 7, 8, 9]);
+    const pool = [];
+    for (let k = 0; k < 5; k++)
+      for (let p = 0; p < 5; p++) {
+        for (const t of ["pos", "neg", "neg", "old", "yng"]) {
+          const c = { t, k, p };
+          if (sat4(sol, c, ages)) pool.push(c);
+        }
+        for (let q = 0; q < 5; q++) if (q !== p && k === 0) {
+          const c = { t: "oo", p, q };
+          if (sat4(sol, c, ages)) pool.push(c);
+        }
+      }
+    const uq = (cls) => PERMS5.filter((x) => cls.every((c) => sat4(x, c, ages))).length === 1;
+    let clues = [];
+    for (const c of shuf(pool)) {
+      if (clues.some((x) => x.t === c.t && x.k === c.k && x.p === c.p && x.q === c.q)) continue;
+      clues.push(c);
+      if (uq(clues)) break;
+    }
+    if (!uq(clues)) continue;
+    for (const c of shuf([...clues])) {
+      const rest = clues.filter((x) => x !== c);
+      if (uq(rest)) clues = rest;
+    }
+    const n = (t) => clues.filter((c) => c.t === t).length;
+    const indirect = clues.length - n("pos") - n("neg");
+    if (clues.length >= 5 && clues.length <= 8 && n("neg") >= 2 && n("pos") <= 2 && indirect >= 1) return { sol, ages, clues: shuf(clues) };
+  }
+  return null;
+}
+
+// ----- master balance: 5 objects, one level seesaw (an equal pair); the answer must be forced -----
+const balAnswer = (cmp, q) => {
+  let ans = -1;
+  const v = [0, 0, 0, 0, 0];
+  for (let code = 0; code < 3125; code++) {
+    let x = code;
+    for (let i = 0; i < 5; i++) {
+      v[i] = x % 5;
+      x = Math.floor(x / 5);
+    }
+    if (!cmp.every(([a, b, e]) => (e ? v[a] === v[b] : v[a] > v[b]))) continue;
+    const hit = [];
+    for (let i = 0; i < 5; i++) {
+      const up = v.filter((y) => y > v[i]).length, dn = v.filter((y) => y < v[i]).length;
+      if (q === "heaviest" ? up === 0 : q === "lightest" ? dn === 0 : q === "second heaviest" ? up === 1 : dn === 1) hit.push(i);
+    }
+    if (hit.length !== 1) return -1;
+    if (ans >= 0 && ans !== hit[0]) return -1;
+    ans = hit[0];
+  }
+  return ans;
+};
+function genBalEq(q) {
+  for (let t = 0; t < 4000; t++) {
+    const p = shuf([0, 1, 2, 3]);
+    const w = shuf([p[0], p[0], p[1], p[2], p[3]]);
+    const tie = [[0, 1, 2, 3, 4].filter((i) => w[i] === p[0])].map(([a, b]) => [a, b, "="])[0];
+    const others = [];
+    for (let a = 0; a < 5; a++) for (let b = a + 1; b < 5; b++) if (w[a] !== w[b]) others.push(w[a] > w[b] ? [a, b] : [b, a]);
+    const cmp = [tie, ...shuf(others).slice(0, 4)];
+    const ans = balAnswer(cmp, q);
+    if (ans < 0) continue;
+    const ans2 = balAnswer(cmp.slice(1), q);
+    if (ans2 >= 0) continue;
+    return { k: 5, cmp, q, ans, w, eq: true };
+  }
+  return null;
+}
+
+// ----- master if-then: "if it is in X, then ..." rules; use them backwards (contrapositive) -----
+function genRuleM() {
+  const all = [];
+  for (const color of Object.keys(COLORS)) for (const shape of Object.keys(SHAPES)) all.push({ color, shape });
+  const lit = (dim) => ({ dim, v: dim === "color" ? pick(Object.keys(COLORS)) : pick(Object.keys(SHAPES)), neg: rnd(2) === 0 });
+  const holds = (l, it) => (it[l.dim] === l.v) !== l.neg;
+  const flip = (l) => ({ ...l, neg: !l.neg });
+  const lw = (l) => `${l.neg ? "NOT " : ""}${l.dim === "color" ? l.v : SHAPE_WORD[l.v]}`;
+  const sw = (s) => s.map(lw).join(" AND ");
+  for (let t = 0; t < 500; t++) {
+    const d1 = pick(["color", "shape"]);
+    const a = lit(d1), b = lit(d1 === "color" ? "shape" : "color");
+    const sets = rnd(2) ? [[a], [flip(a), b], [flip(a), flip(b)]] : [[a, b], [a, flip(b)], [flip(a)]];
+    const ds = shuf(["box", "bag", "table"]);
+    const stm = Object.fromEntries(ds.map((k, i) => [k, sets[i]]));
+    const f = (it) => ds.filter((k) => stm[k].every((l) => holds(l, it)))[0];
+    const ok = all.every((it) => ds.filter((k) => stm[k].every((l) => holds(l, it))).length === 1) && ds.every((k) => all.some((it) => f(it) === k));
+    if (!ok) continue;
+    const place = { box: "in the box", bag: "in the bag", table: "on the table" };
+    const text = ds.map((k, i) => `Rule ${i + 1}: if it goes <b>${place[k]}</b>, then it is <b>${sw(stm[k])}</b>.`).join(" ") + " <i>Use the rules backwards: if a shape does not fit a rule, it cannot go there.</i>";
+    return { dests: ["box", "bag", "table"], f, text, mas: true };
+  }
+  return null;
+}
 //#end
 
 const css = document.createElement("style");
@@ -438,6 +559,7 @@ css.textContent = `
 .lg-sud{display:grid;gap:0;border-radius:10px;overflow:hidden;box-shadow:0 0 0 4px #7a4a24;background:#fff}
 .lg-sud button{width:var(--cs);height:var(--cs);padding:0;border:0;border-right:2px solid #e2d6c4;border-bottom:2px solid #e2d6c4;background:#fff;color:var(--ink);font:900 calc(var(--cs) * .56)/1 var(--sans);cursor:pointer;touch-action:manipulation}
 .lg-sud button.g{background:#f3ead9}
+.lg-sud button.dg{background:#e4eefc}.lg-sud button.g.dg{background:#d3e1f7}
 .lg-sud button.sel{background:#cfe9ff;box-shadow:inset 0 0 0 4px var(--accent)}
 .lg-sud button.cf{background:#f6dcd4;color:#c0392b}
 .lg-sud button.br{border-right:5px solid #7a4a24}.lg-sud button.bb{border-bottom:5px solid #7a4a24}
@@ -480,13 +602,20 @@ const fresh = (html = "") => {
 };
 const status = (s) => {
   const b = $("[data-status]");
-  if (b) b.textContent = (EXP && !/Expert/.test(s) ? "🦉 " : "") + s;
+  if (b) b.textContent = (MAS && !/Master/.test(s) ? "🐉 " : EXP && !/Expert|Master/.test(s) ? "🦉 " : "") + s;
 };
 const sget = (k, sp) => {
   try {
     const v = localStorage.getItem(`tk-${OC.current()}-${k}`);
     if (v !== null && v !== "") sp.n = Math.max(sp.min, Math.min(sp.max, Number(v)));
   } catch {}
+};
+const mget = (id) => {
+  try {
+    return Math.max(0, Math.min(MNEED, Number(localStorage.getItem(`tk-${OC.current()}-${id}-m`)) || 0));
+  } catch {
+    return 0;
+  }
 };
 const sset = (k, v) => {
   try {
@@ -531,15 +660,34 @@ async function finish(my, id, right, total, what) {
   return my === token;
 }
 async function run(my, id, what, total, trial, sp) {
-  let right = 0;
+  let right = 0, mmiss = 0;
   if (sp) sget(id, sp);
   while (true) {
     for (let i = 0; i < total; i++) {
       EXP = !!sp && sp.n >= sp.max;
+      const strong = sp ? mget(id) : 0;
+      MAS = EXP && strong >= MNEED;
+      PLAYED = 0;
       status(`Puzzle ${i + 1} of ${total}`);
+      const up = sp && sp.up, down = sp && sp.down;
+      if (MAS) sp.up = sp.down = () => {};
       const ok = await trial(i);
       if (my !== token) return;
-      if (sp) sset(id, sp.n);
+      if (MAS) {
+        sp.up = up;
+        sp.down = down;
+      }
+      if (sp) {
+        sset(id, sp.n);
+        if (PLAYED === 1 && ok) sset(`${id}-m`, Math.min(MNEED, strong + 1));
+        if (PLAYED === 2) {
+          mmiss = ok ? 0 : mmiss + 1;
+          if (mmiss >= 2) {
+            sset(`${id}-m`, MNEED - 2);
+            mmiss = 0;
+          }
+        }
+      }
       if (ok) right += 1;
       await wait(1600);
       if (my !== token) return;
@@ -667,7 +815,8 @@ async function reachTrial(my, kind) {
 }
 const PZ = [[5, 1], [5, 2], [6, 2], [7, 2], [8, 2]];
 async function mateTrial(my, sp) {
-  const P = genMate(rnd(2) + 1);
+  if (EXP) PLAYED = MAS ? 2 : 1;
+  const P = (MAS && genMate(3)) || genMate(rnd(2) + 1);
   const k = P.k;
   const d = fresh(`<div class="tk-col"><div data-b></div></div>`);
   const host = $("[data-b]", d);
@@ -822,9 +971,12 @@ async function puzzleTrial(my, sp) {
 async function sudokuRound(my, spec, sp) {
   const X = sp.n >= 4;
   if (X) spec = { n: 9, br: 3, bc: 3, pics: false, blanks: 40, easy: true };
+  const DG = X && MAS;
+  if (X && EXP) PLAYED = MAS ? 2 : 1;
+  if (DG) spec = { n: 9, br: 3, bc: 3, pics: false, blanks: 50, easy: false };
   const { n, br, bc, pics } = spec;
   const blanks = spec.blanks + (X ? 0 : Math.min(sp.n, 3));
-  const { puz, sol } = makeSudoku(n, br, bc, blanks, !!spec.easy);
+  const { puz, sol } = makeSudoku(n, br, bc, blanks, !!spec.easy, DG);
   const sym = pics ? shuf(ANIMALS).slice(0, n) : [...Array(n).keys()].map((x) => String(x + 1));
   const g = [...puz];
   let sel = -1, conflicts = 0, helped = false;
@@ -836,6 +988,7 @@ async function sudokuRound(my, spec, sp) {
       for (let j = 0; j < n * n; j++) {
         if (j === i || g[j] !== g[i]) continue;
         const r2 = Math.floor(j / n), c2 = j % n;
+        if (DG && ((r === c && r2 === c2) || (r + c === n - 1 && r2 + c2 === n - 1))) s.add(i);
         if (r2 === r || c2 === c || (Math.floor(r / br) === Math.floor(r2 / br) && Math.floor(c / bc) === Math.floor(c2 / bc))) s.add(i);
       }
     }
@@ -848,14 +1001,14 @@ async function sudokuRound(my, spec, sp) {
     host.innerHTML = `<div class="lg-sud" style="grid-template-columns:repeat(${n},var(--cs));--cs:min(calc(86vw / ${n}),calc(46vh / ${n}),84px)">${g
       .map((v, i) => {
         const r = Math.floor(i / n), c = i % n;
-        const cls = [puz[i] && "g", i === sel && "sel", cf.has(i) && !puz[i] && "cf", (c + 1) % bc === 0 && c < n - 1 && "br", (r + 1) % br === 0 && r < n - 1 && "bb"].filter(Boolean).join(" ");
+        const cls = [puz[i] && "g", DG && (r === c || r + c === n - 1) && "dg", i === sel && "sel", cf.has(i) && !puz[i] && "cf", (c + 1) % bc === 0 && c < n - 1 && "br", (r + 1) % br === 0 && r < n - 1 && "bb"].filter(Boolean).join(" ");
         return `<button type="button" class="${cls}" data-i="${i}" aria-label="row ${r + 1} column ${c + 1}">${v ? sym[v - 1] : ""}</button>`;
       })
       .join("")}</div>`;
     return cf;
   };
   draw();
-  const rule = `Fill the grid. Every row, every column and every box must have each ${pics ? "picture" : "number"} <b>once</b>. Tap a square, then tap what goes in it.`;
+  const rule = `Fill the grid. Every row, every column and every box must have each ${pics ? "picture" : "number"} <b>once</b>.${DG ? " Master twist: the two long diagonals (the blue squares) must have each number once too." : ""} Tap a square, then tap what goes in it.`;
   setPanel([["erase", "Erase", true], ["hint", "💡 Hint", true], ["hear", "🔊 Hear the rule", true]]);
   say(rule);
   return new Promise((resolve) => {
@@ -923,6 +1076,7 @@ const SUD = [
 // ---------- who's who ----------
 const KIDS = [["Mia", "👧"], ["Leo", "👦"], ["Zoe", "🧒"]];
 const KIDS4 = [...KIDS, ["Sam", "🧑"]];
+const KIDS5 = [...KIDS4, ["Ava", "👩"]];
 const THEMES = [
   { who: "the one who has", verb: "has", no: "does not have", items: [["🐶", "dog"], ["🐱", "cat"], ["🐰", "rabbit"], ["🐠", "fish"], ["🐢", "turtle"], ["🐦", "bird"]] },
   { who: "the one who is eating", verb: "is eating", no: "is not eating", items: [["🍎", "apple"], ["🍌", "banana"], ["🍇", "grapes"], ["🍓", "strawberry"], ["🥕", "carrot"], ["🍪", "cookie"]] },
@@ -930,11 +1084,13 @@ const THEMES = [
 ];
 async function whoRound(my, sp) {
   const X = sp.n >= 2;
-  const P = X ? genWho4() : genWho(sp.n);
-  const N = X ? 4 : 3;
+  const M = X && MAS;
+  if (X && EXP) PLAYED = MAS ? 2 : 1;
+  const P = (M && genWho5()) || (X ? genWho4() : genWho(sp.n));
+  const N = P.ages ? P.sol.length : 3;
   const th = pick(THEMES);
   const things = shuffle(th.items).slice(0, N);
-  const kids = X ? shuffle(KIDS4) : shuffle(KIDS);
+  const kids = N === 5 ? shuffle(KIDS5) : X ? shuffle(KIDS4) : shuffle(KIDS);
   const satf = X ? (r, c) => sat4(r, c, P.ages) : sat;
   const cap = (s) => s[0].toUpperCase() + s.slice(1);
   const words = (c) =>
@@ -945,8 +1101,8 @@ async function whoRound(my, sp) {
   const d = fresh(`<div class="tk-col"><div class="lg-clues">${P.clues.map((c, i) => `<button type="button" class="lg-clue" data-c="${i}"><b>${i + 1}</b>${words(c)}.</button>`).join("")}</div><div class="lg-grid" data-grid></div></div>`);
   const grid = $("[data-grid]", d);
   if (X) {
-    grid.style.setProperty("--b", "clamp(54px,13vw,80px)");
-    grid.style.gridTemplateColumns = "auto repeat(4,var(--b))";
+    grid.style.setProperty("--b", N === 5 ? "clamp(46px,11vw,68px)" : "clamp(54px,13vw,80px)");
+    grid.style.gridTemplateColumns = `auto repeat(${N},var(--b))`;
   }
   const paint = () => {
     grid.innerHTML = `<span></span>${things.map((t) => `<span class="h" aria-label="${t[1]}">${t[0]}</span>`).join("")}${kids
@@ -1018,6 +1174,7 @@ const itemSvg = (it) => `<svg viewBox="0 0 100 100" class="lg-item" role="img" a
 const SHAPE_WORD = { circle: "a circle", square: "a square", triangle: "a triangle", star: "a star" };
 const DEST = { box: ["📦", "the box"], bag: ["👜", "the bag"], basket: ["🧺", "the basket"], table: ["🪑", "the table"] };
 function genRule(level) {
+  if (level >= 5) return genRuleM();
   if (level >= 4) {
     const mk = () => {
       const dim = pick(["color", "shape"]);
@@ -1062,7 +1219,8 @@ function genRule(level) {
   return { dests: ["box", "bag", "table"], f: (it) => (it.color === c ? "box" : it.shape === s ? "bag" : "table"), text: `Rule 1: if it is <b>${c}</b>, it goes in the box. Rule 2: if it is <b>${SHAPE_WORD[s]}</b>, it goes in the bag. If it fits both, <b>Rule 1 wins</b>. If it fits neither, it goes on the table.` };
 }
 async function ruleRound(my, sp) {
-  const rule = genRule(sp.n);
+  if (EXP && sp.n >= 4) PLAYED = MAS ? 2 : 1;
+  const rule = (MAS && sp.n >= 4 && genRule(5)) || genRule(sp.n);
   const COUNT = sp.n >= 4 ? 6 : 5;
   const rand = () => ({ color: pick(Object.keys(COLORS)), shape: pick(Object.keys(SHAPES)) });
   const items = [];
@@ -1102,7 +1260,7 @@ async function ruleRound(my, sp) {
         } else {
           missed += 1;
           MUSIC.oops();
-          say(`${pick(KIND)} Read the rule again. This is ${it.color} and ${SHAPE_WORD[it.shape]}.`);
+          say(`${pick(KIND)} ${rule.mas ? "Work backwards: which rules can this shape NOT follow? " : "Read the rule again. "}This is ${it.color} and ${SHAPE_WORD[it.shape]}.`);
         }
       };
     });
@@ -1118,6 +1276,9 @@ async function ruleRound(my, sp) {
 // ---------- balance ----------
 const THINGS = [["🍎", "apple"], ["🍌", "banana"], ["🍇", "grapes"], ["🧸", "teddy"], ["⚽", "ball"], ["🐟", "fish"], ["🥕", "carrot"], ["🍪", "cookie"], ["🚗", "car"], ["🍩", "donut"]];
 const BAL = [[3, 2], [4, 3], [4, 4], [5, 5], [4, 3, "chain"]];
+function seesawEq(a, b) {
+  return `<svg viewBox="0 0 220 150" role="img" aria-label="${a} weighs the same as ${b}"><path d="M110 98 90 142H130Z" fill="#a0663a"/><line x1="30" y1="81" x2="190" y2="81" stroke="#7a4a24" stroke-width="9" stroke-linecap="round"/><circle cx="110" cy="81" r="9" fill="#ffcf3a" stroke="#b06a14" stroke-width="3"/><text x="40" y="69" font-size="46" text-anchor="middle">${a}</text><text x="180" y="69" font-size="46" text-anchor="middle">${b}</text></svg>`;
+}
 function seesaw(a, b, heavyLeft) {
   const y = (up) => (up ? 62 : 100);
   const ly = heavyLeft ? 100 : 62;
@@ -1125,15 +1286,17 @@ function seesaw(a, b, heavyLeft) {
   return `<svg viewBox="0 0 220 150" role="img" aria-label="${heavyLeft ? a : b} is heavier than ${heavyLeft ? b : a}"><path d="M110 98 90 142H130Z" fill="#a0663a"/><line x1="30" y1="${ly}" x2="190" y2="${ry}" stroke="#7a4a24" stroke-width="9" stroke-linecap="round"/><circle cx="110" cy="${(ly + ry) / 2 + 0}" r="9" fill="#ffcf3a" stroke="#b06a14" stroke-width="3"/><text x="40" y="${ly - 12}" font-size="46" text-anchor="middle">${a}</text><text x="180" y="${ry - 12}" font-size="46" text-anchor="middle">${b}</text></svg>`;
 }
 async function balRound(my, sp) {
-  const [k, m, mode] = BAL[sp.n];
-  const q = mode ? pick(["second heaviest", "second lightest"]) : sp.n === 0 ? "heaviest" : pick(["heaviest", "lightest"]);
-  const P = mode ? genBalChain(q) : genBal(k, m, q);
-  const things = shuffle(THINGS).slice(0, k);
+  const MB = MAS && sp.n >= BAL.length - 1;
+  if (EXP && sp.n >= BAL.length - 1) PLAYED = MAS ? 2 : 1;
+  const [k, m, mode] = MB ? [5, 5, "eq"] : BAL[sp.n];
+  const q = MB ? pick(["heaviest", "lightest", "second heaviest", "second lightest"]) : mode ? pick(["second heaviest", "second lightest"]) : sp.n === 0 ? "heaviest" : pick(["heaviest", "lightest"]);
+  const P = (MB && genBalEq(q)) || (mode === "chain" ? genBalChain(q) : genBal(k, m, q));
+  const things = shuffle(THINGS).slice(0, P.k);
   const d = fresh(`<div class="tk-col"><div class="lg-seesaws">${shuf(P.cmp)
-    .map(([h, l]) => (rnd(2) ? seesaw(things[h][0], things[l][0], true) : seesaw(things[l][0], things[h][0], false)))
+    .map(([h, l, e]) => (e ? seesawEq(things[h][0], things[l][0]) : rnd(2) ? seesaw(things[h][0], things[l][0], true) : seesaw(things[l][0], things[h][0], false)))
     .join("")}</div><div class="lg-ans" data-ans>${things.map((t, i) => `<button type="button" data-i="${i}" aria-label="${t[1]}">${t[0]}</button>`).join("")}</div></div>`);
   setPanel([["hear", "🔊 Hear the question", true]]);
-  const qs = `Which one is the <b>${q}</b>? The lower side of a seesaw is heavier.${mode ? " Line them all up in order." : ""} Tap your answer.`;
+  const qs = `Which one is the <b>${q}</b>? The lower side of a seesaw is heavier.${P.eq ? " A level seesaw means the two weigh the same, so work out who is heavier than whom. Second heaviest means exactly one thing is heavier; second lightest means exactly one is lighter." : mode ? " Line them all up in order." : ""} Tap your answer.`;
   on.hear = () => say(qs);
   say(`Look at the seesaws. ${qs}`);
   let missed = 0;
@@ -1148,14 +1311,14 @@ async function balRound(my, sp) {
         const ok = missed === 0;
         if (ok) sp.up();
         else sp.down();
-        feedback(true, mode ? `The ${things[P.ans][1]} is number ${q === "second heaviest" ? "two" : "three"} in the line. You put them all in order!` : `The ${things[P.ans][1]} ${q === "heaviest" ? "is never on the higher side" : "is never on the lower side"}. You worked it out!`);
+        feedback(true, P.eq ? `The ${things[P.ans][1]} is the ${q}. The level seesaw let you link everything together!` : mode ? `The ${things[P.ans][1]} is number ${q === "second heaviest" ? "two" : "three"} in the line. You put them all in order!` : `The ${things[P.ans][1]} ${q === "heaviest" ? "is never on the higher side" : "is never on the lower side"}. You worked it out!`);
         resolve(ok);
       } else {
         missed += 1;
         b.classList.add("bad");
         b.disabled = true;
         MUSIC.oops();
-        say(`${pick(KIND)} ${mode ? "Line up all four from heaviest to lightest, linking the seesaws." : q === "heaviest" ? "The heaviest one is always on the lower side." : "The lightest one is always on the higher side."} Look again.`);
+        say(`${pick(KIND)} ${P.eq ? "Link the seesaws: a level one means the two weigh the same." : mode ? "Line up all four from heaviest to lightest, linking the seesaws." : q === "heaviest" ? "The heaviest one is always on the lower side." : "The lightest one is always on the higher side."} Look again.`);
         if (missed >= 2) {
           $("[data-ans]", d).onclick = null;
           sp.down();
