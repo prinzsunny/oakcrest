@@ -41,6 +41,7 @@
 const stage = $("[data-stage]");
 let token = 0;
 let on = {};
+let EXP = false;
 
 const UNITS = [
   { id: "lg0", label: "1. Chess pieces", icon: "♞" },
@@ -138,13 +139,23 @@ function solveCount(g, n, br, bc, limit) {
     return true;
   };
   const rec = () => {
-    const i = g.indexOf(0);
+    let i = -1, cand = [];
+    for (let j = 0; j < n * n; j++) {
+      if (g[j]) continue;
+      const cs = [];
+      for (let v = 1; v <= n; v++) if (ok(j, v)) cs.push(v);
+      if (i < 0 || cs.length < cand.length) {
+        i = j;
+        cand = cs;
+        if (!cs.length) return false;
+      }
+    }
     if (i < 0) {
       count += 1;
       return count >= limit;
     }
-    for (let v = 1; v <= n; v++) {
-      if (ok(i, v)) {
+    for (const v of cand) {
+      {
         g[i] = v;
         if (rec()) {
           g[i] = 0;
@@ -181,7 +192,41 @@ function genSolved(n, br, bc) {
   fill(0);
   return g;
 }
-function makeSudoku(n, br, bc, blanks) {
+// Solvable using only "only one fits here" and "only place for it" moves: the easy kind.
+function easySolvable(puz, n, br, bc) {
+  const g = [...puz];
+  const units = [];
+  for (let r = 0; r < n; r++) units.push([...Array(n).keys()].map((c) => r * n + c));
+  for (let c = 0; c < n; c++) units.push([...Array(n).keys()].map((r) => r * n + c));
+  for (let r0 = 0; r0 < n; r0 += br) for (let c0 = 0; c0 < n; c0 += bc) units.push([...Array(br * bc).keys()].map((x) => (r0 + Math.floor(x / bc)) * n + c0 + (x % bc)));
+  const cands = (i) => {
+    const out = [];
+    for (let v = 1; v <= n; v++) if (units.every((u) => !u.includes(i) || u.every((j) => g[j] !== v))) out.push(v);
+    return out;
+  };
+  for (let moved = true; moved; ) {
+    moved = false;
+    for (let i = 0; i < n * n; i++)
+      if (!g[i]) {
+        const cs = cands(i);
+        if (cs.length === 1) {
+          g[i] = cs[0];
+          moved = true;
+        }
+      }
+    for (const u of units)
+      for (let v = 1; v <= n; v++) {
+        if (u.some((j) => g[j] === v)) continue;
+        const spots = u.filter((j) => !g[j] && cands(j).includes(v));
+        if (spots.length === 1) {
+          g[spots[0]] = v;
+          moved = true;
+        }
+      }
+  }
+  return !g.includes(0);
+}
+function makeSudoku(n, br, bc, blanks, easy = false) {
   const sol = genSolved(n, br, bc);
   const puz = [...sol];
   let removed = 0;
@@ -189,7 +234,7 @@ function makeSudoku(n, br, bc, blanks) {
     if (removed >= blanks) break;
     const keep = puz[i];
     puz[i] = 0;
-    if (solveCount([...puz], n, br, bc, 2) === 1) removed += 1;
+    if (solveCount([...puz], n, br, bc, 2) === 1 && (!easy || easySolvable(puz, n, br, bc))) removed += 1;
     else puz[i] = keep;
   }
   return { puz, sol, blanks: removed };
@@ -240,6 +285,136 @@ function genBal(k, m, q) {
   }
   return null;
 }
+
+// ----- expert chess: mate puzzles (white K + helpers against a lone black king) -----
+const GL = { K: "♚︎", Q: "♛︎", R: "♜︎", B: "♝︎", N: "♞︎" };
+function pmoves(P, white) {
+  const occ = new Map(P.map((p) => [K(p.r, p.c), p]));
+  const out = [];
+  for (const p of P) {
+    if (p.w !== white) continue;
+    const add = (r, c) => {
+      if (r < 0 || c < 0 || r > 7 || c > 7) return false;
+      const o = occ.get(K(r, c));
+      if (o && o.w === white) return false;
+      out.push({ p, r, c, cap: o });
+      return !o;
+    };
+    if (p.t === "K") for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) (dr || dc) && add(p.r + dr, p.c + dc);
+    else if (p.t === "N") for (const [dr, dc] of KN) add(p.r + dr, p.c + dc);
+    else {
+      const dirs = p.t === "R" ? SLIDE.rook : p.t === "B" ? SLIDE.bishop : [...SLIDE.rook, ...SLIDE.bishop];
+      for (const [dr, dc] of dirs) {
+        let a = p.r + dr, b = p.c + dc;
+        while (add(a, b)) {
+          a += dr;
+          b += dc;
+        }
+      }
+    }
+  }
+  return out;
+}
+const applyMove = (P, m) => P.filter((q) => q !== m.cap).map((q) => (q === m.p ? { ...q, r: m.r, c: m.c } : q));
+const inCheck = (P, white) => {
+  const k = P.find((q) => q.t === "K" && q.w === white);
+  return pmoves(P, !white).some((m) => m.r === k.r && m.c === k.c);
+};
+const legalMoves = (P, white) => pmoves(P, white).filter((m) => !inCheck(applyMove(P, m), white));
+const mate1 = (P) => legalMoves(P, true).filter((m) => {
+  const Q = applyMove(P, m);
+  return inCheck(Q, false) && !legalMoves(Q, false).length;
+});
+const win2 = (P) =>
+  legalMoves(P, true).filter((m) => {
+    const Q = applyMove(P, m);
+    const bl = legalMoves(Q, false);
+    return bl.length > 0 && bl.every((r) => mate1(applyMove(Q, r)).length > 0);
+  });
+const mvTxt = (m) => ({ from: [m.p.r, m.p.c], to: [m.r, m.c] });
+function genMate(k) {
+  const SETS = k === 1 ? [["Q"], ["R", "R"], ["Q", "R"], ["R", "B"], ["Q", "N"], ["R", "N"]] : [["Q"], ["R", "R"], ["Q", "R"], ["Q", "B"], ["R", "B", "B"], ["Q", "N"]];
+  for (let i = 0; i < 20000; i++) {
+    const used = new Set();
+    const sq = () => {
+      for (;;) {
+        const r = rnd(8), c = rnd(8);
+        if (!used.has(K(r, c))) {
+          used.add(K(r, c));
+          return [r, c];
+        }
+      }
+    };
+    const wk = sq(), bk = sq();
+    if (Math.abs(wk[0] - bk[0]) <= 1 && Math.abs(wk[1] - bk[1]) <= 1) continue;
+    if (k === 2 && ![0, 7].some((e) => bk[0] === e || bk[1] === e || Math.abs(bk[0] - e) + Math.abs(bk[1] - e) === 1)) continue;
+    const P = [{ t: "K", w: true, r: wk[0], c: wk[1] }, { t: "K", w: false, r: bk[0], c: bk[1] }];
+    for (const t of SETS[rnd(SETS.length)]) {
+      const s = sq();
+      P.push({ t, w: true, r: s[0], c: s[1] });
+    }
+    if (inCheck(P, false)) continue;
+    const m1 = mate1(P);
+    if (k === 1) {
+      if (m1.length >= 1 && m1.length <= 3) return { pieces: P, k, sol: m1.map(mvTxt) };
+    } else if (!m1.length) {
+      const w = win2(P);
+      if (w.length >= 1 && w.length <= 3) return { pieces: P, k, sol: w.map(mvTxt) };
+    }
+  }
+  return null;
+}
+
+// ----- expert who's who: 4 kids, ages, indirect clues -----
+const PERMS4 = [];
+for (const a of [0, 1, 2, 3]) for (const b of [0, 1, 2, 3]) for (const c of [0, 1, 2, 3]) for (const d of [0, 1, 2, 3]) if (new Set([a, b, c, d]).size === 4) PERMS4.push([a, b, c, d]);
+function sat4(perm, cl, ages) {
+  const own = (p) => perm.indexOf(p);
+  if (cl.t === "pos") return perm[cl.k] === cl.p;
+  if (cl.t === "neg") return perm[cl.k] !== cl.p;
+  if (cl.t === "old") return ages[own(cl.p)] > ages[cl.k];
+  if (cl.t === "yng") return ages[own(cl.p)] < ages[cl.k];
+  return ages[own(cl.p)] > ages[own(cl.q)];
+}
+function genWho4() {
+  for (let i = 0; i < 2000; i++) {
+    const sol = shuf([0, 1, 2, 3]);
+    const ages = shuf([4, 5, 6, 7]);
+    const pool = [];
+    for (let k = 0; k < 4; k++)
+      for (let p = 0; p < 4; p++) {
+        for (const t of ["pos", "neg", "old", "yng"]) {
+          const c = { t, k, p };
+          if (sat4(sol, c, ages)) pool.push(c);
+        }
+        for (let q = 0; q < 4; q++) if (q !== p && k === 0) {
+          const c = { t: "oo", p, q };
+          if (sat4(sol, c, ages)) pool.push(c);
+        }
+      }
+    const uq = (cls) => PERMS4.filter((x) => cls.every((c) => sat4(x, c, ages))).length === 1;
+    let clues = [];
+    for (const c of shuf(pool)) {
+      clues.push(c);
+      if (uq(clues)) break;
+    }
+    if (!uq(clues)) continue;
+    for (const c of shuf([...clues])) {
+      const rest = clues.filter((x) => x !== c);
+      if (uq(rest)) clues = rest;
+    }
+    const indirect = clues.filter((c) => c.t !== "pos" && c.t !== "neg").length;
+    if (clues.length >= 3 && clues.length <= 5 && indirect >= 1 && clues.length - indirect <= 3) return { sol, ages, clues: shuf(clues) };
+  }
+  return null;
+}
+
+// ----- expert balance: 4 objects in a chain of 3 seesaws, ask for second heaviest / lightest -----
+function genBalChain(q) {
+  const o = shuf([0, 1, 2, 3]);
+  const cmp = shuf([[o[0], o[1]], [o[1], o[2]], [o[2], o[3]]]);
+  return { k: 4, cmp, q, ans: q === "second heaviest" ? o[1] : o[2], order: o };
+}
 //#end
 
 const css = document.createElement("style");
@@ -251,6 +426,7 @@ css.textContent = `
 .lg-board .sq{position:relative;display:grid;place-items:center;width:var(--cs);height:var(--cs);padding:0;border:0;border-radius:0;font-size:calc(var(--cs) * .62);line-height:1;cursor:pointer;touch-action:manipulation;color:#3a2412}
 .lg-board .lt{background:#f6e7c8}.lg-board .dk{background:#d6b183}
 .lg-board .pc{font-size:calc(var(--cs) * .78);color:#5b2a8c;text-shadow:0 2px 0 rgba(255,255,255,.6)}
+.lg-board .pb{font-size:calc(var(--cs) * .78);color:#1d1d1d;text-shadow:0 2px 0 rgba(255,255,255,.5)}
 .lg-board .dot{position:absolute;width:34%;height:34%;border-radius:50%;background:rgba(34,160,90,.7)}
 .lg-board .sel{box-shadow:inset 0 0 0 4px var(--accent);background:#cfe9ff}
 .lg-board .bad{box-shadow:inset 0 0 0 4px #d9822b;background:#f6dcd4}
@@ -275,7 +451,7 @@ css.textContent = `
 .lg-grid .h{font-size:clamp(34px,8vw,52px);line-height:1}
 .lg-grid .k{font:900 clamp(15px,3vw,20px)/1.1 var(--sans);text-align:center}
 .lg-grid .k span{display:block;font-size:clamp(30px,7vw,44px)}
-.lg-grid button{width:clamp(64px,16vw,96px);height:clamp(64px,16vw,96px);border:0;border-radius:18px;background:#fff;box-shadow:0 4px 0 #e2d6c4,0 0 0 2px #efe6d8;font:900 clamp(32px,8vw,52px)/1 var(--sans);cursor:pointer;touch-action:manipulation}
+.lg-grid button{width:var(--b,clamp(64px,16vw,96px));height:var(--b,clamp(64px,16vw,96px));border:0;border-radius:18px;background:#fff;box-shadow:0 4px 0 #e2d6c4,0 0 0 2px #efe6d8;font:900 clamp(32px,8vw,52px)/1 var(--sans);cursor:pointer;touch-action:manipulation}
 .lg-grid button.y{background:#d8f3e0;color:#157a40}.lg-grid button.n{background:#f2f2f2;color:#999}
 .lg-rule{max-width:720px;padding:12px 16px;border-radius:18px;background:var(--accent-soft);box-shadow:0 0 0 3px var(--accent);font:800 clamp(17px,3vw,22px)/1.3 var(--sans);text-align:center}
 .lg-item{width:clamp(96px,22vw,150px);height:clamp(96px,22vw,150px)}
@@ -304,7 +480,18 @@ const fresh = (html = "") => {
 };
 const status = (s) => {
   const b = $("[data-status]");
-  if (b) b.textContent = s;
+  if (b) b.textContent = (EXP && !/Expert/.test(s) ? "🦉 " : "") + s;
+};
+const sget = (k, sp) => {
+  try {
+    const v = localStorage.getItem(`tk-${OC.current()}-${k}`);
+    if (v !== null && v !== "") sp.n = Math.max(sp.min, Math.min(sp.max, Number(v)));
+  } catch {}
+};
+const sset = (k, v) => {
+  try {
+    localStorage.setItem(`tk-${OC.current()}-${k}`, String(v));
+  } catch {}
 };
 const bindPanel = () => {
   $("[data-panel]").onclick = (event) => {
@@ -343,13 +530,16 @@ async function finish(my, id, right, total, what) {
   await wait(3400);
   return my === token;
 }
-async function run(my, id, what, total, trial) {
+async function run(my, id, what, total, trial, sp) {
   let right = 0;
+  if (sp) sget(id, sp);
   while (true) {
     for (let i = 0; i < total; i++) {
+      EXP = !!sp && sp.n >= sp.max;
       status(`Puzzle ${i + 1} of ${total}`);
       const ok = await trial(i);
       if (my !== token) return;
+      if (sp) sset(id, sp.n);
       if (ok) right += 1;
       await wait(1600);
       if (my !== token) return;
@@ -375,7 +565,9 @@ function drawBoard(host, size, st) {
       const k = K(r, c);
       const cls = [(r + c) % 2 ? "dk" : "lt", st.sel?.has(k) && "sel", st.bad?.has(k) && "bad", st.hint?.has(k) && "hint", st.dim && "dim"].filter(Boolean).join(" ");
       let inner = "";
-      if (st.piece && st.piece[0] === r && st.piece[1] === c) inner = `<span class="pc">${PIECES[st.kind][1]}</span>`;
+      const pc = st.pcs?.get(k);
+      if (pc) inner = `<span class="${pc.w ? "pc" : "pb"}">${GL[pc.t]}</span>`;
+      else if (st.piece && st.piece[0] === r && st.piece[1] === c) inner = `<span class="pc">${PIECES[st.kind][1]}</span>`;
       else if (st.trees?.has(k)) inner = "🌳";
       else if (st.bugs?.has(k)) inner = "🐛";
       else if (st.star && st.star[0] === r && st.star[1] === c) inner = "⭐";
@@ -474,7 +666,94 @@ async function reachTrial(my, kind) {
   });
 }
 const PZ = [[5, 1], [5, 2], [6, 2], [7, 2], [8, 2]];
+async function mateTrial(my, sp) {
+  const P = genMate(rnd(2) + 1);
+  const k = P.k;
+  const d = fresh(`<div class="tk-col"><div data-b></div></div>`);
+  const host = $("[data-b]", d);
+  setPanel([["hear", "🔊 Hear it again", true]]);
+  const intro = `Checkmate puzzle! White (purple) to move. Checkmate the black king in <b>${k} move${k > 1 ? "s" : ""}</b>: attack it so it has no safe square and nothing can capture the attacker.${k > 1 ? " The black king will answer after your first move." : ""} Tap a purple piece, then where it goes.`;
+  on.hear = () => say(intro);
+  let attempt = 0;
+  while (attempt < 2) {
+    let pcs = P.pieces.map((x) => ({ ...x }));
+    let sel = null;
+    let step = 1;
+    const paint = (extra = {}) => {
+      const dots = sel ? setOf(legalMoves(pcs, true).filter((m) => m.p === sel).map((m) => [m.r, m.c])) : null;
+      drawBoard(host, 8, { pcs: new Map(pcs.map((x) => [K(x.r, x.c), x])), dots, sel: sel ? new Set([K(sel.r, sel.c)]) : null, ...extra });
+    };
+    paint();
+    status(`Mate in ${k}`);
+    say(attempt ? `Try again. Mate in ${k}.` : intro);
+    const result = await new Promise((resolve) => {
+      host.onclick = async (event) => {
+        const p = SQ(event);
+        if (!p) return;
+        window.OC?.touch();
+        const own = pcs.find((x) => x.w && x.r === p[0] && x.c === p[1]);
+        if (own) {
+          sel = own;
+          note(2);
+          return paint();
+        }
+        const m = sel && legalMoves(pcs, true).find((q) => q.p === sel && q.r === p[0] && q.c === p[1]);
+        if (!m) {
+          MUSIC.oops();
+          return say(sel ? "That piece cannot go there. Tap a green dot." : "First tap one of your purple pieces.");
+        }
+        host.onclick = null;
+        const after = applyMove(pcs, m);
+        note(5);
+        if (inCheck(after, false) && !legalMoves(after, false).length) {
+          pcs = after;
+          sel = null;
+          paint();
+          return resolve("win");
+        }
+        if (step === k) {
+          pcs = after;
+          sel = null;
+          paint();
+          return resolve("no");
+        }
+        const bl = legalMoves(after, false);
+        if (!bl.length || !bl.every((r) => mate1(applyMove(after, r)).length)) {
+          pcs = after;
+          sel = null;
+          paint();
+          return resolve("loose");
+        }
+        pcs = applyMove(after, pick(bl));
+        sel = null;
+        step += 1;
+        paint();
+        await wait(600);
+        say("The black king moved. Now checkmate!");
+        host.onclick = host._h;
+      };
+      host._h = host.onclick;
+    });
+    if (my !== token) return false;
+    if (result === "win") {
+      if (!attempt) sp.up();
+      feedback(true, "Checkmate! The king has nowhere to go.");
+      return attempt === 0;
+    }
+    attempt += 1;
+    MUSIC.oops();
+    say(`${pick(KIND)} ${result === "no" ? "That is not checkmate: the king can still escape or capture." : "That does not force checkmate; the king has a way out. Think about which squares it can reach."} ${attempt < 2 ? "Let's start again." : ""}`);
+    await wait(2200);
+    if (my !== token) return false;
+  }
+  sp.down();
+  const s = P.sol[0];
+  drawBoard(host, 8, { pcs: new Map(P.pieces.map((x) => [K(x.r, x.c), x])), hint: setOf([s.from, s.to]) });
+  say(`One answer: move the piece on the first green square to the second.${k > 1 ? " Then finish after the king moves." : ""} Let's try another.`);
+  return false;
+}
 async function puzzleTrial(my, sp) {
+  if (sp.n >= PZ.length) return mateTrial(my, sp);
   const [size, moves] = PZ[sp.n];
   const P = genPuzzle(size, moves);
   const [name] = PIECES[P.piece];
@@ -541,9 +820,11 @@ async function puzzleTrial(my, sp) {
 
 // ---------- sudoku ----------
 async function sudokuRound(my, spec, sp) {
+  const X = sp.n >= 4;
+  if (X) spec = { n: 9, br: 3, bc: 3, pics: false, blanks: 40, easy: true };
   const { n, br, bc, pics } = spec;
-  const blanks = spec.blanks + sp.n;
-  const { puz, sol } = makeSudoku(n, br, bc, blanks);
+  const blanks = spec.blanks + (X ? 0 : Math.min(sp.n, 3));
+  const { puz, sol } = makeSudoku(n, br, bc, blanks, !!spec.easy);
   const sym = pics ? shuf(ANIMALS).slice(0, n) : [...Array(n).keys()].map((x) => String(x + 1));
   const g = [...puz];
   let sel = -1, conflicts = 0, helped = false;
@@ -564,7 +845,7 @@ async function sudokuRound(my, spec, sp) {
   const host = $("[data-g]", d);
   const draw = () => {
     const cf = bad();
-    host.innerHTML = `<div class="lg-sud" style="grid-template-columns:repeat(${n},var(--cs));--cs:min(calc(86vw / ${n}),calc(40vh / ${n}),84px)">${g
+    host.innerHTML = `<div class="lg-sud" style="grid-template-columns:repeat(${n},var(--cs));--cs:min(calc(86vw / ${n}),calc(46vh / ${n}),84px)">${g
       .map((v, i) => {
         const r = Math.floor(i / n), c = i % n;
         const cls = [puz[i] && "g", i === sel && "sel", cf.has(i) && !puz[i] && "cf", (c + 1) % bc === 0 && c < n - 1 && "br", (r + 1) % br === 0 && r < n - 1 && "bb"].filter(Boolean).join(" ");
@@ -641,35 +922,47 @@ const SUD = [
 
 // ---------- who's who ----------
 const KIDS = [["Mia", "👧"], ["Leo", "👦"], ["Zoe", "🧒"]];
+const KIDS4 = [...KIDS, ["Sam", "🧑"]];
 const THEMES = [
-  { verb: "has", no: "does not have", items: [["🐶", "dog"], ["🐱", "cat"], ["🐰", "rabbit"], ["🐠", "fish"], ["🐢", "turtle"], ["🐦", "bird"]] },
-  { verb: "is eating", no: "is not eating", items: [["🍎", "apple"], ["🍌", "banana"], ["🍇", "grapes"], ["🍓", "strawberry"], ["🥕", "carrot"], ["🍪", "cookie"]] },
-  { verb: "is holding", no: "is not holding", items: [["⚽", "ball"], ["🪁", "kite"], ["🧸", "teddy"], ["🎈", "balloon"], ["🚂", "toy train"], ["🎨", "paintbrush"]] },
+  { who: "the one who has", verb: "has", no: "does not have", items: [["🐶", "dog"], ["🐱", "cat"], ["🐰", "rabbit"], ["🐠", "fish"], ["🐢", "turtle"], ["🐦", "bird"]] },
+  { who: "the one who is eating", verb: "is eating", no: "is not eating", items: [["🍎", "apple"], ["🍌", "banana"], ["🍇", "grapes"], ["🍓", "strawberry"], ["🥕", "carrot"], ["🍪", "cookie"]] },
+  { who: "the one who is holding", verb: "is holding", no: "is not holding", items: [["⚽", "ball"], ["🪁", "kite"], ["🧸", "teddy"], ["🎈", "balloon"], ["🚂", "toy train"], ["🎨", "paintbrush"]] },
 ];
 async function whoRound(my, sp) {
-  const P = genWho(sp.n);
+  const X = sp.n >= 2;
+  const P = X ? genWho4() : genWho(sp.n);
+  const N = X ? 4 : 3;
   const th = pick(THEMES);
-  const things = shuffle(th.items).slice(0, 3);
-  const kids = shuffle(KIDS);
-  const words = (c) => `${kids[c.k][0]} ${c.t === "pos" ? th.verb : th.no} the ${things[c.p][1]}`;
-  const marks = kids.map(() => [0, 0, 0]);
+  const things = shuffle(th.items).slice(0, N);
+  const kids = X ? shuffle(KIDS4) : shuffle(KIDS);
+  const satf = X ? (r, c) => sat4(r, c, P.ages) : sat;
+  const cap = (s) => s[0].toUpperCase() + s.slice(1);
+  const words = (c) =>
+    c.t === "old" || c.t === "yng" ? `${cap(th.who)} the ${things[c.p][1]} is ${c.t === "old" ? "older" : "younger"} than ${kids[c.k][0]}`
+    : c.t === "oo" ? `${cap(th.who)} the ${things[c.p][1]} is older than ${th.who} the ${things[c.q][1]}`
+    : `${kids[c.k][0]} ${c.t === "pos" ? th.verb : th.no} the ${things[c.p][1]}`;
+  const marks = kids.map(() => Array(N).fill(0));
   const d = fresh(`<div class="tk-col"><div class="lg-clues">${P.clues.map((c, i) => `<button type="button" class="lg-clue" data-c="${i}"><b>${i + 1}</b>${words(c)}.</button>`).join("")}</div><div class="lg-grid" data-grid></div></div>`);
   const grid = $("[data-grid]", d);
+  if (X) {
+    grid.style.setProperty("--b", "clamp(54px,13vw,80px)");
+    grid.style.gridTemplateColumns = "auto repeat(4,var(--b))";
+  }
   const paint = () => {
     grid.innerHTML = `<span></span>${things.map((t) => `<span class="h" aria-label="${t[1]}">${t[0]}</span>`).join("")}${kids
-      .map((k, f) => `<span class="k"><span>${k[1]}</span>${k[0]}</span>${marks[f].map((v, p) => `<button type="button" data-f="${f}" data-p="${p}" class="${v === 1 ? "y" : v === 2 ? "n" : ""}" aria-label="${k[0]} ${things[p][1]}">${v === 1 ? "✔" : v === 2 ? "✘" : ""}</button>`).join("")}`)
+      .map((k, f) => `<span class="k"><span>${k[1]}</span>${k[0]}${X ? `<br>age ${P.ages[f]}` : ""}</span>${marks[f].map((v, p) => `<button type="button" data-f="${f}" data-p="${p}" class="${v === 1 ? "y" : v === 2 ? "n" : ""}" aria-label="${k[0]} ${things[p][1]}">${v === 1 ? "✔" : v === 2 ? "✘" : ""}</button>`).join("")}`)
       .join("")}`;
   };
   paint();
-  const read = () => say(`Who is who? ${P.clues.map((c, i) => `Clue ${i + 1}: ${words(c)}.`).join(" ")} Tap a box: a tick means yes, a cross means no.`);
+  const read = () => say(`Who is who? ${X ? "Ages are shown under each name. " : ""}${P.clues.map((c, i) => `Clue ${i + 1}: ${words(c)}.`).join(" ")} Tap a box: a tick means yes, a cross means no.`);
   setPanel([["hear", "🔊 Hear the clues", true], ["clear", "Start over", true]]);
   read();
   return new Promise((resolve) => {
     let missed = false;
     const check = () => {
       const rows = marks.map((row) => row.indexOf(1));
-      if (rows.some((x) => x < 0) || new Set(rows).size < 3) return;
-      const broken = P.clues.findIndex((c) => !sat(rows, c));
+      if (rows.some((x) => x < 0) || new Set(rows).size < N) return;
+      const broken = P.clues.findIndex((c) => !satf(rows, c));
       if (broken < 0 && rows.every((p, f) => p === P.sol[f])) {
         on.hear = on.clear = grid.onclick = null;
         if (!missed) sp.up();
@@ -725,6 +1018,25 @@ const itemSvg = (it) => `<svg viewBox="0 0 100 100" class="lg-item" role="img" a
 const SHAPE_WORD = { circle: "a circle", square: "a square", triangle: "a triangle", star: "a star" };
 const DEST = { box: ["📦", "the box"], bag: ["👜", "the bag"], basket: ["🧺", "the basket"], table: ["🪑", "the table"] };
 function genRule(level) {
+  if (level >= 4) {
+    const mk = () => {
+      const dim = pick(["color", "shape"]);
+      return { dim, v: dim === "color" ? pick(Object.keys(COLORS)) : pick(Object.keys(SHAPES)), neg: rnd(2) === 0 };
+    };
+    const a = mk();
+    let b = mk();
+    while (b.dim === a.dim && b.v === a.v) b = mk();
+    const T = (q, it) => (it[q.dim] === q.v) !== q.neg;
+    const pw = (q) => `${q.neg ? "NOT " : ""}${q.dim === "color" ? q.v : SHAPE_WORD[q.v]}`;
+    const f = (it) => {
+      const x = T(a, it), y = T(b, it);
+      return x && y ? "basket" : x ? "box" : y ? "bag" : "table";
+    };
+    const all = [];
+    for (const color of Object.keys(COLORS)) for (const shape of Object.keys(SHAPES)) all.push({ color, shape });
+    const dests = ["box", "bag", "basket", "table"].filter((k) => all.some((it) => f(it) === k));
+    return { dests, f, text: `Rule 1: if it is <b>${pw(a)}</b>, it goes in the box. Rule 2: if it is <b>${pw(b)}</b>, it goes in the bag. If it fits <b>both</b> rules, it goes in the basket. If it fits <b>neither</b>, it goes on the table.` };
+  }
   const cs = shuffle(Object.keys(COLORS));
   const ss = shuffle(Object.keys(SHAPES));
   const byColor = rnd(2) === 0;
@@ -751,12 +1063,20 @@ function genRule(level) {
 }
 async function ruleRound(my, sp) {
   const rule = genRule(sp.n);
-  const COUNT = 5;
-  let items;
-  for (let t = 0; t < 300; t++) {
-    items = Array.from({ length: COUNT }, () => ({ color: pick(Object.keys(COLORS)), shape: pick(Object.keys(SHAPES)) }));
-    if (rule.dests.every((k) => items.some((it) => rule.f(it) === k))) break;
+  const COUNT = sp.n >= 4 ? 6 : 5;
+  const rand = () => ({ color: pick(Object.keys(COLORS)), shape: pick(Object.keys(SHAPES)) });
+  const items = [];
+  for (const k of rule.dests) {
+    for (let t = 0; t < 300; t++) {
+      const it = rand();
+      if (rule.f(it) === k) {
+        items.push(it);
+        break;
+      }
+    }
   }
+  while (items.length < COUNT) items.push(rand());
+  shuffle(items);
   const d = fresh(`<div class="tk-col"><div class="lg-rule">${rule.text}</div><div data-item></div><div class="lg-dests" data-dests>${rule.dests.map((k) => `<button type="button" data-k="${k}"><span>${DEST[k][0]}</span>${DEST[k][1].replace("the ", "")}</button>`).join("")}</div></div>`);
   setPanel([["hear", "🔊 Hear the rule", true]]);
   on.hear = () => say(rule.text);
@@ -797,7 +1117,7 @@ async function ruleRound(my, sp) {
 
 // ---------- balance ----------
 const THINGS = [["🍎", "apple"], ["🍌", "banana"], ["🍇", "grapes"], ["🧸", "teddy"], ["⚽", "ball"], ["🐟", "fish"], ["🥕", "carrot"], ["🍪", "cookie"], ["🚗", "car"], ["🍩", "donut"]];
-const BAL = [[3, 2], [4, 3], [4, 4], [5, 5]];
+const BAL = [[3, 2], [4, 3], [4, 4], [5, 5], [4, 3, "chain"]];
 function seesaw(a, b, heavyLeft) {
   const y = (up) => (up ? 62 : 100);
   const ly = heavyLeft ? 100 : 62;
@@ -805,15 +1125,15 @@ function seesaw(a, b, heavyLeft) {
   return `<svg viewBox="0 0 220 150" role="img" aria-label="${heavyLeft ? a : b} is heavier than ${heavyLeft ? b : a}"><path d="M110 98 90 142H130Z" fill="#a0663a"/><line x1="30" y1="${ly}" x2="190" y2="${ry}" stroke="#7a4a24" stroke-width="9" stroke-linecap="round"/><circle cx="110" cy="${(ly + ry) / 2 + 0}" r="9" fill="#ffcf3a" stroke="#b06a14" stroke-width="3"/><text x="40" y="${ly - 12}" font-size="46" text-anchor="middle">${a}</text><text x="180" y="${ry - 12}" font-size="46" text-anchor="middle">${b}</text></svg>`;
 }
 async function balRound(my, sp) {
-  const [k, m] = BAL[sp.n];
-  const q = sp.n === 0 ? "heaviest" : pick(["heaviest", "lightest"]);
-  const P = genBal(k, m, q);
+  const [k, m, mode] = BAL[sp.n];
+  const q = mode ? pick(["second heaviest", "second lightest"]) : sp.n === 0 ? "heaviest" : pick(["heaviest", "lightest"]);
+  const P = mode ? genBalChain(q) : genBal(k, m, q);
   const things = shuffle(THINGS).slice(0, k);
   const d = fresh(`<div class="tk-col"><div class="lg-seesaws">${shuf(P.cmp)
     .map(([h, l]) => (rnd(2) ? seesaw(things[h][0], things[l][0], true) : seesaw(things[l][0], things[h][0], false)))
     .join("")}</div><div class="lg-ans" data-ans>${things.map((t, i) => `<button type="button" data-i="${i}" aria-label="${t[1]}">${t[0]}</button>`).join("")}</div></div>`);
   setPanel([["hear", "🔊 Hear the question", true]]);
-  const qs = `Which one is the <b>${q}</b>? The lower side of a seesaw is heavier. Tap your answer.`;
+  const qs = `Which one is the <b>${q}</b>? The lower side of a seesaw is heavier.${mode ? " Line them all up in order." : ""} Tap your answer.`;
   on.hear = () => say(qs);
   say(`Look at the seesaws. ${qs}`);
   let missed = 0;
@@ -828,14 +1148,14 @@ async function balRound(my, sp) {
         const ok = missed === 0;
         if (ok) sp.up();
         else sp.down();
-        feedback(true, `The ${things[P.ans][1]} ${q === "heaviest" ? "is never on the higher side" : "is never on the lower side"}. You worked it out!`);
+        feedback(true, mode ? `The ${things[P.ans][1]} is number ${q === "second heaviest" ? "two" : "three"} in the line. You put them all in order!` : `The ${things[P.ans][1]} ${q === "heaviest" ? "is never on the higher side" : "is never on the lower side"}. You worked it out!`);
         resolve(ok);
       } else {
         missed += 1;
         b.classList.add("bad");
         b.disabled = true;
         MUSIC.oops();
-        say(`${pick(KIND)} ${q === "heaviest" ? "The heaviest one is always on the lower side." : "The lightest one is always on the higher side."} Look again.`);
+        say(`${pick(KIND)} ${mode ? "Line up all four from heaviest to lightest, linking the seesaws." : q === "heaviest" ? "The heaviest one is always on the lower side." : "The lightest one is always on the higher side."} Look again.`);
         if (missed >= 2) {
           $("[data-ans]", d).onclick = null;
           sp.down();
@@ -852,7 +1172,7 @@ const units = {
   lg0() {
     const my = token;
     const order = ["king", "rook", "bishop", "knight", "pawn"];
-    const sp = span(0, 0, PZ.length - 1);
+    const sp = span(0, 0, PZ.length);
     setPanel();
     run(my, "lg0", "chess thinking", 11, async (i) => {
       if (i < 5) {
@@ -860,36 +1180,37 @@ const units = {
         return reachTrial(my, order[i]);
       }
       return puzzleTrial(my, sp);
-    });
+    }, sp);
   },
   lg1() {
     const my = token;
-    const sp = span(0, -2, 3);
+    const sp = span(0, -2, 4);
     setPanel();
-    run(my, "lg1", "sudoku", 6, (i) => sudokuRound(my, SUD[i], sp));
+    run(my, "lg1", "sudoku", 6, (i) => sudokuRound(my, SUD[i], sp), sp);
   },
   lg2() {
     const my = token;
-    const sp = span(0, 0, 1);
+    const sp = span(0, 0, 2);
     setPanel();
-    run(my, "lg2", "detective work", 6, () => whoRound(my, sp));
+    run(my, "lg2", "detective work", 6, () => whoRound(my, sp), sp);
   },
   lg3() {
     const my = token;
-    const sp = span(0, 0, 3);
+    const sp = span(0, 0, 4);
     setPanel();
-    run(my, "lg3", "rule following", 6, () => ruleRound(my, sp));
+    run(my, "lg3", "rule following", 6, () => ruleRound(my, sp), sp);
   },
   lg4() {
     const my = token;
     const sp = span(0, 0, BAL.length - 1);
     setPanel();
-    run(my, "lg4", "balance logic", 6, () => balRound(my, sp));
+    run(my, "lg4", "balance logic", 6, () => balRound(my, sp), sp);
   },
 };
 
 const stopAll = () => {
   token += 1;
+  EXP = false;
   on = {};
   VOICE.hush();
   stage.onclick = null;
