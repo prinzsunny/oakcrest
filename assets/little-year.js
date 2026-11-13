@@ -57,6 +57,7 @@
     const items = [];
     const push = (it) => items.push({ screen: false, ...it });
     if (!quiet && settings(learner).teaser) push({ key: "teaser", lane: "math", icon: "🧩", label: "Brain teaser", what: "5 picture puzzles on OakCrest, with a grown-up nearby (about 5 minutes).", minutes: 5, times: 0, group: "Math", path: "math/teaser/" });
+    if (!quiet && settings(learner).think) push({ key: "think", lane: "math", icon: "🧠", label: "Thinking game", what: "One Thinking Skills game on OakCrest, with a grown-up nearby (about 10 minutes).", minutes: 10, times: 0, group: "Thinking Skills", path: "think/" });
     if (!quiet) push({ key: "devotion", lane: "family", icon: "🙏", label: "Family time", what: "Morning prayer or a quiet moment together, in your family's own way (5 min).", minutes: 5, times: 0, group: "Life Skills", optional: true });
     for (const [field, label, icon, minutes, times, group] of LANES) {
       const v = week[field];
@@ -88,8 +89,7 @@
     }
     if (!days.length) return days;
     const all = itemsOf(learner, w);
-    // The brain teaser started on 2026-11-12; earlier days don't count it as skipped.
-    for (const it of all.filter((i) => i.times === 0)) for (const d of days) if (it.key !== "teaser" || d.iso >= "2026-11-12") d.items.push(it);
+    for (const it of all.filter((i) => i.times === 0)) for (const d of days) { const x = Y.dailyItem(it, d.iso, s.days); if (x) d.items.push(x); }
     const load = (d) => d.items.reduce((m, i) => m + i.minutes, 0);
     const screenOf = (d) => d.items.filter((i) => i.screen).reduce((m, i) => m + i.minutes, 0);
     const rest = all.filter((i) => i.times > 0).sort((a, b) => a.screen - b.screen || b.times - a.times || b.minutes - a.minutes);

@@ -127,7 +127,7 @@
     const s = read("oc-year", {})[learner]?.settings || {};
     // Screen time is 60 minutes on lesson days unless the parent has chosen another figure in settings
     // (an older saved default of 30 does not count as a choice).
-    return { start: s.start || DATA.start, days: s.days || [2, 4, 6, 0], screen: s.screenSet ? s.screen ?? 60 : 60, screenSet: !!s.screenSet, soroban: s.soroban ?? true, planFirst: s.planFirst ?? true, planSince: s.planSince || "", unlockDay: s.unlockDay || "", lockAll: !!s.lockAll, teaser: s.teaser ?? true };
+    return { start: s.start || DATA.start, days: s.days || [2, 4, 6, 0], screen: s.screenSet ? s.screen ?? 60 : 60, screenSet: !!s.screenSet, soroban: s.soroban ?? true, planFirst: s.planFirst ?? true, planSince: s.planSince || "", unlockDay: s.unlockDay || "", lockAll: !!s.lockAll, teaser: s.teaser ?? true, think: s.think ?? true };
   };
   const setSettings = (learner, patch) => {
     const all = read("oc-year", {});
@@ -185,6 +185,7 @@
     if (!quiet) {
       if (w >= 4) push({ key: "zaccaro", lane: "math", icon: "🏔️", label: "Challenge problems", what: "Primary Grade Challenge Math (Zaccaro): 2–3 challenge problems on this week's topic. Struggle first; write the best one in the Solution Notebook.", minutes: 20, times: 1, group: "Math" });
       if (settings(learner).teaser) push({ key: "teaser", lane: "math", icon: "🧩", label: "Brain teaser", what: "5 picture puzzles on OakCrest: patterns, odd one out, analogies and turning shapes (about 5 minutes).", minutes: 5, times: 0, group: "Math", path: "math/teaser/" });
+      if (settings(learner).think) push({ key: "think", lane: "math", icon: "🧠", label: "Thinking game", what: "One Thinking Skills game on OakCrest (about 10 minutes).", minutes: 10, times: 0, group: "Thinking Skills", path: "think/" });
       if (settings(learner).soroban) push({ key: "soroban", lane: "math", icon: "🧮", label: "Soroban", what: "Soroban practice for her class: the next level (10 minutes).", minutes: 10, times: 3, group: "Math", path: "math/soroban/", screen: true });
       push({ key: "think", lane: "character", icon: "💭", label: "Big question", what: `Talk it through together: “${QUESTIONS[w % QUESTIONS.length]}” She answers with “I think… because…”, then considers another view.`, minutes: 15, times: 1, group: "Life Skills", path: "character/think/" });
       // Weekly habits from the family plan (master guide and year-by-year guide).
@@ -243,6 +244,27 @@
   };
 
   // Spread a week's items over its school days: daily items every day, the rest balanced by minutes.
+  // Daily items that start on a set date (so earlier days don't count them as skipped) or change every day.
+  // The thinking game rotates Word Wizard → Shape Lab → Memory Gym → Logic Lab, one a day.
+  const THINK = [
+    { path: "think/verbal/", icon: "🧙", label: "Thinking: Word Wizard", what: "Word Wizard on OakCrest: goes-together, alike, word meanings and riddles (about 10 minutes)." },
+    { path: "think/spatial/", icon: "🔷", label: "Thinking: Shape Lab", what: "Shape Lab on OakCrest: copy the tiles, missing piece, fold and punch, turn it (about 10 minutes)." },
+    { path: "think/memory/", icon: "🧠", label: "Thinking: Memory Gym", what: "Memory Gym on OakCrest: picture parade, hiding spots, number echo and speed games (about 10 minutes)." },
+    { path: "think/logic/", icon: "♞", label: "Thinking: Logic Lab", what: "Logic Lab on OakCrest: chess moves, mini sudoku, who's who and balance puzzles (about 10 minutes)." },
+  ];
+  // Counts lesson days since the first one, so every game gets its turn whichever weekdays are lesson days.
+  function thinkFor(dayIso, lessonDays = [0, 1, 2, 3, 4, 5, 6]) {
+    const [yy, mm, dd] = dayIso.split("-").map(Number);
+    const end = new Date(yy, mm - 1, dd);
+    let n = 0;
+    for (const d = new Date(2026, 10, 13); d < end; d.setDate(d.getDate() + 1)) if (lessonDays.includes(d.getDay())) n += 1;
+    return THINK[n % THINK.length];
+  }
+  function dailyItem(it, dayIso, lessonDays) {
+    if (it.key === "teaser") return dayIso >= "2026-11-12" ? it : null;
+    if (it.key === "think") return dayIso >= "2026-11-13" ? { ...it, ...thinkFor(dayIso, lessonDays) } : null;
+    return it;
+  }
   function daysOf(learner, w) {
     const s = settings(learner);
     const start = weekStart(learner, w);
@@ -255,8 +277,7 @@
     const days = dates.map((date) => ({ date, iso: iso(date), items: [], minutes: 0, screen: 0 }));
     if (!days.length) return days;
     const all = itemsOf(learner, w);
-    // The brain teaser started on 2026-11-12; earlier days don't count it as skipped.
-    for (const it of all.filter((i) => i.times === 0)) for (const d of days) if (it.key !== "teaser" || d.iso >= "2026-11-12") d.items.push(it);
+    for (const it of all.filter((i) => i.times === 0)) for (const d of days) { const x = dailyItem(it, d.iso, s.days); if (x) d.items.push(x); }
     // Spread the rest: most frequent first, each copy to the least-loaded day that doesn't have it yet.
     // Screen items are placed after the rest, in priority order, so the most important ones fit the budget first.
     const rest = all.filter((i) => i.times > 0).sort((a, b) => a.screen - b.screen || (a.screen ? rank(a) - rank(b) : b.times - a.times || b.minutes - a.minutes));
@@ -297,5 +318,5 @@
 
   const memoryOf = (w) => (window.MEMORY || []).find((m) => w >= m.from && w <= m.to) || null;
 
-  window.YEAR = { memoryOf, DATA, QUESTIONS, LANES, COURSES, SCHEDULE, SCHOOL, lessonsOf, weekOfLesson, settings, setSettings, ticks, setTick, weekStart, weekIndexOf, itemsOf, daysOf, tickKey, checkKey, iso };
+  window.YEAR = { dailyItem, thinkFor, memoryOf, DATA, QUESTIONS, LANES, COURSES, SCHEDULE, SCHOOL, lessonsOf, weekOfLesson, settings, setSettings, ticks, setTick, weekStart, weekIndexOf, itemsOf, daysOf, tickKey, checkKey, iso };
 })();
