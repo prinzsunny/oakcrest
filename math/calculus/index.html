@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculus Ideas · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+<script src="../../assets/ideas.js"></script>
+</head>
+<body data-subject="math">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Calculus Ideas</b><small>Math · Advanced</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>
+const { $, el, text, say, pick, pickInt, explain, everyday, emoji, shuffle } = KIT;
+const UNITS = [
+  { id: "k0", label: "See it", icon: "👀" },
+  { id: "k1", label: "1. How fast?", icon: "🚗" },
+  { id: "k2", label: "2. Adding tiny pieces", icon: "🧱" },
+  { id: "k3", label: "3. Closer and closer", icon: "🐸" },
+  { id: "k4", label: "4. Mixed puzzles", icon: "🧩" },
+];
+const B = IDEAS({
+  title: "Calculus Ideas",
+  counter: "calculus questions solved",
+  explainPrompts: {
+    k1: "On a distance–time graph, why does a steeper line mean a faster car? What does a flat line mean?",
+    k2: "Why do thinner strips give a better guess for the area under a curve?",
+    k3: "The frog jumps half of the gap every time. Why does it get closer and closer but never quite land?",
+    k4: "Pick one puzzle you solved. Tell a grown-up which big idea it used: how fast, adding pieces, or getting closer.",
+  },
+});
+const { S, INK, fresh, tween, para, labPanel, questions, opts, numOpts } = B;
+const ACC = "var(--accent)";
+const BLUE = "#1e88e5";
+const RED = "#e0603a";
+const GREEN = "#43a047";
+const ding = (m, o) => MUSIC.play("xylophone", Math.max(72, Math.min(96, Math.round(m))), o);
+const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+const gcd = (a, b) => (b ? gcd(b, a % b) : Math.abs(a));
+const frac = (n, d) => (n % d === 0 ? String(n / d) : `${n / gcd(n, d)}/${d / gcd(n, d)}`);
+
+// ---------- pictures (400 × 400 box) ----------
+// Axes with optional grid; returns (x, y) → screen point for data in [0..xMax] × [0..yMax].
+function axes(g, xMax, yMax, { xLabel = "", yLabel = "", grid = true, x0 = 50, y0 = 360, w = 330, h = 320, ticks = true } = {}) {
+  const sx = w / xMax;
+  const sy = h / yMax;
+  if (grid) {
+    for (let i = 0; i <= xMax; i++) el("line", { x1: x0 + i * sx, y1: y0, x2: x0 + i * sx, y2: y0 - h, stroke: "#eadfcd", "stroke-width": 1.5 }, g);
+    for (let j = 0; j <= yMax; j++) el("line", { x1: x0, y1: y0 - j * sy, x2: x0 + w, y2: y0 - j * sy, stroke: "#eadfcd", "stroke-width": 1.5 }, g);
+  }
+  el("path", { d: `M${x0} ${y0 - h - 10}V${y0}H${x0 + w + 10}`, fill: "none", stroke: INK, "stroke-width": 4, "stroke-linecap": "round" }, g);
+  if (ticks) {
+    const xs = xMax <= 10 ? 1 : Math.ceil(xMax / 8);
+    const ys = yMax <= 10 ? 1 : Math.ceil(yMax / 8);
+    for (let i = 0; i <= xMax; i += xs) text(g, x0 + i * sx, y0 + 26, i, { "font-size": 18, fill: INK });
+    for (let j = ys; j <= yMax; j += ys) text(g, x0 - 16, y0 - j * sy + 6, j, { "font-size": 18, fill: INK, "text-anchor": "end" });
+  }
+  if (xLabel) text(g, x0 + w / 2, y0 + 52, xLabel, { "font-size": 19, fill: "#7a5a40" });
+  if (yLabel) text(g, x0 - 8, y0 - h - 18, yLabel, { "font-size": 19, fill: "#7a5a40", "text-anchor": "start" });
+  return (x, y) => [x0 + x * sx, y0 - y * sy];
+}
+// Journey graph: pts = [[t, d], ...]; labels letters the parts.
+function journey(pts, { xLabel = "minutes", yLabel = "km from home", letters = true, yMax } = {}) {
+  return (g) => {
+    const xMax = pts[pts.length - 1][0];
+    const top = yMax || Math.max(...pts.map((p) => p[1])) + 1;
+    const P = axes(g, xMax, top, { xLabel, yLabel });
+    el("path", { d: "M" + pts.map((p) => P(...p).join(" ")).join("L"), fill: "none", stroke: BLUE, "stroke-width": 7, "stroke-linejoin": "round", "stroke-linecap": "round" }, g);
+    if (letters)
+      for (let i = 1; i < pts.length; i++) {
+        const [ax, ay] = P(...pts[i - 1]);
+        const [bx, by] = P(...pts[i]);
+        el("circle", { cx: (ax + bx) / 2, cy: (ay + by) / 2 - 26, r: 17, fill: "#fff", stroke: RED, "stroke-width": 3 }, g);
+        text(g, (ax + bx) / 2, (ay + by) / 2 - 19, "ABCDE"[i - 1], { "font-size": 20, fill: RED });
+      }
+  };
+}
+// Bars of width 1 standing on the x axis (strips); heights = [h0, h1, ...].
+function strips(heights, { xLabel = "", yLabel = "", color = "#ffcf5c", yMax, numbers = true } = {}) {
+  return (g) => {
+    const top = yMax || Math.max(...heights) + 1;
+    const P = axes(g, heights.length, top, { xLabel, yLabel });
+    heights.forEach((h, i) => {
+      const [x1, y1] = P(i, h);
+      const [x2, y2] = P(i + 1, 0);
+      el("rect", { x: x1, y: y1, width: x2 - x1, height: y2 - y1, fill: color, stroke: INK, "stroke-width": 2.5, opacity: 0.9 }, g);
+      if (numbers && h) text(g, (x1 + x2) / 2, y1 - 8, h, { "font-size": 20, fill: INK });
+    });
+  };
+}
+// Shape made of unit squares on a grid: cells = [[col, row], ...].
+function gridShape(cells, cols = 8, rows = 8, color = "#9ccc65") {
+  return (g) => {
+    const c = Math.min(340 / cols, 340 / rows);
+    for (let x = 0; x < cols; x++) for (let y = 0; y < rows; y++) el("rect", { x: 30 + x * c, y: 20 + y * c, width: c, height: c, fill: "#fff", stroke: "#eadfcd", "stroke-width": 1.5 }, g);
+    for (const [x, y] of cells) el("rect", { x: 30 + x * c, y: 20 + y * c, width: c, height: c, fill: color, stroke: INK, "stroke-width": 2 }, g);
+  };
+}
+function frogPic(jumps) {
+  return (g) => {
+    el("rect", { x: 0, y: 220, width: 400, height: 30, rx: 15, fill: "#bfe3f5" }, g);
+    emoji(g, 380, 200, "🪷", 46);
+    let x = 20;
+    let gap = 340;
+    for (let i = 0; i < jumps; i++) {
+      const nx = x + gap / 2;
+      el("path", { d: `M${x} 200Q${(x + nx) / 2} ${200 - gap / 2.5} ${nx} 200`, fill: "none", stroke: GREEN, "stroke-width": 3, "stroke-dasharray": "6 6" }, g);
+      x = nx;
+      gap /= 2;
+    }
+    emoji(g, x, 190, "🐸", 44);
+  };
+}
+
+// ---------- 1. How fast? (rates of change) ----------
+const segPts = (speeds) => speeds.reduce((acc, s) => [...acc, [acc.length, acc[acc.length - 1][1] + s]], [[0, 0]]);
+const RATE = {
+  easy: [
+    () => {
+      const sp = shuffle([0, 1, 3]);
+      const fast = "ABC"[sp.indexOf(3)];
+      return { q: "This graph shows a bike ride. The steeper the line, the faster the bike. In which part did the bike go fastest?", opts: ["A", "B", "C"], ans: fast, pic: journey(segPts(sp)), idea: "Steeper line = faster", hints: ["Look for the part of the line that climbs the most.", "In one minute, which part goes up the most squares?"], sol: ["In each part, count how many squares the line goes up in one minute.", `Part ${fast} goes up 3 squares in one minute, more than the others.`, "Steeper means more distance each minute: faster."] };
+    },
+    () => {
+      const sp = shuffle([0, 2, 1]);
+      const stop = "ABC"[sp.indexOf(0)];
+      return { q: "This graph shows a walk to the park. In which part did the walker stop to rest?", opts: ["A", "B", "C"], ans: stop, pic: journey(segPts(sp)), idea: "A flat line means no movement", hints: ["When you stop, does your distance from home change?", "Find the part where the line stays flat."], sol: ["When you stand still, your distance from home stays the same.", "On the graph that looks like a flat line.", `Part ${stop} is flat, so that is the rest.`] };
+    },
+    () => {
+      const r = pickInt(2, 5);
+      const t = pickInt(2, 5);
+      return { q: `A snail crawls ${r} centimetres every minute. How many centimetres does it crawl in ${t} minutes?`, ans: r * t, pic: (g) => { emoji(g, 200, 160, "🐌", 120); text(g, 200, 320, `${r} cm each minute`, { "font-size": 26, fill: INK }); }, idea: "Speed × time = distance", hints: [`Each minute adds ${r} cm.`, `Count up by ${r}, ${t} times.`], sol: [`Each minute: ${r} cm.`, `${t} minutes: ${range(1, t).map(() => r).join(" + ")} = ${r * t} cm.`] };
+    },
+    () => {
+      const [a, b] = shuffle([["🐇", "Rabbit"], ["🐢", "Tortoise"]]);
+      const fa = a[1] === "Rabbit" ? pickInt(6, 9) : pickInt(1, 3);
+      const fb = b[1] === "Rabbit" ? pickInt(6, 9) : pickInt(1, 3);
+      const win = fa > fb ? a[1] : b[1];
+      return { q: `${a[1]} moves ${fa} metres every second. ${b[1]} moves ${fb} metres every second. Who is faster?`, opts: [a[1], b[1]], ans: win, pic: (g) => { emoji(g, 110, 150, a[0], 100); emoji(g, 290, 150, b[0], 100); text(g, 110, 290, `${fa} m each second`, { "font-size": 22, fill: INK }); text(g, 290, 290, `${fb} m each second`, { "font-size": 22, fill: INK }); }, idea: "Faster means more distance in the same time", hints: ["Who goes further in one second?"], sol: [`In one second, ${a[1]} goes ${fa} m and ${b[1]} goes ${fb} m.`, `${win} goes further in the same time, so ${win} is faster.`] };
+    },
+    () => {
+      const sp = shuffle([1, 2, 3]);
+      const slow = "ABC"[sp.indexOf(1)];
+      return { q: "This graph shows a car trip. In which part was the car slowest, but still moving?", opts: ["A", "B", "C"], ans: slow, pic: journey(segPts(sp)), idea: "Gentle slope = slow", hints: ["All three parts go up. Which one climbs the least?"], sol: ["Every part goes up, so the car never stopped.", `Part ${slow} climbs only 1 square each minute, the gentlest slope.`] };
+    },
+  ],
+  medium: [
+    () => {
+      const t1 = pickInt(1, 3);
+      const t2 = t1 + pickInt(2, 3);
+      const s = pickInt(2, 5);
+      const d1 = pickInt(1, 4);
+      const d2 = d1 + s * (t2 - t1);
+      return { q: `At minute ${t1} a train is ${d1} km from the station. At minute ${t2} it is ${d2} km away. It goes at a steady speed. How many km does it go each minute?`, ans: s, idea: "Speed = change in distance ÷ change in time", hints: [`How far did it go between minute ${t1} and minute ${t2}?`, `How many minutes is that?`, "Share the distance equally between the minutes."], sol: [`Distance gone: ${d2} − ${d1} = ${d2 - d1} km.`, `Time: ${t2} − ${t1} = ${t2 - t1} minutes.`, `${d2 - d1} ÷ ${t2 - t1} = ${s} km each minute.`] };
+    },
+    () => {
+      const r = pickInt(3, 9);
+      const t = pickInt(4, 9);
+      return { q: `A bath fills with ${r} litres of water every minute. How many litres are in it after ${t} minutes?`, ans: r * t, pic: (g) => emoji(g, 200, 180, "🛁", 150), idea: "Rate × time = amount", hints: [`Every minute adds ${r} litres.`, `${r} × ${t}`], sol: [`Each minute adds ${r} L.`, `${t} minutes: ${r} × ${t} = ${r * t} L.`] };
+    },
+    () => {
+      const g = shuffle([1, 2, 4, 3]).slice(0, 4);
+      const h = g.reduce((acc, x) => [...acc, acc[acc.length - 1] + x], [pickInt(2, 5)]);
+      const best = g.indexOf(Math.max(...g)) + 1;
+      return { q: `A bean plant is measured every week: ${h.map((x, i) => `week ${i}: ${x} cm`).join(", ")}. In which week did it grow the most?`, opts: ["Week 1", "Week 2", "Week 3", "Week 4"], ans: `Week ${best}`, idea: "Rate of change: look at the differences", hints: ["Work out how much it grew each week: subtract.", `Week 1 growth is ${h[1]} − ${h[0]}.`], sol: [`Growth each week: ${g.map((x, i) => `week ${i + 1}: ${x} cm`).join(", ")}.`, `The biggest growth is ${Math.max(...g)} cm, in week ${best}.`] };
+    },
+    () => {
+      const a = pickInt(2, 4);
+      const b = a + pickInt(1, 3);
+      const sp = shuffle([a, b, 0]);
+      const big = "ABC"[sp.indexOf(b)];
+      return { q: `In which part of this trip was the speed ${b} km each minute?`, opts: ["A", "B", "C"], ans: big, pic: journey(segPts(sp)), idea: "Speed is how much the line rises in one minute", hints: ["For each part, count how many km the line rises in one minute."], sol: [`Rises each minute: A ${sp[0]}, B ${sp[1]}, C ${sp[2]}.`, `Part ${big} rises ${b} km each minute.`] };
+    },
+    () => {
+      const s = pickInt(3, 8);
+      const d = s * pickInt(3, 9);
+      return { q: `A cyclist rides ${d} km at ${s} km each hour. How many hours does it take?`, ans: d / s, idea: "Time = distance ÷ speed", hints: [`Each hour covers ${s} km.`, `How many lots of ${s} make ${d}?`], sol: [`Each hour: ${s} km.`, `${d} ÷ ${s} = ${d / s} hours.`] };
+    },
+  ],
+  hard: [
+    () => {
+      const x1 = pickInt(0, 3);
+      const m = pickInt(1, 4);
+      const x2 = x1 + pickInt(2, 4);
+      const y1 = pickInt(0, 4);
+      const y2 = y1 + m * (x2 - x1);
+      return { q: `A straight line passes through (${x1}, ${y1}) and (${x2}, ${y2}). What is its slope (rise ÷ run)?`, ans: m, pic: (g) => { const P = axes(g, 8, Math.max(y2 + 1, 8), { ticks: true }); el("line", { x1: P(x1, y1)[0], y1: P(x1, y1)[1], x2: P(x2, y2)[0], y2: P(x2, y2)[1], stroke: BLUE, "stroke-width": 6, "stroke-linecap": "round" }, g); [[x1, y1], [x2, y2]].forEach((p) => el("circle", { cx: P(...p)[0], cy: P(...p)[1], r: 8, fill: RED }, g)); }, idea: "Slope = rise ÷ run", hints: ["Run: how far right do you go?", "Rise: how far up do you go?"], sol: [`Run: ${x2} − ${x1} = ${x2 - x1}.`, `Rise: ${y2} − ${y1} = ${y2 - y1}.`, `Slope: ${y2 - y1} ÷ ${x2 - x1} = ${m}.`] };
+    },
+    () => {
+      const a = pickInt(2, 6);
+      const b = pickInt(2, 6);
+      const ta = pickInt(1, 3);
+      const tb = 4 - ta;
+      const avg = (a * ta + b * tb) / 4;
+      if (!Number.isInteger(avg)) return RATE.hard[1]();
+      return { q: `A car drives at ${a * 10} km/h for ${ta} hour${ta > 1 ? "s" : ""}, then at ${b * 10} km/h for ${tb} hour${tb > 1 ? "s" : ""}. What is its average speed, in km/h, for the whole trip?`, ans: avg * 10, idea: "Average speed = total distance ÷ total time", hints: ["Work out the distance for each part first.", "Add the distances, then divide by the total time: 4 hours."], sol: [`Part 1: ${a * 10} × ${ta} = ${a * 10 * ta} km. Part 2: ${b * 10} × ${tb} = ${b * 10 * tb} km.`, `Total: ${(a * ta + b * tb) * 10} km in 4 hours.`, `${(a * ta + b * tb) * 10} ÷ 4 = ${avg * 10} km/h.`] };
+    },
+    () => {
+      const n = pickInt(3, 6);
+      const d = range(0, 6).map((t) => t * t);
+      return { q: `A ball rolls down a ramp. Its distance after each second is ${d.slice(0, 6).join(", ")} metres. How far does it roll during second number ${n}, from ${n - 1} s to ${n} s?`, ans: d[n] - d[n - 1], pic: journey(d.slice(0, 6).map((y, t) => [t, y]), { xLabel: "seconds", yLabel: "metres", letters: false, yMax: 26 }), idea: "The curve gets steeper: the ball speeds up", hints: [`Subtract: distance at ${n} s minus distance at ${n - 1} s.`], sol: [`At ${n} s: ${d[n]} m. At ${n - 1} s: ${d[n - 1]} m.`, `${d[n]} − ${d[n - 1]} = ${d[n] - d[n - 1]} m in that second.`, "The distances grow 1, 3, 5, 7, 9: the ball goes faster every second, so the graph curves upward."] };
+    },
+    () => ({ q: "A ball is thrown straight up. It slows down, stops at the top for an instant, then falls. What is its speed at the very top?", opts: ["0", "Its fastest speed", "Half its starting speed", "It keeps its speed"], ans: "0", pic: (g) => { el("path", { d: "M60 360Q200 -60 340 360", fill: "none", stroke: BLUE, "stroke-width": 5, "stroke-dasharray": "10 8" }, g); emoji(g, 200, 90, "⚽", 50); text(g, 200, 40, "top", { "font-size": 22, fill: RED }); }, idea: "At the top of a curve, the slope is zero", hints: ["Just before the top it is going up. Just after, it is going down. What happens in between?"], sol: ["Going up, the ball's height increases; coming down, it decreases.", "At the top it switches from up to down, so for one instant it is not moving up or down.", "On a height–time graph, the top of the hill is flat: slope 0."] }),
+    () => {
+      const v = pickInt(2, 5) * 2;
+      const t = pickInt(2, 6);
+      return { q: `A car's speed goes up steadily from 0 to ${v} metres per second in ${t} seconds. Its average speed is halfway: ${v / 2} m/s. How far does it travel in those ${t} seconds?`, ans: (v / 2) * t, idea: "Steady speeding up: use the average speed", hints: ["Distance = average speed × time."], sol: [`Average speed: (0 + ${v}) ÷ 2 = ${v / 2} m/s.`, `${v / 2} × ${t} = ${(v / 2) * t} m.`, "This is also the area of the triangle under the speed–time graph."] };
+    },
+  ],
+};
+
+function rates() {
+  const my = S.token;
+  const live = () => my === S.token;
+  const SPEED = { slow: 1, fast: 2, stop: 0 };
+  let plan = [];
+  let driving = false;
+  const draw = (upto = 0, carX = null) => {
+    const v = fresh();
+    el("rect", { x: 60, y: 70, width: 880, height: 60, rx: 14, fill: "#cfd8dc" }, v);
+    for (let k = 0; k <= 8; k++) {
+      el("line", { x1: 100 + k * 100, y1: 134, x2: 100 + k * 100, y2: 148, stroke: INK, "stroke-width": 3 }, v);
+      text(v, 100 + k * 100, 172, `${k} km`, { "font-size": 18, fill: INK });
+    }
+    emoji(v, 60, 64, "🏠", 44);
+    const pts = segPts(plan.map((p) => SPEED[p]));
+    const end = pts[Math.min(upto, pts.length - 1)][1];
+    emoji(v, carX ?? 100 + end * 100, 80, "🚗", 52, { transform: `scale(-1 1)`, "transform-origin": `${carX ?? 100 + end * 100}px 100px` });
+    const g = el("g", { transform: "translate(250 190) scale(1.0,0.9)" }, v);
+    const P = axes(g, 4, 8, { xLabel: "minutes", yLabel: "km from home" });
+    if (upto > 0) el("path", { d: "M" + pts.slice(0, upto + 1).map((p) => P(...p).join(" ")).join("L"), fill: "none", stroke: BLUE, "stroke-width": 7, "stroke-linejoin": "round", "stroke-linecap": "round" }, g);
+    plan.forEach((p, i) => {
+      const lab = { slow: "🐢 slow", fast: "🚀 fast", stop: "🛑 stop" }[p];
+      text(v, 120, 250 + i * 60, `Minute ${i + 1}: ${lab}`, { "font-size": 24, fill: i < upto ? BLUE : INK, "text-anchor": "start" });
+    });
+    if (!plan.length) para(v, 40, 260, "Plan the trip: choose 4 minutes of driving, then press Drive.", { size: 24, width: 200 });
+    return { P, pts, g };
+  };
+  draw();
+  const lab = labPanel(
+    [
+      ["slow", "🐢 Slow"],
+      ["fast", "🚀 Fast"],
+      ["stop", "🛑 Stop"],
+      ["go", "▶ Drive", "disabled"],
+      ["clear", "↺"],
+    ],
+    {
+      onPress: async (k) => {
+        if (driving) return;
+        if (k === "clear") {
+          plan = [];
+          lab.btn("go").disabled = true;
+          draw();
+          return say("Choose four minutes: slow, fast or stop.");
+        }
+        if (k === "go") {
+          driving = true;
+          const { pts } = draw(0);
+          for (let i = 1; i <= plan.length; i++) {
+            const a = pts[i - 1][1];
+            const b = pts[i][1];
+            const ok = await tween(1100, (t) => draw(i - 1 + (t >= 1 ? 1 : 0), 100 + (a + (b - a) * t) * 100), live);
+            if (!ok) return;
+            draw(i);
+            ding(72 + i * 3, { gain: 0.3 });
+          }
+          driving = false;
+          say("Look at the line. Fast parts are steep, slow parts are gentle, and stops are flat. Press ↺ to plan another trip, or Questions ▶.");
+          lab.pulse("__q");
+          return;
+        }
+        if (plan.length >= 4) return say("That's four minutes. Press ▶ Drive!");
+        plan.push(k);
+        draw();
+        lab.btn("go").disabled = plan.length < 4;
+        if (plan.length === 4) {
+          lab.pulse("go");
+          say("Ready! Press ▶ Drive and watch the graph.");
+        }
+      },
+      onQuestions: () => questions("k1", RATE, { label: "How fast?", real: { icon: "🏠", title: "Try it for real", need: ["a toy car or a ball", "a ruler or tape measure", "a timer"], steps: ["Roll the car slowly, then fast, along the floor.", "Each time, measure how far it goes in 3 seconds.", "Which roll had the bigger speed? How do you know?"] } }),
+    },
+  );
+  say("Plan a car trip! Choose four minutes of driving: 🐢 slow, 🚀 fast or 🛑 stop. Then press ▶ Drive and watch the graph draw itself.");
+}
+
+// ---------- 2. Adding tiny pieces (area / accumulation) ----------
+const AREA = {
+  easy: [
+    () => {
+      const w = pickInt(2, 4);
+      const h = pickInt(2, 4);
+      const ex = pickInt(1, 3);
+      const cells = [];
+      for (let x = 0; x < w; x++) for (let y = 0; y < h; y++) cells.push([x + 1, 6 - y]);
+      for (let k = 0; k < ex; k++) cells.push([w + 1 + k, 6]);
+      return { q: "Count the green squares. How many squares make this shape?", ans: cells.length, pic: gridShape(cells), idea: "Area = how many squares fit inside", hints: ["Count row by row.", `The big block is ${w} by ${h}.`], sol: [`The block: ${w} × ${h} = ${w * h} squares.`, `Plus ${ex} more: ${w * h} + ${ex} = ${cells.length}.`] };
+    },
+    () => {
+      const hs = range(1, pickInt(3, 4)).map(() => pickInt(1, 5));
+      const sum = hs.reduce((a, b) => a + b, 0);
+      return { q: `Rain was collected each day. The bars show how many centimetres fell. How many centimetres fell altogether?`, ans: sum, pic: strips(hs, { xLabel: "days", yLabel: "cm of rain", color: "#90caf9" }), idea: "Adding up the pieces gives the total", hints: ["Read the number on top of each bar.", "Add them all together."], sol: [`The bars are ${hs.join(", ")}.`, `${hs.join(" + ")} = ${sum} cm.`] };
+    },
+    () => {
+      const s = pickInt(2, 5);
+      const t = pickInt(2, 4);
+      return { q: `A toy train goes ${s} metres every second for ${t} seconds. The orange area shows how far it went. How many metres?`, ans: s * t, pic: strips(range(1, t).map(() => s), { xLabel: "seconds", yLabel: "metres each second", numbers: false }), idea: "Speed × time is the area under the speed graph", hints: ["Count the squares in the orange area.", `Each second adds ${s} metres.`], sol: [`Each second: ${s} metres. That is one column of ${s} squares.`, `${t} columns: ${s} × ${t} = ${s * t} metres.`] };
+    },
+    () => {
+      const hs = range(1, 4).map(() => pickInt(1, 4));
+      const sum = hs.reduce((a, b) => a + b, 0);
+      return { q: "Each day, a piggy bank gets some coins. The strips show how many. How many coins went in altogether?", ans: sum, pic: strips(hs, { xLabel: "days", yLabel: "coins", color: "#ffd54f" }), idea: "A total is the sum of the pieces", hints: ["Add the tops of all the strips."], sol: [`${hs.join(" + ")} = ${sum} coins.`] };
+    },
+  ],
+  medium: [
+    () => {
+      const a = pickInt(2, 5);
+      const ta = pickInt(2, 4);
+      const b = pickInt(2, 6);
+      const tb = pickInt(1, 3);
+      return { q: `A runner goes ${a} m each second for ${ta} seconds, then ${b} m each second for ${tb} seconds. How many metres altogether? (Find the area under the graph.)`, ans: a * ta + b * tb, pic: strips([...range(1, ta).map(() => a), ...range(1, tb).map(() => b)], { xLabel: "seconds", yLabel: "m each second", numbers: false }), idea: "Distance = area under the speed graph", hints: ["Split the area into two rectangles.", `First rectangle: ${a} × ${ta}.`], sol: [`First part: ${a} × ${ta} = ${a * ta} m.`, `Second part: ${b} × ${tb} = ${b * tb} m.`, `Total: ${a * ta} + ${b * tb} = ${a * ta + b * tb} m.`] };
+    },
+    () => {
+      const n = pickInt(2, 4) * 2;
+      return { q: `A triangle on the grid has a base of ${n} squares and a height of ${n} squares. Its area is half of the ${n} × ${n} square around it. How many squares is that?`, ans: (n * n) / 2, pic: (g) => { const P = axes(g, 8, 8, { ticks: false }); el("path", { d: `M${P(0, 0).join(" ")}L${P(n, 0).join(" ")}L${P(n, n).join(" ")}Z`, fill: "#ffcf5c", stroke: INK, "stroke-width": 3 }, g); el("rect", { x: P(0, n)[0], y: P(0, n)[1], width: P(n, 0)[0] - P(0, 0)[0], height: P(0, 0)[1] - P(0, n)[1], fill: "none", stroke: RED, "stroke-width": 3, "stroke-dasharray": "8 6" }, g); }, idea: "A triangle is half a rectangle", hints: [`The square has ${n} × ${n} = ${n * n} squares.`, "Take half."], sol: [`Square: ${n} × ${n} = ${n * n}.`, `The diagonal cuts it into two equal triangles: ${n * n} ÷ 2 = ${(n * n) / 2}.`] };
+    },
+    () => {
+      const hs = [pickInt(1, 3), pickInt(3, 5), pickInt(5, 7), pickInt(3, 5)];
+      const sum = hs.reduce((a, b) => a + b, 0);
+      return { q: "We guess the area under a curved hill using strips 1 wide. The strip heights are written on top. What is the strip estimate of the area?", ans: sum, pic: (g) => { strips(hs, { yMax: 8 })(g); const P = axes(g, 4, 8, { grid: false, ticks: false }); el("path", { d: `M${P(0, hs[0]).join(" ")}C${P(1.2, hs[1] + 1).join(" ")} ${P(2.2, hs[2] + 1).join(" ")} ${P(4, hs[3]).join(" ")}`, fill: "none", stroke: RED, "stroke-width": 4 }, g); }, idea: "Strips turn a curvy area into rectangles we can add", hints: ["Each strip is 1 wide, so its area is its height.", "Add the four heights."], sol: [`Strip areas: ${hs.join(", ")}.`, `Estimate: ${hs.join(" + ")} = ${sum}.`, "Thinner strips would give a closer estimate."] };
+    },
+    () => ({ q: "We guess the area under a curve with strips. What happens to the guess when we use more, thinner strips?", opts: ["It gets closer to the true area", "It gets worse", "It stays the same", "It becomes zero"], ans: "It gets closer to the true area", pic: (g) => { const P = axes(g, 8, 8, { ticks: false }); range(0, 15).forEach((i) => { const x = i / 2; const h = (x * x) / 8; el("rect", { x: P(x, h)[0], y: P(x, h)[1], width: P(0.5, 0)[0] - P(0, 0)[0], height: P(0, 0)[1] - P(0, h)[1], fill: "#ffcf5c", stroke: INK, "stroke-width": 1.5 }, g); }); el("path", { d: "M" + range(0, 32).map((i) => P(i / 4, (i / 4) ** 2 / 8).join(" ")).join("L"), fill: "none", stroke: RED, "stroke-width": 4 }, g); }, idea: "Thinner strips leave smaller gaps", hints: ["Look at the little gaps between the strips and the curve. What happens to them when strips are thinner?"], sol: ["Each strip misses a small sliver under the curve.", "Thinner strips miss thinner slivers.", "With more and more strips, the guess gets closer and closer to the true area. That is the big idea of integration."] }),
+  ],
+  hard: [
+    () => {
+      const n = pickInt(2, 5) * 2;
+      return { q: `What is the area under the line y = x, from x = 0 to x = ${n}?`, ans: (n * n) / 2, pic: (g) => { const P = axes(g, 10, 10, { ticks: true }); el("path", { d: `M${P(0, 0).join(" ")}L${P(n, 0).join(" ")}L${P(n, n).join(" ")}Z`, fill: "#ffcf5c", stroke: INK, "stroke-width": 2 }, g); el("line", { x1: P(0, 0)[0], y1: P(0, 0)[1], x2: P(10, 10)[0], y2: P(10, 10)[1], stroke: BLUE, "stroke-width": 4 }, g); }, idea: "Area of a triangle = ½ × base × height", hints: ["The shape is a triangle.", `Base ${n}, height ${n}.`], sol: [`Base = ${n}, height = ${n}.`, `½ × ${n} × ${n} = ${(n * n) / 2}.`] };
+    },
+    () => {
+      const v = pickInt(2, 6) * 2;
+      const t = pickInt(2, 5);
+      return { q: `A speed–time graph is a triangle: the speed rises steadily from 0 to ${v} m/s in ${t} s. How far does the object travel?`, ans: (v * t) / 2, idea: "Distance is the area under the speed–time graph", hints: ["The area is a triangle.", `½ × ${t} × ${v}`], sol: [`Base: ${t} s. Height: ${v} m/s.`, `Area: ½ × ${t} × ${v} = ${(v * t) / 2} m.`] };
+    },
+    () => ({ q: "Under the rising curve y = x², we draw strips whose tops touch the curve at their LEFT edge. Is the strip total too small or too big?", opts: ["Too small", "Too big", "Exactly right"], ans: "Too small", pic: (g) => { const P = axes(g, 4, 16, { ticks: false }); range(0, 3).forEach((x) => { const h = x * x; el("rect", { x: P(x, h)[0], y: P(x, h)[1], width: P(1, 0)[0] - P(0, 0)[0], height: P(0, 0)[1] - P(0, h)[1], fill: "#ffcf5c", stroke: INK, "stroke-width": 2 }, g); }); el("path", { d: "M" + range(0, 40).map((i) => P(i / 10, (i / 10) ** 2).join(" ")).join("L"), fill: "none", stroke: RED, "stroke-width": 4 }, g); }, idea: "Left edges sit below a rising curve", hints: ["The curve rises from left to right. Where is the lowest point of each strip's top?"], sol: ["The curve goes up as x grows.", "Each strip uses the height at its left edge, the lowest height in that strip.", "So every strip leaves a gap under the curve: the total is too small."] }),
+    () => {
+      const n = pickInt(3, 6);
+      const s = range(1, n).reduce((a, b) => a + b, 0);
+      return { q: `Strips of width 1 have heights 1, 2, 3, … up to ${n}. What is the total area?`, ans: s, pic: strips(range(1, n), { yMax: n + 1 }), idea: "Add the pieces: 1 + 2 + … + n = n(n + 1) ÷ 2", hints: ["Add them one by one, or pair the first with the last."], sol: [`${range(1, n).join(" + ")} = ${s}.`, `Shortcut: ${n} × ${n + 1} ÷ 2 = ${s}.`] };
+    },
+  ],
+};
+
+function pieces() {
+  const my = S.token;
+  const SHAPES = [
+    { name: "ramp", f: (x) => x / 2, exact: 16 },
+    { name: "hill", f: (x) => 4 - ((x - 4) ** 2) / 4, exact: 64 / 3 },
+    { name: "swoop", f: (x) => (x * x) / 8, exact: 64 / 3 },
+  ];
+  let shape = 0;
+  let n = 2;
+  const draw = () => {
+    if (my !== S.token) return;
+    const v = fresh();
+    const sh = SHAPES[shape];
+    const g = el("g", { transform: "translate(40 40) scale(1.2,1.25)" }, v);
+    const P = axes(g, 8, 4, { xLabel: "", ticks: false });
+    const w = 8 / n;
+    let sum = 0;
+    range(0, n - 1).forEach((i) => {
+      const x = i * w;
+      const h = sh.f(x + w / 2);
+      sum += h * w;
+      el("rect", { x: P(x, h)[0], y: P(x, h)[1], width: P(w, 0)[0] - P(0, 0)[0], height: P(0, 0)[1] - P(0, h)[1], fill: "#ffcf5c", stroke: INK, "stroke-width": n > 32 ? 0.6 : 1.8 }, g);
+    });
+    el("path", { d: "M" + range(0, 80).map((i) => P(i / 10, sh.f(i / 10)).join(" ")).join("L"), fill: "none", stroke: RED, "stroke-width": 4 }, g);
+    text(v, 760, 120, `${n} strips`, { "font-size": 40, fill: INK });
+    text(v, 760, 190, `Strips add to ${sum.toFixed(2)}`, { "font-size": 28, fill: BLUE });
+    text(v, 760, 240, `True area: ${sh.exact.toFixed(2)}`, { "font-size": 28, fill: RED });
+    text(v, 760, 300, `Gap: ${Math.abs(sh.exact - sum).toFixed(2)}`, { "font-size": 28, fill: "#7a5a40" });
+  };
+  draw();
+  const lab = labPanel(
+    [
+      ["less", "➖ Fewer strips"],
+      ["more", "➕ More strips"],
+      ["shape", "🔁 New shape"],
+    ],
+    {
+      onPress: (k) => {
+        if (k === "more") n = Math.min(64, n * 2);
+        if (k === "less") n = Math.max(1, n / 2);
+        if (k === "shape") (shape = (shape + 1) % SHAPES.length), (n = 2);
+        draw();
+        ding(60 + Math.log2(n) * 3, { gain: 0.3 });
+        if (n === 64) {
+          say("64 thin strips! The gap is tiny. Adding up thinner and thinner pieces to find an exact area is called integration. Press Questions ▶ when ready.");
+          lab.pulse("__q");
+        } else say(`${n} strip${n > 1 ? "s" : ""}. Watch the gap number as you add more strips.`);
+      },
+      onQuestions: () => questions("k2", AREA, { label: "Adding tiny pieces", real: { icon: "🏠", title: "Try it for real", need: ["squared paper", "a pencil", "a cup or lid to trace"], steps: ["Trace around the cup on squared paper.", "Count the whole squares inside.", "Then count the squares that are half or more inside. Add them to get a better guess of the area."] } }),
+    },
+  );
+  lab.pulse("more");
+  say("How much space is under the red curve? We fill it with yellow strips and add them up. Press ➕ More strips and watch the guess get better.");
+}
+
+// ---------- 3. Closer and closer (limits) ----------
+const LIMIT = {
+  easy: [
+    () => {
+      const start = pick([64, 32, 16]);
+      const seq = [start, start / 2, start / 4, start / 8];
+      return { q: `Halve it each time: ${seq.join(", ")}, … What comes next?`, ans: start / 16, idea: "Halving makes numbers smaller and smaller", hints: [`What is half of ${start / 8}?`], sol: [`Each number is half the one before.`, `Half of ${start / 8} is ${start / 16}.`] };
+    },
+    () => ({ q: "A frog jumps half of the way to the lily pad, then half of what is left, then half again, and so on. Does it ever land exactly on the lily pad?", opts: ["No, but it gets very close", "Yes, after 3 jumps", "Yes, after 10 jumps", "It moves away"], ans: "No, but it gets very close", pic: frogPic(4), idea: "Getting closer and closer without arriving", hints: ["After each jump, is there still a gap left?"], sol: ["Every jump covers only half of the gap.", "So there is always half a gap left over.", "The frog gets as close as you like, but never lands exactly. Mathematicians call the lily pad the limit."] }),
+    () => {
+      const list = shuffle(["1/2", "3/4", "7/8"]);
+      return { q: "Which of these is closest to 1?", opts: list, ans: "7/8", pic: (g) => ["1/2", "3/4", "7/8"].forEach((f, i) => { const [n, d] = f.split("/").map(Number); el("rect", { x: 20, y: 40 + i * 110, width: 360, height: 60, rx: 10, fill: "#fff", stroke: INK, "stroke-width": 3 }, g); el("rect", { x: 20, y: 40 + i * 110, width: (360 * n) / d, height: 60, rx: 10, fill: "#ffcf5c", stroke: INK, "stroke-width": 3 }, g); text(g, 200, 82 + i * 110, f, { "font-size": 28, fill: INK }); }), idea: "Smaller missing piece = closer to 1", hints: ["Look at the bars. Which one is almost full?"], sol: ["1/2 is missing a half. 3/4 is missing a quarter. 7/8 is missing only an eighth.", "7/8 has the smallest piece missing, so it is closest to 1."] };
+    },
+    () => {
+      const s = pick([3, 4, 5, 6]);
+      return { q: `A shape with more and more sides: triangle, square, pentagon, hexagon… With 100 sides, what does it look like most?`, opts: ["A circle", "A triangle", "A star", "A line"], ans: "A circle", pic: (g) => [3, 6, 12].forEach((k, i) => { const cx = 70 + i * 130; el("polygon", { points: range(0, k - 1).map((j) => `${cx + 55 * Math.cos((2 * Math.PI * j) / k - Math.PI / 2)},${200 + 55 * Math.sin((2 * Math.PI * j) / k - Math.PI / 2)}`).join(" "), fill: "#c5e1a5", stroke: INK, "stroke-width": 3 }, g); text(g, cx, 300, `${k} sides`, { "font-size": 22, fill: INK }); }), idea: "More and more sides get closer to a circle", hints: [`Look how the ${s * 2}-sided shape already looks rounder.`], sol: ["Each extra side makes the corners less sharp.", "With 100 tiny sides you could hardly see the corners: it looks like a circle."] };
+    },
+  ],
+  medium: [
+    () => {
+      const k = pickInt(3, 5);
+      const d = 2 ** k;
+      return { q: `Add: 1/2 + 1/4 + 1/8${k > 3 ? " + 1/16" : ""}${k > 4 ? " + 1/32" : ""}. The answer is ? / ${d}. Type the top number.`, ans: d - 1, pic: (g) => { let x = 0; range(1, k).forEach((i) => { const w = 360 / 2 ** i; el("rect", { x: 20 + x, y: 150, width: w, height: 80, fill: ["#ffcf5c", "#90caf9", "#c5e1a5", "#f48fb1", "#ffab91"][i - 1], stroke: INK, "stroke-width": 2 }, g); x += w; }); el("rect", { x: 20, y: 150, width: 360, height: 80, fill: "none", stroke: INK, "stroke-width": 4 }, g); text(g, 200, 290, "one whole bar", { "font-size": 22, fill: INK }); }, idea: "Each piece fills half of what is left", hints: [`Write every fraction in ${d}ths.`, `1/2 = ${d / 2}/${d}.`], sol: [`In ${d}ths: ${range(1, k).map((i) => d / 2 ** i).join(" + ")} = ${d - 1}.`, `So the total is ${d - 1}/${d}: just 1/${d} short of a whole.`] };
+    },
+    () => ({ q: "What number do 0.9, 0.99, 0.999, 0.9999 … get closer and closer to?", opts: ["1", "0.9", "10", "0"], ans: "1", idea: "Each step closes most of the gap", hints: ["How far is 0.99 from 1? How far is 0.999 from 1?"], sol: ["0.9 is 0.1 away from 1. 0.99 is 0.01 away. 0.999 is 0.001 away.", "The gap gets ten times smaller each step, so the numbers get closer and closer to 1."] }),
+    () => {
+      const start = pickInt(2, 5) * 8;
+      return { q: `You have ${start} cm of ribbon. Each day you cut off half of what is left. How many cm are left after 3 days?`, ans: start / 8, idea: "Halving again and again", hints: [`Day 1: half of ${start} = ${start / 2}.`], sol: [`Day 1: ${start / 2} cm. Day 2: ${start / 4} cm. Day 3: ${start / 8} cm.`, "The ribbon keeps getting shorter but never quite disappears."] };
+    },
+    () => ({ q: "Which list is getting closer and closer to 5?", opts: shuffle(["4, 4.9, 4.99, 4.999", "1, 2, 3, 4", "5, 10, 15, 20", "4, 3, 2, 1"]), ans: "4, 4.9, 4.99, 4.999", idea: "Approaching a limit", hints: ["Find the list whose gap to 5 keeps shrinking."], sol: ["4, 4.9, 4.99, 4.999: the gaps to 5 are 1, 0.1, 0.01, 0.001.", "The gap keeps shrinking towards 0, so the list approaches 5."] }),
+  ],
+  hard: [
+    () => {
+      const k = pickInt(4, 7);
+      return { q: `1/2 + 1/4 + … + 1/${2 ** k} = ? / ${2 ** k}. Type the top number. Then think: what does the sum approach if we never stop?`, ans: 2 ** k - 1, idea: "1/2 + 1/4 + 1/8 + … approaches 1", hints: ["Each sum is just one small piece short of 1.", `That missing piece is 1/${2 ** k}.`], sol: [`The sum is 1 − 1/${2 ** k} = ${2 ** k - 1}/${2 ** k}.`, "As we add more terms, the missing piece shrinks towards 0: the sum approaches 1."] };
+    },
+    () => ({ q: "What does (n + 1) ÷ n approach as n gets bigger and bigger? (Try n = 10, 100, 1000.)", opts: ["1", "0", "2", "It keeps growing"], ans: "1", idea: "The +1 matters less and less", hints: ["11 ÷ 10 = 1.1. 101 ÷ 100 = 1.01."], sol: ["(n + 1) ÷ n = 1 + 1/n.", "As n grows, 1/n shrinks towards 0.", "So the value approaches 1."] }),
+    () => ({ q: "1/3 + 1/9 + 1/27 + 1/81 + … gets closer and closer to which number?", opts: ["1/2", "1", "1/3", "2/3"], ans: "1/2", idea: "A geometric series has a limit", hints: ["Call the total T. Then 3 × T = 1 + T. Solve for T."], sol: ["Let T = 1/3 + 1/9 + 1/27 + …", "Multiply by 3: 3T = 1 + 1/3 + 1/9 + … = 1 + T.", "So 2T = 1, and T = 1/2."] }),
+    () => {
+      const n = pick([6, 12, 24, 48, 96]);
+      const ratio = (n * Math.sin(Math.PI / n)).toFixed(2);
+      return { q: `A shape with ${n} equal sides fits snugly inside a circle of width 1. Its perimeter is about ${ratio}. As the sides increase, what famous number does the perimeter approach?`, opts: ["π ≈ 3.14", "3", "4", "2"], ans: "π ≈ 3.14", idea: "Archimedes found π with polygons", hints: ["The polygon gets closer to the circle. What is the distance around a circle of width 1?"], sol: [`With ${n} sides the perimeter is ${ratio}.`, "More sides hug the circle more closely.", "The circle's perimeter with width 1 is π ≈ 3.14159, so the polygon perimeters approach π."] };
+    },
+  ],
+};
+
+function closer() {
+  const my = S.token;
+  let jumps = 0;
+  let sides = 3;
+  const draw = () => {
+    if (my !== S.token) return;
+    const v = fresh();
+    text(v, 250, 50, "🐸 Frog jumps half the gap", { "font-size": 26, fill: INK });
+    el("rect", { x: 40, y: 230, width: 420, height: 26, rx: 13, fill: "#bfe3f5" }, v);
+    emoji(v, 440, 200, "🪷", 50);
+    let x = 50;
+    let gap = 380;
+    for (let i = 0; i < jumps; i++) {
+      const nx = x + gap / 2;
+      el("path", { d: `M${x} 210Q${(x + nx) / 2} ${210 - Math.max(12, gap / 2.2)} ${nx} 210`, fill: "none", stroke: GREEN, "stroke-width": 3, "stroke-dasharray": "6 6" }, v);
+      x = nx;
+      gap /= 2;
+    }
+    emoji(v, x, 200, "🐸", 46);
+    const left = jumps ? `1/${2 ** jumps}` : "1";
+    const gone = jumps ? `${2 ** jumps - 1}/${2 ** jumps}` : "0";
+    para(v, 40, 320, `Jumps: ${jumps}\nGap left: ${left} of the way\nGone so far: ${gone}`, { size: 26, width: 440 });
+    text(v, 750, 50, "⬡ More and more sides", { "font-size": 26, fill: INK });
+    el("circle", { cx: 750, cy: 260, r: 160, fill: "none", stroke: RED, "stroke-width": 2, "stroke-dasharray": "6 6" }, v);
+    el("polygon", { points: range(0, sides - 1).map((j) => `${750 + 160 * Math.cos((2 * Math.PI * j) / sides - Math.PI / 2)},${260 + 160 * Math.sin((2 * Math.PI * j) / sides - Math.PI / 2)}`).join(" "), fill: "#c5e1a5", stroke: INK, "stroke-width": sides > 40 ? 1.5 : 3 }, v);
+    text(v, 750, 470, `${sides} sides: perimeter ÷ width = ${(sides * Math.sin(Math.PI / sides)).toFixed(3)}`, { "font-size": 24, fill: INK });
+    text(v, 750, 506, "a circle: π = 3.142", { "font-size": 22, fill: RED });
+  };
+  draw();
+  const lab = labPanel(
+    [
+      ["jump", "🐸 Jump"],
+      ["sides", "⬡ More sides"],
+      ["reset", "↺"],
+    ],
+    {
+      onPress: (k) => {
+        if (k === "jump") jumps = Math.min(10, jumps + 1);
+        if (k === "sides") sides = sides < 12 ? sides + 1 : Math.min(192, sides * 2);
+        if (k === "reset") (jumps = 0), (sides = 3);
+        draw();
+        ding(72 + jumps, { gain: 0.3 });
+        if (k === "jump") say(jumps >= 6 ? "The frog is SO close, but there is always a tiny gap left. The lily pad is the limit: the frog gets as close as we like. Try ⬡ More sides too." : `Jump ${jumps}! Half of the gap is gone. Is there still a gap?`);
+        if (k === "sides") say(sides >= 48 ? "With many sides, the shape is almost a circle, and the number gets very close to π, 3.14159… That is a limit too! Press Questions ▶ when ready." : `${sides} sides. Does it look more like a circle?`);
+        if (jumps >= 6 && sides >= 48) lab.pulse("__q");
+      },
+      onQuestions: () => questions("k3", LIMIT, { label: "Closer and closer", real: { icon: "🏠", title: "Try it for real", need: ["a long strip of paper", "scissors"], steps: ["Cut the strip in half. Keep one half.", "Cut that piece in half. Keep one half again.", "Keep going! How many cuts before the piece is too tiny to cut?", "Could you keep halving forever if your scissors were tiny enough?"] } }),
+    },
+  );
+  lab.pulse("jump");
+  say("Press 🐸 Jump: the frog always jumps half of the gap. Then press ⬡ More sides and watch a shape turn into a circle.");
+}
+
+function mixed() {
+  const bank = {};
+  for (const lv of ["easy", "medium", "hard"]) bank[lv] = [...RATE[lv], ...AREA[lv], ...LIMIT[lv]];
+  questions("k4", bank, { label: "Mixed puzzles" });
+}
+
+// ---------- See it ----------
+function seeIt() {
+  const my = S.token;
+  explain(
+    [
+      { say: "Calculus is the math of change. It tells us how fast things change, like a car's speed, and how much they add up to, like water filling a bath. Scientists use it to send rockets to space and to predict the weather.", draw: everyday([["🚗", "Speed"], ["🛁", "Filling a bath"], ["🌱", "Growing plants"], ["🚀", "Rockets"]]) },
+      {
+        say: "Here is a car driving at a steady speed. Below, the graph shows how far from home it is each minute. A steady speed makes a straight line.",
+        async draw(v, api) {
+          const g = el("g", { transform: "translate(300 160)" }, v);
+          const P = axes(g, 4, 8, { xLabel: "minutes", yLabel: "km" });
+          const car = emoji(v, 120, 80, "🚗", 56);
+          const path = el("path", { d: "", fill: "none", stroke: BLUE, "stroke-width": 7, "stroke-linecap": "round" }, g);
+          await api.tween(3000, (t) => {
+            car.setAttribute("x", 120 + t * 760);
+            path.setAttribute("d", `M${P(0, 0).join(" ")}L${P(4 * t, 8 * t * 0.5).join(" ")}`);
+          });
+        },
+      },
+      {
+        say: "Now two cars. The fast car goes further each minute, so its line is steeper. A flat line means the car has stopped. How steep the line is shows the speed. That is the first big idea of calculus: rate of change.",
+        async draw(v, api) {
+          const g = el("g", { transform: "translate(300 150)" }, v);
+          const P = axes(g, 4, 8, { xLabel: "minutes", yLabel: "km" });
+          const fast = el("path", { d: "", fill: "none", stroke: RED, "stroke-width": 7, "stroke-linecap": "round" }, g);
+          const slow = el("path", { d: "", fill: "none", stroke: BLUE, "stroke-width": 7, "stroke-linecap": "round" }, g);
+          await api.tween(2400, (t) => {
+            fast.setAttribute("d", `M${P(0, 0).join(" ")}L${P(4 * t, 8 * t).join(" ")}`);
+            slow.setAttribute("d", `M${P(0, 0).join(" ")}L${P(4 * t, 2 * t).join(" ")}`);
+          });
+          text(v, 160, 220, "🚀 fast = steep", { "font-size": 28, fill: RED });
+          text(v, 160, 280, "🐢 slow = gentle", { "font-size": 28, fill: BLUE });
+          text(v, 160, 340, "🛑 stopped = flat", { "font-size": 28, fill: INK });
+        },
+      },
+      {
+        say: "The second big idea is adding up tiny pieces. To find the area under a curve, we fill it with strips and add them. Thinner strips make a better and better answer.",
+        async draw(v, api) {
+          const g = el("g", { transform: "translate(200 80) scale(1.4)" }, v);
+          const P = axes(g, 8, 4, { ticks: false });
+          const f = (x) => 4 - ((x - 4) ** 2) / 4;
+          el("path", { d: "M" + range(0, 80).map((i) => P(i / 10, f(i / 10)).join(" ")).join("L"), fill: "none", stroke: RED, "stroke-width": 4 }, g);
+          for (const n of [2, 4, 8, 16, 32]) {
+            const box = el("g", {}, g);
+            range(0, n - 1).forEach((i) => {
+              const w = 8 / n;
+              const h = f(i * w + w / 2);
+              el("rect", { x: P(i * w, h)[0], y: P(i * w, h)[1], width: P(w, 0)[0] - P(0, 0)[0], height: P(0, 0)[1] - P(0, h)[1], fill: "#ffcf5c", stroke: INK, "stroke-width": 1, opacity: 0.85 }, box);
+            });
+            ding(64 + Math.log2(n) * 3, { gain: 0.3 });
+            await api.wait(1300);
+            if (n < 32) box.remove();
+          }
+        },
+      },
+      {
+        say: "The third big idea is getting closer and closer. This frog always jumps half of the gap. It gets closer every time, but there is always a tiny gap left. The lily pad is called the limit.",
+        async draw(v, api) {
+          el("rect", { x: 80, y: 330, width: 840, height: 30, rx: 15, fill: "#bfe3f5" }, v);
+          emoji(v, 900, 300, "🪷", 60);
+          const frog = emoji(v, 100, 300, "🐸", 60);
+          let x = 100;
+          let gap = 800;
+          for (let i = 0; i < 7; i++) {
+            const from = x;
+            const to = x + gap / 2;
+            await api.tween(600, (t) => {
+              frog.setAttribute("x", from + (to - from) * t);
+              frog.setAttribute("y", 300 + 21 - Math.sin(t * Math.PI) * Math.max(20, gap / 4));
+            });
+            x = to;
+            gap /= 2;
+            ding(72 + i * 2, { gain: 0.3 });
+          }
+          text(v, 500, 470, "1/2 + 1/4 + 1/8 + … gets closer and closer to 1", { "font-size": 30, fill: INK });
+        },
+      },
+      { say: "Isaac Newton and Gottfried Leibniz invented calculus about 350 years ago. You can start exploring their ideas today, with cars, strips and frogs. Let's begin!", draw: (v) => { emoji(v, 500, 220, "🍎", 140); text(v, 500, 420, "How fast? · Adding pieces · Closer and closer", { "font-size": 30, fill: INK }); } },
+    ],
+    { alive: () => my === S.token, onDone: () => S.shell.go("k1"), title: "Calculus Ideas", doneLabel: "▶ Begin" },
+  );
+}
+
+const units = { k0: seeIt, k1: rates, k2: pieces, k3: closer, k4: mixed };
+S.shell = SHELL({
+  units: UNITS,
+  how: {
+    k0: { icon: "👀", title: "See it", steps: ["Watch and listen to each scene.", "Press Next ▶ to continue."] },
+    k1: { icon: "🚗", title: "How fast?", steps: ["Choose 4 minutes of driving: slow, fast or stop.", "Press ▶ Drive and watch the graph.", "Then press Questions ▶."] },
+    k2: { icon: "🧱", title: "Adding tiny pieces", steps: ["Press ➕ More strips to fill the area under the curve.", "Watch the gap get smaller.", "Then press Questions ▶."] },
+    k3: { icon: "🐸", title: "Closer and closer", steps: ["Press 🐸 Jump: the frog jumps half the gap.", "Press ⬡ More sides to turn a shape into a circle.", "Then press Questions ▶."] },
+    k4: { icon: "🧩", title: "Mixed puzzles", steps: ["Read the question and look at the picture.", "Choose or type the answer.", "💡 hints open after one try, 📖 steps after two."] },
+  },
+  start: "k0",
+  onStop() {
+    S.token += 1;
+    B.stage.querySelector(".bi-real")?.remove();
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Math",
+  activity: "Calculus Ideas",
+  onUnit(id) {
+    S.token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", range(72, 96));
+</script>
+</body>
+</html>

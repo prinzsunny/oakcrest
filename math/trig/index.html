@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Triangles & Waves · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+<script src="../../assets/ideas.js"></script>
+</head>
+<body data-subject="math">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Triangles & Waves</b><small>Math · Advanced</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>
+const { $, el, text, say, pick, pickInt, explain, everyday, emoji, shuffle } = KIT;
+const UNITS = [
+  { id: "t0", label: "See it", icon: "👀" },
+  { id: "t1", label: "1. Ramp lab", icon: "🛝" },
+  { id: "t2", label: "2. Shadow trick", icon: "🌳" },
+  { id: "t3", label: "3. Wheel and wave", icon: "🎡" },
+  { id: "t4", label: "4. Mixed puzzles", icon: "🧩" },
+];
+const B = IDEAS({
+  title: "Triangles & Waves",
+  counter: "trigonometry questions solved",
+  explainPrompts: {
+    t1: "Two ramps have the same rise but different runs. Which one is steeper, and why?",
+    t2: "How can a short stick and its shadow tell you the height of a tall tree?",
+    t3: "Why does the height of a seat on a Ferris wheel go up and down like a wave?",
+    t4: "Pick one puzzle you solved. Tell a grown-up how a triangle helped you.",
+  },
+});
+const { S, INK, fresh, tween, para, labPanel, questions, opts, numOpts } = B;
+const BLUE = "#1e88e5";
+const RED = "#e0603a";
+const GREEN = "#43a047";
+const ding = (m, o) => MUSIC.play("xylophone", Math.max(72, Math.min(96, Math.round(m))), o);
+const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+const gcd = (a, b) => (b ? gcd(b, a % b) : Math.abs(a));
+const frac = (n, d) => (n % d === 0 ? String(n / d) : `${n / gcd(n, d)}/${d / gcd(n, d)}`);
+const deg = (r) => Math.round((r * 180) / Math.PI);
+
+// ---------- pictures ----------
+// A right triangle with run along the bottom and rise up the right side.
+function rampPic(rise, run, { unit = 34, x0 = 30, y0 = 340, labels = true, color = "#ffcf5c", angle = true, g } = {}) {
+  const draw = (gg) => {
+    const u = Math.min(unit, 340 / run, 300 / rise);
+    const [ax, ay, bx, cy] = [x0, y0, x0 + run * u, y0 - rise * u];
+    el("polygon", { points: `${ax},${ay} ${bx},${ay} ${bx},${cy}`, fill: color, stroke: INK, "stroke-width": 4, "stroke-linejoin": "round" }, gg);
+    el("rect", { x: bx - 18, y: ay - 18, width: 18, height: 18, fill: "none", stroke: INK, "stroke-width": 2.5 }, gg);
+    if (angle) {
+      const a = Math.atan2(rise, run);
+      el("path", { d: `M${ax + 46} ${ay}A46 46 0 0 0 ${ax + 46 * Math.cos(a)} ${ay - 46 * Math.sin(a)}`, fill: "none", stroke: RED, "stroke-width": 3.5 }, gg);
+    }
+    if (labels) {
+      text(gg, (ax + bx) / 2, ay + 30, `run ${run}`, { "font-size": 22, fill: INK });
+      text(gg, bx + 12, (ay + cy) / 2 + 8, `rise ${rise}`, { "font-size": 22, fill: INK, "text-anchor": "start" });
+    }
+  };
+  return g ? draw(g) : draw;
+}
+function shadowPic(stick, sShadow, tree, tShadow, { hideTree = false } = {}) {
+  return (g) => {
+    const k = 300 / Math.max(tree || stick * (tShadow / sShadow), sShadow + tShadow + 2);
+    el("rect", { x: 0, y: 340, width: 400, height: 50, fill: "#c5e1a5" }, g);
+    const tx = 60;
+    const th = (tree || stick * (tShadow / sShadow)) * k;
+    el("rect", { x: tx - 6, y: 340 - th * 0.45, width: 12, height: th * 0.45, fill: "#8d6e63" }, g);
+    el("circle", { cx: tx, cy: 340 - th * 0.7, r: th * 0.3, fill: "#66bb6a", stroke: INK, "stroke-width": 2 }, g);
+    el("rect", { x: tx, y: 340, width: tShadow * k, height: 10, fill: "#555", opacity: 0.5 }, g);
+    text(g, tx + (tShadow * k) / 2, 380, `${tShadow} m`, { "font-size": 20, fill: INK });
+    text(g, tx - 14, 340 - th / 2, hideTree ? "?" : `${tree} m`, { "font-size": 22, fill: RED, "text-anchor": "end" });
+    const sx = 300;
+    el("line", { x1: sx, y1: 340, x2: sx, y2: 340 - stick * k, stroke: "#6d4c41", "stroke-width": 6, "stroke-linecap": "round" }, g);
+    el("rect", { x: sx, y: 340, width: sShadow * k, height: 10, fill: "#555", opacity: 0.5 }, g);
+    text(g, sx - 10, 340 - (stick * k) / 2, `${stick} m`, { "font-size": 20, fill: INK, "text-anchor": "end" });
+    text(g, sx + (sShadow * k) / 2, 380, `${sShadow} m`, { "font-size": 20, fill: INK });
+    emoji(g, 200, 40, "☀️", 50);
+  };
+}
+function clockPic(h, m) {
+  return (g) => {
+    el("circle", { cx: 200, cy: 200, r: 160, fill: "#fff", stroke: INK, "stroke-width": 6 }, g);
+    range(1, 12).forEach((n) => text(g, 200 + 130 * Math.sin((n * Math.PI) / 6), 209 - 130 * Math.cos((n * Math.PI) / 6), n, { "font-size": 26, fill: INK }));
+    const ha = ((h % 12) + m / 60) * (Math.PI / 6);
+    const ma = (m / 60) * 2 * Math.PI;
+    el("line", { x1: 200, y1: 200, x2: 200 + 80 * Math.sin(ha), y2: 200 - 80 * Math.cos(ha), stroke: INK, "stroke-width": 9, "stroke-linecap": "round" }, g);
+    el("line", { x1: 200, y1: 200, x2: 200 + 120 * Math.sin(ma), y2: 200 - 120 * Math.cos(ma), stroke: BLUE, "stroke-width": 6, "stroke-linecap": "round" }, g);
+    el("circle", { cx: 200, cy: 200, r: 8, fill: INK }, g);
+  };
+}
+function wheelPic(r, centre, mark) {
+  return (g) => {
+    el("rect", { x: 0, y: 360, width: 400, height: 30, fill: "#c5e1a5" }, g);
+    const k = 300 / (centre + r + 2);
+    const cy = 360 - centre * k;
+    el("circle", { cx: 170, cy, r: r * k, fill: "none", stroke: INK, "stroke-width": 5 }, g);
+    el("path", { d: `M170 ${cy}L130 360M170 ${cy}L210 360`, stroke: "#8d6e63", "stroke-width": 6 }, g);
+    const spots = { top: [0, -1], bottom: [0, 1], side: [1, 0] };
+    for (const [name, [dx, dy]] of Object.entries(spots)) emoji(g, 170 + dx * r * k, cy + dy * r * k, name === mark ? "🧒" : "🪑", name === mark ? 36 : 22);
+    text(g, 330, cy + 8, `centre ${centre} m`, { "font-size": 20, fill: INK });
+    text(g, 330, cy + 38, `radius ${r} m`, { "font-size": 20, fill: INK });
+  };
+}
+
+// ---------- 1. Ramp lab ----------
+const RAMP = {
+  easy: [
+    () => {
+      const rise = pickInt(2, 4);
+      const [r1, r2] = shuffle([rise, rise + pickInt(2, 4)]);
+      const steep = r1 < r2 ? "A" : "B";
+      return { q: `Two ramps both rise ${rise} squares. Ramp A runs ${r1} squares, ramp B runs ${r2} squares. Which ramp is steeper?`, opts: ["A", "B"], ans: steep, pic: (g) => { rampPic(rise, r1, { x0: 10, y0: 170, unit: 22, color: "#ffcf5c" })(g); text(g, 20, 60, "A", { "font-size": 28, fill: RED }); rampPic(rise, r2, { x0: 10, y0: 370, unit: 22, color: "#90caf9" })(g); text(g, 20, 260, "B", { "font-size": 28, fill: RED }); }, idea: "Same rise, shorter run = steeper", hints: ["Both go up the same amount. Which one gets there in a shorter distance?"], sol: [`Both rise ${rise}.`, `Ramp ${steep} reaches that height in a shorter run, so it climbs faster: it is steeper.`] };
+    },
+    () => {
+      const run = pickInt(3, 6);
+      const [a, b] = shuffle([pickInt(1, 2), pickInt(4, 6)]);
+      const steep = a > b ? "A" : "B";
+      return { q: `Two ramps both run ${run} squares. Ramp A rises ${a}, ramp B rises ${b}. Which is steeper?`, opts: ["A", "B"], ans: steep, pic: (g) => { rampPic(a, run, { x0: 10, y0: 170, unit: 22 })(g); text(g, 20, 60, "A", { "font-size": 28, fill: RED }); rampPic(b, run, { x0: 10, y0: 370, unit: 22, color: "#90caf9" })(g); text(g, 20, 260, "B", { "font-size": 28, fill: RED }); }, idea: "Same run, bigger rise = steeper", hints: ["Which ramp goes higher in the same distance?"], sol: [`Ramp ${steep} rises ${Math.max(a, b)} in the same run, so it is steeper.`] };
+    },
+    () => ({ q: "The little square in the corner of this triangle marks a special angle. How many degrees is it?", ans: 90, pic: rampPic(pickInt(2, 5), pickInt(3, 6), { labels: false, angle: false }), idea: "A square corner is a right angle: 90°", hints: ["A square corner, like the corner of a book."], sol: ["The little square means a right angle.", "A right angle is 90 degrees: a quarter of a full turn."] }),
+    () => {
+      const t = pick([["a quarter turn", 90], ["a half turn", 180], ["a full turn", 360]]);
+      return { q: `How many degrees are in ${t[0]}?`, opts: ["90", "180", "360", "45"], ans: String(t[1]), pic: (g) => { el("circle", { cx: 200, cy: 200, r: 150, fill: "#fff", stroke: INK, "stroke-width": 4 }, g); const a = (t[1] * Math.PI) / 180; el("path", { d: t[1] === 360 ? "M200 200m-150 0a150 150 0 1 0 300 0a150 150 0 1 0-300 0" : `M200 200L350 200A150 150 0 ${t[1] > 180 ? 1 : 0} 0 ${200 + 150 * Math.cos(a)} ${200 - 150 * Math.sin(a)}Z`, fill: "#ffcf5c", stroke: INK, "stroke-width": 3 }, g); }, idea: "A full turn is 360 degrees", hints: ["A full turn is 360°.", "A half is half of 360. A quarter is half of a half."], sol: ["Full turn: 360°.", "Half turn: 180°. Quarter turn: 90°.", `So ${t[0]} is ${t[1]}°.`] };
+    },
+    () => {
+      const rise = pickInt(1, 4);
+      const run = rise * pickInt(2, 3);
+      return { q: `A ramp rises ${rise} and runs ${run}. Every time you go along ${run / rise}, how many do you go up?`, ans: 1, pic: rampPic(rise, run), idea: "Steepness compares rise to run", hints: [`Share the rise and run into ${rise} equal steps.`], sol: [`Split the ramp into ${rise} equal steps.`, `Each step goes along ${run / rise} and up 1.`] };
+    },
+  ],
+  medium: [
+    () => {
+      const rise = pickInt(1, 6);
+      const run = pickInt(2, 8);
+      return { q: `A ramp rises ${rise} and runs ${run}. What is its slope (rise ÷ run)?`, opts: opts(frac(rise, run), [frac(run, rise), frac(rise + 1, run), frac(rise, run + 1), String(rise + run)]), ans: frac(rise, run), pic: rampPic(rise, run), idea: "Slope = rise ÷ run", hints: ["Put the rise on top and the run on the bottom.", "Simplify if you can."], sol: [`Slope = ${rise} ÷ ${run} = ${rise}/${run}.`, frac(rise, run) !== `${rise}/${run}` ? `That simplifies to ${frac(rise, run)}.` : "It cannot be simplified."] };
+    },
+    () => {
+      const a = pickInt(20, 70);
+      return { q: `A right triangle has one angle of 90° and another of ${a}°. The three angles add to 180°. What is the third angle?`, ans: 90 - a, pic: rampPic(3, 5, { labels: false }), idea: "Angles in a triangle add to 180°", hints: [`180 − 90 − ${a}`], sol: [`180 − 90 = 90.`, `90 − ${a} = ${90 - a}°.`] };
+    },
+    () => {
+      const ramps = shuffle([[1, 4], [2, 4], [3, 4], [1, 2]].map(([r, n]) => [r, n, r / n]));
+      const best = ramps.reduce((a, b) => (b[2] > a[2] ? b : a));
+      const name = (r) => `rise ${r[0]}, run ${r[1]}`;
+      return { q: "Which ramp is the steepest?", opts: ramps.map(name), ans: name(best), idea: "Compare rise ÷ run", hints: ["Work out rise ÷ run for each ramp.", "The biggest slope is the steepest."], sol: [ramps.map((r) => `${r[0]}/${r[1]}`).join(", ") + ".", `The biggest is ${best[0]}/${best[1]}, so ${name(best)} is steepest.`] };
+    },
+    () => {
+      const run = pickInt(2, 6);
+      const m = pickInt(2, 4);
+      return { q: `A slide has slope ${m}: it goes up ${m} for every 1 along. Its run is ${run} m. How high is it?`, ans: m * run, pic: rampPic(m * run, run, { labels: false }), idea: "Rise = slope × run", hints: [`For every 1 along it goes up ${m}.`], sol: [`Rise = ${m} × ${run} = ${m * run} m.`] };
+    },
+    () => ({ q: "A ramp's rise and run are equal. What angle does it make with the ground?", opts: ["45°", "30°", "60°", "90°"], ans: "45°", pic: rampPic(4, 4), idea: "Equal rise and run cut a right angle in half", hints: ["The two small angles are equal, and together they make 90°."], sol: ["The triangle has two equal sides, so its two small angles are equal.", "They add to 90°, so each is 45°."] }),
+  ],
+  hard: [
+    () => {
+      const [a, b, c] = pick([[3, 4, 5], [6, 8, 10], [5, 12, 13], [8, 15, 17]]);
+      return { q: `A right triangle has legs ${a} and ${b}. How long is the longest side? (a² + b² = c²)`, ans: c, pic: rampPic(a, b), idea: "Pythagoras: a² + b² = c²", hints: [`${a}² = ${a * a} and ${b}² = ${b * b}.`, "Add them, then find the square root."], sol: [`${a}² + ${b}² = ${a * a} + ${b * b} = ${c * c}.`, `√${c * c} = ${c}.`] };
+    },
+    () => ({ q: "In a right triangle with a 30° angle, the side opposite 30° is half of the longest side. If the longest side is 10, how long is the side opposite 30°?", ans: 5, pic: rampPic(2, 3.46, { labels: false }), idea: "sin 30° = 1/2", hints: ["Half of 10."], sol: ["Opposite ÷ longest = sin 30° = 1/2.", "So the opposite side is 10 ÷ 2 = 5."] }),
+    () => {
+      const [o, h] = pick([[3, 5], [5, 13], [8, 17], [4, 5]]);
+      return { q: `In a right triangle, the side opposite angle A is ${o} and the longest side (hypotenuse) is ${h}. What is sin A = opposite ÷ hypotenuse?`, opts: opts(`${o}/${h}`, [`${h}/${o}`, `${Math.sqrt(h * h - o * o)}/${h}`, `${o}/${Math.sqrt(h * h - o * o)}`]), ans: `${o}/${h}`, idea: "SOH: sine = opposite ÷ hypotenuse", hints: ["Put the opposite side over the hypotenuse."], sol: [`sin A = ${o} ÷ ${h} = ${o}/${h}.`] };
+    },
+    () => {
+      const [a, b] = pick([[3, 4], [5, 12], [8, 15], [6, 8]]);
+      return { q: `In a right triangle, the side opposite angle A is ${a} and the side next to it is ${b}. What is tan A = opposite ÷ adjacent?`, opts: opts(frac(a, b), [frac(b, a), `${a}/${Math.hypot(a, b)}`, `${b}/${Math.hypot(a, b)}`]), ans: frac(a, b), pic: rampPic(a, b), idea: "TOA: tangent = opposite ÷ adjacent = the slope", hints: ["Tangent is the same as the ramp's slope: rise ÷ run."], sol: [`tan A = ${a} ÷ ${b} = ${frac(a, b)}.`, "Tangent is the slope of the ramp."] };
+    },
+    () => {
+      const d = pickInt(3, 9) * 10;
+      return { q: `You stand ${d} m from a tower and look up at its top at an angle of 45°. How tall is the tower (ignore your own height)?`, ans: d, idea: "At 45°, rise = run", hints: ["tan 45° = 1."], sol: ["At 45°, the triangle has equal legs.", `So the height equals the distance: ${d} m.`] };
+    },
+  ],
+};
+
+function ramps() {
+  const my = S.token;
+  const live = () => my === S.token;
+  let rise = 2;
+  let run = 6;
+  let rolling = false;
+  const draw = (ballT = null) => {
+    if (!live()) return;
+    const v = fresh();
+    const u = Math.min(60, 760 / run, 420 / rise);
+    const x0 = 70;
+    const y0 = 480;
+    const g = el("g", {}, v);
+    rampPic(rise, run, { x0, y0, unit: u, g, labels: false });
+    for (let i = 1; i < run; i++) el("line", { x1: x0 + i * u, y1: y0, x2: x0 + i * u, y2: y0 + 10, stroke: INK, "stroke-width": 2 }, v);
+    text(v, x0 + (run * u) / 2, y0 + 40, `run ${run}`, { "font-size": 28, fill: INK });
+    text(v, x0 + run * u + 14, y0 - (rise * u) / 2, `rise ${rise}`, { "font-size": 28, fill: INK, "text-anchor": "start" });
+    const a = Math.atan2(rise, run);
+    const bx = ballT == null ? x0 + run * u - 12 : x0 + run * u - (run * u) * ballT;
+    const by = y0 - (bx - x0) * Math.tan(a) - 22;
+    emoji(v, bx, by - 6, "⚽", 34);
+    para(v, 640, 70, `Slope: ${rise} ÷ ${run} = ${frac(rise, run)}\nAngle: about ${deg(a)}°`, { size: 30, width: 340 });
+  };
+  draw();
+  const lab = labPanel(
+    [
+      ["rise+", "⬆ Rise +1"],
+      ["rise-", "⬇ Rise −1"],
+      ["run+", "➡ Run +1"],
+      ["run-", "⬅ Run −1"],
+      ["roll", "⚽ Roll"],
+    ],
+    {
+      onPress: async (k) => {
+        if (rolling) return;
+        if (k === "rise+") rise = Math.min(8, rise + 1);
+        if (k === "rise-") rise = Math.max(1, rise - 1);
+        if (k === "run+") run = Math.min(12, run + 1);
+        if (k === "run-") run = Math.max(1, run - 1);
+        if (k === "roll") {
+          rolling = true;
+          const ms = 2600 / Math.sqrt(Math.sin(Math.atan2(rise, run)) * 3);
+          await tween(ms, (t) => draw(t * t), live);
+          rolling = false;
+          ding(72 + rise * 2, { gain: 0.35 });
+          return say(rise >= run ? "Whoosh! A steep ramp makes the ball roll fast." : "A gentle ramp: the ball rolls slowly. Make it steeper and try again.");
+        }
+        draw();
+        ding(70 + rise * 2, { gain: 0.3 });
+        const a = deg(Math.atan2(rise, run));
+        say(`Rise ${rise}, run ${run}. Slope ${frac(rise, run)}, angle about ${a} degrees. ${rise === run ? "Rise equals run: exactly 45 degrees!" : ""}`);
+        if (rise === run) lab.pulse("__q");
+      },
+      onQuestions: () => questions("t1", RAMP, { label: "Ramp lab", real: { icon: "🏠", title: "Try it for real", need: ["a book or board", "a pile of books", "a toy car"], steps: ["Lean the board on one book. Roll the car down.", "Add another book: the rise gets bigger.", "Which ramp makes the car go furthest? Measure!"] } }),
+    },
+  );
+  lab.pulse("rise+");
+  say("Change the rise and the run to make the ramp steeper or gentler. Then press ⚽ Roll. Can you make the ramp exactly 45 degrees?");
+}
+
+// ---------- 2. Shadow trick (similar triangles) ----------
+const SHADOW = {
+  easy: [
+    () => {
+      const s = pickInt(2, 5);
+      return { q: `At noon, a 1 m stick has a shadow ${s} m long. A wall nearby has a shadow ${s * 2} m long. The wall's shadow is twice as long. How tall is the wall?`, ans: 2, pic: shadowPic(1, s, 2, s * 2, { hideTree: true }), idea: "Twice the shadow, twice the height", hints: ["The wall's shadow is 2 times the stick's shadow."], sol: ["Same sun, same time, so the shadows grow in the same way.", "The wall's shadow is 2 times longer, so the wall is 2 times taller: 2 m."] };
+    },
+    () => {
+      const h = pickInt(2, 6);
+      return { q: `When the sun is at a special angle, every shadow is exactly as long as the thing that makes it. A tree has a shadow ${h} m long. How tall is the tree?`, ans: h, pic: shadowPic(1, 1, h, h, { hideTree: true }), idea: "Equal shadow means equal height", hints: ["The shadow and the tree are the same length."], sol: [`Shadow = height, so the tree is ${h} m tall.`] };
+    },
+    () => {
+      const k = pickInt(2, 4);
+      const small = pickInt(2, 4);
+      return { q: `A small triangle has a side of ${small} cm. A big triangle is the same shape but ${k} times bigger. How long is the matching side of the big triangle?`, ans: small * k, pic: (g) => { rampPic(small, small + 1, { x0: 20, y0: 360, unit: 18, labels: false })(g); rampPic(small * k, (small + 1) * k, { x0: 140, y0: 360, unit: 18, labels: false, color: "#90caf9" })(g); }, idea: "Same shape, scaled up", hints: [`${small} × ${k}`], sol: [`Every side grows ${k} times.`, `${small} × ${k} = ${small * k} cm.`] };
+    },
+    () => ({ q: "In the morning, shadows are long. At midday, the sun is high. Are shadows longer or shorter at midday?", opts: ["Shorter", "Longer", "The same"], ans: "Shorter", pic: (g) => { emoji(g, 200, 40, "☀️", 60); el("line", { x1: 200, y1: 340, x2: 200, y2: 220, stroke: "#6d4c41", "stroke-width": 8 }, g); el("rect", { x: 200, y: 340, width: 30, height: 10, fill: "#555", opacity: 0.5 }, g); el("rect", { x: 0, y: 350, width: 400, height: 40, fill: "#c5e1a5" }, g); }, idea: "A higher sun makes shorter shadows", hints: ["Shine a torch on a toy from above, then from the side."], sol: ["When the sun is high, its light comes down steeply.", "So the shadow is short. When the sun is low, shadows stretch out long."] }),
+  ],
+  medium: [
+    () => {
+      const s = pickInt(2, 3);
+      const k = pickInt(3, 6);
+      return { q: `A 1 m stick casts a ${s} m shadow. A tree casts a ${s * k} m shadow at the same time. How tall is the tree?`, ans: k, pic: shadowPic(1, s, k, s * k, { hideTree: true }), idea: "Height ÷ shadow is the same for everything", hints: [`How many times longer is ${s * k} than ${s}?`], sol: [`${s * k} ÷ ${s} = ${k}: the tree's shadow is ${k} times longer.`, `So the tree is ${k} × 1 = ${k} m tall.`] };
+    },
+    () => {
+      const stick = 2;
+      const sh = pickInt(1, 3);
+      const k = pickInt(3, 6);
+      return { q: `A ${stick} m pole casts a ${sh} m shadow. A building casts a ${sh * k} m shadow. How tall is the building?`, ans: stick * k, pic: shadowPic(stick, sh, stick * k, sh * k, { hideTree: true }), idea: "Similar triangles: scale every side", hints: [`Scale factor: ${sh * k} ÷ ${sh}.`, `Multiply the pole's height by it.`], sol: [`Scale factor: ${sh * k} ÷ ${sh} = ${k}.`, `Height: ${stick} × ${k} = ${stick * k} m.`] };
+    },
+    () => {
+      const a = pickInt(2, 4);
+      const b = a + pickInt(1, 3);
+      const k = pickInt(2, 3);
+      return { q: `Triangle P has sides ${a}, ${b} and ${a + b - 1}. Triangle Q is the same shape, and its shortest side is ${a * k}. What is Q's longest side?`, ans: (a + b - 1) * k, idea: "Similar shapes: all sides scale by the same number", hints: [`Scale factor: ${a * k} ÷ ${a} = ${k}.`], sol: [`Scale: ${k}.`, `Longest side: ${a + b - 1} × ${k} = ${(a + b - 1) * k}.`] };
+    },
+    () => {
+      const ratio = pick([2, 3, 4]);
+      return { q: `A child stands next to a lamp post. The child is 1 m tall with a 2 m shadow. The lamp post's shadow is ${2 * ratio * 2} m. How tall is the lamp post?`, ans: 2 * ratio, idea: "Shadow is twice the height here", hints: ["The child's shadow is 2 times their height. The same is true for the post."], sol: ["Every shadow is twice the height right now.", `Post height: ${2 * ratio * 2} ÷ 2 = ${2 * ratio} m.`] };
+    },
+  ],
+  hard: [
+    () => {
+      const s = pickInt(2, 5);
+      const h = pickInt(3, 7);
+      const t = pickInt(4, 9);
+      const tree = t * h;
+      return { q: `A ${h} m flagpole has a ${s} m shadow. A tower has a ${t * s} m shadow. How tall is the tower?`, ans: tree, idea: "height₁ ÷ shadow₁ = height₂ ÷ shadow₂", hints: [`The tower's shadow is ${t} times the pole's.`], sol: [`${t * s} ÷ ${s} = ${t}.`, `${h} × ${t} = ${tree} m.`] };
+    },
+    () => {
+      const [a, b, c] = pick([[3, 4, 5], [5, 12, 13]]);
+      const k = pickInt(2, 5);
+      return { q: `A ladder leans on a wall. Its foot is ${a * k} m from the wall and it reaches ${b * k} m up. How long is the ladder?`, ans: c * k, idea: "A scaled Pythagorean triple", hints: [`This is a ${a}-${b}-${c} triangle made ${k} times bigger.`], sol: [`${a * k}² + ${b * k}² = ${(a * k) ** 2 + (b * k) ** 2}.`, `√${(c * k) ** 2} = ${c * k} m.`] };
+    },
+    () => {
+      const k = pickInt(2, 4);
+      return { q: `Two similar triangles: the big one's sides are ${k} times the small one's. How many times bigger is its AREA?`, ans: k * k, idea: "Area scales by the square of the scale factor", hints: ["Draw it: how many small triangles fit inside the big one?"], sol: [`Width and height both grow ${k} times.`, `Area grows ${k} × ${k} = ${k * k} times.`] };
+    },
+    () => {
+      const m = pick([[1, 2], [1, 3], [2, 3]]);
+      const s = m[1] * pickInt(3, 6);
+      return { q: `At 3 pm, each 1 m stick has a shadow ${frac(m[1], m[0])} m long. A wall's shadow is ${s} m. How tall is the wall, in metres?`, ans: (s * m[0]) / m[1], idea: "Height = shadow × (height ÷ shadow)", hints: [`Height ÷ shadow = ${m[0]}/${m[1]}.`], sol: [`Height = ${s} × ${m[0]}/${m[1]} = ${(s * m[0]) / m[1]} m.`] };
+    },
+  ],
+};
+
+function shadows() {
+  const my = S.token;
+  let sun = 45;
+  let stick = 2;
+  const TREE = 8;
+  const draw = () => {
+    if (my !== S.token) return;
+    const v = fresh();
+    const k = 40;
+    const ground = 480;
+    el("rect", { x: 0, y: ground, width: 1000, height: 80, fill: "#c5e1a5" }, v);
+    const a = (sun * Math.PI) / 180;
+    const tx = 210;
+    const tShadow = TREE / Math.tan(a);
+    el("rect", { x: tx - 10, y: ground - TREE * k * 0.5, width: 20, height: TREE * k * 0.5, fill: "#8d6e63" }, v);
+    el("circle", { cx: tx, cy: ground - TREE * k * 0.72, r: TREE * k * 0.28, fill: "#66bb6a", stroke: INK, "stroke-width": 3 }, v);
+    el("polygon", { points: `${tx},${ground} ${tx},${ground - TREE * k} ${tx + Math.min(780, tShadow * k)},${ground}`, fill: "#ffcf5c", opacity: 0.35 }, v);
+    el("line", { x1: tx, y1: ground + 6, x2: tx + Math.min(780, tShadow * k), y2: ground + 6, stroke: "#444", "stroke-width": 12, opacity: 0.5 }, v);
+    const sx = 760;
+    const sShadow = stick / Math.tan(a);
+    el("line", { x1: sx, y1: ground, x2: sx, y2: ground - stick * k, stroke: "#6d4c41", "stroke-width": 8, "stroke-linecap": "round" }, v);
+    el("line", { x1: sx, y1: ground + 22, x2: sx + Math.min(230, sShadow * k), y2: ground + 22, stroke: "#444", "stroke-width": 10, opacity: 0.5 }, v);
+    emoji(v, 50, 40 + (75 - sun) * 3, "☀️", 60);
+    el("line", { x1: 80, y1: 70 + (75 - sun) * 3, x2: 80 + 200 * Math.cos(a), y2: 70 + (75 - sun) * 3 + 200 * Math.sin(a), stroke: "#ffb300", "stroke-width": 3, "stroke-dasharray": "8 8" }, v);
+    text(v, sx - 12, ground - (stick * k) / 2, `${stick} m`, { "font-size": 24, fill: INK, "text-anchor": "end" });
+    para(v, 420, 40, `Sun height: ${sun}°\nStick ${stick} m → shadow ${sShadow.toFixed(1)} m\nTree ? m → shadow ${tShadow.toFixed(1)} m\nTree = ${stick} × ${tShadow.toFixed(1)} ÷ ${sShadow.toFixed(1)} = ${((stick * tShadow) / sShadow).toFixed(1)} m`, { size: 24, width: 520 });
+  };
+  draw();
+  const lab = labPanel(
+    [
+      ["up", "☀️ Sun higher"],
+      ["down", "🌅 Sun lower"],
+      ["stick", "📏 Change stick"],
+    ],
+    {
+      onPress: (k) => {
+        if (k === "up") sun = Math.min(75, sun + 15);
+        if (k === "down") sun = Math.max(15, sun - 15);
+        if (k === "stick") stick = stick === 3 ? 1 : stick + 1;
+        draw();
+        ding(70 + sun / 5, { gain: 0.3 });
+        say(k === "stick" ? "A different stick gives a different shadow, but the answer for the tree stays 8 m. The triangles are the same shape!" : `Sun at ${sun} degrees. The shadows change, but the tree's height always works out to 8 m.`);
+        if (k === "stick") lab.pulse("__q");
+      },
+      onQuestions: () => questions("t2", SHADOW, { label: "Shadow trick", real: { icon: "🏠", title: "Try it for real", need: ["a sunny day", "a ruler", "a tape measure"], steps: ["Stand a ruler upright and measure its shadow.", "Measure the shadow of a tree, a lamp post or a grown-up.", "How many times longer is the big shadow? Multiply the ruler's height by that number."] } }),
+    },
+  );
+  lab.pulse("up");
+  say("The tree is too tall to measure. But a short stick and the sun can help! Move the sun and watch both shadows. The stick and the tree make triangles of the same shape.");
+}
+
+// ---------- 3. Wheel and wave ----------
+const WAVE = {
+  easy: [
+    () => {
+      const c = pickInt(4, 8);
+      const r = pickInt(2, c - 1);
+      const spot = pick([["top", c + r], ["bottom", c - r], ["side", c]]);
+      return { q: `A Ferris wheel's centre is ${c} m high and its radius is ${r} m. How high is a seat at the ${spot[0]}?`, ans: spot[1], pic: wheelPic(r, c, spot[0]), idea: "Top = centre + radius, bottom = centre − radius", hints: spot[0] === "top" ? ["Go up from the centre by the radius."] : spot[0] === "bottom" ? ["Go down from the centre by the radius."] : ["At the side, the seat is level with the centre."], sol: [`Centre ${c} m, radius ${r} m.`, spot[0] === "top" ? `${c} + ${r} = ${c + r} m.` : spot[0] === "bottom" ? `${c} − ${r} = ${c - r} m.` : `Level with the centre: ${c} m.`] };
+    },
+    () => {
+      const [name, h, m, ans] = pick([["3 o'clock", 3, 0, 90], ["6 o'clock", 6, 0, 180], ["9 o'clock", 9, 0, 270]]);
+      return { q: `The minute hand points at 12 and the hour hand at ${h}. Going clockwise from 12, how many degrees has the hour hand turned at ${name}?`, opts: ["90", "180", "270", "360"], ans: String(ans), pic: clockPic(h, m), idea: "A quarter turn is 90°", hints: ["From 12 to 3 is a quarter of the way round."], sol: ["Each quarter of the clock is 90°.", `${h} o'clock is ${h / 3} quarter${h > 3 ? "s" : ""}: ${ans}°.`] };
+    },
+    () => ({ q: "A seat on a turning wheel goes up, then down, then up again. What does a graph of its height look like?", opts: ["A wave", "A straight line up", "A flat line", "A staircase"], ans: "A wave", pic: (g) => el("path", { d: "M10 200" + range(1, 76).map((i) => `L${10 + i * 5} ${200 - 120 * Math.sin(i / 6)}`).join(""), fill: "none", stroke: BLUE, "stroke-width": 6 }, g), idea: "Turning makes waves", hints: ["Up, down, up, down…"], sol: ["The height goes up and down and repeats every turn.", "That repeating up-and-down shape is a wave."] }),
+    () => {
+      const t = pickInt(2, 6);
+      const n = pickInt(2, 4);
+      return { q: `A wheel takes ${t} minutes for one full turn. How many minutes for ${n} turns?`, ans: t * n, idea: "Waves repeat: one turn = one wave", hints: [`${t} + ${t}…`], sol: [`${n} turns × ${t} minutes = ${t * n} minutes.`] };
+    },
+  ],
+  medium: [
+    () => {
+      const c = pickInt(10, 20);
+      const r = pickInt(4, c - 2);
+      return { q: `A Ferris wheel has its centre ${c} m up and a radius of ${r} m. What is the difference between the highest and lowest seat heights?`, ans: 2 * r, pic: wheelPic(r, c, "top"), idea: "Top − bottom = the diameter", hints: [`Top: ${c} + ${r}. Bottom: ${c} − ${r}.`], sol: [`Top ${c + r} m, bottom ${c - r} m.`, `${c + r} − ${c - r} = ${2 * r} m: the width of the wheel.`] };
+    },
+    () => {
+      const [h, m] = pick([[2, 0], [4, 0], [5, 0], [1, 0], [10, 0]]);
+      const a = Math.min(h * 30, 360 - h * 30);
+      return { q: `At ${h} o'clock, what is the smaller angle between the two clock hands?`, ans: a, pic: clockPic(h, m), idea: "Each hour mark is 30° apart", hints: ["360 ÷ 12 = 30.", `Count the hour gaps between 12 and ${h}.`], sol: ["12 hour marks share 360°: 30° each.", `${Math.min(h, 12 - h)} gaps × 30° = ${a}°.`] };
+    },
+    () => {
+      const t = pick([4, 8, 12, 16]);
+      const q = pick([["a quarter", 1 / 4], ["half", 1 / 2], ["three quarters", 3 / 4]]);
+      return { q: `A wheel turns once every ${t} seconds. A seat starts at the bottom. After how many seconds has it turned ${q[0]} of the way round?`, ans: t * q[1], idea: "Time scales with the fraction of a turn", hints: [`${q[0]} of ${t}.`], sol: [`${q[0]} of ${t} seconds = ${t * q[1]} seconds.`] };
+    },
+    () => {
+      const deg2 = pick([90, 180, 270, 360, 450, 720]);
+      return { q: `A wheel turns ${deg2}°. How many quarter turns is that?`, ans: deg2 / 90, idea: "90° = one quarter turn", hints: [`${deg2} ÷ 90`], sol: [`${deg2} ÷ 90 = ${deg2 / 90} quarter turns.`] };
+    },
+  ],
+  hard: [
+    () => {
+      const a = pick([0, 90, 180, 270, 360]);
+      const v = { 0: "0", 90: "1", 180: "0", 270: "−1", 360: "0" }[a];
+      return { q: `A point goes round a circle of radius 1, starting at the right and turning anticlockwise. Its height is sin(angle). What is sin ${a}°?`, opts: ["1", "0", "−1", "1/2"], ans: v, idea: "sine = height on the unit circle", hints: ["90° is the top. 180° is the far left. 270° is the bottom."], sol: [`At ${a}°, the point is ${{ 0: "on the right", 90: "at the top", 180: "on the left", 270: "at the bottom", 360: "back on the right" }[a]}.`, `Its height is ${v}.`] };
+    },
+    () => {
+      const c = pickInt(15, 30);
+      const r = pickInt(5, 12);
+      return { q: `Seat height h = ${c} − ${r}·cos(angle). The seat starts at the bottom. What is its height after a half turn (180°, where cos is −1)?`, ans: c + r, idea: "cos 180° = −1", hints: [`${c} − ${r} × (−1)`], sol: [`h = ${c} − ${r} × (−1) = ${c} + ${r} = ${c + r} m.`, "Half a turn from the bottom is the top!"] };
+    },
+    () => {
+      const [h, m] = pick([[3, 30], [6, 30], [9, 30], [2, 30], [4, 30]]);
+      const hourA = h * 30 + m / 2;
+      const minA = m * 6;
+      let a = Math.abs(hourA - minA);
+      a = Math.min(a, 360 - a);
+      return { q: `At ${h}:${String(m).padStart(2, "0")}, what is the smaller angle between the clock hands?`, ans: a, pic: clockPic(h, m), idea: "The hour hand moves too: ½° each minute", hints: ["The minute hand at 30 minutes points at 180°.", `The hour hand is halfway between ${h} and ${h + 1}: ${h * 30} + 15 degrees.`], sol: [`Minute hand: ${minA}°. Hour hand: ${h * 30} + 15 = ${hourA}°.`, `Difference: ${Math.abs(hourA - minA)}°${Math.abs(hourA - minA) > 180 ? `, so the smaller angle is ${a}°` : ""}.`] };
+    },
+    () => {
+      const p = pick([2, 4, 6, 8]);
+      return { q: `A sound wave repeats ${p * 100} times a second. How many full waves pass in ${1 / 2} a second?`, ans: p * 50, idea: "Frequency: waves each second", hints: ["Half of the waves in one second."], sol: [`${p * 100} ÷ 2 = ${p * 50} waves.`] };
+    },
+  ],
+};
+
+function wave() {
+  const my = S.token;
+  const live = () => my === S.token;
+  let spinning = false;
+  let speed = 1;
+  let angle = 0;
+  let trail = [];
+  const R = 150;
+  const CX = 210;
+  const CY = 280;
+  const draw = () => {
+    if (!live()) return;
+    const v = fresh();
+    el("rect", { x: 0, y: 470, width: 1000, height: 90, fill: "#c5e1a5" }, v);
+    el("path", { d: `M${CX} ${CY}L${CX - 90} 470M${CX} ${CY}L${CX + 90} 470`, stroke: "#8d6e63", "stroke-width": 10 }, v);
+    el("circle", { cx: CX, cy: CY, r: R, fill: "none", stroke: INK, "stroke-width": 6 }, v);
+    range(0, 7).forEach((i) => {
+      const a = angle + (i * Math.PI) / 4;
+      el("line", { x1: CX, y1: CY, x2: CX + R * Math.sin(a), y2: CY + R * Math.cos(a), stroke: "#bcaaa4", "stroke-width": 3 }, v);
+      if (i) emoji(v, CX + R * Math.sin(a), CY + R * Math.cos(a), "🪑", 26);
+    });
+    const sx = CX + R * Math.sin(angle);
+    const sy = CY + R * Math.cos(angle);
+    emoji(v, sx, sy, "🧒", 40);
+    el("line", { x1: sx, y1: sy, x2: 460, y2: sy, stroke: RED, "stroke-width": 2, "stroke-dasharray": "6 6" }, v);
+    const G0 = 460;
+    el("path", { d: `M${G0} ${CY - R - 20}V${CY + R + 20}M${G0} ${CY + R}H980`, stroke: INK, "stroke-width": 3, fill: "none" }, v);
+    text(v, 720, 530, "time →", { "font-size": 22, fill: INK });
+    text(v, G0 + 8, CY - R - 30, "height", { "font-size": 22, fill: INK, "text-anchor": "start" });
+    if (trail.length > 1) el("path", { d: "M" + trail.map(([t, y]) => `${G0 + t} ${y}`).join("L"), fill: "none", stroke: BLUE, "stroke-width": 5, "stroke-linejoin": "round" }, v);
+    el("circle", { cx: G0 + (trail.length ? trail[trail.length - 1][0] : 0), cy: sy, r: 9, fill: RED }, v);
+  };
+  draw();
+  const loop = async () => {
+    let last = performance.now();
+    while (spinning && live()) {
+      const now = await new Promise((r) => requestAnimationFrame(r));
+      const dt = Math.min(50, now - last);
+      last = now;
+      angle += dt * 0.0016 * speed;
+      const t = trail.length ? trail[trail.length - 1][0] + dt * 0.06 * speed : 0;
+      if (t > 510) {
+        spinning = false;
+        lab.btn("spin").textContent = "▶ Spin";
+        say("See the blue line? Up, down, up, down: a wave! This wave is called a sine wave. It comes from turning in a circle. Press Questions ▶ when ready.");
+        lab.pulse("__q");
+        break;
+      }
+      trail.push([t, CY + R * Math.cos(angle)]);
+      draw();
+      if (Math.abs(Math.cos(angle) + 1) < 0.002 * speed) ding(88, { gain: 0.25 });
+    }
+  };
+  const lab = labPanel(
+    [
+      ["spin", "▶ Spin"],
+      ["fast", "⏩ Faster"],
+      ["reset", "↺"],
+    ],
+    {
+      onPress: (k, btn) => {
+        if (k === "spin") {
+          spinning = !spinning;
+          btn.textContent = spinning ? "⏸ Pause" : "▶ Spin";
+          if (spinning) {
+            if (trail.length && trail[trail.length - 1][0] > 510) trail = [];
+            say("Watch the red dot follow the child's height. The blue line draws the height over time.");
+            loop();
+          }
+        }
+        if (k === "fast") {
+          speed = speed >= 3 ? 1 : speed + 1;
+          btn.textContent = speed === 3 ? "🐢 Slower" : "⏩ Faster";
+          say(speed > 1 ? "Faster turning makes the waves closer together." : "Back to slow.");
+        }
+        if (k === "reset") {
+          spinning = false;
+          trail = [];
+          angle = 0;
+          lab.btn("spin").textContent = "▶ Spin";
+          draw();
+        }
+      },
+      onQuestions: () => {
+        spinning = false;
+        questions("t3", WAVE, { label: "Wheel and wave", real: { icon: "🏠", title: "Try it for real", need: ["a bicycle wheel or a plate", "a sticker", "paper and a crayon"], steps: ["Put a sticker on the edge of the wheel.", "Turn it slowly and call out: high, middle, low, middle, high…", "Draw the heights on paper as you go. Do you get a wave?"] } });
+      },
+    },
+  );
+  lab.pulse("spin");
+  say("A Ferris wheel! Press ▶ Spin and watch how the child's height goes up and down. A graph draws itself on the right.");
+}
+
+function mixed() {
+  const bank = {};
+  for (const lv of ["easy", "medium", "hard"]) bank[lv] = [...RAMP[lv], ...SHADOW[lv], ...WAVE[lv]];
+  questions("t4", bank, { label: "Mixed puzzles" });
+}
+
+// ---------- See it ----------
+function seeIt() {
+  const my = S.token;
+  explain(
+    [
+      { say: "Trigonometry is the math of triangles and turning. Builders use it to make safe ramps and roofs. Sailors and pilots use it to find their way. It even explains sound and ocean waves.", draw: everyday([["🛝", "Slides & ramps"], ["🏠", "Roofs"], ["🧭", "Finding the way"], ["🌊", "Waves"]]) },
+      {
+        say: "Here is a ramp. It goes up, called the rise, and along, called the run. A bigger rise or a shorter run makes it steeper.",
+        async draw(v, api) {
+          const g = el("g", {}, v);
+          await api.tween(2600, (t) => {
+            g.innerHTML = "";
+            const rise = 1 + t * 5;
+            rampPic(Math.round(rise * 10) / 10, 8, { x0: 200, y0: 470, unit: 70, g, labels: false });
+          });
+          text(v, 480, 520, "run", { "font-size": 30, fill: INK });
+          text(v, 790, 300, "rise", { "font-size": 30, fill: INK, "text-anchor": "start" });
+        },
+      },
+      {
+        say: "Triangles that are the same shape grow in the same way. If a small stick's shadow is twice its height, a tall tree's shadow is twice its height too. So we can measure the tree without climbing it!",
+        async draw(v, api) {
+          const g = el("g", { transform: "translate(300 60) scale(1.2)" }, v);
+          shadowPic(1, 2, 4, 8)(g);
+          await api.wait(400);
+        },
+      },
+      {
+        say: "Now a wheel turns. As a seat goes round, its height goes up and down. Drawn over time, the height makes a wave. That wave is called a sine wave.",
+        async draw(v, api) {
+          const R = 130;
+          const path = el("path", { d: "", fill: "none", stroke: BLUE, "stroke-width": 6 }, v);
+          el("circle", { cx: 200, cy: 280, r: R, fill: "none", stroke: INK, "stroke-width": 5 }, v);
+          const dot = el("circle", { r: 14, fill: RED }, v);
+          const pts = [];
+          await api.tween(5000, (t) => {
+            const a = t * 4 * Math.PI;
+            const y = 280 - R * Math.sin(a);
+            dot.setAttribute("cx", 200 + R * Math.cos(a));
+            dot.setAttribute("cy", y);
+            pts.push(`${400 + t * 560} ${y}`);
+            path.setAttribute("d", "M" + pts.join("L"));
+          });
+        },
+      },
+      { say: "Over 2,000 years ago, Greek astronomers like Hipparchus used triangles to measure the distance to the Moon. Let's start with ramps!", draw: (v) => { emoji(v, 500, 220, "🌙", 140); text(v, 500, 420, "Ramps · Shadows · Waves", { "font-size": 34, fill: INK }); } },
+    ],
+    { alive: () => my === S.token, onDone: () => S.shell.go("t1"), title: "Triangles & Waves", doneLabel: "▶ Begin" },
+  );
+}
+
+const units = { t0: seeIt, t1: ramps, t2: shadows, t3: wave, t4: mixed };
+S.shell = SHELL({
+  units: UNITS,
+  how: {
+    t0: { icon: "👀", title: "See it", steps: ["Watch and listen to each scene.", "Press Next ▶ to continue."] },
+    t1: { icon: "🛝", title: "Ramp lab", steps: ["Change the rise and run.", "Press ⚽ Roll to test your ramp.", "Then press Questions ▶."] },
+    t2: { icon: "🌳", title: "Shadow trick", steps: ["Move the sun higher or lower.", "Watch the stick's shadow and the tree's shadow.", "Then press Questions ▶."] },
+    t3: { icon: "🎡", title: "Wheel and wave", steps: ["Press ▶ Spin and watch the graph.", "Try ⏩ Faster.", "Then press Questions ▶."] },
+    t4: { icon: "🧩", title: "Mixed puzzles", steps: ["Read the question and look at the picture.", "Choose or type the answer.", "💡 hints open after one try, 📖 steps after two."] },
+  },
+  start: "t0",
+  onStop() {
+    S.token += 1;
+    B.stage.querySelector(".bi-real")?.remove();
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Math",
+  activity: "Triangles & Waves",
+  onUnit(id) {
+    S.token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", range(72, 96));
+</script>
+</body>
+</html>

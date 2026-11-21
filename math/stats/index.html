@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Detective · OakCrest Academy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%20aria-hidden%3D%22true%22%3E%3Cpath%20d%3D%22M24%203%2042%209v13c0%2011.5-7.6%2019.6-18%2023C13.6%2041.6%206%2033.5%206%2022V9Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M24%206.4%2039%2011.4V22c0%209.7-6.3%2016.6-15%2019.7C15.3%2038.6%209%2031.7%209%2022V11.4Z%22%20fill%3D%22%23fffcf6%22%2F%3E%3Cpath%20d%3D%22M24%2014.5c-4.6%200-7.6%202.4-7.9%205.6h15.8c-.3-3.2-3.3-5.6-7.9-5.6Z%22%20fill%3D%22%237a4520%22%2F%3E%3Cpath%20d%3D%22M17%2021.3h14c-.2%206.3-3.1%2010.7-7%2012.6-3.9-1.9-6.8-6.3-7-12.6Z%22%20fill%3D%22%23c98c58%22%2F%3E%3Cpath%20d%3D%22M24%2014.5v-3.2%22%20stroke%3D%22%237a4520%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M19.4%2017.3c1.5-1%203-1.4%204.6-1.4M28.6%2017.3c-1.5-1-3-1.4-4.6-1.4%22%20stroke%3D%22%23c98c58%22%20stroke-width%3D%221.2%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap">
+<link rel="stylesheet" href="../../assets/oc.css">
+<link rel="stylesheet" href="../../assets/app.css">
+<script src="../../assets/oc.js"></script>
+<script src="../../assets/firebase-config.js"></script>
+<script src="../../assets/cloud.js"></script>
+<script src="../../assets/voice.js"></script>
+<script src="../../assets/music.js"></script>
+<script src="../../assets/shell.js"></script>
+<script src="../../assets/kit.js"></script>
+<script src="../../assets/ideas.js"></script>
+</head>
+<body data-subject="math">
+<div class="ap">
+<header class="ap-bar">
+  <a class="ap-home" href="../../" aria-label="OakCrest home" title="OakCrest home">🏠</a>
+  <div class="ap-title"><b>Data Detective</b><small>Math · Advanced</small></div>
+  <button type="button" class="ap-pick" data-pick aria-label="Choose a game"></button>
+  <div class="ap-spacer"></div>
+  <div class="ap-tools">
+    <span data-chip data-home="../../"></span>
+    <button type="button" class="ap-icon" data-help aria-label="How to play" title="How to play" hidden>❓</button>
+    <button type="button" class="ap-icon" data-voice aria-label="Voice on">🔊</button>
+    <button type="button" class="ap-icon" data-menu aria-label="Settings">⚙</button>
+    <div class="ap-pop" data-pop hidden>
+      <label>Voice <select data-voice-pick aria-label="Choose a voice"></select></label>
+      <button type="button" class="ap-pop-btn" data-sound>🔔 Sounds on</button>
+      <p>Piano, xylophone and woodblock sounds from the FluidR3 GM soundfont by Frank Wen, used under Creative Commons Attribution 3.0.</p>
+    </div>
+  </div>
+</header>
+<main class="ap-main"><div class="ap-stage" data-stage></div><div class="ap-panel" data-panel></div></main>
+</div>
+<script>
+const { $, el, text, say, pick, pickInt, explain, everyday, emoji, shuffle } = KIT;
+const UNITS = [
+  { id: "d0", label: "See it", icon: "👀" },
+  { id: "d1", label: "1. Level the towers", icon: "🧱" },
+  { id: "d2", label: "2. Line them up", icon: "📊" },
+  { id: "d3", label: "3. Sample jar", icon: "🫙" },
+  { id: "d4", label: "4. Mixed puzzles", icon: "🧩" },
+];
+const B = IDEAS({
+  title: "Data Detective",
+  counter: "statistics questions solved",
+  explainPrompts: {
+    d1: "When you level the towers, why does the total number of blocks stay the same?",
+    d2: "What is the difference between the median and the mode? Give an example.",
+    d3: "Why does a bigger sample usually give a better guess about the whole jar?",
+    d4: "Pick one puzzle you solved. Tell a grown-up which tool you used: mean, median, mode, range or sampling.",
+  },
+});
+const { S, INK, fresh, tween, para, labPanel, questions, opts, numOpts } = B;
+const BLUE = "#1e88e5";
+const RED = "#e0603a";
+const COLORS = ["#ef5350", "#42a5f5", "#ffca28", "#66bb6a", "#ab47bc", "#ff7043", "#26c6da"];
+const ding = (m, o) => MUSIC.play("xylophone", Math.max(72, Math.min(96, Math.round(m))), o);
+const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+const sum = (xs) => xs.reduce((a, b) => a + b, 0);
+const sorted = (xs) => [...xs].sort((a, b) => a - b);
+const median = (xs) => { const s = sorted(xs); const n = s.length; return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2; };
+const modeOf = (xs) => { const c = {}; xs.forEach((x) => (c[x] = (c[x] || 0) + 1)); const best = Math.max(...Object.values(c)); const m = Object.keys(c).filter((k) => c[k] === best); return m.length === 1 ? Number(m[0]) : null; };
+// A list of n whole numbers in [lo, hi] whose mean is a whole number.
+function meanList(n, lo, hi) {
+  for (;;) {
+    const xs = range(1, n).map(() => pickInt(lo, hi));
+    if (sum(xs) % n === 0) return xs;
+  }
+}
+// A list with one clear mode and an odd length (so the median is a whole number).
+function modeList(n, lo, hi) {
+  for (;;) {
+    const xs = range(1, n).map(() => pickInt(lo, hi));
+    if (modeOf(xs) != null) return xs;
+  }
+}
+
+// ---------- pictures ----------
+function towersPic(hs, { names = [], cap = 10 } = {}) {
+  return (g) => {
+    const n = hs.length;
+    const w = Math.min(70, 360 / n - 10);
+    const top = Math.max(cap, ...hs);
+    const c = Math.min(30, 320 / top);
+    hs.forEach((h, i) => {
+      const x = 20 + i * (360 / n) + (360 / n - w) / 2;
+      for (let j = 0; j < h; j++) el("rect", { x, y: 350 - (j + 1) * c, width: w, height: c - 2, rx: 4, fill: COLORS[i % COLORS.length], stroke: INK, "stroke-width": 1.5 }, g);
+      text(g, x + w / 2, 380, names[i] ?? h, { "font-size": 20, fill: INK });
+    });
+    el("line", { x1: 10, y1: 350, x2: 390, y2: 350, stroke: INK, "stroke-width": 3 }, g);
+  };
+}
+function dotPlot(xs, { lo = Math.min(...xs), hi = Math.max(...xs), label = "" } = {}) {
+  return (g) => {
+    const span = Math.max(1, hi - lo);
+    const sx = 340 / span;
+    el("line", { x1: 30, y1: 330, x2: 370, y2: 330, stroke: INK, "stroke-width": 3 }, g);
+    for (let v = lo; v <= hi; v++) {
+      el("line", { x1: 30 + (v - lo) * sx, y1: 330, x2: 30 + (v - lo) * sx, y2: 340, stroke: INK, "stroke-width": 2 }, g);
+      if (span <= 12 || (v - lo) % 2 === 0) text(g, 30 + (v - lo) * sx, 366, v, { "font-size": 18, fill: INK });
+    }
+    const seen = {};
+    xs.forEach((v) => {
+      seen[v] = (seen[v] || 0) + 1;
+      el("circle", { cx: 30 + (v - lo) * sx, cy: 330 - seen[v] * 26, r: 11, fill: BLUE, stroke: INK, "stroke-width": 1.5 }, g);
+    });
+    if (label) text(g, 200, 398, label, { "font-size": 18, fill: "#7a5a40" });
+  };
+}
+function jarPic(counts) {
+  return (g) => {
+    el("path", { d: "M110 60H290V90Q330 110 330 160V340Q330 380 290 380H110Q70 380 70 340V160Q70 110 110 90Z", fill: "#e3f2fd", stroke: INK, "stroke-width": 4 }, g);
+    const balls = shuffle(counts.flatMap(([color, n]) => range(1, n).map(() => color)));
+    balls.forEach((c, i) => el("circle", { cx: 100 + (i % 9) * 25 + ((i / 9) | 0) % 2 * 10, cy: 360 - ((i / 9) | 0) * 24, r: 11, fill: c, stroke: INK, "stroke-width": 1 }, g));
+  };
+}
+
+// ---------- 1. Level the towers (mean) ----------
+const MEAN = {
+  easy: [
+    () => {
+      const m = pickInt(2, 5);
+      const d = pickInt(1, m - 1);
+      const hs = shuffle([m - d, m + d]);
+      return { q: `Two towers have ${hs[0]} and ${hs[1]} blocks. If we share the blocks so both towers are the same height, how tall is each tower?`, ans: m, pic: towersPic(hs), idea: "Share the blocks equally: that is the mean", hints: [`Move blocks from the taller tower to the shorter one, one at a time.`, `Altogether there are ${hs[0] + hs[1]} blocks.`], sol: [`Total: ${hs[0]} + ${hs[1]} = ${2 * m} blocks.`, `Share between 2 towers: ${2 * m} ÷ 2 = ${m}.`] };
+    },
+    () => {
+      const hs = meanList(3, 1, 6);
+      return { q: `Three towers have ${hs.join(", ")} blocks. Level them so they are all the same height. How tall is each?`, ans: sum(hs) / 3, pic: towersPic(hs), idea: "Mean = total shared equally", hints: [`First count all the blocks: ${hs.join(" + ")}.`, "Then share them between 3 towers."], sol: [`Total: ${hs.join(" + ")} = ${sum(hs)}.`, `${sum(hs)} ÷ 3 = ${sum(hs) / 3}.`] };
+    },
+    () => {
+      const hs = range(1, pickInt(3, 4)).map(() => pickInt(1, 7));
+      const big = Math.max(...hs);
+      const names = ["A", "B", "C", "D"].slice(0, hs.length);
+      if (hs.filter((h) => h === big).length > 1) return MEAN.easy[2]();
+      return { q: "Which tower is the tallest?", opts: names, ans: names[hs.indexOf(big)], pic: towersPic(hs, { names }), idea: "Reading a bar chart", hints: ["Find the tower with the most blocks."], sol: [`Tower ${names[hs.indexOf(big)]} has ${big} blocks, the most.`] };
+    },
+    () => {
+      const k = pickInt(2, 5);
+      return { q: `Every tower has ${k} blocks. There are 4 towers. If we level them, how tall is each?`, ans: k, pic: towersPic([k, k, k, k]), idea: "If they are already equal, the mean is that number", hints: ["Are they already level?"], sol: [`They are all ${k} already, so the mean is ${k}.`] };
+    },
+  ],
+  medium: [
+    () => {
+      const hs = meanList(4, 1, 9);
+      return { q: `Find the mean of ${hs.join(", ")}.`, ans: sum(hs) / 4, pic: towersPic(hs), idea: "Mean = total ÷ how many", hints: ["Add them.", "Divide by 4."], sol: [`Total: ${hs.join(" + ")} = ${sum(hs)}.`, `${sum(hs)} ÷ 4 = ${sum(hs) / 4}.`] };
+    },
+    () => {
+      const hs = meanList(5, 2, 10);
+      return { q: `Five children scored ${hs.join(", ")} points. What is the mean score?`, ans: sum(hs) / 5, idea: "Mean = total ÷ how many", hints: ["Add the five scores.", "Divide by 5."], sol: [`Total: ${sum(hs)}.`, `${sum(hs)} ÷ 5 = ${sum(hs) / 5}.`] };
+    },
+    () => {
+      const m = pickInt(4, 8);
+      const a = pickInt(1, 2 * m - 1);
+      const b = pickInt(Math.max(1, 3 * m - a - 12), Math.min(12, 3 * m - a - 1));
+      const c = 3 * m - a - b;
+      if (c < 0) return MEAN.medium[2]();
+      return { q: `Three towers have a mean height of ${m}. Two of them are ${a} and ${b}. How tall is the third?`, ans: c, idea: "Total = mean × how many", hints: [`The total must be ${m} × 3 = ${3 * m}.`], sol: [`Total: ${m} × 3 = ${3 * m}.`, `${3 * m} − ${a} − ${b} = ${c}.`] };
+    },
+    () => {
+      const hs = meanList(3, 2, 8);
+      const m = sum(hs) / 3;
+      return { q: `The mean of ${hs.join(", ")} is ${m}. We add a new number, ${m}. What is the new mean?`, ans: m, idea: "Adding the mean does not change the mean", hints: ["Does the new tower need any blocks moved?"], sol: [`New total: ${sum(hs)} + ${m} = ${4 * m}.`, `${4 * m} ÷ 4 = ${m}. The mean stays the same.`] };
+    },
+  ],
+  hard: [
+    () => {
+      const n = pickInt(4, 6);
+      const m = pickInt(6, 12);
+      const x = pickInt(m + 1, m + 10);
+      const nm = (n * m + x) / (n + 1);
+      if (!Number.isInteger(nm)) return MEAN.hard[0]();
+      return { q: `${n} children have a mean height of ${m * 10} cm. A child of ${x * 10} cm joins. What is the new mean height, in cm?`, ans: nm * 10, idea: "Find the new total, then divide", hints: [`Old total: ${n} × ${m * 10}.`], sol: [`Old total: ${n * m * 10} cm.`, `New total: ${n * m * 10} + ${x * 10} = ${(n * m + x) * 10} cm.`, `÷ ${n + 1} = ${nm * 10} cm.`] };
+    },
+    () => {
+      const m = pickInt(70, 90);
+      const n = pickInt(3, 5);
+      const target = m + pickInt(1, 3);
+      const need = target * (n + 1) - m * n;
+      if (need > 100) return MEAN.hard[1]();
+      return { q: `Your mean score on ${n} tests is ${m}. What must you score on the next test to make your mean ${target}?`, ans: need, idea: "Target total minus current total", hints: [`You need a total of ${target} × ${n + 1}.`], sol: [`Needed total: ${target} × ${n + 1} = ${target * (n + 1)}.`, `Current total: ${m} × ${n} = ${m * n}.`, `${target * (n + 1)} − ${m * n} = ${need}.`] };
+    },
+    () => {
+      const base = meanList(4, 3, 8);
+      const out = 50 + pickInt(0, 10) * 5;
+      const xs = [...base, out];
+      const mean = sum(xs) / 5;
+      return { q: `Data: ${xs.join(", ")}. One value is far bigger than the rest (an outlier). Which describes a typical value better?`, opts: [`The median, ${median(xs)}`, `The mean, ${mean}`], ans: `The median, ${median(xs)}`, idea: "Outliers pull the mean; the median resists", hints: ["Is the mean close to most of the numbers?"], sol: [`Mean: ${sum(xs)} ÷ 5 = ${mean}, much bigger than most values.`, `Median: ${median(xs)}, right in the middle of the usual values.`, "So the median describes a typical value better here."] };
+    },
+  ],
+};
+
+function towers() {
+  const my = S.token;
+  const live = () => my === S.token;
+  let hs = meanList(5, 1, 9);
+  let busy = false;
+  const draw = (heights = hs, ghost = null) => {
+    if (!live()) return;
+    const v = fresh();
+    const n = heights.length;
+    const c = 40;
+    heights.forEach((h, i) => {
+      const x = 120 + i * 150;
+      for (let j = 0; j < h; j++) el("rect", { x, y: 470 - (j + 1) * c, width: 90, height: c - 3, rx: 6, fill: COLORS[i], stroke: INK, "stroke-width": 2 }, v);
+      text(v, x + 45, 510, h, { "font-size": 30, fill: INK });
+    });
+    el("line", { x1: 80, y1: 470, x2: 900, y2: 470, stroke: INK, "stroke-width": 4 }, v);
+    if (ghost != null) {
+      el("line", { x1: 80, y1: 470 - ghost * c, x2: 900, y2: 470 - ghost * c, stroke: RED, "stroke-width": 4, "stroke-dasharray": "12 8" }, v);
+      text(v, 940, 476 - ghost * c, `${ghost}`, { "font-size": 30, fill: RED });
+    }
+    text(v, 500, 40, `${n} towers · ${sum(heights)} blocks in all`, { "font-size": 28, fill: INK });
+  };
+  draw();
+  const lab = labPanel(
+    [
+      ["level", "⚖️ Level them"],
+      ["new", "🎲 New towers"],
+    ],
+    {
+      onPress: async (k) => {
+        if (busy) return;
+        if (k === "new") {
+          hs = meanList(5, 1, 9);
+          draw();
+          lab.pulse("level");
+          return say("New towers! Guess the level height first, then press ⚖️ Level them.");
+        }
+        busy = true;
+        const cur = [...hs];
+        const m = sum(hs) / hs.length;
+        while (cur.some((h) => h !== m)) {
+          const hi = cur.indexOf(Math.max(...cur));
+          const lo = cur.indexOf(Math.min(...cur));
+          cur[hi] -= 1;
+          cur[lo] += 1;
+          draw(cur);
+          ding(72 + cur[lo] * 2, { gain: 0.3 });
+          await new Promise((r) => setTimeout(r, 380));
+          if (!live()) return;
+        }
+        draw(cur, m);
+        busy = false;
+        say(`All level at ${m}! ${sum(hs)} blocks shared by ${hs.length} towers: ${sum(hs)} ÷ ${hs.length} = ${m}. That level is called the mean, or average.`);
+        lab.pulse("__q");
+      },
+      onQuestions: () => questions("d1", MEAN, { label: "Level the towers", real: { icon: "🏠", title: "Try it for real", need: ["building blocks or coins"], steps: ["Build 4 towers of different heights.", "Move one block at a time from the tallest to the shortest.", "When they are all level, count one tower. That is the mean!"] } }),
+    },
+  );
+  lab.pulse("level");
+  say("Five towers of different heights. If we share the blocks fairly, how tall will each tower be? Guess, then press ⚖️ Level them.");
+}
+
+// ---------- 2. Line them up (median, mode, range) ----------
+const MMR = {
+  easy: [
+    () => {
+      const xs = shuffle(range(1, 3).map(() => pickInt(1, 9)).concat([pickInt(1, 9), pickInt(1, 9)]));
+      const s = sorted(xs);
+      return { q: `Put these in order: ${xs.join(", ")}. Which number is in the middle?`, ans: s[2], idea: "The median is the middle number", hints: [`In order: ${s.join(", ")}.`], sol: [`In order: ${s.join(", ")}.`, `The middle (3rd of 5) is ${s[2]}.`] };
+    },
+    () => {
+      const xs = modeList(7, 1, 6);
+      return { q: `Which number appears most often? ${xs.join(", ")}`, ans: modeOf(xs), pic: dotPlot(xs, { lo: 1, hi: 6 }), idea: "The mode is the most common value", hints: ["Look for the tallest pile of dots."], sol: [`${modeOf(xs)} appears ${xs.filter((x) => x === modeOf(xs)).length} times, more than any other.`] };
+    },
+    () => {
+      const xs = range(1, 5).map(() => pickInt(1, 12));
+      return { q: `What is the difference between the biggest and smallest number? ${xs.join(", ")}`, ans: Math.max(...xs) - Math.min(...xs), idea: "The range shows how spread out data is", hints: [`Biggest: ${Math.max(...xs)}. Smallest: ${Math.min(...xs)}.`], sol: [`${Math.max(...xs)} − ${Math.min(...xs)} = ${Math.max(...xs) - Math.min(...xs)}.`] };
+    },
+    () => {
+      const pets = shuffle([["🐶", "Dog"], ["🐱", "Cat"], ["🐟", "Fish"]]);
+      const n = shuffle([pickInt(2, 3), pickInt(4, 5), pickInt(6, 7)]);
+      const fav = pets[n.indexOf(Math.max(...n))][1];
+      return { q: "A class voted for their favourite pet. Which pet got the most votes?", opts: pets.map((p) => p[1]), ans: fav, pic: (g) => pets.forEach(([e, name], i) => { emoji(g, 40, 70 + i * 120, e, 50); range(0, n[i] - 1).forEach((j) => el("rect", { x: 80 + j * 42, y: 50 + i * 120, width: 36, height: 40, rx: 6, fill: COLORS[i], stroke: INK, "stroke-width": 1.5 }, g)); }), idea: "The mode of a vote is the winner", hints: ["Which row is longest?"], sol: [`${fav} has the longest row: ${Math.max(...n)} votes.`] };
+    },
+  ],
+  medium: [
+    () => {
+      const n = pick([5, 7]);
+      const xs = range(1, n).map(() => pickInt(1, 20));
+      const s = sorted(xs);
+      return { q: `Find the median of ${xs.join(", ")}.`, ans: median(xs), idea: "Order first, then pick the middle", hints: [`Order them. There are ${n}, so the middle is number ${(n + 1) / 2}.`], sol: [`In order: ${s.join(", ")}.`, `Middle (number ${(n + 1) / 2}): ${median(xs)}.`] };
+    },
+    () => {
+      for (;;) {
+        const xs = range(1, 6).map(() => pickInt(1, 15));
+        const m = median(xs);
+        if (!Number.isInteger(m)) continue;
+        const s = sorted(xs);
+        return { q: `Find the median of ${xs.join(", ")}. (With 6 numbers, take the halfway point of the middle two.)`, ans: m, idea: "Even count: average the two middle values", hints: [`In order: ${s.join(", ")}.`, `Middle two: ${s[2]} and ${s[3]}.`], sol: [`In order: ${s.join(", ")}.`, `Middle two: ${s[2]} and ${s[3]}.`, `Halfway: (${s[2]} + ${s[3]}) ÷ 2 = ${m}.`] };
+      }
+    },
+    () => {
+      const xs = modeList(9, 3, 10);
+      return { q: `This dot plot shows how many hours some children slept. What is the mode?`, ans: modeOf(xs), pic: dotPlot(xs, { lo: 3, hi: 10, label: "hours of sleep" }), idea: "Mode = tallest stack of dots", hints: ["Find the tallest stack."], sol: [`The tallest stack is at ${modeOf(xs)}.`] };
+    },
+    () => {
+      const xs = range(1, 6).map(() => pickInt(5, 30));
+      return { q: `Daily temperatures: ${xs.join(", ")} °C. What is the range?`, ans: Math.max(...xs) - Math.min(...xs), idea: "Range = highest − lowest", hints: ["Find the highest and lowest."], sol: [`${Math.max(...xs)} − ${Math.min(...xs)} = ${Math.max(...xs) - Math.min(...xs)}.`] };
+    },
+  ],
+  hard: [
+    () => {
+      const s = sorted(range(1, 5).map(() => pickInt(2, 12)));
+      const r = s[4] - s[0];
+      return { q: `Five numbers have median ${s[2]}, range ${r}, and smallest value ${s[0]}. What is the largest value?`, ans: s[4], idea: "Range = largest − smallest", hints: [`Largest = smallest + range.`], sol: [`${s[0]} + ${r} = ${s[4]}.`] };
+    },
+    () => {
+      const xs = meanList(5, 2, 9);
+      const add = pickInt(1, 3) * 5;
+      const m = sum(xs) / 5;
+      return { q: `The mean of five numbers is ${m}. If we add ${add} to every number, what is the new mean?`, ans: m + add, idea: "Shifting every value shifts the mean", hints: ["Each tower grows by the same amount."], sol: [`Each value grows by ${add}, so the total grows by ${5 * add}.`, `New mean: ${m} + ${add} = ${m + add}.`] };
+    },
+    () => {
+      const xs = range(1, 5).map(() => pickInt(2, 9));
+      const k = pickInt(2, 3);
+      return { q: `The range of ${xs.join(", ")} is ${Math.max(...xs) - Math.min(...xs)}. If we multiply every number by ${k}, what is the new range?`, ans: (Math.max(...xs) - Math.min(...xs)) * k, idea: "Scaling every value scales the range", hints: ["The biggest and smallest are both multiplied."], sol: [`New range: ${k} × ${Math.max(...xs) - Math.min(...xs)} = ${(Math.max(...xs) - Math.min(...xs)) * k}.`] };
+    },
+    () => {
+      const xs = shuffle([pickInt(3, 6), pickInt(3, 6), pickInt(7, 9)]);
+      return { q: `Find a 4th whole number so that the median of ${xs.join(", ")} and your number is exactly ${median([...xs, Math.max(...xs)])}. Type the smallest one that works.`, ans: sorted(xs)[2], idea: "Even count: the median is halfway between the middle two", hints: ["Try numbers and order the four values each time."], sol: [`Ordered three: ${sorted(xs).join(", ")}.`, `With a 4th number ≥ ${sorted(xs)[2]}, the middle two are ${sorted(xs)[1]} and ${sorted(xs)[2]}, giving ${median([...xs, Math.max(...xs)])}.`, `The smallest that works is ${sorted(xs)[2]}.`] };
+    },
+  ],
+};
+
+function lineUp() {
+  const my = S.token;
+  let xs = [];
+  let lined = false;
+  const draw = () => {
+    if (my !== S.token) return;
+    const v = fresh();
+    const shown = lined ? sorted(xs) : xs;
+    shown.forEach((x, i) => {
+      const cx = 70 + i * 82;
+      for (let j = 0; j < x; j++) el("rect", { x: cx - 30, y: 300 - (j + 1) * 24, width: 60, height: 22, rx: 4, fill: lined && xs.length % 2 && i === (xs.length - 1) / 2 ? RED : BLUE, stroke: INK, "stroke-width": 1.5 }, v);
+      text(v, cx, 330, x, { "font-size": 26, fill: INK });
+    });
+    if (xs.length) {
+      const g = el("g", { transform: "translate(40 330) scale(1.15 0.55)" }, v);
+      dotPlot(xs, { lo: 1, hi: 10 })(g);
+      const m = modeOf(xs);
+      para(v, 520, 380, `Median (middle): ${lined ? median(xs) : "line them up!"}\nMode (most common): ${m ?? "none yet"}\nRange (biggest − smallest): ${Math.max(...xs)} − ${Math.min(...xs)} = ${Math.max(...xs) - Math.min(...xs)}`, { size: 24, width: 460 });
+    } else para(v, 60, 200, "Press 🎲 Add a height to measure some sunflowers.", { size: 30, width: 880 });
+  };
+  draw();
+  const lab = labPanel(
+    [
+      ["add", "🎲 Add a height"],
+      ["sort", "↔️ Line them up"],
+      ["clear", "↺"],
+    ],
+    {
+      onPress: (k) => {
+        if (k === "add") {
+          if (xs.length >= 11) return say("That's 11 sunflowers. Press ↔️ Line them up.");
+          xs.push(pickInt(1, 10));
+          lined = false;
+          ding(70 + xs[xs.length - 1] * 2, { gain: 0.3 });
+          if (xs.length >= 5 && xs.length % 2) lab.pulse("sort");
+          say(`A sunflower ${xs[xs.length - 1]} blocks tall. ${xs.length} so far.`);
+        }
+        if (k === "sort") {
+          if (xs.length < 3) return say("Add a few more heights first.");
+          lined = true;
+          say(xs.length % 2 ? `In order! The red one in the middle is the median: ${median(xs)}.` : `In order! With an even number, the median is halfway between the middle two: ${median(xs)}. Add one more to get a single middle.`);
+          if (xs.length % 2) lab.pulse("__q");
+        }
+        if (k === "clear") (xs = []), (lined = false);
+        draw();
+      },
+      onQuestions: () => questions("d2", MMR, { label: "Line them up", real: { icon: "🏠", title: "Try it for real", need: ["your family", "a tape measure"], steps: ["Measure everyone's height.", "Line up from shortest to tallest.", "Who is in the middle? That is the median height!"] } }),
+    },
+  );
+  lab.pulse("add");
+  say("Let's measure sunflowers! Press 🎲 Add a height a few times, then ↔️ Line them up to find the middle one.");
+}
+
+// ---------- 3. Sample jar ----------
+const SAMPLE = {
+  easy: [
+    () => {
+      const r = pickInt(1, 4);
+      const b = 10 - r;
+      return { q: `A jar has ${r} red and ${b} blue marbles. If you pick one without looking, which colour are you more likely to get?`, opts: ["Red", "Blue"], ans: r > b ? "Red" : "Blue", pic: jarPic([[COLORS[0], r], [COLORS[1], b]]), idea: "More of a colour = more likely", hints: ["Which colour is there more of?"], sol: [`There are ${b} blue and only ${r} red.`, "Blue is more likely."] };
+    },
+    () => {
+      const r = pickInt(2, 5);
+      return { q: `You pick 10 marbles from a big jar and ${r} are red. If you picked 20 marbles in the same way, about how many would you expect to be red?`, ans: r * 2, idea: "Twice the sample, about twice as many", hints: ["20 is double 10."], sol: [`${r} red out of 10.`, `Double it: about ${r * 2} red out of 20.`] };
+    },
+    () => ({ q: "To guess the favourite fruit of a whole school, which is the better plan?", opts: ["Ask 50 children from every class", "Ask 3 friends", "Ask only the teachers"], ans: "Ask 50 children from every class", idea: "A good sample is big and fair", hints: ["Which plan hears from lots of different children?"], sol: ["3 friends is too few, and they may like the same things.", "Teachers are not the children we are asking about.", "50 children from every class is big and fair."] }),
+    () => {
+      const c = pickInt(2, 4);
+      return { q: `A bag has ${c} green and ${c} yellow balls. Are you more likely to pick green, yellow, or are they equally likely?`, opts: ["Equally likely", "Green", "Yellow"], ans: "Equally likely", pic: jarPic([[COLORS[3], c], [COLORS[2], c]]), idea: "Same number = same chance", hints: ["Count each colour."], sol: [`${c} green and ${c} yellow: the same number.`, "So they are equally likely."] };
+    },
+  ],
+  medium: [
+    () => {
+      const total = pick([100, 200, 500]);
+      const n = 20;
+      const r = pickInt(2, 8);
+      return { q: `A jar has ${total} marbles. In a sample of ${n}, ${r} were red. About how many red marbles are in the whole jar?`, ans: (r * total) / n, idea: "Scale the sample up to the whole", hints: [`${total} is ${total / n} times as many as ${n}.`], sol: [`The jar is ${total / n} times bigger than the sample.`, `${r} × ${total / n} = ${(r * total) / n} red.`] };
+    },
+    () => {
+      const tagged = pick([10, 20]);
+      const caught = 20;
+      const seen = pick([2, 4, 5]);
+      return { q: `Scientists tag ${tagged} fish in a pond and let them go. Later they catch ${caught} fish and ${seen} have tags. About how many fish live in the pond?`, ans: (tagged * caught) / seen, idea: "Capture–recapture", hints: [`${seen} out of ${caught} are tagged. That fraction of the whole pond is the ${tagged} tagged fish.`], sol: [`${seen}/${caught} of the fish are tagged.`, `So ${tagged} fish is ${seen}/${caught} of the pond.`, `Pond ≈ ${tagged} × ${caught} ÷ ${seen} = ${(tagged * caught) / seen} fish.`] };
+    },
+    () => {
+      const r = pickInt(1, 4);
+      const n = pick([5, 10]);
+      return { q: `You pick ${n} marbles and ${r} are red. What fraction of your sample is red?`, opts: opts(`${r}/${n}`, [`${n}/${r}`, `${r}/${n + r}`, `${n - r}/${n}`]), ans: `${r}/${n}`, idea: "Fraction = part ÷ whole", hints: ["Red ones on top, all picked on the bottom."], sol: [`${r} red out of ${n}: ${r}/${n}.`] };
+    },
+    () => ({ q: "Which sample gives a more reliable guess?", opts: ["100 marbles", "5 marbles"], ans: "100 marbles", idea: "Bigger samples wobble less", hints: ["Which is less affected by luck?"], sol: ["With 5 marbles, one lucky pick changes the result a lot.", "With 100, luck evens out, so the guess is steadier."] }),
+  ],
+  hard: [
+    () => {
+      const p = pick([10, 20, 25, 40, 50]);
+      const n = pick([200, 400, 1000]);
+      return { q: `In a survey of ${n} people, ${p}% said they like spinach. How many people is that?`, ans: (p * n) / 100, idea: "Percent means out of 100", hints: [`${p}% of ${n} = ${p}/100 × ${n}.`], sol: [`${n} ÷ 100 = ${n / 100}.`, `${p} × ${n / 100} = ${(p * n) / 100}.`] };
+    },
+    () => {
+      const tagged = pick([30, 40, 60]);
+      const caught = pick([40, 50, 60]);
+      const seen = pick([5, 10, 20].filter((s) => (tagged * caught) % s === 0));
+      return { q: `${tagged} birds are ringed. Later, ${caught} birds are caught and ${seen} have rings. Estimate the total number of birds.`, ans: (tagged * caught) / seen, idea: "Population ≈ tagged × caught ÷ tagged-in-catch", hints: ["What fraction of the catch is ringed?"], sol: [`${seen}/${caught} of the catch is ringed.`, `${tagged} × ${caught} ÷ ${seen} = ${(tagged * caught) / seen}.`] };
+    },
+    () => ({ q: "A TV poll lets people phone in to vote. Why might it give a biased result?", opts: ["Only people who care a lot phone in", "The sample is too fair", "Phones are random", "It is always accurate"], ans: "Only people who care a lot phone in", idea: "Self-selected samples are biased", hints: ["Who chooses to be in the sample?"], sol: ["People choose whether to call.", "Those with strong opinions call more, so the sample does not represent everyone."] }),
+    () => {
+      const w = pickInt(1, 3);
+      const t = 6;
+      return { q: `In 3 samples of ${t} marbles you got ${w}, ${w + 1} and ${w + 2} red. Using all ${3 * t} marbles together, how many red per 6, on average?`, ans: w + 1, idea: "Combining samples: use the mean", hints: [`Total red: ${w} + ${w + 1} + ${w + 2}.`], sol: [`Total: ${3 * w + 3} red out of ${3 * t}.`, `Per ${t}: ${3 * w + 3} ÷ 3 = ${w + 1}.`] };
+    },
+  ],
+};
+
+function jar() {
+  const my = S.token;
+  const live = () => my === S.token;
+  const N = 100;
+  let jarBalls = [];
+  let taken = [];
+  let reveal = false;
+  let busy = false;
+  const fill = () => {
+    const red = pick([20, 30, 40, 50, 60]);
+    jarBalls = shuffle([...range(1, red).map(() => 0), ...range(1, N - red).map(() => 1)]);
+    taken = [];
+    reveal = false;
+  };
+  fill();
+  const draw = () => {
+    if (!live()) return;
+    const v = fresh();
+    el("path", { d: "M90 60H390V100Q450 130 450 200V480Q450 530 400 530H80Q30 530 30 480V200Q30 130 90 100Z", fill: "#e3f2fd", stroke: INK, "stroke-width": 5 }, v);
+    jarBalls.forEach((c, i) => {
+      if (taken.includes(i) && !reveal) return;
+      const col = i % 12;
+      const row = (i / 12) | 0;
+      el("circle", { cx: 70 + col * 30 + (row % 2) * 10, cy: 505 - row * 34, r: 13, fill: reveal || taken.includes(i) ? COLORS[c] : "#b0bec5", stroke: INK, "stroke-width": 1, opacity: taken.includes(i) ? 0.35 : 1 }, v);
+    });
+    if (!reveal) text(v, 240, 40, "🙈 Grey = can't see the colour!", { "font-size": 24, fill: INK });
+    const red = taken.filter((i) => jarBalls[i] === 0).length;
+    taken.forEach((i, k) => el("circle", { cx: 520 + (k % 10) * 44, cy: 110 + ((k / 10) | 0) * 44, r: 17, fill: COLORS[jarBalls[i]], stroke: INK, "stroke-width": 1.5 }, v));
+    const est = taken.length ? Math.round((red / taken.length) * N) : null;
+    const truth = jarBalls.filter((c) => c === 0).length;
+    para(v, 520, 360, taken.length ? `Sample: ${taken.length} marbles, ${red} red\nGuess for the jar: ${red}/${taken.length} × 100 ≈ ${est} red${reveal ? `\nReally: ${truth} red!` : ""}` : "The jar has 100 marbles, red and blue.\nHow many are red? Take a sample!", { size: 24, width: 460 });
+  };
+  draw();
+  const lab = labPanel(
+    [
+      ["one", "✋ Take 1"],
+      ["ten", "🖐️ Take 10"],
+      ["peek", "👀 Peek inside"],
+      ["new", "🔁 New jar"],
+    ],
+    {
+      onPress: async (k) => {
+        if (busy) return;
+        if (k === "new") {
+          fill();
+          draw();
+          return say("A new mystery jar. Take a sample to guess how many are red.");
+        }
+        if (k === "peek") {
+          reveal = true;
+          draw();
+          const truth = jarBalls.filter((c) => c === 0).length;
+          lab.pulse("__q");
+          return say(taken.length ? `There are really ${truth} red. Was your sample guess close? Bigger samples usually get closer.` : `There are ${truth} red. Next time, take a sample before you peek!`);
+        }
+        const want = k === "ten" ? 10 : 1;
+        busy = true;
+        for (let n = 0; n < want && taken.length < 40; n++) {
+          const left = range(0, N - 1).filter((i) => !taken.includes(i));
+          taken.push(pick(left));
+          draw();
+          ding(jarBalls[taken[taken.length - 1]] ? 79 : 84, { gain: 0.3 });
+          await new Promise((r) => setTimeout(r, want > 1 ? 160 : 0));
+          if (!live()) return;
+        }
+        busy = false;
+        const red = taken.filter((i) => jarBalls[i] === 0).length;
+        say(`${red} red out of ${taken.length}. So about ${Math.round((red / taken.length) * 100)} out of 100 might be red.${taken.length >= 20 ? " Press 👀 Peek inside to check!" : ""}`);
+        if (taken.length >= 20) lab.pulse("peek");
+      },
+      onQuestions: () => questions("d3", SAMPLE, { label: "Sample jar", real: { icon: "🏠", title: "Try it for real", need: ["a bag", "two kinds of dried beans or buttons"], steps: ["A grown-up mixes 50 of one kind and 50 of another (or other amounts, kept secret).", "Without looking, take out 10. Count each kind.", "Guess how many of each are in the bag, then count them all to check."] } }),
+    },
+  );
+  lab.pulse("ten");
+  say("A mystery jar of 100 marbles. We can't count them all, but we can take a sample! Press 🖐️ Take 10 and make a guess.");
+}
+
+function mixed() {
+  const bank = {};
+  for (const lv of ["easy", "medium", "hard"]) bank[lv] = [...MEAN[lv], ...MMR[lv], ...SAMPLE[lv]];
+  questions("d4", bank, { label: "Mixed puzzles" });
+}
+
+// ---------- See it ----------
+function seeIt() {
+  const my = S.token;
+  explain(
+    [
+      { say: "Statistics is the math of data: collecting numbers and finding the story inside them. Doctors, weather forecasters, sports coaches and scientists all use it.", draw: everyday([["🌦️", "Weather"], ["⚽", "Sports scores"], ["🩺", "Doctors"], ["🗳️", "Votes"]]) },
+      {
+        say: "Here are some towers. If we share the blocks fairly so every tower is the same height, that height is called the mean, or average.",
+        async draw(v, api) {
+          const hs = [2, 7, 4, 3];
+          const g = el("g", { transform: "translate(250 40) scale(1.25)" }, v);
+          towersPic(hs)(g);
+          await api.wait(1500);
+          g.innerHTML = "";
+          towersPic([4, 4, 4, 4])(g);
+          el("line", { x1: 10, y1: 350 - 4 * 30, x2: 390, y2: 350 - 4 * 30, stroke: RED, "stroke-width": 3, "stroke-dasharray": "10 6" }, g);
+        },
+      },
+      {
+        say: "If we line numbers up from smallest to biggest, the one in the middle is the median. The number that appears most often is the mode. And the gap from smallest to biggest is the range.",
+        draw: (v) => {
+          const g = el("g", { transform: "translate(300 60) scale(1.1)" }, v);
+          dotPlot([2, 3, 3, 3, 4, 5, 7], { lo: 1, hi: 8 })(g);
+          text(v, 200, 140, "median = 3", { "font-size": 28, fill: RED });
+          text(v, 200, 190, "mode = 3", { "font-size": 28, fill: BLUE });
+          text(v, 200, 240, "range = 7 − 2 = 5", { "font-size": 28, fill: INK });
+        },
+      },
+      {
+        say: "Sometimes there is too much to count, like all the fish in a lake. So we look at a small part, called a sample, and use it to make a good guess about the whole.",
+        draw: (v) => { const g = el("g", { transform: "translate(300 40) scale(1.2)" }, v); jarPic([[COLORS[0], 18], [COLORS[1], 36]])(g); emoji(v, 860, 300, "🔍", 100); },
+      },
+      { say: "Florence Nightingale used charts of data to show that clean hospitals save lives. Data can change the world! Let's be data detectives.", draw: (v) => { emoji(v, 500, 220, "🕵️", 140); text(v, 500, 420, "Mean · Median · Mode · Range · Samples", { "font-size": 32, fill: INK }); } },
+    ],
+    { alive: () => my === S.token, onDone: () => S.shell.go("d1"), title: "Data Detective", doneLabel: "▶ Begin" },
+  );
+}
+
+const units = { d0: seeIt, d1: towers, d2: lineUp, d3: jar, d4: mixed };
+S.shell = SHELL({
+  units: UNITS,
+  how: {
+    d0: { icon: "👀", title: "See it", steps: ["Watch and listen to each scene.", "Press Next ▶ to continue."] },
+    d1: { icon: "🧱", title: "Level the towers", steps: ["Guess the level height.", "Press ⚖️ Level them and watch.", "Then press Questions ▶."] },
+    d2: { icon: "📊", title: "Line them up", steps: ["Add sunflower heights.", "Press ↔️ Line them up to find the middle.", "Then press Questions ▶."] },
+    d3: { icon: "🫙", title: "Sample jar", steps: ["Take marbles out without looking.", "Guess how many red are in the whole jar.", "Peek inside to check, then press Questions ▶."] },
+    d4: { icon: "🧩", title: "Mixed puzzles", steps: ["Read the question and look at the picture.", "Choose or type the answer.", "💡 hints open after one try, 📖 steps after two."] },
+  },
+  start: "d0",
+  onStop() {
+    S.token += 1;
+    B.stage.querySelector(".bi-real")?.remove();
+    $("[data-panel]").onclick = null;
+  },
+  subject: "Math",
+  activity: "Data Detective",
+  onUnit(id) {
+    S.token += 1;
+    VOICE.hush();
+    units[id]();
+  },
+});
+MUSIC.preload("xylophone", range(72, 96));
+</script>
+</body>
+</html>
