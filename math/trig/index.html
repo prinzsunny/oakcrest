@@ -102,7 +102,7 @@ function shadowPic(stick, sShadow, tree, tShadow, { hideTree = false } = {}) {
     el("rect", { x: sx, y: 340, width: sShadow * k, height: 10, fill: "#555", opacity: 0.5 }, g);
     text(g, sx - 10, 340 - (stick * k) / 2, `${stick} m`, { "font-size": 20, fill: INK, "text-anchor": "end" });
     text(g, sx + (sShadow * k) / 2, 380, `${sShadow} m`, { "font-size": 20, fill: INK });
-    emoji(g, 200, 40, "☀️", 50);
+    emoji(g, 30, 40, "☀️", 50);
   };
 }
 function clockPic(h, m) {
@@ -151,9 +151,9 @@ const RAMP = {
       return { q: `How many degrees are in ${t[0]}?`, opts: ["90", "180", "360", "45"], ans: String(t[1]), pic: (g) => { el("circle", { cx: 200, cy: 200, r: 150, fill: "#fff", stroke: INK, "stroke-width": 4 }, g); const a = (t[1] * Math.PI) / 180; el("path", { d: t[1] === 360 ? "M200 200m-150 0a150 150 0 1 0 300 0a150 150 0 1 0-300 0" : `M200 200L350 200A150 150 0 ${t[1] > 180 ? 1 : 0} 0 ${200 + 150 * Math.cos(a)} ${200 - 150 * Math.sin(a)}Z`, fill: "#ffcf5c", stroke: INK, "stroke-width": 3 }, g); }, idea: "A full turn is 360 degrees", hints: ["A full turn is 360°.", "A half is half of 360. A quarter is half of a half."], sol: ["Full turn: 360°.", "Half turn: 180°. Quarter turn: 90°.", `So ${t[0]} is ${t[1]}°.`] };
     },
     () => {
-      const rise = pickInt(1, 4);
-      const run = rise * pickInt(2, 3);
-      return { q: `A ramp rises ${rise} and runs ${run}. Every time you go along ${run / rise}, how many do you go up?`, ans: 1, pic: rampPic(rise, run), idea: "Steepness compares rise to run", hints: [`Share the rise and run into ${rise} equal steps.`], sol: [`Split the ramp into ${rise} equal steps.`, `Each step goes along ${run / rise} and up 1.`] };
+      const m = pickInt(1, 3);
+      const run = pickInt(2, 4);
+      return { q: `A staircase ramp goes up ${m} for every 1 step along. It is ${run} steps long. How high does it rise?`, ans: m * run, pic: rampPic(m * run, run), idea: "Rise = up-per-step × steps", hints: [`Each step along adds ${m} up.`, `Count up by ${m}, ${run} times.`], sol: [`Each step: up ${m}.`, `${run} steps: ${range(1, run).map(() => m).join(" + ")} = ${m * run}.`] };
     },
   ],
   medium: [
@@ -167,7 +167,9 @@ const RAMP = {
       return { q: `A right triangle has one angle of 90° and another of ${a}°. The three angles add to 180°. What is the third angle?`, ans: 90 - a, pic: rampPic(3, 5, { labels: false }), idea: "Angles in a triangle add to 180°", hints: [`180 − 90 − ${a}`], sol: [`180 − 90 = 90.`, `90 − ${a} = ${90 - a}°.`] };
     },
     () => {
-      const ramps = shuffle([[1, 4], [2, 4], [3, 4], [1, 2]].map(([r, n]) => [r, n, r / n]));
+      let ramps;
+      do ramps = range(1, 4).map(() => { const r = pickInt(1, 6); const n = pickInt(2, 8); return [r, n, r / n]; });
+      while (new Set(ramps.map((r) => r[2])).size < 4);
       const best = ramps.reduce((a, b) => (b[2] > a[2] ? b : a));
       const name = (r) => `rise ${r[0]}, run ${r[1]}`;
       return { q: "Which ramp is the steepest?", opts: ramps.map(name), ans: name(best), idea: "Compare rise ÷ run", hints: ["Work out rise ÷ run for each ramp.", "The biggest slope is the steepest."], sol: [ramps.map((r) => `${r[0]}/${r[1]}`).join(", ") + ".", `The biggest is ${best[0]}/${best[1]}, so ${name(best)} is steepest.`] };
@@ -184,7 +186,10 @@ const RAMP = {
       const [a, b, c] = pick([[3, 4, 5], [6, 8, 10], [5, 12, 13], [8, 15, 17]]);
       return { q: `A right triangle has legs ${a} and ${b}. How long is the longest side? (a² + b² = c²)`, ans: c, pic: rampPic(a, b), idea: "Pythagoras: a² + b² = c²", hints: [`${a}² = ${a * a} and ${b}² = ${b * b}.`, "Add them, then find the square root."], sol: [`${a}² + ${b}² = ${a * a} + ${b * b} = ${c * c}.`, `√${c * c} = ${c}.`] };
     },
-    () => ({ q: "In a right triangle with a 30° angle, the side opposite 30° is half of the longest side. If the longest side is 10, how long is the side opposite 30°?", ans: 5, pic: rampPic(2, 3.46, { labels: false }), idea: "sin 30° = 1/2", hints: ["Half of 10."], sol: ["Opposite ÷ longest = sin 30° = 1/2.", "So the opposite side is 10 ÷ 2 = 5."] }),
+    () => {
+      const h = pickInt(2, 12) * 2;
+      return { q: `In a right triangle with a 30° angle, the side opposite 30° is half of the longest side. If the longest side is ${h}, how long is the side opposite 30°?`, ans: h / 2, pic: rampPic(2, 3.46, { labels: false }), idea: "sin 30° = 1/2", hints: [`Half of ${h}.`], sol: ["Opposite ÷ longest = sin 30° = 1/2.", `So the opposite side is ${h} ÷ 2 = ${h / 2}.`] };
+    },
     () => {
       const [o, h] = pick([[3, 5], [5, 13], [8, 17], [4, 5]]);
       return { q: `In a right triangle, the side opposite angle A is ${o} and the longest side (hypotenuse) is ${h}. What is sin A = opposite ÷ hypotenuse?`, opts: opts(`${o}/${h}`, [`${h}/${o}`, `${Math.sqrt(h * h - o * o)}/${h}`, `${o}/${Math.sqrt(h * h - o * o)}`]), ans: `${o}/${h}`, idea: "SOH: sine = opposite ÷ hypotenuse", hints: ["Put the opposite side over the hypotenuse."], sol: [`sin A = ${o} ÷ ${h} = ${o}/${h}.`] };
@@ -264,8 +269,10 @@ function ramps() {
 const SHADOW = {
   easy: [
     () => {
-      const s = pickInt(2, 5);
-      return { q: `At noon, a 1 m stick has a shadow ${s} m long. A wall nearby has a shadow ${s * 2} m long. The wall's shadow is twice as long. How tall is the wall?`, ans: 2, pic: shadowPic(1, s, 2, s * 2, { hideTree: true }), idea: "Twice the shadow, twice the height", hints: ["The wall's shadow is 2 times the stick's shadow."], sol: ["Same sun, same time, so the shadows grow in the same way.", "The wall's shadow is 2 times longer, so the wall is 2 times taller: 2 m."] };
+      const s = pickInt(1, 3);
+      const k = pickInt(2, 4);
+      const times = ["", "", "twice", "3 times", "4 times"][k];
+      return { q: `A 1 m stick has a shadow ${s} m long. A wall nearby has a shadow ${s * k} m long: ${times} as long. How tall is the wall?`, ans: k, pic: shadowPic(1, s, k, s * k, { hideTree: true }), idea: `${times[0].toUpperCase() + times.slice(1)} the shadow, ${times} the height`, hints: [`The wall's shadow is ${k} times the stick's shadow.`], sol: ["Same sun, same time, so the shadows grow in the same way.", `The wall's shadow is ${k} times longer, so the wall is ${k} times taller: ${k} m.`] };
     },
     () => {
       const h = pickInt(2, 6);
@@ -439,7 +446,7 @@ const WAVE = {
     },
     () => {
       const p = pick([2, 4, 6, 8]);
-      return { q: `A sound wave repeats ${p * 100} times a second. How many full waves pass in ${1 / 2} a second?`, ans: p * 50, idea: "Frequency: waves each second", hints: ["Half of the waves in one second."], sol: [`${p * 100} ÷ 2 = ${p * 50} waves.`] };
+      return { q: `A sound wave repeats ${p * 100} times a second. How many full waves pass in half a second?`, ans: p * 50, idea: "Frequency: waves each second", hints: ["Half of the waves in one second."], sol: [`${p * 100} ÷ 2 = ${p * 50} waves.`] };
     },
   ],
 };
@@ -552,14 +559,13 @@ function seeIt() {
       {
         say: "Here is a ramp. It goes up, called the rise, and along, called the run. A bigger rise or a shorter run makes it steeper.",
         async draw(v, api) {
-          const g = el("g", {}, v);
-          await api.tween(2600, (t) => {
+          const g = el("g", { transform: "translate(230 20) scale(1.35)" }, v);
+          for (const rise of [1, 2, 3, 4, 5, 6]) {
             g.innerHTML = "";
-            const rise = 1 + t * 5;
-            rampPic(Math.round(rise * 10) / 10, 8, { x0: 200, y0: 470, unit: 70, g, labels: false });
-          });
-          text(v, 480, 520, "run", { "font-size": 30, fill: INK });
-          text(v, 790, 300, "rise", { "font-size": 30, fill: INK, "text-anchor": "start" });
+            rampPic(rise, 8, { x0: 20, y0: 360, unit: 40, g });
+            ding(70 + rise * 3, { gain: 0.3 });
+            await api.wait(700);
+          }
         },
       },
       {
